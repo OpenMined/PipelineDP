@@ -9,7 +9,7 @@ from pipeline_dp.pipeline_operations import PipelineOperations
 
 
 class NoiseKind(Enum):
-  LAPLACIAN = 'laplace'
+  LAPLACE = 'laplace'
   GAUSSIAN = 'gaussian'
 
 

@@ -8,7 +8,7 @@ In order to run an example:
 1.Install Python and run in command line pip install numpy apache-beam absl-py
 2.Download Netflix prize dataset from https://www.kaggle.com/netflix-inc/netflix-prize-data and unpack it.
 3.The dataset itself is pretty big, for speed-up the run it's better to use a
-part of it, generate a part of it by running in bash:
+part of it. You can generate a part of it by running in bash:
 
    head -10000 combined_data_1.txt > data.txt
 
