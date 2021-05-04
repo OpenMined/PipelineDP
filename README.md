@@ -12,11 +12,11 @@ Google Python Style Guide https://google.github.io/styleguide/pyguide.html
 
 ### Installing dependencies
 
-   This project depends on numpy apache-beam absl-py dataclasses
+   This project depends on numpy apache-beam pyspark absl-py dataclasses
  
    For installing with pip please run: 
    
-   1. `pip install numpy apache-beam absl-py`
+   1. `pip install numpy apache-beam pyspark absl-py`
    
    2. (for Python 3.6) `pip install dataclasses`
    
