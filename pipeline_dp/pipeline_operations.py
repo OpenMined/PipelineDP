@@ -124,9 +124,8 @@ class SparkOperations(PipelineOperations):
     return rdd.values()
 
   def sample_fixed_per_key(self, rdd, n: int, stage_name: str = None):
-    return rdd.groupByKey()\
-      .mapValues(lambda it: list(it))\
-      .mapValues(lambda l: random.sample(l, min(len(l), n)))
+    return rdd.mapValues(lambda x: [x])\
+      .reduceByKey(lambda x, y: random.sample(x+y, min(len(x+y), n)))
 
   def count_per_element(self, rdd, stage_name: str = None):
     return rdd.map(lambda x: (x, 1))\
