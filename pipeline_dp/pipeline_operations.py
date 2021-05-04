@@ -88,8 +88,8 @@ class BeamOperations(PipelineOperations):
     return col | stage_name >> combiners.Count.PerElement()
 
 
-class SparkOperations(PipelineOperations):
-  """Apache Spark Core adapter."""
+class SparkRDDOperations(PipelineOperations):
+  """Apache Spark RDD adapter."""
 
   def map(self, rdd, fn, stage_name: str = None):
     return rdd.map(fn)

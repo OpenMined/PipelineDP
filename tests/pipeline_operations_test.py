@@ -8,16 +8,16 @@ class PipelineOperationsTest(unittest.TestCase):
   pass
 
 
-class SparkOperationsTest(unittest.TestCase):
+class SparkRDDOperationsTest(unittest.TestCase):
   @classmethod
   def setUpClass(cls):
     conf = pyspark.SparkConf()
-    SparkOperationsTest.sc = pyspark.SparkContext(conf=conf)
+    SparkRDDOperationsTest.sc = pyspark.SparkContext(conf=conf)
 
   def test_sample_fixed_per_key(self):
-    spark_operations = pipeline_dp.SparkOperations()
+    spark_operations = pipeline_dp.SparkRDDOperations()
     data = [(1, 11), (2, 22), (3, 33), (1, 14), (2, 25), (1, 16)]
-    dist_data = SparkOperationsTest.sc.parallelize(data)
+    dist_data = SparkRDDOperationsTest.sc.parallelize(data)
     rdd = spark_operations.sample_fixed_per_key(dist_data, 2)
     result = dict(rdd.collect())
     self.assertEqual(len(result[1]), 2)
@@ -26,9 +26,9 @@ class SparkOperationsTest(unittest.TestCase):
     self.assertSetEqual(set(result[3]), {33})
 
   def test_count_per_element(self):
-    spark_operations = pipeline_dp.SparkOperations()
+    spark_operations = pipeline_dp.SparkRDDOperations()
     data = ['a', 'b', 'a']
-    dist_data = SparkOperationsTest.sc.parallelize(data)
+    dist_data = SparkRDDOperationsTest.sc.parallelize(data)
     rdd = spark_operations.count_per_element(dist_data)
     result = rdd.collect()
     result = dict(result)
@@ -36,7 +36,7 @@ class SparkOperationsTest(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
-      SparkOperationsTest.sc.stop()
+      SparkRDDOperationsTest.sc.stop()
 
 
 class LocalPipelineOperationsTest(unittest.TestCase):
