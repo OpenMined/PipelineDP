@@ -131,3 +131,34 @@ class SparkOperations(PipelineOperations):
   def count_per_element(self, rdd, stage_name: str = None):
     return rdd.map(lambda x: (x, 1))\
       .reduceByKey(lambda x, y: (x + y))
+
+
+class LocalPipelineOperations(PipelineOperations):
+  """Local Pipeline adapter."""
+  
+  def map(self, col, fn, stage_name: str):
+    pass
+
+  def map_tuple(self, col, fn, stage_name: str):
+    pass
+
+  def map_values(self, col, fn, stage_name: str):
+    pass
+
+  def group_by_key(self, col, stage_name: str):
+    pass
+
+  def filter(self, col, fn, stage_name: str):
+    pass
+
+  def keys(self, col, stage_name: str):
+    pass
+
+  def values(self, col, stage_name: str):
+    pass
+
+  def sample_fixed_per_key(self, col, n: int, stage_name: str):
+    pass
+
+  def count_per_element(self, col, stage_name: str):
+    pass
