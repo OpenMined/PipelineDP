@@ -135,8 +135,8 @@ class SparkRDDOperations(PipelineOperations):
 class LocalPipelineOperations(PipelineOperations):
   """Local Pipeline adapter."""
   
-  def map(self, col, fn, stage_name: str):
-    pass
+  def map(self, col, fn, stage_name: str = None):
+    return map(fn, col)
 
   def map_tuple(self, col, fn, stage_name: str):
     pass
