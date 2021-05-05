@@ -1,36 +1,36 @@
 """Privacy budget accounting for DP pipelines."""
 
+import logging
+from dataclasses import dataclass
 
+@dataclass
 class Budget:
-  """Manages the budget allocated for an operation."""
+  """Manages the budget allocated for an operation.
 
-  def __init__(self, weight, use_eps, use_delta, eps=None, delta=None):
-    """Constructs a Budget.
-
-    The values for eps and delta will be computed only after the pipeline was
-    constructed and the method compute_budgets was called.
-
-    Args:
-      weight: The weight is used to get more accurate results.
-      use_eps: A boolean that is False when the operation doesn't need epsilon.
-      use_delta: A boolean that is False when the operation doesn't need delta.
-    """
-    self._eps = eps
-    self._delta = delta
-    self.weight = weight
-    self.use_eps = use_eps
-    self.use_delta = use_delta
+  The values for eps and delta will be computed only after the pipeline was
+  constructed and the method compute_budgets was called.
+  """
+  _eps: float = None
+  _delta: float = None
 
   @property
   def eps(self):
-    """eps: Optional; Parameter of (eps, delta)-differential privacy."""
+    """Parameter of (eps, delta)-differential privacy.
+
+    Raises:
+      AssertionError: The privacy budget is not calculated yet.
+    """
     if self._eps is None:
       raise AssertionError("Privacy budget is not calculated yet.")
     return self._eps
 
   @property
   def delta(self):
-    """delta: Optional; Parameter of (eps, delta)-differential privacy."""
+    """Parameter of (eps, delta)-differential privacy.
+
+    Raises:
+      AssertionError: The privacy budget is not calculated yet.
+    """
     if self._delta is None:
       raise AssertionError("Privacy budget is not calculated yet.")
     return self._delta
@@ -39,6 +39,13 @@ class Budget:
     self._eps = eps
     self._delta = delta
 
+@dataclass
+class RequestedBudget:
+  """Manages the budget requested for an operation."""
+  budget: Budget
+  weight: float
+  use_eps: bool
+  use_delta: bool
 
 class BudgetAccountant:
   """Manages the privacy budget."""
@@ -58,7 +65,7 @@ class BudgetAccountant:
     self._delta = delta
     self._requested_budgets = []
 
-  def request_budget(self, weight, use_eps, use_delta):
+  def request_budget(self, weight, *, use_eps, use_delta):
     """Requests a budget.
 
     Args:
@@ -70,22 +77,26 @@ class BudgetAccountant:
       A "lazy" budget object that doesn't contain epsilon/delta until the
       method compute_budgets is called.
     """
-    budget = Budget(weight=weight, use_eps=use_eps, use_delta=use_delta)
-    self._requested_budgets.append(budget)
+    budget = Budget()
+    requested_budget = RequestedBudget(budget, weight, use_eps, use_delta)
+    self._requested_budgets.append(requested_budget)
     return budget
 
   def compute_budgets(self):
     """Computes the budgets after constructing the pipeline."""
     if not self._requested_budgets:
-      print("No budgets were requested.")
+      logging.warning("No budgets were requested.")
       return
 
-    total_weight = sum([budget.weight for budget in self._requested_budgets])
+    total_weight_eps = total_weight_delta = 0
+    for requested_budget in self._requested_budgets:
+      total_weight_eps += requested_budget.use_eps * requested_budget.weight
+      total_weight_delta += requested_budget.use_delta * requested_budget.weight
 
-    for budget in self._requested_budgets:
-      eps = 0
-      delta = 0
-      if total_weight != 0:
-        eps = budget.use_eps * self._eps * budget.weight / total_weight
-        delta = budget.use_delta * self._delta * budget.weight / total_weight
-      budget.set_eps_delta(eps, delta)
+    for requested_budget in self._requested_budgets:
+      eps = delta = 0
+      if total_weight_eps:
+        eps = requested_budget.use_eps * self._eps * requested_budget.weight / total_weight_eps
+      if total_weight_delta:
+        delta = requested_budget.use_delta * self._delta * requested_budget.weight / total_weight_delta
+      requested_budget.budget.set_eps_delta(eps, delta)
