@@ -7,8 +7,8 @@ from dataclasses import dataclass
 class Budget:
     """Manages the budget allocated for an operation.
 
-    The values for eps and delta will be computed only after the pipeline was
-    constructed and the method compute_budgets was called.
+    The values for eps and delta are computed when the method compute_budgets
+    of the corresponding BudgetAccount is called.
     """
     _eps: float = None
     _delta: float = None
@@ -50,7 +50,7 @@ class RequestedBudget:
 class BudgetAccountant:
     """Manages the privacy budget."""
 
-    def __init__(self, epsilon, delta):
+    def __init__(self, epsilon: float, delta: float):
         """Constructs a BudgetAccountant.
 
         Args:
@@ -65,7 +65,7 @@ class BudgetAccountant:
         self._delta = delta
         self._requested_budgets = []
 
-    def request_budget(self, weight, *, use_eps, use_delta):
+    def request_budget(self, weight: float, *, use_eps: bool, use_delta: bool) -> Budget:
         """Requests a budget.
 
         Args:
@@ -83,7 +83,7 @@ class BudgetAccountant:
         return budget
 
     def compute_budgets(self):
-        """Computes the budgets after constructing the pipeline."""
+        """All previously requested Budget objects are updated with corresponding budget values."""
         if not self._requested_budgets:
             logging.warning("No budgets were requested.")
             return
