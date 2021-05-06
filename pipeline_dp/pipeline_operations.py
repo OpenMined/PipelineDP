@@ -124,6 +124,18 @@ class SparkRDDOperations(PipelineOperations):
         return rdd.values()
 
     def sample_fixed_per_key(self, rdd, n: int, stage_name: str = None):
+        """Get fixed-size random samples for each unique key in an RDD of key-values.
+        Sampling is guaranteed to be not uniform across partitions.
+
+        Args:
+          rdd: input RDD
+          n: number of values to sample for each key
+          stage_name: not used
+
+        Returns:
+          An RDD of tuples.
+
+        """
         return rdd.mapValues(lambda x: [x])\
             .reduceByKey(lambda x, y: random.sample(x+y, min(len(x)+len(y), n)))
 
@@ -139,7 +151,7 @@ class LocalPipelineOperations(PipelineOperations):
         return map(fn, col)
 
     def map_tuple(self, col, fn, stage_name: str):
-        pass
+        return (fn(k, v) for k, v in col)
 
     def map_values(self, col, fn, stage_name: str):
         pass
