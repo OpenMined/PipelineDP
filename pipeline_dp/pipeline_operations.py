@@ -125,7 +125,7 @@ class SparkRDDOperations(PipelineOperations):
 
     def sample_fixed_per_key(self, rdd, n: int, stage_name: str = None):
         """Get fixed-size random samples for each unique key in an RDD of key-values.
-        Sampling is guaranteed to be not uniform across partitions.
+        Sampling is not guaranteed to be uniform across partitions.
 
         Args:
           rdd: input RDD
