@@ -2,8 +2,8 @@
 
 import unittest
 
+from pipeline_dp.aggregate_params import AggregateParams, Metrics
 from pipeline_dp.report_generator import ReportGenerator
-from pipeline_dp.dp_engine import AggregateParams, Metrics
 
 class ReportGeneratorTest(unittest.TestCase):
   def test_report_empty(self):
@@ -15,9 +15,9 @@ class ReportGeneratorTest(unittest.TestCase):
       max_contributions_per_partition=1,
       low=1,
       high=5,
-      metrics=[Metrics.PRIVACY_ID_COUNT,Metrics.COUNT,Metrics.MEAN],
+      metrics=[Metrics.PRIVACY_ID_COUNT, Metrics.COUNT, Metrics.MEAN],
     )
-    ReportGenerator(params).report() # no errors
+    ReportGenerator(params).report()  # no errors
 
   def test_report_aggregate(self):
     params1 = AggregateParams(
@@ -25,21 +25,21 @@ class ReportGeneratorTest(unittest.TestCase):
       max_contributions_per_partition=2,
       low=1,
       high=5,
-      metrics=[Metrics.PRIVACY_ID_COUNT,Metrics.COUNT, Metrics.MEAN],
+      metrics=[Metrics.PRIVACY_ID_COUNT, Metrics.COUNT, Metrics.MEAN],
     )
     params2 = AggregateParams(
       max_partitions_contributed=1,
       max_contributions_per_partition=3,
       low=2,
       high=10,
-      metrics=[Metrics.VAR,Metrics.SUM,Metrics.MEAN],
+      metrics=[Metrics.VAR, Metrics.SUM, Metrics.MEAN],
       public_partitions = list(range(1,40)),
     )
     engine_stub = DPEngineStub()
     engine_stub.aggregate(params1)
     engine_stub.aggregate(params2)
     for _, report_aggregate in enumerate(engine_stub.report_generators):
-      print(report_aggregate.report()) # no errors
+      print(report_aggregate.report())  # no errors
 
 class DPEngineStub():
   """Stub DPEngine for testing."""
@@ -63,8 +63,8 @@ class DPEngineStub():
     else:
       self._add_report_stage(
         "Partitions selection: using provided public partition")
-    noise_beta = [16.0,16.0,80.0,]
-    noise_std = [22.62,22.62,113,]
+    noise_beta = [16.0, 16.0, 80.0,]
+    noise_std = [22.62, 22.62, 113,]
     self._add_report_stage(
       f"Adding laplace random noise with scale={noise_beta} " \
       f"(std={noise_std}) to ({[m.value[0] for m in params.metrics]})" \
