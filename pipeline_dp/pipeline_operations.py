@@ -5,6 +5,7 @@ import random
 import abc
 import apache_beam as beam
 import apache_beam.transforms.combiners as combiners
+from collections import defaultdict
 
 
 class PipelineOperations(abc.ABC):
@@ -156,8 +157,11 @@ class LocalPipelineOperations(PipelineOperations):
     def map_values(self, col, fn, stage_name: str):
         pass
 
-    def group_by_key(self, col, stage_name: str):
-        pass
+    def group_by_key(self, col, stage_name: str = None):
+        d = defaultdict(list)
+        for key, value in col:
+            d[key].append(value)
+        return (d.items())
 
     def filter(self, col, fn, stage_name: str):
         pass
