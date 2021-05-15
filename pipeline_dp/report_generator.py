@@ -21,7 +21,7 @@ class ReportGenerator:
     """Add a stage description to the report.
 
     Args:
-     text: string of function that returns string in case of lazy budget split.
+     text: string or function that returns string
     """
     self._stages.append(text)
 
