@@ -150,7 +150,7 @@ class LocalPipelineOperations(PipelineOperations):
     def map(self, col, fn, stage_name: str = None):
         return map(fn, col)
 
-    def map_tuple(self, col, fn, stage_name: str):
+    def map_tuple(self, col, fn, stage_name: str = None):
         return (fn(k, v) for k, v in col)
 
     def map_values(self, col, fn, stage_name: str):
