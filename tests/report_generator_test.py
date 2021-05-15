@@ -7,7 +7,7 @@ from pipeline_dp.report_generator import ReportGenerator
 
 class ReportGeneratorTest(unittest.TestCase):
   def test_report_empty(self):
-    self.assertIsNone(ReportGenerator(None).report())
+    self.assertEqual("", ReportGenerator(None).report())
 
   def test_report_params(self):
     test_report = ("Differential private: Computing metrics: ['p', 'c', 'm']"
@@ -24,11 +24,13 @@ class ReportGeneratorTest(unittest.TestCase):
     self.assertIn(test_report, generated_report)
 
 def aggregate_stub(params: AggregateParams) -> str:
-    report_generator = ReportGenerator(params)
-    report_generator.add_stage(f"Clip values to {params.low, params.high}")
-    report_generator.add_stage(f"Per-partition contribution: {params.max_partitions_contributed}")
-    report_generator.add_stage(f"Cross partition contribution bounding: {params.max_contributions_per_partition}")
-    return report_generator.report()
+  report_generator = ReportGenerator(params)
+  report_generator.add_stage(f"Clip values to {params.low, params.high}")
+  report_generator.add_stage(("Per-partition contribution: "
+    f"{params.max_partitions_contributed}"))
+  report_generator.add_stage(("Cross partition contribution bounding: "
+    f"{params.max_contributions_per_partition}"))
+  return report_generator.report()
 
 if __name__ == "__main__":
   unittest.main()

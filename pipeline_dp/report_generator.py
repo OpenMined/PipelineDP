@@ -1,5 +1,6 @@
 """Generator for explain DP computations reports."""
 from pipeline_dp.aggregate_params import AggregateParams
+
 class ReportGenerator:
   """Generate a report based on the metrics and stages in the pipeline.
 
@@ -9,34 +10,23 @@ class ReportGenerator:
   """
 
   def __init__(self, params: AggregateParams):
-    """Initialize the ReportGenerator.
-
-    Args:
-      params (AggregateParams): An object containing a list of parameters.
-    """
+    """Initialize the ReportGenerator."""
     self._params = params
     self._stages = []
 
   def add_stage(self, text: str):
-    """Add a stage description to the report.
-
-    Args:
-     text: string or function that returns string
-    """
+    """Add a stage description to the report."""
     self._stages.append(text)
 
   def report(self) -> str:
-    """Constructs a report based on stages and metrics.
-
-    Returns:
-      A string representation of the constructed report.
-    """
-    if self._params is not None:
-      title = f"Computing metrics: {[m.value[0] for m in self._params.metrics]}"
-      result = [f"Differential private: {title}"]
-      for i, stage_str in enumerate(self._stages):
-        if hasattr(stage_str, "__call__"):
-          result.append(f"{i+1}. {stage_str()}")
-        else:
-          result.append(f"{i+1}. {stage_str}")
-      return "\n".join(result)
+    """Constructs a report based on stages and metrics."""
+    if self._params is None:
+      return ""
+    title = f"Computing metrics: {[m.value[0] for m in self._params.metrics]}"
+    result = [f"Differential private: {title}"]
+    for i, stage_str in enumerate(self._stages):
+      if hasattr(stage_str, "__call__"):
+        result.append(f"{i+1}. {stage_str()}")
+      else:
+        result.append(f"{i+1}. {stage_str}")
+    return "\n".join(result)
