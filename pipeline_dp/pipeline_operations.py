@@ -158,10 +158,13 @@ class LocalPipelineOperations(PipelineOperations):
         pass
 
     def group_by_key(self, col, stage_name: str = None):
-        d = defaultdict(list)
-        for key, value in col:
-            d[key].append(value)
-        return (d.items())
+        def group_by_key_generator():
+            d = defaultdict(list)
+            for key, value in col:
+                d[key].append(value)
+            for item in d.items():
+                yield item
+        return group_by_key_generator()
 
     def filter(self, col, fn, stage_name: str):
         pass

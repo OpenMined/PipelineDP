@@ -69,7 +69,8 @@ class LocalPipelineOperationsTest(unittest.TestCase):
                      ("cheese", "swiss")]
 
         self.assertEqual(list(self.ops.group_by_key(some_dict)), [
-                         ("cheese", ["brie", "swiss"]), ("bread", ["sourdough"])])
+                         ("cheese", ["brie", "swiss"]),
+                         ("bread", ["sourdough"])])
 
 
 if __name__ == '__main__':
