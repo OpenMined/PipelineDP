@@ -46,9 +46,12 @@ class LocalPipelineOperationsTest(unittest.TestCase):
         cls.ops = LocalPipelineOperations()
 
     def test_local_map(self):
-        some_map = self.ops.map([1, 2, 3], lambda x: x)
-        # some_map is its own consumable iterator
-        self.assertIs(some_map, iter(some_map))
+        self.assertEqual(list(self.ops.map([], lambda x: x / 0)),
+                         [])
+
+        some_mapped_list = self.ops.map([1, 2, 3], lambda x: x)
+        # some_mapped_list is its own consumable iterator
+        self.assertIs(some_mapped_list, iter(some_mapped_list))
 
         self.assertEqual(list(self.ops.map([1, 2, 3], str)),
                          ["1", "2", "3"])
@@ -64,6 +67,17 @@ class LocalPipelineOperationsTest(unittest.TestCase):
         self.assertEqual(list(self.ops.map_tuple(tuple_list, lambda k, v: (
             str(k), str(v)))), [("1", "2"), ("2", "3"), ("3", "4")])
 
+    def test_local_map_values(self):
+        self.assertEqual(list(self.ops.map_values([], lambda x: x / 0)),
+                         [])
+
+        tuple_list = [(1, 2), (2, 3), (3, 4)]
+
+        self.assertEqual(list(self.ops.map_values(tuple_list, str)),
+                         [(1, "2"), (2, "3"), (3, "4")])
+        self.assertEqual(list(self.ops.map_values(tuple_list, lambda x: x**2)),
+                         [(1, 4), (2, 9), (3, 16)])
+
     def test_local_group_by_key(self):
         some_dict = [("cheese", "brie"), ("bread", "sourdough"),
                      ("cheese", "swiss")]
@@ -71,6 +85,37 @@ class LocalPipelineOperationsTest(unittest.TestCase):
         self.assertEqual(list(self.ops.group_by_key(some_dict)), [
                          ("cheese", ["brie", "swiss"]),
                          ("bread", ["sourdough"])])
+
+    def test_local_filter(self):
+        self.assertEqual(list(self.ops.filter([], lambda x: True)),
+                         [])
+        self.assertEqual(list(self.ops.filter([], lambda x: False)),
+                         [])
+
+        example_list = [1, 2, 2, 3, 3, 4, 2]
+
+        self.assertEqual(list(self.ops.filter(example_list, lambda x: x % 2)),
+                         [1, 3, 3])
+        self.assertEqual(list(self.ops.filter(example_list, lambda x: x < 3)),
+                         [1, 2, 2, 2])
+
+    def test_local_values(self):
+        self.assertEqual(list(self.ops.values([])),
+                         [])
+
+        example_list = [(1, 2), (2, 3), (3, 4), (4, 8)]
+
+        self.assertEqual(list(self.ops.values(example_list)),
+                         [2, 3, 4, 8])
+
+    def test_local_count_per_element(self):
+        example_list = [1, 2, 3, 4, 5, 6, 1, 4, 0, 1]
+        result = self.ops.count_per_element(example_list)
+        # result is its own consumable iterator
+        self.assertIs(result, iter(result))
+
+        self.assertEqual(dict(result),
+                         {1: 3, 2: 1, 3: 1, 4: 2, 5: 1, 6: 1, 0: 1})
 
 
 if __name__ == '__main__':
