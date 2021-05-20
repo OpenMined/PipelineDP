@@ -145,11 +145,11 @@ class SparkRDDOperations(PipelineOperations):
           An RDD of tuples.
 
         """
-        return rdd.mapValues(lambda x: [x])\
-            .reduceByKey(lambda x, y: random.sample(x+y, min(len(x)+len(y), n)))
+        return rdd.mapValues(lambda x: [x]) \
+            .reduceByKey(lambda x, y: random.sample(x + y, min(len(x) + len(y), n)))
 
     def count_per_element(self, rdd, stage_name: str = None):
-        return rdd.map(lambda x: (x, 1))\
+        return rdd.map(lambda x: (x, 1)) \
             .reduceByKey(lambda x, y: (x + y))
 
 
@@ -163,7 +163,7 @@ class LocalPipelineOperations(PipelineOperations):
         return [x for el in col for x in fn(el)]
 
     def map_tuple(self, col, fn, stage_name: str = None):
-        return list(map(lambda x : fn(*x), col))
+        return list(map(lambda x: fn(*x), col))
 
     def map_values(self, col, fn, stage_name: str):
         pass
@@ -183,19 +183,19 @@ class LocalPipelineOperations(PipelineOperations):
     def sample_fixed_per_key(self, col, n: int, stage_name: str):
         d = defaultdict(lambda: [])
         for k, v in col:
-          d[k].append(v)
+            d[k].append(v)
 
         result = []
         for k, values in d.items():
-          if len(values) <= n:
-            result.append((k, values))
-            continue
-          # random.choice doesn't work with list of tuples, so it's needed to make
-          # choice over indices.
-          sampled_indices = np.random.choice(range(len(values)), n, replace=False)
-          sampled_values = [values[i] for i in sampled_indices]
-          # sampled_values = list(np.random.choice(values, n, replace=False))
-          result.append((k, sampled_values))
+            if len(values) <= n:
+                result.append((k, values))
+                continue
+            # random.choice doesn't work with list of tuples, so it's needed to make
+            # choice over indices.
+            sampled_indices = np.random.choice(range(len(values)), n, replace=False)
+            sampled_values = [values[i] for i in sampled_indices]
+            # sampled_values = list(np.random.choice(values, n, replace=False))
+            result.append((k, sampled_values))
         return result
 
     def count_per_element(self, col, stage_name: str):
