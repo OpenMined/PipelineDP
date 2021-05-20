@@ -1,6 +1,8 @@
 """Adapters for working with pipeline frameworks."""
 
 import random
+from collections import defaultdict
+import numpy as np
 
 import abc
 import apache_beam as beam
@@ -13,6 +15,10 @@ class PipelineOperations(abc.ABC):
     @abc.abstractmethod
     def map(self, col, fn, stage_name: str):
         pass
+
+    @abc.abstractmethod
+    def flat_map(self, col, fn, stage_name: str):
+        return col | stage_name >> beam.FlatMap(fn)
 
     @abc.abstractmethod
     def map_tuple(self, col, fn, stage_name: str):
@@ -52,6 +58,9 @@ class BeamOperations(PipelineOperations):
 
     def map(self, col, fn, stage_name: str):
         return col | stage_name >> beam.Map(fn)
+
+    def flat_map(self, col, fn, stage_name: str):
+        return col | stage_name >> beam.FlatMap(fn)
 
     def map_tuple(self, col, fn, stage_name: str):
         return col | stage_name >> beam.MapTuple(fn)
@@ -150,8 +159,11 @@ class LocalPipelineOperations(PipelineOperations):
     def map(self, col, fn, stage_name: str = None):
         return map(fn, col)
 
+    def flat_map(self, col, fn, stage_name: str):
+        return [x for el in col for x in fn(el)]
+
     def map_tuple(self, col, fn, stage_name: str = None):
-        return (fn(k, v) for k, v in col)
+        return list(map(lambda x : fn(*x), col))
 
     def map_values(self, col, fn, stage_name: str):
         pass
@@ -169,7 +181,22 @@ class LocalPipelineOperations(PipelineOperations):
         pass
 
     def sample_fixed_per_key(self, col, n: int, stage_name: str):
-        pass
+        d = defaultdict(lambda: [])
+        for k, v in col:
+          d[k].append(v)
+
+        result = []
+        for k, values in d.items():
+          if len(values) <= n:
+            result.append((k, values))
+            continue
+          # random.choice doesn't work with list of tuples, so it's needed to make
+          # choice over indices.
+          sampled_indices = np.random.choice(range(len(values)), n, replace=False)
+          sampled_values = [values[i] for i in sampled_indices]
+          # sampled_values = list(np.random.choice(values, n, replace=False))
+          result.append((k, sampled_values))
+        return result
 
     def count_per_element(self, col, stage_name: str):
         pass
