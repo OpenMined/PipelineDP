@@ -1,7 +1,7 @@
 """Adapters for working with pipeline frameworks."""
 
 import random
-from collections import defaultdict
+import collections
 import numpy as np
 
 import abc
@@ -161,10 +161,10 @@ class LocalPipelineOperations(PipelineOperations):
         return map(fn, col)
 
     def flat_map(self, col, fn, stage_name: str):
-        return [x for el in col for x in fn(el)]
+        return (x for el in col for x in fn(el))
 
     def map_tuple(self, col, fn, stage_name: str = None):
-        return list(map(lambda x: fn(*x), col))
+        return map(lambda x: fn(*x), col)
 
     def map_values(self, col, fn, stage_name: str):
         pass
@@ -182,22 +182,20 @@ class LocalPipelineOperations(PipelineOperations):
         pass
 
     def sample_fixed_per_key(self, col, n: int, stage_name: str):
-        d = defaultdict(lambda: [])
-        for k, v in col:
-            d[k].append(v)
+        # TODO: replace to group_by_key
+        d = collections.defaultdict(lambda: [])
+        for key, v in col:
+            d[key].append(v)
 
         result = []
-        for k, values in d.items():
+        for key, values in d.items():
             if len(values) <= n:
-                result.append((k, values))
+                result.append((key, values))
                 continue
-            # random.choice doesn't work with list of tuples, so it's needed to make
-            # choice over indices.
             sampled_indices = np.random.choice(range(len(values)), n,
                                                replace=False)
             sampled_values = [values[i] for i in sampled_indices]
-            # sampled_values = list(np.random.choice(values, n, replace=False))
-            result.append((k, sampled_values))
+            result.append((key, sampled_values))
         return result
 
     def count_per_element(self, col, stage_name: str):
