@@ -18,7 +18,7 @@ class PipelineOperations(abc.ABC):
 
     @abc.abstractmethod
     def flat_map(self, col, fn, stage_name: str):
-        return col | stage_name >> beam.FlatMap(fn)
+        pass
 
     @abc.abstractmethod
     def map_tuple(self, col, fn, stage_name: str):
