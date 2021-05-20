@@ -17,7 +17,7 @@ class dp_engineTest(unittest.TestCase):
 
         dp_engine = pipeline_dp.DPEngine(
             pipeline_dp.BudgetAccountant(epsilon=1, delta=1e-10),
-            pipeline_dp.LocalPipelineOperations())
+            pipeline_dp..BeamOperations())
         bound_op = list(dp_engine._bound_cross_partition_contributions(
             input_col,
             max_partitions_contributed=max_partitions_contributed,
@@ -36,7 +36,7 @@ class dp_engineTest(unittest.TestCase):
 
         dp_engine = pipeline_dp.DPEngine(
             pipeline_dp.BudgetAccountant(epsilon=1, delta=1e-10),
-            pipeline_dp.LocalPipelineOperations())
+            pipeline_dp..BeamOperations())
         bound_op = list(dp_engine._bound_cross_partition_contributions(
             input_col,
             max_partitions_contributed=max_partitions_contributed,
@@ -59,7 +59,7 @@ class dp_engineTest(unittest.TestCase):
 
         dp_engine = pipeline_dp.DPEngine(
             pipeline_dp.BudgetAccountant(epsilon=1, delta=1e-10),
-            pipeline_dp.LocalPipelineOperations())
+            pipeline_dp..BeamOperations())
         bound_op = list(dp_engine._bound_cross_partition_contributions(
             input_col,
             max_partitions_contributed=max_partitions_contributed,
@@ -85,7 +85,7 @@ class dp_engineTest(unittest.TestCase):
 
         dp_engine = pipeline_dp.DPEngine(
             pipeline_dp.BudgetAccountant(epsilon=1, delta=1e-10),
-            pipeline_dp.LocalPipelineOperations())
+            pipeline_dp..BeamOperations())
         bound_op = list(dp_engine._bound_cross_partition_contributions(
             input_col,
             max_partitions_contributed=max_partitions_contributed,

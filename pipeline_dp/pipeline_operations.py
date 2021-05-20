@@ -63,7 +63,7 @@ class BeamOperations(PipelineOperations):
         return col | stage_name >> beam.FlatMap(fn)
 
     def map_tuple(self, col, fn, stage_name: str):
-        return col | stage_name >> beam.MapTuple(fn)
+        return col | stage_name >> beam.Map(lambda x: fn(*x))
 
     def map_values(self, col, fn, stage_name: str):
         return col | stage_name >> beam.MapTuple(lambda k, v: (k, fn(v)))
