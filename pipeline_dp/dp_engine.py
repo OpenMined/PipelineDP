@@ -49,17 +49,21 @@ class DPEngine:
                                              max_contributions_per_partition: int,
                                              aggregator_fn):
         """
-        Binds the contribution by privacy_id within and across partitions
+        Bounds the contribution by privacy_id in and cross partitions
         Args:
-          col:collection, with types of each element: (privacy_id, partition_key, value)
-          max_partitions_contributed
-          max_contributions_per_partition
-          aggregator_fn: function that takes a list of values and returns an aggregator object
-                        which handles all aggregation logic.
+          col: collection, with types of each element: (privacy_id,
+            partition_key, value)
+          max_partitions_contributed: maximum number of partitions that one
+            privacy id can contribute to
+          max_contributions_per_partition: maximum number of records that one
+            privacy id can contribute to one partition
+          aggregator_fn: function that takes a list of values and returns an
+            aggregator object which handles all aggregation logic.
 
-        output:((privacy_id, parition_key), aggregator)
+        return: collection with elements ((privacy_id, partition_key),
+              aggregator)
         """
-        #  per partition-contribution bounding with bounding of each contribution
+        # per partition-contribution bounding with bounding of each contribution
         col = self._ops.map_tuple(col, lambda privacy_id, partition_key, v:
         ((privacy_id, partition_key), v),
                                   "To (privacy_id, partition_key), value))")

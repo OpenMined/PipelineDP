@@ -146,7 +146,8 @@ class SparkRDDOperations(PipelineOperations):
 
         """
         return rdd.mapValues(lambda x: [x]) \
-            .reduceByKey(lambda x, y: random.sample(x + y, min(len(x) + len(y), n)))
+            .reduceByKey(
+            lambda x, y: random.sample(x + y, min(len(x) + len(y), n)))
 
     def count_per_element(self, rdd, stage_name: str = None):
         return rdd.map(lambda x: (x, 1)) \
@@ -192,7 +193,8 @@ class LocalPipelineOperations(PipelineOperations):
                 continue
             # random.choice doesn't work with list of tuples, so it's needed to make
             # choice over indices.
-            sampled_indices = np.random.choice(range(len(values)), n, replace=False)
+            sampled_indices = np.random.choice(range(len(values)), n,
+                                               replace=False)
             sampled_values = [values[i] for i in sampled_indices]
             # sampled_values = list(np.random.choice(values, n, replace=False))
             result.append((k, sampled_values))
