@@ -45,8 +45,11 @@ class DPEngine:
 
   def _bound_cross_partition_contributions(self, col, max_partitions_contributed: int, max_contributions_per_partition: int, aggregator_fn):
     """
+    Binds the contribution by privacy_id within and across partitions
     Args:
       col:collection, with types of each element: (privacy_id, partition_key, value)
+      max_partitions_contributed
+      max_contributions_per_partition
       aggregator_fn: function that takes a list of values and returns an aggregator object which handles all aggregation logic.
 
     output:((privacy_id, parition_key), aggregator)
@@ -65,5 +68,5 @@ class DPEngine:
     col = self._ops.sample_fixed_per_key(col, max_partitions_contributed,
                                       "Sample per privacy_id")
     return self._ops.flat_map(col, lambda pid: [((pid[0], pk_v[0]),
-                                                  aggregator_fn(pk_v[1])) 
+                                                  aggregator_fn(pk_v[1]))
                                                  for pk_v in pid[1]], "Unnest")
