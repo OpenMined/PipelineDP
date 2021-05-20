@@ -10,6 +10,21 @@ class DPEngineTest(unittest.TestCase):
                                            np.sum(inp_values),
                                            np.sum(np.square(inp_values)))
 
+  def testContributionBounding_emptyCol(self):
+    inp_col = []
+    max_partitions_contributed = 2
+    max_contributions_per_partition = 2
+
+    dpEngine = pipeline_dp.DPEngine(pipeline_dp.BudgetAccountant(epsilon=1, delta=1e-10),
+    pipeline_dp.LocalPipelineOperations())
+    bound_op = dpEngine._bound_cross_partition_contributions(
+                          inp_col,
+                          max_partitions_contributed=max_partitions_contributed,
+                          max_contributions_per_partition=max_contributions_per_partition,
+                          aggregator_fn=DPEngineTest.aggregator_fn)
+
+    self.assertFalse(bound_op)
+
   def testContributionBounding_boundInput_nothingDropped(self):
       inp_col = [("pid1", 'pk1' , 1),
                  ("pid1", 'pk1' , 2),
