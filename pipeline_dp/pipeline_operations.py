@@ -190,21 +190,20 @@ class LocalPipelineOperations(PipelineOperations):
 
     def sample_fixed_per_key(self, col, n: int, stage_name: str):
         # TODO: replace to group_by_key
-        d = collections.defaultdict(lambda: [])
-        for key, value in col:
-            d[key].append(value)
+        def sample_fixed_per_key_generator():
+            d = collections.defaultdict(list)
+            for key, value in col:
+                d[key].append(value)
+            for item in d.items():
+                key = item[0]
+                values = item[1]
+                if len(item[1]) > n:
+                    sampled_indices = np.random.choice(range(len(item[1])), n,
+                                                       replace=False)
+                    values = [values[i] for i in sampled_indices]
+                yield item[0], values
 
-        result = []
-        for key, values in d.items():
-            if len(values) <= n:
-                result.append((key, values))
-                continue
-            sampled_indices = np.random.choice(range(len(values)), n,
-                                               replace=False)
-            sampled_values = [values[i] for i in sampled_indices]
-            result.append((key, sampled_values))
-        return result
+        return sample_fixed_per_key_generator()
 
     def count_per_element(self, col, stage_name: str):
         pass
-    
