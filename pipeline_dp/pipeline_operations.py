@@ -183,8 +183,8 @@ class LocalPipelineOperations(PipelineOperations):
     def sample_fixed_per_key(self, col, n: int, stage_name: str):
         # TODO: replace to group_by_key
         d = collections.defaultdict(lambda: [])
-        for key, v in col:
-            d[key].append(v)
+        for key, value in col:
+            d[key].append(value)
 
         result = []
         for key, values in d.items():
@@ -192,7 +192,7 @@ class LocalPipelineOperations(PipelineOperations):
                 result.append((key, values))
                 continue
             sampled_indices = np.random.choice(range(len(values)), n,
-                                           replace=False)
+                                               replace=False)
             sampled_values = [values[i] for i in sampled_indices]
             result.append((key, sampled_values))
         return result
