@@ -7,6 +7,8 @@ import numpy as np
 import abc
 import apache_beam as beam
 import apache_beam.transforms.combiners as combiners
+import collections
+import typing
 
 
 class PipelineOperations(abc.ABC):
@@ -168,8 +170,14 @@ class LocalPipelineOperations(PipelineOperations):
     def map_values(self, col, fn, stage_name: str):
         pass
 
-    def group_by_key(self, col, stage_name: str):
-        pass
+    def group_by_key(self, col, stage_name: typing.Optional[str] = None):
+        def group_by_key_generator():
+            d = collections.defaultdict(list)
+            for key, value in col:
+                d[key].append(value)
+            for item in d.items():
+                yield item
+        return group_by_key_generator()
 
     def filter(self, col, fn, stage_name: str):
         pass
