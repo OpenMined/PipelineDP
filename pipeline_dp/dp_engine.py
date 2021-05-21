@@ -46,19 +46,6 @@ class DPEngine:
     if params is None:
       return None
     self._report_generators.append(ReportGenerator(params))
-    self._add_report_stage(f"Clip values to {params.low, params.high}")
-    self._add_report_stage(
-      f"Per-partition contribution: randomly selected not "
-      f"more than {params.max_partitions_contributed} contributions")
-    self._add_report_stage(
-      f"Cross partition contribution bounding: randomly selected not"
-      f"more than {params.max_contributions_per_partition} partitions per"
-      " user")
-    if params.public_partitions is None:
-      self._add_report_stage("Partitions selection: using thresholding")
-    else:
-      self._add_report_stage(
-        "Partitions selection: using provided public partition")
     # TODO: implement aggregate().
     # It returns input for now, just to ensure that the an example works.
     return col

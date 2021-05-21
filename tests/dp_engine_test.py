@@ -29,8 +29,6 @@ class DPEngineTest(unittest.TestCase):
     engine.aggregate(None, params1, None)
     engine.aggregate(None, params2, None)
     self.assertEqual(len(engine._report_generators), 2)  # pylint: disable=protected-access
-    self.assertIn("['p', 'c', 'm']", engine._report_generators[0].report())  # pylint: disable=protected-access
-    self.assertIn("['v', 's', 'm']", engine._report_generators[1].report())  # pylint: disable=protected-access
 
 if __name__ == '__main__':
   unittest.main()
