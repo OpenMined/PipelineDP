@@ -207,3 +207,4 @@ class LocalPipelineOperations(PipelineOperations):
 
     def count_per_element(self, col, stage_name: str):
         pass
+    

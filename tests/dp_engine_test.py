@@ -18,13 +18,13 @@ class dp_engineTest(unittest.TestCase):
     dp_engine = pipeline_dp.DPEngine(
       pipeline_dp.BudgetAccountant(epsilon=1, delta=1e-10),
       pipeline_dp.LocalPipelineOperations())
-    bound_op = list(dp_engine._bound_cross_partition_contributions(
+    bound_result = list(dp_engine._bound_cross_partition_contributions(
       input_col,
       max_partitions_contributed=max_partitions_contributed,
       max_contributions_per_partition=max_contributions_per_partition,
       aggregator_fn=dp_engineTest.aggregator_fn))
 
-    self.assertFalse(bound_op)
+    self.assertFalse(bound_result)
 
   def test_contribution_bounding_bound_input_nothing_dropped(self):
     input_col = [("pid1", 'pk1', 1),
@@ -37,15 +37,15 @@ class dp_engineTest(unittest.TestCase):
     dp_engine = pipeline_dp.DPEngine(
       pipeline_dp.BudgetAccountant(epsilon=1, delta=1e-10),
       pipeline_dp.LocalPipelineOperations())
-    bound_op = list(dp_engine._bound_cross_partition_contributions(
+    bound_result = list(dp_engine._bound_cross_partition_contributions(
       input_col,
       max_partitions_contributed=max_partitions_contributed,
       max_contributions_per_partition=max_contributions_per_partition,
       aggregator_fn=dp_engineTest.aggregator_fn))
 
-    expected_op = [(('pid1', 'pk2'), (2, 7, 25)),
-                   (('pid1', 'pk1'), (2, 3, 5))]
-    self.assertEqual(set(expected_op), set(bound_op))
+    expected_result = [(('pid1', 'pk2'), (2, 7, 25)),
+                       (('pid1', 'pk1'), (2, 3, 5))]
+    self.assertEqual(set(expected_result), set(bound_result))
 
   def test_contribution_bounding_per_partition_bounding_applied(self):
     input_col = [("pid1", 'pk1', 1),
@@ -60,16 +60,17 @@ class dp_engineTest(unittest.TestCase):
     dp_engine = pipeline_dp.DPEngine(
       pipeline_dp.BudgetAccountant(epsilon=1, delta=1e-10),
       pipeline_dp.LocalPipelineOperations())
-    bound_op = list(dp_engine._bound_cross_partition_contributions(
+    bound_result = list(dp_engine._bound_cross_partition_contributions(
       input_col,
       max_partitions_contributed=max_partitions_contributed,
       max_contributions_per_partition=max_contributions_per_partition,
       aggregator_fn=dp_engineTest.aggregator_fn))
 
-    self.assertEqual(len(bound_op), 3)
+    self.assertEqual(len(bound_result), 3)
+    # Check contributions per partitions
     self.assertTrue(all(map(
       lambda op_val: op_val[1][0] <= max_contributions_per_partition,
-      bound_op)))
+      bound_result)))
 
   def test_contribution_bounding_cross_partition_bounding_applied(self):
     input_col = [("pid1", 'pk1', 1),
@@ -86,18 +87,20 @@ class dp_engineTest(unittest.TestCase):
     dp_engine = pipeline_dp.DPEngine(
       pipeline_dp.BudgetAccountant(epsilon=1, delta=1e-10),
       pipeline_dp.LocalPipelineOperations())
-    bound_op = list(dp_engine._bound_cross_partition_contributions(
+    bound_result = list(dp_engine._bound_cross_partition_contributions(
       input_col,
       max_partitions_contributed=max_partitions_contributed,
       max_contributions_per_partition=max_contributions_per_partition,
       aggregator_fn=dp_engineTest.aggregator_fn))
 
-    self.assertEqual(len(bound_op), 4)
+    self.assertEqual(len(bound_result), 4)
+    # Check contributions per partitions
     self.assertTrue(all(map(
       lambda op_val: op_val[1][0] <= max_contributions_per_partition,
-      bound_op)))
+      bound_result)))
+    # Check cross partition contributions
     dict_of_pid_to_pk = collections.defaultdict(lambda: [])
-    for key, _ in bound_op:
+    for key, _ in bound_result:
       dict_of_pid_to_pk[key[0]].append(key[1])
     self.assertEqual(len(dict_of_pid_to_pk), 2)
     self.assertTrue(
