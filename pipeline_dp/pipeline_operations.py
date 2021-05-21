@@ -10,193 +10,192 @@ import apache_beam.transforms.combiners as combiners
 
 
 class PipelineOperations(abc.ABC):
-  """Interface for pipeline frameworks adapters."""
+    """Interface for pipeline frameworks adapters."""
 
-  @abc.abstractmethod
-  def map(self, col, fn, stage_name: str):
-    pass
+    @abc.abstractmethod
+    def map(self, col, fn, stage_name: str):
+        pass
 
-  @abc.abstractmethod
-  def flat_map(self, col, fn, stage_name: str):
-    pass
+    @abc.abstractmethod
+    def flat_map(self, col, fn, stage_name: str):
+        pass
 
-  @abc.abstractmethod
-  def map_tuple(self, col, fn, stage_name: str):
-    pass
+    @abc.abstractmethod
+    def map_tuple(self, col, fn, stage_name: str):
+        pass
 
-  @abc.abstractmethod
-  def map_values(self, col, fn, stage_name: str):
-    pass
+    @abc.abstractmethod
+    def map_values(self, col, fn, stage_name: str):
+        pass
 
-  @abc.abstractmethod
-  def group_by_key(self, col, stage_name: str):
-    pass
+    @abc.abstractmethod
+    def group_by_key(self, col, stage_name: str):
+        pass
 
-  @abc.abstractmethod
-  def filter(self, col, fn, stage_name: str):
-    pass
+    @abc.abstractmethod
+    def filter(self, col, fn, stage_name: str):
+        pass
 
-  @abc.abstractmethod
-  def keys(self, col, stage_name: str):
-    pass
+    @abc.abstractmethod
+    def keys(self, col, stage_name: str):
+        pass
 
-  @abc.abstractmethod
-  def values(self, col, stage_name: str):
-    pass
+    @abc.abstractmethod
+    def values(self, col, stage_name: str):
+        pass
 
-  @abc.abstractmethod
-  def sample_fixed_per_key(self, col, n: int, stage_name: str):
-    pass
+    @abc.abstractmethod
+    def sample_fixed_per_key(self, col, n: int, stage_name: str):
+        pass
 
-  @abc.abstractmethod
-  def count_per_element(self, col, stage_name: str):
-    pass
+    @abc.abstractmethod
+    def count_per_element(self, col, stage_name: str):
+        pass
 
 
 class BeamOperations(PipelineOperations):
-  """Apache Beam adapter."""
+    """Apache Beam adapter."""
 
-  def map(self, col, fn, stage_name: str):
-    return col | stage_name >> beam.Map(fn)
+    def map(self, col, fn, stage_name: str):
+        return col | stage_name >> beam.Map(fn)
 
-  def flat_map(self, col, fn, stage_name: str):
-    return col | stage_name >> beam.FlatMap(fn)
+    def flat_map(self, col, fn, stage_name: str):
+        return col | stage_name >> beam.FlatMap(fn)
 
-  def map_tuple(self, col, fn, stage_name: str):
-    return col | stage_name >> beam.Map(lambda x: fn(*x))
+    def map_tuple(self, col, fn, stage_name: str):
+        return col | stage_name >> beam.Map(lambda x: fn(*x))
 
-  def map_values(self, col, fn, stage_name: str):
-    return col | stage_name >> beam.MapTuple(lambda k, v: (k, fn(v)))
+    def map_values(self, col, fn, stage_name: str):
+        return col | stage_name >> beam.MapTuple(lambda k, v: (k, fn(v)))
 
-  def group_by_key(self, col, stage_name: str):
-    """Group the values for each key in the PCollection into a single sequence.
+    def group_by_key(self, col, stage_name: str):
+        """Group the values for each key in the PCollection into a single sequence.
 
-    Args:
-      col: input collection
-      stage_name: name of the stage
+        Args:
+          col: input collection
+          stage_name: name of the stage
 
-    Returns:
-      An PCollection of tuples in which the type of the second item is list.
+        Returns:
+          An PCollection of tuples in which the type of the second item is list.
 
-    """
-    return col | stage_name >> beam.GroupByKey()
+        """
+        return col | stage_name >> beam.GroupByKey()
 
-  def filter(self, col, fn, stage_name: str):
-    return col | stage_name >> beam.Filter(fn)
+    def filter(self, col, fn, stage_name: str):
+        return col | stage_name >> beam.Filter(fn)
 
-  def keys(self, col, stage_name: str):
-    return col | stage_name >> beam.Keys()
+    def keys(self, col, stage_name: str):
+        return col | stage_name >> beam.Keys()
 
-  def values(self, col, stage_name: str):
-    return col | stage_name >> beam.Values()
+    def values(self, col, stage_name: str):
+        return col | stage_name >> beam.Values()
 
-  def sample_fixed_per_key(self, col, n: int, stage_name: str):
-    return col | stage_name >> combiners.Sample.FixedSizePerKey(n)
+    def sample_fixed_per_key(self, col, n: int, stage_name: str):
+        return col | stage_name >> combiners.Sample.FixedSizePerKey(n)
 
-  def count_per_element(self, col, stage_name: str):
-    return col | stage_name >> combiners.Count.PerElement()
+    def count_per_element(self, col, stage_name: str):
+        return col | stage_name >> combiners.Count.PerElement()
 
 
 class SparkRDDOperations(PipelineOperations):
-  """Apache Spark RDD adapter."""
+    """Apache Spark RDD adapter."""
 
-  def map(self, rdd, fn, stage_name: str = None):
-    return rdd.map(fn)
+    def map(self, rdd, fn, stage_name: str = None):
+        return rdd.map(fn)
 
-  def map_tuple(self, rdd, fn, stage_name: str = None):
-    return rdd.map(fn)
+    def map_tuple(self, rdd, fn, stage_name: str = None):
+        return rdd.map(fn)
 
-  def map_values(self, rdd, fn, stage_name: str = None):
-    return rdd.mapValues(fn)
+    def map_values(self, rdd, fn, stage_name: str = None):
+        return rdd.mapValues(fn)
 
-  def group_by_key(self, rdd, stage_name: str = None):
-    """Group the values for each key in the RDD into a single sequence.
+    def group_by_key(self, rdd, stage_name: str = None):
+        """Group the values for each key in the RDD into a single sequence.
 
-    Args:
-      rdd: input RDD
-      stage_name: not used
+        Args:
+          rdd: input RDD
+          stage_name: not used
 
-    Returns:
-      An RDD of tuples in which the type of the second item
-      is the pyspark.resultiterable.ResultIterable.
+        Returns:
+          An RDD of tuples in which the type of the second item
+          is the pyspark.resultiterable.ResultIterable.
 
-    """
-    return rdd.groupByKey()
+        """
+        return rdd.groupByKey()
 
-  def filter(self, rdd, fn, stage_name: str = None):
-    return rdd.filter(fn)
+    def filter(self, rdd, fn, stage_name: str = None):
+        return rdd.filter(fn)
 
-  def keys(self, rdd, stage_name: str = None):
-    return rdd.keys()
+    def keys(self, rdd, stage_name: str = None):
+        return rdd.keys()
 
-  def values(self, rdd, stage_name: str = None):
-    return rdd.values()
+    def values(self, rdd, stage_name: str = None):
+        return rdd.values()
 
-  def sample_fixed_per_key(self, rdd, n: int, stage_name: str = None):
-    """Get fixed-size random samples for each unique key in an RDD of key-values.
-    Sampling is not guaranteed to be uniform across partitions.
+    def sample_fixed_per_key(self, rdd, n: int, stage_name: str = None):
+        """Get fixed-size random samples for each unique key in an RDD of key-values.
+        Sampling is not guaranteed to be uniform across partitions.
 
-    Args:
-      rdd: input RDD
-      n: number of values to sample for each key
-      stage_name: not used
+        Args:
+          rdd: input RDD
+          n: number of values to sample for each key
+          stage_name: not used
 
-    Returns:
-      An RDD of tuples.
+        Returns:
+          An RDD of tuples.
 
-    """
-    return rdd.mapValues(lambda x: [x]) \
-      .reduceByKey(
-      lambda x, y: random.sample(x + y, min(len(x) + len(y), n)))
+        """
+        return rdd.mapValues(lambda x: [x])\
+            .reduceByKey(lambda x, y: random.sample(x+y, min(len(x)+len(y), n)))
 
-  def count_per_element(self, rdd, stage_name: str = None):
-    return rdd.map(lambda x: (x, 1)) \
-      .reduceByKey(lambda x, y: (x + y))
+    def count_per_element(self, rdd, stage_name: str = None):
+        return rdd.map(lambda x: (x, 1))\
+            .reduceByKey(lambda x, y: (x + y))
 
 
 class LocalPipelineOperations(PipelineOperations):
-  """Local Pipeline adapter."""
+    """Local Pipeline adapter."""
 
-  def map(self, col, fn, stage_name: str = None):
-    return map(fn, col)
+    def map(self, col, fn, stage_name: str = None):
+        return map(fn, col)
 
-  def flat_map(self, col, fn, stage_name: str):
-    return (x for el in col for x in fn(el))
+    def flat_map(self, col, fn, stage_name: str):
+        return (x for el in col for x in fn(el))
 
-  def map_tuple(self, col, fn, stage_name: str = None):
-    return map(lambda x: fn(*x), col)
+    def map_tuple(self, col, fn, stage_name: str = None):
+        return map(lambda x: fn(*x), col)
 
-  def map_values(self, col, fn, stage_name: str):
-    pass
+    def map_values(self, col, fn, stage_name: str):
+        pass
 
-  def group_by_key(self, col, stage_name: str):
-    pass
+    def group_by_key(self, col, stage_name: str):
+        pass
 
-  def filter(self, col, fn, stage_name: str):
-    pass
+    def filter(self, col, fn, stage_name: str):
+        pass
 
-  def keys(self, col, stage_name: str):
-    pass
+    def keys(self, col, stage_name: str):
+        pass
 
-  def values(self, col, stage_name: str):
-    pass
+    def values(self, col, stage_name: str):
+        pass
 
-  def sample_fixed_per_key(self, col, n: int, stage_name: str):
-    # TODO: replace to group_by_key
-    d = collections.defaultdict(lambda: [])
-    for key, v in col:
-      d[key].append(v)
+    def sample_fixed_per_key(self, col, n: int, stage_name: str):
+        # TODO: replace to group_by_key
+        d = collections.defaultdict(lambda: [])
+        for key, v in col:
+            d[key].append(v)
 
-    result = []
-    for key, values in d.items():
-      if len(values) <= n:
-        result.append((key, values))
-        continue
-      sampled_indices = np.random.choice(range(len(values)), n,
-                                         replace=False)
-      sampled_values = [values[i] for i in sampled_indices]
-      result.append((key, sampled_values))
-    return result
+        result = []
+        for key, values in d.items():
+            if len(values) <= n:
+                result.append((key, values))
+                continue
+            sampled_indices = np.random.choice(range(len(values)), n,
+                                           replace=False)
+            sampled_values = [values[i] for i in sampled_indices]
+            result.append((key, sampled_values))
+        return result
 
-  def count_per_element(self, col, stage_name: str):
-    pass
+    def count_per_element(self, col, stage_name: str):
+        pass
