@@ -129,7 +129,7 @@ def compute_on_spark():
 
 
 def compute_on_local():
-    print('Not implemented yet')
+    raise NotImplementedError
 
 
 def main(unused_argv):
