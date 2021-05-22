@@ -49,10 +49,6 @@ class LocalPipelineOperationsTest(unittest.TestCase):
         self.assertEqual(list(self.ops.map([], lambda x: x / 0)),
                          [])
 
-        some_mapped_list = self.ops.map([1, 2, 3], lambda x: x)
-        # some_mapped_list is its own consumable iterator
-        self.assertIs(some_mapped_list, iter(some_mapped_list))
-
         self.assertEqual(list(self.ops.map([1, 2, 3], str)),
                          ["1", "2", "3"])
         self.assertEqual(list(self.ops.map(range(5), lambda x: x ** 2)),
@@ -111,11 +107,31 @@ class LocalPipelineOperationsTest(unittest.TestCase):
     def test_local_count_per_element(self):
         example_list = [1, 2, 3, 4, 5, 6, 1, 4, 0, 1]
         result = self.ops.count_per_element(example_list)
-        # result is its own consumable iterator
-        self.assertIs(result, iter(result))
 
         self.assertEqual(dict(result),
                          {1: 3, 2: 1, 3: 1, 4: 2, 5: 1, 6: 1, 0: 1})
+
+    def test_laziness(self):
+        def exceptions_generator_function():
+            yield 1 / 0
+
+        def assert_laziness(operator, *args):
+            try:
+                operator(exceptions_generator_function(), *args)
+            except ZeroDivisionError:
+               self.fail(f"local {operator.__name__} is not lazy")
+
+        # reading from exceptions_generator_function() results in error:
+        self.assertRaises(ZeroDivisionError,
+                          next, exceptions_generator_function())
+
+        # lazy operators accept exceptions_generator_function()
+        # as argument without raising errors:
+        assert_laziness(self.ops.map, str)
+        assert_laziness(self.ops.map_values, str)
+        assert_laziness(self.ops.filter, bool)
+        assert_laziness(self.ops.values)
+        assert_laziness(self.ops.count_per_element)
 
 
 if __name__ == '__main__':
