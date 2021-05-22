@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from pipeline_dp.aggregate_params import AggregateParams
 from pipeline_dp.budget_accounting import BudgetAccountant
 from pipeline_dp.pipeline_operations import PipelineOperations
+from pipeline_dp.report_generator import ReportGenerator
 
 @dataclass
 class DataExtractors:
@@ -27,9 +28,13 @@ class DPEngine:
                ops: PipelineOperations):
     self._budget_accountant = budget_accountant
     self._ops = ops
+    self._report_generators = []
+
+  def _add_report_stage(self, text):
+    self._report_generators[-1].add_stage(text)
 
   def aggregate(self, col, params: AggregateParams,
-                data_extractors: DataExtractors):
+                data_extractors: DataExtractors):  # pylint: disable=unused-argument
     """Computes DP aggregation metrics
 
     Args:
@@ -38,7 +43,9 @@ class DPEngine:
       data_extractors: functions that extract needed pieces of information from
         elements of 'col'
     """
-
+    if params is None:
+      return None
+    self._report_generators.append(ReportGenerator(params))
     # TODO: implement aggregate().
     # It returns input for now, just to ensure that the an example works.
     return col
