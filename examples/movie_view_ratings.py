@@ -44,9 +44,6 @@ def calc_dp_rating_metrics(movie_views, ops):
     # Set the total privacy budget.
     budget_accountant = pipeline_dp.BudgetAccountant(epsilon=1, delta=1e-6)
 
-    # Specify a pipeline framework to use.
-    ops = pipeline_dp.BeamOperations()
-
     # Create a DPEngine instance.
     dp_engine = pipeline_dp.DPEngine(budget_accountant, ops)
 
@@ -106,7 +103,7 @@ def compute_on_beam():
         dp_result | beam.io.WriteToText(FLAGS.output_file)
 
 
-def process(iterator):
+def parse_partition(iterator):
     movie_id = None
     for line in iterator:
         if line[-1] == ':':
@@ -118,11 +115,11 @@ def process(iterator):
 
 
 def compute_on_spark():
-    master = "local[1]"
+    master = "local[1]"  # run Spark locally with one worker thread to load the input file into 1 partition
     conf = pyspark.SparkConf().setMaster(master)
     sc = pyspark.SparkContext(conf=conf)
     movie_views = sc.textFile(FLAGS.input_file) \
-        .mapPartitions(process)
+        .mapPartitions(parse_partition)
     pipeline_operations = pipeline_dp.SparkRDDOperations()
     dp_result = calc_dp_rating_metrics(movie_views, pipeline_operations)
     dp_result.saveAsTextFile(FLAGS.output_file)
