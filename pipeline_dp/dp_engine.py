@@ -68,6 +68,8 @@ class DPEngine:
     col = self._ops.sample_fixed_per_key(col,
                                          max_contributions_per_partition,
                                          "Sample per (privacy_id, partition_key)")
+    col = self._ops.map(col, lambda pid_pk: (pid_pk[0], aggregator_fn(
+      pid_pk[1])), "Apply aggregate_fn after per partition bounding")
 
     # Cross partition bounding
     col = self._ops.map_tuple(col, lambda pid_pk, v: (pid_pk[0],
@@ -75,8 +77,6 @@ class DPEngine:
                               "To (privacy_id, (partition_key, vector))")
     col = self._ops.sample_fixed_per_key(col, max_partitions_contributed,
                                          "Sample per privacy_id")
-    col = self._ops.flat_map(col, lambda pid: [((pid[0], pk_v[0]), pk_v[1])
-                                               for pk_v in pid[1]],
-                             "Unnest")
-    return self._ops.map(col, lambda pid_pk: (pid_pk[0], aggregator_fn(
-      pid_pk[1])), "Apply aggregate_fn")
+    return self._ops.flat_map(col, lambda pid: [((pid[0], pk_v[0]), pk_v[1])
+                                                for pk_v in pid[1]],
+                              "Unnest")
