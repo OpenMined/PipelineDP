@@ -10,15 +10,18 @@ The project is in the early development stage. More description will be added la
 
 Google Python Style Guide https://google.github.io/styleguide/pyguide.html
 
-### Installing dependencies
+### Installation
 
    This project depends on numpy apache-beam pyspark absl-py dataclasses
  
-   For installing with pip please run: 
+   For installing with poetry please run: 
    
-   1. `pip install numpy apache-beam pyspark absl-py`
+   1. `git clone https://github.com/OpenMined/PipelineDP.git`
    
-   2. (for Python 3.6) `pip install dataclasses`
+   2. `cd PipelineDP/`
+   
+   3. `poetry install `
+     
    
 ### Running end-to-end example
 For the development it is convenient to run an end-to-end example. 
@@ -34,4 +37,4 @@ part of it. You can generate a part of it by running in bash:
 
    or by other way to get a subset of lines from the dataset.
 
-3. Run python movie_view_ratings.py --input_file=<path to data.txt from 2> --output_file=<...>
+1. Run python movie_view_ratings.py --input_file=<path to data.txt from 2> --output_file=<...>
