@@ -158,7 +158,7 @@ class SparkRDDOperations(PipelineOperations):
 class LocalPipelineOperations(PipelineOperations):
     """Local Pipeline adapter."""
 
-    def map(self, col, fn, stage_name: str = None):
+    def map(self, col, fn, stage_name: typing.Optional[str] = None):
         return map(fn, col)
 
     def flat_map(self, col, fn, stage_name: str):
@@ -167,8 +167,8 @@ class LocalPipelineOperations(PipelineOperations):
     def map_tuple(self, col, fn, stage_name: str = None):
         return map(lambda x: fn(*x), col)
 
-    def map_values(self, col, fn, stage_name: str):
-        pass
+    def map_values(self, col, fn, stage_name: typing.Optional[str] = None):
+        return ((k, fn(v)) for k, v in col)
 
     def group_by_key(self, col, stage_name: typing.Optional[str] = None):
         def group_by_key_generator():
@@ -179,14 +179,14 @@ class LocalPipelineOperations(PipelineOperations):
                 yield item
         return group_by_key_generator()
 
-    def filter(self, col, fn, stage_name: str):
-        pass
+    def filter(self, col, fn, stage_name: typing.Optional[str] = None):
+        return filter(fn, col)
 
     def keys(self, col, stage_name: str):
         pass
 
-    def values(self, col, stage_name: str):
-        pass
+    def values(self, col, stage_name: typing.Optional[str] = None):
+        return (v for k, v in col)
 
     def sample_fixed_per_key(self, col, n: int, stage_name: str):
         # TODO: replace to group_by_key
@@ -205,5 +205,5 @@ class LocalPipelineOperations(PipelineOperations):
 
         return sample_fixed_per_key_generator()
 
-    def count_per_element(self, col, stage_name: str):
-        pass
+    def count_per_element(self, col, stage_name: typing.Optional[str] = None):
+        yield from collections.Counter(col).items()

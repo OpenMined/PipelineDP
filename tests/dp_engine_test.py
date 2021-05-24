@@ -1,8 +1,11 @@
+
 import collections
 import numpy as np
 import unittest
 
 import pipeline_dp
+
+"""DPEngine Test"""
 
 
 class dp_engineTest(unittest.TestCase):
@@ -108,6 +111,30 @@ class dp_engineTest(unittest.TestCase):
         dict_of_pid_to_pk[key]) <= max_partitions_contributed,
               dict_of_pid_to_pk)))
 
+  def test_aggregate_none(self):
+    self.assertIsNone(pipeline_dp.DPEngine(None, None).aggregate(None, None,
+                                                                 None))
+
+  def test_aggregate_report(self):
+    params1 = pipeline_dp.AggregateParams(
+      max_partitions_contributed=3,
+      max_contributions_per_partition=2,
+      low=1,
+      high=5,
+      metrics=[pipeline_dp.Metrics.PRIVACY_ID_COUNT, pipeline_dp.Metrics.COUNT, pipeline_dp.Metrics.MEAN],
+    )
+    params2 = pipeline_dp.AggregateParams(
+      max_partitions_contributed=1,
+      max_contributions_per_partition=3,
+      low=2,
+      high=10,
+      metrics=[pipeline_dp.Metrics.VAR, pipeline_dp.Metrics.SUM, pipeline_dp.Metrics.MEAN],
+      public_partitions = list(range(1,40)),
+    )
+    engine = pipeline_dp.DPEngine(None, None)
+    engine.aggregate(None, params1, None)
+    engine.aggregate(None, params2, None)
+    self.assertEqual(len(engine._report_generators), 2)  # pylint: disable=protected-access
 
 if __name__ == '__main__':
   unittest.main()
