@@ -108,6 +108,10 @@ class BeamOperations(PipelineOperations):
         def is_public(col):
           return col[0] in public_partitions
 
+        # no filtering if no public partitions are specified
+        if not public_partitions:
+          return col
+
         col = col | beam.Map(lambda x: (data_extractors.partition_extractor(x), x))
 
         pp_type = type(public_partitions)
