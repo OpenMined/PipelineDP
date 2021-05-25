@@ -86,7 +86,7 @@ class DPEngine:
                               "To (privacy_id, (partition_key, aggregator))")
     col = self._ops.sample_fixed_per_key(col, max_partitions_contributed,
                                          "Sample per privacy_id")
-    # (privacy_id, [partition_key, aggregator])
+    # (privacy_id, [(partition_key, aggregator)])
     return self._ops.flat_map(col, lambda pid: [((pid[0], pk_v[0]), pk_v[1])
                                                 for pk_v in pid[1]],
                               "Unnest")

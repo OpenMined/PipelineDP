@@ -129,12 +129,13 @@ class dp_engineTest(unittest.TestCase):
       low=2,
       high=10,
       metrics=[pipeline_dp.Metrics.VAR, pipeline_dp.Metrics.SUM, pipeline_dp.Metrics.MEAN],
-      public_partitions = list(range(1,40)),
+      public_partitions = list(range(1, 40)),
     )
     engine = pipeline_dp.DPEngine(None, None)
     engine.aggregate(None, params1, None)
     engine.aggregate(None, params2, None)
     self.assertEqual(len(engine._report_generators), 2)  # pylint: disable=protected-access
+
 
 if __name__ == '__main__':
   unittest.main()
