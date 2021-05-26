@@ -50,44 +50,56 @@ class DPEngine:
     # It returns input for now, just to ensure that the an example works.
     return col
 
-  def _bound_cross_partition_contributions(self, col,
-                                           max_partitions_contributed: int,
-                                           max_contributions_per_partition: int,
-                                           aggregator_fn):
+  def _bound_contributions(self, col,
+                           max_partitions_contributed: int,
+                           max_contributions_per_partition: int,
+                           aggregator_fn):
     """
-    Bounds the contribution by privacy_id in and cross partitions
+    Bounds the contribution by privacy_id in and cross partitions.
     Args:
       col: collection, with types of each element: (privacy_id,
-        partition_key, value)
+        partition_key, value).
       max_partitions_contributed: maximum number of partitions that one
-        privacy id can contribute to
+        privacy id can contribute to.
       max_contributions_per_partition: maximum number of records that one
-        privacy id can contribute to one partition
+        privacy id can contribute to one partition.
       aggregator_fn: function that takes a list of values and returns an
         aggregator object which handles all aggregation logic.
 
     return: collection with elements ((privacy_id, partition_key),
-          aggregator)
+          aggregator).
     """
     # per partition-contribution bounding with bounding of each contribution
     col = self._ops.map_tuple(col, lambda pid, pk, v: ((pid, pk), v),
-                              "To (privacy_id, partition_key), value))")
+                              "Rekey to ( (privacy_id, partition_key), value))")
     col = self._ops.sample_fixed_per_key(col,
                                          max_contributions_per_partition,
                                          "Sample per (privacy_id, partition_key)")
     # ((privacy_id, partition_key), [value])
-    col = self._ops.map(col, lambda pid_pk: (pid_pk[0], aggregator_fn(
-      pid_pk[1])), "Apply aggregate_fn after per partition bounding")
+    col = self._ops.map_values(col, aggregator_fn,
+                               "Apply aggregate_fn after per partition bounding")
     # ((privacy_id, partition_key), aggregator)
 
     # Cross partition bounding
     col = self._ops.map_tuple(col, lambda pid_pk, v: (pid_pk[0],
                                                       (pid_pk[1], v)),
-                              "To (privacy_id, (partition_key, aggregator))")
+                              "Rekey to (privacy_id, (partition_key, "
+                              "aggregator))")
     col = self._ops.sample_fixed_per_key(col, max_partitions_contributed,
                                          "Sample per privacy_id")
     # (privacy_id, [(partition_key, aggregator)])
-    return self._ops.flat_map(col, lambda pid: [((pid[0], pk_v[0]), pk_v[1])
-                                                for pk_v in pid[1]],
+    return self._ops.flat_map(col,
+                              self._unnest_cross_partition_bound_sampled_per_key,
                               "Unnest")
 
+  def _unnest_cross_partition_bound_sampled_per_key(self, pid):
+    """
+    Unnests the cross partition sampled result per key.
+    Args:
+      pid: tuple of the form (privacy_id, [(partition_key, values)])
+
+    Returns: tuple of the form ((privacy_id, partition_key), values)
+
+    """
+    for pk_v in pid[1]:
+      yield (pid[0], pk_v[0]), pk_v[1]
