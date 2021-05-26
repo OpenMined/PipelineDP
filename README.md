@@ -21,7 +21,13 @@ Google Python Style Guide https://google.github.io/styleguide/pyguide.html
    2. `cd PipelineDP/`
    
    3. `poetry install `
-     
+   
+
+   For installing with pip please run: 
+   
+   1. `pip install numpy apache-beam pyspark absl-py`
+   
+   2. (for python 3.6) `pip install dataclasses`
    
 ### Running end-to-end example
 For the development it is convenient to run an end-to-end example. 
