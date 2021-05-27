@@ -88,18 +88,11 @@ class DPEngine:
     col = self._ops.sample_fixed_per_key(col, max_partitions_contributed,
                                          "Sample per privacy_id")
     # (privacy_id, [(partition_key, aggregator)])
+
+    def unnest_cross_partition_bound_sampled_per_key(pid_pk_v):
+      pid, pk_values = pid_pk_v
+      return (((pid, pk), v) for (pk, v) in pk_values)
+
     return self._ops.flat_map(col,
-                              self._unnest_cross_partition_bound_sampled_per_key,
+                              unnest_cross_partition_bound_sampled_per_key,
                               "Unnest")
-
-  def _unnest_cross_partition_bound_sampled_per_key(self, pid):
-    """
-    Unnests the cross partition sampled result per key.
-    Args:
-      pid: tuple of the form (privacy_id, [(partition_key, values)])
-
-    Returns: tuple of the form ((privacy_id, partition_key), values)
-
-    """
-    for pk_v in pid[1]:
-      yield (pid[0], pk_v[0]), pk_v[1]
