@@ -90,6 +90,8 @@ class DPEngine:
     # (privacy_id, [(partition_key, aggregator)])
 
     def unnest_cross_partition_bound_sampled_per_key(pid_pk_v):
+      # unnest from (privacy_id, [(partition_key, values)])
+      # to ((privacy_id, partition_key), values)
       pid, pk_values = pid_pk_v
       return (((pid, pk), v) for (pk, v) in pk_values)
 
