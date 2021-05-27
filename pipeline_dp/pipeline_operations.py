@@ -105,6 +105,9 @@ class SparkRDDOperations(PipelineOperations):
     def map(self, rdd, fn, stage_name: str = None):
         return rdd.map(fn)
 
+    def flat_map(self, rdd, fn, stage_name: str = None):
+        return rdd.flatMap(fn)
+
     def map_tuple(self, rdd, fn, stage_name: str = None):
         return rdd.map(fn)
 
@@ -161,7 +164,7 @@ class LocalPipelineOperations(PipelineOperations):
     def map(self, col, fn, stage_name: typing.Optional[str] = None):
         return map(fn, col)
 
-    def flat_map(self, col, fn, stage_name: str):
+    def flat_map(self, col, fn, stage_name: str = None):
         return (x for el in col for x in fn(el))
 
     def map_tuple(self, col, fn, stage_name: str = None):
