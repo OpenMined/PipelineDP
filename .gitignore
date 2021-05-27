@@ -161,6 +161,8 @@ Thumbs.db
 # profiling data
 .prof
 
+# Intellij
+/.idea
 
 # End of https://www.toptal.com/developers/gitignore/api/python,jupyternotebooks
 
