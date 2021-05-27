@@ -39,6 +39,26 @@ class SparkRDDOperationsTest(unittest.TestCase):
         def tearDownClass(cls):
             cls.sc.stop()
 
+    def test_flat_map(self):
+      spark_operations = SparkRDDOperations()
+      data = [[1, 2, 3, 4], [5, 6, 7, 8]]
+      dist_data = SparkRDDOperationsTest.sc.parallelize(data)
+      self.assertEqual(spark_operations.flat_map(dist_data, lambda x:
+      x).collect(),
+                       [1, 2, 3, 4, 5, 6, 7, 8])
+
+      data = [("a", [1, 2, 3, 4]), ("b", [5, 6, 7, 8])]
+      dist_data = SparkRDDOperationsTest.sc.parallelize(data)
+      self.assertEqual(spark_operations.flat_map(dist_data, lambda x: x[
+        1]).collect(),
+                       [1, 2, 3, 4, 5, 6, 7, 8])
+      self.assertEqual(
+        spark_operations.flat_map(dist_data, lambda x: [(x[0], y) for
+                                                        y in x[
+                                                          1]]).collect(),
+        [("a", 1), ("a", 2), ("a", 3), ("a", 4),
+         ("b", 5), ("b", 6), ("b", 7), ("b", 8)])
+
 
 class LocalPipelineOperationsTest(unittest.TestCase):
     @classmethod
@@ -132,6 +152,54 @@ class LocalPipelineOperationsTest(unittest.TestCase):
         assert_laziness(self.ops.filter, bool)
         assert_laziness(self.ops.values)
         assert_laziness(self.ops.count_per_element)
+        assert_laziness(self.ops.flat_map, str)
+        assert_laziness(self.ops.sample_fixed_per_key, int)
+
+    def test_local_sample_fixed_per_key_requires_no_discarding(self):
+      input_col = [("pid1", ('pk1', 1)),
+                   ("pid1", ('pk2', 1)),
+                   ("pid1", ('pk3', 1)),
+                   ("pid2", ('pk4', 1))]
+      n = 3
+
+      sample_fixed_per_key_result = list(self.ops.sample_fixed_per_key(
+        input_col, n))
+
+      expected_result = [("pid1", [('pk1', 1), ('pk2', 1), ('pk3', 1)]),
+                         ("pid2", [('pk4', 1)])]
+      self.assertEqual(sample_fixed_per_key_result, expected_result)
+
+    def test_local_sample_fixed_per_key_with_sampling(self):
+      input_col = [(("pid1", "pk1"), 1),
+                   (("pid1", "pk1"), 1),
+                   (("pid1", "pk1"), 1),
+                   (("pid1", "pk1"), 1),
+                   (("pid1", "pk1"), 1),
+                   (("pid1", "pk2"), 1),
+                   (("pid1", "pk2"), 1)]
+      n = 3
+
+      sample_fixed_per_key_result = list(self.ops.sample_fixed_per_key(
+        input_col, n))
+
+      self.assertTrue(
+        all(map(lambda pid_pk_v: len(pid_pk_v[1]) <= n,
+                sample_fixed_per_key_result)))
+
+    def test_local_flat_map(self):
+      input_col = [[1, 2, 3, 4], [5, 6, 7, 8]]
+      self.assertEqual(list(self.ops.flat_map(input_col, lambda x: x)),
+                       [1, 2, 3, 4, 5, 6, 7, 8])
+
+      input_col = [("a", [1, 2, 3, 4]), ("b", [5, 6, 7, 8])]
+      self.assertEqual(list(self.ops.flat_map(input_col, lambda x: x[1])),
+                       [1, 2, 3, 4, 5, 6, 7, 8])
+      self.assertEqual(list(self.ops.flat_map(input_col,
+                                              lambda x: [(x[0], y) for
+                                                         y in x[1]]
+                                              )),
+                       [("a", 1), ("a", 2), ("a", 3), ("a", 4),
+                        ("b", 5), ("b", 6), ("b", 7), ("b", 8)])
 
 
 if __name__ == '__main__':
