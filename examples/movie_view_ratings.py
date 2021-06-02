@@ -27,7 +27,7 @@ import pipeline_dp
 FLAGS = flags.FLAGS
 flags.DEFINE_string('input_file', '', 'The file with the movie view data')
 flags.DEFINE_string('output_file', None, 'Output file')
-flags.DEFINE_list('public_partitions', [], 'List of comma-separated public partition keys')
+flags.DEFINE_list('public_partitions', None, 'List of comma-separated public partition keys')
 
 @dataclass
 class MovieView:
@@ -83,7 +83,7 @@ def calc_dp_rating_metrics(pipeline):
       max_contributions_per_partition=1,
       low=1,
       high=5,
-      public_partitions=[int(partition) for partition in FLAGS.public_partitions]
+      public_partitions=[int(partition) for partition in FLAGS.public_partitions] if FLAGS.public_partitions is not None else None
   )
 
   # Specify how to extract is privacy_id, partition_key and value from an element of movie view collection.

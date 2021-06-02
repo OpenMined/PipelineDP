@@ -31,7 +31,7 @@ class PipelineOperations(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def filter_partitions(self, col, public_partitions, stage_name: str):
+    def filter_by_key(self, col, public_partitions, stage_name: str):
         pass
 
     @abc.abstractmethod
@@ -79,7 +79,7 @@ class BeamOperations(PipelineOperations):
     def filter(self, col, fn, stage_name: str):
         return col | stage_name >> beam.Filter(fn)
 
-    def filter_partitions(self, col, public_partitions, data_extractors, stage_name: str):
+    def filter_by_key(self, col, public_partitions, data_extractors, stage_name: str):
         """Filter out the partitions that are not not meant to be public.
 
         Args:
@@ -108,9 +108,8 @@ class BeamOperations(PipelineOperations):
         def is_public(col):
           return col[0] in public_partitions
 
-        # no filtering if no public partitions are specified
-        if not public_partitions:
-          return col
+        VALUES = 0
+        IS_PUBLIC = 1
 
         col = col | beam.Map(lambda x: (data_extractors.partition_extractor(x), x))
 
@@ -119,7 +118,7 @@ class BeamOperations(PipelineOperations):
           return col | beam.Filter(is_public)
         else:
           public_partitions = public_partitions | beam.Map(lambda x: (x, True))
-          return ({'values': col, 'is_public': public_partitions} | beam.CoGroupByKey() | beam.ParDo(PartitionsFilterJoin()))
+          return ({VALUES: col, IS_PUBLIC: public_partitions} | beam.CoGroupByKey() | beam.ParDo(PartitionsFilterJoin()))
 
     def keys(self, col, stage_name: str):
         return col | stage_name >> beam.Keys()
@@ -163,7 +162,7 @@ class SparkRDDOperations(PipelineOperations):
     def filter(self, rdd, fn, stage_name: str = None):
         return rdd.filter(fn)
 
-    def filter_partitions(self, rdd, public_partitions, data_extractors, stage_name: str = None):
+    def filter_by_key(self, rdd, public_partitions, data_extractors, stage_name: str = None):
         pass
 
     def keys(self, rdd, stage_name: str = None):
@@ -211,7 +210,7 @@ class LocalPipelineOperations(PipelineOperations):
     def filter(self, col, fn, stage_name: str):
         pass
 
-    def filter_partitions(self, col, public_partitions, data_extractors, stage_name: str):
+    def filter_by_key(self, col, public_partitions, data_extractors, stage_name: str):
         pass
 
     def keys(self, col, stage_name: str):

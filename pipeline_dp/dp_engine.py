@@ -45,10 +45,10 @@ class DPEngine:
 
     # IF no public partitions were specified, return aggregation results
     # directly.
-    if not params.public_partitions:
+    if params.public_partitions is None:
       return result
     else:
       return self._drop_not_public_partitions(result, params.public_partitions, data_extractors)
 
   def _drop_not_public_partitions(self, col,public_partitions, data_extractors):
-    return self._ops.filter_partitions(col, public_partitions, data_extractors, "Filtering out non-public partitions")
+    return self._ops.filter_by_key(col, public_partitions, data_extractors, "Filtering out non-public partitions")
