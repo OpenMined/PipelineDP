@@ -4,20 +4,23 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Iterable
 
+
 class Metrics(Enum):
-  COUNT = 'count'
-  PRIVACY_ID_COUNT = 'privacy_id_count'
-  SUM = 'sum'
-  MEAN = 'mean'
-  VAR = 'variance'
+    COUNT = 'count'
+    PRIVACY_ID_COUNT = 'privacy_id_count'
+    SUM = 'sum'
+    MEAN = 'mean'
+    VAR = 'variance'
+
 
 class NoiseKind(Enum):
-  LAPLACE = 'laplace'
-  GAUSSIAN = 'gaussian'
+    LAPLACE = 'laplace'
+    GAUSSIAN = 'gaussian'
+
 
 @dataclass
 class AggregateParams:
-  """Specifies parameters for function DPEngine.aggregate()
+    """Specifies parameters for function DPEngine.aggregate()
 
   Args:
     metrics: Metrics to compute.
@@ -32,10 +35,10 @@ class AggregateParams:
       the result.
   """
 
-  metrics: Iterable[Metrics]
-  max_partitions_contributed: int
-  max_contributions_per_partition: int
-  low: float = None
-  high: float = None
-  budget_weight: float = 1
-  public_partitions: Any = None
+    metrics: Iterable[Metrics]
+    max_partitions_contributed: int
+    max_contributions_per_partition: int
+    low: float = None
+    high: float = None
+    budget_weight: float = 1
+    public_partitions: Any = None
