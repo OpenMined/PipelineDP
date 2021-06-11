@@ -39,10 +39,6 @@ class PipelineOperations(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def filter_by_key(self, col, public_partitions, stage_name: str):
-        pass
-
-    @abc.abstractmethod
     def keys(self, col, stage_name: str):
         pass
 
@@ -90,47 +86,6 @@ class BeamOperations(PipelineOperations):
     def filter(self, col, fn, stage_name: str):
         return col | stage_name >> beam.Filter(fn)
 
-    def filter_by_key(self, col, public_partitions, data_extractors, stage_name: str):
-        """Filter out the partitions that are not not meant to be public.
-
-        Args:
-          col: input collection
-          public_partitions: collection of public partition keys
-          stage_name: name of the stage
-
-        Returns:
-          A filtered collection containing only data belonging to public_partitions
-
-        """
-        class PartitionsFilterJoin(beam.DoFn):
-          def process(self, joined_data):
-            key, rest = joined_data
-            values, is_public = rest.get('values'), rest.get('is_public')
-
-            # TODO the Issue #4 says this is blocked on other tasks. Revisit
-            # this once unblocked
-            if not values:
-              values = [None]
-
-            if is_public:
-              for value in values:
-                yield key, value
-
-        def is_public(col):
-          return col[0] in public_partitions
-
-        VALUES = 0
-        IS_PUBLIC = 1
-
-        col = col | beam.Map(lambda x: (data_extractors.partition_extractor(x), x))
-
-        pp_type = type(public_partitions)
-        if pp_type is list or pp_type is set:
-          return col | beam.Filter(is_public)
-        else:
-          public_partitions = public_partitions | beam.Map(lambda x: (x, True))
-          return ({VALUES: col, IS_PUBLIC: public_partitions} | beam.CoGroupByKey() | beam.ParDo(PartitionsFilterJoin()))
-
     def keys(self, col, stage_name: str):
         return col | stage_name >> beam.Keys()
 
@@ -175,9 +130,6 @@ class SparkRDDOperations(PipelineOperations):
 
     def filter(self, rdd, fn, stage_name: str = None):
         return rdd.filter(fn)
-
-    def filter_by_key(self, rdd, public_partitions, data_extractors, stage_name: str = None):
-        pass
 
     def keys(self, rdd, stage_name: str = None):
         return rdd.keys()
@@ -234,9 +186,6 @@ class LocalPipelineOperations(PipelineOperations):
 
     def filter(self, col, fn, stage_name: typing.Optional[str] = None):
         return filter(fn, col)
-
-    def filter_by_key(self, col, public_partitions, data_extractors, stage_name: str):
-        pass
 
     def keys(self, col, stage_name: str):
         pass

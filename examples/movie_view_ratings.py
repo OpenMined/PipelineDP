@@ -26,10 +26,10 @@ from dataclasses import dataclass
 import pipeline_dp
 
 FLAGS = flags.FLAGS
-flags.DEFINE_string('input_file', '', 'The file with the movie view data')
+flags.DEFINE_string('input_file', '', 'The file with the movie view  data')
 flags.DEFINE_string('output_file', None, 'Output file')
 flags.DEFINE_enum('framework', None, ['beam', 'spark'], 'Pipeline framework to use.')
-flags.DEFINE_list('public_partitions', None, 'List of comma-separated public partition keys')
+
 
 @dataclass
 class MovieView:
@@ -95,12 +95,11 @@ class ParseFile(beam.DoFn):
 
 def compute_on_beam():
     runner = fn_api_runner.FnApiRunner()  # local runner
-    public_partitions=[int(partition) for partition in FLAGS.public_partitions] if FLAGS.public_partitions is not None else None
     with beam.Pipeline(runner=runner) as pipeline:
         movie_views = pipeline | beam.io.ReadFromText(FLAGS.input_file) | beam.ParDo(
             ParseFile())
         pipeline_operations = pipeline_dp.BeamOperations()
-        dp_result = calc_dp_rating_metrics(movie_views, pipeline_operations, public_partitions)
+        dp_result = calc_dp_rating_metrics(movie_views, pipeline_operations)
         dp_result | beam.io.WriteToText(FLAGS.output_file)
 
 
