@@ -122,6 +122,9 @@ class BeamOperations(PipelineOperations):
         VALUES = 0
         IS_PUBLIC = 1
 
+        if public_partitions is None:
+          raise TypeError("Must provide a valid public_partitions")
+
         col = col | beam.Map(lambda x: (data_extractors.partition_extractor(x), x))
 
         pp_type = type(public_partitions)

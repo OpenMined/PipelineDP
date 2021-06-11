@@ -59,7 +59,7 @@ class DPEngine:
 
     def _drop_not_public_partitions(self, col,public_partitions, data_extractors):
         return self._ops.filter_by_key(col, public_partitions, data_extractors, "Filtering out non-public partitions")
-        
+
     def _bound_contributions(self, col, max_partitions_contributed: int,
                              max_contributions_per_partition: int,
                              aggregator_fn):

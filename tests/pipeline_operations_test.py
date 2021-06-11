@@ -20,12 +20,17 @@ class BeamOperationsTest(unittest.TestCase):
           privacy_id_extractor=lambda x: x[0],
           value_extractor=lambda x: x[2])
 
+    def test_filter_by_key_must_not_be_none(self):
+      col = [(1, 6, 1), (2, 7, 1), (3, 6, 1), (4, 7, 1), (5, 8, 1)]
+      public_partitions =  None
+      with self.assertRaises(TypeError):
+        result = self.ops.filter_by_key(col, public_partitions, self.data_extractors, "Public partition filtering")
+
     def test_filter_by_key_noop(self):
       col = [(1, 6, 1), (2, 7, 1), (3, 6, 1), (4, 7, 1), (5, 8, 1)]
       public_partitions = []
       result = self.ops.filter_by_key(col, public_partitions, self.data_extractors, "Public partition filtering")
       assert result == []
-
 
     def test_filter_by_key_remove(self):
       col = [(1, 7, 1), (2, 19, 1), (3, 9, 1), (4, 11, 1), (5, 10, 1)]

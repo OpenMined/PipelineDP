@@ -38,7 +38,7 @@ class MovieView:
     rating: int
 
 
-def calc_dp_rating_metrics(movie_views, ops):
+def calc_dp_rating_metrics(movie_views, ops, public_partitions):
     """Computes dp metrics."""
 
     # Set the total privacy budget.
@@ -57,6 +57,7 @@ def calc_dp_rating_metrics(movie_views, ops):
         max_contributions_per_partition=1,
         low=1,
         high=5,
+        public_partitions=public_partitions
     )
 
     # Specify how to extract is privacy_id, partition_key and value from an element of movie view collection.
