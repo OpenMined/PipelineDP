@@ -1,11 +1,14 @@
 import unittest
 import pyspark
 
+import apache_beam as beam
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
+
 from pipeline_dp import DataExtractors
 from pipeline_dp.pipeline_operations import SparkRDDOperations
 from pipeline_dp.pipeline_operations import LocalPipelineOperations
 from pipeline_dp.pipeline_operations import BeamOperations
-
 
 class PipelineOperationsTest(unittest.TestCase):
     pass
@@ -14,29 +17,45 @@ class PipelineOperationsTest(unittest.TestCase):
 class BeamOperationsTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-      cls.ops = BeamOperations()
-      cls.data_extractors = DataExtractors(
-          partition_extractor=lambda x: x[1],
-          privacy_id_extractor=lambda x: x[0],
-          value_extractor=lambda x: x[2])
+        cls.ops = BeamOperations()
+        cls.data_extractors = DataExtractors(
+            partition_extractor=lambda x: x[1],
+            privacy_id_extractor=lambda x: x[0],
+            value_extractor=lambda x: x[2])
 
     def test_filter_by_key_must_not_be_none(self):
-      col = [(1, 6, 1), (2, 7, 1), (3, 6, 1), (4, 7, 1), (5, 8, 1)]
-      public_partitions =  None
-      with self.assertRaises(TypeError):
-        result = self.ops.filter_by_key(col, public_partitions, self.data_extractors, "Public partition filtering")
+        col = [(1, 6, 1), (2, 7, 1), (3, 6, 1), (4, 7, 1), (5, 8, 1)]
+        public_partitions =  None
+        with self.assertRaises(TypeError):
+          result = self.ops.filter_by_key(col, public_partitions, self.data_extractors, "Public partition filtering")
 
     def test_filter_by_key_noop(self):
-      col = [(1, 6, 1), (2, 7, 1), (3, 6, 1), (4, 7, 1), (5, 8, 1)]
-      public_partitions = []
-      result = self.ops.filter_by_key(col, public_partitions, self.data_extractors, "Public partition filtering")
-      assert result == []
+        col = [(1, 6, 1), (2, 7, 1), (3, 6, 1), (4, 7, 1), (5, 8, 1)]
+        public_partitions = []
+        result = self.ops.filter_by_key(col, public_partitions, self.data_extractors, "Public partition filtering")
+        assert result == []
 
     def test_filter_by_key_remove(self):
-      col = [(1, 7, 1), (2, 19, 1), (3, 9, 1), (4, 11, 1), (5, 10, 1)]
-      public_partitions = [7, 9]
-      result = self.ops.filter_by_key(col, public_partitions, self.data_extractors, "Public partition filtering")
-      assert result == [(7, (1, 7, 1)), (9, (3, 9, 1))]
+        col = [(1, 7, 1), (2, 19, 1), (3, 9, 1), (4, 11, 1), (5, 10, 1)]
+        public_partitions = [7, 9]
+        result = self.ops.filter_by_key(col, public_partitions, self.data_extractors, "Public partition filtering")
+        assert result == [(7, (1, 7, 1)), (9, (3, 9, 1))]
+
+    def test_filter_by_key_pcollection_noop(self):
+        col = [(1, 6, 1), (2, 7, 1), (3, 6, 1), (4, 7, 1), (5, 8, 1)]
+        public_partitions = []
+        with beam.Pipeline() as p:
+            pcol = (p | beam.Create(col))
+            result = self.ops.filter_by_key(pcol, public_partitions, self.data_extractors, "Public partition filtering")
+        assert_that(result, equal_to([]))
+
+    def test_filter_by_key_pcollection_remove(self):
+        col = [(1, 7, 1), (2, 19, 1), (3, 9, 1), (4, 11, 1), (5, 10, 1)]
+        public_partitions = [7, 9]
+        with beam.Pipeline() as p:
+            pcol = (p | beam.Create(col))
+            result = self.ops.filter_by_key(pcol, public_partitions, self.data_extractors, "Public partition filtering")
+        assert_that(result, equal_to([(7, (1, 7, 1)), (9, (3, 9, 1))]))
 
 
 class SparkRDDOperationsTest(unittest.TestCase):
