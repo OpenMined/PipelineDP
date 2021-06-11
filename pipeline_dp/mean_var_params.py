@@ -1,9 +1,9 @@
 """DP computing of count, sum, mean, variance."""
 
 import numpy as np
+import pipeline_dp
 
 from dataclasses import dataclass
-from pipeline_dp.aggregate_params import NoiseKind
 
 
 @dataclass
@@ -13,30 +13,36 @@ class MeanVarParams:
 	delta: float
 	low: float
 	high: float
-	sensitivity: float  # L1 for Laplace, L2 for Gaussian
-	noise_kind: NoiseKind  # Laplace or Gaussian
+	max_partitions_contributed: int
+	max_contributions_per_partition: int
+	noise_kind: pipeline_dp.NoiseKind  # Laplace or Gaussian
 
 
-def _apply_laplace_mechanism(value, eps, sensitivity):
+def _apply_laplace_mechanism(value, dp_params):
 	"""Applies the Laplace mechanism.
 
 	Args:
 		value: The result of querying the database.
-		eps: Parameter of (epsilon, delta)-differential privacy.
-		sensitivity: The L1-sensitivity of the query.
+		dp_params: The parameters used at computing the noise.
 	"""
-	return value + np.random.laplace(0, sensitivity / eps)
+	l1_sensitivity = dp_params.max_partitions_contributed * dp_params.max_contributions_per_partition
+
+	# TODO: use the secure noise instead of np.random
+	return value + np.random.laplace(0, l1_sensitivity / dp_params.eps)
 
 
-def _apply_gaussian_mechanism(value, eps, delta, sensitivity):
+def _apply_gaussian_mechanism(value, dp_params):
 	"""Applies the Gaussian mechanism.
 
 	Args:
 		value: The result of querying the database.
-		eps, delta: Parameters of (epsilon, delta)-differential privacy.
-		sensitivity: The L2-sensitivity of the query.
+		dp_params: The parameters used at computing the noise.
 	"""
-	return value + np.random.normal(0, np.var(eps, delta, sensitivity))
+	l2_sensitivity = np.sqrt(dp_params.max_partitions_contributed) * dp_params.max_contributions_per_partition
+	sigma = np.sqrt(2 * np.log(1.25 / dp_params.delta)) * l2_sensitivity / dp_params.eps
+
+	# TODO: use the secure noise instead of np.random
+	return value + np.random.normal(0, np.power(sigma, 2) * (dp_params.eps, dp_params.delta, l2_sensitivity))
 
 
 def _add_random_noise(value, dp_params):
@@ -49,10 +55,10 @@ def _add_random_noise(value, dp_params):
 	Raises:
 		ValueError: The noise kind is invalid.
 	"""
-	if dp_params.noise_kind == NoiseKind.LAPLACE:
-		return _apply_laplace_mechanism(value, dp_params.eps, dp_params.sensitivity)
-	if dp_params.noise_kind == NoiseKind.GAUSSIAN:
-		return _apply_gaussian_mechanism(value, dp_params.eps, dp_params.delta, dp_params.sensitivity)
+	if dp_params.noise_kind == pipeline_dp.NoiseKind.LAPLACE:
+		return _apply_laplace_mechanism(value, dp_params)
+	if dp_params.noise_kind == pipeline_dp.NoiseKind.GAUSSIAN:
+		return _apply_gaussian_mechanism(value, dp_params)
 	raise ValueError("Noise kind must be either Laplace or Gaussian.")
 
 
