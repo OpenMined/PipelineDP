@@ -27,32 +27,33 @@ class MeanVarParams:
         }.get(metric)
 
 
-def _l1_sensitivity(l0_sensitivity, linf_sensitivity):
+def _l1_sensitivity(l0_sensitivity: float, linf_sensitivity: float):
     return l0_sensitivity * linf_sensitivity
 
 
-def _l2_sensitivity(l0_sensitivity, linf_sensitivity):
+def _l2_sensitivity(l0_sensitivity: float, linf_sensitivity: float):
     return np.sqrt(l0_sensitivity) * linf_sensitivity
 
 
-def _compute_sigma(eps, delta, l2_sensitivity):
+def _compute_sigma(eps: float, delta: float, l2_sensitivity: float):
     # Theorem 3.22: https://www.cis.upenn.edu/~aaroth/Papers/privacybook.pdf
     return np.sqrt(2 * np.log(1.25 / delta)) * l2_sensitivity / eps
 
 
-def _apply_laplace_mechanism(value, eps, l1_sensitivity):
+def _apply_laplace_mechanism(value: float, eps: float, l1_sensitivity: float):
     # TODO: use the secure noise instead of np.random
     return value + np.random.laplace(0, l1_sensitivity / eps)
 
 
-def _apply_gaussian_mechanism(value, eps, delta, l2_sensitivity):
+def _apply_gaussian_mechanism(value: float, eps: float, delta: float, l2_sensitivity: float):
     sigma = _compute_sigma(eps, delta, l2_sensitivity)
 
     # TODO: use the secure noise instead of np.random
     return value + np.random.normal(0, np.power(sigma, 2) * (eps, delta, l2_sensitivity))
 
 
-def _add_random_noise(value, eps, delta, l0_sensitivity, linf_sensitivity, noise_kind):
+def _add_random_noise(value: float, eps: float, delta: float, l0_sensitivity: float, linf_sensitivity: float,
+                      noise_kind: pipeline_dp.NoiseKind):
     if noise_kind == pipeline_dp.NoiseKind.LAPLACE:
         l1_sensitivity = _l1_sensitivity(l0_sensitivity, linf_sensitivity)
         return _apply_laplace_mechanism(value, eps, l1_sensitivity)
