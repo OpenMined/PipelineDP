@@ -54,6 +54,10 @@ class PipelineOperations(abc.ABC):
     def count_per_element(self, col, stage_name: str):
         pass
 
+    @abc.abstractmethod
+    def reduce_accumulators_per_key(self, col, stage_name: str):
+        pass
+
 
 class BeamOperations(PipelineOperations):
     """Apache Beam adapter."""
@@ -156,6 +160,19 @@ class SparkRDDOperations(PipelineOperations):
     def count_per_element(self, rdd, stage_name: str = None):
         return rdd.map(lambda x: (x, 1))\
             .reduceByKey(lambda x, y: (x + y))
+
+    def reduce_accumulators_per_key(self, rdd, stage_name: str = None):
+        """Reduce the input RDD so that all elements per each key are merged.
+
+        Args:
+          rdd: input rdd which contains tuples (key, accumulator)
+          stage_name: name of the stage
+
+        Returns:
+          An RDD of tuples (key, accumulator).
+
+        """
+        rdd.reduceByKey(lambda acc1, acc2: acc1.merge([acc2]))
 
 
 class LocalPipelineOperations(PipelineOperations):
