@@ -96,7 +96,10 @@ class ParseFile(beam.DoFn):
 
 def compute_on_beam():
     runner = fn_api_runner.FnApiRunner()  # local runner
-    public_partitions=[int(partition) for partition in FLAGS.public_partitions] if FLAGS.public_partitions is not None else None
+    public_partitions = None
+    if FLAGS.public_partitions is not None:
+        print(FLAGS.public_partitions)
+        public_partitions = [int(partition) for partition in FLAGS.public_partitions]
     with beam.Pipeline(runner=runner) as pipeline:
         movie_views = pipeline | beam.io.ReadFromText(FLAGS.input_file) | beam.ParDo(
             ParseFile())

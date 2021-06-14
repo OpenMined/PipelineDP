@@ -103,36 +103,38 @@ class BeamOperations(PipelineOperations):
 
         """
         class PartitionsFilterJoin(beam.DoFn):
-          def process(self, joined_data):
-            key, rest = joined_data
-            values, is_public = rest.get('values'), rest.get('is_public')
+            def process(self, joined_data):
+                key, rest = joined_data
+                values, is_public = rest.get(VALUES), rest.get(IS_PUBLIC)
 
-            # TODO the Issue #4 says this is blocked on other tasks. Revisit
-            # this once unblocked
-            if not values:
-              values = [None]
+                # TODO the Issue #4 says this is blocked on other tasks. Revisit
+                # this once unblocked
+                if not values:
+                    return
 
-            if is_public:
-              for value in values:
-                yield key, value
+                if is_public:
+                    for value in values:
+                        yield key, value
 
         def is_public(col):
-          return col[0] in public_partitions
+            return col[0] in public_partitions
 
-        VALUES = 0
-        IS_PUBLIC = 1
+        # define constants for using as keys in CoGroupByKey
+        VALUES, IS_PUBLIC = 0, 1
 
         if public_partitions is None:
-          raise TypeError("Must provide a valid public_partitions")
+            raise TypeError("Must provide a valid public_partitions")
 
-        col = col | beam.Map(lambda x: (data_extractors.partition_extractor(x), x))
+        col = col | "Mapping data by partition" >> beam.Map(lambda x: (data_extractors.partition_extractor(x), x))
 
-        pp_type = type(public_partitions)
-        if pp_type is list or pp_type is set:
-          return col | beam.Filter(is_public)
+        if isinstance(public_partitions, (list, set)):
+            public_partitions = set(public_partitions) if not isinstance(public_partitions, set) else public_partitions
+            return col | "Filtering data from public partitions" >> beam.Filter(is_public)
         else:
-          public_partitions = public_partitions | beam.Map(lambda x: (x, True))
-          return ({VALUES: col, IS_PUBLIC: public_partitions} | beam.CoGroupByKey() | beam.ParDo(PartitionsFilterJoin()))
+            public_partitions = public_partitions | "Creating public_partitions PCollection" >> beam.Map(lambda x: (x, True))
+            return ({VALUES: col, IS_PUBLIC: public_partitions}
+                    | "Aggregating elements by values and is_public partition flag " >> beam.CoGroupByKey()
+                    | "Filterding data from public partitions" >> beam.ParDo(PartitionsFilterJoin()))
 
     def keys(self, col, stage_name: str):
         return col | stage_name >> beam.Keys()

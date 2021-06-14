@@ -50,7 +50,7 @@ class DPEngine:
         # It returns input for now, just to ensure that the an example works.
         result = col
 
-        # IF no public partitions were specified, return aggregation results
+        # If no public partitions were specified, return aggregation results
         # directly.
         if params.public_partitions is None:
           return result
