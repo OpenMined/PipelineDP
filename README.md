@@ -6,6 +6,11 @@ The project is in the early development stage. More description will be added la
 
 ## Development
 
+To install the requirements for local development, run `make dev`.
+
+Please run `make precommit` to auto-format, lint check, and run tests.
+Individual targets are `format`, `lint`, `test`, `clean`, `dev`.
+
 ### Style guide
 
 Google Python Style Guide https://google.github.io/styleguide/pyguide.html

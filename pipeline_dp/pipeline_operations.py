@@ -174,12 +174,14 @@ class LocalPipelineOperations(PipelineOperations):
         return ((k, fn(v)) for k, v in col)
 
     def group_by_key(self, col, stage_name: typing.Optional[str] = None):
+
         def group_by_key_generator():
             d = collections.defaultdict(list)
             for key, value in col:
                 d[key].append(value)
             for item in d.items():
                 yield item
+
         return group_by_key_generator()
 
     def filter(self, col, fn, stage_name: typing.Optional[str] = None):
@@ -191,14 +193,18 @@ class LocalPipelineOperations(PipelineOperations):
     def values(self, col, stage_name: typing.Optional[str] = None):
         return (v for k, v in col)
 
-    def sample_fixed_per_key(self, col, n: int,
+    def sample_fixed_per_key(self,
+                             col,
+                             n: int,
                              stage_name: typing.Optional[str] = None):
+
         def sample_fixed_per_key_generator():
             for item in self.group_by_key(col):
                 key = item[0]
                 values = item[1]
                 if len(values) > n:
-                    sampled_indices = np.random.choice(range(len(values)), n,
+                    sampled_indices = np.random.choice(range(len(values)),
+                                                       n,
                                                        replace=False)
                     values = [values[i] for i in sampled_indices]
                 yield key, values

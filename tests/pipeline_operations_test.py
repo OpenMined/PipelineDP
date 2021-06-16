@@ -10,6 +10,7 @@ class PipelineOperationsTest(unittest.TestCase):
 
 
 class SparkRDDOperationsTest(unittest.TestCase):
+
     @classmethod
     def setUpClass(cls):
         conf = pyspark.SparkConf()
@@ -40,57 +41,62 @@ class SparkRDDOperationsTest(unittest.TestCase):
             cls.sc.stop()
 
     def test_flat_map(self):
-      spark_operations = SparkRDDOperations()
-      data = [[1, 2, 3, 4], [5, 6, 7, 8]]
-      dist_data = SparkRDDOperationsTest.sc.parallelize(data)
-      self.assertEqual(spark_operations.flat_map(dist_data, lambda x:
-      x).collect(),
-                       [1, 2, 3, 4, 5, 6, 7, 8])
+        spark_operations = SparkRDDOperations()
+        data = [[1, 2, 3, 4], [5, 6, 7, 8]]
+        dist_data = SparkRDDOperationsTest.sc.parallelize(data)
+        self.assertEqual(
+            spark_operations.flat_map(dist_data, lambda x: x).collect(),
+            [1, 2, 3, 4, 5, 6, 7, 8])
 
-      data = [("a", [1, 2, 3, 4]), ("b", [5, 6, 7, 8])]
-      dist_data = SparkRDDOperationsTest.sc.parallelize(data)
-      self.assertEqual(spark_operations.flat_map(dist_data, lambda x: x[
-        1]).collect(),
-                       [1, 2, 3, 4, 5, 6, 7, 8])
-      self.assertEqual(
-        spark_operations.flat_map(dist_data, lambda x: [(x[0], y) for
-                                                        y in x[
-                                                          1]]).collect(),
-        [("a", 1), ("a", 2), ("a", 3), ("a", 4),
-         ("b", 5), ("b", 6), ("b", 7), ("b", 8)])
+        data = [("a", [1, 2, 3, 4]), ("b", [5, 6, 7, 8])]
+        dist_data = SparkRDDOperationsTest.sc.parallelize(data)
+        self.assertEqual(
+            spark_operations.flat_map(dist_data, lambda x: x[1]).collect(),
+            [1, 2, 3, 4, 5, 6, 7, 8])
+        self.assertEqual(
+            spark_operations.flat_map(
+                dist_data,
+                lambda x: [(x[0], y) for y in x[1]]).collect(), [("a", 1),
+                                                                 ("a", 2),
+                                                                 ("a", 3),
+                                                                 ("a", 4),
+                                                                 ("b", 5),
+                                                                 ("b", 6),
+                                                                 ("b", 7),
+                                                                 ("b", 8)])
 
 
 class LocalPipelineOperationsTest(unittest.TestCase):
+
     @classmethod
     def setUpClass(cls):
         cls.ops = LocalPipelineOperations()
 
     def test_local_map(self):
-        self.assertEqual(list(self.ops.map([], lambda x: x / 0)),
-                         [])
+        self.assertEqual(list(self.ops.map([], lambda x: x / 0)), [])
 
-        self.assertEqual(list(self.ops.map([1, 2, 3], str)),
-                         ["1", "2", "3"])
-        self.assertEqual(list(self.ops.map(range(5), lambda x: x ** 2)),
+        self.assertEqual(list(self.ops.map([1, 2, 3], str)), ["1", "2", "3"])
+        self.assertEqual(list(self.ops.map(range(5), lambda x: x**2)),
                          [0, 1, 4, 9, 16])
 
     def test_local_map_tuple(self):
         tuple_list = [(1, 2), (2, 3), (3, 4)]
 
-        self.assertEqual(list(self.ops.map_tuple(tuple_list, lambda k, v: k+v)),
-                         [3, 5, 7])
+        self.assertEqual(
+            list(self.ops.map_tuple(tuple_list, lambda k, v: k + v)), [3, 5, 7])
 
-        self.assertEqual(list(self.ops.map_tuple(tuple_list, lambda k, v: (
-            str(k), str(v)))), [("1", "2"), ("2", "3"), ("3", "4")])
+        self.assertEqual(
+            list(self.ops.map_tuple(tuple_list, lambda k, v: (str(k), str(v)))),
+            [("1", "2"), ("2", "3"), ("3", "4")])
 
     def test_local_map_values(self):
-        self.assertEqual(list(self.ops.map_values([], lambda x: x / 0)),
-                         [])
+        self.assertEqual(list(self.ops.map_values([], lambda x: x / 0)), [])
 
         tuple_list = [(1, 2), (2, 3), (3, 4)]
 
-        self.assertEqual(list(self.ops.map_values(tuple_list, str)),
-                         [(1, "2"), (2, "3"), (3, "4")])
+        self.assertEqual(list(self.ops.map_values(tuple_list, str)), [(1, "2"),
+                                                                      (2, "3"),
+                                                                      (3, "4")])
         self.assertEqual(list(self.ops.map_values(tuple_list, lambda x: x**2)),
                          [(1, 4), (2, 9), (3, 16)])
 
@@ -98,15 +104,13 @@ class LocalPipelineOperationsTest(unittest.TestCase):
         some_dict = [("cheese", "brie"), ("bread", "sourdough"),
                      ("cheese", "swiss")]
 
-        self.assertEqual(list(self.ops.group_by_key(some_dict)), [
-                         ("cheese", ["brie", "swiss"]),
-                         ("bread", ["sourdough"])])
+        self.assertEqual(list(self.ops.group_by_key(some_dict)),
+                         [("cheese", ["brie", "swiss"]),
+                          ("bread", ["sourdough"])])
 
     def test_local_filter(self):
-        self.assertEqual(list(self.ops.filter([], lambda x: True)),
-                         [])
-        self.assertEqual(list(self.ops.filter([], lambda x: False)),
-                         [])
+        self.assertEqual(list(self.ops.filter([], lambda x: True)), [])
+        self.assertEqual(list(self.ops.filter([], lambda x: False)), [])
 
         example_list = [1, 2, 2, 3, 3, 4, 2]
 
@@ -116,22 +120,28 @@ class LocalPipelineOperationsTest(unittest.TestCase):
                          [1, 2, 2, 2])
 
     def test_local_values(self):
-        self.assertEqual(list(self.ops.values([])),
-                         [])
+        self.assertEqual(list(self.ops.values([])), [])
 
         example_list = [(1, 2), (2, 3), (3, 4), (4, 8)]
 
-        self.assertEqual(list(self.ops.values(example_list)),
-                         [2, 3, 4, 8])
+        self.assertEqual(list(self.ops.values(example_list)), [2, 3, 4, 8])
 
     def test_local_count_per_element(self):
         example_list = [1, 2, 3, 4, 5, 6, 1, 4, 0, 1]
         result = self.ops.count_per_element(example_list)
 
-        self.assertEqual(dict(result),
-                         {1: 3, 2: 1, 3: 1, 4: 2, 5: 1, 6: 1, 0: 1})
+        self.assertEqual(dict(result), {
+            1: 3,
+            2: 1,
+            3: 1,
+            4: 2,
+            5: 1,
+            6: 1,
+            0: 1
+        })
 
     def test_laziness(self):
+
         def exceptions_generator_function():
             yield 1 / 0
 
@@ -139,11 +149,11 @@ class LocalPipelineOperationsTest(unittest.TestCase):
             try:
                 operator(exceptions_generator_function(), *args)
             except ZeroDivisionError:
-               self.fail(f"local {operator.__name__} is not lazy")
+                self.fail(f"local {operator.__name__} is not lazy")
 
         # reading from exceptions_generator_function() results in error:
-        self.assertRaises(ZeroDivisionError,
-                          next, exceptions_generator_function())
+        self.assertRaises(ZeroDivisionError, next,
+                          exceptions_generator_function())
 
         # lazy operators accept exceptions_generator_function()
         # as argument without raising errors:
@@ -156,50 +166,46 @@ class LocalPipelineOperationsTest(unittest.TestCase):
         assert_laziness(self.ops.sample_fixed_per_key, int)
 
     def test_local_sample_fixed_per_key_requires_no_discarding(self):
-      input_col = [("pid1", ('pk1', 1)),
-                   ("pid1", ('pk2', 1)),
-                   ("pid1", ('pk3', 1)),
-                   ("pid2", ('pk4', 1))]
-      n = 3
+        input_col = [("pid1", ('pk1', 1)), ("pid1", ('pk2', 1)),
+                     ("pid1", ('pk3', 1)), ("pid2", ('pk4', 1))]
+        n = 3
 
-      sample_fixed_per_key_result = list(self.ops.sample_fixed_per_key(
-        input_col, n))
+        sample_fixed_per_key_result = list(
+            self.ops.sample_fixed_per_key(input_col, n))
 
-      expected_result = [("pid1", [('pk1', 1), ('pk2', 1), ('pk3', 1)]),
-                         ("pid2", [('pk4', 1)])]
-      self.assertEqual(sample_fixed_per_key_result, expected_result)
+        expected_result = [("pid1", [('pk1', 1), ('pk2', 1), ('pk3', 1)]),
+                           ("pid2", [('pk4', 1)])]
+        self.assertEqual(sample_fixed_per_key_result, expected_result)
 
     def test_local_sample_fixed_per_key_with_sampling(self):
-      input_col = [(("pid1", "pk1"), 1),
-                   (("pid1", "pk1"), 1),
-                   (("pid1", "pk1"), 1),
-                   (("pid1", "pk1"), 1),
-                   (("pid1", "pk1"), 1),
-                   (("pid1", "pk2"), 1),
-                   (("pid1", "pk2"), 1)]
-      n = 3
+        input_col = [(("pid1", "pk1"), 1), (("pid1", "pk1"), 1),
+                     (("pid1", "pk1"), 1), (("pid1", "pk1"), 1),
+                     (("pid1", "pk1"), 1), (("pid1", "pk2"), 1),
+                     (("pid1", "pk2"), 1)]
+        n = 3
 
-      sample_fixed_per_key_result = list(self.ops.sample_fixed_per_key(
-        input_col, n))
+        sample_fixed_per_key_result = list(
+            self.ops.sample_fixed_per_key(input_col, n))
 
-      self.assertTrue(
-        all(map(lambda pid_pk_v: len(pid_pk_v[1]) <= n,
-                sample_fixed_per_key_result)))
+        self.assertTrue(
+            all(
+                map(lambda pid_pk_v: len(pid_pk_v[1]) <= n,
+                    sample_fixed_per_key_result)))
 
     def test_local_flat_map(self):
-      input_col = [[1, 2, 3, 4], [5, 6, 7, 8]]
-      self.assertEqual(list(self.ops.flat_map(input_col, lambda x: x)),
-                       [1, 2, 3, 4, 5, 6, 7, 8])
+        input_col = [[1, 2, 3, 4], [5, 6, 7, 8]]
+        self.assertEqual(list(self.ops.flat_map(input_col, lambda x: x)),
+                         [1, 2, 3, 4, 5, 6, 7, 8])
 
-      input_col = [("a", [1, 2, 3, 4]), ("b", [5, 6, 7, 8])]
-      self.assertEqual(list(self.ops.flat_map(input_col, lambda x: x[1])),
-                       [1, 2, 3, 4, 5, 6, 7, 8])
-      self.assertEqual(list(self.ops.flat_map(input_col,
-                                              lambda x: [(x[0], y) for
-                                                         y in x[1]]
-                                              )),
-                       [("a", 1), ("a", 2), ("a", 3), ("a", 4),
-                        ("b", 5), ("b", 6), ("b", 7), ("b", 8)])
+        input_col = [("a", [1, 2, 3, 4]), ("b", [5, 6, 7, 8])]
+        self.assertEqual(list(self.ops.flat_map(input_col, lambda x: x[1])),
+                         [1, 2, 3, 4, 5, 6, 7, 8])
+        self.assertEqual(
+            list(
+                self.ops.flat_map(input_col,
+                                  lambda x: [(x[0], y) for y in x[1]])),
+            [("a", 1), ("a", 2), ("a", 3), ("a", 4), ("b", 5), ("b", 6),
+             ("b", 7), ("b", 8)])
 
 
 if __name__ == '__main__':
