@@ -40,6 +40,17 @@ class PipelineOperations(abc.ABC):
 
     @abc.abstractmethod
     def filter_by_key(self, col, public_partitions, stage_name: str):
+        """Filter out the partitions that are not not meant to be public.
+
+        Args:
+          col: input collection
+          public_partitions: collection of public partition keys
+          stage_name: name of the stage
+
+        Returns:
+          A filtered collection containing only data belonging to public_partitions
+
+        """
         pass
 
     @abc.abstractmethod
@@ -91,17 +102,6 @@ class BeamOperations(PipelineOperations):
         return col | stage_name >> beam.Filter(fn)
 
     def filter_by_key(self, col, public_partitions, data_extractors, stage_name: str):
-        """Filter out the partitions that are not not meant to be public.
-
-        Args:
-          col: input collection
-          public_partitions: collection of public partition keys
-          stage_name: name of the stage
-
-        Returns:
-          A filtered collection containing only data belonging to public_partitions
-
-        """
         class PartitionsFilterJoin(beam.DoFn):
             def process(self, joined_data):
                 key, rest = joined_data
@@ -116,8 +116,8 @@ class BeamOperations(PipelineOperations):
                     for value in values:
                         yield key, value
 
-        def is_public(col):
-            return col[0] in public_partitions
+        def has_public_partition_key(pk_val):
+            return pk_val[0] in public_partitions
 
         # define constants for using as keys in CoGroupByKey
         VALUES, IS_PUBLIC = 0, 1
@@ -128,8 +128,9 @@ class BeamOperations(PipelineOperations):
         col = col | "Mapping data by partition" >> beam.Map(lambda x: (data_extractors.partition_extractor(x), x))
 
         if isinstance(public_partitions, (list, set)):
-            public_partitions = set(public_partitions) if not isinstance(public_partitions, set) else public_partitions
-            return col | "Filtering data from public partitions" >> beam.Filter(is_public)
+            if not isinstance(public_partitions, set):
+                public_partitions = set(public_partitions)
+            return col | "Filtering data from public partitions" >> beam.Filter(has_public_partition_key)
         else:
             public_partitions = public_partitions | "Creating public_partitions PCollection" >> beam.Map(lambda x: (x, True))
             return ({VALUES: col, IS_PUBLIC: public_partitions}

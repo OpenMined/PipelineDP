@@ -46,8 +46,6 @@ class DPEngine:
         if params is None:
             return None
         self._report_generators.append(ReportGenerator(params))
-        # TODO: implement aggregate().
-        # It returns input for now, just to ensure that the an example works.
         result = col
 
         # If no public partitions were specified, return aggregation results
