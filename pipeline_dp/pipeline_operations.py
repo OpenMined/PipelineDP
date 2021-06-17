@@ -101,8 +101,11 @@ class BeamOperations(PipelineOperations):
     def filter(self, col, fn, stage_name: str):
         return col | stage_name >> beam.Filter(fn)
 
-    def filter_by_key(self, col, public_partitions, data_extractors, stage_name: str):
+    def filter_by_key(self, col, public_partitions, data_extractors,
+                      stage_name: str):
+
         class PartitionsFilterJoin(beam.DoFn):
+
             def process(self, joined_data):
                 key, rest = joined_data
                 values, is_public = rest.get(VALUES), rest.get(IS_PUBLIC)
@@ -125,19 +128,25 @@ class BeamOperations(PipelineOperations):
         if public_partitions is None:
             raise TypeError("Must provide a valid public_partitions")
 
-        col = col | "Mapping data by partition" >> beam.Map(lambda x: (data_extractors.partition_extractor(x), x))
+        col = col | "Mapping data by partition" >> beam.Map(
+            lambda x: (data_extractors.partition_extractor(x), x))
 
         if isinstance(public_partitions, (list, set)):
             # Public partitions are in memory.
             if not isinstance(public_partitions, set):
                 public_partitions = set(public_partitions)
-            return col | "Filtering data from public partitions" >> beam.Filter(has_public_partition_key)
+            return col | "Filtering data from public partitions" >> beam.Filter(
+                has_public_partition_key)
 
         # Public paritions are not in memory. Filter out with a join.
-        public_partitions = public_partitions | "Creating public_partitions PCollection" >> beam.Map(lambda x: (x, True))
-        return ({VALUES: col, IS_PUBLIC: public_partitions}
-                | "Aggregating elements by values and is_public partition flag " >> beam.CoGroupByKey()
-                | "Filterding data from public partitions" >> beam.ParDo(PartitionsFilterJoin()))
+        public_partitions = public_partitions | "Creating public_partitions PCollection" >> beam.Map(
+            lambda x: (x, True))
+        return ({
+            VALUES: col,
+            IS_PUBLIC: public_partitions
+        } | "Aggregating elements by values and is_public partition flag " >>
+                beam.CoGroupByKey() | "Filterding data from public partitions"
+                >> beam.ParDo(PartitionsFilterJoin()))
 
     def keys(self, col, stage_name: str):
         return col | stage_name >> beam.Keys()
@@ -184,7 +193,11 @@ class SparkRDDOperations(PipelineOperations):
     def filter(self, rdd, fn, stage_name: str = None):
         return rdd.filter(fn)
 
-    def filter_by_key(self, rdd, public_partitions, data_extractors, stage_name: str = None):
+    def filter_by_key(self,
+                      rdd,
+                      public_partitions,
+                      data_extractors,
+                      stage_name: str = None):
         pass
 
     def keys(self, rdd, stage_name: str = None):
@@ -243,8 +256,14 @@ class LocalPipelineOperations(PipelineOperations):
     def filter(self, col, fn, stage_name: typing.Optional[str] = None):
         return filter(fn, col)
 
-    def filter_by_key(self, col, public_partitions, data_extractors, stage_name: typing.Optional[str] = None):
-        return [(data_extractors.partition_extractor(x), x) for x in col if data_extractors.partition_extractor(x) in public_partitions]
+    def filter_by_key(self,
+                      col,
+                      public_partitions,
+                      data_extractors,
+                      stage_name: typing.Optional[str] = None):
+        return [(data_extractors.partition_extractor(x), x)
+                for x in col
+                if data_extractors.partition_extractor(x) in public_partitions]
 
     def keys(self, col, stage_name: str):
         pass
