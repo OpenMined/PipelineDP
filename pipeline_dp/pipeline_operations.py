@@ -212,3 +212,4 @@ class LocalPipelineOperations(PipelineOperations):
 
     def count_per_element(self, col, stage_name: typing.Optional[str] = None):
         yield from collections.Counter(col).items()
+        
