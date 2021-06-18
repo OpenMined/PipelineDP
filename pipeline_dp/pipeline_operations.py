@@ -1,11 +1,14 @@
 """Adapters for working with pipeline frameworks."""
+
 import random
 import numpy as np
+
 import abc
 import apache_beam as beam
 import apache_beam.transforms.combiners as combiners
 import collections
 import typing
+
 
 class PipelineOperations(abc.ABC):
     """Interface for pipeline frameworks adapters."""
@@ -209,4 +212,3 @@ class LocalPipelineOperations(PipelineOperations):
 
     def count_per_element(self, col, stage_name: typing.Optional[str] = None):
         yield from collections.Counter(col).items()
-
