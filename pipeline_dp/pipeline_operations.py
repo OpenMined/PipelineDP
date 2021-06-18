@@ -198,7 +198,8 @@ class SparkRDDOperations(PipelineOperations):
                       public_partitions,
                       data_extractors,
                       stage_name: str = None):
-        pass
+        NotImplementedError(
+            "filter_by_key is not implemented in SparkRDDOperations")
 
     def keys(self, rdd, stage_name: str = None):
         return rdd.keys()

@@ -1,6 +1,7 @@
 import unittest
 import pyspark
 
+from absl.testing import parameterized
 import apache_beam as beam
 import apache_beam.testing.test_pipeline as test_pipeline
 from apache_beam.testing.util import assert_that
@@ -16,7 +17,7 @@ class PipelineOperationsTest(unittest.TestCase):
     pass
 
 
-class BeamOperationsTest(unittest.TestCase):
+class BeamOperationsTest(parameterized.TestCase):
 
     @classmethod
     def setUpClass(cls):
@@ -34,41 +35,47 @@ class BeamOperationsTest(unittest.TestCase):
                                             self.data_extractors,
                                             "Public partition filtering")
 
-    def test_filter_by_key_noop(self):
-        col = [(1, 6, 1), (2, 7, 1), (3, 6, 1), (4, 7, 1), (5, 8, 1)]
-        public_partitions = []
-        result = self.ops.filter_by_key(col, public_partitions,
-                                        self.data_extractors,
-                                        "Public partition filtering")
-        self.assertEqual(result, [])
-
-    def test_filter_by_key_remove(self):
+    @parameterized.parameters(
+        {'in_memory': True},
+        {'in_memory': False},
+    )
+    def test_filter_by_key_remove(self, in_memory):
         col = [(1, 7, 1), (2, 19, 1), (3, 9, 1), (4, 11, 1), (5, 10, 1)]
         public_partitions = [7, 9]
-        result = self.ops.filter_by_key(col, public_partitions,
-                                        self.data_extractors,
-                                        "Public partition filtering")
-        self.assertEqual(result, [(7, (1, 7, 1)), (9, (3, 9, 1))])
+        expected_result = [(7, (1, 7, 1)), (9, (3, 9, 1))]
+        if in_memory:
+            result = self.ops.filter_by_key(col, public_partitions,
+                                            self.data_extractors,
+                                            "Public partition filtering")
+            self.assertEqual(result, expected_result)
+        else:
+            with test_pipeline.TestPipeline() as p:
+                pcol = (p | beam.Create(col))
+                result = self.ops.filter_by_key(pcol, public_partitions,
+                                                self.data_extractors,
+                                                "Public partition filtering")
+            assert_that(result, equal_to(expected_result))
 
-    def test_filter_by_key_pcollection_noop(self):
+    @parameterized.parameters(
+        {'in_memory': True},
+        {'in_memory': False},
+    )
+    def test_filter_by_key_pcollection_empty_public_keys(self, in_memory):
         col = [(1, 6, 1), (2, 7, 1), (3, 6, 1), (4, 7, 1), (5, 8, 1)]
         public_partitions = []
-        with test_pipeline.TestPipeline() as p:
-            pcol = (p | beam.Create(col))
-            result = self.ops.filter_by_key(pcol, public_partitions,
+        expected_result = []
+        if in_memory:
+            result = self.ops.filter_by_key(col, public_partitions,
                                             self.data_extractors,
                                             "Public partition filtering")
-        assert_that(result, equal_to([]))
-
-    def test_filter_by_key_pcollection_remove(self):
-        col = [(1, 7, 1), (2, 19, 1), (3, 9, 1), (4, 11, 1), (5, 10, 1)]
-        public_partitions = [7, 9]
-        with test_pipeline.TestPipeline() as p:
-            pcol = (p | beam.Create(col))
-            result = self.ops.filter_by_key(pcol, public_partitions,
-                                            self.data_extractors,
-                                            "Public partition filtering")
-        assert_that(result, equal_to([(7, (1, 7, 1)), (9, (3, 9, 1))]))
+            self.assertEqual(result, expected_result)
+        else:
+            with test_pipeline.TestPipeline() as p:
+                pcol = (p | beam.Create(col))
+                result = self.ops.filter_by_key(pcol, public_partitions,
+                                                self.data_extractors,
+                                                "Public partition filtering")
+            assert_that(result, equal_to(expected_result))
 
 
 class SparkRDDOperationsTest(unittest.TestCase):
@@ -185,7 +192,7 @@ class LocalPipelineOperationsTest(unittest.TestCase):
         self.assertEqual(list(self.ops.filter(example_list, lambda x: x < 3)),
                          [1, 2, 2, 2])
 
-    def test_local_filter_by_key_noop(self):
+    def test_local_filter_by_key_empty_public_keys(self):
         col = [(1, 6, 1), (2, 7, 1), (3, 6, 1), (4, 7, 1), (5, 8, 1)]
         public_partitions = []
         result = self.ops.filter_by_key(col, public_partitions,
