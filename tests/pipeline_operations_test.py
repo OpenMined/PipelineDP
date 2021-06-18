@@ -28,32 +28,32 @@ class BeamOperationsTest(parameterized.TestCase):
             value_extractor=lambda x: x[2])
 
     def test_filter_by_key_must_not_be_none(self):
-        col = [(1, 6, 1), (2, 7, 1), (3, 6, 1), (4, 7, 1), (5, 8, 1)]
-        public_partitions = None
-        with self.assertRaises(TypeError):
-            result = self.ops.filter_by_key(col, public_partitions,
-                                            self.data_extractors,
-                                            "Public partition filtering")
+        with test_pipeline.TestPipeline() as p:
+            col = p | "Create PCollection" >> beam.Create([(1, 6, 1), (2, 7, 1),
+                                                           (3, 6, 1), (4, 7, 1),
+                                                           (5, 8, 1)])
+            public_partitions = None
+            with self.assertRaises(TypeError):
+                result = self.ops.filter_by_key(col, public_partitions,
+                                                self.data_extractors,
+                                                "Public partition filtering")
 
     @parameterized.parameters(
         {'in_memory': True},
         {'in_memory': False},
     )
     def test_filter_by_key_remove(self, in_memory):
-        col = [(1, 7, 1), (2, 19, 1), (3, 9, 1), (4, 11, 1), (5, 10, 1)]
-        public_partitions = [7, 9]
-        expected_result = [(7, (1, 7, 1)), (9, (3, 9, 1))]
-        if in_memory:
+        with test_pipeline.TestPipeline() as p:
+            col = p | "Create input data PCollection" >> beam.Create(
+                [(1, 7, 1), (2, 19, 1), (3, 9, 1), (4, 11, 1), (5, 10, 1)])
+            public_partitions = [7, 9]
+            expected_result = [(7, (1, 7, 1)), (9, (3, 9, 1))]
+            if not in_memory:
+                public_partitions = p | "Create public partitions PCollection" >> beam.Create(
+                    public_partitions)
             result = self.ops.filter_by_key(col, public_partitions,
                                             self.data_extractors,
                                             "Public partition filtering")
-            self.assertEqual(result, expected_result)
-        else:
-            with test_pipeline.TestPipeline() as p:
-                pcol = (p | beam.Create(col))
-                result = self.ops.filter_by_key(pcol, public_partitions,
-                                                self.data_extractors,
-                                                "Public partition filtering")
             assert_that(result, equal_to(expected_result))
 
     @parameterized.parameters(
@@ -61,20 +61,18 @@ class BeamOperationsTest(parameterized.TestCase):
         {'in_memory': False},
     )
     def test_filter_by_key_pcollection_empty_public_keys(self, in_memory):
-        col = [(1, 6, 1), (2, 7, 1), (3, 6, 1), (4, 7, 1), (5, 8, 1)]
-        public_partitions = []
-        expected_result = []
-        if in_memory:
+        with test_pipeline.TestPipeline() as p:
+            col = p | "Create PCollection" >> beam.Create([(1, 6, 1), (2, 7, 1),
+                                                           (3, 6, 1), (4, 7, 1),
+                                                           (5, 8, 1)])
+            public_partitions = []
+            expected_result = []
+            if not in_memory:
+                public_partitions = p | "Create public partitions PCollection" >> beam.Create(
+                    public_partitions)
             result = self.ops.filter_by_key(col, public_partitions,
                                             self.data_extractors,
                                             "Public partition filtering")
-            self.assertEqual(result, expected_result)
-        else:
-            with test_pipeline.TestPipeline() as p:
-                pcol = (p | beam.Create(col))
-                result = self.ops.filter_by_key(pcol, public_partitions,
-                                                self.data_extractors,
-                                                "Public partition filtering")
             assert_that(result, equal_to(expected_result))
 
 
