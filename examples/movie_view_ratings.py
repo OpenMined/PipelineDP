@@ -26,10 +26,10 @@ from dataclasses import dataclass
 import pipeline_dp
 
 FLAGS = flags.FLAGS
-flags.DEFINE_string('input_file', '', 'The file with the movie view  data')
+flags.DEFINE_string('input_file', '', 'The file with the movie view data')
 flags.DEFINE_string('output_file', None, 'Output file')
 flags.DEFINE_enum('framework', None, ['beam', 'spark'], 'Pipeline framework to use.')
-
+flags.DEFINE_list('public_partitions', None, 'List of comma-separated public partition keys')
 
 @dataclass
 class MovieView:
@@ -38,7 +38,7 @@ class MovieView:
     rating: int
 
 
-def calc_dp_rating_metrics(movie_views, ops):
+def calc_dp_rating_metrics(movie_views, ops, public_partitions):
     """Computes dp metrics."""
 
     # Set the total privacy budget.
@@ -57,6 +57,7 @@ def calc_dp_rating_metrics(movie_views, ops):
         max_contributions_per_partition=1,
         low=1,
         high=5,
+        public_partitions=public_partitions
     )
 
     # Specify how to extract is privacy_id, partition_key and value from an element of movie view collection.
@@ -95,11 +96,15 @@ class ParseFile(beam.DoFn):
 
 def compute_on_beam():
     runner = fn_api_runner.FnApiRunner()  # local runner
+    public_partitions = None
+    if FLAGS.public_partitions is not None:
+        print(FLAGS.public_partitions)
+        public_partitions = [int(partition) for partition in FLAGS.public_partitions]
     with beam.Pipeline(runner=runner) as pipeline:
         movie_views = pipeline | beam.io.ReadFromText(FLAGS.input_file) | beam.ParDo(
             ParseFile())
         pipeline_operations = pipeline_dp.BeamOperations()
-        dp_result = calc_dp_rating_metrics(movie_views, pipeline_operations)
+        dp_result = calc_dp_rating_metrics(movie_views, pipeline_operations, public_partitions)
         dp_result | beam.io.WriteToText(FLAGS.output_file)
 
 

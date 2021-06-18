@@ -46,9 +46,21 @@ class DPEngine:
         if params is None:
             return None
         self._report_generators.append(ReportGenerator(params))
-        # TODO: implement aggregate().
-        # It returns input for now, just to ensure that the an example works.
-        return col
+        result = col
+
+        # If no public partitions were specified, return aggregation results
+        # directly.
+        if params.public_partitions is None:
+            return result
+        else:
+            return self._drop_not_public_partitions(result,
+                                                    params.public_partitions,
+                                                    data_extractors)
+
+    def _drop_not_public_partitions(self, col, public_partitions,
+                                    data_extractors):
+        return self._ops.filter_by_key(col, public_partitions, data_extractors,
+                                       "Filtering out non-public partitions")
 
     def _bound_contributions(self, col, max_partitions_contributed: int,
                              max_contributions_per_partition: int,
