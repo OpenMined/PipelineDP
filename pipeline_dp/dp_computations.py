@@ -28,26 +28,26 @@ class MeanVarParams:
         raise ValueError("Invalid metric")
 
 
-def _l1_sensitivity(l0_sensitivity: float, linf_sensitivity: float):
+def compute_l1_sensitivity(l0_sensitivity: float, linf_sensitivity: float):
     return l0_sensitivity * linf_sensitivity
 
 
-def _l2_sensitivity(l0_sensitivity: float, linf_sensitivity: float):
+def compute_l2_sensitivity(l0_sensitivity: float, linf_sensitivity: float):
     return np.sqrt(l0_sensitivity) * linf_sensitivity
 
 
-def _compute_sigma(eps: float, delta: float, l2_sensitivity: float):
+def compute_sigma(eps: float, delta: float, l2_sensitivity: float):
     # Theorem 3.22: https://www.cis.upenn.edu/~aaroth/Papers/privacybook.pdf
     return np.sqrt(2 * np.log(1.25 / delta)) * l2_sensitivity / eps
 
 
-def _apply_laplace_mechanism(value: float, eps: float, l1_sensitivity: float):
+def apply_laplace_mechanism(value: float, eps: float, l1_sensitivity: float):
     # TODO: use the secure noise instead of np.random
     return value + np.random.laplace(0, l1_sensitivity / eps)
 
 
-def _apply_gaussian_mechanism(value: float, eps: float, delta: float, l2_sensitivity: float):
-    sigma = _compute_sigma(eps, delta, l2_sensitivity)
+def apply_gaussian_mechanism(value: float, eps: float, delta: float, l2_sensitivity: float):
+    sigma = compute_sigma(eps, delta, l2_sensitivity)
     # TODO: use the secure noise instead of np.random
     return value + np.random.normal(0, sigma)
 
@@ -55,11 +55,11 @@ def _apply_gaussian_mechanism(value: float, eps: float, delta: float, l2_sensiti
 def _add_random_noise(value: float, eps: float, delta: float, l0_sensitivity: float,
                       linf_sensitivity: float, noise_kind: pipeline_dp.NoiseKind):
     if noise_kind == pipeline_dp.NoiseKind.LAPLACE:
-        l1_sensitivity = _l1_sensitivity(l0_sensitivity, linf_sensitivity)
-        return _apply_laplace_mechanism(value, eps, l1_sensitivity)
+        l1_sensitivity = compute_l1_sensitivity(l0_sensitivity, linf_sensitivity)
+        return apply_laplace_mechanism(value, eps, l1_sensitivity)
     if noise_kind == pipeline_dp.NoiseKind.GAUSSIAN:
-        l2_sensitivity = _l2_sensitivity(l0_sensitivity, linf_sensitivity)
-        return _apply_gaussian_mechanism(value, eps, delta, l2_sensitivity)
+        l2_sensitivity = compute_l2_sensitivity(l0_sensitivity, linf_sensitivity)
+        return apply_gaussian_mechanism(value, eps, delta, l2_sensitivity)
     raise ValueError("Noise kind must be either Laplace or Gaussian.")
 
 
