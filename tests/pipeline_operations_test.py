@@ -1,12 +1,79 @@
 import unittest
 import pyspark
 
+from absl.testing import parameterized
+import apache_beam as beam
+import apache_beam.testing.test_pipeline as test_pipeline
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
+
+from pipeline_dp import DataExtractors
 from pipeline_dp.pipeline_operations import SparkRDDOperations
 from pipeline_dp.pipeline_operations import LocalPipelineOperations
+from pipeline_dp.pipeline_operations import BeamOperations
 
 
 class PipelineOperationsTest(unittest.TestCase):
     pass
+
+
+class BeamOperationsTest(parameterized.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        cls.ops = BeamOperations()
+        cls.data_extractors = DataExtractors(
+            partition_extractor=lambda x: x[1],
+            privacy_id_extractor=lambda x: x[0],
+            value_extractor=lambda x: x[2])
+
+    def test_filter_by_key_must_not_be_none(self):
+        with test_pipeline.TestPipeline() as p:
+            col = p | "Create PCollection" >> beam.Create([(1, 6, 1), (2, 7, 1),
+                                                           (3, 6, 1), (4, 7, 1),
+                                                           (5, 8, 1)])
+            public_partitions = None
+            with self.assertRaises(TypeError):
+                result = self.ops.filter_by_key(col, public_partitions,
+                                                self.data_extractors,
+                                                "Public partition filtering")
+
+    @parameterized.parameters(
+        {'in_memory': True},
+        {'in_memory': False},
+    )
+    def test_filter_by_key_remove(self, in_memory):
+        with test_pipeline.TestPipeline() as p:
+            col = p | "Create input data PCollection" >> beam.Create(
+                [(1, 7, 1), (2, 19, 1), (3, 9, 1), (4, 11, 1), (5, 10, 1)])
+            public_partitions = [7, 9]
+            expected_result = [(7, (1, 7, 1)), (9, (3, 9, 1))]
+            if not in_memory:
+                public_partitions = p | "Create public partitions PCollection" >> beam.Create(
+                    public_partitions)
+            result = self.ops.filter_by_key(col, public_partitions,
+                                            self.data_extractors,
+                                            "Public partition filtering")
+            assert_that(result, equal_to(expected_result))
+
+    @parameterized.parameters(
+        {'in_memory': True},
+        {'in_memory': False},
+    )
+    def test_filter_by_key_pcollection_empty_public_keys(self, in_memory):
+        with test_pipeline.TestPipeline() as p:
+            col = p | "Create PCollection" >> beam.Create([(1, 6, 1), (2, 7, 1),
+                                                           (3, 6, 1), (4, 7, 1),
+                                                           (5, 8, 1)])
+            public_partitions = []
+            expected_result = []
+            if not in_memory:
+                public_partitions = p | "Create public partitions PCollection" >> beam.Create(
+                    public_partitions)
+            result = self.ops.filter_by_key(col, public_partitions,
+                                            self.data_extractors,
+                                            "Public partition filtering")
+            assert_that(result, equal_to(expected_result))
 
 
 class SparkRDDOperationsTest(unittest.TestCase):
@@ -71,6 +138,10 @@ class LocalPipelineOperationsTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.ops = LocalPipelineOperations()
+        cls.data_extractors = DataExtractors(
+            partition_extractor=lambda x: x[1],
+            privacy_id_extractor=lambda x: x[0],
+            value_extractor=lambda x: x[2])
 
     def test_local_map(self):
         self.assertEqual(list(self.ops.map([], lambda x: x / 0)), [])
@@ -118,6 +189,22 @@ class LocalPipelineOperationsTest(unittest.TestCase):
                          [1, 3, 3])
         self.assertEqual(list(self.ops.filter(example_list, lambda x: x < 3)),
                          [1, 2, 2, 2])
+
+    def test_local_filter_by_key_empty_public_keys(self):
+        col = [(1, 6, 1), (2, 7, 1), (3, 6, 1), (4, 7, 1), (5, 8, 1)]
+        public_partitions = []
+        result = self.ops.filter_by_key(col, public_partitions,
+                                        self.data_extractors,
+                                        "Public partition filtering")
+        self.assertEqual(result, [])
+
+    def test_local_filter_by_key_remove(self):
+        col = [(1, 7, 1), (2, 19, 1), (3, 9, 1), (4, 11, 1), (5, 10, 1)]
+        public_partitions = [7, 9]
+        result = self.ops.filter_by_key(col, public_partitions,
+                                        self.data_extractors,
+                                        "Public partition filtering")
+        self.assertEqual(result, [(7, (1, 7, 1)), (9, (3, 9, 1))])
 
     def test_local_values(self):
         self.assertEqual(list(self.ops.values([])), [])
