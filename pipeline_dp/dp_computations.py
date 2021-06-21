@@ -37,6 +37,7 @@ def compute_l2_sensitivity(l0_sensitivity: float, linf_sensitivity: float):
 
 
 def compute_sigma(eps: float, delta: float, l2_sensitivity: float):
+    # TODO: use the optimal sigma.
     # Theorem 3.22: https://www.cis.upenn.edu/~aaroth/Papers/privacybook.pdf
     return np.sqrt(2 * np.log(1.25 / delta)) * l2_sensitivity / eps
 
@@ -95,38 +96,3 @@ def compute_dp_sum(sum: float, dp_params: MeanVarParams):
 
     return _add_random_noise(sum, dp_params.eps, dp_params.delta, l0_sensitivity, linf_sensitivity,
                              dp_params.noise_kind)
-
-
-def compute_dp_mean(count: int, sum: float, dp_params: MeanVarParams):
-    """Computes DP mean.
-
-    Args:
-        count: Non-DP count.
-        sum: Non-DP sum.
-        dp_params: The parameters used at computing the noise.
-
-    Raises:
-        ValueError: The noise kind is invalid.
-    """
-    dp_count = compute_dp_count(count, dp_params)
-    dp_sum = compute_dp_sum(sum, dp_params)
-    return dp_count, dp_sum, dp_sum / dp_count
-
-
-def compute_dp_var(count: int, sum: float, sum_squares: float, dp_params: MeanVarParams):
-    """Computes DP variance.
-
-    Args:
-        count: Non-DP count.
-        sum: Non-DP sum.
-        sum_squares: Non-DP sum of squares.
-        dp_params: The parameters used at computing the noise.
-
-    Raises:
-        ValueError: The noise kind is invalid.
-    """
-    dp_count = compute_dp_count(count, dp_params)
-    dp_sum = compute_dp_sum(sum, dp_params)
-    dp_sum_squares = compute_dp_sum(sum_squares, dp_params)
-    dp_mean = compute_dp_mean(count, sum, dp_params)
-    return dp_count, dp_sum, dp_mean, dp_sum_squares / dp_count - np.power(dp_mean, 2)
