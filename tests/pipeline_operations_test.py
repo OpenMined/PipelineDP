@@ -294,6 +294,14 @@ class LocalPipelineOperationsTest(unittest.TestCase):
             [("a", 1), ("a", 2), ("a", 3), ("a", 4), ("b", 5), ("b", 6),
              ("b", 7), ("b", 8)])
 
+    def test_local_group_by_key(self):
+        some_dict = [("cheese", "brie"), ("bread", "sourdough"),
+                     ("cheese", "swiss")]
+
+        self.assertEqual(list(self.ops.group_by_key(some_dict)), [
+                         ("cheese", ["brie", "swiss"]),
+                         ("bread", ["sourdough"])])
+
 
 if __name__ == '__main__':
     unittest.main()
