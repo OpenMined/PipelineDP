@@ -3,6 +3,7 @@
 import logging
 from dataclasses import dataclass
 
+
 @dataclass
 class Budget:
     """Manages the budget allocated for an operation.
@@ -39,6 +40,7 @@ class Budget:
         self._eps = eps
         self._delta = delta
 
+
 @dataclass
 class RequestedBudget:
     """Manages the budget requested for an operation."""
@@ -46,6 +48,7 @@ class RequestedBudget:
     weight: float
     use_eps: bool
     use_delta: bool
+
 
 class BudgetAccountant:
     """Manages the privacy budget."""
@@ -65,7 +68,8 @@ class BudgetAccountant:
         self._delta = delta
         self._requested_budgets = []
 
-    def request_budget(self, weight: float, *, use_eps: bool, use_delta: bool) -> Budget:
+    def request_budget(self, weight: float, *, use_eps: bool,
+                       use_delta: bool) -> Budget:
         """Requests a budget.
 
         Args:
