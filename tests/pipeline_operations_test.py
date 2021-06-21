@@ -206,6 +206,13 @@ class LocalPipelineOperationsTest(unittest.TestCase):
                                         "Public partition filtering")
         self.assertEqual(result, [(7, (1, 7, 1)), (9, (3, 9, 1))])
 
+    def test_local_keys(self):
+        self.assertEqual(list(self.ops.keys([])), [])
+
+        example_list = [(1, 2), (2, 3), (3, 4), (4, 8)]
+
+        self.assertEqual(list(self.ops.keys(example_list)), [1, 2, 3, 4])
+
     def test_local_values(self):
         self.assertEqual(list(self.ops.values([])), [])
 
