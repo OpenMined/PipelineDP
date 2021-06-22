@@ -54,19 +54,19 @@ class MeanVarParams(unittest.TestCase):
             np.sqrt(2 * np.log(1.25 / 1e-10)) * 20)
 
     def _test_laplace_noise(self, results, value, eps, l1_sensitivity):
-        self.assertAlmostEqual(np.mean(results), value, delta=0.075)
-        self.assertAlmostEqual(np.std(results), np.sqrt(2) * l1_sensitivity / eps, delta=0.075)
-        self.assertAlmostEqual(skew(results), 0, delta=0.075)
-        self.assertAlmostEqual(kurtosis(results), 3, delta=0.075)
+        self.assertAlmostEqual(np.mean(results), value, delta=0.1)
+        self.assertAlmostEqual(np.std(results), np.sqrt(2) * l1_sensitivity / eps, delta=0.1)
+        self.assertAlmostEqual(skew(results), 0, delta=0.1)
+        self.assertAlmostEqual(kurtosis(results), 3, delta=0.1)
 
     def _test_gaussian_noise(self, results, value, eps, delta, l2_sensitivity):
-        self.assertAlmostEqual(np.mean(results), value, delta=0.075)
+        self.assertAlmostEqual(np.mean(results), value, delta=0.1)
         self.assertAlmostEqual(np.std(results),
                                pipeline_dp.dp_computations.compute_sigma(eps, delta,
                                                                          l2_sensitivity),
-                               delta=0.075)
-        self.assertAlmostEqual(skew(results), 0, delta=0.075)
-        self.assertAlmostEqual(kurtosis(results), 0, delta=0.075)
+                               delta=0.1)
+        self.assertAlmostEqual(skew(results), 0, delta=0.1)
+        self.assertAlmostEqual(kurtosis(results), 0, delta=0.1)
 
     def test_apply_laplace_mechanism(self):
         results = [
