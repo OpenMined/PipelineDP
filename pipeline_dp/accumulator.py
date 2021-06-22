@@ -4,30 +4,31 @@ import typing
 
 class Accumulator(abc.ABC):
   """
-  Performs aggregations
+    Base class for all accumulators.
+    Accumulators are objects that encapsulate aggregations and computations of
+    differential private metrics.
   """
 
   @classmethod
   def merge(cls, accumulators: typing.Iterable[
     'Accumulator'] = None) -> 'Accumulator':
     """
-    Merges the accumulators and creates an Accumulator
+    Merges the accumulators and creates an Accumulator.
     Args:
       accumulators:
 
-    Returns: Accumulator instance with merged values
+    Returns: Accumulator instance with merged values.
     """
     return cls(accumulators)
 
   @abc.abstractmethod
-  def add_value(self, v):
+  def add_value(self, value):
     """
-    Adds the value to each of the accumulator constituting the
-    CompoundAccumulator
+    Adds the value to each of the accumulator.
     Args:
-      v: value to be added
+      value: value to be added.
 
-    Returns:self
+    Returns: self.
     """
     pass
 
@@ -52,29 +53,40 @@ class Accumulator(abc.ABC):
 
 class CompoundAccumulator(Accumulator):
   """
-  Performs aggregations for a compund accumulators
+    CompoundAccumulator contains one or more accumulators of other types for
+    computing multiple metrics. For example it can contain
+    [CountAccumulator,  SumAccumulator].
+    CompoundAccumulator delegates all operation to the internal accumulators.
   """
 
-  def __init__(self, accumulators: typing.Iterable['Accumulator'] = None):
+  def __init__(self, accumulators: typing.Iterable['Accumulator']):
     self.accumulators = []
     if accumulators:
-      # flatten the accumulators if the input is a CompundAccumulator
-      self.accumulators = [accumulator_expanded for accumulator in accumulators
-                           for accumulator_expanded in
-                           (accumulator.accumulators if isinstance(accumulator,
-                                                                   CompoundAccumulator)
-                            else [accumulator])]
+      self.accumulators = accumulators
 
-  def add_value(self, v):
+  def add_value(self,  value):
     # adds the value to each accumulator
     for accumulator in self.accumulators:
-      accumulator.add_value(v)
+      accumulator.add_value(value)
     return self
 
   def add_accumulator(self, accumulator: 'CompoundAccumulator') -> \
-    'CompoundAccumulator':
-    # merges the accumulators of the CompoundAccumulators
-    self.accumulators.extend(accumulator.accumulators)
+          'CompoundAccumulator':
+    # merges the accumulators of the CompoundAccumulators.
+    # the expectation is that the input accumulators are of the same type and
+    # are in the same order.
+
+    if (len(accumulator.accumulators) != len(self.accumulators)
+            or any([type( base_accumulator) != type(to_add_accumulator)
+                    for (base_accumulator, to_add_accumulator)
+                    in zip(self.accumulators, accumulator.accumulators)])):
+      raise ValueError(
+        "Accumulators in the input are not of the same size "
+        + "or don't match the type/order of the base accumulators.")
+
+    for (base_accumulator, to_add_accumulator) in zip(self.accumulators,
+                                                      accumulator.accumulators):
+      base_accumulator.add_accumulator(to_add_accumulator)
     return self
 
   def compute_metrics(self):
