@@ -97,31 +97,30 @@ class PLDBudgetAccountantTest(unittest.TestCase):
             mechanisms: []
 
         testcases = [
-
             ComputeBudgetTestCase(name="standard_laplace",
                                   epsilon=4,
                                   delta=0,
                                   mechanisms=[
                                       ComputeBudgetMechanisms(
-                                          2, 0.5, NoiseKind.LAPLACE, 1, 1)
+                                          2, 0.25, NoiseKind.LAPLACE, 1, 1)
                                   ],
-                                  expected_pipeline_noise_std=1),
+                                  expected_pipeline_noise_std=0.5),
             ComputeBudgetTestCase(name="standard_laplace_weights",
                                   epsilon=4,
                                   delta=0,
                                   mechanisms=[
                                       ComputeBudgetMechanisms(
-                                          2, 0.25, NoiseKind.LAPLACE, 2, 1)
+                                          2, 0.125, NoiseKind.LAPLACE, 2, 1)
                                   ],
-                                  expected_pipeline_noise_std=0.5),
+                                  expected_pipeline_noise_std=0.25),
             ComputeBudgetTestCase(name="standard_laplace_sensitivities",
                                   epsilon=3,
                                   delta=0,
                                   mechanisms=[
                                       ComputeBudgetMechanisms(
-                                          2, 2, NoiseKind.LAPLACE, 1, 3)
+                                          2, 1, NoiseKind.LAPLACE, 1, 3)
                                   ],
-                                  expected_pipeline_noise_std=4),
+                                  expected_pipeline_noise_std=2),
             ComputeBudgetTestCase(name="laplace_mechanisms",
                                   epsilon=0.19348133991361996,
                                   delta=1e-3,

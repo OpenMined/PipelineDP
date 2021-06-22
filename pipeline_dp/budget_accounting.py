@@ -3,8 +3,10 @@
 import logging
 import math
 from dataclasses import dataclass
+from dp_accounting.common import DifferentialPrivacyParameters
 from pipeline_dp.aggregate_params import NoiseKind
 from dp_accounting import privacy_loss_distribution as pldlib
+from dp_accounting import accountant
 
 
 @dataclass
@@ -191,7 +193,9 @@ class PLDBudgetAccountant:
             standard deviation until compute_budgets is called.
         """
         if noise_kind == NoiseKind.GAUSSIAN and self._total_delta == 0:
-            raise AssertionError("Gaussian delta value must be greater than 0")
+            raise AssertionError(
+                "The Gaussian mechanism requires that the pipeline delta is greater than 0"
+            )
         mechanism_spec = MechanismSpec(noise_kind=noise_kind)
         mechanism_spec_internal = MechanismSpecInternal(
             mechanism_spec=mechanism_spec,
@@ -210,10 +214,12 @@ class PLDBudgetAccountant:
         if not self._mechanisms:
             return
         if self._total_delta == 0:
-            standard_noise = len(self._mechanisms) / self._total_epsilon
+            dp_params = DifferentialPrivacyParameters(self._total_epsilon, 0)
             self.minimum_noise_std = 0
             for mechanism in self._mechanisms:
-                mechanism_noise_std = mechanism.sensitivity * standard_noise / mechanism.weight
+                min_laplace_noise = accountant.get_smallest_laplace_noise(
+                    dp_params, 1, mechanism.sensitivity)
+                mechanism_noise_std = min_laplace_noise / mechanism.weight
                 mechanism.mechanism_spec._noise_standard_deviation = mechanism_noise_std
                 self.minimum_noise_std = self.minimum_noise_std + mechanism_noise_std
         else:
