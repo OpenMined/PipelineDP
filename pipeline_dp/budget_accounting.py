@@ -3,10 +3,8 @@
 import logging
 import math
 from dataclasses import dataclass
-from dp_accounting.common import DifferentialPrivacyParameters
 from pipeline_dp.aggregate_params import NoiseKind
 from dp_accounting import privacy_loss_distribution as pldlib
-from dp_accounting import accountant
 
 
 @dataclass
@@ -214,20 +212,17 @@ class PLDBudgetAccountant:
         if not self._mechanisms:
             return
         if self._total_delta == 0:
-            dp_params = DifferentialPrivacyParameters(self._total_epsilon, 0)
-            self.minimum_noise_std = 0
+            sum_weights = 0
             for mechanism in self._mechanisms:
-                min_laplace_noise = accountant.get_smallest_laplace_noise(
-                    dp_params, 1, mechanism.sensitivity)
-                mechanism_noise_std = min_laplace_noise / mechanism.weight
-                mechanism.mechanism_spec._noise_standard_deviation = mechanism_noise_std
-                self.minimum_noise_std = self.minimum_noise_std + mechanism_noise_std
+                sum_weights += mechanism.weight
+            minimum_noise_std = sum_weights / self._total_epsilon * math.sqrt(2)
         else:
             minimum_noise_std = self._find_minimum_noise_std()
-            self.minimum_noise_std = minimum_noise_std
-            for mechanism in self._mechanisms:
-                mechanism_noise_std = mechanism.sensitivity * minimum_noise_std / mechanism.weight
-                mechanism.mechanism_spec._noise_standard_deviation = mechanism_noise_std
+
+        self.minimum_noise_std = minimum_noise_std
+        for mechanism in self._mechanisms:
+            mechanism_noise_std = mechanism.sensitivity * minimum_noise_std / mechanism.weight
+            mechanism.mechanism_spec._noise_standard_deviation = mechanism_noise_std
 
     def _find_minimum_noise_std(self) -> float:
         """Finds the minimum noise which satisfies the total budget.
