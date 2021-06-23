@@ -35,7 +35,7 @@ class Accumulator(abc.ABC):
   @abc.abstractmethod
   def add_accumulator(self, accumulator: 'Accumulator') -> 'Accumulator':
     """
-      Merges the accumulator
+      Merges the accumulator.
       The difference between this and the merge function is that here it
       accepts a single accumulator instead of a list removing the overhead of
       creating a list when merging.
@@ -53,9 +53,11 @@ class Accumulator(abc.ABC):
 
 class CompoundAccumulator(Accumulator):
   """
+    Accumulator for computing multiple metrics.
+
     CompoundAccumulator contains one or more accumulators of other types for
-    computing multiple metrics. For example it can contain
-    [CountAccumulator,  SumAccumulator].
+    computing multiple metrics.
+    For example it can contain [CountAccumulator,  SumAccumulator].
     CompoundAccumulator delegates all operation to the internal accumulators.
   """
 
@@ -65,7 +67,6 @@ class CompoundAccumulator(Accumulator):
       self.accumulators = accumulators
 
   def add_value(self,  value):
-    # adds the value to each accumulator
     for accumulator in self.accumulators:
       accumulator.add_value(value)
     return self
