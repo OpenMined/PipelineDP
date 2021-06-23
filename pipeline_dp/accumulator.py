@@ -62,9 +62,7 @@ class CompoundAccumulator(Accumulator):
   """
 
   def __init__(self, accumulators: typing.Iterable['Accumulator']):
-    self.accumulators = []
-    if accumulators:
-      self.accumulators = accumulators
+    self.accumulators = accumulators
 
   def add_value(self,  value):
     for accumulator in self.accumulators:
