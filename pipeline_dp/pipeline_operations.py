@@ -55,6 +55,16 @@ class PipelineOperations(abc.ABC):
         pass
 
     @abc.abstractmethod
+    """Reduce the input collection so that all elements per each key are merged.
+
+    Args:
+      col: input collection which contains tuples (key, accumulator)
+      stage_name: name of the stage
+
+    Returns:
+      A collection of tuples (key, accumulator).
+
+    """
     def reduce_accumulators_per_key(self, col, stage_name: str):
         pass
 
@@ -162,16 +172,6 @@ class SparkRDDOperations(PipelineOperations):
             .reduceByKey(lambda x, y: (x + y))
 
     def reduce_accumulators_per_key(self, rdd, stage_name: str = None):
-        """Reduce the input RDD so that all elements per each key are merged.
-
-        Args:
-          rdd: input rdd which contains tuples (key, accumulator)
-          stage_name: name of the stage
-
-        Returns:
-          An RDD of tuples (key, accumulator).
-
-        """
         rdd.reduceByKey(lambda acc1, acc2: acc1.merge([acc2]))
 
 
