@@ -50,12 +50,49 @@ class CompoundAccumulatorTest(unittest.TestCase):
     to_add_compound_accumulator = pipeline_dp.CompoundAccumulator.merge(
       [sum_squares_acc])
 
-    # base_compound_accumulator.add_accumulator(to_add_compound_accumulator)
     with self.assertRaises(ValueError) as context:
       base_compound_accumulator.add_accumulator(to_add_compound_accumulator)
-      self.assertTrue("Accumulators in the input are not of the same size "
-        + "or don't match the type/order of the base accumulators."
-                      == str(context.exception))
+    self.assertEqual("Accumulators in the input are not of the same size "
+                     + "or don't match the type/order of the base accumulators.",
+                     str(context.exception))
+
+  def test_serialization_single_accumulator(self):
+    accumulator = MeanAccumulator().add_value(5).add_value(6)
+
+    serialized_obj = accumulator.serialize()
+    deserialized_obj = pipeline_dp.Accumulator.deserialize(serialized_obj)
+
+    self.assertIsInstance(deserialized_obj, MeanAccumulator)
+    self.assertEqual(accumulator.sum, deserialized_obj.sum)
+    self.assertEqual(accumulator.count, deserialized_obj.count)
+
+  def test_serialization_compound_accumulator(self):
+    mean_acc = MeanAccumulator().add_value(15)
+    sum_squares_acc = SumOfSquaresAccumulator().add_value(1)
+    compound_accumulator = pipeline_dp.CompoundAccumulator.merge(
+      [mean_acc, sum_squares_acc])
+
+    serialized_obj = compound_accumulator.serialize()
+    deserialized_obj = pipeline_dp.Accumulator.deserialize(serialized_obj)
+
+    self.assertIsInstance(deserialized_obj, pipeline_dp.CompoundAccumulator)
+    self.assertEqual(len(deserialized_obj.accumulators), 2)
+    self.assertIsInstance(deserialized_obj.accumulators[0], MeanAccumulator)
+    self.assertIsInstance(deserialized_obj.accumulators[1],
+                          SumOfSquaresAccumulator)
+    self.assertEqual(deserialized_obj.compute_metrics(),
+                     compound_accumulator.compute_metrics())
+
+  def test_serialization_with_incompatible_serialized_object(self):
+    mean_accumulator = MeanAccumulator().add_value(15)
+
+    serialized_obj = mean_accumulator.serialize()
+
+    with self.assertRaises(TypeError) as context:
+      SumOfSquaresAccumulator.deserialize(serialized_obj)
+    self.assertEqual("The deserialized object is not of the right type",
+                     str(context.exception))
+
 
 class MeanAccumulator(pipeline_dp.Accumulator):
 

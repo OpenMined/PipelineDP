@@ -1,5 +1,6 @@
 import abc
 import typing
+import pickle
 
 
 class Accumulator(abc.ABC):
@@ -50,6 +51,15 @@ class Accumulator(abc.ABC):
   def compute_metrics(self):
     pass
 
+  def serialize(self):
+    return pickle.dumps(self)
+
+  @classmethod
+  def deserialize(cls, serialized_obj: str):
+    deserialized_obj = pickle.loads(serialized_obj)
+    if not isinstance(deserialized_obj, cls):
+      raise TypeError("The deserialized object is not of the right type")
+    return deserialized_obj
 
 class CompoundAccumulator(Accumulator):
   """
