@@ -71,7 +71,7 @@ class PipelineOperations(abc.ABC):
 
     @abc.abstractmethod
     def reduce_accumulators_per_key(self, col, stage_name: str):
-        """Reduce the input collection so that all elements per each key are merged.
+        """Reduces the input collection so that all elements per each key are merged.
 
             Args:
               col: input collection which contains tuples (key, accumulator)
@@ -175,7 +175,7 @@ class BeamOperations(PipelineOperations):
         return col | stage_name >> combiners.Count.PerElement()
 
     def reduce_accumulators_per_key(self, col, stage_name: str = None):
-
+        # TODO: Use merge function from the accumulator framework.
         def merge_accumulators(accumulators):
             res = None
             for acc in accumulators:

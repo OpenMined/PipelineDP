@@ -77,12 +77,10 @@ class BeamOperationsTest(parameterized.TestCase):
 
     def test_reduce_accumulators_per_key(self):
         with test_pipeline.TestPipeline() as p:
-            col = p | "Create PCollection" >> beam.Create([(1, 6, 1), (2, 7, 1),
-                                                           (3, 6, 1), (4, 7, 1),
-                                                           (5, 8, 1)])\
-                  | "Wrap into accumulators" >> beam.Map(lambda row: (row[1], SumAccumulator(row[2])))
-            result = self.ops.reduce_accumulators_per_key(col) \
-                     |"Get accumulated values" >> beam.Map(lambda row: (row[0], row[1].get_metrics()))
+            col = p | "Create PCollection" >> beam.Create([(6, 1), (7, 1), (6, 1), (7, 1), (8, 1)])
+            col = self.ops.map_values(col, SumAccumulator, "Wrap into accumulators")
+            col = self.ops.reduce_accumulators_per_key(col)
+            result = col | "Get accumulated values" >> beam.Map(lambda row: (row[0], row[1].get_metrics()))
 
             assert_that(result, equal_to([(6, 2), (7, 2), (8, 1)]))
 
