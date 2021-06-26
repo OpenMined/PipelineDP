@@ -309,13 +309,15 @@ class LocalPipelineOperationsTest(unittest.TestCase):
         some_dict = [("cheese", "brie"), ("bread", "sourdough"),
                      ("cheese", "swiss")]
 
-        self.assertEqual(list(self.ops.group_by_key(some_dict)), [
-                         ("cheese", ["brie", "swiss"]),
-                         ("bread", ["sourdough"])])
+        self.assertEqual(list(self.ops.group_by_key(some_dict)),
+                         [("cheese", ["brie", "swiss"]),
+                          ("bread", ["sourdough"])])
+
 
 # TODO: Extend the proper Accumulator class once it's available.
 class SumAccumulator:
     """A simple accumulator for testing purposes."""
+
     def __init__(self, v):
         self.sum = v
 
@@ -327,7 +329,7 @@ class SumAccumulator:
         return self.sum
 
     def add_accumulator(self,
-                      accumulator: 'SumAccumulator') -> 'SumAccumulator':
+                        accumulator: 'SumAccumulator') -> 'SumAccumulator':
         self.sum += accumulator.sum
         return self
 

@@ -175,6 +175,7 @@ class BeamOperations(PipelineOperations):
         return col | stage_name >> combiners.Count.PerElement()
 
     def reduce_accumulators_per_key(self, col, stage_name: str = None):
+
         def merge_accumulators(accumulators):
             res = None
             for acc in accumulators:
@@ -183,6 +184,7 @@ class BeamOperations(PipelineOperations):
                 else:
                     res = acc
             return res
+
         return col | stage_name >> beam.CombinePerKey(merge_accumulators)
 
 
