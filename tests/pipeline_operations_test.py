@@ -75,6 +75,15 @@ class BeamOperationsTest(parameterized.TestCase):
                                             "Public partition filtering")
             assert_that(result, equal_to(expected_result))
 
+    def test_reduce_accumulators_per_key(self):
+        with test_pipeline.TestPipeline() as p:
+            col = p | "Create PCollection" >> beam.Create([(6, 1), (7, 1), (6, 1), (7, 1), (8, 1)])
+            col = self.ops.map_values(col, SumAccumulator, "Wrap into accumulators")
+            col = self.ops.reduce_accumulators_per_key(col)
+            result = col | "Get accumulated values" >> beam.Map(lambda row: (row[0], row[1].get_metrics()))
+
+            assert_that(result, equal_to([(6, 2), (7, 2), (8, 1)]))
+
 
 class SparkRDDOperationsTest(unittest.TestCase):
 
@@ -298,9 +307,29 @@ class LocalPipelineOperationsTest(unittest.TestCase):
         some_dict = [("cheese", "brie"), ("bread", "sourdough"),
                      ("cheese", "swiss")]
 
-        self.assertEqual(list(self.ops.group_by_key(some_dict)), [
-                         ("cheese", ["brie", "swiss"]),
-                         ("bread", ["sourdough"])])
+        self.assertEqual(list(self.ops.group_by_key(some_dict)),
+                         [("cheese", ["brie", "swiss"]),
+                          ("bread", ["sourdough"])])
+
+
+# TODO: Extend the proper Accumulator class once it's available.
+class SumAccumulator:
+    """A simple accumulator for testing purposes."""
+
+    def __init__(self, v):
+        self.sum = v
+
+    def add_value(self, v):
+        self.sum += v
+        return self
+
+    def get_metrics(self):
+        return self.sum
+
+    def add_accumulator(self,
+                        accumulator: 'SumAccumulator') -> 'SumAccumulator':
+        self.sum += accumulator.sum
+        return self
 
 
 if __name__ == '__main__':

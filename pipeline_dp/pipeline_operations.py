@@ -69,6 +69,20 @@ class PipelineOperations(abc.ABC):
     def count_per_element(self, col, stage_name: str):
         pass
 
+    @abc.abstractmethod
+    def reduce_accumulators_per_key(self, col, stage_name: str):
+        """Reduces the input collection so that all elements per each key are merged.
+
+            Args:
+              col: input collection which contains tuples (key, accumulator)
+              stage_name: name of the stage
+
+            Returns:
+              A collection of tuples (key, accumulator).
+
+            """
+        pass
+
 
 class BeamOperations(PipelineOperations):
     """Apache Beam adapter."""
@@ -160,6 +174,19 @@ class BeamOperations(PipelineOperations):
     def count_per_element(self, col, stage_name: str):
         return col | stage_name >> combiners.Count.PerElement()
 
+    def reduce_accumulators_per_key(self, col, stage_name: str = None):
+        # TODO: Use merge function from the accumulator framework.
+        def merge_accumulators(accumulators):
+            res = None
+            for acc in accumulators:
+                if res:
+                    res.add_accumulator(acc)
+                else:
+                    res = acc
+            return res
+
+        return col | stage_name >> beam.CombinePerKey(merge_accumulators)
+
 
 class SparkRDDOperations(PipelineOperations):
     """Apache Spark RDD adapter."""
@@ -227,6 +254,9 @@ class SparkRDDOperations(PipelineOperations):
         return rdd.map(lambda x: (x, 1))\
             .reduceByKey(lambda x, y: (x + y))
 
+    def reduce_accumulators_per_key(self, col, stage_name: str = None):
+        raise NotImplementedError()
+
 
 class LocalPipelineOperations(PipelineOperations):
     """Local Pipeline adapter."""
@@ -292,3 +322,6 @@ class LocalPipelineOperations(PipelineOperations):
 
     def count_per_element(self, col, stage_name: typing.Optional[str] = None):
         yield from collections.Counter(col).items()
+
+    def reduce_accumulators_per_key(self, col, stage_name: str = None):
+        raise NotImplementedError()
