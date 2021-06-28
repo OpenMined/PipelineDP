@@ -112,9 +112,21 @@ class SparkRDDOperationsTest(unittest.TestCase):
         result = dict(result)
         self.assertDictEqual(result, {'a': 2, 'b': 1})
 
-        @classmethod
-        def tearDownClass(cls):
-            cls.sc.stop()
+    def test_reduce_accumulators_per_key(self):
+        spark_operations = SparkRDDOperations()
+        data = [(1, 11), (2, 22), (3, 33), (1, 14), (2, 25), (1, 16)]
+        dist_data = SparkRDDOperationsTest.sc.parallelize(data)
+        rdd = spark_operations.map_values(dist_data, SumAccumulator, "Wrap into accumulators")
+        result = spark_operations\
+            .reduce_accumulators_per_key(rdd, "Reduce accumulator per key")\
+            .map(lambda row: (row[0], row[1].get_metrics()))\
+            .collect()
+        result = dict(result)
+        self.assertDictEqual(result, {1: 41, 2: 47, 3: 33})
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.sc.stop()
 
     def test_flat_map(self):
         spark_operations = SparkRDDOperations()
