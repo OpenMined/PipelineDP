@@ -254,7 +254,7 @@ class SparkRDDOperations(PipelineOperations):
             .reduceByKey(lambda x, y: (x + y))
 
     def reduce_accumulators_per_key(self, rdd, stage_name: str = None):
-        return rdd.reduceByKey(lambda acc1, acc2: acc1.merge([acc2]))
+        return rdd.reduceByKey(lambda acc1, acc2: acc1.add_accumulator(acc2))
 
 
 class LocalPipelineOperations(PipelineOperations):
