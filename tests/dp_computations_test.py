@@ -172,6 +172,73 @@ class MeanVarParams(unittest.TestCase):
         self._test_gaussian_noise(results, 10, params.eps, params.delta,
                                   l2_sensitivity)
 
+    def test_equally_split_budget(self):
+        # The number of mechanisms must be bigger than 0.
+        with self.assertRaises(ValueError):
+            pipeline_dp.dp_computations.equally_split_budget(0.5, 1e-10, 0)
+
+        # Only one mechanism.
+        self.assertEqual(
+            pipeline_dp.dp_computations.equally_split_budget(0.5, 1e-10, 1),
+            [(0.5, 1e-10)])
+
+        # Multiple mechanisms.
+        expected_budgets = [(0.5 / 5, 1e-10 / 5) for _ in range(4)]
+        expected_budgets.append((0.5 - 4 * (0.5 / 5), 1e-10 - 4 * (1e-10 / 5)))
+
+        self.assertEqual(
+            pipeline_dp.dp_computations.equally_split_budget(0.5, 1e-10, 5),
+            expected_budgets
+        )
+
+    def test_compute_dp_mean(self):
+        params = pipeline_dp.dp_computations.MeanVarParams(
+            eps=0.5,
+            delta=1e-10,
+            low=1,
+            high=10,
+            max_partitions_contributed=1,
+            max_contributions_per_partition=1,
+            noise_kind=pipeline_dp.NoiseKind.LAPLACE)
+
+        (sum_eps, sum_delta), (count_eps,
+                               count_delta) = pipeline_dp.dp_computations.equally_split_budget(
+            params.eps, params.delta, 2)
+        l0_sensitivity = params.l0_sensitivity()
+
+        # Laplace Mechanism
+        results = [
+            pipeline_dp.dp_computations.compute_dp_mean(count=10, sum=100,
+                                                        dp_params=params)
+            for _ in range(1000000)
+        ]
+        count_values, sum_values, mean_values = zip(*results)
+        self._test_laplace_noise(count_values, 10, count_eps,
+                                 pipeline_dp.dp_computations.compute_l1_sensitivity(
+                                     l0_sensitivity, params.linf_sensitivity(
+                                         pipeline_dp.Metrics.COUNT)))
+        self._test_laplace_noise(sum_values, 100, sum_eps,
+                                 pipeline_dp.dp_computations.compute_l1_sensitivity(
+                                     l0_sensitivity, params.linf_sensitivity(
+                                         pipeline_dp.Metrics.MEAN)))
+
+        # Gaussian Mechanism
+        params.noise_kind = pipeline_dp.NoiseKind.GAUSSIAN
+        results = [
+            pipeline_dp.dp_computations.compute_dp_mean(count=10, sum=100,
+                                                        dp_params=params)
+            for _ in range(1500000)
+        ]
+        count_values, sum_values, mean_values = zip(*results)
+        self._test_gaussian_noise(count_values, 10, count_eps, count_delta,
+                                 pipeline_dp.dp_computations.compute_l2_sensitivity(
+                                     l0_sensitivity, params.linf_sensitivity(
+                                         pipeline_dp.Metrics.COUNT)))
+        self._test_gaussian_noise(sum_values, 100, sum_eps, sum_delta,
+                                 pipeline_dp.dp_computations.compute_l2_sensitivity(
+                                     l0_sensitivity, params.linf_sensitivity(
+                                         pipeline_dp.Metrics.MEAN)))
+
 
 if __name__ == '__main__':
     unittest.main()
