@@ -7,7 +7,6 @@ import numpy as np
 import abc
 import apache_beam as beam
 import apache_beam.transforms.combiners as combiners
-import collections
 import typing
 
 
@@ -254,8 +253,8 @@ class SparkRDDOperations(PipelineOperations):
         return rdd.map(lambda x: (x, 1))\
             .reduceByKey(lambda x, y: (x + y))
 
-    def reduce_accumulators_per_key(self, col, stage_name: str = None):
-        raise NotImplementedError()
+    def reduce_accumulators_per_key(self, rdd, stage_name: str = None):
+        return rdd.reduceByKey(lambda acc1, acc2: acc1.add_accumulator(acc2))
 
 
 class LocalPipelineOperations(PipelineOperations):
