@@ -26,8 +26,14 @@ class MeanVarParams:
         if metric == pipeline_dp.Metrics.SUM:
             return self.max_contributions_per_partition * max(
                 abs(self.low), abs(self.high))
+        if metric == pipeline_dp.Metrics.MEAN:
+            return self.max_contributions_per_partition * abs(
+                self.high - self.low) / 2
         # TODO: add values for mean and variance
         raise ValueError("Invalid metric")
+
+    def middle(self):
+        return self.low + (self.high - self.low) / 2
 
 
 def compute_l1_sensitivity(l0_sensitivity: float, linf_sensitivity: float):
@@ -70,6 +76,32 @@ def _add_random_noise(value: float, eps: float, delta: float,
     raise ValueError("Noise kind must be either Laplace or Gaussian.")
 
 
+def equally_split_budget(eps: float, delta: float, no_mechanisms: int):
+    """Equally splits the budget (eps, delta) between a given number of mechanisms.
+
+    Args:
+        eps, delta: Parameters of (epsilon, delta)-differential privacy.
+        no_mechanisms: The number of mechanisms between which we split the budget.
+
+    Raises:
+        ValueError: The number of mechanisms must be a natural non-zero number.
+
+    Returns:
+        An array with the split budgets.
+    """
+    if no_mechanisms <= 0:
+        raise ValueError(
+            "The number of mechanisms must be a natural non-zero number.")
+
+    budgets = [(eps / no_mechanisms, delta / no_mechanisms) for _ in
+               range(no_mechanisms - 1)]
+    last_mechanism_budget = (eps - (no_mechanisms - 1) * (eps / no_mechanisms),
+                             delta - (no_mechanisms - 1) * (
+                                     delta / no_mechanisms))
+    budgets.append(last_mechanism_budget)
+    return budgets
+
+
 def compute_dp_count(count: int, dp_params: MeanVarParams):
     """Computes DP count.
 
@@ -104,3 +136,36 @@ def compute_dp_sum(sum: float, dp_params: MeanVarParams):
     return _add_random_noise(sum, dp_params.eps, dp_params.delta,
                              l0_sensitivity, linf_sensitivity,
                              dp_params.noise_kind)
+
+
+def compute_dp_mean(count: int, sum: float, dp_params: MeanVarParams):
+    """Computes DP mean.
+
+    Args:
+        count: Non-DP count.
+        sum: Non-DP sum.
+        dp_params: The parameters used at computing the noise.
+
+    Raises:
+        ValueError: The noise kind is invalid.
+    """
+    middle = dp_params.middle()
+    normalized_sum = sum - count * middle
+
+    l0_sensitivity = dp_params.l0_sensitivity()
+
+    # Splits the budget equally between the two mechanisms.
+    (sum_eps, sum_delta), (count_eps, count_delta) = equally_split_budget(
+        dp_params.eps, dp_params.delta, 2)
+
+    dp_normalized_sum = _add_random_noise(normalized_sum, sum_eps, sum_delta,
+                                          l0_sensitivity,
+                                          dp_params.linf_sensitivity(
+                                              pipeline_dp.Metrics.MEAN),
+                                          dp_params.noise_kind)
+    dp_count = _add_random_noise(count, count_eps, count_delta, l0_sensitivity,
+                                 dp_params.linf_sensitivity(
+                                     pipeline_dp.Metrics.COUNT),
+                                 dp_params.noise_kind)
+    dp_mean = dp_normalized_sum / dp_count + middle
+    return dp_count, dp_normalized_sum + count * middle, dp_mean
