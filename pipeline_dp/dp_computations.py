@@ -149,7 +149,7 @@ def equally_split_budget(eps: float, delta: float, no_mechanisms: int):
     """Equally splits the budget (eps, delta) between a given number of mechanisms.
 
     Args:
-        eps, delta: Parameters of (epsilon, delta)-differential privacy.
+        eps, delta: The available budget.
         no_mechanisms: The number of mechanisms between which we split the budget.
 
     Raises:
