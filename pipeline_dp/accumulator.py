@@ -3,6 +3,7 @@ import typing
 import pickle
 from functools import reduce
 
+
 def merge(accumulators: typing.Iterable[
   'Accumulator'] = None) -> 'Accumulator':
   """Merges the accumulators.
@@ -18,8 +19,9 @@ def merge(accumulators: typing.Iterable[
     raise TypeError(
       "Accumulators should all be of the same type. Found accumulators of "
       + f"different types: ({','.join(unique_accumulator_types)}).")
-    
+
   return reduce(lambda acc1, acc2: acc1.add_accumulator(acc2), accumulators)
+
 
 class Accumulator(abc.ABC):
   """Base class for all accumulators.
@@ -62,6 +64,7 @@ class Accumulator(abc.ABC):
       raise TypeError("The deserialized object is not of the right type.")
     return deserialized_obj
 
+
 class CompoundAccumulator(Accumulator):
   """Accumulator for computing multiple metrics.
 
@@ -74,7 +77,7 @@ class CompoundAccumulator(Accumulator):
   def __init__(self, accumulators: typing.Iterable['Accumulator']):
     self.accumulators = accumulators
 
-  def add_value(self,  value):
+  def add_value(self, value):
     for accumulator in self.accumulators:
       accumulator.add_value(value)
     return self
@@ -104,7 +107,7 @@ class CompoundAccumulator(Accumulator):
         received {received_type_order}""")
 
     for (base_accumulator, to_add_accumulator) in zip(self.accumulators,
-                                                    accumulator.accumulators):
+                                                      accumulator.accumulators):
       base_accumulator.add_accumulator(to_add_accumulator)
     return self
 

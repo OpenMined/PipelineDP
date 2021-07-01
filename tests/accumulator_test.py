@@ -28,7 +28,7 @@ class CompoundAccumulatorTest(unittest.TestCase):
     mean_acc1 = MeanAccumulator().add_value(5)
     sum_squares_acc1 = SumOfSquaresAccumulator().add_value(5)
     compound_accumulator = CompoundAccumulator([mean_acc1,
-                                                                  sum_squares_acc1])
+                                                sum_squares_acc1])
 
     mean_acc2 = MeanAccumulator()
     sum_squares_acc2 = SumOfSquaresAccumulator()
@@ -74,8 +74,9 @@ class CompoundAccumulatorTest(unittest.TestCase):
 
     with self.assertRaises(ValueError) as context:
       base_compound_accumulator.add_accumulator(to_add_compound_accumulator)
-    self.assertEqual("""Accumulators in the input are not of the same size. Expected size = 2 received size = 1.""",
-                     str(context.exception))
+    self.assertEqual(
+      """Accumulators in the input are not of the same size. Expected size = 2 received size = 1.""",
+      str(context.exception))
 
   def test_serialization_single_accumulator(self):
     accumulator = MeanAccumulator().add_value(5).add_value(6)
@@ -114,25 +115,27 @@ class CompoundAccumulatorTest(unittest.TestCase):
     self.assertEqual("The deserialized object is not of the right type.",
                      str(context.exception))
 
+
 class GenericAccumulatorTest(unittest.TestCase):
 
-    def test_merge_accumulators(self):
-      mean_accumulator1 = MeanAccumulator().add_value(15)
-      mean_accumulator2 = MeanAccumulator().add_value(5)
+  def test_merge_accumulators(self):
+    mean_accumulator1 = MeanAccumulator().add_value(15)
+    mean_accumulator2 = MeanAccumulator().add_value(5)
 
-      merged_accumulator = merge([mean_accumulator1, mean_accumulator2])
+    merged_accumulator = merge([mean_accumulator1, mean_accumulator2])
 
-      self.assertEqual(merged_accumulator.compute_metrics(), 10)
+    self.assertEqual(merged_accumulator.compute_metrics(), 10)
 
-    def test_merge_diff_type_throws_type_error(self):
-      mean_accumulator1 = MeanAccumulator().add_value(15)
-      sum_squares_acc = SumOfSquaresAccumulator().add_value(1)
+  def test_merge_diff_type_throws_type_error(self):
+    mean_accumulator1 = MeanAccumulator().add_value(15)
+    sum_squares_acc = SumOfSquaresAccumulator().add_value(1)
 
-      with self.assertRaises(TypeError) as context:
-        merged_accumulator = merge([mean_accumulator1, sum_squares_acc])
-      self.assertIn("Accumulators should all be of the same type. Found "
-      + "accumulators of different types:""",
-                       str(context.exception))
+    with self.assertRaises(TypeError) as context:
+      merged_accumulator = merge([mean_accumulator1, sum_squares_acc])
+    self.assertIn("Accumulators should all be of the same type. Found "
+                  + "accumulators of different types:""",
+                  str(context.exception))
+
 
 class MeanAccumulator(Accumulator):
 
