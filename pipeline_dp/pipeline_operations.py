@@ -145,8 +145,8 @@ class BeamOperations(PipelineOperations):
             VALUES: col,
             IS_PUBLIC: public_partitions
         } | "Aggregating elements by values and is_public partition flag " >>
-            beam.CoGroupByKey() | "Filterding data from public partitions"
-            >> beam.ParDo(PartitionsFilterJoin()))
+                beam.CoGroupByKey() | "Filtering data from public partitions"
+                >> beam.ParDo(PartitionsFilterJoin()))
 
     def keys(self, col, stage_name: str):
         return col | stage_name >> beam.Keys()

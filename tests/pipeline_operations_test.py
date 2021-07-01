@@ -255,6 +255,7 @@ class LocalPipelineOperationsTest(unittest.TestCase):
         assert_laziness(self.ops.map_values, str)
         assert_laziness(self.ops.filter, bool)
         assert_laziness(self.ops.values)
+        assert_laziness(self.ops.keys)
         assert_laziness(self.ops.count_per_element)
         assert_laziness(self.ops.flat_map, str)
         assert_laziness(self.ops.sample_fixed_per_key, int)
