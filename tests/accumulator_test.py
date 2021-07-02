@@ -57,9 +57,8 @@ class CompoundAccumulatorTest(unittest.TestCase):
 
     with self.assertRaises(TypeError) as context:
       base_compound_accumulator.add_accumulator(to_add_compound_accumulator)
-    self.assertEqual("""Accumulators in the input don't match the type/order of the base accumulators. 
-        Expected MeanAccumulator,SumOfSquaresAccumulator
-        received SumOfSquaresAccumulator,MeanAccumulator""",
+    self.assertEqual("The type of the accumulators don't match at index 0. "
+                     "MeanAccumulator != SumOfSquaresAccumulator.""",
                      str(context.exception))
 
   def test_adding_mismatched_accumulator_length_raises_exception(self):
@@ -74,8 +73,8 @@ class CompoundAccumulatorTest(unittest.TestCase):
 
     with self.assertRaises(ValueError) as context:
       base_compound_accumulator.add_accumulator(to_add_compound_accumulator)
-    self.assertEqual(
-      """Accumulators in the input are not of the same size. Expected size = 2 received size = 1.""",
+    self.assertEqual("Accumulators in the input are not of the same size. "
+                     "Expected size = 2 received size = 1.",
       str(context.exception))
 
   def test_serialization_single_accumulator(self):

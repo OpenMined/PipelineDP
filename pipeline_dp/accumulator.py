@@ -43,6 +43,9 @@ class Accumulator(abc.ABC):
   @abc.abstractmethod
   def add_accumulator(self, accumulator: 'Accumulator') -> 'Accumulator':
     """Merges the accumulator to self and returns self.
+
+       Sub-class implementation is responsible for checking that types of
+       self and accumulator are the same.
       Args:
         accumulator:
 
@@ -71,7 +74,7 @@ class CompoundAccumulator(Accumulator):
     CompoundAccumulator contains one or more accumulators of other types for
     computing multiple metrics.
     For example it can contain [CountAccumulator,  SumAccumulator].
-    CompoundAccumulator delegates all operation to the internal accumulators.
+    CompoundAccumulator delegates all operations to the internal accumulators.
   """
 
   def __init__(self, accumulators: typing.Iterable['Accumulator']):
@@ -85,7 +88,8 @@ class CompoundAccumulator(Accumulator):
   def add_accumulator(self, accumulator: 'CompoundAccumulator') -> \
     'CompoundAccumulator':
     """Merges the accumulators of the CompoundAccumulators.
-    The expectation is that the input accumulators are of the same type and
+
+    The expectation is that the internal accumulators are of the same type and
     are in the same order."""
 
     if len(accumulator.accumulators) != len(self.accumulators):
@@ -94,17 +98,12 @@ class CompoundAccumulator(Accumulator):
         + f" Expected size = {len(self.accumulators)}"
         + f" received size = {len(accumulator.accumulators)}.")
 
-    expected_type_order = ",".join([type(accumulator).__name__ for
-                                    accumulator in self.accumulators])
-    received_type_order = ",".join([type(accumulator).__name__ for
-                                    accumulator in accumulator.accumulators])
-    if any([base_accumulator_type != to_add_accumulator_type for
-            base_accumulator_type, to_add_accumulator_type in
-            zip(expected_type_order, received_type_order)]):
-      raise TypeError(
-        f"""Accumulators in the input don't match the type/order of the base accumulators. 
-        Expected {expected_type_order}
-        received {received_type_order}""")
+    for pos, (base_accumulator_type, to_add_accumulator_type) in enumerate(
+      zip(self.accumulators, accumulator.accumulators)):
+      if type(base_accumulator_type) != type(to_add_accumulator_type):
+        raise TypeError("The type of the accumulators don't match at "
+                        f"index {pos}. {type(base_accumulator_type).__name__} "
+                        f"!= {type(to_add_accumulator_type).__name__}.")
 
     for (base_accumulator, to_add_accumulator) in zip(self.accumulators,
                                                       accumulator.accumulators):
