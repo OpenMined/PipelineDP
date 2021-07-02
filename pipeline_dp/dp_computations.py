@@ -22,7 +22,7 @@ class MeanVarParams:
         return self.max_partitions_contributed
 
     def linf_sensitivity(self, metric):
-        """Returns the L1 sensitivity of the parameters based on the metric.
+        """Returns the Linf sensitivity of the parameters based on the metric.
 
         Args:
             metric: The metric performed.
@@ -37,7 +37,7 @@ class MeanVarParams:
                 abs(self.low), abs(self.high))
         if metric == pipeline_dp.Metrics.MEAN:
             return self.max_contributions_per_partition * abs(
-                self.high - self.low) / 2
+                self.middle() + self.low)
         # TODO: add value for variance
         raise ValueError("Invalid metric")
 
@@ -162,12 +162,17 @@ def equally_split_budget(eps: float, delta: float, no_mechanisms: int):
         raise ValueError(
             "The number of mechanisms must be a natural non-zero number.")
 
-    budgets = [(eps / no_mechanisms, delta / no_mechanisms) for _ in
-               range(no_mechanisms - 1)]
-    last_mechanism_budget = (eps - (no_mechanisms - 1) * (eps / no_mechanisms),
-                             delta - (no_mechanisms - 1) * (
-                                     delta / no_mechanisms))
-    budgets.append(last_mechanism_budget)
+    budgets = []
+    eps_used = 0
+    delta_used = 0
+
+    for _ in range(no_mechanisms - 1):
+        budget = (eps / no_mechanisms, delta / no_mechanisms)
+        eps_used += budget[0]
+        delta_used += budget[1]
+        budgets.append(budget)
+
+    budgets.append((eps - eps_used, delta - delta_used))
     return budgets
 
 
@@ -217,6 +222,9 @@ def compute_dp_mean(count: int, sum: float, dp_params: MeanVarParams):
 
     Raises:
         ValueError: The noise kind is invalid.
+
+    Returns:
+        The tuple of anonymized count, sum and mean.
     """
     middle = dp_params.middle()
     normalized_sum = sum - count * middle
@@ -237,4 +245,4 @@ def compute_dp_mean(count: int, sum: float, dp_params: MeanVarParams):
                                      pipeline_dp.Metrics.COUNT),
                                  dp_params.noise_kind)
     dp_mean = dp_normalized_sum / dp_count + middle
-    return dp_count, dp_normalized_sum + count * middle, dp_mean
+    return dp_count, dp_mean * dp_count, dp_mean
