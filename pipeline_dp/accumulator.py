@@ -4,22 +4,8 @@ import pickle
 from functools import reduce
 
 
-def merge(accumulators: typing.Iterable[
-  'Accumulator'] = None) -> 'Accumulator':
-  """Merges the accumulators.
-
-  Args:
-    accumulators:
-
-  Returns: Accumulator instance with merged values.
-  """
-  unique_accumulator_types = {type(accumulator).__name__ for accumulator in
-                              accumulators}
-  if len(unique_accumulator_types) > 1:
-    raise TypeError(
-      "Accumulators should all be of the same type. Found accumulators of "
-      + f"different types: ({','.join(unique_accumulator_types)}).")
-
+def merge(accumulators: typing.Iterable['Accumulator']) -> 'Accumulator':
+  """Merges the accumulators."""
   return reduce(lambda acc1, acc2: acc1.add_accumulator(acc2), accumulators)
 
 
