@@ -1,7 +1,6 @@
 """Adapters for working with pipeline frameworks."""
 
 import random
-import collections
 import numpy as np
 
 import abc
