@@ -130,9 +130,8 @@ class GenericAccumulatorTest(unittest.TestCase):
     sum_squares_acc = SumOfSquaresAccumulator().add_value(1)
 
     with self.assertRaises(TypeError) as context:
-      merged_accumulator = merge([mean_accumulator1, sum_squares_acc])
-    self.assertIn("Accumulators should all be of the same type. Found "
-                  + "accumulators of different types:""",
+      merge([mean_accumulator1, sum_squares_acc])
+    self.assertIn("The accumulator to be added is not of the same type.""",
                   str(context.exception))
 
 
@@ -152,6 +151,8 @@ class MeanAccumulator(Accumulator):
 
   def add_accumulator(self,
                       accumulator: 'MeanAccumulator') -> 'MeanAccumulator':
+    if not isinstance(accumulator, MeanAccumulator):
+      raise TypeError("The accumulator to be added is not of the same type.")
     self.sum += accumulator.sum
     self.count += accumulator.count
     return self
@@ -177,6 +178,8 @@ class SumOfSquaresAccumulator(Accumulator):
 
   def add_accumulator(self,
                       accumulator: 'SumOfSquaresAccumulator') -> 'SumOfSquaresAccumulator':
+    if not isinstance(accumulator, SumOfSquaresAccumulator):
+      raise TypeError("The accumulator to be added is not of the same type.")
     self.sum_squares += accumulator.sum_squares
     return self
 
