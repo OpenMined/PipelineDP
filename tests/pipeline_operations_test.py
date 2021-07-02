@@ -227,6 +227,13 @@ class LocalPipelineOperationsTest(unittest.TestCase):
                                         "Public partition filtering")
         self.assertEqual(result, [(7, (1, 7, 1)), (9, (3, 9, 1))])
 
+    def test_local_keys(self):
+        self.assertEqual(list(self.ops.keys([])), [])
+
+        example_list = [(1, 2), (2, 3), (3, 4), (4, 8)]
+
+        self.assertEqual(list(self.ops.keys(example_list)), [1, 2, 3, 4])
+
     def test_local_values(self):
         self.assertEqual(list(self.ops.values([])), [])
 
@@ -269,6 +276,7 @@ class LocalPipelineOperationsTest(unittest.TestCase):
         assert_laziness(self.ops.map_values, str)
         assert_laziness(self.ops.filter, bool)
         assert_laziness(self.ops.values)
+        assert_laziness(self.ops.keys)
         assert_laziness(self.ops.count_per_element)
         assert_laziness(self.ops.flat_map, str)
         assert_laziness(self.ops.sample_fixed_per_key, int)
