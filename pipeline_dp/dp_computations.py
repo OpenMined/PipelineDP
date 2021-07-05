@@ -37,7 +37,7 @@ class MeanVarParams:
                 abs(self.low), abs(self.high))
         if metric == pipeline_dp.Metrics.MEAN:
             return self.max_contributions_per_partition * abs(
-                self.middle() + self.low)
+                self.middle() - self.low)
         # TODO: add value for variance
         raise ValueError("Invalid metric")
 
@@ -153,14 +153,14 @@ def equally_split_budget(eps: float, delta: float, no_mechanisms: int):
         no_mechanisms: The number of mechanisms between which we split the budget.
 
     Raises:
-        ValueError: The number of mechanisms must be a natural non-zero number.
+        ValueError: The number of mechanisms must be a positive integer.
 
     Returns:
         An array with the split budgets.
     """
     if no_mechanisms <= 0:
         raise ValueError(
-            "The number of mechanisms must be a natural non-zero number.")
+            "The number of mechanisms must be a positive integer.")
 
     budgets = []
     eps_used = 0
