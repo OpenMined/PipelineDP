@@ -1,12 +1,14 @@
 """DP aggregations."""
 
-from typing import Callable
+from typing import Callable, Optional
 
 from dataclasses import dataclass
 from pipeline_dp.aggregate_params import AggregateParams
 from pipeline_dp.budget_accounting import BudgetAccountant
 from pipeline_dp.pipeline_operations import PipelineOperations
 from pipeline_dp.report_generator import ReportGenerator
+
+from pydp.algorithms.partition_selection import PartitionSelectionStrategy
 
 
 @dataclass
@@ -25,10 +27,12 @@ class DPEngine:
     """Performs DP aggregations."""
 
     def __init__(self, budget_accountant: BudgetAccountant,
-                 ops: PipelineOperations):
+                 ops: PipelineOperations, 
+                 partition_selection_strategy: Optional[PartitionSelectionStrategy] = None):
         self._budget_accountant = budget_accountant
         self._ops = ops
         self._report_generators = []
+        self._partition_selection_strategy = partition_selection_strategy
 
     def _add_report_stage(self, text):
         self._report_generators[-1].add_stage(text)
@@ -110,3 +114,20 @@ class DPEngine:
         return self._ops.flat_map(col,
                                   unnest_cross_partition_bound_sampled_per_key,
                                   "Unnest")
+    
+    def _select_private_partitions(self, col):
+        """
+        Selects and publishes private partitions.
+
+        Args:
+            col: collection, with types for each element: 
+                (partition_key, privacy_id_count, value)
+        
+        Returns:
+            collection of elements (partition_key, data)
+        """
+        def filter_fn(row):
+            return self._partition_selection_strategy.should_keep(row[1])
+
+        filtered_values = self._ops.filter(col, filter_fn)
+        return self._ops.group_by_key(filtered_values, lambda tup: (tup[0], tup[2]))

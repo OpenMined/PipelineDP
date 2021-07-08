@@ -6,3 +6,4 @@ pytest
 pylint
 yapf
 git+https://github.com/google/differential-privacy.git@327972c1ae710e8cd0a4754fffdd78c3500272ee#subdirectory=python
+python-dp
