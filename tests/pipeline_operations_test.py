@@ -1,12 +1,88 @@
 import unittest
 import pyspark
 
+from absl.testing import parameterized
+import apache_beam as beam
+import apache_beam.testing.test_pipeline as test_pipeline
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
+
+from pipeline_dp import DataExtractors
 from pipeline_dp.pipeline_operations import SparkRDDOperations
 from pipeline_dp.pipeline_operations import LocalPipelineOperations
+from pipeline_dp.pipeline_operations import BeamOperations
 
 
 class PipelineOperationsTest(unittest.TestCase):
     pass
+
+
+class BeamOperationsTest(parameterized.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        cls.ops = BeamOperations()
+        cls.data_extractors = DataExtractors(
+            partition_extractor=lambda x: x[1],
+            privacy_id_extractor=lambda x: x[0],
+            value_extractor=lambda x: x[2])
+
+    def test_filter_by_key_must_not_be_none(self):
+        with test_pipeline.TestPipeline() as p:
+            col = p | "Create PCollection" >> beam.Create([(1, 6, 1), (2, 7, 1),
+                                                           (3, 6, 1), (4, 7, 1),
+                                                           (5, 8, 1)])
+            public_partitions = None
+            with self.assertRaises(TypeError):
+                result = self.ops.filter_by_key(col, public_partitions,
+                                                self.data_extractors,
+                                                "Public partition filtering")
+
+    @parameterized.parameters(
+        {'in_memory': True},
+        {'in_memory': False},
+    )
+    def test_filter_by_key_remove(self, in_memory):
+        with test_pipeline.TestPipeline() as p:
+            col = p | "Create input data PCollection" >> beam.Create(
+                [(1, 7, 1), (2, 19, 1), (3, 9, 1), (4, 11, 1), (5, 10, 1)])
+            public_partitions = [7, 9]
+            expected_result = [(7, (1, 7, 1)), (9, (3, 9, 1))]
+            if not in_memory:
+                public_partitions = p | "Create public partitions PCollection" >> beam.Create(
+                    public_partitions)
+            result = self.ops.filter_by_key(col, public_partitions,
+                                            self.data_extractors,
+                                            "Public partition filtering")
+            assert_that(result, equal_to(expected_result))
+
+    @parameterized.parameters(
+        {'in_memory': True},
+        {'in_memory': False},
+    )
+    def test_filter_by_key_pcollection_empty_public_keys(self, in_memory):
+        with test_pipeline.TestPipeline() as p:
+            col = p | "Create PCollection" >> beam.Create([(1, 6, 1), (2, 7, 1),
+                                                           (3, 6, 1), (4, 7, 1),
+                                                           (5, 8, 1)])
+            public_partitions = []
+            expected_result = []
+            if not in_memory:
+                public_partitions = p | "Create public partitions PCollection" >> beam.Create(
+                    public_partitions)
+            result = self.ops.filter_by_key(col, public_partitions,
+                                            self.data_extractors,
+                                            "Public partition filtering")
+            assert_that(result, equal_to(expected_result))
+
+    def test_reduce_accumulators_per_key(self):
+        with test_pipeline.TestPipeline() as p:
+            col = p | "Create PCollection" >> beam.Create([(6, 1), (7, 1), (6, 1), (7, 1), (8, 1)])
+            col = self.ops.map_values(col, SumAccumulator, "Wrap into accumulators")
+            col = self.ops.reduce_accumulators_per_key(col)
+            result = col | "Get accumulated values" >> beam.Map(lambda row: (row[0], row[1].get_metrics()))
+
+            assert_that(result, equal_to([(6, 2), (7, 2), (8, 1)]))
 
 
 class SparkRDDOperationsTest(unittest.TestCase):
@@ -36,9 +112,21 @@ class SparkRDDOperationsTest(unittest.TestCase):
         result = dict(result)
         self.assertDictEqual(result, {'a': 2, 'b': 1})
 
-        @classmethod
-        def tearDownClass(cls):
-            cls.sc.stop()
+    def test_reduce_accumulators_per_key(self):
+        spark_operations = SparkRDDOperations()
+        data = [(1, 11), (2, 22), (3, 33), (1, 14), (2, 25), (1, 16)]
+        dist_data = SparkRDDOperationsTest.sc.parallelize(data)
+        rdd = spark_operations.map_values(dist_data, SumAccumulator, "Wrap into accumulators")
+        result = spark_operations\
+            .reduce_accumulators_per_key(rdd, "Reduce accumulator per key")\
+            .map(lambda row: (row[0], row[1].get_metrics()))\
+            .collect()
+        result = dict(result)
+        self.assertDictEqual(result, {1: 41, 2: 47, 3: 33})
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.sc.stop()
 
     def test_flat_map(self):
         spark_operations = SparkRDDOperations()
@@ -71,6 +159,10 @@ class LocalPipelineOperationsTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.ops = LocalPipelineOperations()
+        cls.data_extractors = DataExtractors(
+            partition_extractor=lambda x: x[1],
+            privacy_id_extractor=lambda x: x[0],
+            value_extractor=lambda x: x[2])
 
     def test_local_map(self):
         self.assertEqual(list(self.ops.map([], lambda x: x / 0)), [])
@@ -119,6 +211,29 @@ class LocalPipelineOperationsTest(unittest.TestCase):
         self.assertEqual(list(self.ops.filter(example_list, lambda x: x < 3)),
                          [1, 2, 2, 2])
 
+    def test_local_filter_by_key_empty_public_keys(self):
+        col = [(1, 6, 1), (2, 7, 1), (3, 6, 1), (4, 7, 1), (5, 8, 1)]
+        public_partitions = []
+        result = self.ops.filter_by_key(col, public_partitions,
+                                        self.data_extractors,
+                                        "Public partition filtering")
+        self.assertEqual(result, [])
+
+    def test_local_filter_by_key_remove(self):
+        col = [(1, 7, 1), (2, 19, 1), (3, 9, 1), (4, 11, 1), (5, 10, 1)]
+        public_partitions = [7, 9]
+        result = self.ops.filter_by_key(col, public_partitions,
+                                        self.data_extractors,
+                                        "Public partition filtering")
+        self.assertEqual(result, [(7, (1, 7, 1)), (9, (3, 9, 1))])
+
+    def test_local_keys(self):
+        self.assertEqual(list(self.ops.keys([])), [])
+
+        example_list = [(1, 2), (2, 3), (3, 4), (4, 8)]
+
+        self.assertEqual(list(self.ops.keys(example_list)), [1, 2, 3, 4])
+
     def test_local_values(self):
         self.assertEqual(list(self.ops.values([])), [])
 
@@ -161,6 +276,7 @@ class LocalPipelineOperationsTest(unittest.TestCase):
         assert_laziness(self.ops.map_values, str)
         assert_laziness(self.ops.filter, bool)
         assert_laziness(self.ops.values)
+        assert_laziness(self.ops.keys)
         assert_laziness(self.ops.count_per_element)
         assert_laziness(self.ops.flat_map, str)
         assert_laziness(self.ops.sample_fixed_per_key, int)
@@ -206,6 +322,34 @@ class LocalPipelineOperationsTest(unittest.TestCase):
                                   lambda x: [(x[0], y) for y in x[1]])),
             [("a", 1), ("a", 2), ("a", 3), ("a", 4), ("b", 5), ("b", 6),
              ("b", 7), ("b", 8)])
+
+    def test_local_group_by_key(self):
+        some_dict = [("cheese", "brie"), ("bread", "sourdough"),
+                     ("cheese", "swiss")]
+
+        self.assertEqual(list(self.ops.group_by_key(some_dict)),
+                         [("cheese", ["brie", "swiss"]),
+                          ("bread", ["sourdough"])])
+
+
+# TODO: Extend the proper Accumulator class once it's available.
+class SumAccumulator:
+    """A simple accumulator for testing purposes."""
+
+    def __init__(self, v):
+        self.sum = v
+
+    def add_value(self, v):
+        self.sum += v
+        return self
+
+    def get_metrics(self):
+        return self.sum
+
+    def add_accumulator(self,
+                        accumulator: 'SumAccumulator') -> 'SumAccumulator':
+        self.sum += accumulator.sum
+        return self
 
 
 if __name__ == '__main__':
