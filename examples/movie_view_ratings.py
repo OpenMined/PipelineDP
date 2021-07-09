@@ -126,7 +126,11 @@ def compute_on_spark():
     movie_views = sc.textFile(FLAGS.input_file) \
         .mapPartitions(parse_partition)
     pipeline_operations = pipeline_dp.SparkRDDOperations()
-    dp_result = calc_dp_rating_metrics(movie_views, pipeline_operations)
+    public_partitions = None
+    if FLAGS.public_partitions is not None:
+        print(FLAGS.public_partitions)
+        public_partitions = [int(partition) for partition in FLAGS.public_partitions]
+    dp_result = calc_dp_rating_metrics(movie_views, pipeline_operations, public_partitions)
     dp_result.saveAsTextFile(FLAGS.output_file)
 
 

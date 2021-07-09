@@ -1,5 +1,6 @@
 """Adapters for working with pipeline frameworks."""
 
+import collections
 import random
 import numpy as np
 
@@ -42,7 +43,8 @@ class PipelineOperations(abc.ABC):
 
         Args:
           col: collection with elements (partition_key, data).
-          public_partitions: collection of public partition keys.
+          public_partitions: collection of public partition keys,
+            both local (currently `list` and `set`) and distributed collections are supported
           stage_name: name of the stage.
 
         Returns:
@@ -223,8 +225,31 @@ class SparkRDDOperations(PipelineOperations):
                       public_partitions,
                       data_extractors,
                       stage_name: str = None):
-        NotImplementedError(
-            "filter_by_key is not implemented in SparkRDDOperations")
+
+        if public_partitions is None:
+            raise TypeError("Must provide a valid public_partitions")
+
+        else:
+            rdd = rdd.map(
+                lambda x: (data_extractors.partition_extractor(x), x)
+            )
+
+            if isinstance(public_partitions, (list, set)):
+                # Public partitions are local.
+                if not isinstance(public_partitions, set):
+                    public_partitions = set(public_partitions)
+                return rdd.filter(
+                    lambda x: x[0] in public_partitions
+                )
+
+            else:
+                filtering_rdd = public_partitions.map(
+                    lambda x: (x, None)
+                )
+                return rdd.join(filtering_rdd).map(
+                    # lambda partition, data: (partition, data[0])
+                    lambda x: (x[0], x[1][0])
+                )
 
     def keys(self, rdd, stage_name: str = None):
         return rdd.keys()
