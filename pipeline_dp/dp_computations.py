@@ -162,11 +162,9 @@ def equally_split_budget(eps: float, delta: float, no_mechanisms: int):
         raise ValueError(
             "The number of mechanisms must be a positive integer.")
 
-    # These variables are used to keep track of the budget used instead
-    # of estimating it. In this way, we can make use of the whole budget.
-    eps_used = 0
-    delta_used = 0
-
+    # These variables are used to keep track of the budget used.
+    # In this way, we can improve accuracy of floating-point operations.
+    eps_used = delta_used = 0
     budgets = []
 
     for _ in range(no_mechanisms - 1):
