@@ -1,14 +1,16 @@
 """DP aggregations."""
 
-from typing import Callable, Optional
+from functools import partial
+from typing import Any, Callable, Tuple
 
 from dataclasses import dataclass
 from pipeline_dp.aggregate_params import AggregateParams
-from pipeline_dp.budget_accounting import BudgetAccountant
+from pipeline_dp.budget_accounting import BudgetAccountant, Budget
 from pipeline_dp.pipeline_operations import PipelineOperations
 from pipeline_dp.report_generator import ReportGenerator
 
-from pydp.algorithms.partition_selection import PartitionSelectionStrategy
+from pydp.algorithms.partition_selection import create_truncated_geometric_partition_strategy
+from .accumulator import Accumulator
 
 
 @dataclass
@@ -27,12 +29,10 @@ class DPEngine:
     """Performs DP aggregations."""
 
     def __init__(self, budget_accountant: BudgetAccountant,
-                 ops: PipelineOperations, 
-                 partition_selection_strategy: Optional[PartitionSelectionStrategy] = None):
+                 ops: PipelineOperations):
         self._budget_accountant = budget_accountant
         self._ops = ops
         self._report_generators = []
-        self._partition_selection_strategy = partition_selection_strategy
 
     def _add_report_stage(self, text):
         self._report_generators[-1].add_stage(text)
@@ -115,19 +115,30 @@ class DPEngine:
                                   unnest_cross_partition_bound_sampled_per_key,
                                   "Unnest")
     
-    def _select_private_partitions(self, col):
-        """
-        Selects and publishes private partitions.
+    def _select_private_partitions(self, col, max_partitions_contributed: int):
+        """Selects and publishes private partitions.
 
         Args:
             col: collection, with types for each element: 
-                (partition_key, privacy_id_count, value)
+                (partition_key, accumulator: Accumulator)
+            max_partitions_contributed: how many contributed partitions we can get at 
+                most from this operations.
         
         Returns:
-            collection of elements (partition_key, data)
+            collection of elements (partition_key, accumulator)
         """
-        def filter_fn(row):
-            return self._partition_selection_strategy.should_keep(row[1])
-
-        filtered_values = self._ops.filter(col, filter_fn)
-        return self._ops.group_by_key(filtered_values, lambda tup: (tup[0], tup[2]))
+        budget = self._budget_accountant.request_budget(weight=1, use_eps=True, use_delta=True)
+        
+        def filter_fn(captures: Tuple[Budget, int], row: Any) -> bool:
+            """Lazily create a partition selection strategy and use it to determine which 
+            partitions to keep."""
+            budget, max_partitions = captures 
+            accumulator = row[1] # type: Accumulator
+            partition_selection_strategy = create_truncated_geometric_partition_strategy(
+                budget.eps, budget.delta, 
+                max_partitions
+            )
+            return partition_selection_strategy.should_keep(accumulator.privay_id_count)            
+        # make filter_fn serializable
+        filter_fn = partial(filter_fn, (budget, max_partitions_contributed))
+        return self._ops.filter(col, filter_fn)
