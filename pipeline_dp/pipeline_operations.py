@@ -11,6 +11,7 @@ import abc
 import apache_beam as beam
 import apache_beam.transforms.combiners as combiners
 import typing
+from typing import Optional, Callable
 
 
 class PipelineOperations(abc.ABC):
@@ -344,27 +345,27 @@ class MultiProcLocalPipelineOperations(PipelineOperations):
         else:
             self._pool_map_fn = self.pool.imap_unordered
 
-    def map(self, col, fn, stage_name: str):
+    def map(self, col, fn, stage_name: typing.Optional[str]=None):
         return self._pool_map_fn(fn, col, chunksize=self.chunksize)
 
-    def flat_map(self, col, fn, stage_name: str):
+    def flat_map(self, col, fn, stage_name: typing.Optional[str]=None):
         return (e for x in self.map(col, fn, stage_name) for e in x)
 
-    def map_tuple(self, col, fn, stage_name: str):
+    def map_tuple(self, col, fn, stage_name: typing.Optional[str]=None):
         def mapped_fn(captures: typing.Tuple[typing.Callable], row):
             func, = captures
             return func(*row)
         mapped_fn = partial(mapped_fn, (fn, ))
         return self.map(col, mapped_fn, stage_name)
 
-    def map_values(self, col, fn, stage_name: str):
+    def map_values(self, col, fn, stage_name: typing.Optional[str]=None):
         def mapped_fn(captures: typing.Tuple[typing.Callable], row):
             func, = captures
             return row[0], func(row[1])
         mapped_fn = partial(mapped_fn, (fn, ))
         return self.map(col, mapped_fn, stage_name)
 
-    def group_by_key(self, col, stage_name: str):
+    def group_by_key(self, col, stage_name: typing.Optional[str]=None):
         # NOTE - this cannot be implemented in an ordered manner without (almost) serial execution!
         #   both keys and groups will be out of order
         with mp.Manager() as manager:
@@ -379,22 +380,19 @@ class MultiProcLocalPipelineOperations(PipelineOperations):
             self.pool.map_async(insert_row, col, self.chunksize).wait()
             return ((k, v) for k, v in results_dict.items())
 
-    def _filter_ordered(self, col, fn, stage_name: str):
-        def mapped_fn(captures: typing.Tuple[typing.Callable], row):
-            func, = captures
-            return row, func(row)
-        mapped_fn = partial(mapped_fn, (fn, ))
+    def _filter_ordered(self, col, fn, stage_name: typing.Optional[str]=None):
         return (
-            row for row, keep in self.map(col, mapped_fn, stage_name) if keep
+            row for row, keep in zip(col, self.map(col, fn, stage_name))
+            if keep
         )
 
-    def _filter_unordered(self, col, fn, stage_name: str):
+    def _filter_unordered(self, col, fn, stage_name: typing.Optional[str]=None):
         # TODO - implement using multiprocessing.Queue
         #   details: We want to make the filtering happen on the workers themselves
         #       rather than on the main thread.
         return self._filter_ordered(col, fn, stage_name)
 
-    def filter(self, col, fn, stage_name: str):
+    def filter(self, col, fn, stage_name: typing.Optional[str]=None):
         if self.ordered:
             return self._filter_ordered(col, fn, stage_name)
         return self._filter_unordered(col, fn, stage_name)
@@ -407,11 +405,12 @@ class MultiProcLocalPipelineOperations(PipelineOperations):
         def mapped_fn(captures, row):
             public_partitions_, data_extractors_ = captures
             partition = data_extractors_.partition_extractor(row)
-            return row, (partition in public_partitions_)
+            return (partition in public_partitions_)
         mapped_fn = partial(mapped_fn, (public_partitions, data_extractors))
 
         return (
-            row for row, keep in self.map(col, mapped_fn, stage_name) if keep
+            row for row, keep in zip(col, self.map(col, mapped_fn, stage_name)) 
+            if keep
         )
 
     def _filter_by_key_unordered(self,
@@ -435,15 +434,15 @@ class MultiProcLocalPipelineOperations(PipelineOperations):
         return self._filter_by_key_unordered(col, public_partitions, 
             data_extractors, stage_name)
 
-    def keys(self, col, stage_name: str):
+    def keys(self, col, stage_name: typing.Optional[str]=None):
         # no point in passing through multiproc.
         return (k for k, v in col)
 
-    def values(self, col, stage_name: str):
+    def values(self, col, stage_name: typing.Optional[str]=None):
         # no point in passing through multiproc.
         return (v for k, v in col)
 
-    def sample_fixed_per_key(self, col, n: int, stage_name: str):
+    def sample_fixed_per_key(self, col, n: int, stage_name: typing.Optional[str]=None):
         def mapped_fn(captures, row):
             n_, = captures
             partition_key, values = row
@@ -455,11 +454,11 @@ class MultiProcLocalPipelineOperations(PipelineOperations):
         groups = self.group_by_key(col, stage_name)
         return self.map(groups, mapped_fn, stage_name)
 
-    def count_per_element(self, col, stage_name: str):
+    def count_per_element(self, col, stage_name: typing.Optional[str]=None):
         groups = self.group_by_key(col, stage_name)
         return self.map_values(groups, len, stage_name)
 
-    def reduce_accumulators_per_key(self, col, stage_name: str):
+    def reduce_accumulators_per_key(self, col, stage_name: typing.Optional[str]=None):
         """Reduces the input collection so that all elements per each key are merged.
 
             Args:
