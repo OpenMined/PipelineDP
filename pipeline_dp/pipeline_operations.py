@@ -12,6 +12,7 @@ import apache_beam as beam
 import apache_beam.transforms.combiners as combiners
 import typing
 from typing import Optional, Callable
+import collections
 
 
 class PipelineOperations(abc.ABC):
@@ -329,56 +330,73 @@ class LocalPipelineOperations(PipelineOperations):
     def reduce_accumulators_per_key(self, col, stage_name: str = None):
         raise NotImplementedError()
 
+# workaround for passing lambda functions to multiprocessing
+# according to https://medium.com/@yasufumy/python-multiprocessing-c6d54107dd55
+_pool_current_func = None
+def _pool_worker_init(func):
+    global _pool_current_func
+    _pool_current_func = func
+
+def _pool_worker(row):
+    return _pool_current_func(row)
+
 class MultiProcLocalPipelineOperations(PipelineOperations):
     def __init__(self, n_jobs: typing.Optional[int]=None,
                 chunksize: int=1,
                 ordered=True, 
                 **pool_kwargs):
         if n_jobs is None:
-            n_jobs = len(os.sched_getaffinity())
+            n_jobs = os.cpu_count()
         self.n_jobs = n_jobs
         self.chunksize = chunksize
         self.ordered = ordered
-        self.pool = mp.Pool(n_jobs, **pool_kwargs)
+        self.pool_kwargs = pool_kwargs
+        
         if ordered:
-            self._pool_map_fn = self.pool.imap
+            self._pool_map_fn = mp.pool.Pool.map
         else:
-            self._pool_map_fn = self.pool.imap_unordered
+            self._pool_map_fn = mp.pool.Pool.imap_unordered
 
     def map(self, col, fn, stage_name: typing.Optional[str]=None):
-        return self._pool_map_fn(fn, col, chunksize=self.chunksize)
+        with mp.Pool(self.n_jobs, initializer=_pool_worker_init, initargs=(fn,)) as pool:
+            return self._pool_map_fn(pool, _pool_worker, col, chunksize=self.chunksize)
 
     def flat_map(self, col, fn, stage_name: typing.Optional[str]=None):
         return (e for x in self.map(col, fn, stage_name) for e in x)
 
     def map_tuple(self, col, fn, stage_name: typing.Optional[str]=None):
-        def mapped_fn(captures: typing.Tuple[typing.Callable], row):
-            func, = captures
-            return func(*row)
-        mapped_fn = partial(mapped_fn, (fn, ))
-        return self.map(col, mapped_fn, stage_name)
+        # def mapped_fn(captures: typing.Tuple[typing.Callable], row):
+        #     func, = captures
+        #     return func(*row)
+        # mapped_fn = partial(mapped_fn, (fn, ))
+        
+        return self.map(col, lambda row: fn(*row), stage_name)
 
     def map_values(self, col, fn, stage_name: typing.Optional[str]=None):
-        def mapped_fn(captures: typing.Tuple[typing.Callable], row):
-            func, = captures
-            return row[0], func(row[1])
-        mapped_fn = partial(mapped_fn, (fn, ))
-        return self.map(col, mapped_fn, stage_name)
+        # def mapped_fn(captures: typing.Tuple[typing.Callable], row):
+        #     func, = captures
+        #     return row[0], func(row[1])
+        # mapped_fn = partial(mapped_fn, (fn, ))
+        return self.map(col, lambda x: (x[0], fn(x[1])), stage_name)
 
     def group_by_key(self, col, stage_name: typing.Optional[str]=None):
         # NOTE - this cannot be implemented in an ordered manner without (almost) serial execution!
         #   both keys and groups will be out of order
+        keys = set(self.keys(col))
         with mp.Manager() as manager:
-            results_dict = manager.dict()
+            results_dict = manager.dict({
+                k: manager.list() for k in keys
+            })
             def insert_row(captures, row):
-                manager_, results_dict_ = captures
+                results_dict_, = captures
                 key, val = row
-                if results_dict_.get(key, None) is None:
-                    results_dict_[key] = manager_.list()
                 results_dict_[key].append(val)
-            insert_row = partial(insert_row, (manager, results_dict))
-            self.pool.map_async(insert_row, col, self.chunksize).wait()
-            return ((k, v) for k, v in results_dict.items())
+            insert_row = partial(insert_row, (results_dict,))
+            _ = list(self.map(col, insert_row, stage_name)) # wait for all results!
+            items = [
+                (k, list(v)) for k, v in dict(results_dict).items()
+            ]
+        return items
 
     def _filter_ordered(self, col, fn, stage_name: typing.Optional[str]=None):
         return (
@@ -405,11 +423,11 @@ class MultiProcLocalPipelineOperations(PipelineOperations):
         def mapped_fn(captures, row):
             public_partitions_, data_extractors_ = captures
             partition = data_extractors_.partition_extractor(row)
-            return (partition in public_partitions_)
+            return partition, (partition in public_partitions_)
         mapped_fn = partial(mapped_fn, (public_partitions, data_extractors))
 
         return (
-            row for row, keep in zip(col, self.map(col, mapped_fn, stage_name)) 
+            (key, row) for row, (key, keep) in zip(col, self.map(col, mapped_fn, stage_name)) 
             if keep
         )
 
@@ -455,8 +473,18 @@ class MultiProcLocalPipelineOperations(PipelineOperations):
         return self.map(groups, mapped_fn, stage_name)
 
     def count_per_element(self, col, stage_name: typing.Optional[str]=None):
-        groups = self.group_by_key(col, stage_name)
-        return self.map_values(groups, len, stage_name)
+        keys = set(col)
+        with mp.Manager() as manager:
+            results_dict = manager.dict({
+                k: 0 for k in keys
+            })
+            def insert_row(captures, key):
+                results_dict_, = captures
+                results_dict_[key] += 1
+            insert_row = partial(insert_row, (results_dict,))
+            _ = list(self.map(col, insert_row, stage_name)) # wait for all results!
+            items = list(results_dict.items())
+        return items
 
     def reduce_accumulators_per_key(self, col, stage_name: typing.Optional[str]=None):
         """Reduces the input collection so that all elements per each key are merged.
