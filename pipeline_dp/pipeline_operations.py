@@ -1,6 +1,11 @@
 """Adapters for working with pipeline frameworks."""
 
+from functools import partial
+import os
+import multiprocessing as mp
+from . import accumulator
 import random
+from tkinter import W
 import numpy as np
 
 import abc
@@ -323,3 +328,147 @@ class LocalPipelineOperations(PipelineOperations):
 
     def reduce_accumulators_per_key(self, col, stage_name: str = None):
         raise NotImplementedError()
+
+class MultiProcLocalPipeLineOperations(PipelineOperations):
+    def __init__(self, n_jobs: typing.Optional[int]=None,
+                chunksize: int=1,
+                ordered=True, 
+                **pool_kwargs):
+        if n_jobs is None:
+            n_jobs = len(os.sched_getaffinity())
+        self.n_jobs = n_jobs
+        self.chunksize = chunksize
+        self.ordered = ordered
+        self.pool = mp.Pool(n_jobs, **pool_kwargs)
+        if ordered:
+            self._pool_map_fn = self.pool.imap
+        else:
+            self._pool_map_fn = self.pool.imap_unordered
+
+    def map(self, col, fn, stage_name: str):
+        return self._pool_map_fn(fn, col, chunksize=self.chunksize)
+
+    def flat_map(self, col, fn, stage_name: str):
+        return (e for x in self.map(col, fn, stage_name) for e in x)
+
+    def map_tuple(self, col, fn, stage_name: str):
+        def mapped_fn(captures: typing.Tuple[typing.Callable], row):
+            func, = captures
+            return func(*row)
+        mapped_fn = partial(mapped_fn, (fn, ))
+        return self.map(col, mapped_fn, stage_name)
+
+    def map_values(self, col, fn, stage_name: str):
+        def mapped_fn(captures: typing.Tuple[typing.Callable], row):
+            func, = captures
+            return row[0], func(row[1])
+        mapped_fn = partial(mapped_fn, (fn, ))
+        return self.map(col, mapped_fn, stage_name)
+
+    def group_by_key(self, col, stage_name: str):
+        # NOTE - this cannot be implemented in an ordered manner without (almost) serial execution!
+        #   both keys and groups will be out of order
+        with mp.Manager() as manager:
+            results_dict = manager.dict()
+            def insert_row(captures, row):
+                manager_, results_dict_ = captures
+                key, val = row
+                if results_dict_.get(key, None) is None:
+                    results_dict_[key] = manager_.list()
+                results_dict_[key].append(val)
+            insert_row = partial(insert_row, (manager, results_dict))
+            self.pool.map_async(insert_row, col, self.chunksize).wait()
+            return ((k, v) for k, v in results_dict.items())
+
+    def _filter_ordered(self, col, fn, stage_name: str):
+        def mapped_fn(captures: typing.Tuple[typing.Callable], row):
+            func, = captures
+            return row, func(row)
+        mapped_fn = partial(mapped_fn, (fn, ))
+        return (
+            row for row, keep in self.map(col, mapped_fn, stage_name) if keep
+        )
+
+    def _filter_unordered(self, col, fn, stage_name: str):
+        # TODO - implement using multiprocessing.Queue
+        #   details: We want to make the filtering happen on the workers themselves
+        #       rather than on the main thread.
+        return self._filter_ordered(col, fn, stage_name)
+
+    def filter(self, col, fn, stage_name: str):
+        if self.ordered:
+            return self._filter_ordered(col, fn, stage_name)
+        return self._filter_unordered(col, fn, stage_name)
+
+    def _filter_by_key_ordered(self,
+                                col,
+                                public_partitions,
+                                data_extractors,
+                                stage_name: typing.Optional[str] = None):
+        def mapped_fn(captures, row):
+            public_partitions_, data_extractors_ = captures
+            partition = data_extractors_.partition_extractor(row)
+            return row, (partition in public_partitions_)
+        mapped_fn = partial(mapped_fn, (public_partitions, data_extractors))
+
+        return (
+            row for row, keep in self.map(col, mapped_fn, stage_name) if keep
+        )
+
+    def _filter_by_key_unordered(self,
+                                col,
+                                public_partitions,
+                                data_extractors,
+                                stage_name: typing.Optional[str] = None):
+        # TODO - implement using multiprocessing.Queue
+        #   details: We want to make the filtering happen on the workers themselves
+        #       rather than on the main thread.
+        return self._filter_by_key_ordered(col, public_partitions, data_extractors, stage_name)
+
+    def filter_by_key(self,
+                        col,
+                        public_partitions,
+                        data_extractors,
+                        stage_name: typing.Optional[str] = None):
+        if self.ordered:
+            return self._filter_by_key_ordered(col, public_partitions,
+             data_extractors, stage_name)
+        return self._filter_by_key_unordered(col, public_partitions, 
+            data_extractors, stage_name)
+
+    def keys(self, col, stage_name: str):
+        # no point in passing through multiproc.
+        return (k for k, v in col)
+
+    def values(self, col, stage_name: str):
+        # no point in passing through multiproc.
+        return (v for k, v in col)
+
+    def sample_fixed_per_key(self, col, n: int, stage_name: str):
+        def mapped_fn(captures, row):
+            n_, = captures
+            partition_key, values = row
+            samples = values
+            if len(samples) > n_:
+                samples = random.sample(samples, n_)
+            return partition_key, samples
+        mapped_fn = partial(mapped_fn, (n,))
+        groups = self.group_by_key(col, stage_name)
+        return self.map(groups, mapped_fn, stage_name)
+
+    def count_per_element(self, col, stage_name: str):
+        groups = self.group_by_key(col, stage_name)
+        return self.map_values(groups, len, stage_name)
+
+    def reduce_accumulators_per_key(self, col, stage_name: str):
+        """Reduces the input collection so that all elements per each key are merged.
+
+            Args:
+              col: input collection which contains tuples (key, accumulator)
+              stage_name: name of the stage
+
+            Returns:
+              A collection of tuples (key, accumulator).
+
+            """
+        return self.map_values(col, accumulator.merge)
