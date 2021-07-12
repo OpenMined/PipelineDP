@@ -129,11 +129,11 @@ class DPEngine:
         """
         budget = self._budget_accountant.request_budget(weight=1, use_eps=True, use_delta=True)
         
-        def filter_fn(captures: Tuple[Budget, int], row: Any) -> bool:
+        def filter_fn(captures: Tuple[Budget, int], row: Tuple[Any, Accumulator]) -> bool:
             """Lazily create a partition selection strategy and use it to determine which 
             partitions to keep."""
             budget, max_partitions = captures 
-            accumulator = row[1] # type: Accumulator
+            accumulator = row[1] 
             partition_selection_strategy = create_truncated_geometric_partition_strategy(
                 budget.eps, budget.delta, 
                 max_partitions
