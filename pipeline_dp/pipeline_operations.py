@@ -5,7 +5,6 @@ import os
 import multiprocessing as mp
 from . import accumulator
 import random
-from tkinter import W
 import numpy as np
 
 import abc
@@ -329,7 +328,7 @@ class LocalPipelineOperations(PipelineOperations):
     def reduce_accumulators_per_key(self, col, stage_name: str = None):
         raise NotImplementedError()
 
-class MultiProcLocalPipeLineOperations(PipelineOperations):
+class MultiProcLocalPipelineOperations(PipelineOperations):
     def __init__(self, n_jobs: typing.Optional[int]=None,
                 chunksize: int=1,
                 ordered=True, 
