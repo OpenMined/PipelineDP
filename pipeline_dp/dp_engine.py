@@ -8,9 +8,9 @@ from pipeline_dp.aggregate_params import AggregateParams
 from pipeline_dp.budget_accounting import BudgetAccountant, Budget
 from pipeline_dp.pipeline_operations import PipelineOperations
 from pipeline_dp.report_generator import ReportGenerator
+from pipeline_dp.accumulator import Accumulator
 
 from pydp.algorithms.partition_selection import create_truncated_geometric_partition_strategy
-from .accumulator import Accumulator
 
 
 @dataclass
@@ -120,9 +120,9 @@ class DPEngine:
 
         Args:
             col: collection, with types for each element: 
-                (partition_key, accumulator: Accumulator)
-            max_partitions_contributed: how many contributed partitions we can get at 
-                most from this operations.
+                (partition_key, Accumulator)
+            max_partitions_contributed: maximum amount of partitions that one privacy unit
+                might contribute.
         
         Returns:
             collection of elements (partition_key, accumulator)
@@ -130,7 +130,7 @@ class DPEngine:
         budget = self._budget_accountant.request_budget(weight=1, use_eps=True, use_delta=True)
         
         def filter_fn(captures: Tuple[Budget, int], row: Tuple[Any, Accumulator]) -> bool:
-            """Lazily create a partition selection strategy and use it to determine which 
+            """Lazily creates a partition selection strategy and uses it to determine which 
             partitions to keep."""
             budget, max_partitions = captures 
             accumulator = row[1] 

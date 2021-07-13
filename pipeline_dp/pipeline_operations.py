@@ -7,6 +7,7 @@ import abc
 import apache_beam as beam
 import apache_beam.transforms.combiners as combiners
 import typing
+import collections
 
 
 class PipelineOperations(abc.ABC):
