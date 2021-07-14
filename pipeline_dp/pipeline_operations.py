@@ -6,6 +6,7 @@ import numpy as np
 import abc
 import apache_beam as beam
 import apache_beam.transforms.combiners as combiners
+import collections
 import typing
 
 
@@ -322,4 +323,14 @@ class LocalPipelineOperations(PipelineOperations):
         yield from collections.Counter(col).items()
 
     def reduce_accumulators_per_key(self, col, stage_name: str = None):
-        raise NotImplementedError()
+        def merge_accumulators_generator():
+            result = {}
+            for key, acc in col:
+                if key in result:
+                    result[key].add_accumulator(acc)
+                else:
+                    result[key] = acc
+            for item in result.items():
+                yield item
+
+        return merge_accumulators_generator()
