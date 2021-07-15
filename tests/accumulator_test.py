@@ -2,9 +2,13 @@ import unittest
 import pipeline_dp
 import typing
 import numpy as np
-from pipeline_dp.accumulator import Accumulator
+from unittest.mock import patch
+from pipeline_dp import accumulator
 from pipeline_dp.accumulator import merge
 from pipeline_dp.accumulator import CompoundAccumulator
+from pipeline_dp.accumulator import AccumulatorFactory
+from pipeline_dp.accumulator import AccumulatorParams
+from pipeline_dp.aggregate_params import Metrics
 
 
 class CompoundAccumulatorTest(unittest.TestCase):
@@ -134,15 +138,41 @@ class GenericAccumulatorTest(unittest.TestCase):
     self.assertIn("The accumulator to be added is not of the same type.""",
                   str(context.exception))
 
+  @patch('pipeline_dp.accumulator.create_accumulator_params')
+  def test_accumulator_factory(self, mock_create_accumulator_params_function):
+    aggregate_params = pipeline_dp.AggregateParams([Metrics.MEAN], 5, 3)
+    budg
+
+    values = [10]
+    mock_create_accumulator_params_function.return_value = AccumulatorParams(MeanAccumulator)
+
+    accumulator = AccumulatorFactory(aggregate_params, ).create(values)
+
+    self.assertTrue(isinstance(accumulator, MeanAccumulator))
+    self.assertEqual(accumulator.compute_metrics(), 10)
+
+  @patch('pipeline_dp.accumulator.create_accumulator_params')
+  def test_accumulator_factory_multiple_types(self,
+                                  mock_create_accumulator_params_function):
+    aggregate_params = [pipeline_dp.AggregateParams([Metrics.MEAN], 5, 3), pipeline_dp.AggregateParams(
+      Metrics.VAR, 5, 3)]
+    values = [10, 10]
+    mock_create_accumulator_params_function.side_effect = [AccumulatorParams(
+      MeanAccumulator),  AccumulatorParams(
+      SumOfSquaresAccumulator)]
+
+    accumulator = AccumulatorFactory(aggregate_params).create(values)
+
+    self.assertTrue(isinstance(accumulator, CompoundAccumulator))
+    self.assertEqual(accumulator.compute_metrics(), [10, 100])
+
+
 
 class MeanAccumulator(Accumulator):
 
-  def __init__(self, accumulators: typing.Iterable[
-    'MeanAccumulator'] = None):
-    self.sum = np.sum([concat_acc.sum
-                       for concat_acc in accumulators]) if accumulators else 0
-    self.count = np.sum([concat_acc.count
-                         for concat_acc in accumulators]) if accumulators else 0
+  def __init__(self, value = None):
+    self.sum = value if value else 0
+    self.count = 1 if value else 0
 
   def add_value(self, v):
     self.sum += v
@@ -166,11 +196,8 @@ class MeanAccumulator(Accumulator):
 # Accumulator classes for testing
 class SumOfSquaresAccumulator(Accumulator):
 
-  def __init__(self, accumulators: typing.Iterable[
-    'SumOfSquaresAccumulator'] = None):
-    self.sum_squares = np.sum([concat_acc.sum_squares
-                               for concat_acc in
-                               accumulators]) if accumulators else 0
+  def __init__(self, value = None):
+    self.sum_squares = value * value if value else 0
 
   def add_value(self, v):
     self.sum_squares += v * v

@@ -2,11 +2,25 @@ import abc
 import typing
 import pickle
 from functools import reduce
+from dataclasses import dataclass
+import pipeline_dp
 
+@dataclass
+class AccumulatorParams:
+    accumulator_type: type = None
+    constructor_params: typing.Any = None
 
 def merge(accumulators: typing.Iterable['Accumulator']) -> 'Accumulator':
   """Merges the accumulators."""
   return reduce(lambda acc1, acc2: acc1.add_accumulator(acc2), accumulators)
+
+
+def create_accumulator_params(aggregation_params:
+  pipeline_dp.AggregateParams,  budget_accountant: pipeline_dp.BudgetAccountant
+                              ) -> typing.List[
+  AccumulatorParams]:
+
+  raise NotImplemented()  # implementation will be done later
 
 
 class Accumulator(abc.ABC):
@@ -100,3 +114,24 @@ class CompoundAccumulator(Accumulator):
     """Computes and returns a list of metrics computed by internal
     accumulators."""
     return [accumulator.compute_metrics() for accumulator in self.accumulators]
+
+
+class AccumulatorFactory:
+  def __init__(self, params: pipeline_dp.AggregateParams,
+               budget_accountant: pipeline_dp.BudgetAccountant):
+    self._params = params
+    self._budget_accountant = budget_accountant
+
+  def initialize(self):
+    self._accumulator_params = create_accumulator_params(self._params, self._budget_accountant)
+
+  def create(self, values: typing.List) -> Accumulator:
+    accumulators = [accumulator_param.accumulator_type(
+      accumulator_param.constructor_params, values) for
+                    accumulator_param, value in zip(
+      self._accumulator_params, values)]
+
+    if len(accumulators) == 1:
+      return accumulators[0]
+
+    return CompoundAccumulator(accumulators)
