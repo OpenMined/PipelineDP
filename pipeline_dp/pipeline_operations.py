@@ -327,8 +327,7 @@ class LocalPipelineOperations(PipelineOperations):
 
         def merge_accumulators_generator():
             for item in list(
-                    self.map(self.group_by_key(col), lambda row:
-                             (row[0], accumulator.merge(row[1])))):
+                    self.map_values(self.group_by_key(col), accumulator.merge)):
                 yield item
 
         return merge_accumulators_generator()
