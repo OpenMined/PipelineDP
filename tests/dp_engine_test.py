@@ -22,6 +22,32 @@ def _mock_partition_strategy_factory(min_users):
         return _MockPartitionStrategy(e, d, mpc, min_users)
     return partition_strategy_factory
 
+class _MockAccumulator(pipeline_dp.accumulator.Accumulator):
+    def __init__(self, values_list: list=None) -> None:
+        self.values_list = values_list or []
+
+    @property
+    def privacy_id_count(self):
+        return len(self.values_list)
+
+    def add_value(self, value):
+        self.values_list.append(value)
+
+    def add_accumulator(self, accumulator: '_MockAccumulator') -> '_MockAccumulator':
+        self.values_list.extend(accumulator.values_list)
+        return self
+
+    def compute_metrics(self):
+        return self.values_list
+
+    def __eq__(self, other: '_MockAccumulator') -> bool:
+        return type(self) is type(other) and \
+            sorted(self.values_list) == sorted(other.values_list)
+
+    def __repr__(self) -> str:
+        return f"MockAccumulator({self.values_list})"
+
+
 class dp_engineTest(unittest.TestCase):
     aggregator_fn = lambda input_values: (len(input_values), np.sum(
         input_values), np.sum(np.square(input_values)))
@@ -179,8 +205,12 @@ class dp_engineTest(unittest.TestCase):
             pipeline_dp.LocalPipelineOperations()
         )
         groups = engine._ops.group_by_key(input_col, None)
+        groups = engine._ops.map_values(groups, 
+            lambda group: _MockAccumulator(group)
+        )
+        groups = list(groups)
         expected_data_filtered = [
-            ("pid1", [
+            ("pid1", _MockAccumulator([
                 ( 'pk1', 1 ),
                 ( 'pk1', 2 ),
                 ( 'pk2', 3 ),
@@ -188,17 +218,17 @@ class dp_engineTest(unittest.TestCase):
                 ( 'pk2', 5 ),
                 ( 'pk3', 6 ),
                 ( 'pk4', 7 ),
-            ]),
-            ("pid", [
+            ])),
+            ("pid2", _MockAccumulator([
                 ('pk4', 8)
-            ])
+            ]))
         ]
         self._mock_and_assert_private_partitions(
             engine, groups, 0, expected_data_filtered, 
             max_partitions_contributed
         )
         expected_data_filtered = [
-            ("pid1", [
+            ("pid1", _MockAccumulator([
                 ( 'pk1', 1 ),
                 ( 'pk1', 2 ),
                 ( 'pk2', 3 ),
@@ -206,7 +236,7 @@ class dp_engineTest(unittest.TestCase):
                 ( 'pk2', 5 ),
                 ( 'pk3', 6 ),
                 ( 'pk4', 7 ),
-            ]),
+            ])),
         ]
         self._mock_and_assert_private_partitions(
             engine, groups, 3, expected_data_filtered, 

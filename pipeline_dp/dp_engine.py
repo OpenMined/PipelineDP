@@ -138,7 +138,7 @@ class DPEngine:
                 budget.eps, budget.delta, 
                 max_partitions
             )
-            return partition_selection_strategy.should_keep(accumulator.privay_id_count)            
+            return partition_selection_strategy.should_keep(accumulator.privacy_id_count)            
         # make filter_fn serializable
         filter_fn = partial(filter_fn, (budget, max_partitions_contributed))
         return self._ops.filter(col, filter_fn)
