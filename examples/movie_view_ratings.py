@@ -94,12 +94,17 @@ class ParseFile(beam.DoFn):
         yield parse_line(line, self.movie_id)
 
 
-def compute_on_beam():
-    runner = fn_api_runner.FnApiRunner()  # local runner
+def get_public_partitions():
     public_partitions = None
     if FLAGS.public_partitions is not None:
         print(FLAGS.public_partitions)
         public_partitions = [int(partition) for partition in FLAGS.public_partitions]
+    return public_partitions
+
+
+def compute_on_beam():
+    runner = fn_api_runner.FnApiRunner()  # local runner
+    public_partitions = get_public_partitions()
     with beam.Pipeline(runner=runner) as pipeline:
         movie_views = pipeline | beam.io.ReadFromText(FLAGS.input_file) | beam.ParDo(
             ParseFile())
@@ -126,7 +131,8 @@ def compute_on_spark():
     movie_views = sc.textFile(FLAGS.input_file) \
         .mapPartitions(parse_partition)
     pipeline_operations = pipeline_dp.SparkRDDOperations()
-    dp_result = calc_dp_rating_metrics(movie_views, pipeline_operations)
+    public_partitions = get_public_partitions()
+    dp_result = calc_dp_rating_metrics(movie_views, pipeline_operations, public_partitions)
     dp_result.saveAsTextFile(FLAGS.output_file)
 
 

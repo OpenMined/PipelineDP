@@ -75,13 +75,75 @@ class BeamOperationsTest(parameterized.TestCase):
                                             "Public partition filtering")
             assert_that(result, equal_to(expected_result))
 
+    def test_reduce_accumulators_per_key(self):
+        with test_pipeline.TestPipeline() as p:
+            col = p | "Create PCollection" >> beam.Create([(6, 1), (7, 1), (6, 1), (7, 1), (8, 1)])
+            col = self.ops.map_values(col, SumAccumulator, "Wrap into accumulators")
+            col = self.ops.reduce_accumulators_per_key(col)
+            result = col | "Get accumulated values" >> beam.Map(lambda row: (row[0], row[1].get_metrics()))
 
-class SparkRDDOperationsTest(unittest.TestCase):
+            assert_that(result, equal_to([(6, 2), (7, 2), (8, 1)]))
+
+
+class SparkRDDOperationsTest(parameterized.TestCase):
 
     @classmethod
     def setUpClass(cls):
         conf = pyspark.SparkConf()
         cls.sc = pyspark.SparkContext(conf=conf)
+        cls.data_extractors = DataExtractors(
+            partition_extractor=lambda x: x[1],
+            privacy_id_extractor=lambda x: x[0],
+            value_extractor=lambda x: x[2]
+        )
+
+    def test_filter_by_key_none_public_partitions(self):
+        spark_operations = SparkRDDOperations()
+        data = [(1, 11, 111), (2, 22, 222)]
+        dist_data = SparkRDDOperationsTest.sc.parallelize(data)
+        public_partitions = None
+        with self.assertRaises(TypeError):
+            spark_operations.filter_by_key(
+                dist_data,
+                public_partitions,
+                SparkRDDOperationsTest.data_extractors
+            )
+
+    @parameterized.parameters(
+        {'distributed': False},
+        {'distributed': True}
+    )
+    def test_filter_by_key_empty_public_partitions(self, distributed):
+        spark_operations = SparkRDDOperations()
+        data = [(1, 11, 111), (2, 22, 222)]
+        dist_data = SparkRDDOperationsTest.sc.parallelize(data)
+        public_partitions = []
+        if distributed:
+            public_partitions = SparkRDDOperationsTest.sc.parallelize(public_partitions)
+        result = spark_operations.filter_by_key(
+            dist_data,
+            public_partitions,
+            SparkRDDOperationsTest.data_extractors
+        ).collect()
+        self.assertListEqual(result, [])
+
+    @parameterized.parameters(
+        {'distributed': False},
+        {'distributed': True}
+    )
+    def test_filter_by_key_nonempty_public_partitions(self, distributed):
+        spark_operations = SparkRDDOperations()
+        data = [(1, 11, 111), (2, 22, 222)]
+        dist_data = SparkRDDOperationsTest.sc.parallelize(data)
+        public_partitions = [11, 33]
+        if distributed:
+            public_partitions = SparkRDDOperationsTest.sc.parallelize(public_partitions)
+        result = spark_operations.filter_by_key(
+            dist_data,
+            public_partitions,
+            SparkRDDOperationsTest.data_extractors
+        ).collect()
+        self.assertListEqual(result, [(11, (1, 11, 111))])
 
     def test_sample_fixed_per_key(self):
         spark_operations = SparkRDDOperations()
@@ -103,9 +165,17 @@ class SparkRDDOperationsTest(unittest.TestCase):
         result = dict(result)
         self.assertDictEqual(result, {'a': 2, 'b': 1})
 
-        @classmethod
-        def tearDownClass(cls):
-            cls.sc.stop()
+    def test_reduce_accumulators_per_key(self):
+        spark_operations = SparkRDDOperations()
+        data = [(1, 11), (2, 22), (3, 33), (1, 14), (2, 25), (1, 16)]
+        dist_data = SparkRDDOperationsTest.sc.parallelize(data)
+        rdd = spark_operations.map_values(dist_data, SumAccumulator, "Wrap into accumulators")
+        result = spark_operations\
+            .reduce_accumulators_per_key(rdd, "Reduce accumulator per key")\
+            .map(lambda row: (row[0], row[1].get_metrics()))\
+            .collect()
+        result = dict(result)
+        self.assertDictEqual(result, {1: 41, 2: 47, 3: 33})
 
     def test_flat_map(self):
         spark_operations = SparkRDDOperations()
@@ -131,6 +201,10 @@ class SparkRDDOperationsTest(unittest.TestCase):
                                                                  ("b", 6),
                                                                  ("b", 7),
                                                                  ("b", 8)])
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.sc.stop()
 
 
 class LocalPipelineOperationsTest(unittest.TestCase):
@@ -206,6 +280,13 @@ class LocalPipelineOperationsTest(unittest.TestCase):
                                         "Public partition filtering")
         self.assertEqual(result, [(7, (1, 7, 1)), (9, (3, 9, 1))])
 
+    def test_local_keys(self):
+        self.assertEqual(list(self.ops.keys([])), [])
+
+        example_list = [(1, 2), (2, 3), (3, 4), (4, 8)]
+
+        self.assertEqual(list(self.ops.keys(example_list)), [1, 2, 3, 4])
+
     def test_local_values(self):
         self.assertEqual(list(self.ops.values([])), [])
 
@@ -248,6 +329,7 @@ class LocalPipelineOperationsTest(unittest.TestCase):
         assert_laziness(self.ops.map_values, str)
         assert_laziness(self.ops.filter, bool)
         assert_laziness(self.ops.values)
+        assert_laziness(self.ops.keys)
         assert_laziness(self.ops.count_per_element)
         assert_laziness(self.ops.flat_map, str)
         assert_laziness(self.ops.sample_fixed_per_key, int)
@@ -293,6 +375,34 @@ class LocalPipelineOperationsTest(unittest.TestCase):
                                   lambda x: [(x[0], y) for y in x[1]])),
             [("a", 1), ("a", 2), ("a", 3), ("a", 4), ("b", 5), ("b", 6),
              ("b", 7), ("b", 8)])
+
+    def test_local_group_by_key(self):
+        some_dict = [("cheese", "brie"), ("bread", "sourdough"),
+                     ("cheese", "swiss")]
+
+        self.assertEqual(list(self.ops.group_by_key(some_dict)),
+                         [("cheese", ["brie", "swiss"]),
+                          ("bread", ["sourdough"])])
+
+
+# TODO: Extend the proper Accumulator class once it's available.
+class SumAccumulator:
+    """A simple accumulator for testing purposes."""
+
+    def __init__(self, v):
+        self.sum = v
+
+    def add_value(self, v):
+        self.sum += v
+        return self
+
+    def get_metrics(self):
+        return self.sum
+
+    def add_accumulator(self,
+                        accumulator: 'SumAccumulator') -> 'SumAccumulator':
+        self.sum += accumulator.sum
+        return self
 
 
 if __name__ == '__main__':
