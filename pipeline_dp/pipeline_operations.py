@@ -324,10 +324,4 @@ class LocalPipelineOperations(PipelineOperations):
         yield from collections.Counter(col).items()
 
     def reduce_accumulators_per_key(self, col, stage_name: str = None):
-
-        def merge_accumulators_generator():
-            for item in list(
-                    self.map_values(self.group_by_key(col), accumulator.merge)):
-                yield item
-
-        return merge_accumulators_generator()
+        return self.map_values(self.group_by_key(col), accumulator.merge)
