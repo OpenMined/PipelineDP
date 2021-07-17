@@ -344,63 +344,103 @@ class MultiProcLocalPipelineOperationsTest(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.ops = MultiProcLocalPipelineOperations(ordered=True)
+        cls.ops = MultiProcLocalPipelineOperations()
         cls.data_extractors = DataExtractors(
             partition_extractor=cls.partition_extract,
             privacy_id_extractor=cls.privacy_id_extract,
             value_extractor=cls.value_extract)
 
+    def sortDataset(self, data):
+        if isinstance(data, (str, int, float)):
+            return data
+        if isinstance(data, tuple):
+            return tuple(self.sortDataset(x) for x in data)
+        data = list(data)
+        def sortfn(x):
+            # make everything a sortable thing!
+            if isinstance(x, list):
+                return self.sortDataset(tuple(x))
+            return x
+        return sorted(data, key=sortfn)
+
+    def assertDatasetsEqual(self, first, second, toplevel=True):
+        if toplevel:
+            first = self.sortDataset(first)
+            second = self.sortDataset(second)
+            print(f"first = {first}")
+            print(f"second = {second}")
+        if type(first) != type(second):
+            assert False
+        elif isinstance(first, (str, int, float)):
+            assert first == second
+        elif isinstance(first, tuple):
+            if len(first) != len(second):
+                assert False
+            if len(first) == 2:
+                # key value pair
+                k1, v1 = first
+                k2, v2 = second
+                assert k1 == k2
+                self.assertDatasetsEqual(v1, v2, False)
+            else:
+                assert first == second
+        else: # all other itearble instances
+            first = list(first)           
+            second = list(second)
+            assert len(first) == len(second)
+            for e1, e2 in zip(first, second):
+                self.assertDatasetsEqual(e1, e2, False)
+        
+
     @pytest.mark.timeout(10)
     def test_multiproc_map(self):
-        self.assertEqual(list(self.ops.map([], lambda x: x / 0)), [])
-
-        self.assertEqual(list(self.ops.map([1, 2, 3], str)), ["1", "2", "3"])
-        self.assertEqual(list(self.ops.map(range(5), lambda x: x**2)),
-                         [0, 1, 4, 9, 16])
+        self.assertDatasetsEqual(list(self.ops.map([], lambda x: x / 0)), [])
+        self.assertDatasetsEqual(list(self.ops.map([1, 2, 3], str)), ["1", "2", "3"])
+        self.assertDatasetsEqual(list(self.ops.map(range(5), lambda x: x**2)),
+                                [0, 1, 4, 9, 16])
 
     @pytest.mark.timeout(10)
     def test_multiproc_map_tuple(self):
         tuple_list = [(1, 2), (2, 3), (3, 4)]
 
-        self.assertEqual(
+        self.assertDatasetsEqual(
             list(self.ops.map_tuple(tuple_list, lambda k, v: k + v)), [3, 5, 7])
 
-        self.assertEqual(
+        self.assertDatasetsEqual(
             list(self.ops.map_tuple(tuple_list, lambda k, v: (str(k), str(v)))),
             [("1", "2"), ("2", "3"), ("3", "4")])
 
     @pytest.mark.timeout(10)
     def test_multiproc_map_values(self):
-        self.assertEqual(list(self.ops.map_values([], lambda x: x / 0)), [])
+        self.assertDatasetsEqual(list(self.ops.map_values([], lambda x: x / 0)), [])
 
         tuple_list = [(1, 2), (2, 3), (3, 4)]
 
-        self.assertEqual(list(self.ops.map_values(tuple_list, str)), [(1, "2"),
-                                                                      (2, "3"),
-                                                                      (3, "4")])
-        self.assertEqual(list(self.ops.map_values(tuple_list, lambda x: x**2)),
-                         [(1, 4), (2, 9), (3, 16)])
+        self.assertDatasetsEqual(list(self.ops.map_values(tuple_list, str)), 
+                                [(1, "2"), (2, "3"), (3, "4")])
+        self.assertDatasetsEqual(list(self.ops.map_values(tuple_list, lambda x: x**2)),
+                                [(1, 4), (2, 9), (3, 16)])
 
     @pytest.mark.timeout(10)
     def test_multiproc_group_by_key(self):
         some_dict = [("cheese", "brie"), ("bread", "sourdough"),
                      ("cheese", "swiss")]
 
-        self.assertEqual(list(self.ops.group_by_key(some_dict)),
-                         [("cheese", ["brie", "swiss"]),
-                          ("bread", ["sourdough"])])
+        self.assertDatasetsEqual(list(self.ops.group_by_key(some_dict)),
+                                [("cheese", ["brie", "swiss"]),
+                                ("bread", ["sourdough"])])
 
     @pytest.mark.timeout(10)
     def test_multiproc_filter(self):
-        self.assertEqual(list(self.ops.filter([], lambda x: True)), [])
-        self.assertEqual(list(self.ops.filter([], lambda x: False)), [])
+        self.assertDatasetsEqual(list(self.ops.filter([], lambda x: True)), [])
+        self.assertDatasetsEqual(list(self.ops.filter([], lambda x: False)), [])
 
         example_list = [1, 2, 2, 3, 3, 4, 2]
 
-        self.assertEqual(list(self.ops.filter(example_list, lambda x: x % 2)),
-                         [1, 3, 3])
-        self.assertEqual(list(self.ops.filter(example_list, lambda x: x < 3)),
-                         [1, 2, 2, 2])
+        self.assertDatasetsEqual(list(self.ops.filter(example_list, lambda x: x % 2)),
+                                [1, 3, 3])
+        self.assertDatasetsEqual(list(self.ops.filter(example_list, lambda x: x < 3)),
+                                [1, 2, 2, 2])
 
     @pytest.mark.timeout(10)
     def test_multiproc_filter_by_key_empty_public_keys(self):
@@ -418,7 +458,7 @@ class MultiProcLocalPipelineOperationsTest(unittest.TestCase):
         result = self.ops.filter_by_key(col, public_partitions,
                                         self.data_extractors,
                                         "Public partition filtering")
-        self.assertEqual(list(result), [(7, (1, 7, 1)), (9, (3, 9, 1))])
+        self.assertDatasetsEqual(list(result), [(7, (1, 7, 1)), (9, (3, 9, 1))])
 
     @pytest.mark.timeout(10)
     def test_multiproc_keys(self):
@@ -426,7 +466,7 @@ class MultiProcLocalPipelineOperationsTest(unittest.TestCase):
 
         example_list = [(1, 2), (2, 3), (3, 4), (4, 8)]
 
-        self.assertEqual(list(self.ops.keys(example_list)), [1, 2, 3, 4])
+        self.assertDatasetsEqual(list(self.ops.keys(example_list)), [1, 2, 3, 4])
 
     @pytest.mark.timeout(10)
     def test_multiproc_values(self):
@@ -434,7 +474,7 @@ class MultiProcLocalPipelineOperationsTest(unittest.TestCase):
 
         example_list = [(1, 2), (2, 3), (3, 4), (4, 8)]
 
-        self.assertEqual(list(self.ops.values(example_list)), [2, 3, 4, 8])
+        self.assertDatasetsEqual(list(self.ops.values(example_list)), [2, 3, 4, 8])
 
     @pytest.mark.timeout(10)
     def test_multiproc_count_per_element(self):
@@ -457,19 +497,11 @@ class MultiProcLocalPipelineOperationsTest(unittest.TestCase):
                      ("pid1", ('pk3', 1)), ("pid2", ('pk4', 1))]
         n = 3
 
-        sample_fixed_per_key_result = sorted(
-            self.ops.sample_fixed_per_key(input_col, n))
+        sample_fixed_per_key_result = list(self.ops.sample_fixed_per_key(input_col, n))
 
         expected_result = [("pid1", [('pk1', 1), ('pk2', 1), ('pk3', 1)]),
                            ("pid2", [('pk4', 1)])]
-        self.assertEqual(
-            sorted(sample_fixed_per_key_result[0][1]), 
-            expected_result[0][1]
-        )
-        self.assertEqual(
-            sorted(sample_fixed_per_key_result[1][1]), 
-            expected_result[1][1]
-        )
+        self.assertDatasetsEqual(sample_fixed_per_key_result, expected_result)
 
     @pytest.mark.timeout(10)
     def test_multiproc_sample_fixed_per_key_with_sampling(self):
@@ -482,21 +514,22 @@ class MultiProcLocalPipelineOperationsTest(unittest.TestCase):
         sample_fixed_per_key_result = list(
             self.ops.sample_fixed_per_key(input_col, n))
 
-        self.assertTrue(
-            all(
-                map(lambda pid_pk_v: len(pid_pk_v[1]) <= n,
-                    sample_fixed_per_key_result)))
+        self.assertTrue(all(
+            map(lambda pid_pk_v: len(pid_pk_v[1]) <= n,
+                sample_fixed_per_key_result)
+            )
+        )
 
     @pytest.mark.timeout(10)
     def test_multiproc_flat_map(self):
         input_col = [[1, 2, 3, 4], [5, 6, 7, 8]]
-        self.assertEqual(list(self.ops.flat_map(input_col, lambda x: x)),
-                         [1, 2, 3, 4, 5, 6, 7, 8])
+        self.assertDatasetsEqual(list(self.ops.flat_map(input_col, lambda x: x)),
+                                [1, 2, 3, 4, 5, 6, 7, 8])
 
         input_col = [("a", [1, 2, 3, 4]), ("b", [5, 6, 7, 8])]
-        self.assertEqual(list(self.ops.flat_map(input_col, lambda x: x[1])),
-                         [1, 2, 3, 4, 5, 6, 7, 8])
-        self.assertEqual(
+        self.assertDatasetsEqual(list(self.ops.flat_map(input_col, lambda x: x[1])),
+                                [1, 2, 3, 4, 5, 6, 7, 8])
+        self.assertDatasetsEqual(
             list(
                 self.ops.flat_map(input_col,
                                   lambda x: [(x[0], y) for y in x[1]])),

@@ -1,8 +1,10 @@
 """Adapters for working with pipeline frameworks."""
 
+from enum import Enum
 from functools import partial
 import os
 import multiprocessing as mp
+from tkinter import W
 from . import accumulator
 import random
 import numpy as np
@@ -11,7 +13,7 @@ import abc
 import apache_beam as beam
 import apache_beam.transforms.combiners as combiners
 import typing
-from typing import Optional, Callable
+from typing import Any, Optional, Callable, Tuple
 import collections
 
 
@@ -340,43 +342,84 @@ def _pool_worker_init(func):
 def _pool_worker(row):
     return _pool_current_func(row)
 
+
+class _LazyMultiProcIterator:
+    def __init__(self, job: typing.Callable,
+                 job_inputs: typing.Iterable,
+                 n_jobs: typing.Optional[int] = None,
+                 **pool_kwargs):
+        self.job = job
+        self.job_inputs = job_inputs
+        self.n_jobs = n_jobs
+        self.pool_kwargs = pool_kwargs
+        self._outputs = None # type: typing.Optional[typing.Iterator]
+
+    def _init_pool(self):
+        return mp.Pool(self.n_jobs, initializer=_pool_worker_init,
+                       initargs=(self.job,), **self.pool_kwargs)
+
+    def _trigger_iterations(self) -> None:
+        """Starts the iterations in the multiprocessing context.
+        Basically defines the logic of the processing job.
+        Puts the resulting iterator into `self._outputs`."""
+        pass
+
+    def __iter__(self):
+        if isinstance(self.job_inputs, _LazyMultiProcIterator):
+            self.job_inputs._trigger_iterations()
+        self._trigger_iterations()
+        yield from self._outputs
+
+class _LazyMultiProcMapIterator(_LazyMultiProcIterator):
+    def __init__(self, map_fn: typing.Callable,
+                 map_inputs: typing.Iterable,
+                 n_jobs: typing.Optional[int] = None,
+                 chunksize: int = 1, **pool_kwargs):
+        super().__init__(job=map_fn, job_inputs=map_inputs, n_jobs=n_jobs, **pool_kwargs)
+        self.chunksize = chunksize
+
+    def _trigger_iterations(self):
+        if self._outputs is None:
+            self._outputs = self._init_pool().imap_unordered(
+                _pool_worker, self.job_inputs, self.chunksize)
+        
+
+class _LazyMultiProcOrderedMapIterator(_LazyMultiProcIterator):
+    def __init__(self, map_fn: typing.Callable,
+                 map_inputs: typing.Iterable,
+                 n_jobs: typing.Optional[int] = None,
+                 chunksize: int = 1, **pool_kwargs):
+        super().__init__(job=map_fn, job_inputs=map_inputs, n_jobs=n_jobs, **pool_kwargs)
+        self.chunksize = chunksize
+
+    def _trigger_iterations(self):
+        if self._outputs is None:
+            self._outputs = self._init_pool().map(_pool_worker, 
+                self.job_inputs, self.chunksize)
+            
 class MultiProcLocalPipelineOperations(PipelineOperations):
     def __init__(self, n_jobs: typing.Optional[int]=None,
                 chunksize: int=1,
-                ordered=True, 
                 **pool_kwargs):
-        if n_jobs is None:
-            n_jobs = os.cpu_count()
         self.n_jobs = n_jobs
         self.chunksize = chunksize
-        self.ordered = ordered
         self.pool_kwargs = pool_kwargs
         
-        if ordered:
-            self._pool_map_fn = mp.pool.Pool.map
-        else:
-            self._pool_map_fn = mp.pool.Pool.imap_unordered
-
     def map(self, col, fn, stage_name: typing.Optional[str]=None):
-        with mp.Pool(self.n_jobs, initializer=_pool_worker_init, initargs=(fn,)) as pool:
-            return self._pool_map_fn(pool, _pool_worker, col, chunksize=self.chunksize)
+        return _LazyMultiProcMapIterator(
+            map_fn=fn, map_inputs=col,
+            chunksize=self.chunksize,
+            **self.pool_kwargs
+        )
 
     def flat_map(self, col, fn, stage_name: typing.Optional[str]=None):
         return (e for x in self.map(col, fn, stage_name) for e in x)
 
     def map_tuple(self, col, fn, stage_name: typing.Optional[str]=None):
-        # def mapped_fn(captures: typing.Tuple[typing.Callable], row):
-        #     func, = captures
-        #     return func(*row)
-        # mapped_fn = partial(mapped_fn, (fn, ))
         
         return self.map(col, lambda row: fn(*row), stage_name)
 
     def map_values(self, col, fn, stage_name: typing.Optional[str]=None):
-        # def mapped_fn(captures: typing.Tuple[typing.Callable], row):
-        #     func, = captures
-        #     return row[0], func(row[1])
-        # mapped_fn = partial(mapped_fn, (fn, ))
         return self.map(col, lambda x: (x[0], fn(x[1])), stage_name)
 
     def group_by_key(self, col, stage_name: typing.Optional[str]=None):
@@ -398,59 +441,28 @@ class MultiProcLocalPipelineOperations(PipelineOperations):
             ]
         return items
 
-    def _filter_ordered(self, col, fn, stage_name: typing.Optional[str]=None):
-        return (
-            row for row, keep in zip(col, self.map(col, fn, stage_name))
-            if keep
-        )
-
-    def _filter_unordered(self, col, fn, stage_name: typing.Optional[str]=None):
-        # TODO - implement using multiprocessing.Queue
-        #   details: We want to make the filtering happen on the workers themselves
-        #       rather than on the main thread.
-        return self._filter_ordered(col, fn, stage_name)
-
     def filter(self, col, fn, stage_name: typing.Optional[str]=None):
-        if self.ordered:
-            return self._filter_ordered(col, fn, stage_name)
-        return self._filter_unordered(col, fn, stage_name)
+        ordered_predicates = _LazyMultiProcOrderedMapIterator(
+            fn, col, self.chunksize, self.n_jobs,
+            **self.pool_kwargs
+        )
+        return (row for row, keep in zip(col, ordered_predicates) if keep)
 
-    def _filter_by_key_ordered(self,
-                                col,
-                                public_partitions,
-                                data_extractors,
-                                stage_name: typing.Optional[str] = None):
+    def filter_by_key(self, col, public_partitions,
+                      data_extractors, stage_name: typing.Optional[str] = None):
         def mapped_fn(captures, row):
             public_partitions_, data_extractors_ = captures
-            partition = data_extractors_.partition_extractor(row)
-            return partition, (partition in public_partitions_)
+            key = data_extractors_.partition_extractor(row)
+            return key, (key in public_partitions_)
         mapped_fn = partial(mapped_fn, (public_partitions, data_extractors))
-
-        return (
-            (key, row) for row, (key, keep) in zip(col, self.map(col, mapped_fn, stage_name)) 
-            if keep
+        ordered_key_keep = _LazyMultiProcOrderedMapIterator(
+            mapped_fn, col, self.chunksize, self.n_jobs,
+            **self.pool_kwargs
         )
-
-    def _filter_by_key_unordered(self,
-                                col,
-                                public_partitions,
-                                data_extractors,
-                                stage_name: typing.Optional[str] = None):
-        # TODO - implement using multiprocessing.Queue
-        #   details: We want to make the filtering happen on the workers themselves
-        #       rather than on the main thread.
-        return self._filter_by_key_ordered(col, public_partitions, data_extractors, stage_name)
-
-    def filter_by_key(self,
-                        col,
-                        public_partitions,
-                        data_extractors,
-                        stage_name: typing.Optional[str] = None):
-        if self.ordered:
-            return self._filter_by_key_ordered(col, public_partitions,
-             data_extractors, stage_name)
-        return self._filter_by_key_unordered(col, public_partitions, 
-            data_extractors, stage_name)
+        return (
+            (key, row) for row, (key, keep) 
+            in zip(col, ordered_key_keep) if keep
+        )
 
     def keys(self, col, stage_name: typing.Optional[str]=None):
         # no point in passing through multiproc.
