@@ -86,12 +86,65 @@ class BeamOperationsTest(parameterized.TestCase):
             assert_that(result, equal_to([(6, 2), (7, 2), (8, 1)]))
 
 
-class SparkRDDOperationsTest(unittest.TestCase):
+class SparkRDDOperationsTest(parameterized.TestCase):
 
     @classmethod
     def setUpClass(cls):
         conf = pyspark.SparkConf()
         cls.sc = pyspark.SparkContext(conf=conf)
+        cls.data_extractors = DataExtractors(
+            partition_extractor=lambda x: x[1],
+            privacy_id_extractor=lambda x: x[0],
+            value_extractor=lambda x: x[2]
+        )
+
+    def test_filter_by_key_none_public_partitions(self):
+        spark_operations = SparkRDDOperations()
+        data = [(1, 11, 111), (2, 22, 222)]
+        dist_data = SparkRDDOperationsTest.sc.parallelize(data)
+        public_partitions = None
+        with self.assertRaises(TypeError):
+            spark_operations.filter_by_key(
+                dist_data,
+                public_partitions,
+                SparkRDDOperationsTest.data_extractors
+            )
+
+    @parameterized.parameters(
+        {'distributed': False},
+        {'distributed': True}
+    )
+    def test_filter_by_key_empty_public_partitions(self, distributed):
+        spark_operations = SparkRDDOperations()
+        data = [(1, 11, 111), (2, 22, 222)]
+        dist_data = SparkRDDOperationsTest.sc.parallelize(data)
+        public_partitions = []
+        if distributed:
+            public_partitions = SparkRDDOperationsTest.sc.parallelize(public_partitions)
+        result = spark_operations.filter_by_key(
+            dist_data,
+            public_partitions,
+            SparkRDDOperationsTest.data_extractors
+        ).collect()
+        self.assertListEqual(result, [])
+
+    @parameterized.parameters(
+        {'distributed': False},
+        {'distributed': True}
+    )
+    def test_filter_by_key_nonempty_public_partitions(self, distributed):
+        spark_operations = SparkRDDOperations()
+        data = [(1, 11, 111), (2, 22, 222)]
+        dist_data = SparkRDDOperationsTest.sc.parallelize(data)
+        public_partitions = [11, 33]
+        if distributed:
+            public_partitions = SparkRDDOperationsTest.sc.parallelize(public_partitions)
+        result = spark_operations.filter_by_key(
+            dist_data,
+            public_partitions,
+            SparkRDDOperationsTest.data_extractors
+        ).collect()
+        self.assertListEqual(result, [(11, (1, 11, 111))])
 
     def test_sample_fixed_per_key(self):
         spark_operations = SparkRDDOperations()
@@ -125,10 +178,6 @@ class SparkRDDOperationsTest(unittest.TestCase):
         result = dict(result)
         self.assertDictEqual(result, {1: 41, 2: 47, 3: 33})
 
-    @classmethod
-    def tearDownClass(cls):
-        cls.sc.stop()
-
     def test_flat_map(self):
         spark_operations = SparkRDDOperations()
         data = [[1, 2, 3, 4], [5, 6, 7, 8]]
@@ -153,6 +202,10 @@ class SparkRDDOperationsTest(unittest.TestCase):
                                                                  ("b", 6),
                                                                  ("b", 7),
                                                                  ("b", 8)])
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.sc.stop()
 
 
 class LocalPipelineOperationsTest(unittest.TestCase):
