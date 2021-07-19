@@ -1,5 +1,4 @@
 import unittest
-import pipeline_dp
 import typing
 import numpy as np
 import pipeline_dp.accumulator as accumulator
@@ -197,23 +196,23 @@ class CountAccumulatorTest(unittest.TestCase):
     def test_without_noise(self):
         count_accumulator = accumulator.CountAccumulator(
             accumulator.CountParams(), list(range(5)))
-        assert count_accumulator.compute_metrics() == 5
+        self.assertEqual(count_accumulator.compute_metrics(), 5)
 
         count_accumulator = accumulator.CountAccumulator(
             accumulator.CountParams(), 'a' * 50)
-        assert count_accumulator.compute_metrics() == 50
+        self.assertEqual(count_accumulator.compute_metrics(), 50)
 
         count_accumulator = accumulator.CountAccumulator(
             accumulator.CountParams(), list(range(50)))
         count_accumulator.add_value(49)
-        assert count_accumulator.compute_metrics() == 99
+        self.assertEqual(count_accumulator.compute_metrics(), 51)
 
         count_accumulator_1 = accumulator.CountAccumulator(
             accumulator.CountParams(), list(range(50)))
         count_accumulator_2 = accumulator.CountAccumulator(
             accumulator.CountParams(), 'a' * 50)
         count_accumulator_1.add_accumulator(count_accumulator_2)
-        assert count_accumulator_1.compute_metrics() == 100
+        self.assertEqual(count_accumulator_1.compute_metrics(), 100)
 
 
 if __name__ == '__main__':

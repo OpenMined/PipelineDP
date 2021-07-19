@@ -119,11 +119,13 @@ class CountAccumulator(Accumulator):
         self._count = len(values)
 
     def add_value(self, value):
-        self._count += value
+        self._count += 1
 
     def add_accumulator(self,
                         accumulator: 'CountAccumulator') -> 'CountAccumulator':
         self._count += accumulator._count
+        return self
 
     def compute_metrics(self) -> float:
+        # TODO: add differential privacy
         return self._count
