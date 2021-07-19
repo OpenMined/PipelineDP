@@ -1,12 +1,16 @@
 """Adapters for working with pipeline frameworks."""
 
+import collections
 import random
 import numpy as np
 
 import abc
 import apache_beam as beam
 import apache_beam.transforms.combiners as combiners
+import collections
+import pipeline_dp.accumulator as accumulator
 import typing
+import collections
 
 
 class PipelineOperations(abc.ABC):
@@ -37,16 +41,17 @@ class PipelineOperations(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def filter_by_key(self, col, public_partitions, stage_name: str):
+    def filter_by_key(self, col, keys_to_keep, stage_name: str):
         """Filters out nonpublic partitions.
 
         Args:
           col: collection with elements (partition_key, data).
-          public_partitions: collection of public partition keys.
+          keys_to_keep: collection of public partition keys,
+            both local (currently `list` and `set`) and distributed collections are supported
           stage_name: name of the stage.
 
         Returns:
-          A filtered collection containing only data belonging to public_partitions.
+          A filtered collection containing only data belonging to keys_to_keep.
 
         """
         pass
@@ -113,7 +118,7 @@ class BeamOperations(PipelineOperations):
     def filter(self, col, fn, stage_name: str):
         return col | stage_name >> beam.Filter(fn)
 
-    def filter_by_key(self, col, public_partitions, data_extractors,
+    def filter_by_key(self, col, keys_to_keep, data_extractors,
                       stage_name: str):
 
         class PartitionsFilterJoin(beam.DoFn):
@@ -132,30 +137,30 @@ class BeamOperations(PipelineOperations):
                         yield key, value
 
         def has_public_partition_key(pk_val):
-            return pk_val[0] in public_partitions
+            return pk_val[0] in keys_to_keep
 
         # define constants for using as keys in CoGroupByKey
         VALUES, IS_PUBLIC = 0, 1
 
-        if public_partitions is None:
-            raise TypeError("Must provide a valid public_partitions")
+        if keys_to_keep is None:
+            raise TypeError("Must provide a valid keys to keep")
 
         col = col | "Mapping data by partition" >> beam.Map(
             lambda x: (data_extractors.partition_extractor(x), x))
 
-        if isinstance(public_partitions, (list, set)):
-            # Public partitions are in memory.
-            if not isinstance(public_partitions, set):
-                public_partitions = set(public_partitions)
+        if isinstance(keys_to_keep, (list, set)):
+            # Keys to keep are in memory.
+            if not isinstance(keys_to_keep, set):
+                keys_to_keep = set(keys_to_keep)
             return col | "Filtering data from public partitions" >> beam.Filter(
                 has_public_partition_key)
 
         # Public paritions are not in memory. Filter out with a join.
-        public_partitions = public_partitions | "Creating public_partitions PCollection" >> beam.Map(
+        keys_to_keep = keys_to_keep | "Creating public_partitions PCollection" >> beam.Map(
             lambda x: (x, True))
         return ({
             VALUES: col,
-            IS_PUBLIC: public_partitions
+            IS_PUBLIC: keys_to_keep
         } | "Aggregating elements by values and is_public partition flag " >>
                 beam.CoGroupByKey() | "Filtering data from public partitions" >>
                 beam.ParDo(PartitionsFilterJoin()))
@@ -220,11 +225,32 @@ class SparkRDDOperations(PipelineOperations):
 
     def filter_by_key(self,
                       rdd,
-                      public_partitions,
+                      keys_to_keep,
                       data_extractors,
                       stage_name: str = None):
-        NotImplementedError(
-            "filter_by_key is not implemented in SparkRDDOperations")
+
+        if keys_to_keep is None:
+            raise TypeError("Must provide a valid keys to keep")
+
+        rdd = rdd.map(
+            lambda x: (data_extractors.partition_extractor(x), x)
+        )
+
+        if isinstance(keys_to_keep, (list, set)):
+            # Keys to keep are local.
+            if not isinstance(keys_to_keep, set):
+                keys_to_keep = set(keys_to_keep)
+            return rdd.filter(
+                lambda x: x[0] in keys_to_keep
+            )
+
+        else:
+            filtering_rdd = keys_to_keep.map(
+                lambda x: (x, None)
+            )
+            return rdd.join(filtering_rdd).map(
+                lambda x: (x[0], x[1][0])
+            )
 
     def keys(self, rdd, stage_name: str = None):
         return rdd.keys()
@@ -287,12 +313,12 @@ class LocalPipelineOperations(PipelineOperations):
 
     def filter_by_key(self,
                       col,
-                      public_partitions,
+                      keys_to_keep,
                       data_extractors,
                       stage_name: typing.Optional[str] = None):
         return [(data_extractors.partition_extractor(x), x)
                 for x in col
-                if data_extractors.partition_extractor(x) in public_partitions]
+                if data_extractors.partition_extractor(x) in keys_to_keep]
 
     def keys(self, col, stage_name: typing.Optional[str] = None):
         return (k for k, v in col)
@@ -322,4 +348,4 @@ class LocalPipelineOperations(PipelineOperations):
         yield from collections.Counter(col).items()
 
     def reduce_accumulators_per_key(self, col, stage_name: str = None):
-        raise NotImplementedError()
+        return self.map_values(self.group_by_key(col), accumulator.merge)

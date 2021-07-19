@@ -7,3 +7,4 @@ from pipeline_dp.dp_engine import DPEngine
 from pipeline_dp.pipeline_operations import LocalPipelineOperations
 from pipeline_dp.pipeline_operations import BeamOperations
 from pipeline_dp.pipeline_operations import SparkRDDOperations
+from pipeline_dp import accumulator

@@ -1,6 +1,7 @@
 import abc
 import typing
 import pickle
+from dataclasses import dataclass
 from functools import reduce
 from dataclasses import dataclass
 import pipeline_dp
@@ -57,6 +58,7 @@ class Accumulator(abc.ABC):
 
     @abc.abstractmethod
     def compute_metrics(self):
+        """Computes and returns the result of aggregation."""
         pass
 
     def serialize(self):
@@ -121,7 +123,6 @@ class CompoundAccumulator(Accumulator):
             accumulator.compute_metrics() for accumulator in self.accumulators
         ]
 
-
 class AccumulatorFactory:
 
     def __init__(self, params: pipeline_dp.AggregateParams,
@@ -145,3 +146,25 @@ class AccumulatorFactory:
             return accumulators[0]
 
         return CompoundAccumulator(accumulators)
+
+@dataclass
+class CountParams:
+    pass
+
+
+class CountAccumulator(Accumulator):
+
+    def __init__(self, params: CountParams, values):
+        self._count = len(values)
+
+    def add_value(self, value):
+        self._count += 1
+
+    def add_accumulator(self,
+                        accumulator: 'CountAccumulator') -> 'CountAccumulator':
+        self._count += accumulator._count
+        return self
+
+    def compute_metrics(self) -> float:
+        # TODO: add differential privacy
+        return self._count

@@ -1,9 +1,9 @@
 import unittest
-import pipeline_dp
 import typing
 from unittest.mock import patch
-from pipeline_dp import accumulator as acc
+import pipeline_dp
 from pipeline_dp import aggregate_params as agg
+import pipeline_dp.accumulator as accumulator
 
 
 class CompoundAccumulatorTest(unittest.TestCase):
@@ -11,26 +11,27 @@ class CompoundAccumulatorTest(unittest.TestCase):
     def test_with_mean_and_sum_squares(self):
         mean_acc = MeanAccumulator(params=[], values=[])
         sum_squares_acc = SumOfSquaresAccumulator(params=[], values=[])
-        compound_accumulator = acc.CompoundAccumulator([mean_acc,
+        compound_accumulator = accumulator.CompoundAccumulator([mean_acc,
                                                       sum_squares_acc])
 
         compound_accumulator.add_value(3)
         compound_accumulator.add_value(4)
 
         computed_metrics = compound_accumulator.compute_metrics()
-        self.assertTrue(isinstance(compound_accumulator, acc.CompoundAccumulator))
+        self.assertTrue(
+            isinstance(compound_accumulator, accumulator.CompoundAccumulator))
         self.assertEqual(len(computed_metrics), 2)
         self.assertEqual(computed_metrics, [3.5, 25])
 
     def test_adding_accumulator(self):
         mean_acc1 = MeanAccumulator(params=None, values=[5])
         sum_squares_acc1 = SumOfSquaresAccumulator(params=None, values=[5])
-        compound_accumulator = acc.CompoundAccumulator(
+        compound_accumulator = accumulator.CompoundAccumulator(
             [mean_acc1, sum_squares_acc1])
 
         mean_acc2 = MeanAccumulator(params=[], values=[])
         sum_squares_acc2 = SumOfSquaresAccumulator(params=[], values=[])
-        to_be_added_compound_accumulator = acc.CompoundAccumulator(
+        to_be_added_compound_accumulator = accumulator.CompoundAccumulator(
             [mean_acc2, sum_squares_acc2])
 
         to_be_added_compound_accumulator.add_value(4)
@@ -48,9 +49,9 @@ class CompoundAccumulatorTest(unittest.TestCase):
         mean_acc2 = MeanAccumulator(params=[], values=[22])
         sum_squares_acc2 = SumOfSquaresAccumulator(params=[], values=[2])
 
-        base_compound_accumulator = acc.CompoundAccumulator(
+        base_compound_accumulator = accumulator.CompoundAccumulator(
             [mean_acc1, sum_squares_acc1])
-        to_add_compound_accumulator = acc.CompoundAccumulator(
+        to_add_compound_accumulator = accumulator.CompoundAccumulator(
             [sum_squares_acc2, mean_acc2])
 
         with self.assertRaises(TypeError) as context:
@@ -66,9 +67,9 @@ class CompoundAccumulatorTest(unittest.TestCase):
         sum_squares_acc1 = SumOfSquaresAccumulator(params=[], values=[1])
         mean_acc2 = MeanAccumulator(params=[], values=[22])
 
-        base_compound_accumulator = acc.CompoundAccumulator(
+        base_compound_accumulator = accumulator.CompoundAccumulator(
             [mean_acc1, sum_squares_acc1])
-        to_add_compound_accumulator = acc.CompoundAccumulator([mean_acc2])
+        to_add_compound_accumulator = accumulator.CompoundAccumulator([mean_acc2])
 
         with self.assertRaises(ValueError) as context:
             base_compound_accumulator.add_accumulator(
@@ -78,24 +79,25 @@ class CompoundAccumulatorTest(unittest.TestCase):
             "Expected size = 2 received size = 1.", str(context.exception))
 
     def test_serialization_single_accumulator(self):
-        accumulator = MeanAccumulator(params=[], values=[5, 6])
+        mean_acc = MeanAccumulator(params=[], values=[5, 6])
 
-        serialized_obj = accumulator.serialize()
-        deserialized_obj =acc.Accumulator.deserialize(serialized_obj)
+        serialized_obj = mean_acc.serialize()
+        deserialized_obj = accumulator.Accumulator.deserialize(serialized_obj)
 
         self.assertIsInstance(deserialized_obj, MeanAccumulator)
-        self.assertEqual(accumulator.sum, deserialized_obj.sum)
-        self.assertEqual(accumulator.count, deserialized_obj.count)
+        self.assertEqual(mean_acc.sum, deserialized_obj.sum)
+        self.assertEqual(mean_acc.count, deserialized_obj.count)
 
     def test_serialization_compound_accumulator(self):
         mean_acc = MeanAccumulator(params=[], values=[15])
         sum_squares_acc = SumOfSquaresAccumulator(params=[], values=[1])
-        compound_accumulator = acc.CompoundAccumulator([mean_acc, sum_squares_acc])
+        compound_accumulator = accumulator.CompoundAccumulator([mean_acc, sum_squares_acc])
 
         serialized_obj = compound_accumulator.serialize()
-        deserialized_obj = acc.Accumulator.deserialize(serialized_obj)
+        deserialized_obj = accumulator.Accumulator.deserialize(serialized_obj)
 
-        self.assertIsInstance(deserialized_obj, acc.CompoundAccumulator)
+        self.assertIsInstance(deserialized_obj, accumulator.CompoundAccumulator)
+
         self.assertEqual(len(deserialized_obj.accumulators), 2)
         self.assertIsInstance(deserialized_obj.accumulators[0], MeanAccumulator)
         self.assertIsInstance(deserialized_obj.accumulators[1],
@@ -120,7 +122,7 @@ class GenericAccumulatorTest(unittest.TestCase):
         mean_accumulator1 = MeanAccumulator(params=[], values=[15])
         mean_accumulator2 = MeanAccumulator(params=[], values=[5])
 
-        merged_accumulator = acc.merge([mean_accumulator1, mean_accumulator2])
+        merged_accumulator = accumulator.merge([mean_accumulator1, mean_accumulator2])
 
         self.assertEqual(merged_accumulator.compute_metrics(), 10)
 
@@ -129,7 +131,8 @@ class GenericAccumulatorTest(unittest.TestCase):
         sum_squares_acc = SumOfSquaresAccumulator(params=[], values=[1])
 
         with self.assertRaises(TypeError) as context:
-            acc.merge([mean_accumulator1, sum_squares_acc])
+            accumulator.merge([mean_accumulator1, sum_squares_acc])
+
         self.assertIn("The accumulator to be added is not of the same type."
                       "", str(context.exception))
 
@@ -141,16 +144,16 @@ class GenericAccumulatorTest(unittest.TestCase):
 
         values = [[10]]
         mock_create_accumulator_params_function.return_value = [
-            acc.AccumulatorParams(MeanAccumulator, None)
+            accumulator.AccumulatorParams(MeanAccumulator, None)
         ]
 
-        accumulator_factory = acc.AccumulatorFactory(aggregate_params,
+        accumulator_factory = accumulator.AccumulatorFactory(aggregate_params,
                                                  budget_accountant)
         accumulator_factory.initialize()
-        accumulator = accumulator_factory.create(values)
+        created_accumulator = accumulator_factory.create(values)
 
-        self.assertTrue(isinstance(accumulator, MeanAccumulator))
-        self.assertEqual(accumulator.compute_metrics(), 10)
+        self.assertTrue(isinstance(created_accumulator, MeanAccumulator))
+        self.assertEqual(created_accumulator.compute_metrics(), 10)
 
     @patch('pipeline_dp.accumulator.create_accumulator_params')
     def test_accumulator_factory_multiple_types(
@@ -161,20 +164,21 @@ class GenericAccumulatorTest(unittest.TestCase):
         values = [[10], [10]]
 
         mock_create_accumulator_params_function.return_value = [
-            acc.AccumulatorParams(MeanAccumulator, None),
-            acc.AccumulatorParams(SumOfSquaresAccumulator, None)
+            accumulator.AccumulatorParams(MeanAccumulator, None),
+            accumulator.AccumulatorParams(SumOfSquaresAccumulator, None)
         ]
 
-        accumulator_factory = acc.AccumulatorFactory(aggregate_params,
+        accumulator_factory = accumulator.AccumulatorFactory(aggregate_params,
                                                  budget_accountant)
         accumulator_factory.initialize()
-        accumulator = accumulator_factory.create(values)
+        created_accumulator = accumulator_factory.create(values)
 
-        self.assertTrue(isinstance(accumulator, acc.CompoundAccumulator))
-        self.assertEqual(accumulator.compute_metrics(), [10, 100])
+        self.assertTrue(isinstance(created_accumulator,
+                                   accumulator.CompoundAccumulator))
+        self.assertEqual(created_accumulator.compute_metrics(), [10, 100])
 
 
-class MeanAccumulator(acc.Accumulator):
+class MeanAccumulator(accumulator.Accumulator):
 
     def __init__(self, params, values: typing.Iterable[float] = []):
         self.sum = sum(values)
@@ -202,7 +206,7 @@ class MeanAccumulator(acc.Accumulator):
 
 
 # Accumulator classes for testing
-class SumOfSquaresAccumulator(acc.Accumulator):
+class SumOfSquaresAccumulator(accumulator.Accumulator):
 
     def __init__(self, params, values: typing.Iterable[float] = []):
         self.sum_squares = sum([value * value for value in values])
@@ -223,6 +227,30 @@ class SumOfSquaresAccumulator(acc.Accumulator):
 
     def compute_metrics(self):
         return self.sum_squares
+
+
+class CountAccumulatorTest(unittest.TestCase):
+
+    def test_without_noise(self):
+        count_accumulator = accumulator.CountAccumulator(
+            accumulator.CountParams(), list(range(5)))
+        self.assertEqual(count_accumulator.compute_metrics(), 5)
+
+        count_accumulator = accumulator.CountAccumulator(
+            accumulator.CountParams(), 'a' * 50)
+        self.assertEqual(count_accumulator.compute_metrics(), 50)
+
+        count_accumulator = accumulator.CountAccumulator(
+            accumulator.CountParams(), list(range(50)))
+        count_accumulator.add_value(49)
+        self.assertEqual(count_accumulator.compute_metrics(), 51)
+
+        count_accumulator_1 = accumulator.CountAccumulator(
+            accumulator.CountParams(), list(range(50)))
+        count_accumulator_2 = accumulator.CountAccumulator(
+            accumulator.CountParams(), 'a' * 50)
+        count_accumulator_1.add_accumulator(count_accumulator_2)
+        self.assertEqual(count_accumulator_1.compute_metrics(), 100)
 
 
 if __name__ == '__main__':

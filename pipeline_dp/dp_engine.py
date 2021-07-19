@@ -1,12 +1,16 @@
 """DP aggregations."""
 
-from typing import Callable
+from functools import partial
+from typing import Any, Callable, Tuple
 
 from dataclasses import dataclass
 from pipeline_dp.aggregate_params import AggregateParams
-from pipeline_dp.budget_accounting import BudgetAccountant
+from pipeline_dp.budget_accounting import BudgetAccountant, Budget
 from pipeline_dp.pipeline_operations import PipelineOperations
 from pipeline_dp.report_generator import ReportGenerator
+from pipeline_dp.accumulator import Accumulator
+
+from pydp.algorithms.partition_selection import create_truncated_geometric_partition_strategy
 
 
 @dataclass
@@ -110,3 +114,31 @@ class DPEngine:
         return self._ops.flat_map(col,
                                   unnest_cross_partition_bound_sampled_per_key,
                                   "Unnest")
+    
+    def _select_private_partitions(self, col, max_partitions_contributed: int):
+        """Selects and publishes private partitions.
+
+        Args:
+            col: collection, with types for each element: 
+                (partition_key, Accumulator)
+            max_partitions_contributed: maximum amount of partitions that one privacy unit
+                might contribute.
+        
+        Returns:
+            collection of elements (partition_key, accumulator)
+        """
+        budget = self._budget_accountant.request_budget(weight=1, use_eps=True, use_delta=True)
+        
+        def filter_fn(captures: Tuple[Budget, int], row: Tuple[Any, Accumulator]) -> bool:
+            """Lazily creates a partition selection strategy and uses it to determine which 
+            partitions to keep."""
+            budget, max_partitions = captures 
+            accumulator = row[1] 
+            partition_selection_strategy = create_truncated_geometric_partition_strategy(
+                budget.eps, budget.delta, 
+                max_partitions
+            )
+            return partition_selection_strategy.should_keep(accumulator.privacy_id_count)            
+        # make filter_fn serializable
+        filter_fn = partial(filter_fn, (budget, max_partitions_contributed))
+        return self._ops.filter(col, filter_fn)
