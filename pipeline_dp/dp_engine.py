@@ -127,21 +127,18 @@ class DPEngine:
         Returns:
             collection of elements (partition_key, accumulator)
         """
-        budget = self._budget_accountant.request_budget(weight=1,
-                                                        use_eps=True,
-                                                        use_delta=True)
+        budget = self._budget_accountant.request_budget(weight=1, use_eps=True, use_delta=True)
 
-        def filter_fn(captures: Tuple[Budget, int],
-                      row: Tuple[Any, Accumulator]) -> bool:
+        def filter_fn(captures: Tuple[Budget, int], row: Tuple[Any, Accumulator]) -> bool:
             """Lazily creates a partition selection strategy and uses it to determine which 
             partitions to keep."""
             budget, max_partitions = captures
             accumulator = row[1]
             partition_selection_strategy = create_truncated_geometric_partition_strategy(
-                budget.eps, budget.delta, max_partitions)
-            return partition_selection_strategy.should_keep(
-                accumulator.privacy_id_count)
-
+                budget.eps, budget.delta,
+                max_partitions
+            )
+            return partition_selection_strategy.should_keep(accumulator.privacy_id_count)
         # make filter_fn serializable
         filter_fn = partial(filter_fn, (budget, max_partitions_contributed))
         return self._ops.filter(col, filter_fn)

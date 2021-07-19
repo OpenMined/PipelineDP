@@ -98,7 +98,8 @@ class SparkRDDOperationsTest(parameterized.TestCase):
         cls.data_extractors = DataExtractors(
             partition_extractor=lambda x: x[1],
             privacy_id_extractor=lambda x: x[0],
-            value_extractor=lambda x: x[2])
+            value_extractor=lambda x: x[2]
+        )
 
     def test_filter_by_key_none_public_partitions(self):
         spark_operations = SparkRDDOperations()
@@ -107,35 +108,45 @@ class SparkRDDOperationsTest(parameterized.TestCase):
         public_partitions = None
         with self.assertRaises(TypeError):
             spark_operations.filter_by_key(
-                dist_data, public_partitions,
-                SparkRDDOperationsTest.data_extractors)
+                dist_data,
+                public_partitions,
+                SparkRDDOperationsTest.data_extractors
+            )
 
-    @parameterized.parameters({'distributed': False}, {'distributed': True})
+    @parameterized.parameters(
+        {'distributed': False},
+        {'distributed': True}
+    )
     def test_filter_by_key_empty_public_partitions(self, distributed):
         spark_operations = SparkRDDOperations()
         data = [(1, 11, 111), (2, 22, 222)]
         dist_data = SparkRDDOperationsTest.sc.parallelize(data)
         public_partitions = []
         if distributed:
-            public_partitions = SparkRDDOperationsTest.sc.parallelize(
-                public_partitions)
+            public_partitions = SparkRDDOperationsTest.sc.parallelize(public_partitions)
         result = spark_operations.filter_by_key(
-            dist_data, public_partitions,
-            SparkRDDOperationsTest.data_extractors).collect()
+            dist_data,
+            public_partitions,
+            SparkRDDOperationsTest.data_extractors
+        ).collect()
         self.assertListEqual(result, [])
 
-    @parameterized.parameters({'distributed': False}, {'distributed': True})
+    @parameterized.parameters(
+        {'distributed': False},
+        {'distributed': True}
+    )
     def test_filter_by_key_nonempty_public_partitions(self, distributed):
         spark_operations = SparkRDDOperations()
         data = [(1, 11, 111), (2, 22, 222)]
         dist_data = SparkRDDOperationsTest.sc.parallelize(data)
         public_partitions = [11, 33]
         if distributed:
-            public_partitions = SparkRDDOperationsTest.sc.parallelize(
-                public_partitions)
+            public_partitions = SparkRDDOperationsTest.sc.parallelize(public_partitions)
         result = spark_operations.filter_by_key(
-            dist_data, public_partitions,
-            SparkRDDOperationsTest.data_extractors).collect()
+            dist_data,
+            public_partitions,
+            SparkRDDOperationsTest.data_extractors
+        ).collect()
         self.assertListEqual(result, [(11, (1, 11, 111))])
 
     def test_sample_fixed_per_key(self):
