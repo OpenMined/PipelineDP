@@ -15,6 +15,7 @@ import apache_beam.transforms.combiners as combiners
 import typing
 from typing import Any, Optional, Callable, Tuple
 import collections
+import itertools
 
 
 class PipelineOperations(abc.ABC):
@@ -354,6 +355,19 @@ class LocalPipelineOperations(PipelineOperations):
     def reduce_accumulators_per_key(self, col, stage_name: str = None):
         raise NotImplementedError()
 
+
+class Sentinel(Enum):
+    EOI = "EndOfIterations"
+
+def _multiproc_iter_input(iter_obj):
+    return itertools.chain(iter_obj, [Sentinel.EOI])
+
+def _multiproc_iter_output(iter_obj):
+    for item in iter_obj:
+        if item is Sentinel.EOI:
+            break
+        yield item
+
 # workaround for passing lambda functions to multiprocessing
 # according to https://medium.com/@yasufumy/python-multiprocessing-c6d54107dd55
 _pool_current_func = None
@@ -362,6 +376,8 @@ def _pool_worker_init(func):
     _pool_current_func = func
 
 def _pool_worker(row):
+    if row is Sentinel.EOI:
+        return Sentinel.EOI
     return _pool_current_func(row)
 
 
@@ -390,7 +406,7 @@ class _LazyMultiProcIterator:
         if isinstance(self.job_inputs, _LazyMultiProcIterator):
             self.job_inputs._trigger_iterations()
         self._trigger_iterations()
-        yield from self._outputs
+        yield from _multiproc_iter_output(self._outputs)
 
 class _LazyMultiProcMapIterator(_LazyMultiProcIterator):
     def __init__(self, map_fn: typing.Callable,
@@ -403,7 +419,10 @@ class _LazyMultiProcMapIterator(_LazyMultiProcIterator):
     def _trigger_iterations(self):
         if self._outputs is None:
             self._outputs = self._init_pool().imap_unordered(
-                _pool_worker, self.job_inputs, self.chunksize)
+                _pool_worker, 
+                _multiproc_iter_input(self.job_inputs), 
+                self.chunksize
+            )
         
 
 class _LazyMultiProcOrderedMapIterator(_LazyMultiProcIterator):
@@ -416,8 +435,11 @@ class _LazyMultiProcOrderedMapIterator(_LazyMultiProcIterator):
 
     def _trigger_iterations(self):
         if self._outputs is None:
-            self._outputs = self._init_pool().map(_pool_worker, 
-                self.job_inputs, self.chunksize)
+            self._outputs = self._init_pool().map(
+                _pool_worker, 
+                _multiproc_iter_input(self.job_inputs), 
+                self.chunksize
+            )
             
 class MultiProcLocalPipelineOperations(PipelineOperations):
     def __init__(self, n_jobs: typing.Optional[int]=None,
