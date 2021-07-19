@@ -232,25 +232,17 @@ class SparkRDDOperations(PipelineOperations):
         if keys_to_keep is None:
             raise TypeError("Must provide a valid keys to keep")
 
-        rdd = rdd.map(
-            lambda x: (data_extractors.partition_extractor(x), x)
-        )
+        rdd = rdd.map(lambda x: (data_extractors.partition_extractor(x), x))
 
         if isinstance(keys_to_keep, (list, set)):
             # Keys to keep are local.
             if not isinstance(keys_to_keep, set):
                 keys_to_keep = set(keys_to_keep)
-            return rdd.filter(
-                lambda x: x[0] in keys_to_keep
-            )
+            return rdd.filter(lambda x: x[0] in keys_to_keep)
 
         else:
-            filtering_rdd = keys_to_keep.map(
-                lambda x: (x, None)
-            )
-            return rdd.join(filtering_rdd).map(
-                lambda x: (x[0], x[1][0])
-            )
+            filtering_rdd = keys_to_keep.map(lambda x: (x, None))
+            return rdd.join(filtering_rdd).map(lambda x: (x[0], x[1][0]))
 
     def keys(self, rdd, stage_name: str = None):
         return rdd.keys()

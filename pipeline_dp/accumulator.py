@@ -123,6 +123,7 @@ class CompoundAccumulator(Accumulator):
             accumulator.compute_metrics() for accumulator in self.accumulators
         ]
 
+
 class AccumulatorFactory:
 
     def __init__(self, params: pipeline_dp.AggregateParams,
@@ -146,6 +147,7 @@ class AccumulatorFactory:
             return accumulators[0]
 
         return CompoundAccumulator(accumulators)
+
 
 @dataclass
 class CountParams:

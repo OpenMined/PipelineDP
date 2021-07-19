@@ -36,8 +36,8 @@ class MeanVarParams:
             return self.max_contributions_per_partition * max(
                 abs(self.low), abs(self.high))
         if metric == pipeline_dp.Metrics.MEAN:
-            return self.max_contributions_per_partition * abs(
-                self.middle() - self.low)
+            return self.max_contributions_per_partition * abs(self.middle() -
+                                                              self.low)
         # TODO: add value for variance
         raise ValueError("Invalid metric")
 
@@ -159,8 +159,7 @@ def equally_split_budget(eps: float, delta: float, no_mechanisms: int):
         An array with the split budgets.
     """
     if no_mechanisms <= 0:
-        raise ValueError(
-            "The number of mechanisms must be a positive integer.")
+        raise ValueError("The number of mechanisms must be a positive integer.")
 
     # These variables are used to keep track of the budget used.
     # In this way, we can improve accuracy of floating-point operations.
@@ -236,14 +235,13 @@ def compute_dp_mean(count: int, sum: float, dp_params: MeanVarParams):
     (sum_eps, sum_delta), (count_eps, count_delta) = equally_split_budget(
         dp_params.eps, dp_params.delta, 2)
 
-    dp_normalized_sum = _add_random_noise(normalized_sum, sum_eps, sum_delta,
-                                          l0_sensitivity,
-                                          dp_params.linf_sensitivity(
-                                              pipeline_dp.Metrics.MEAN),
-                                          dp_params.noise_kind)
-    dp_count = _add_random_noise(count, count_eps, count_delta, l0_sensitivity,
-                                 dp_params.linf_sensitivity(
-                                     pipeline_dp.Metrics.COUNT),
-                                 dp_params.noise_kind)
+    dp_normalized_sum = _add_random_noise(
+        normalized_sum, sum_eps, sum_delta, l0_sensitivity,
+        dp_params.linf_sensitivity(pipeline_dp.Metrics.MEAN),
+        dp_params.noise_kind)
+    dp_count = _add_random_noise(
+        count, count_eps, count_delta, l0_sensitivity,
+        dp_params.linf_sensitivity(pipeline_dp.Metrics.COUNT),
+        dp_params.noise_kind)
     dp_mean = dp_normalized_sum / dp_count + middle
     return dp_count, dp_mean * dp_count, dp_mean
