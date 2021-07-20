@@ -125,6 +125,8 @@ class CompoundAccumulator(Accumulator):
 
 
 class AccumulatorFactory:
+    """Factory for producing the appropriate Accumulator depending on the
+    AggregateParams and BudgetAccountant."""
 
     def __init__(self, params: pipeline_dp.AggregateParams,
                  budget_accountant: pipeline_dp.BudgetAccountant):
