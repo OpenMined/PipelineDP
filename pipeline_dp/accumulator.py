@@ -140,7 +140,9 @@ class AccumulatorFactory:
     def create(self, values: typing.List) -> Accumulator:
         accumulators = []
         for accumulator_param in self._accumulator_params:
-            accumulators.append(accumulator_param.accumulator_type(accumulator_param.constructor_params, values))
+            accumulators.append(
+                accumulator_param.accumulator_type(
+                    accumulator_param.constructor_params, values))
 
         # No need to create CompoundAccumulator if there is only 1 accumulator.
         if len(accumulators) == 1:
