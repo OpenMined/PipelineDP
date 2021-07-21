@@ -179,7 +179,7 @@ class dp_engineTest(unittest.TestCase):
         engine.aggregate(None, params2, None)
         self.assertEqual(len(engine._report_generators), 2)  # pylint: disable=protected-access
 
-    def _mock_and_assert_private_partitions(self, engine: pipeline_dp.DPEngine, groups, 
+    def _mock_and_assert_private_partitions(self, engine: pipeline_dp.DPEngine, groups,
                                             min_users, expected_partitions,
                                             max_partitions_contributed):
         with patch("pipeline_dp.dp_engine.create_truncated_geometric_partition_strategy",
@@ -190,13 +190,13 @@ class dp_engineTest(unittest.TestCase):
 
     def test_select_private_partitions(self):
         input_col = [
-            ("pid1", ( 'pk1', 1 )), 
-            ("pid1", ( 'pk1', 2 )), 
+            ("pid1", ( 'pk1', 1 )),
+            ("pid1", ( 'pk1', 2 )),
             ("pid1", ( 'pk2', 3 )),
-            ("pid1", ( 'pk2', 4 )), 
-            ("pid1", ( 'pk2', 5 )), 
+            ("pid1", ( 'pk2', 4 )),
+            ("pid1", ( 'pk2', 5 )),
             ("pid1", ( 'pk3', 6 )),
-            ("pid1", ( 'pk4', 7 )), 
+            ("pid1", ( 'pk4', 7 )),
             ("pid2", ( 'pk4', 8 ))
         ]
         max_partitions_contributed = 3
@@ -205,7 +205,7 @@ class dp_engineTest(unittest.TestCase):
             pipeline_dp.LocalPipelineOperations()
         )
         groups = engine._ops.group_by_key(input_col, None)
-        groups = engine._ops.map_values(groups, 
+        groups = engine._ops.map_values(groups,
             lambda group: _MockAccumulator(group)
         )
         groups = list(groups)
@@ -224,7 +224,7 @@ class dp_engineTest(unittest.TestCase):
             ]))
         ]
         self._mock_and_assert_private_partitions(
-            engine, groups, 0, expected_data_filtered, 
+            engine, groups, 0, expected_data_filtered,
             max_partitions_contributed
         )
         expected_data_filtered = [
@@ -239,7 +239,7 @@ class dp_engineTest(unittest.TestCase):
             ])),
         ]
         self._mock_and_assert_private_partitions(
-            engine, groups, 3, expected_data_filtered, 
+            engine, groups, 3, expected_data_filtered,
             max_partitions_contributed
         )
         expected_data_filtered = []
@@ -247,8 +247,8 @@ class dp_engineTest(unittest.TestCase):
             engine, groups, 100, expected_data_filtered,
             max_partitions_contributed
         )
-            
-            
+
+
 
 if __name__ == '__main__':
     unittest.main()

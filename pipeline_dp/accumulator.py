@@ -3,11 +3,27 @@ import typing
 import pickle
 from dataclasses import dataclass
 from functools import reduce
+from dataclasses import dataclass
+import pipeline_dp
+
+
+@dataclass
+class AccumulatorParams:
+    accumulator_type: type
+    constructor_params: typing.Any
 
 
 def merge(accumulators: typing.Iterable['Accumulator']) -> 'Accumulator':
     """Merges the accumulators."""
     return reduce(lambda acc1, acc2: acc1.add_accumulator(acc2), accumulators)
+
+
+def create_accumulator_params(
+    aggregation_params: pipeline_dp.AggregateParams,
+    budget_accountant: pipeline_dp.BudgetAccountant
+) -> typing.List[AccumulatorParams]:
+
+    raise NotImplemented()  # implementation will be done later
 
 
 class Accumulator(abc.ABC):
@@ -106,6 +122,33 @@ class CompoundAccumulator(Accumulator):
         return [
             accumulator.compute_metrics() for accumulator in self.accumulators
         ]
+
+
+class AccumulatorFactory:
+    """Factory for producing the appropriate Accumulator depending on the
+    AggregateParams and BudgetAccountant."""
+
+    def __init__(self, params: pipeline_dp.AggregateParams,
+                 budget_accountant: pipeline_dp.BudgetAccountant):
+        self._params = params
+        self._budget_accountant = budget_accountant
+
+    def initialize(self):
+        self._accumulator_params = create_accumulator_params(
+            self._params, self._budget_accountant)
+
+    def create(self, values: typing.List) -> Accumulator:
+        accumulators = []
+        for accumulator_param in self._accumulator_params:
+            accumulators.append(
+                accumulator_param.accumulator_type(
+                    accumulator_param.constructor_params, values))
+
+        # No need to create CompoundAccumulator if there is only 1 accumulator.
+        if len(accumulators) == 1:
+            return accumulators[0]
+
+        return CompoundAccumulator(accumulators)
 
 
 @dataclass
