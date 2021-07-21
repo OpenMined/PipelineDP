@@ -9,8 +9,8 @@ import pipeline_dp
 
 @dataclass
 class AccumulatorParams:
-    accumulator_type: type = None
-    constructor_params: typing.Any = None
+    accumulator_type: type
+    constructor_params: typing.Any
 
 
 def merge(accumulators: typing.Iterable['Accumulator']) -> 'Accumulator':
@@ -140,11 +140,11 @@ class AccumulatorFactory:
     def create(self, values: typing.List) -> Accumulator:
         accumulators = [
             accumulator_param.accumulator_type(
-                accumulator_param.constructor_params,
-                value) for accumulator_param, value in zip(
-                    self._accumulator_params, values)
+                accumulator_param.constructor_params, values) for
+            accumulator_param in self._accumulator_params
         ]
 
+        # No need to create CompoundAccumulator if there is only 1 accumulator.
         if len(accumulators) == 1:
             return accumulators[0]
 

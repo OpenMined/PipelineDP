@@ -144,7 +144,7 @@ class GenericAccumulatorTest(unittest.TestCase):
         aggregate_params = pipeline_dp.AggregateParams([agg.Metrics.MEAN], 5, 3)
         budget_accountant = pipeline_dp.BudgetAccountant(1, 0.01)
 
-        values = [[10]]
+        values = [10]
         mock_create_accumulator_params_function.return_value = [
             accumulator.AccumulatorParams(MeanAccumulator, None)
         ]
@@ -156,6 +156,8 @@ class GenericAccumulatorTest(unittest.TestCase):
 
         self.assertTrue(isinstance(created_accumulator, MeanAccumulator))
         self.assertEqual(created_accumulator.compute_metrics(), 10)
+        mock_create_accumulator_params_function.assert_called_with(aggregate_params,
+                                                                   budget_accountant)
 
     @patch('pipeline_dp.accumulator.create_accumulator_params')
     def test_accumulator_factory_multiple_types(
@@ -163,7 +165,7 @@ class GenericAccumulatorTest(unittest.TestCase):
         aggregate_params = pipeline_dp.AggregateParams(
             [agg.Metrics.MEAN, agg.Metrics.VAR], 5, 3)
         budget_accountant = pipeline_dp.BudgetAccountant(1, 0.01)
-        values = [[10], [10]]
+        values = [10]
 
         mock_create_accumulator_params_function.return_value = [
             accumulator.AccumulatorParams(MeanAccumulator, None),
@@ -178,6 +180,8 @@ class GenericAccumulatorTest(unittest.TestCase):
         self.assertTrue(
             isinstance(created_accumulator, accumulator.CompoundAccumulator))
         self.assertEqual(created_accumulator.compute_metrics(), [10, 100])
+        mock_create_accumulator_params_function.assert_called_with(aggregate_params,
+                                                               budget_accountant)
 
 
 class MeanAccumulator(accumulator.Accumulator):
