@@ -193,10 +193,10 @@ class MeanVarParams(unittest.TestCase):
             max_contributions_per_partition=1,
             noise_kind=pipeline_dp.NoiseKind.LAPLACE)
 
-        (_,
-         _), (count_eps,
-              count_delta) = pipeline_dp.dp_computations.equally_split_budget(
-            params.eps, params.delta, 2)
+        (count_eps,
+         count_delta), (_,
+                        _) = pipeline_dp.dp_computations.equally_split_budget(
+                            params.eps, params.delta, 2)
         l0_sensitivity = params.l0_sensitivity()
 
         # Laplace Mechanism
@@ -240,13 +240,15 @@ class MeanVarParams(unittest.TestCase):
 
         (count_eps, count_delta), (_, _), (
             _, _) = pipeline_dp.dp_computations.equally_split_budget(
-            params.eps, params.delta, 3)
+                params.eps, params.delta, 3)
         l0_sensitivity = params.l0_sensitivity()
 
         # Laplace Mechanism
         results = [
             pipeline_dp.dp_computations.compute_dp_var(
-                count=100000, sum=1000000, sum_squares=20000000,
+                count=100000,
+                sum=1000000,
+                sum_squares=20000000,
                 dp_params=params) for _ in range(1500000)
         ]
         count_values, sum_values, sum_squares_values, var_values = zip(*results)
@@ -263,7 +265,9 @@ class MeanVarParams(unittest.TestCase):
         params.noise_kind = pipeline_dp.NoiseKind.GAUSSIAN
         results = [
             pipeline_dp.dp_computations.compute_dp_var(
-                count=100000, sum=1000000, sum_squares=20000000,
+                count=100000,
+                sum=1000000,
+                sum_squares=20000000,
                 dp_params=params) for _ in range(1500000)
         ]
         count_values, sum_values, sum_squares_values, var_values = zip(*results)
