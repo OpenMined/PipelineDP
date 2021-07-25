@@ -39,9 +39,10 @@ class MeanVarParams:
             return self.max_contributions_per_partition * abs(
                 self.middle() - self.low)
         if metric == pipeline_dp.Metrics.VAR:
-            return self.max_contributions_per_partition * abs(
-                self.middle_squares() - self.low ** 2)
-        # TODO: add value for variance
+            max_contribution = max(self.low**2, self.high
+                                   **2) if self.low * self.high < 0 else abs(
+                                       self.high**2 - self.low**2)
+            return self.max_contributions_per_partition * max_contribution
         raise ValueError("Invalid metric")
 
     def middle(self):
@@ -50,7 +51,9 @@ class MeanVarParams:
 
     def middle_squares(self):
         """"Returns the middle point of the interval [low^2, high^2]."""
-        return self.low ** 2 + (self.high ** 2 - self.low ** 2) / 2
+        if self.low * self.high < 0:
+            return max(self.low**2, self.high**2)
+        return self.low**2 + (self.high**2 - self.low**2) / 2
 
 
 def compute_l1_sensitivity(l0_sensitivity: float, linf_sensitivity: float):
@@ -166,8 +169,7 @@ def equally_split_budget(eps: float, delta: float, no_mechanisms: int):
         An array with the split budgets.
     """
     if no_mechanisms <= 0:
-        raise ValueError(
-            "The number of mechanisms must be a positive integer.")
+        raise ValueError("The number of mechanisms must be a positive integer.")
 
     # These variables are used to keep track of the budget used.
     # In this way, we can improve accuracy of floating-point operations.
@@ -220,6 +222,35 @@ def compute_dp_sum(sum: float, dp_params: MeanVarParams):
                              dp_params.noise_kind)
 
 
+def _compute_mean(count: float, dp_count: float, sum: float, eps: float,
+                  delta: float, l0_sensitivity: float,
+                  metric: pipeline_dp.Metrics, dp_params: MeanVarParams):
+    """Helper function to compute the DP mean of a raw sum using the DP count.
+
+    Args:
+        count: Non-DP count.
+        dp_count: DP count.
+        sum: Non-DP sum.
+        eps, delta: The budget allocated.
+        l0_sensitivity: The L0 sensitivity.
+        metric: The metric used at computing the Linf sensitivity.
+        dp_params: The parameters used at computing the noise.
+
+    Raises:
+        ValueError: The noise kind is invalid.
+
+    Returns:
+        The anonymized mean.
+    """
+    middle = dp_params.middle(
+    ) if metric == pipeline_dp.Metrics.MEAN else dp_params.middle_squares()
+    normalized_sum = sum - count * middle
+    dp_normalized_sum = _add_random_noise(
+        normalized_sum, eps, delta, l0_sensitivity,
+        dp_params.linf_sensitivity(metric), dp_params.noise_kind)
+    return dp_normalized_sum / dp_count + middle
+
+
 def compute_dp_mean(count: int, sum: float, dp_params: MeanVarParams):
     """Computes DP mean.
 
@@ -234,25 +265,17 @@ def compute_dp_mean(count: int, sum: float, dp_params: MeanVarParams):
     Returns:
         The tuple of anonymized count, sum and mean.
     """
-    middle = dp_params.middle()
-    normalized_sum = sum - count * middle
-
+    # Splits the budget equally between the two mechanisms.
+    (count_eps, count_delta), (sum_eps, sum_delta) = equally_split_budget(
+        dp_params.eps, dp_params.delta, 2)
     l0_sensitivity = dp_params.l0_sensitivity()
 
-    # Splits the budget equally between the two mechanisms.
-    (sum_eps, sum_delta), (count_eps, count_delta) = equally_split_budget(
-        dp_params.eps, dp_params.delta, 2)
-
-    dp_normalized_sum = _add_random_noise(normalized_sum, sum_eps, sum_delta,
-                                          l0_sensitivity,
-                                          dp_params.linf_sensitivity(
-                                              pipeline_dp.Metrics.MEAN),
-                                          dp_params.noise_kind)
     dp_count = _add_random_noise(count, count_eps, count_delta, l0_sensitivity,
                                  dp_params.linf_sensitivity(
                                      pipeline_dp.Metrics.COUNT),
                                  dp_params.noise_kind)
-    dp_mean = dp_normalized_sum / dp_count + middle
+    dp_mean = _compute_mean(count, dp_count, sum, sum_eps, sum_delta,
+                            l0_sensitivity, pipeline_dp.Metrics.MEAN, dp_params)
     return dp_count, dp_mean * dp_count, dp_mean
 
 
@@ -272,38 +295,23 @@ def compute_dp_var(count: int, sum: float, sum_squares: float,
     Returns:
         The tuple of anonymized count, sum, sum_squares and variance.
     """
-    sum_middle = dp_params.middle()
-    sum_squares_middle = dp_params.middle_squares()
-
-    normalized_sum = sum - count * sum_middle
-    normalized_sum_squares = sum_squares - count * sum_squares_middle
-
+    # Splits the budget equally between the three mechanisms.
+    (count_eps,
+     count_delta), (sum_eps,
+                    sum_delta), (sum_squares_eps,
+                                 sum_squares_delta) = equally_split_budget(
+                                     dp_params.eps, dp_params.delta, 3)
     l0_sensitivity = dp_params.l0_sensitivity()
-
-    # Splits the budget equally between the two mechanisms.
-    (count_eps, count_delta), (sum_eps, sum_delta), (
-        sum_squares_eps, sum_squares_delta) = equally_split_budget(
-        dp_params.eps, dp_params.delta, 3)
 
     dp_count = _add_random_noise(count, count_eps, count_delta, l0_sensitivity,
                                  dp_params.linf_sensitivity(
                                      pipeline_dp.Metrics.COUNT),
                                  dp_params.noise_kind)
-    dp_normalized_sum = _add_random_noise(normalized_sum, sum_eps, sum_delta,
-                                          l0_sensitivity,
-                                          dp_params.linf_sensitivity(
-                                              pipeline_dp.Metrics.MEAN),
-                                          dp_params.noise_kind)
-    dp_normalized_sum_squares = _add_random_noise(normalized_sum_squares,
-                                                  sum_squares_eps,
-                                                  sum_squares_delta,
-                                                  l0_sensitivity,
-                                                  dp_params.linf_sensitivity(
-                                                      pipeline_dp.Metrics.VAR),
-                                                  dp_params.noise_kind)
-
-    dp_mean = dp_normalized_sum / dp_count + sum_middle
-    dp_mean_squares = dp_normalized_sum_squares / dp_count + sum_squares_middle
-    dp_var = dp_mean_squares - dp_mean ** 2
+    dp_mean = _compute_mean(count, dp_count, sum, sum_eps, sum_delta,
+                            l0_sensitivity, pipeline_dp.Metrics.MEAN, dp_params)
+    dp_mean_squares = _compute_mean(
+        count, dp_count, sum_squares, sum_squares_eps, sum_squares_delta,
+        l0_sensitivity, pipeline_dp.Metrics.VAR, dp_params)
+    dp_var = dp_mean_squares - dp_mean**2
 
     return dp_count, dp_mean * dp_count, dp_mean_squares * dp_count, dp_var
