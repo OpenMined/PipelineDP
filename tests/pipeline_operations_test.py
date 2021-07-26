@@ -170,7 +170,8 @@ class SparkRDDOperationsTest(parameterized.TestCase):
         spark_operations = SparkRDDOperations()
         data = [(1, 11), (2, 22), (3, 33), (1, 14), (2, 25), (1, 16)]
         dist_data = SparkRDDOperationsTest.sc.parallelize(data)
-        rdd = spark_operations.map_values(dist_data, SumAccumulator, "Wrap into accumulators")
+        rdd = spark_operations.map_values(dist_data, SumAccumulator,
+                                          "Wrap into accumulators")
         result = spark_operations\
             .reduce_accumulators_per_key(rdd, "Reduce accumulator per key")\
             .map(lambda row: (row[0], row[1].get_metrics()))\
@@ -309,6 +310,13 @@ class LocalPipelineOperationsTest(unittest.TestCase):
             0: 1
         })
 
+    def test_local_reduce_accumulators_per_key(self):
+        example_list = [(1, 2), (2, 1), (1, 4), (3, 8), (2, 3)]
+        col = self.ops.map_values(example_list, SumAccumulator)
+        col = self.ops.reduce_accumulators_per_key(col)
+        result = list(map(lambda row: (row[0], row[1].get_metrics()), col))
+        self.assertEqual(result, [(1, 6), (2, 4), (3, 8)])
+
     def test_laziness(self):
 
         def exceptions_generator_function():
@@ -334,6 +342,7 @@ class LocalPipelineOperationsTest(unittest.TestCase):
         assert_laziness(self.ops.count_per_element)
         assert_laziness(self.ops.flat_map, str)
         assert_laziness(self.ops.sample_fixed_per_key, int)
+        assert_laziness(self.ops.reduce_accumulators_per_key)
 
     def test_local_sample_fixed_per_key_requires_no_discarding(self):
         input_col = [("pid1", ('pk1', 1)), ("pid1", ('pk2', 1)),

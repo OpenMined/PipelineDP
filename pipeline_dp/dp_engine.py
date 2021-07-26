@@ -114,7 +114,7 @@ class DPEngine:
         return self._ops.flat_map(col,
                                   unnest_cross_partition_bound_sampled_per_key,
                                   "Unnest")
-    
+
     def _select_private_partitions(self, col, max_partitions_contributed: int):
         """Selects and publishes private partitions.
 
@@ -128,17 +128,17 @@ class DPEngine:
             collection of elements (partition_key, accumulator)
         """
         budget = self._budget_accountant.request_budget(weight=1, use_eps=True, use_delta=True)
-        
+
         def filter_fn(captures: Tuple[Budget, int], row: Tuple[Any, Accumulator]) -> bool:
             """Lazily creates a partition selection strategy and uses it to determine which 
             partitions to keep."""
-            budget, max_partitions = captures 
-            accumulator = row[1] 
+            budget, max_partitions = captures
+            accumulator = row[1]
             partition_selection_strategy = create_truncated_geometric_partition_strategy(
-                budget.eps, budget.delta, 
+                budget.eps, budget.delta,
                 max_partitions
             )
-            return partition_selection_strategy.should_keep(accumulator.privacy_id_count)            
+            return partition_selection_strategy.should_keep(accumulator.privacy_id_count)
         # make filter_fn serializable
         filter_fn = partial(filter_fn, (budget, max_partitions_contributed))
         return self._ops.filter(col, filter_fn)

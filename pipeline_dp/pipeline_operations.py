@@ -12,6 +12,8 @@ import numpy as np
 import abc
 import apache_beam as beam
 import apache_beam.transforms.combiners as combiners
+import collections
+import pipeline_dp.accumulator as accumulator
 import typing
 from typing import Any, Optional, Callable, Tuple
 import collections
@@ -344,7 +346,7 @@ class LocalPipelineOperations(PipelineOperations):
         yield from collections.Counter(col).items()
 
     def reduce_accumulators_per_key(self, col, stage_name: str = None):
-        raise NotImplementedError()
+        return self.map_values(self.group_by_key(col), accumulator.merge)
 
 
 class Sentinel(Enum):
