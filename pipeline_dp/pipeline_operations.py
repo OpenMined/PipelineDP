@@ -5,7 +5,7 @@ from functools import partial
 import os
 import multiprocessing as mp
 from tkinter import W
-from . import accumulator
+from pipeline_dp import accumulator
 import random
 import numpy as np
 
