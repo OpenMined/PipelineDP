@@ -397,7 +397,7 @@ class MultiProcLocalPipelineOperationsTest(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.ops = MultiProcLocalPipelineOperations()
+        cls.ops = MultiProcLocalPipelineOperations(n_jobs=1)
         cls.data_extractors = DataExtractors(
             partition_extractor=cls.partition_extract,
             privacy_id_extractor=cls.privacy_id_extract,
@@ -420,27 +420,23 @@ class MultiProcLocalPipelineOperationsTest(unittest.TestCase):
         if toplevel:
             first = self.sortDataset(first)
             second = self.sortDataset(second)
-            print(f"first = {first}")
-            print(f"second = {second}")
-        if type(first) != type(second):
-            assert False
-        elif isinstance(first, (str, int, float)):
-            assert first == second
+        self.assertEqual(type(first), type(second))
+        if isinstance(first, (str, int, float)):
+            self.assertEqual(first, second)
         elif isinstance(first, tuple):
-            if len(first) != len(second):
-                assert False
+            self.assertEqual(len(first), len(second))
             if len(first) == 2:
                 # key value pair
                 k1, v1 = first
                 k2, v2 = second
-                assert k1 == k2
+                self.assertEqual(k1, k2)
                 self.assertDatasetsEqual(v1, v2, False)
             else:
-                assert first == second
+                self.assertEqual(first, second)
         else: # all other itearble instances
             first = list(first)           
             second = list(second)
-            assert len(first) == len(second)
+            self.assertEqual(len(first), len(second))
             for e1, e2 in zip(first, second):
                 self.assertDatasetsEqual(e1, e2, False)
         
@@ -461,7 +457,7 @@ class MultiProcLocalPipelineOperationsTest(unittest.TestCase):
 
         self.assertDatasetsEqual(
             list(self.ops.map_tuple(tuple_list, lambda k, v: (str(k), str(v)))),
-            [("1", "2"), ("2", "3"), ("3", "4")])
+                [("1", "2"), ("2", "3"), ("3", "4")])
 
     @pytest.mark.timeout(10)
     def test_multiproc_map_values(self):
@@ -532,9 +528,9 @@ class MultiProcLocalPipelineOperationsTest(unittest.TestCase):
     @pytest.mark.timeout(10)
     def test_multiproc_count_per_element(self):
         example_list = [1, 2, 3, 4, 5, 6, 1, 4, 0, 1]
-        result = self.ops.count_per_element(example_list)
+        result = dict(self.ops.count_per_element(example_list))
 
-        self.assertDictEqual(dict(result), {
+        self.assertDictEqual(result, {
             1: 3,
             2: 1,
             3: 1,
@@ -602,6 +598,32 @@ class MultiProcLocalPipelineOperationsTest(unittest.TestCase):
                              ("bread", ["sourdough"]),
                              ("cheese", ["brie", "swiss"]),
                          ])
+
+    def test_laziness(self):
+
+        def exceptions_generator_function():
+            yield 1 / 0
+
+        def assert_laziness(operator, *args):
+            try:
+                operator(exceptions_generator_function(), *args)
+            except ZeroDivisionError:
+                self.fail(f"local {operator.__name__} is not lazy")
+
+        # reading from exceptions_generator_function() results in error:
+        self.assertRaises(ZeroDivisionError, next,
+                          exceptions_generator_function())
+
+        # lazy operators accept exceptions_generator_function()
+        # as argument without raising errors:
+        assert_laziness(self.ops.map, str)
+        assert_laziness(self.ops.map_values, str)
+        assert_laziness(self.ops.filter, bool)
+        assert_laziness(self.ops.values)
+        assert_laziness(self.ops.keys)
+        assert_laziness(self.ops.count_per_element)
+        assert_laziness(self.ops.flat_map, str)
+        assert_laziness(self.ops.sample_fixed_per_key, int)
 
 
 # TODO: Extend the proper Accumulator class once it's available.
