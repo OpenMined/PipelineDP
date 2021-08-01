@@ -7,7 +7,7 @@ on:
     branches: [ $default-branch ]
 
 jobs:
-  build:
+  linting:
 
     runs-on: ubuntu-latest
     strategy:
@@ -30,7 +30,22 @@ jobs:
     - name: linting
       run: |
         python -m pip install pylint --rcfile=pylintrc.dms pipeline_dp tests
-        
-    - name: Test with pytest
-      run: |
-        pytest tests -n auto
+
+  test:
+    runs-on:  ${{ matrix.os }}
+    needs: [linting]
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        os: [ubuntu-latest]
+        python-version: [3.6,3.7, 3.8, 3.9]
+
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: true
+
+      - name: Test with pytest
+        run: |
+         pytest tests -n auto
