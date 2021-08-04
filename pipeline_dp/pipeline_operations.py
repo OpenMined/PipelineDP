@@ -4,7 +4,6 @@ from enum import Enum
 from functools import partial
 import os
 import multiprocessing as mp
-from tkinter import W
 from pipeline_dp import accumulator
 import random
 import numpy as np
