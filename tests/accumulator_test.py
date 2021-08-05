@@ -259,5 +259,21 @@ class CountAccumulatorTest(unittest.TestCase):
         self.assertEqual(count_accumulator_1.compute_metrics(), 100)
 
 
+class SumAccumulatorTest(unittest.TestCase):
+
+    def test_without_noise(self):
+        sum_accumulator = accumulator.SumAccumulator(
+            accumulator.SumParams(), list(range(6)))
+        self.assertEqual(sum_accumulator.compute_metrics(), 15)
+
+        sum_accumulator.add_value(5)
+        self.assertEqual(sum_accumulator.compute_metrics(), 20)
+
+        sum_accumulator_2 = accumulator.SumAccumulator(
+            accumulator.SumParams(), list(range(3)))
+        sum_accumulator.add_accumulator(sum_accumulator_2)
+        self.assertEqual(sum_accumulator.compute_metrics(), 23)
+
+
 if __name__ == '__main__':
     unittest.main()
