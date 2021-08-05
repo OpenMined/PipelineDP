@@ -298,7 +298,7 @@ class VectorSummuationAccumulatorTest(unittest.TestCase):
 
     def test_without_noise(self):
         vec_sum_accumulator = accumulator.VectorSummationAccumulator(
-            accumulator.VectorSummationParams(agg.NoiseKind.GAUSSIAN, float('inf')), 
+            params=None,
             values=[
                 (1, 2),
                 (3, 4),
@@ -310,7 +310,7 @@ class VectorSummuationAccumulatorTest(unittest.TestCase):
         self.assertEqual(vec_sum_accumulator.compute_metrics(), (16, 20))
 
         vec_sum_accumulator_2 = accumulator.VectorSummationAccumulator(
-            accumulator.SumParams(), 
+            params=None,
             values=[
                 (1, 2),
                 (1, 4),
