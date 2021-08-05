@@ -505,15 +505,15 @@ class MultiProcLocalPipelineOperations(PipelineOperations):
         return (row for row, keep in zip(col, ordered_predicates) if keep)
 
     def filter_by_key(self, col,
-                      public_partitions,
+                      keys_to_keep,
                       data_extractors,
                       stage_name: typing.Optional[str] = None):
         def mapped_fn(captures, row):
-            public_partitions_, data_extractors_ = captures
+            keys_to_keep_, data_extractors_ = captures
             key = data_extractors_.partition_extractor(row)
-            return key, (key in public_partitions_)
+            return key, (key in keys_to_keep_)
 
-        mapped_fn = partial(mapped_fn, (public_partitions, data_extractors))
+        mapped_fn = partial(mapped_fn, (keys_to_keep, data_extractors))
         ordered_key_keep = self.map(col, mapped_fn, stage_name)
         return ((key, row) for row, (key, keep) in zip(col, ordered_key_keep) if keep)
 
