@@ -130,25 +130,24 @@ class GenericAccumulatorTest(unittest.TestCase):
         self.assertEqual(merged_accumulator.compute_metrics(), 10)
 
         vec_sum_accumulator1 = accumulator.VectorSummationAccumulator(
-            params=accumulator.VectorSummationParams(agg.NoiseKind.LAPLACE, float('inf')),
-            values=[(15, 2)]
-        )
+            params=accumulator.VectorSummationParams(agg.NoiseKind.LAPLACE,
+                                                     float('inf')),
+            values=[(15, 2)])
         vec_sum_accumulator2 = accumulator.VectorSummationAccumulator(
-            params=accumulator.VectorSummationParams(agg.NoiseKind.LAPLACE, float('inf')),
-            values=[(27, 40)]
-        )
-        merged_accumulator = accumulator.merge([
-            vec_sum_accumulator1, vec_sum_accumulator2
-        ])
+            params=accumulator.VectorSummationParams(agg.NoiseKind.LAPLACE,
+                                                     float('inf')),
+            values=[(27, 40)])
+        merged_accumulator = accumulator.merge(
+            [vec_sum_accumulator1, vec_sum_accumulator2])
         self.assertEqual(merged_accumulator.compute_metrics(), (42, 42))
 
     def test_merge_diff_type_throws_type_error(self):
         mean_accumulator1 = MeanAccumulator(params=[], values=[15])
         sum_squares_acc = SumOfSquaresAccumulator(params=[], values=[1])
         vec_sum_accumulator = accumulator.VectorSummationAccumulator(
-            params=accumulator.VectorSummationParams(agg.NoiseKind.LAPLACE, float('inf')),
-            values=[(27, 40)]
-        )
+            params=accumulator.VectorSummationParams(agg.NoiseKind.LAPLACE,
+                                                     float('inf')),
+            values=[(27, 40)])
 
         with self.assertRaises(TypeError) as context:
             accumulator.merge([mean_accumulator1, sum_squares_acc])
@@ -179,8 +178,8 @@ class GenericAccumulatorTest(unittest.TestCase):
 
         self.assertTrue(isinstance(created_accumulator, MeanAccumulator))
         self.assertEqual(created_accumulator.compute_metrics(), 10)
-        mock_create_accumulator_params_function.assert_called_with(aggregate_params,
-                                                                   budget_accountant)
+        mock_create_accumulator_params_function.assert_called_with(
+            aggregate_params, budget_accountant)
 
     @patch('pipeline_dp.accumulator.create_accumulator_params')
     def test_accumulator_factory_multiple_types(
@@ -203,8 +202,8 @@ class GenericAccumulatorTest(unittest.TestCase):
         self.assertTrue(
             isinstance(created_accumulator, accumulator.CompoundAccumulator))
         self.assertEqual(created_accumulator.compute_metrics(), [10, 100])
-        mock_create_accumulator_params_function.assert_called_with(aggregate_params,
-                                                               budget_accountant)
+        mock_create_accumulator_params_function.assert_called_with(
+            aggregate_params, budget_accountant)
 
 
 class MeanAccumulator(accumulator.Accumulator):
@@ -281,15 +280,15 @@ class CountAccumulatorTest(unittest.TestCase):
 class SumAccumulatorTest(unittest.TestCase):
 
     def test_without_noise(self):
-        sum_accumulator = accumulator.SumAccumulator(
-            accumulator.SumParams(), list(range(6)))
+        sum_accumulator = accumulator.SumAccumulator(accumulator.SumParams(),
+                                                     list(range(6)))
         self.assertEqual(sum_accumulator.compute_metrics(), 15)
 
         sum_accumulator.add_value(5)
         self.assertEqual(sum_accumulator.compute_metrics(), 20)
 
-        sum_accumulator_2 = accumulator.SumAccumulator(
-            accumulator.SumParams(), list(range(3)))
+        sum_accumulator_2 = accumulator.SumAccumulator(accumulator.SumParams(),
+                                                       list(range(3)))
         sum_accumulator.add_accumulator(sum_accumulator_2)
         self.assertEqual(sum_accumulator.compute_metrics(), 23)
 
@@ -298,25 +297,14 @@ class VectorSummuationAccumulatorTest(unittest.TestCase):
 
     def test_without_noise(self):
         vec_sum_accumulator = accumulator.VectorSummationAccumulator(
-            params=None,
-            values=[
-                (1, 2),
-                (3, 4),
-                (5, 6)
-            ])
+            params=None, values=[(1, 2), (3, 4), (5, 6)])
         self.assertEqual(vec_sum_accumulator.compute_metrics(), (9, 12))
 
-        vec_sum_accumulator.add_value((7,8))
+        vec_sum_accumulator.add_value((7, 8))
         self.assertEqual(vec_sum_accumulator.compute_metrics(), (16, 20))
 
         vec_sum_accumulator_2 = accumulator.VectorSummationAccumulator(
-            params=None,
-            values=[
-                (1, 2),
-                (1, 4),
-                (1, 8),
-                (1, 16)
-            ])
+            params=None, values=[(1, 2), (1, 4), (1, 8), (1, 16)])
         vec_sum_accumulator.add_accumulator(vec_sum_accumulator_2)
         self.assertEqual(vec_sum_accumulator.compute_metrics(), (20, 50))
 

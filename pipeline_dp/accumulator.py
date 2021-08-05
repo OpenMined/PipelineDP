@@ -48,9 +48,10 @@ class Accumulator(abc.ABC):
 
     def _check_accumulator(self, accumulator: 'Accumulator'):
         if not isinstance(accumulator, type(self)):
-            raise TypeError(f"The accumulator to be added is not of the same type: "
-                            f"{accumulator.__class__.__name__} != "
-                            f"{self.__class__.__name__}")
+            raise TypeError(
+                f"The accumulator to be added is not of the same type: "
+                f"{accumulator.__class__.__name__} != "
+                f"{self.__class__.__name__}")
 
     @abc.abstractmethod
     def add_accumulator(self, accumulator: 'Accumulator') -> 'Accumulator':
@@ -223,6 +224,8 @@ class VectorSummationAccumulator(Accumulator):
 
     def compute_metrics(self):
         return tuple(self._vec_sum)
+
+
 class SumParams:
     pass
 
