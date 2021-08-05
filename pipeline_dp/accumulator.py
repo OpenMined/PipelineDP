@@ -217,9 +217,7 @@ class VectorSummationAccumulator(Accumulator):
     def add_accumulator(
         self, accumulator: 'VectorSummationAccumulator'
     ) -> 'VectorSummationAccumulator':
-        if not isinstance(accumulator, VectorSummationAccumulator):
-            raise TypeError(
-                f"Invalid accumulator type '{accumulator.__class__.__name__}'.")
+        self._check_accumulator(accumulator)
         self.add_value(accumulator._vec_sum)
         return self
 

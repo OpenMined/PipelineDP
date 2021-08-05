@@ -129,14 +129,37 @@ class GenericAccumulatorTest(unittest.TestCase):
 
         self.assertEqual(merged_accumulator.compute_metrics(), 10)
 
+        vec_sum_accumulator1 = accumulator.VectorSummationAccumulator(
+            params=accumulator.VectorSummationParams(agg.NoiseKind.LAPLACE, float('inf')),
+            values=[(15, 2)]
+        )
+        vec_sum_accumulator2 = accumulator.VectorSummationAccumulator(
+            params=accumulator.VectorSummationParams(agg.NoiseKind.LAPLACE, float('inf')),
+            values=[(27, 40)]
+        )
+        merged_accumulator = accumulator.merge([
+            vec_sum_accumulator1, vec_sum_accumulator2
+        ])
+        self.assertEqual(merged_accumulator.compute_metrics(), (42, 42))
+
     def test_merge_diff_type_throws_type_error(self):
         mean_accumulator1 = MeanAccumulator(params=[], values=[15])
         sum_squares_acc = SumOfSquaresAccumulator(params=[], values=[1])
+        vec_sum_accumulator = accumulator.VectorSummationAccumulator(
+            params=accumulator.VectorSummationParams(agg.NoiseKind.LAPLACE, float('inf')),
+            values=[(27, 40)]
+        )
 
         with self.assertRaises(TypeError) as context:
             accumulator.merge([mean_accumulator1, sum_squares_acc])
 
-        self.assertIn("The accumulator to be added is not of the same type."
+        self.assertIn("The accumulator to be added is not of the same type"
+                      "", str(context.exception))
+
+        with self.assertRaises(TypeError) as context:
+            accumulator.merge([vec_sum_accumulator, sum_squares_acc])
+
+        self.assertIn("The accumulator to be added is not of the same type"
                       "", str(context.exception))
 
     @patch('pipeline_dp.accumulator.create_accumulator_params')
@@ -198,9 +221,7 @@ class MeanAccumulator(accumulator.Accumulator):
 
     def add_accumulator(self,
                         accumulator: 'MeanAccumulator') -> 'MeanAccumulator':
-        if not isinstance(accumulator, MeanAccumulator):
-            raise TypeError(
-                "The accumulator to be added is not of the same type.")
+        self._check_accumulator(accumulator)
         self.sum += accumulator.sum
         self.count += accumulator.count
         return self
@@ -225,9 +246,7 @@ class SumOfSquaresAccumulator(accumulator.Accumulator):
     def add_accumulator(
             self, accumulator: 'SumOfSquaresAccumulator'
     ) -> 'SumOfSquaresAccumulator':
-        if not isinstance(accumulator, SumOfSquaresAccumulator):
-            raise TypeError(
-                "The accumulator to be added is not of the same type.")
+        self._check_accumulator(accumulator)
         self.sum_squares += accumulator.sum_squares
         return self
 
