@@ -130,12 +130,10 @@ class GenericAccumulatorTest(unittest.TestCase):
         self.assertEqual(merged_accumulator.compute_metrics(), 10)
 
         vec_sum_accumulator1 = accumulator.VectorSummationAccumulator(
-            params=accumulator.VectorSummationParams(agg.NoiseKind.LAPLACE,
-                                                     float('inf')),
+            params=None,
             values=[(15, 2)])
         vec_sum_accumulator2 = accumulator.VectorSummationAccumulator(
-            params=accumulator.VectorSummationParams(agg.NoiseKind.LAPLACE,
-                                                     float('inf')),
+            params=None,
             values=[(27, 40)])
         merged_accumulator = accumulator.merge(
             [vec_sum_accumulator1, vec_sum_accumulator2])
