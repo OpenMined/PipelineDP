@@ -3,8 +3,11 @@ import typing
 import pickle
 from dataclasses import dataclass
 from functools import reduce
-from dataclasses import dataclass
+
+from typing import Iterable, Tuple
 import pipeline_dp
+from pipeline_dp.aggregate_params import NoiseKind
+import numpy as np
 
 
 @dataclass
@@ -42,6 +45,12 @@ class Accumulator(abc.ABC):
     Returns: self.
     """
         pass
+
+    def _check_accumulator(self, accumulator: 'Accumulator'):
+        if not isinstance(accumulator, type(self)):
+            raise TypeError(f"The accumulator to be added is not of the same type: "
+                            f"{accumulator.__class__.__name__} != "
+                            f"{self.__class__.__name__}")
 
     @abc.abstractmethod
     def add_accumulator(self, accumulator: 'Accumulator') -> 'Accumulator':
@@ -172,3 +181,47 @@ class CountAccumulator(Accumulator):
     def compute_metrics(self) -> float:
         # TODO: add differential privacy
         return self._count
+
+
+@dataclass
+class VectorSummationParams:
+    noise_kind: NoiseKind
+    max_norm: float
+
+
+class VectorSummationAccumulator(Accumulator):
+    _vec_sum: np.ndarray
+
+    def __init__(self, params: VectorSummationParams,
+                 values: Iterable[Tuple[float]]) -> None:
+        self.sum_params = params
+        values = iter(values)
+        try:
+            self._vec_sum = np.array(next(values))
+            for val in values:
+                self.add_value(val)
+        except StopIteration:
+            self._vec_sum = None
+
+    def add_value(self, value: Tuple[float]):
+        value = np.array(value)  # type: np.ndarray
+        if self._vec_sum is None:
+            self._vec_sum = value
+        else:
+            if self._vec_sum.shape != value.shape:
+                raise TypeError(
+                    f"Shape mismatch: {self._vec_sum.shape} != {value.shape}")
+            self._vec_sum += value
+        return self
+
+    def add_accumulator(
+        self, accumulator: 'VectorSummationAccumulator'
+    ) -> 'VectorSummationAccumulator':
+        if not isinstance(accumulator, VectorSummationAccumulator):
+            raise TypeError(
+                f"Invalid accumulator type '{accumulator.__class__.__name__}'.")
+        self.add_value(accumulator._vec_sum)
+        return self
+
+    def compute_metrics(self):
+        return tuple(self._vec_sum)
