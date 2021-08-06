@@ -46,7 +46,7 @@ class Accumulator(abc.ABC):
     """
         pass
 
-    def _check_accumulator(self, accumulator: 'Accumulator'):
+    def _check_mergeable(self, accumulator: 'Accumulator'):
         if not isinstance(accumulator, type(self)):
             raise TypeError(
                 f"The accumulator to be added is not of the same type: "
@@ -105,7 +105,7 @@ class CompoundAccumulator(Accumulator):
 
     The expectation is that the internal accumulators are of the same type and
     are in the same order."""
-
+        self._check_mergeable(accumulator)
         if len(accumulator.accumulators) != len(self.accumulators):
             raise ValueError(
                 "Accumulators in the input are not of the same size." +
@@ -176,6 +176,7 @@ class CountAccumulator(Accumulator):
 
     def add_accumulator(self,
                         accumulator: 'CountAccumulator') -> 'CountAccumulator':
+        self._check_mergeable(accumulator)
         self._count += accumulator._count
         return self
 
@@ -195,7 +196,7 @@ class VectorSummationAccumulator(Accumulator):
 
     def __init__(self, params: VectorSummationParams,
                  values: Iterable[Tuple[float]]) -> None:
-        self.sum_params = params
+        self._params = params
         values = iter(values)
         try:
             self._vec_sum = np.array(next(values))
@@ -218,11 +219,12 @@ class VectorSummationAccumulator(Accumulator):
     def add_accumulator(
         self, accumulator: 'VectorSummationAccumulator'
     ) -> 'VectorSummationAccumulator':
-        self._check_accumulator(accumulator)
+        self._check_mergeable(accumulator)
         self.add_value(accumulator._vec_sum)
         return self
 
     def compute_metrics(self):
+        # TODO - add DP anonymization
         return tuple(self._vec_sum)
 
 
@@ -240,6 +242,7 @@ class SumAccumulator(Accumulator):
 
     def add_accumulator(self,
                         accumulator: 'SumAccumulator') -> 'SumAccumulator':
+        self._check_mergeable(accumulator)
         self._sum += accumulator._sum
 
     def compute_metrics(self) -> float:

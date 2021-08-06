@@ -218,7 +218,7 @@ class MeanAccumulator(accumulator.Accumulator):
 
     def add_accumulator(self,
                         accumulator: 'MeanAccumulator') -> 'MeanAccumulator':
-        self._check_accumulator(accumulator)
+        self._check_mergeable(accumulator)
         self.sum += accumulator.sum
         self.count += accumulator.count
         return self
@@ -243,7 +243,7 @@ class SumOfSquaresAccumulator(accumulator.Accumulator):
     def add_accumulator(
             self, accumulator: 'SumOfSquaresAccumulator'
     ) -> 'SumOfSquaresAccumulator':
-        self._check_accumulator(accumulator)
+        self._check_mergeable(accumulator)
         self.sum_squares += accumulator.sum_squares
         return self
 
