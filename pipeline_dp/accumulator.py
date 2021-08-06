@@ -4,6 +4,7 @@ import pickle
 from dataclasses import dataclass
 from functools import reduce
 import pipeline_dp
+from pipeline_dp.dp_computations import MeanVarParams
 
 
 @dataclass
@@ -175,13 +176,14 @@ class CountAccumulator(Accumulator):
 
 @dataclass
 class SumParams:
-    pass
+    noise: MeanVarParams
 
 
 class SumAccumulator(Accumulator):
 
     def __init__(self, params: SumParams, values):
         self._sum = sum(values)
+        self._params = params
 
     def add_value(self, value):
         self._sum += value
@@ -191,5 +193,4 @@ class SumAccumulator(Accumulator):
         self._sum += accumulator._sum
 
     def compute_metrics(self) -> float:
-        # TODO: add differential privacy
-        return self._sum
+        return pipeline_dp.dp_computations.compute_dp_sum(self._sum, self._params.noise)
