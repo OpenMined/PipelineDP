@@ -264,29 +264,40 @@ class SumAccumulatorTest(unittest.TestCase):
 
     def test_without_noise(self):
         sum_accumulator = accumulator.SumAccumulator(
-            accumulator.SumParams(MeanVarParams(1, 1, 0, 0, 1, 1, pipeline_dp.NoiseKind.GAUSSIAN)), list(range(6)))
+            accumulator.SumParams(
+                MeanVarParams(1, 1, 0, 0, 1, 1,
+                              pipeline_dp.NoiseKind.GAUSSIAN)), list(range(6)))
         self.assertEqual(sum_accumulator.compute_metrics(), 15)
 
         sum_accumulator.add_value(5)
         self.assertEqual(sum_accumulator.compute_metrics(), 20)
 
         sum_accumulator_2 = accumulator.SumAccumulator(
-            accumulator.SumParams(MeanVarParams(1, 1, 0, 0, 1, 1, pipeline_dp.NoiseKind.GAUSSIAN)), list(range(3)))
+            accumulator.SumParams(
+                MeanVarParams(1, 1, 0, 0, 1, 1,
+                              pipeline_dp.NoiseKind.GAUSSIAN)), list(range(3)))
         sum_accumulator.add_accumulator(sum_accumulator_2)
         self.assertEqual(sum_accumulator.compute_metrics(), 23)
 
     def test_with_noise(self):
         sum_accumulator = accumulator.SumAccumulator(
-            accumulator.SumParams(MeanVarParams(2, 1, 1, 1, 1, 3, pipeline_dp.NoiseKind.GAUSSIAN)), list(range(6)))
-        self.assertAlmostEqual(sum_accumulator.compute_metrics(), 15, None, None, 3)
+            accumulator.SumParams(
+                MeanVarParams(2, 1, 1, 1, 1, 3,
+                              pipeline_dp.NoiseKind.GAUSSIAN)), list(range(6)))
+        self.assertAlmostEqual(sum_accumulator.compute_metrics(), 15, None,
+                               None, 3)
 
         sum_accumulator.add_value(5)
-        self.assertAlmostEqual(sum_accumulator.compute_metrics(), 20, None, None, 3)
+        self.assertAlmostEqual(sum_accumulator.compute_metrics(), 20, None,
+                               None, 3)
 
         sum_accumulator_2 = accumulator.SumAccumulator(
-            accumulator.SumParams(MeanVarParams(1, 1, 1, 1, 2, 3, pipeline_dp.NoiseKind.GAUSSIAN)), list(range(3)))
+            accumulator.SumParams(
+                MeanVarParams(1, 1, 1, 1, 2, 3,
+                              pipeline_dp.NoiseKind.GAUSSIAN)), list(range(3)))
         sum_accumulator.add_accumulator(sum_accumulator_2)
-        self.assertAlmostEqual(sum_accumulator.compute_metrics(), 23, None, None, 3)
+        self.assertAlmostEqual(sum_accumulator.compute_metrics(), 23, None,
+                               None, 3)
 
 
 if __name__ == '__main__':

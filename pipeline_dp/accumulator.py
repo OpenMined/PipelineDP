@@ -193,4 +193,5 @@ class SumAccumulator(Accumulator):
         self._sum += accumulator._sum
 
     def compute_metrics(self) -> float:
-        return pipeline_dp.dp_computations.compute_dp_sum(self._sum, self._params.noise)
+        return pipeline_dp.dp_computations.compute_dp_sum(
+            self._sum, self._params.noise)
