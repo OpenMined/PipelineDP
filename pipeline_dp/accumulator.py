@@ -22,7 +22,10 @@ def create_accumulator_params(
     aggregation_params: pipeline_dp.AggregateParams,
     budget_accountant: pipeline_dp.BudgetAccountant
 ) -> typing.List[AccumulatorParams]:
-
+    if(aggregation_params.metrics == pipeline_dp.Metrics.COUNT):
+        #TODO: populate CountParams from budget_accountant when it is ready
+        return [AccumulatorParams(accumulator_type=CountAccumulator,
+                                  constructor_params=CountParams())]
     raise NotImplemented()  # implementation will be done later
 
 
