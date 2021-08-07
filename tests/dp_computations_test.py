@@ -29,35 +29,6 @@ class MeanVarParams(unittest.TestCase):
             pipeline_dp.dp_computations.compute_l2_sensitivity(
                 l0_sensitivity=4, linf_sensitivity=12), 24)
 
-    def test_linf_sensitivity(self):
-        params = pipeline_dp.dp_computations.MeanVarParams(
-            eps=1,
-            delta=1e-10,
-            low=2,
-            high=3,
-            max_partitions_contributed=4,
-            max_contributions_per_partition=5,
-            noise_kind=pipeline_dp.NoiseKind.LAPLACE)
-
-        # COUNT aggregation
-        self.assertEqual(
-            params.linf_sensitivity(metric=pipeline_dp.Metrics.COUNT), 5)
-
-        # SUM aggregation
-        # Positive low, positive high
-        self.assertEqual(
-            params.linf_sensitivity(metric=pipeline_dp.Metrics.SUM), 15)
-
-        # Negative low, positive high
-        params.low = -2
-        self.assertEqual(
-            params.linf_sensitivity(metric=pipeline_dp.Metrics.SUM), 15)
-
-        # Negative low, negative high
-        params.high = -1
-        self.assertEqual(
-            params.linf_sensitivity(metric=pipeline_dp.Metrics.SUM), 10)
-
     def test_compute_sigma(self):
         self.assertEqual(
             pipeline_dp.dp_computations.compute_sigma(
@@ -111,7 +82,7 @@ class MeanVarParams(unittest.TestCase):
             max_contributions_per_partition=1,
             noise_kind=pipeline_dp.NoiseKind.LAPLACE)
         l0_sensitivity = params.l0_sensitivity()
-        linf_sensitivity = params.linf_sensitivity(pipeline_dp.Metrics.COUNT)
+        linf_sensitivity = params.max_contributions_per_partition
 
         # Laplace Mechanism
         l1_sensitivity = pipeline_dp.dp_computations.compute_l1_sensitivity(
@@ -143,7 +114,8 @@ class MeanVarParams(unittest.TestCase):
             max_contributions_per_partition=1,
             noise_kind=pipeline_dp.NoiseKind.LAPLACE)
         l0_sensitivity = params.l0_sensitivity()
-        linf_sensitivity = params.linf_sensitivity(pipeline_dp.Metrics.SUM)
+        linf_sensitivity = params.max_contributions_per_partition * max(
+            params.low, params.high)
 
         # Laplace Mechanism
         l1_sensitivity = pipeline_dp.dp_computations.compute_l1_sensitivity(
@@ -198,6 +170,7 @@ class MeanVarParams(unittest.TestCase):
                         _) = pipeline_dp.dp_computations.equally_split_budget(
                             params.eps, params.delta, 2)
         l0_sensitivity = params.l0_sensitivity()
+        linf_sensitivity = params.max_contributions_per_partition
 
         # Laplace Mechanism
         results = [
@@ -208,8 +181,7 @@ class MeanVarParams(unittest.TestCase):
         self._test_laplace_noise(
             count_values, 1000, count_eps,
             pipeline_dp.dp_computations.compute_l1_sensitivity(
-                l0_sensitivity,
-                params.linf_sensitivity(pipeline_dp.Metrics.COUNT)))
+                l0_sensitivity, linf_sensitivity))
         self.assertAlmostEqual(np.mean(sum_values), 10000, delta=0.1)
         self.assertAlmostEqual(np.mean(mean_values), 10, delta=0.1)
 
@@ -223,8 +195,7 @@ class MeanVarParams(unittest.TestCase):
         self._test_gaussian_noise(
             count_values, 1000, count_eps, count_delta,
             pipeline_dp.dp_computations.compute_l2_sensitivity(
-                l0_sensitivity,
-                params.linf_sensitivity(pipeline_dp.Metrics.COUNT)))
+                l0_sensitivity, linf_sensitivity))
         self.assertAlmostEqual(np.mean(sum_values), 10000, delta=0.1)
         self.assertAlmostEqual(np.mean(mean_values), 10, delta=0.1)
 
@@ -242,6 +213,7 @@ class MeanVarParams(unittest.TestCase):
             _, _) = pipeline_dp.dp_computations.equally_split_budget(
                 params.eps, params.delta, 3)
         l0_sensitivity = params.l0_sensitivity()
+        linf_sensitivity = params.max_contributions_per_partition
 
         # Laplace Mechanism
         results = [
@@ -255,8 +227,7 @@ class MeanVarParams(unittest.TestCase):
         self._test_laplace_noise(
             count_values, 100000, count_eps,
             pipeline_dp.dp_computations.compute_l1_sensitivity(
-                l0_sensitivity,
-                params.linf_sensitivity(pipeline_dp.Metrics.COUNT)))
+                l0_sensitivity, linf_sensitivity))
         self.assertAlmostEqual(np.mean(sum_values), 1000000, delta=0.1)
         self.assertAlmostEqual(np.mean(sum_squares_values), 20000000, delta=0.1)
         self.assertAlmostEqual(np.mean(var_values), 100, delta=0.1)
@@ -274,8 +245,7 @@ class MeanVarParams(unittest.TestCase):
         self._test_gaussian_noise(
             count_values, 100000, count_eps, count_delta,
             pipeline_dp.dp_computations.compute_l2_sensitivity(
-                l0_sensitivity,
-                params.linf_sensitivity(pipeline_dp.Metrics.COUNT)))
+                l0_sensitivity, linf_sensitivity))
         self.assertAlmostEqual(np.mean(sum_values), 1000000, delta=0.1)
         self.assertAlmostEqual(np.mean(sum_squares_values), 20000000, delta=0.1)
         self.assertAlmostEqual(np.mean(var_values), 100, delta=0.1)
