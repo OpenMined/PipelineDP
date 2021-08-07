@@ -511,8 +511,6 @@ class MultiProcLocalPipelineOperations(PipelineOperations):
         return self.map(col, lambda x: (x[0], fn(x[1])), stage_name)
 
     def group_by_key(self, col, stage_name: typing.Optional[str] = None):
-        # NOTE - this cannot be implemented in an ordered manner without (almost) serial execution!
-        #   both keys and groups will be out of order
         return _LazyMultiProcGroupByIterator(col, self.chunksize, 
                                              self.n_jobs, 
                                              **self.pool_kwargs)
@@ -562,14 +560,4 @@ class MultiProcLocalPipelineOperations(PipelineOperations):
                                            self.n_jobs, **self.pool_kwargs)
 
     def reduce_accumulators_per_key(self, col, stage_name: typing.Optional[str] = None):
-        """Reduces the input collection so that all elements per each key are merged.
-
-        Args:
-          col: input collection which contains tuples (key, accumulator)
-          stage_name: name of the stage
-
-        Returns:
-          A collection of tuples (key, accumulator).
-
-        """
         return self.map_values(col, accumulator.merge)
