@@ -348,22 +348,6 @@ class LocalPipelineOperations(PipelineOperations):
         return self.map_values(self.group_by_key(col), accumulator.merge)
 
 
-class Sentinel(Enum):
-    EOI = "EndOfIterations"
-
-
-def _multiproc_iter_input(iter_obj):
-    yield from iter_obj
-    yield Sentinel.EOI
-
-
-def _multiproc_iter_output(iter_obj):
-    for item in iter_obj:
-        if item is Sentinel.EOI:
-            break
-        yield item
-
-
 # workaround for passing lambda functions to multiprocessing
 # according to https://medium.com/@yasufumy/python-multiprocessing-c6d54107dd55
 _pool_current_func = None
@@ -375,8 +359,6 @@ def _pool_worker_init(func):
 
 
 def _pool_worker(row):
-    if row is Sentinel.EOI:
-        return Sentinel.EOI
     return _pool_current_func(row)
 
 
@@ -385,8 +367,8 @@ class _LazyMultiProcIterator:
         self,
         job: typing.Callable,
         job_inputs: typing.Iterable,
-        chunksize: int = 1,
-        n_jobs: typing.Optional[int] = None,
+        chunksize: int,
+        n_jobs: typing.Optional[int],
         **pool_kwargs
     ):
         self.job = job
@@ -409,14 +391,16 @@ class _LazyMultiProcIterator:
     def _trigger_iterations(self):
         if self._outputs is None:
             self._outputs = self._init_pool().map(
-                _pool_worker, _multiproc_iter_input(self.job_inputs), self.chunksize
+                _pool_worker, 
+                self.job_inputs, 
+                self.chunksize
             )
 
     def __iter__(self):
         if isinstance(self.job_inputs, _LazyMultiProcIterator):
             self.job_inputs._trigger_iterations()
         self._trigger_iterations()
-        yield from _multiproc_iter_output(self._outputs)
+        yield from self._outputs
 
 
 class _LazyMultiProcGroupByIterator(_LazyMultiProcIterator):
@@ -481,6 +465,7 @@ class MultiProcLocalPipelineOperations(PipelineOperations):
 
     def map(self, col, fn, stage_name: typing.Optional[str] = None):
         return _LazyMultiProcIterator(job=fn, job_inputs=col, 
+                                      n_jobs=self.n_jobs,
                                       chunksize=self.chunksize, 
                                       **self.pool_kwargs)
 

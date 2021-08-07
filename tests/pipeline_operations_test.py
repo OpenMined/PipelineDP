@@ -412,23 +412,23 @@ class MultiProcLocalPipelineOperationsTest(unittest.TestCase):
             privacy_id_extractor=cls.privacy_id_extract,
             value_extractor=cls.value_extract)
 
-    def sortDataset(self, data):
+    def _sort_dataset(self, data):
         if isinstance(data, (str, int, float)):
             return data
         if isinstance(data, tuple):
-            return tuple(self.sortDataset(x) for x in data)
+            return tuple(self._sort_dataset(x) for x in data)
         data = list(data)
         def sortfn(x):
             # make everything a sortable thing!
             if isinstance(x, list):
-                return self.sortDataset(tuple(x))
+                return self._sort_dataset(tuple(x))
             return x
         return sorted(data, key=sortfn)
 
     def assertDatasetsEqual(self, first, second, toplevel=True):
         if toplevel:
-            first = self.sortDataset(first)
-            second = self.sortDataset(second)
+            first = self._sort_dataset(first)
+            second = self._sort_dataset(second)
         self.assertEqual(type(first), type(second))
         if isinstance(first, (str, int, float)):
             self.assertEqual(first, second)
