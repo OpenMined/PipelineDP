@@ -3,7 +3,6 @@ import typing
 import pickle
 from dataclasses import dataclass
 from functools import reduce
-from dataclasses import dataclass
 import pipeline_dp
 
 
@@ -172,3 +171,25 @@ class CountAccumulator(Accumulator):
     def compute_metrics(self) -> float:
         # TODO: add differential privacy
         return self._count
+
+
+@dataclass
+class SumParams:
+    pass
+
+
+class SumAccumulator(Accumulator):
+
+    def __init__(self, params: SumParams, values):
+        self._sum = sum(values)
+
+    def add_value(self, value):
+        self._sum += value
+
+    def add_accumulator(self,
+                        accumulator: 'SumAccumulator') -> 'SumAccumulator':
+        self._sum += accumulator._sum
+
+    def compute_metrics(self) -> float:
+        # TODO: add differential privacy
+        return self._sum
