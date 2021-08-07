@@ -371,6 +371,23 @@ class _LazyMultiProcIterator:
         n_jobs: typing.Optional[int],
         **pool_kwargs
     ):
+        """Utilizes the `multiprocessing.Pool.map` for distributed execution of 
+        a function `job` on an iterable `job_inputs`.
+
+        Parameters
+        ==========
+        job: 
+            the function to be called on each input
+
+        job_inputs: 
+            iterable containing all the inputs
+
+        chunksize: 
+            see [multiprocessing.Pool.map signature](https://docs.python.org/3/library/multiprocessing.html#multiprocessing.pool.Pool.map).  
+
+        n_jobs: 
+            see [multiprocessing.Pool constructor](https://docs.python.org/3/library/multiprocessing.html#multiprocessing.pool.Pool) arguments
+        """
         self.job = job
         self.chunksize = chunksize
         self.job_inputs = job_inputs
@@ -380,6 +397,7 @@ class _LazyMultiProcIterator:
         self._pool = None
 
     def _init_pool(self):
+        """Creates the multiprocessing.Pool object that will manage the distributed computation."""
         self._pool = mp.Pool(
             self.n_jobs,
             initializer=_pool_worker_init,
@@ -389,6 +407,8 @@ class _LazyMultiProcIterator:
         return self._pool
 
     def _trigger_iterations(self):
+        """Trigger the Pool operation that iterates over inputs and produces outputs.
+        """
         if self._outputs is None:
             self._outputs = self._init_pool().map(
                 _pool_worker, 
@@ -408,6 +428,12 @@ class _LazyMultiProcGroupByIterator(_LazyMultiProcIterator):
                 chunksize: int,
                 n_jobs: typing.Optional[int],
                 **pool_kwargs):
+        """Utilizes mp.Pool for distributed group by computation.
+        The results are held in a `mp.Manager.dict[KeyType, np.Manager.list[ValueType]]`.
+
+        The `mp.Manager.{dict, list}` objects are managed by the `manager` to allow multiprocess-safe
+        access to the containers.
+        """
         self.manager = mp.Manager()
         self.results_dict = self.manager.dict()
         def insert_row(captures, row):
@@ -434,6 +460,12 @@ class _LazyMultiProcCountIterator(_LazyMultiProcIterator):
                 chunksize: int,
                 n_jobs: typing.Optional[int],
                 **pool_kwargs):
+        """Utilizes mp.Pool for distributed group by computation.
+        The results are held in a `mp.Manager.dict[KeyType, int]`.
+
+        The `mp.Manager.dict` object is managed by the `manager` to allow multiprocess-safe
+        access to the container.
+        """
         self.manager = mp.Manager()
         self.results_dict = self.manager.dict()
         def insert_row(captures, key):
