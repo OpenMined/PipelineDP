@@ -298,20 +298,15 @@ def compute_dp_var(count: int, sum: float, sum_squares: float,
                             sum_eps, sum_delta, l0_sensitivity,
                             linf_sensitivity, dp_params.noise_kind)
 
-    sum_squares_low, sum_squares_high = dp_params.squares_interval()
-
-    if dp_params.low < 0 and dp_params.high > 0:
-        linf_sensitivity = dp_params.max_contributions_per_partition * max(
-            dp_params.low**2, dp_params.high**2)
-    else:
-        linf_sensitivity = dp_params.max_contributions_per_partition * abs(
-            dp_params.high**2 - dp_params.low**2)
+    squares_low, squares_high = dp_params.squares_interval()
+    linf_sensitivity = dp_params.max_contributions_per_partition * abs(
+        squares_high - squares_low)
 
     # Computes and adds noise to the mean of squares.
-    dp_mean_squares = _compute_mean(
-        count, dp_count, sum_squares, sum_squares_low, sum_squares_high,
-        sum_squares_eps, sum_squares_delta, l0_sensitivity, linf_sensitivity,
-        dp_params.noise_kind)
+    dp_mean_squares = _compute_mean(count, dp_count, sum_squares, squares_low,
+                                    squares_high, sum_squares_eps,
+                                    sum_squares_delta, l0_sensitivity,
+                                    linf_sensitivity, dp_params.noise_kind)
 
     dp_var = dp_mean_squares - dp_mean**2
     return dp_count, dp_mean * dp_count, dp_mean_squares * dp_count, dp_var
