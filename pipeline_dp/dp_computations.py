@@ -290,9 +290,10 @@ def compute_dp_var(count: int, sum: float, sum_squares: float,
                                  dp_params.max_contributions_per_partition,
                                  dp_params.noise_kind)
 
-    # Computes and adds noise to the mean.
     linf_sensitivity = dp_params.max_contributions_per_partition * abs(
         compute_middle(dp_params.low, dp_params.high) - dp_params.low)
+
+    # Computes and adds noise to the mean.
     dp_mean = _compute_mean(count, dp_count, sum, dp_params.low, dp_params.high,
                             sum_eps, sum_delta, l0_sensitivity,
                             linf_sensitivity, dp_params.noise_kind)
