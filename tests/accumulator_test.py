@@ -137,7 +137,7 @@ class GenericAccumulatorTest(unittest.TestCase):
             values=[(27, 40)])
         merged_accumulator = accumulator.merge(
             [vec_sum_accumulator1, vec_sum_accumulator2])
-        self.assertEqual(merged_accumulator.compute_metrics(), (42, 42))
+        self.assertEqual(tuple(merged_accumulator.compute_metrics()), (42, 42))
 
     def test_merge_diff_type_throws_type_error(self):
         mean_accumulator1 = MeanAccumulator(params=[], values=[15])
@@ -296,15 +296,15 @@ class VectorSummuationAccumulatorTest(unittest.TestCase):
     def test_without_noise(self):
         vec_sum_accumulator = accumulator.VectorSummationAccumulator(
             params=None, values=[(1, 2), (3, 4), (5, 6)])
-        self.assertEqual(vec_sum_accumulator.compute_metrics(), (9, 12))
+        self.assertEqual(tuple(vec_sum_accumulator.compute_metrics()), (9, 12))
 
         vec_sum_accumulator.add_value((7, 8))
-        self.assertEqual(vec_sum_accumulator.compute_metrics(), (16, 20))
+        self.assertEqual(tuple(vec_sum_accumulator.compute_metrics()), (16, 20))
 
         vec_sum_accumulator_2 = accumulator.VectorSummationAccumulator(
             params=None, values=[(1, 2), (1, 4), (1, 8), (1, 16)])
         vec_sum_accumulator.add_accumulator(vec_sum_accumulator_2)
-        self.assertEqual(vec_sum_accumulator.compute_metrics(), (20, 50))
+        self.assertEqual(tuple(vec_sum_accumulator.compute_metrics()), (20, 50))
 
 
 if __name__ == '__main__':

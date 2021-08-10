@@ -4,9 +4,10 @@ import pickle
 from dataclasses import dataclass
 from functools import reduce
 
-from typing import Iterable, Tuple
+from typing import Iterable, Tuple, Union
 import pipeline_dp
-from pipeline_dp.aggregate_params import NoiseKind
+# from pipeline_dp.aggregate_params import NoiseKind
+from pipeline_dp import aggregate_params
 import numpy as np
 
 
@@ -187,26 +188,32 @@ class CountAccumulator(Accumulator):
 
 @dataclass
 class VectorSummationParams:
-    noise_kind: NoiseKind
+    noise_kind: aggregate_params.NoiseKind
     max_norm: float
 
+_FloatVector = Union[Tuple[float], np.ndarray]
 
 class VectorSummationAccumulator(Accumulator):
     _vec_sum: np.ndarray
 
     def __init__(self, params: VectorSummationParams,
-                 values: Iterable[Tuple[float]]) -> None:
+                 values: Iterable[_FloatVector]) -> None:
         self._params = params
         values = iter(values)
         try:
-            self._vec_sum = np.array(next(values))
+            value = next(values)
+            if not isinstance(value, np.ndarray):
+                value = np.array(value)
+            self._vec_sum = value
             for val in values:
                 self.add_value(val)
         except StopIteration:
             self._vec_sum = None
 
-    def add_value(self, value: Tuple[float]):
-        value = np.array(value)  # type: np.ndarray
+    def add_value(self, value: _FloatVector):
+        if not isinstance(value, np.ndarray):
+            value = np.array(value)
+
         if self._vec_sum is None:
             self._vec_sum = value
         else:
@@ -225,7 +232,9 @@ class VectorSummationAccumulator(Accumulator):
 
     def compute_metrics(self):
         # TODO - add DP anonymization
-        return tuple(self._vec_sum)
+        if self._vec_sum is None:
+            raise IndexError("No data provided for metrics computation.")
+        return self._vec_sum
 
 
 class SumParams:
