@@ -194,7 +194,7 @@ def compute_dp_sum(sum: float, dp_params: MeanVarParams):
     """
     l0_sensitivity = dp_params.l0_sensitivity()
     linf_sensitivity = dp_params.max_contributions_per_partition * max(
-        dp_params.low, dp_params.high)
+        abs(dp_params.low), abs(dp_params.high))
 
     return _add_random_noise(sum, dp_params.eps, dp_params.delta,
                              l0_sensitivity, linf_sensitivity,
@@ -203,7 +203,8 @@ def compute_dp_sum(sum: float, dp_params: MeanVarParams):
 
 def _compute_mean(count: float, dp_count: float, sum: float, low: float,
                   high: float, eps: float, delta: float, l0_sensitivity: float,
-                  linf_sensitivity: float, noise_kind: pipeline_dp.NoiseKind):
+                  max_contributions_per_partition: float,
+                  noise_kind: pipeline_dp.NoiseKind):
     """Helper function to compute the DP mean of a raw sum using the DP count.
 
     Args:
@@ -213,7 +214,8 @@ def _compute_mean(count: float, dp_count: float, sum: float, low: float,
         low, high: The lowest/highest contribution.
         eps, delta: The budget allocated.
         l0_sensitivity: The L0 sensitivity.
-        linf_sensitivity: The Linf sensitivity.
+        max_contributions_per_partition: The maximum number of contributions
+            per partition.
         noise_kind: The kind of noise used.
 
     Raises:
@@ -223,6 +225,8 @@ def _compute_mean(count: float, dp_count: float, sum: float, low: float,
         The anonymized mean.
     """
     middle = compute_middle(low, high)
+    linf_sensitivity = max_contributions_per_partition * abs(middle - low)
+
     normalized_sum = sum - count * middle
     dp_normalized_sum = _add_random_noise(normalized_sum, eps, delta,
                                           l0_sensitivity, linf_sensitivity,
@@ -253,12 +257,10 @@ def compute_dp_mean(count: int, sum: float, dp_params: MeanVarParams):
                                  dp_params.max_contributions_per_partition,
                                  dp_params.noise_kind)
 
-    linf_sensitivity = dp_params.max_contributions_per_partition * abs(
-        compute_middle(dp_params.low, dp_params.high) - dp_params.low)
-
     dp_mean = _compute_mean(count, dp_count, sum, dp_params.low, dp_params.high,
                             sum_eps, sum_delta, l0_sensitivity,
-                            linf_sensitivity, dp_params.noise_kind)
+                            dp_params.max_contributions_per_partition,
+                            dp_params.noise_kind)
     return dp_count, dp_mean * dp_count, dp_mean
 
 
@@ -290,23 +292,19 @@ def compute_dp_var(count: int, sum: float, sum_squares: float,
                                  dp_params.max_contributions_per_partition,
                                  dp_params.noise_kind)
 
-    linf_sensitivity = dp_params.max_contributions_per_partition * abs(
-        compute_middle(dp_params.low, dp_params.high) - dp_params.low)
-
     # Computes and adds noise to the mean.
     dp_mean = _compute_mean(count, dp_count, sum, dp_params.low, dp_params.high,
                             sum_eps, sum_delta, l0_sensitivity,
-                            linf_sensitivity, dp_params.noise_kind)
+                            dp_params.max_contributions_per_partition,
+                            dp_params.noise_kind)
 
     squares_low, squares_high = dp_params.squares_interval()
-    linf_sensitivity = dp_params.max_contributions_per_partition * abs(
-        squares_high - squares_low)
 
     # Computes and adds noise to the mean of squares.
-    dp_mean_squares = _compute_mean(count, dp_count, sum_squares, squares_low,
-                                    squares_high, sum_squares_eps,
-                                    sum_squares_delta, l0_sensitivity,
-                                    linf_sensitivity, dp_params.noise_kind)
+    dp_mean_squares = _compute_mean(
+        count, dp_count, sum_squares, squares_low, squares_high,
+        sum_squares_eps, sum_squares_delta, l0_sensitivity,
+        dp_params.max_contributions_per_partition, dp_params.noise_kind)
 
     dp_var = dp_mean_squares - dp_mean**2
     return dp_count, dp_mean * dp_count, dp_mean_squares * dp_count, dp_var
