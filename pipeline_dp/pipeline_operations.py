@@ -374,19 +374,14 @@ class _LazyMultiProcIterator:
         """Utilizes the `multiprocessing.Pool.map` for distributed execution of 
         a function `job` on an iterable `job_inputs`.
 
-        Parameters
-        ==========
-        job: 
-            the function to be called on each input
+        Args:
+            job: the function to be called on each input
 
-        job_inputs: 
-            iterable containing all the inputs
+            job_inputs: iterable containing all the inputs
 
-        chunksize: 
-            see [multiprocessing.Pool.map signature](https://docs.python.org/3/library/multiprocessing.html#multiprocessing.pool.Pool.map).  
+            chunksize: see [multiprocessing.Pool.map signature](https://docs.python.org/3/library/multiprocessing.html#multiprocessing.pool.Pool.map).  
 
-        n_jobs: 
-            see [multiprocessing.Pool constructor](https://docs.python.org/3/library/multiprocessing.html#multiprocessing.pool.Pool) arguments
+            n_jobs: see [multiprocessing.Pool constructor](https://docs.python.org/3/library/multiprocessing.html#multiprocessing.pool.Pool) arguments
         """
         self.job = job
         self.chunksize = chunksize
@@ -407,8 +402,7 @@ class _LazyMultiProcIterator:
         return self._pool
 
     def _trigger_iterations(self):
-        """Trigger the Pool operation that iterates over inputs and produces outputs.
-        """
+        """Trigger the Pool operation that iterates over inputs and produces outputs."""
         if self._outputs is None:
             self._outputs = self._init_pool().map(
                 _pool_worker, 
