@@ -263,41 +263,59 @@ class CountAccumulatorTest(unittest.TestCase):
 class SumAccumulatorTest(unittest.TestCase):
 
     def test_without_noise(self):
+        no_noise = MeanVarParams(eps=1,
+                                 delta=1,
+                                 low=0,
+                                 high=0,
+                                 max_partitions_contributed=1,
+                                 max_contributions_per_partition=1,
+                                 noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)
         sum_accumulator = accumulator.SumAccumulator(
-            accumulator.SumParams(
-                MeanVarParams(1, 1, 0, 0, 1, 1,
-                              pipeline_dp.NoiseKind.GAUSSIAN)), list(range(6)))
+            accumulator.SumParams(no_noise), list(range(6)))
         self.assertEqual(sum_accumulator.compute_metrics(), 15)
 
         sum_accumulator.add_value(5)
         self.assertEqual(sum_accumulator.compute_metrics(), 20)
 
         sum_accumulator_2 = accumulator.SumAccumulator(
-            accumulator.SumParams(
-                MeanVarParams(1, 1, 0, 0, 1, 1,
-                              pipeline_dp.NoiseKind.GAUSSIAN)), list(range(3)))
+            accumulator.SumParams(no_noise), list(range(3)))
         sum_accumulator.add_accumulator(sum_accumulator_2)
         self.assertEqual(sum_accumulator.compute_metrics(), 23)
 
     def test_with_noise(self):
         sum_accumulator = accumulator.SumAccumulator(
             accumulator.SumParams(
-                MeanVarParams(2, 1, 1, 1, 1, 3,
-                              pipeline_dp.NoiseKind.GAUSSIAN)), list(range(6)))
-        self.assertAlmostEqual(sum_accumulator.compute_metrics(), 15, None,
-                               None, 3)
+                MeanVarParams(eps=100,
+                              delta=1,
+                              low=1,
+                              high=1,
+                              max_partitions_contributed=1,
+                              max_contributions_per_partition=3,
+                              noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)),
+            list(range(6)))
+        self.assertAlmostEqual(first=sum_accumulator.compute_metrics(),
+                               second=15,
+                               places=1)
 
         sum_accumulator.add_value(5)
-        self.assertAlmostEqual(sum_accumulator.compute_metrics(), 20, None,
-                               None, 3)
+        self.assertAlmostEqual(first=sum_accumulator.compute_metrics(),
+                               second=20,
+                               places=1)
 
         sum_accumulator_2 = accumulator.SumAccumulator(
             accumulator.SumParams(
-                MeanVarParams(1, 1, 1, 1, 2, 3,
-                              pipeline_dp.NoiseKind.GAUSSIAN)), list(range(3)))
+                MeanVarParams(eps=100,
+                              delta=1,
+                              low=1,
+                              high=1,
+                              max_partitions_contributed=1,
+                              max_contributions_per_partition=3,
+                              noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)),
+            list(range(3)))
         sum_accumulator.add_accumulator(sum_accumulator_2)
-        self.assertAlmostEqual(sum_accumulator.compute_metrics(), 23, None,
-                               None, 3)
+        self.assertAlmostEqual(first=sum_accumulator.compute_metrics(),
+                               second=23,
+                               places=1)
 
 
 if __name__ == '__main__':

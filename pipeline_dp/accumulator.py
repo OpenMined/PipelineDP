@@ -4,7 +4,7 @@ import pickle
 from dataclasses import dataclass
 from functools import reduce
 import pipeline_dp
-from pipeline_dp.dp_computations import MeanVarParams
+from pipeline_dp import dp_computations
 
 
 @dataclass
@@ -176,7 +176,7 @@ class CountAccumulator(Accumulator):
 
 @dataclass
 class SumParams:
-    noise: MeanVarParams
+    noise: dp_computations.MeanVarParams
 
 
 class SumAccumulator(Accumulator):
