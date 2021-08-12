@@ -52,9 +52,8 @@ class DPEngine:
             return None
         self._report_generators.append(ReportGenerator(params))
 
-        # TODO: provide budget_accountant
         accumulator_factory = AccumulatorFactory(params=params,
-                                                 budget_accountant=None)
+                                                 budget_accountant=self._budget_accountant)
         accumulator_factory.initialize()
         aggregator_fn = accumulator_factory.create
 
@@ -64,9 +63,12 @@ class DPEngine:
                               data_extractors.partition_extractor(row),
                               data_extractors.value_extractor(row)),
             "Extract (privacy_id, partition_key, value))")
-        result = self._bound_contributions(
+        # col : (privacy_id, partition_key, value)
+        col = self._bound_contributions(
             col, params.max_partitions_contributed,
             params.max_contributions_per_partition, aggregator_fn)
+        # col : ((privacy_id, partition_key), accumulator)
+        result = col
 
         # If no public partitions were specified, return aggregation results
         # directly.
