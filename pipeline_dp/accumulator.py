@@ -4,7 +4,7 @@ import pickle
 from dataclasses import dataclass
 from functools import reduce
 
-from typing import Iterable, List, Tuple, Union
+from typing import Iterable, Tuple, Union
 import pipeline_dp
 from pipeline_dp import aggregate_params
 import numpy as np
