@@ -3,7 +3,11 @@ import typing
 import pickle
 from dataclasses import dataclass
 from functools import reduce
+
+from typing import Iterable, Tuple, Union
 import pipeline_dp
+from pipeline_dp import aggregate_params
+import numpy as np
 
 
 @dataclass
@@ -41,6 +45,13 @@ class Accumulator(abc.ABC):
     Returns: self.
     """
         pass
+
+    def _check_mergeable(self, accumulator: 'Accumulator'):
+        if not isinstance(accumulator, type(self)):
+            raise TypeError(
+                f"The accumulator to be added is not of the same type: "
+                f"{accumulator.__class__.__name__} != "
+                f"{self.__class__.__name__}")
 
     @abc.abstractmethod
     def add_accumulator(self, accumulator: 'Accumulator') -> 'Accumulator':
@@ -94,7 +105,7 @@ class CompoundAccumulator(Accumulator):
 
     The expectation is that the internal accumulators are of the same type and
     are in the same order."""
-
+        self._check_mergeable(accumulator)
         if len(accumulator.accumulators) != len(self.accumulators):
             raise ValueError(
                 "Accumulators in the input are not of the same size." +
@@ -165,6 +176,7 @@ class CountAccumulator(Accumulator):
 
     def add_accumulator(self,
                         accumulator: 'CountAccumulator') -> 'CountAccumulator':
+        self._check_mergeable(accumulator)
         self._count += accumulator._count
         return self
 
@@ -174,6 +186,49 @@ class CountAccumulator(Accumulator):
 
 
 @dataclass
+class VectorSummationParams:
+    noise_kind: aggregate_params.NoiseKind
+    max_norm: float
+
+_FloatVector = Union[Tuple[float], np.ndarray]
+
+class VectorSummationAccumulator(Accumulator):
+    _vec_sum: np.ndarray
+
+    def __init__(self, params: VectorSummationParams,
+                 values: Iterable[_FloatVector]) -> None:
+        self._params = params
+        self._vec_sum = None
+        for val in values:
+            self.add_value(val)
+
+    def add_value(self, value: _FloatVector):
+        if not isinstance(value, np.ndarray):
+            value = np.array(value)
+
+        if self._vec_sum is None:
+            self._vec_sum = value
+        else:
+            if self._vec_sum.shape != value.shape:
+                raise TypeError(
+                    f"Shape mismatch: {self._vec_sum.shape} != {value.shape}")
+            self._vec_sum += value
+        return self
+
+    def add_accumulator(
+        self, accumulator: 'VectorSummationAccumulator'
+    ) -> 'VectorSummationAccumulator':
+        self._check_mergeable(accumulator)
+        self.add_value(accumulator._vec_sum)
+        return self
+
+    def compute_metrics(self):
+        # TODO - add DP anonymization
+        if self._vec_sum is None:
+            raise IndexError("No data provided for metrics computation.")
+        return self._vec_sum
+
+
 class SumParams:
     pass
 
@@ -188,6 +243,7 @@ class SumAccumulator(Accumulator):
 
     def add_accumulator(self,
                         accumulator: 'SumAccumulator') -> 'SumAccumulator':
+        self._check_mergeable(accumulator)
         self._sum += accumulator._sum
 
     def compute_metrics(self) -> float:
