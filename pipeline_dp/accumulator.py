@@ -4,9 +4,8 @@ import pickle
 from dataclasses import dataclass
 from functools import reduce
 
-from typing import Iterable, Tuple, Union
+from typing import Iterable, List, Tuple, Union
 import pipeline_dp
-# from pipeline_dp.aggregate_params import NoiseKind
 from pipeline_dp import aggregate_params
 import numpy as np
 
@@ -199,16 +198,9 @@ class VectorSummationAccumulator(Accumulator):
     def __init__(self, params: VectorSummationParams,
                  values: Iterable[_FloatVector]) -> None:
         self._params = params
-        values = iter(values)
-        try:
-            value = next(values)
-            if not isinstance(value, np.ndarray):
-                value = np.array(value)
-            self._vec_sum = value
-            for val in values:
-                self.add_value(val)
-        except StopIteration:
-            self._vec_sum = None
+        self._vec_sum = None
+        for val in values:
+            self.add_value(val)
 
     def add_value(self, value: _FloatVector):
         if not isinstance(value, np.ndarray):

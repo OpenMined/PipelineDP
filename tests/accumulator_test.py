@@ -1,6 +1,8 @@
 import unittest
 import typing
 from unittest.mock import patch
+
+import numpy as np
 import pipeline_dp
 from pipeline_dp import aggregate_params as agg
 import pipeline_dp.accumulator as accumulator
@@ -299,7 +301,9 @@ class VectorSummuationAccumulatorTest(unittest.TestCase):
         self.assertEqual(tuple(vec_sum_accumulator.compute_metrics()), (9, 12))
 
         vec_sum_accumulator.add_value((7, 8))
-        self.assertEqual(tuple(vec_sum_accumulator.compute_metrics()), (16, 20))
+        self.assertTrue(np.all(
+            vec_sum_accumulator.compute_metrics() == np.array([16, 20])
+        ))
 
         vec_sum_accumulator_2 = accumulator.VectorSummationAccumulator(
             params=None, values=[(1, 2), (1, 4), (1, 8), (1, 16)])
