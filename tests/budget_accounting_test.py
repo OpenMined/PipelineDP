@@ -3,7 +3,7 @@
 import unittest
 from dataclasses import dataclass
 import pipeline_dp
-from pipeline_dp.aggregate_params import NoiseKind
+from pipeline_dp.aggregate_params import MechanismType
 from pipeline_dp.budget_accounting import MechanismSpec, PLDBudgetAccountant
 
 
@@ -57,7 +57,7 @@ class PLDBudgetAccountantTest(unittest.TestCase):
 
     def test_noise_not_calculated(self):
         with self.assertRaises(AssertionError):
-            mechanism = MechanismSpec(NoiseKind.LAPLACE)
+            mechanism = MechanismSpec(MechanismType.LAPLACE)
             print(mechanism.noise_standard_deviation())
 
     def test_invalid_epsilon(self):
@@ -71,7 +71,7 @@ class PLDBudgetAccountantTest(unittest.TestCase):
     def test_invalid_gaussian_delta(self):
         accountant = PLDBudgetAccountant(total_epsilon=1, total_delta=0)
         with self.assertRaises(AssertionError):
-            accountant.request_budget(NoiseKind.GAUSSIAN)
+            accountant.request_budget(MechanismType.GAUSSIAN)
 
     def test_compute_budgets_none_noise(self):
         accountant = PLDBudgetAccountant(total_epsilon=3, total_delta=1e-5)
@@ -84,7 +84,7 @@ class PLDBudgetAccountantTest(unittest.TestCase):
         class ComputeBudgetMechanisms:
             count: int
             expected_noise_std: float
-            noise_kind: NoiseKind
+            noise_kind: MechanismType
             weight: float
             sensitivity: float
 
@@ -97,13 +97,31 @@ class PLDBudgetAccountantTest(unittest.TestCase):
             mechanisms: []
 
         testcases = [
+            ComputeBudgetTestCase(name="generic",
+                                  epsilon=0.22999925338484556,
+                                  delta=1e-5,
+                                  mechanisms=[
+                                      ComputeBudgetMechanisms(
+                                          1, 6.41455078125,
+                                          MechanismType.GENERIC, 1, 1)
+                                  ],
+                                  expected_pipeline_noise_std=6.41455078125),
+            ComputeBudgetTestCase(name="generic_multiple",
+                                  epsilon=0.6599974547358093,
+                                  delta=1e-5,
+                                  mechanisms=[
+                                      ComputeBudgetMechanisms(
+                                          3, 6.71649169921875,
+                                          MechanismType.GENERIC, 1, 1)
+                                  ],
+                                  expected_pipeline_noise_std=6.71649169921875),
             ComputeBudgetTestCase(
                 name="standard_laplace",
                 epsilon=4,
                 delta=0,
                 mechanisms=[
                     ComputeBudgetMechanisms(2, 0.7071067811865476,
-                                            NoiseKind.LAPLACE, 1, 1)
+                                            MechanismType.LAPLACE, 1, 1)
                 ],
                 expected_pipeline_noise_std=0.7071067811865476),
             ComputeBudgetTestCase(
@@ -112,7 +130,7 @@ class PLDBudgetAccountantTest(unittest.TestCase):
                 delta=0,
                 mechanisms=[
                     ComputeBudgetMechanisms(2, 0.7071067811865476,
-                                            NoiseKind.LAPLACE, 2, 1)
+                                            MechanismType.LAPLACE, 2, 1)
                 ],
                 expected_pipeline_noise_std=1.4142135623730951),
             ComputeBudgetTestCase(
@@ -121,7 +139,7 @@ class PLDBudgetAccountantTest(unittest.TestCase):
                 delta=0,
                 mechanisms=[
                     ComputeBudgetMechanisms(2, 2.82842712474619,
-                                            NoiseKind.LAPLACE, 1, 3)
+                                            MechanismType.LAPLACE, 1, 3)
                 ],
                 expected_pipeline_noise_std=0.9428090415820634),
             ComputeBudgetTestCase(name="laplace_mechanisms",
@@ -129,7 +147,7 @@ class PLDBudgetAccountantTest(unittest.TestCase):
                                   delta=1e-3,
                                   mechanisms=[
                                       ComputeBudgetMechanisms(
-                                          10, 50, NoiseKind.LAPLACE, 1, 1)
+                                          10, 50, MechanismType.LAPLACE, 1, 1)
                                   ],
                                   expected_pipeline_noise_std=50),
             ComputeBudgetTestCase(name="gaussian_mechanisms",
@@ -137,25 +155,29 @@ class PLDBudgetAccountantTest(unittest.TestCase):
                                   delta=1e-3,
                                   mechanisms=[
                                       ComputeBudgetMechanisms(
-                                          10, 50, NoiseKind.GAUSSIAN, 1, 1)
+                                          10, 50, MechanismType.GAUSSIAN, 1, 1)
                                   ],
                                   expected_pipeline_noise_std=50),
             ComputeBudgetTestCase(
                 name="multiple_noise_kinds",
-                epsilon=0.17915869168056622,
+                epsilon=0.2719439419475211,
                 delta=1e-3,
                 mechanisms=[
-                    ComputeBudgetMechanisms(5, 50, NoiseKind.LAPLACE, 1, 1),
-                    ComputeBudgetMechanisms(5, 50, NoiseKind.GAUSSIAN, 1, 1)
+                    ComputeBudgetMechanisms(5, 49.81597900390625,
+                                            MechanismType.LAPLACE, 1, 1),
+                    ComputeBudgetMechanisms(5, 49.81597900390625,
+                                            MechanismType.GAUSSIAN, 1, 1),
+                    ComputeBudgetMechanisms(5, 49.81597900390625,
+                                            MechanismType.GENERIC, 1, 1)
                 ],
-                expected_pipeline_noise_std=50),
+                expected_pipeline_noise_std=49.81597900390625),
             ComputeBudgetTestCase(
                 name="multiple_weights",
                 epsilon=1.924852037917208,
                 delta=1e-5,
                 mechanisms=[
-                    ComputeBudgetMechanisms(4, 10, NoiseKind.LAPLACE, 2, 1),
-                    ComputeBudgetMechanisms(4, 5, NoiseKind.GAUSSIAN, 4, 1)
+                    ComputeBudgetMechanisms(4, 10, MechanismType.LAPLACE, 2, 1),
+                    ComputeBudgetMechanisms(4, 5, MechanismType.GAUSSIAN, 4, 1)
                 ],
                 expected_pipeline_noise_std=20),
             ComputeBudgetTestCase(
@@ -163,8 +185,8 @@ class PLDBudgetAccountantTest(unittest.TestCase):
                 epsilon=0.2764312848667339,
                 delta=1e-5,
                 mechanisms=[
-                    ComputeBudgetMechanisms(6, 40, NoiseKind.LAPLACE, 1, 2),
-                    ComputeBudgetMechanisms(2, 80, NoiseKind.GAUSSIAN, 1, 4)
+                    ComputeBudgetMechanisms(6, 40, MechanismType.LAPLACE, 1, 2),
+                    ComputeBudgetMechanisms(2, 80, MechanismType.GAUSSIAN, 1, 4)
                 ],
                 expected_pipeline_noise_std=20),
             ComputeBudgetTestCase(
@@ -172,8 +194,8 @@ class PLDBudgetAccountantTest(unittest.TestCase):
                 epsilon=0.780797891312483,
                 delta=1e-5,
                 mechanisms=[
-                    ComputeBudgetMechanisms(4, 10, NoiseKind.LAPLACE, 4, 2),
-                    ComputeBudgetMechanisms(6, 40, NoiseKind.GAUSSIAN, 2, 4)
+                    ComputeBudgetMechanisms(4, 10, MechanismType.LAPLACE, 4, 2),
+                    ComputeBudgetMechanisms(6, 40, MechanismType.GAUSSIAN, 2, 4)
                 ],
                 expected_pipeline_noise_std=20),
             ComputeBudgetTestCase(
@@ -181,10 +203,12 @@ class PLDBudgetAccountantTest(unittest.TestCase):
                 epsilon=0.9165937807680077,
                 delta=1e-6,
                 mechanisms=[
-                    ComputeBudgetMechanisms(4, 20, NoiseKind.LAPLACE, 4, 2),
-                    ComputeBudgetMechanisms(6, 80, NoiseKind.GAUSSIAN, 2, 4),
-                    ComputeBudgetMechanisms(1, 80, NoiseKind.GAUSSIAN, 3, 6),
-                    ComputeBudgetMechanisms(5, 15, NoiseKind.LAPLACE, 8, 3),
+                    ComputeBudgetMechanisms(4, 20, MechanismType.LAPLACE, 4, 2),
+                    ComputeBudgetMechanisms(6, 80, MechanismType.GAUSSIAN, 2,
+                                            4),
+                    ComputeBudgetMechanisms(1, 80, MechanismType.GAUSSIAN, 3,
+                                            6),
+                    ComputeBudgetMechanisms(5, 15, MechanismType.LAPLACE, 8, 3),
                 ],
                 expected_pipeline_noise_std=40)
         ]

@@ -3,8 +3,9 @@
 import logging
 import math
 from dataclasses import dataclass
-from pipeline_dp.aggregate_params import NoiseKind
+from pipeline_dp.aggregate_params import MechanismType
 from dp_accounting import privacy_loss_distribution as pldlib
+from dp_accounting import common
 
 
 @dataclass
@@ -113,10 +114,10 @@ class BudgetAccountant:
 class MechanismSpec:
     """Specifies the parameters for a mechanism.
 
-    NoiseKind defines the kind of noise distribution.
+    MechanismType defines the kind of noise distribution.
     noise is the minimized noise standard deviation.
     """
-    noise_kind: NoiseKind
+    noise_kind: MechanismType
     _noise_standard_deviation: float = None
 
     @property
@@ -173,7 +174,7 @@ class PLDBudgetAccountant:
         self._pld_discretization = pld_discretization
 
     def request_budget(self,
-                       noise_kind: NoiseKind,
+                       noise_kind: MechanismType,
                        sensitivity: float = 1,
                        weight: float = 1) -> MechanismSpec:
         """Request a budget.
@@ -190,7 +191,7 @@ class PLDBudgetAccountant:
             A "lazy" mechanism spec object that doesn't contain the noise
             standard deviation until compute_budgets is called.
         """
-        if noise_kind == NoiseKind.GAUSSIAN and self._total_delta == 0:
+        if noise_kind == MechanismType.GAUSSIAN and self._total_delta == 0:
             raise AssertionError(
                 "The Gaussian mechanism requires that the pipeline delta is greater than 0"
             )
@@ -272,17 +273,23 @@ class PLDBudgetAccountant:
         composed, pld = None, None
 
         for mechanism_spec_internal in self._mechanisms:
-            if mechanism_spec_internal.mechanism_spec.noise_kind == NoiseKind.LAPLACE:
+            if mechanism_spec_internal.mechanism_spec.noise_kind == MechanismType.LAPLACE:
                 # The Laplace distribution parameter = std/sqrt(2).
                 pld = pldlib.PrivacyLossDistribution.from_laplace_mechanism(
                     mechanism_spec_internal.sensitivity *
                     noise_standard_deviation / math.sqrt(2) /
                     mechanism_spec_internal.weight,
                     value_discretization_interval=self._pld_discretization)
-            elif mechanism_spec_internal.mechanism_spec.noise_kind == NoiseKind.GAUSSIAN:
+            elif mechanism_spec_internal.mechanism_spec.noise_kind == MechanismType.GAUSSIAN:
                 pld = pldlib.PrivacyLossDistribution.from_gaussian_mechanism(
                     mechanism_spec_internal.sensitivity *
                     noise_standard_deviation / mechanism_spec_internal.weight,
+                    value_discretization_interval=self._pld_discretization)
+            elif mechanism_spec_internal.mechanism_spec.noise_kind == MechanismType.GENERIC:
+                epsilon_0 = math.sqrt(2) / noise_standard_deviation
+                delta_0 = epsilon_0 / self._total_epsilon * self._total_delta
+                pld = pldlib.PrivacyLossDistribution.from_privacy_parameters(
+                    common.DifferentialPrivacyParameters(epsilon_0, delta_0),
                     value_discretization_interval=self._pld_discretization)
 
             composed = pld if composed is None else composed.compose(pld)

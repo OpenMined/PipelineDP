@@ -13,9 +13,10 @@ class Metrics(Enum):
     VAR = 'variance'
 
 
-class NoiseKind(Enum):
+class MechanismType(Enum):
     LAPLACE = 'laplace'
     GAUSSIAN = 'gaussian'
+    GENERIC = 'generic'
 
 
 @dataclass
