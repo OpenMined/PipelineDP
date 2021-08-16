@@ -4,9 +4,10 @@ import pickle
 from dataclasses import dataclass
 from functools import reduce
 
-from typing import Iterable, Tuple, Union
+from typing import Iterable, Optional, Tuple, Union
 import pipeline_dp
 from pipeline_dp import aggregate_params
+from pipeline_dp import dp_computations
 import numpy as np
 
 
@@ -187,15 +188,16 @@ class CountAccumulator(Accumulator):
 
 @dataclass
 class VectorSummationParams:
-    noise_kind: aggregate_params.NoiseKind
+    dp_params: dp_computations.MeanVarParams
     max_norm: float
 
 _FloatVector = Union[Tuple[float], np.ndarray]
 
 class VectorSummationAccumulator(Accumulator):
     _vec_sum: np.ndarray
+    _params: Optional[VectorSummationParams]
 
-    def __init__(self, params: VectorSummationParams,
+    def __init__(self, params: Optional[VectorSummationParams],
                  values: Iterable[_FloatVector]) -> None:
         self._params = params
         self._vec_sum = None
@@ -222,11 +224,25 @@ class VectorSummationAccumulator(Accumulator):
         self.add_value(accumulator._vec_sum)
         return self
 
+    def _clip(self, vec_sum: np.ndarray, max_norm: float, norm_kind="linf"):
+        if norm_kind == "linf":
+            return np.clip(vec_sum, -max_norm, max_norm)
+        elif norm_kind in ["l0", "l1", "l2"]:
+            norm_kind = int(norm_kind[-1])
+            vec_norm = np.linalg.norm(vec_sum, ord=norm_kind)
+            mul_coef = min(1, max_norm/vec_norm)
+            return vec_sum * mul_coef
+
     def compute_metrics(self):
-        # TODO - add DP anonymization
         if self._vec_sum is None:
             raise IndexError("No data provided for metrics computation.")
-        return self._vec_sum
+        if self._params is None:
+            return self._vec_sum
+        vec_sum = self._clip(self._vec_sum, self._params.max_norm)
+        vec_sum = np.array([
+            dp_computations.compute_dp_sum(s, self._params.dp_params)
+            for s in vec_sum
+        ])
 
 
 class SumParams:
