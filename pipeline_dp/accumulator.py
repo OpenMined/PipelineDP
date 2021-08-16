@@ -189,6 +189,7 @@ class CountAccumulator(Accumulator):
 @dataclass
 class VectorSummationParams:
     dp_params: dp_computations.MeanVarParams
+    clip_norm_kind: str
     max_norm: float
 
 _FloatVector = Union[Tuple[float], np.ndarray]
@@ -238,11 +239,12 @@ class VectorSummationAccumulator(Accumulator):
             raise IndexError("No data provided for metrics computation.")
         if self._params is None:
             return self._vec_sum
-        vec_sum = self._clip(self._vec_sum, self._params.max_norm)
+        vec_sum = self._clip(self._vec_sum, self._params.max_norm, self._params.clip_norm_kind)
         vec_sum = np.array([
             dp_computations.compute_dp_sum(s, self._params.dp_params)
             for s in vec_sum
         ])
+        return vec_sum
 
 
 class SumParams:
