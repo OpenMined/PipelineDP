@@ -6,9 +6,10 @@ import apache_beam as beam
 import apache_beam.testing.test_pipeline as test_pipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+import pytest
 
 from pipeline_dp import DataExtractors
-from pipeline_dp.pipeline_operations import SparkRDDOperations
+from pipeline_dp.pipeline_operations import MultiProcLocalPipelineOperations, SparkRDDOperations
 from pipeline_dp.pipeline_operations import LocalPipelineOperations
 from pipeline_dp.pipeline_operations import BeamOperations
 
@@ -384,6 +385,254 @@ class LocalPipelineOperationsTest(unittest.TestCase):
                                   lambda x: [(x[0], y) for y in x[1]])),
             [("a", 1), ("a", 2), ("a", 3), ("a", 4), ("b", 5), ("b", 6),
              ("b", 7), ("b", 8)])
+
+    def test_local_group_by_key(self):
+        some_dict = [("cheese", "brie"), ("bread", "sourdough"),
+                     ("cheese", "swiss")]
+
+        self.assertEqual(list(self.ops.group_by_key(some_dict)),
+                         [("cheese", ["brie", "swiss"]),
+                          ("bread", ["sourdough"])])
+
+class MultiProcLocalPipelineOperationsTest(unittest.TestCase):
+    @staticmethod
+    def partition_extract(x): return x[1]
+
+    @staticmethod
+    def privacy_id_extract(x): return x[0]
+
+    @staticmethod
+    def value_extract(x): return x[2]
+
+    @classmethod
+    def setUpClass(cls):
+        cls.ops = MultiProcLocalPipelineOperations(n_jobs=1)
+        cls.data_extractors = DataExtractors(
+            partition_extractor=cls.partition_extract,
+            privacy_id_extractor=cls.privacy_id_extract,
+            value_extractor=cls.value_extract)
+
+    def _sort_dataset(self, data):
+        if isinstance(data, (str, int, float)):
+            return data
+        if isinstance(data, tuple):
+            return tuple(self._sort_dataset(x) for x in data)
+        data = list(data)
+        def sortfn(x):
+            # make everything a sortable thing!
+            if isinstance(x, list):
+                return self._sort_dataset(tuple(x))
+            return x
+        return sorted(data, key=sortfn)
+
+    def assertDatasetsEqual(self, first, second, toplevel=True):
+        if toplevel:
+            first = self._sort_dataset(first)
+            second = self._sort_dataset(second)
+        self.assertEqual(type(first), type(second))
+        if isinstance(first, (str, int, float)):
+            self.assertEqual(first, second)
+        elif isinstance(first, tuple):
+            self.assertEqual(len(first), len(second))
+            if len(first) == 2:
+                # key value pair
+                k1, v1 = first
+                k2, v2 = second
+                self.assertEqual(k1, k2)
+                self.assertDatasetsEqual(v1, v2, False)
+            else:
+                self.assertEqual(first, second)
+        else: # all other itearble instances
+            first = list(first)           
+            second = list(second)
+            self.assertEqual(len(first), len(second))
+            for e1, e2 in zip(first, second):
+                self.assertDatasetsEqual(e1, e2, False)
+        
+
+    @pytest.mark.timeout(10)
+    def test_multiproc_map(self):
+        self.assertDatasetsEqual(list(self.ops.map([], lambda x: x / 0)), [])
+        self.assertDatasetsEqual(list(self.ops.map([1, 2, 3], str)), ["1", "2", "3"])
+        self.assertDatasetsEqual(list(self.ops.map(range(5), lambda x: x**2)),
+                                [0, 1, 4, 9, 16])
+
+    @pytest.mark.timeout(10)
+    def test_multiproc_map_tuple(self):
+        tuple_list = [(1, 2), (2, 3), (3, 4)]
+
+        self.assertDatasetsEqual(
+            list(self.ops.map_tuple(tuple_list, lambda k, v: k + v)), [3, 5, 7])
+
+        self.assertDatasetsEqual(
+            list(self.ops.map_tuple(tuple_list, lambda k, v: (str(k), str(v)))),
+                [("1", "2"), ("2", "3"), ("3", "4")])
+
+    @pytest.mark.timeout(10)
+    def test_multiproc_map_values(self):
+        self.assertDatasetsEqual(list(self.ops.map_values([], lambda x: x / 0)), [])
+
+        tuple_list = [(1, 2), (2, 3), (3, 4)]
+
+        self.assertDatasetsEqual(list(self.ops.map_values(tuple_list, str)), 
+                                [(1, "2"), (2, "3"), (3, "4")])
+        self.assertDatasetsEqual(list(self.ops.map_values(tuple_list, lambda x: x**2)),
+                                [(1, 4), (2, 9), (3, 16)])
+
+    @pytest.mark.timeout(10)
+    def test_multiproc_group_by_key(self):
+        some_dict = [("cheese", "brie"), ("bread", "sourdough"),
+                     ("cheese", "swiss")]
+
+        self.assertDatasetsEqual(list(self.ops.group_by_key(some_dict)),
+                                [("cheese", ["brie", "swiss"]),
+                                ("bread", ["sourdough"])])
+
+    @pytest.mark.timeout(10)
+    def test_multiproc_filter(self):
+        self.assertDatasetsEqual(list(self.ops.filter([], lambda x: True)), [])
+        self.assertDatasetsEqual(list(self.ops.filter([], lambda x: False)), [])
+
+        example_list = [1, 2, 2, 3, 3, 4, 2]
+
+        self.assertDatasetsEqual(list(self.ops.filter(example_list, lambda x: x % 2)),
+                                [1, 3, 3])
+        self.assertDatasetsEqual(list(self.ops.filter(example_list, lambda x: x < 3)),
+                                [1, 2, 2, 2])
+
+    @pytest.mark.timeout(10)
+    def test_multiproc_filter_by_key_empty_public_keys(self):
+        col = [(1, 6, 1), (2, 7, 1), (3, 6, 1), (4, 7, 1), (5, 8, 1)]
+        public_partitions = []
+        result = self.ops.filter_by_key(col, public_partitions,
+                                        self.data_extractors,
+                                        "Public partition filtering")
+        self.assertEqual(list(result), [])
+
+    @pytest.mark.timeout(10)
+    def test_multiproc_filter_by_key_remove(self):
+        col = [(1, 7, 1), (2, 19, 1), (3, 9, 1), (4, 11, 1), (5, 10, 1)]
+        public_partitions = [7, 9]
+        result = self.ops.filter_by_key(col, public_partitions,
+                                        self.data_extractors,
+                                        "Public partition filtering")
+        self.assertDatasetsEqual(list(result), [(7, (1, 7, 1)), (9, (3, 9, 1))])
+
+    @pytest.mark.timeout(10)
+    def test_multiproc_keys(self):
+        self.assertEqual(list(self.ops.keys([])), [])
+
+        example_list = [(1, 2), (2, 3), (3, 4), (4, 8)]
+
+        self.assertDatasetsEqual(list(self.ops.keys(example_list)), [1, 2, 3, 4])
+
+    @pytest.mark.timeout(10)
+    def test_multiproc_values(self):
+        self.assertEqual(list(self.ops.values([])), [])
+
+        example_list = [(1, 2), (2, 3), (3, 4), (4, 8)]
+
+        self.assertDatasetsEqual(list(self.ops.values(example_list)), [2, 3, 4, 8])
+
+    @pytest.mark.timeout(10)
+    def test_multiproc_count_per_element(self):
+        example_list = [1, 2, 3, 4, 5, 6, 1, 4, 0, 1]
+        result = dict(self.ops.count_per_element(example_list))
+
+        self.assertDictEqual(result, {
+            1: 3,
+            2: 1,
+            3: 1,
+            4: 2,
+            5: 1,
+            6: 1,
+            0: 1
+        })
+
+    @pytest.mark.timeout(10)
+    def test_multiproc_sample_fixed_per_key_requires_no_discarding(self):
+        input_col = [("pid1", ('pk1', 1)), ("pid1", ('pk2', 1)),
+                     ("pid1", ('pk3', 1)), ("pid2", ('pk4', 1))]
+        n = 3
+
+        sample_fixed_per_key_result = list(self.ops.sample_fixed_per_key(input_col, n))
+
+        expected_result = [("pid1", [('pk1', 1), ('pk2', 1), ('pk3', 1)]),
+                           ("pid2", [('pk4', 1)])]
+        self.assertDatasetsEqual(sample_fixed_per_key_result, expected_result)
+
+    @pytest.mark.timeout(10)
+    def test_multiproc_sample_fixed_per_key_with_sampling(self):
+        input_col = [(("pid1", "pk1"), 1), (("pid1", "pk1"), 1),
+                     (("pid1", "pk1"), 1), (("pid1", "pk1"), 1),
+                     (("pid1", "pk1"), 1), (("pid1", "pk2"), 1),
+                     (("pid1", "pk2"), 1)]
+        n = 3
+
+        sample_fixed_per_key_result = list(
+            self.ops.sample_fixed_per_key(input_col, n))
+
+        self.assertTrue(all(
+            map(lambda pid_pk_v: len(pid_pk_v[1]) <= n,
+                sample_fixed_per_key_result)
+            )
+        )
+
+    @pytest.mark.timeout(10)
+    def test_multiproc_flat_map(self):
+        input_col = [[1, 2, 3, 4], [5, 6, 7, 8]]
+        self.assertDatasetsEqual(list(self.ops.flat_map(input_col, lambda x: x)),
+                                [1, 2, 3, 4, 5, 6, 7, 8])
+
+        input_col = [("a", [1, 2, 3, 4]), ("b", [5, 6, 7, 8])]
+        self.assertDatasetsEqual(list(self.ops.flat_map(input_col, lambda x: x[1])),
+                                [1, 2, 3, 4, 5, 6, 7, 8])
+        self.assertDatasetsEqual(
+            list(
+                self.ops.flat_map(input_col,
+                                  lambda x: [(x[0], y) for y in x[1]])),
+            [("a", 1), ("a", 2), ("a", 3), ("a", 4), ("b", 5), ("b", 6),
+             ("b", 7), ("b", 8)])
+
+    # @pytest.mark.timeout(10)
+    def test_multiproc_group_by_key(self):
+        some_dict = [("cheese", "brie"), ("bread", "sourdough"),
+                     ("cheese", "swiss")]
+
+        result = sorted(self.ops.group_by_key(some_dict))
+        result = [(k, sorted(v)) for k, v in result]
+
+        self.assertEqual(result,
+                         [
+                             ("bread", ["sourdough"]),
+                             ("cheese", ["brie", "swiss"]),
+                         ])
+
+    def test_laziness(self):
+
+        def exceptions_generator_function():
+            yield 1 / 0
+
+        def assert_laziness(operator, *args):
+            try:
+                operator(exceptions_generator_function(), *args)
+            except ZeroDivisionError:
+                self.fail(f"local {operator.__name__} is not lazy")
+
+        # reading from exceptions_generator_function() results in error:
+        self.assertRaises(ZeroDivisionError, next,
+                          exceptions_generator_function())
+
+        # lazy operators accept exceptions_generator_function()
+        # as argument without raising errors:
+        assert_laziness(self.ops.map, str)
+        assert_laziness(self.ops.map_values, str)
+        assert_laziness(self.ops.filter, bool)
+        assert_laziness(self.ops.values)
+        assert_laziness(self.ops.keys)
+        assert_laziness(self.ops.count_per_element)
+        assert_laziness(self.ops.flat_map, str)
+        assert_laziness(self.ops.sample_fixed_per_key, int)
 
 
 # TODO: Extend the proper Accumulator class once it's available.

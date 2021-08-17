@@ -9,6 +9,7 @@ from dataclasses import dataclass
 @dataclass
 class MeanVarParams:
     """The parameters used for computing the dp sum, count, mean, variance."""
+
     eps: float
     delta: float
     low: float
@@ -21,29 +22,16 @@ class MeanVarParams:
         """"Returns the L0 sensitivity of the parameters."""
         return self.max_partitions_contributed
 
-    def linf_sensitivity(self, metric):
-        """Returns the Linf sensitivity of the parameters based on the metric.
+    def squares_interval(self):
+        """Returns the bounds of the interval [low^2, high^2]."""
+        if self.low < 0 and self.high > 0:
+            return 0, max(self.low**2, self.high**2)
+        return self.low**2, self.high**2
 
-        Args:
-            metric: The metric performed.
 
-        Raises:
-            ValueError: The metric type is invalid.
-        """
-        if metric == pipeline_dp.Metrics.COUNT:
-            return self.max_contributions_per_partition
-        if metric == pipeline_dp.Metrics.SUM:
-            return self.max_contributions_per_partition * max(
-                abs(self.low), abs(self.high))
-        if metric == pipeline_dp.Metrics.MEAN:
-            return self.max_contributions_per_partition * abs(
-                self.middle() - self.low)
-        # TODO: add value for variance
-        raise ValueError("Invalid metric")
-
-    def middle(self):
-        """"Returns the middle point of the interval [low, high]."""
-        return self.low + (self.high - self.low) / 2
+def compute_middle(low: float, high: float):
+    """"Returns the middle point of the interval [low, high]."""
+    return low + (high - low) / 2
 
 
 def compute_l1_sensitivity(l0_sensitivity: float, linf_sensitivity: float):
@@ -159,8 +147,7 @@ def equally_split_budget(eps: float, delta: float, no_mechanisms: int):
         An array with the split budgets.
     """
     if no_mechanisms <= 0:
-        raise ValueError(
-            "The number of mechanisms must be a positive integer.")
+        raise ValueError("The number of mechanisms must be a positive integer.")
 
     # These variables are used to keep track of the budget used.
     # In this way, we can improve accuracy of floating-point operations.
@@ -188,7 +175,7 @@ def compute_dp_count(count: int, dp_params: MeanVarParams):
         ValueError: The noise kind is invalid.
     """
     l0_sensitivity = dp_params.l0_sensitivity()
-    linf_sensitivity = dp_params.linf_sensitivity(pipeline_dp.Metrics.COUNT)
+    linf_sensitivity = dp_params.max_contributions_per_partition
 
     return _add_random_noise(count, dp_params.eps, dp_params.delta,
                              l0_sensitivity, linf_sensitivity,
@@ -206,11 +193,45 @@ def compute_dp_sum(sum: float, dp_params: MeanVarParams):
         ValueError: The noise kind is invalid.
     """
     l0_sensitivity = dp_params.l0_sensitivity()
-    linf_sensitivity = dp_params.linf_sensitivity(pipeline_dp.Metrics.SUM)
+    linf_sensitivity = dp_params.max_contributions_per_partition * max(
+        abs(dp_params.low), abs(dp_params.high))
 
     return _add_random_noise(sum, dp_params.eps, dp_params.delta,
                              l0_sensitivity, linf_sensitivity,
                              dp_params.noise_kind)
+
+
+def _compute_mean(count: float, dp_count: float, sum: float, low: float,
+                  high: float, eps: float, delta: float, l0_sensitivity: float,
+                  max_contributions_per_partition: float,
+                  noise_kind: pipeline_dp.NoiseKind):
+    """Helper function to compute the DP mean of a raw sum using the DP count.
+
+    Args:
+        count: Non-DP count.
+        dp_count: DP count.
+        sum: Non-DP sum.
+        low, high: The lowest/highest contribution.
+        eps, delta: The budget allocated.
+        l0_sensitivity: The L0 sensitivity.
+        max_contributions_per_partition: The maximum number of contributions
+            per partition.
+        noise_kind: The kind of noise used.
+
+    Raises:
+        ValueError: The noise kind is invalid.
+
+    Returns:
+        The anonymized mean.
+    """
+    middle = compute_middle(low, high)
+    linf_sensitivity = max_contributions_per_partition * abs(middle - low)
+
+    normalized_sum = sum - count * middle
+    dp_normalized_sum = _add_random_noise(normalized_sum, eps, delta,
+                                          l0_sensitivity, linf_sensitivity,
+                                          noise_kind)
+    return dp_normalized_sum / dp_count + middle
 
 
 def compute_dp_mean(count: int, sum: float, dp_params: MeanVarParams):
@@ -227,23 +248,63 @@ def compute_dp_mean(count: int, sum: float, dp_params: MeanVarParams):
     Returns:
         The tuple of anonymized count, sum and mean.
     """
-    middle = dp_params.middle()
-    normalized_sum = sum - count * middle
-
+    # Splits the budget equally between the two mechanisms.
+    (count_eps, count_delta), (sum_eps, sum_delta) = equally_split_budget(
+        dp_params.eps, dp_params.delta, 2)
     l0_sensitivity = dp_params.l0_sensitivity()
 
-    # Splits the budget equally between the two mechanisms.
-    (sum_eps, sum_delta), (count_eps, count_delta) = equally_split_budget(
-        dp_params.eps, dp_params.delta, 2)
-
-    dp_normalized_sum = _add_random_noise(normalized_sum, sum_eps, sum_delta,
-                                          l0_sensitivity,
-                                          dp_params.linf_sensitivity(
-                                              pipeline_dp.Metrics.MEAN),
-                                          dp_params.noise_kind)
     dp_count = _add_random_noise(count, count_eps, count_delta, l0_sensitivity,
-                                 dp_params.linf_sensitivity(
-                                     pipeline_dp.Metrics.COUNT),
+                                 dp_params.max_contributions_per_partition,
                                  dp_params.noise_kind)
-    dp_mean = dp_normalized_sum / dp_count + middle
+
+    dp_mean = _compute_mean(count, dp_count, sum, dp_params.low, dp_params.high,
+                            sum_eps, sum_delta, l0_sensitivity,
+                            dp_params.max_contributions_per_partition,
+                            dp_params.noise_kind)
     return dp_count, dp_mean * dp_count, dp_mean
+
+
+def compute_dp_var(count: int, sum: float, sum_squares: float,
+                   dp_params: MeanVarParams):
+    """Computes DP variance.
+
+    Args:
+        count: Non-DP count.
+        sum: Non-DP sum.
+        sum_squares: Non-DP sum of squares.
+        dp_params: The parameters used at computing the noise.
+
+    Raises:
+        ValueError: The noise kind is invalid.
+
+    Returns:
+        The tuple of anonymized count, sum, sum_squares and variance.
+    """
+    # Splits the budget equally between the three mechanisms.
+    (count_eps,
+     count_delta), (sum_eps,
+                    sum_delta), (sum_squares_eps,
+                                 sum_squares_delta) = equally_split_budget(
+                                     dp_params.eps, dp_params.delta, 3)
+    l0_sensitivity = dp_params.l0_sensitivity()
+
+    dp_count = _add_random_noise(count, count_eps, count_delta, l0_sensitivity,
+                                 dp_params.max_contributions_per_partition,
+                                 dp_params.noise_kind)
+
+    # Computes and adds noise to the mean.
+    dp_mean = _compute_mean(count, dp_count, sum, dp_params.low, dp_params.high,
+                            sum_eps, sum_delta, l0_sensitivity,
+                            dp_params.max_contributions_per_partition,
+                            dp_params.noise_kind)
+
+    squares_low, squares_high = dp_params.squares_interval()
+
+    # Computes and adds noise to the mean of squares.
+    dp_mean_squares = _compute_mean(
+        count, dp_count, sum_squares, squares_low, squares_high,
+        sum_squares_eps, sum_squares_delta, l0_sensitivity,
+        dp_params.max_contributions_per_partition, dp_params.noise_kind)
+
+    dp_var = dp_mean_squares - dp_mean**2
+    return dp_count, dp_mean * dp_count, dp_mean_squares * dp_count, dp_var
