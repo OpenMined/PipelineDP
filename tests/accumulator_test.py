@@ -285,9 +285,9 @@ class SumAccumulatorTest(unittest.TestCase):
     def test_with_noise(self):
         sum_accumulator = accumulator.SumAccumulator(
             accumulator.SumParams(
-                MeanVarParams(eps=100,
-                              delta=1,
-                              low=1,
+                MeanVarParams(eps=10,
+                              delta=1e-5,
+                              low=0,
                               high=1,
                               max_partitions_contributed=1,
                               max_contributions_per_partition=3,
@@ -295,18 +295,18 @@ class SumAccumulatorTest(unittest.TestCase):
             list(range(6)))
         self.assertAlmostEqual(first=sum_accumulator.compute_metrics(),
                                second=15,
-                               places=1)
+                               delta=4)
 
         sum_accumulator.add_value(5)
         self.assertAlmostEqual(first=sum_accumulator.compute_metrics(),
                                second=20,
-                               places=1)
+                               delta=4)
 
         sum_accumulator_2 = accumulator.SumAccumulator(
             accumulator.SumParams(
-                MeanVarParams(eps=100,
-                              delta=1,
-                              low=1,
+                MeanVarParams(eps=10,
+                              delta=1e-5,
+                              low=0,
                               high=1,
                               max_partitions_contributed=1,
                               max_contributions_per_partition=3,
@@ -315,7 +315,7 @@ class SumAccumulatorTest(unittest.TestCase):
         sum_accumulator.add_accumulator(sum_accumulator_2)
         self.assertAlmostEqual(first=sum_accumulator.compute_metrics(),
                                second=23,
-                               places=1)
+                               delta=4)
 
 
 if __name__ == '__main__':
