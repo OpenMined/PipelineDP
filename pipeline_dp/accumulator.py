@@ -6,9 +6,9 @@ from functools import reduce
 
 from typing import Iterable, Tuple, Union
 import pipeline_dp
+from pipeline_dp import dp_computations
 from pipeline_dp import aggregate_params
 import numpy as np
-
 
 @dataclass
 class AccumulatorParams:
@@ -230,13 +230,14 @@ class VectorSummationAccumulator(Accumulator):
 
 
 class SumParams:
-    pass
+    noise: dp_computations.MeanVarParams
 
 
 class SumAccumulator(Accumulator):
 
     def __init__(self, params: SumParams, values):
         self._sum = sum(values)
+        self._params = params
 
     def add_value(self, value):
         self._sum += value
@@ -247,5 +248,5 @@ class SumAccumulator(Accumulator):
         self._sum += accumulator._sum
 
     def compute_metrics(self) -> float:
-        # TODO: add differential privacy
-        return self._sum
+        return pipeline_dp.dp_computations.compute_dp_sum(
+            self._sum, self._params.noise)
