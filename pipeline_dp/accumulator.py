@@ -228,7 +228,7 @@ class VectorSummationAccumulator(Accumulator):
     def _clip(self, vec_sum: np.ndarray, max_norm: float, norm_kind="linf"):
         if norm_kind == "linf":
             return np.clip(vec_sum, -max_norm, max_norm)
-        elif norm_kind in ["l0", "l1", "l2"]:
+        elif norm_kind in ["l1", "l2"]:
             norm_kind = int(norm_kind[-1])
             vec_norm = np.linalg.norm(vec_sum, ord=norm_kind)
             mul_coef = min(1, max_norm/vec_norm)
