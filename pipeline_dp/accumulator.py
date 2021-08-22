@@ -25,8 +25,15 @@ def create_accumulator_params(
     aggregation_params: pipeline_dp.AggregateParams,
     budget_accountant: pipeline_dp.BudgetAccountant
 ) -> typing.List[AccumulatorParams]:
-
-    raise NotImplemented()  # implementation will be done later
+    accumulator_params = []
+    if pipeline_dp.Metrics.COUNT in aggregation_params.metrics:
+        # TODO: populate CountParams from budget_accountant when it is ready
+        accumulator_params.append(AccumulatorParams(
+            accumulator_type=CountAccumulator,
+            constructor_params=CountParams()))
+    else:
+        raise NotImplemented()  # implementation will be done later
+    return accumulator_params
 
 
 class Accumulator(abc.ABC):
