@@ -236,7 +236,7 @@ class VectorSummationAccumulator(Accumulator):
             raise IndexError("No data provided for metrics computation.")
         return dp_computations.add_noise_vector(self._vec_sum, self._params)
 
-
+@dataclass
 class SumParams:
     noise: dp_computations.MeanVarParams
 
