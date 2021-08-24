@@ -6,10 +6,10 @@ from functools import reduce
 
 from typing import Iterable, Optional, Tuple, Union
 import pipeline_dp
+from pipeline_dp import dp_computations
 from pipeline_dp import aggregate_params
 from pipeline_dp import dp_computations
 import numpy as np
-
 
 @dataclass
 class AccumulatorParams:
@@ -26,8 +26,15 @@ def create_accumulator_params(
     aggregation_params: pipeline_dp.AggregateParams,
     budget_accountant: pipeline_dp.BudgetAccountant
 ) -> typing.List[AccumulatorParams]:
-
-    raise NotImplemented()  # implementation will be done later
+    accumulator_params = []
+    if pipeline_dp.Metrics.COUNT in aggregation_params.metrics:
+        # TODO: populate CountParams from budget_accountant when it is ready
+        accumulator_params.append(AccumulatorParams(
+            accumulator_type=CountAccumulator,
+            constructor_params=CountParams()))
+    else:
+        raise NotImplemented()  # implementation will be done later
+    return accumulator_params
 
 
 class Accumulator(abc.ABC):
@@ -231,13 +238,14 @@ class VectorSummationAccumulator(Accumulator):
 
 
 class SumParams:
-    pass
+    noise: dp_computations.MeanVarParams
 
 
 class SumAccumulator(Accumulator):
 
     def __init__(self, params: SumParams, values):
         self._sum = sum(values)
+        self._params = params
 
     def add_value(self, value):
         self._sum += value
@@ -248,5 +256,5 @@ class SumAccumulator(Accumulator):
         self._sum += accumulator._sum
 
     def compute_metrics(self) -> float:
-        # TODO: add differential privacy
-        return self._sum
+        return pipeline_dp.dp_computations.compute_dp_sum(
+            self._sum, self._params.noise)

@@ -9,6 +9,7 @@ from pipeline_dp.budget_accounting import BudgetAccountant, Budget
 from pipeline_dp.pipeline_operations import PipelineOperations
 from pipeline_dp.report_generator import ReportGenerator
 from pipeline_dp.accumulator import Accumulator
+from pipeline_dp.accumulator import AccumulatorFactory
 
 from pydp.algorithms.partition_selection import create_truncated_geometric_partition_strategy
 
@@ -38,7 +39,7 @@ class DPEngine:
         self._report_generators[-1].add_stage(text)
 
     def aggregate(self, col, params: AggregateParams,
-                  data_extractors: DataExtractors):  # pylint: disable=unused-argument
+                  data_extractors: DataExtractors):
         """Computes DP aggregation metrics
 
     Args:
@@ -50,6 +51,23 @@ class DPEngine:
         if params is None:
             return None
         self._report_generators.append(ReportGenerator(params))
+
+        accumulator_factory = AccumulatorFactory(params=params,
+                                                 budget_accountant=self._budget_accountant)
+        accumulator_factory.initialize()
+        aggregator_fn = accumulator_factory.create
+
+        # extract the columns
+        col = self._ops.map_tuple(
+            col, lambda row: (data_extractors.privacy_id_extractor(row),
+                              data_extractors.partition_extractor(row),
+                              data_extractors.value_extractor(row)),
+            "Extract (privacy_id, partition_key, value))")
+        # col : (privacy_id, partition_key, value)
+        col = self._bound_contributions(
+            col, params.max_partitions_contributed,
+            params.max_contributions_per_partition, aggregator_fn)
+        # col : ((privacy_id, partition_key), accumulator)
         result = col
 
         # If no public partitions were specified, return aggregation results

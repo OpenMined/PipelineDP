@@ -5,6 +5,9 @@ import unittest
 
 import pipeline_dp
 import pydp.algorithms.partition_selection as partition_selection
+from pipeline_dp import aggregate_params as agg
+from pipeline_dp.accumulator import CountAccumulator
+from pipeline_dp.accumulator import AccumulatorFactory
 """DPEngine Test"""
 
 class _MockPartitionStrategy(partition_selection.PartitionSelectionStrategy):
@@ -152,7 +155,13 @@ class dp_engineTest(unittest.TestCase):
         self.assertIsNone(
             pipeline_dp.DPEngine(None, None).aggregate(None, None, None))
 
-    def test_aggregate_report(self):
+    @patch('pipeline_dp.accumulator.create_accumulator_params')
+    def test_aggregate_report(self, mock_create_accumulator_params_function):
+        col = [[1], [2], [3], [3]]
+        data_extractor = pipeline_dp.DataExtractors(
+            privacy_id_extractor=lambda x: "pid" + str(x),
+            partition_extractor=lambda x: "pk" + str(x),
+            value_extractor=lambda x: x)
         params1 = pipeline_dp.AggregateParams(
             max_partitions_contributed=3,
             max_contributions_per_partition=2,
@@ -174,17 +183,65 @@ class dp_engineTest(unittest.TestCase):
             ],
             public_partitions=list(range(1, 40)),
         )
-        engine = pipeline_dp.DPEngine(None, None)
-        engine.aggregate(None, params1, None)
-        engine.aggregate(None, params2, None)
+        mock_create_accumulator_params_function.return_value = [
+            pipeline_dp.accumulator.AccumulatorParams(
+                pipeline_dp.accumulator.CountAccumulator, None)
+        ]
+        engine = pipeline_dp.DPEngine(
+            budget_accountant=pipeline_dp.BudgetAccountant(1, 1e-10),
+            ops=pipeline_dp.LocalPipelineOperations())
+        engine.aggregate(col, params1, data_extractor)
+        engine.aggregate(col, params2, data_extractor)
         self.assertEqual(len(engine._report_generators), 2)  # pylint: disable=protected-access
 
-    def _mock_and_assert_private_partitions(self, engine: pipeline_dp.DPEngine, groups,
-                                            min_users, expected_partitions,
+    @patch('pipeline_dp.DPEngine._bound_contributions')
+    def test_aggregate_computation_graph_verification(self,
+                                                      mock_bound_contributions):
+        # Arrange
+        aggregator_params = pipeline_dp.AggregateParams([agg.Metrics.COUNT], 5,
+                                                        3)
+        budget_accountant = pipeline_dp.BudgetAccountant(1, 1e-10)
+        accumulator_factory = AccumulatorFactory(
+            params=aggregator_params, budget_accountant=budget_accountant)
+        accumulator_factory.initialize()
+
+        col = [[1], [2], [3], [3]]
+        data_extractor = pipeline_dp.DataExtractors(
+            privacy_id_extractor=lambda x: "pid" + str(x),
+            partition_extractor=lambda x: "pk" + str(x),
+            value_extractor=lambda x: x)
+
+        mock_bound_contributions.return_value = [
+            [("pid1", "pk1"),
+             CountAccumulator(params=None, values=[1])],
+            [("pid2", "pk2"),
+             CountAccumulator(params=None, values=[1])],
+            [("pid3", "pk3"),
+             CountAccumulator(params=None, values=[2])],
+        ]
+
+        engine = pipeline_dp.DPEngine(budget_accountant=budget_accountant,
+                                      ops=pipeline_dp.LocalPipelineOperations())
+        col = engine.aggregate(col=col,
+                               params=aggregator_params,
+                               data_extractors=data_extractor)
+
+        # Assert
+        mock_bound_contributions.assert_called_with(
+            unittest.mock.ANY, aggregator_params.max_partitions_contributed,
+            aggregator_params.max_contributions_per_partition,
+            unittest.mock.ANY)
+
+    def _mock_and_assert_private_partitions(self, engine: pipeline_dp.DPEngine,
+                                            groups, min_users,
+                                            expected_partitions,
                                             max_partitions_contributed):
-        with patch("pipeline_dp.dp_engine.create_truncated_geometric_partition_strategy",
-                   new=_mock_partition_strategy_factory(min_users)) as mock_factory:
-            data_filtered = engine._select_private_partitions(groups, max_partitions_contributed)
+        with patch(
+                "pipeline_dp.dp_engine.create_truncated_geometric_partition_strategy",
+                new=_mock_partition_strategy_factory(
+                    min_users)) as mock_factory:
+            data_filtered = engine._select_private_partitions(
+                groups, max_partitions_contributed)
             engine._budget_accountant.compute_budgets()
             self.assertListEqual(list(data_filtered), expected_partitions)
 
