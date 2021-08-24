@@ -186,20 +186,19 @@ class CountAccumulator(Accumulator):
         return self._count
 
 
-@dataclass
-class VectorSummationParams:
-    dp_params: dp_computations.MeanVarParams
-    clip_norm_kind: str
-    max_norm: float
-
 _FloatVector = Union[Tuple[float], np.ndarray]
 
 class VectorSummationAccumulator(Accumulator):
     _vec_sum: np.ndarray
-    _params: Optional[VectorSummationParams]
+    _params: dp_computations.AdditiveVectorNoiseParams
 
-    def __init__(self, params: Optional[VectorSummationParams],
+    def __init__(self, params: dp_computations.AdditiveVectorNoiseParams,
                  values: Iterable[_FloatVector]) -> None:
+        if not isinstance(params, dp_computations.AdditiveVectorNoiseParams):
+            raise TypeError(
+                f"'params' parameters should be of type "
+                f"dp_computations.AdditiveVectorNoiseParams, not {params.__class__.__name__}"
+            )
         self._params = params
         self._vec_sum = None
         for val in values:
@@ -225,26 +224,10 @@ class VectorSummationAccumulator(Accumulator):
         self.add_value(accumulator._vec_sum)
         return self
 
-    def _clip(self, vec_sum: np.ndarray, max_norm: float, norm_kind="linf"):
-        if norm_kind == "linf":
-            return np.clip(vec_sum, -max_norm, max_norm)
-        elif norm_kind in ["l1", "l2"]:
-            norm_kind = int(norm_kind[-1])
-            vec_norm = np.linalg.norm(vec_sum, ord=norm_kind)
-            mul_coef = min(1, max_norm/vec_norm)
-            return vec_sum * mul_coef
-
     def compute_metrics(self):
         if self._vec_sum is None:
             raise IndexError("No data provided for metrics computation.")
-        if self._params is None:
-            return self._vec_sum
-        vec_sum = self._clip(self._vec_sum, self._params.max_norm, self._params.clip_norm_kind)
-        vec_sum = np.array([
-            dp_computations.compute_dp_sum(s, self._params.dp_params)
-            for s in vec_sum
-        ])
-        return vec_sum
+        return dp_computations.add_noise_vector(self._vec_sum, self._params)
 
 
 class SumParams:
