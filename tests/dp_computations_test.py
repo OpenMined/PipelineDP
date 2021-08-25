@@ -31,28 +31,30 @@ class MeanVarParams(unittest.TestCase):
 
     def test_compute_sigma(self):
         self.assertEqual(
-            pipeline_dp.dp_computations.compute_sigma(
-                eps=1, delta=1, l2_sensitivity=10),
+            pipeline_dp.dp_computations.compute_sigma(eps=1,
+                                                      delta=1,
+                                                      l2_sensitivity=10),
             np.sqrt(2 * np.log(1.25)) * 10)
         self.assertEqual(
-            pipeline_dp.dp_computations.compute_sigma(
-                eps=0.5, delta=1e-10, l2_sensitivity=10),
+            pipeline_dp.dp_computations.compute_sigma(eps=0.5,
+                                                      delta=1e-10,
+                                                      l2_sensitivity=10),
             np.sqrt(2 * np.log(1.25 / 1e-10)) * 20)
 
     def _test_laplace_noise(self, results, value, eps, l1_sensitivity):
         self.assertAlmostEqual(np.mean(results), value, delta=0.1)
-        self.assertAlmostEqual(
-            np.std(results), np.sqrt(2) * l1_sensitivity / eps, delta=0.1)
+        self.assertAlmostEqual(np.std(results),
+                               np.sqrt(2) * l1_sensitivity / eps,
+                               delta=0.1)
         self.assertAlmostEqual(skew(results), 0, delta=0.1)
         self.assertAlmostEqual(kurtosis(results), 3, delta=0.1)
 
     def _test_gaussian_noise(self, results, value, eps, delta, l2_sensitivity):
         self.assertAlmostEqual(np.mean(results), value, delta=0.1)
-        self.assertAlmostEqual(
-            np.std(results),
-            pipeline_dp.dp_computations.compute_sigma(eps, delta,
-                                                      l2_sensitivity),
-            delta=0.1)
+        self.assertAlmostEqual(np.std(results),
+                               pipeline_dp.dp_computations.compute_sigma(
+                                   eps, delta, l2_sensitivity),
+                               delta=0.1)
         self.assertAlmostEqual(skew(results), 0, delta=0.1)
         self.assertAlmostEqual(kurtosis(results), 0, delta=0.1)
 
@@ -69,8 +71,11 @@ class MeanVarParams(unittest.TestCase):
                 value=20, eps=0.5, delta=1e-10, l2_sensitivity=1)
             for _ in range(1000000)
         ]
-        self._test_gaussian_noise(
-            results, value=20, eps=0.5, delta=1e-10, l2_sensitivity=1)
+        self._test_gaussian_noise(results,
+                                  value=20,
+                                  eps=0.5,
+                                  delta=1e-10,
+                                  l2_sensitivity=1)
 
     def test_compute_dp_count(self):
         params = pipeline_dp.dp_computations.MeanVarParams(
@@ -88,8 +93,9 @@ class MeanVarParams(unittest.TestCase):
         l1_sensitivity = pipeline_dp.dp_computations.compute_l1_sensitivity(
             l0_sensitivity, linf_sensitivity)
         results = [
-            pipeline_dp.dp_computations.compute_dp_count(
-                count=10, dp_params=params) for _ in range(1000000)
+            pipeline_dp.dp_computations.compute_dp_count(count=10,
+                                                         dp_params=params)
+            for _ in range(1000000)
         ]
         self._test_laplace_noise(results, 10, params.eps, l1_sensitivity)
 
@@ -98,8 +104,9 @@ class MeanVarParams(unittest.TestCase):
         l2_sensitivity = pipeline_dp.dp_computations.compute_l2_sensitivity(
             l0_sensitivity, linf_sensitivity)
         results = [
-            pipeline_dp.dp_computations.compute_dp_count(
-                count=10, dp_params=params) for _ in range(1000000)
+            pipeline_dp.dp_computations.compute_dp_count(count=10,
+                                                         dp_params=params)
+            for _ in range(1000000)
         ]
         self._test_gaussian_noise(results, 10, params.eps, params.delta,
                                   l2_sensitivity)
@@ -121,8 +128,8 @@ class MeanVarParams(unittest.TestCase):
         l1_sensitivity = pipeline_dp.dp_computations.compute_l1_sensitivity(
             l0_sensitivity, linf_sensitivity)
         results = [
-            pipeline_dp.dp_computations.compute_dp_sum(
-                sum=10, dp_params=params) for _ in range(1000000)
+            pipeline_dp.dp_computations.compute_dp_sum(sum=10, dp_params=params)
+            for _ in range(1000000)
         ]
         self._test_laplace_noise(results, 10, params.eps, l1_sensitivity)
 
@@ -131,8 +138,8 @@ class MeanVarParams(unittest.TestCase):
         l2_sensitivity = pipeline_dp.dp_computations.compute_l2_sensitivity(
             l0_sensitivity, linf_sensitivity)
         results = [
-            pipeline_dp.dp_computations.compute_dp_sum(
-                sum=10, dp_params=params) for _ in range(1000000)
+            pipeline_dp.dp_computations.compute_dp_sum(sum=10, dp_params=params)
+            for _ in range(1000000)
         ]
         self._test_gaussian_noise(results, 10, params.eps, params.delta,
                                   l2_sensitivity)
@@ -174,8 +181,10 @@ class MeanVarParams(unittest.TestCase):
 
         # Laplace Mechanism
         results = [
-            pipeline_dp.dp_computations.compute_dp_mean(
-                count=1000, sum=10000, dp_params=params) for _ in range(1000000)
+            pipeline_dp.dp_computations.compute_dp_mean(count=1000,
+                                                        sum=10000,
+                                                        dp_params=params)
+            for _ in range(1000000)
         ]
         count_values, sum_values, mean_values = zip(*results)
         self._test_laplace_noise(
@@ -188,8 +197,10 @@ class MeanVarParams(unittest.TestCase):
         # Gaussian Mechanism
         params.noise_kind = pipeline_dp.NoiseKind.GAUSSIAN
         results = [
-            pipeline_dp.dp_computations.compute_dp_mean(
-                count=1000, sum=10000, dp_params=params) for _ in range(1500000)
+            pipeline_dp.dp_computations.compute_dp_mean(count=1000,
+                                                        sum=10000,
+                                                        dp_params=params)
+            for _ in range(1500000)
         ]
         count_values, sum_values, mean_values = zip(*results)
         self._test_gaussian_noise(
@@ -217,11 +228,11 @@ class MeanVarParams(unittest.TestCase):
 
         # Laplace Mechanism
         results = [
-            pipeline_dp.dp_computations.compute_dp_var(
-                count=100000,
-                sum=1000000,
-                sum_squares=20000000,
-                dp_params=params) for _ in range(1500000)
+            pipeline_dp.dp_computations.compute_dp_var(count=100000,
+                                                       sum=1000000,
+                                                       sum_squares=20000000,
+                                                       dp_params=params)
+            for _ in range(1500000)
         ]
         count_values, sum_values, sum_squares_values, var_values = zip(*results)
         self._test_laplace_noise(
@@ -235,11 +246,11 @@ class MeanVarParams(unittest.TestCase):
         # Gaussian Mechanism
         params.noise_kind = pipeline_dp.NoiseKind.GAUSSIAN
         results = [
-            pipeline_dp.dp_computations.compute_dp_var(
-                count=100000,
-                sum=1000000,
-                sum_squares=20000000,
-                dp_params=params) for _ in range(1500000)
+            pipeline_dp.dp_computations.compute_dp_var(count=100000,
+                                                       sum=1000000,
+                                                       sum_squares=20000000,
+                                                       dp_params=params)
+            for _ in range(1500000)
         ]
         count_values, sum_values, sum_squares_values, var_values = zip(*results)
         self._test_gaussian_noise(

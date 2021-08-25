@@ -78,10 +78,14 @@ class BeamOperationsTest(parameterized.TestCase):
 
     def test_reduce_accumulators_per_key(self):
         with test_pipeline.TestPipeline() as p:
-            col = p | "Create PCollection" >> beam.Create([(6, 1), (7, 1), (6, 1), (7, 1), (8, 1)])
-            col = self.ops.map_values(col, SumAccumulator, "Wrap into accumulators")
+            col = p | "Create PCollection" >> beam.Create([(6, 1), (7, 1),
+                                                           (6, 1), (7, 1),
+                                                           (8, 1)])
+            col = self.ops.map_values(col, SumAccumulator,
+                                      "Wrap into accumulators")
             col = self.ops.reduce_accumulators_per_key(col)
-            result = col | "Get accumulated values" >> beam.Map(lambda row: (row[0], row[1].get_metrics()))
+            result = col | "Get accumulated values" >> beam.Map(
+                lambda row: (row[0], row[1].get_metrics()))
 
             assert_that(result, equal_to([(6, 2), (7, 2), (8, 1)]))
 
@@ -95,8 +99,7 @@ class SparkRDDOperationsTest(parameterized.TestCase):
         cls.data_extractors = DataExtractors(
             partition_extractor=lambda x: x[1],
             privacy_id_extractor=lambda x: x[0],
-            value_extractor=lambda x: x[2]
-        )
+            value_extractor=lambda x: x[2])
 
     def test_filter_by_key_none_public_partitions(self):
         spark_operations = SparkRDDOperations()
@@ -105,45 +108,35 @@ class SparkRDDOperationsTest(parameterized.TestCase):
         public_partitions = None
         with self.assertRaises(TypeError):
             spark_operations.filter_by_key(
-                dist_data,
-                public_partitions,
-                SparkRDDOperationsTest.data_extractors
-            )
+                dist_data, public_partitions,
+                SparkRDDOperationsTest.data_extractors)
 
-    @parameterized.parameters(
-        {'distributed': False},
-        {'distributed': True}
-    )
+    @parameterized.parameters({'distributed': False}, {'distributed': True})
     def test_filter_by_key_empty_public_partitions(self, distributed):
         spark_operations = SparkRDDOperations()
         data = [(1, 11, 111), (2, 22, 222)]
         dist_data = SparkRDDOperationsTest.sc.parallelize(data)
         public_partitions = []
         if distributed:
-            public_partitions = SparkRDDOperationsTest.sc.parallelize(public_partitions)
+            public_partitions = SparkRDDOperationsTest.sc.parallelize(
+                public_partitions)
         result = spark_operations.filter_by_key(
-            dist_data,
-            public_partitions,
-            SparkRDDOperationsTest.data_extractors
-        ).collect()
+            dist_data, public_partitions,
+            SparkRDDOperationsTest.data_extractors).collect()
         self.assertListEqual(result, [])
 
-    @parameterized.parameters(
-        {'distributed': False},
-        {'distributed': True}
-    )
+    @parameterized.parameters({'distributed': False}, {'distributed': True})
     def test_filter_by_key_nonempty_public_partitions(self, distributed):
         spark_operations = SparkRDDOperations()
         data = [(1, 11, 111), (2, 22, 222)]
         dist_data = SparkRDDOperationsTest.sc.parallelize(data)
         public_partitions = [11, 33]
         if distributed:
-            public_partitions = SparkRDDOperationsTest.sc.parallelize(public_partitions)
+            public_partitions = SparkRDDOperationsTest.sc.parallelize(
+                public_partitions)
         result = spark_operations.filter_by_key(
-            dist_data,
-            public_partitions,
-            SparkRDDOperationsTest.data_extractors
-        ).collect()
+            dist_data, public_partitions,
+            SparkRDDOperationsTest.data_extractors).collect()
         self.assertListEqual(result, [(11, (1, 11, 111))])
 
     def test_sample_fixed_per_key(self):
@@ -394,15 +387,20 @@ class LocalPipelineOperationsTest(unittest.TestCase):
                          [("cheese", ["brie", "swiss"]),
                           ("bread", ["sourdough"])])
 
+
 class MultiProcLocalPipelineOperationsTest(unittest.TestCase):
-    @staticmethod
-    def partition_extract(x): return x[1]
 
     @staticmethod
-    def privacy_id_extract(x): return x[0]
+    def partition_extract(x):
+        return x[1]
 
     @staticmethod
-    def value_extract(x): return x[2]
+    def privacy_id_extract(x):
+        return x[0]
+
+    @staticmethod
+    def value_extract(x):
+        return x[2]
 
     @classmethod
     def setUpClass(cls):
@@ -418,11 +416,13 @@ class MultiProcLocalPipelineOperationsTest(unittest.TestCase):
         if isinstance(data, tuple):
             return tuple(self._sort_dataset(x) for x in data)
         data = list(data)
+
         def sortfn(x):
             # make everything a sortable thing!
             if isinstance(x, list):
                 return self._sort_dataset(tuple(x))
             return x
+
         return sorted(data, key=sortfn)
 
     def assertDatasetsEqual(self, first, second, toplevel=True):
@@ -442,20 +442,20 @@ class MultiProcLocalPipelineOperationsTest(unittest.TestCase):
                 self.assertDatasetsEqual(v1, v2, False)
             else:
                 self.assertEqual(first, second)
-        else: # all other itearble instances
-            first = list(first)           
+        else:  # all other itearble instances
+            first = list(first)
             second = list(second)
             self.assertEqual(len(first), len(second))
             for e1, e2 in zip(first, second):
                 self.assertDatasetsEqual(e1, e2, False)
-        
 
     @pytest.mark.timeout(10)
     def test_multiproc_map(self):
         self.assertDatasetsEqual(list(self.ops.map([], lambda x: x / 0)), [])
-        self.assertDatasetsEqual(list(self.ops.map([1, 2, 3], str)), ["1", "2", "3"])
+        self.assertDatasetsEqual(list(self.ops.map([1, 2, 3], str)),
+                                 ["1", "2", "3"])
         self.assertDatasetsEqual(list(self.ops.map(range(5), lambda x: x**2)),
-                                [0, 1, 4, 9, 16])
+                                 [0, 1, 4, 9, 16])
 
     @pytest.mark.timeout(10)
     def test_multiproc_map_tuple(self):
@@ -466,18 +466,21 @@ class MultiProcLocalPipelineOperationsTest(unittest.TestCase):
 
         self.assertDatasetsEqual(
             list(self.ops.map_tuple(tuple_list, lambda k, v: (str(k), str(v)))),
-                [("1", "2"), ("2", "3"), ("3", "4")])
+            [("1", "2"), ("2", "3"), ("3", "4")])
 
     @pytest.mark.timeout(10)
     def test_multiproc_map_values(self):
-        self.assertDatasetsEqual(list(self.ops.map_values([], lambda x: x / 0)), [])
+        self.assertDatasetsEqual(list(self.ops.map_values([], lambda x: x / 0)),
+                                 [])
 
         tuple_list = [(1, 2), (2, 3), (3, 4)]
 
-        self.assertDatasetsEqual(list(self.ops.map_values(tuple_list, str)), 
-                                [(1, "2"), (2, "3"), (3, "4")])
-        self.assertDatasetsEqual(list(self.ops.map_values(tuple_list, lambda x: x**2)),
-                                [(1, 4), (2, 9), (3, 16)])
+        self.assertDatasetsEqual(list(self.ops.map_values(tuple_list, str)),
+                                 [(1, "2"), (2, "3"), (3, "4")])
+        self.assertDatasetsEqual(
+            list(self.ops.map_values(tuple_list, lambda x: x**2)), [(1, 4),
+                                                                    (2, 9),
+                                                                    (3, 16)])
 
     @pytest.mark.timeout(10)
     def test_multiproc_group_by_key(self):
@@ -485,8 +488,8 @@ class MultiProcLocalPipelineOperationsTest(unittest.TestCase):
                      ("cheese", "swiss")]
 
         self.assertDatasetsEqual(list(self.ops.group_by_key(some_dict)),
-                                [("cheese", ["brie", "swiss"]),
-                                ("bread", ["sourdough"])])
+                                 [("cheese", ["brie", "swiss"]),
+                                  ("bread", ["sourdough"])])
 
     @pytest.mark.timeout(10)
     def test_multiproc_filter(self):
@@ -495,10 +498,10 @@ class MultiProcLocalPipelineOperationsTest(unittest.TestCase):
 
         example_list = [1, 2, 2, 3, 3, 4, 2]
 
-        self.assertDatasetsEqual(list(self.ops.filter(example_list, lambda x: x % 2)),
-                                [1, 3, 3])
-        self.assertDatasetsEqual(list(self.ops.filter(example_list, lambda x: x < 3)),
-                                [1, 2, 2, 2])
+        self.assertDatasetsEqual(
+            list(self.ops.filter(example_list, lambda x: x % 2)), [1, 3, 3])
+        self.assertDatasetsEqual(
+            list(self.ops.filter(example_list, lambda x: x < 3)), [1, 2, 2, 2])
 
     @pytest.mark.timeout(10)
     def test_multiproc_filter_by_key_empty_public_keys(self):
@@ -524,7 +527,8 @@ class MultiProcLocalPipelineOperationsTest(unittest.TestCase):
 
         example_list = [(1, 2), (2, 3), (3, 4), (4, 8)]
 
-        self.assertDatasetsEqual(list(self.ops.keys(example_list)), [1, 2, 3, 4])
+        self.assertDatasetsEqual(list(self.ops.keys(example_list)),
+                                 [1, 2, 3, 4])
 
     @pytest.mark.timeout(10)
     def test_multiproc_values(self):
@@ -532,22 +536,15 @@ class MultiProcLocalPipelineOperationsTest(unittest.TestCase):
 
         example_list = [(1, 2), (2, 3), (3, 4), (4, 8)]
 
-        self.assertDatasetsEqual(list(self.ops.values(example_list)), [2, 3, 4, 8])
+        self.assertDatasetsEqual(list(self.ops.values(example_list)),
+                                 [2, 3, 4, 8])
 
     @pytest.mark.timeout(10)
     def test_multiproc_count_per_element(self):
         example_list = [1, 2, 3, 4, 5, 6, 1, 4, 0, 1]
         result = dict(self.ops.count_per_element(example_list))
 
-        self.assertDictEqual(result, {
-            1: 3,
-            2: 1,
-            3: 1,
-            4: 2,
-            5: 1,
-            6: 1,
-            0: 1
-        })
+        self.assertDictEqual(result, {1: 3, 2: 1, 3: 1, 4: 2, 5: 1, 6: 1, 0: 1})
 
     @pytest.mark.timeout(10)
     def test_multiproc_sample_fixed_per_key_requires_no_discarding(self):
@@ -555,7 +552,8 @@ class MultiProcLocalPipelineOperationsTest(unittest.TestCase):
                      ("pid1", ('pk3', 1)), ("pid2", ('pk4', 1))]
         n = 3
 
-        sample_fixed_per_key_result = list(self.ops.sample_fixed_per_key(input_col, n))
+        sample_fixed_per_key_result = list(
+            self.ops.sample_fixed_per_key(input_col, n))
 
         expected_result = [("pid1", [('pk1', 1), ('pk2', 1), ('pk3', 1)]),
                            ("pid2", [('pk4', 1)])]
@@ -572,21 +570,22 @@ class MultiProcLocalPipelineOperationsTest(unittest.TestCase):
         sample_fixed_per_key_result = list(
             self.ops.sample_fixed_per_key(input_col, n))
 
-        self.assertTrue(all(
-            map(lambda pid_pk_v: len(pid_pk_v[1]) <= n,
-                sample_fixed_per_key_result)
-            )
-        )
+        self.assertTrue(
+            all(
+                map(lambda pid_pk_v: len(pid_pk_v[1]) <= n,
+                    sample_fixed_per_key_result)))
 
     @pytest.mark.timeout(10)
     def test_multiproc_flat_map(self):
         input_col = [[1, 2, 3, 4], [5, 6, 7, 8]]
-        self.assertDatasetsEqual(list(self.ops.flat_map(input_col, lambda x: x)),
-                                [1, 2, 3, 4, 5, 6, 7, 8])
+        self.assertDatasetsEqual(
+            list(self.ops.flat_map(input_col, lambda x: x)),
+            [1, 2, 3, 4, 5, 6, 7, 8])
 
         input_col = [("a", [1, 2, 3, 4]), ("b", [5, 6, 7, 8])]
-        self.assertDatasetsEqual(list(self.ops.flat_map(input_col, lambda x: x[1])),
-                                [1, 2, 3, 4, 5, 6, 7, 8])
+        self.assertDatasetsEqual(
+            list(self.ops.flat_map(input_col, lambda x: x[1])),
+            [1, 2, 3, 4, 5, 6, 7, 8])
         self.assertDatasetsEqual(
             list(
                 self.ops.flat_map(input_col,
@@ -602,11 +601,10 @@ class MultiProcLocalPipelineOperationsTest(unittest.TestCase):
         result = sorted(self.ops.group_by_key(some_dict))
         result = [(k, sorted(v)) for k, v in result]
 
-        self.assertEqual(result,
-                         [
-                             ("bread", ["sourdough"]),
-                             ("cheese", ["brie", "swiss"]),
-                         ])
+        self.assertEqual(result, [
+            ("bread", ["sourdough"]),
+            ("cheese", ["brie", "swiss"]),
+        ])
 
     def test_laziness(self):
 

@@ -10,6 +10,7 @@ from pipeline_dp import dp_computations
 from pipeline_dp import aggregate_params
 import numpy as np
 
+
 @dataclass
 class AccumulatorParams:
     accumulator_type: type
@@ -28,9 +29,9 @@ def create_accumulator_params(
     accumulator_params = []
     if pipeline_dp.Metrics.COUNT in aggregation_params.metrics:
         # TODO: populate CountParams from budget_accountant when it is ready
-        accumulator_params.append(AccumulatorParams(
-            accumulator_type=CountAccumulator,
-            constructor_params=CountParams()))
+        accumulator_params.append(
+            AccumulatorParams(accumulator_type=CountAccumulator,
+                              constructor_params=CountParams()))
     else:
         raise NotImplemented()  # implementation will be done later
     return accumulator_params
@@ -197,7 +198,9 @@ class VectorSummationParams:
     noise_kind: aggregate_params.NoiseKind
     max_norm: float
 
+
 _FloatVector = Union[Tuple[float], np.ndarray]
+
 
 class VectorSummationAccumulator(Accumulator):
     _vec_sum: np.ndarray
