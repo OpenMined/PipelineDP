@@ -2,7 +2,7 @@
 
 .PHONY: format
 format:
-	yapf -i --style='{based_on_style: google, indent_width: 4}' -r pipeline_dp tests
+	yapf -i -r pipeline_dp tests
 
 .PHONY: lint
 lint:
