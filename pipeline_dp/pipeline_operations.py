@@ -124,8 +124,11 @@ class BeamOperations(PipelineOperations):
     def filter(self, col, fn, stage_name: str):
         return col | stage_name >> beam.Filter(fn)
 
-    def filter_by_key(self, col, keys_to_keep, data_extractors, stage_name: str):
+    def filter_by_key(self, col, keys_to_keep, data_extractors,
+                      stage_name: str):
+
         class PartitionsFilterJoin(beam.DoFn):
+
             def process(self, joined_data):
                 key, rest = joined_data
                 values, is_public = rest.get(VALUES), rest.get(IS_PUBLIC)
@@ -149,29 +152,24 @@ class BeamOperations(PipelineOperations):
             raise TypeError("Must provide a valid keys to keep")
 
         col = col | "Mapping data by partition" >> beam.Map(
-            lambda x: (data_extractors.partition_extractor(x), x)
-        )
+            lambda x: (data_extractors.partition_extractor(x), x))
 
         if isinstance(keys_to_keep, (list, set)):
             # Keys to keep are in memory.
             if not isinstance(keys_to_keep, set):
                 keys_to_keep = set(keys_to_keep)
             return col | "Filtering data from public partitions" >> beam.Filter(
-                has_public_partition_key
-            )
+                has_public_partition_key)
 
         # Public paritions are not in memory. Filter out with a join.
-        keys_to_keep = (
-            keys_to_keep
-            | "Creating public_partitions PCollection" >> beam.Map(lambda x: (x, True))
-        )
-        return (
-            {VALUES: col, IS_PUBLIC: keys_to_keep}
-            | "Aggregating elements by values and is_public partition flag "
-            >> beam.CoGroupByKey()
-            | "Filtering data from public partitions"
-            >> beam.ParDo(PartitionsFilterJoin())
-        )
+        keys_to_keep = (keys_to_keep | "Creating public_partitions PCollection"
+                        >> beam.Map(lambda x: (x, True)))
+        return ({
+            VALUES: col,
+            IS_PUBLIC: keys_to_keep
+        } | "Aggregating elements by values and is_public partition flag " >>
+                beam.CoGroupByKey() | "Filtering data from public partitions" >>
+                beam.ParDo(PartitionsFilterJoin()))
 
     def keys(self, col, stage_name: str):
         return col | stage_name >> beam.Keys()
@@ -231,7 +229,11 @@ class SparkRDDOperations(PipelineOperations):
     def filter(self, rdd, fn, stage_name: str = None):
         return rdd.filter(fn)
 
-    def filter_by_key(self, rdd, keys_to_keep, data_extractors, stage_name: str = None):
+    def filter_by_key(self,
+                      rdd,
+                      keys_to_keep,
+                      data_extractors,
+                      stage_name: str = None):
 
         if keys_to_keep is None:
             raise TypeError("Must provide a valid keys to keep")
@@ -268,8 +270,7 @@ class SparkRDDOperations(PipelineOperations):
 
         """
         return rdd.mapValues(lambda x: [x]).reduceByKey(
-            lambda x, y: random.sample(x + y, min(len(x) + len(y), n))
-        )
+            lambda x, y: random.sample(x + y, min(len(x) + len(y), n)))
 
     def count_per_element(self, rdd, stage_name: str = None):
         return rdd.map(lambda x: (x, 1)).reduceByKey(lambda x, y: (x + y))
@@ -294,6 +295,7 @@ class LocalPipelineOperations(PipelineOperations):
         return ((k, fn(v)) for k, v in col)
 
     def group_by_key(self, col, stage_name: typing.Optional[str] = None):
+
         def group_by_key_generator():
             d = collections.defaultdict(list)
             for key, value in col:
@@ -313,11 +315,9 @@ class LocalPipelineOperations(PipelineOperations):
         data_extractors,
         stage_name: typing.Optional[str] = None,
     ):
-        return [
-            (data_extractors.partition_extractor(x), x)
-            for x in col
-            if data_extractors.partition_extractor(x) in keys_to_keep
-        ]
+        return [(data_extractors.partition_extractor(x), x)
+                for x in col
+                if data_extractors.partition_extractor(x) in keys_to_keep]
 
     def keys(self, col, stage_name: typing.Optional[str] = None):
         return (k for k, v in col)
@@ -325,17 +325,19 @@ class LocalPipelineOperations(PipelineOperations):
     def values(self, col, stage_name: typing.Optional[str] = None):
         return (v for k, v in col)
 
-    def sample_fixed_per_key(
-        self, col, n: int, stage_name: typing.Optional[str] = None
-    ):
+    def sample_fixed_per_key(self,
+                             col,
+                             n: int,
+                             stage_name: typing.Optional[str] = None):
+
         def sample_fixed_per_key_generator():
             for item in self.group_by_key(col):
                 key = item[0]
                 values = item[1]
                 if len(values) > n:
-                    sampled_indices = np.random.choice(
-                        range(len(values)), n, replace=False
-                    )
+                    sampled_indices = np.random.choice(range(len(values)),
+                                                       n,
+                                                       replace=False)
                     values = [values[i] for i in sampled_indices]
                 yield key, values
 
@@ -363,14 +365,9 @@ def _pool_worker(row):
 
 
 class _LazyMultiProcIterator:
-    def __init__(
-        self,
-        job: typing.Callable,
-        job_inputs: typing.Iterable,
-        chunksize: int,
-        n_jobs: typing.Optional[int],
-        **pool_kwargs
-    ):
+
+    def __init__(self, job: typing.Callable, job_inputs: typing.Iterable,
+                 chunksize: int, n_jobs: typing.Optional[int], **pool_kwargs):
         """Utilizes the `multiprocessing.Pool.map` for distributed execution of 
         a function `job` on an iterable `job_inputs`.
 
@@ -393,22 +390,17 @@ class _LazyMultiProcIterator:
 
     def _init_pool(self):
         """Creates the multiprocessing.Pool object that will manage the distributed computation."""
-        self._pool = mp.Pool(
-            self.n_jobs,
-            initializer=_pool_worker_init,
-            initargs=(self.job,),
-            **self.pool_kwargs
-        )
+        self._pool = mp.Pool(self.n_jobs,
+                             initializer=_pool_worker_init,
+                             initargs=(self.job,),
+                             **self.pool_kwargs)
         return self._pool
 
     def _trigger_iterations(self):
         """Trigger the Pool operation that iterates over inputs and produces outputs."""
         if self._outputs is None:
-            self._outputs = self._init_pool().map(
-                _pool_worker, 
-                self.job_inputs, 
-                self.chunksize
-            )
+            self._outputs = self._init_pool().map(_pool_worker, self.job_inputs,
+                                                  self.chunksize)
 
     def __iter__(self):
         if isinstance(self.job_inputs, _LazyMultiProcIterator):
@@ -418,10 +410,9 @@ class _LazyMultiProcIterator:
 
 
 class _LazyMultiProcGroupByIterator(_LazyMultiProcIterator):
-    def __init__(self, job_inputs: typing.Iterable,
-                chunksize: int,
-                n_jobs: typing.Optional[int],
-                **pool_kwargs):
+
+    def __init__(self, job_inputs: typing.Iterable, chunksize: int,
+                 n_jobs: typing.Optional[int], **pool_kwargs):
         """Utilizes mp.Pool for distributed group by computation.
         The results are held in a `mp.Manager.dict[KeyType, np.Manager.list[ValueType]]`.
 
@@ -430,6 +421,7 @@ class _LazyMultiProcGroupByIterator(_LazyMultiProcIterator):
         """
         self.manager = mp.Manager()
         self.results_dict = self.manager.dict()
+
         def insert_row(captures, row):
             (results_dict_,) = captures
             key, val = row
@@ -437,9 +429,10 @@ class _LazyMultiProcGroupByIterator(_LazyMultiProcIterator):
 
         insert_row = partial(insert_row, (self.results_dict,))
 
-        super().__init__(insert_row, job_inputs, 
-                         chunksize=chunksize, 
-                         n_jobs=n_jobs, 
+        super().__init__(insert_row,
+                         job_inputs,
+                         chunksize=chunksize,
+                         n_jobs=n_jobs,
                          **pool_kwargs)
 
     def _trigger_iterations(self):
@@ -449,11 +442,11 @@ class _LazyMultiProcGroupByIterator(_LazyMultiProcIterator):
             self._init_pool().map(_pool_worker, self.job_inputs, self.chunksize)
             self._outputs = ((k, list(v)) for k, v in self.results_dict.items())
 
+
 class _LazyMultiProcCountIterator(_LazyMultiProcIterator):
-    def __init__(self, job_inputs: typing.Iterable,
-                chunksize: int,
-                n_jobs: typing.Optional[int],
-                **pool_kwargs):
+
+    def __init__(self, job_inputs: typing.Iterable, chunksize: int,
+                 n_jobs: typing.Optional[int], **pool_kwargs):
         """Utilizes mp.Pool for distributed group by computation.
         The results are held in a `mp.Manager.dict[KeyType, int]`.
 
@@ -462,15 +455,17 @@ class _LazyMultiProcCountIterator(_LazyMultiProcIterator):
         """
         self.manager = mp.Manager()
         self.results_dict = self.manager.dict()
+
         def insert_row(captures, key):
             (results_dict_,) = captures
             results_dict_[key] += 1
 
         insert_row = partial(insert_row, (self.results_dict,))
 
-        super().__init__(insert_row, job_inputs, 
-                         chunksize=chunksize, 
-                         n_jobs=n_jobs, 
+        super().__init__(insert_row,
+                         job_inputs,
+                         chunksize=chunksize,
+                         n_jobs=n_jobs,
                          **pool_kwargs)
 
     def _trigger_iterations(self):
@@ -482,17 +477,20 @@ class _LazyMultiProcCountIterator(_LazyMultiProcIterator):
 
 
 class MultiProcLocalPipelineOperations(PipelineOperations):
-    def __init__(
-        self, n_jobs: typing.Optional[int] = None, chunksize: int = 1, **pool_kwargs
-    ):
+
+    def __init__(self,
+                 n_jobs: typing.Optional[int] = None,
+                 chunksize: int = 1,
+                 **pool_kwargs):
         self.n_jobs = n_jobs
         self.chunksize = chunksize
         self.pool_kwargs = pool_kwargs
 
     def map(self, col, fn, stage_name: typing.Optional[str] = None):
-        return _LazyMultiProcIterator(job=fn, job_inputs=col, 
+        return _LazyMultiProcIterator(job=fn,
+                                      job_inputs=col,
                                       n_jobs=self.n_jobs,
-                                      chunksize=self.chunksize, 
+                                      chunksize=self.chunksize,
                                       **self.pool_kwargs)
 
     def flat_map(self, col, fn, stage_name: typing.Optional[str] = None):
@@ -505,18 +503,19 @@ class MultiProcLocalPipelineOperations(PipelineOperations):
         return self.map(col, lambda x: (x[0], fn(x[1])), stage_name)
 
     def group_by_key(self, col, stage_name: typing.Optional[str] = None):
-        return _LazyMultiProcGroupByIterator(col, self.chunksize, 
-                                             self.n_jobs, 
+        return _LazyMultiProcGroupByIterator(col, self.chunksize, self.n_jobs,
                                              **self.pool_kwargs)
 
     def filter(self, col, fn, stage_name: typing.Optional[str] = None):
         ordered_predicates = self.map(col, fn, stage_name)
         return (row for row, keep in zip(col, ordered_predicates) if keep)
 
-    def filter_by_key(self, col,
+    def filter_by_key(self,
+                      col,
                       keys_to_keep,
                       data_extractors,
                       stage_name: typing.Optional[str] = None):
+
         def mapped_fn(captures, row):
             keys_to_keep_, data_extractors_ = captures
             key = data_extractors_.partition_extractor(row)
@@ -524,7 +523,9 @@ class MultiProcLocalPipelineOperations(PipelineOperations):
 
         mapped_fn = partial(mapped_fn, (keys_to_keep, data_extractors))
         ordered_key_keep = self.map(col, mapped_fn, stage_name)
-        return ((key, row) for row, (key, keep) in zip(col, ordered_key_keep) if keep)
+        return ((key, row)
+                for row, (key, keep) in zip(col, ordered_key_keep)
+                if keep)
 
     def keys(self, col, stage_name: typing.Optional[str] = None):
         # no point in passing through multiproc.
@@ -534,9 +535,11 @@ class MultiProcLocalPipelineOperations(PipelineOperations):
         # no point in passing through multiproc.
         return (v for k, v in col)
 
-    def sample_fixed_per_key(self, col, 
-                             n: int, 
+    def sample_fixed_per_key(self,
+                             col,
+                             n: int,
                              stage_name: typing.Optional[str] = None):
+
         def mapped_fn(captures, row):
             (n_,) = captures
             partition_key, values = row
@@ -550,8 +553,10 @@ class MultiProcLocalPipelineOperations(PipelineOperations):
         return self.map(groups, mapped_fn, stage_name)
 
     def count_per_element(self, col, stage_name: typing.Optional[str] = None):
-        return _LazyMultiProcCountIterator(col, self.chunksize, 
-                                           self.n_jobs, **self.pool_kwargs)
+        return _LazyMultiProcCountIterator(col, self.chunksize, self.n_jobs,
+                                           **self.pool_kwargs)
 
-    def reduce_accumulators_per_key(self, col, stage_name: typing.Optional[str] = None):
+    def reduce_accumulators_per_key(self,
+                                    col,
+                                    stage_name: typing.Optional[str] = None):
         return self.map_values(col, accumulator.merge)

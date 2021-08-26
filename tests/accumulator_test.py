@@ -133,11 +133,9 @@ class GenericAccumulatorTest(unittest.TestCase):
         self.assertEqual(merged_accumulator.compute_metrics(), 10)
 
         vec_sum_accumulator1 = accumulator.VectorSummationAccumulator(
-            params=None,
-            values=[(15, 2)])
+            params=None, values=[(15, 2)])
         vec_sum_accumulator2 = accumulator.VectorSummationAccumulator(
-            params=None,
-            values=[(27, 40)])
+            params=None, values=[(27, 40)])
         merged_accumulator = accumulator.merge(
             [vec_sum_accumulator1, vec_sum_accumulator2])
         self.assertEqual(tuple(merged_accumulator.compute_metrics()), (42, 42))
@@ -217,8 +215,9 @@ class GenericAccumulatorTest(unittest.TestCase):
         self.assertEqual(len(acc_params), 1)
         self.assertEqual(acc_params[0].accumulator_type,
                          accumulator.CountAccumulator)
-        self.assertTrue(isinstance(acc_params[0].constructor_params,
-                                   accumulator.CountParams))
+        self.assertTrue(
+            isinstance(acc_params[0].constructor_params,
+                       accumulator.CountParams))
 
 
 class MeanAccumulator(accumulator.Accumulator):
@@ -360,9 +359,8 @@ class VectorSummuationAccumulatorTest(unittest.TestCase):
         self.assertEqual(tuple(vec_sum_accumulator.compute_metrics()), (9, 12))
 
         vec_sum_accumulator.add_value((7, 8))
-        self.assertTrue(np.all(
-            vec_sum_accumulator.compute_metrics() == np.array([16, 20])
-        ))
+        self.assertTrue(
+            np.all(vec_sum_accumulator.compute_metrics() == np.array([16, 20])))
 
         vec_sum_accumulator_2 = accumulator.VectorSummationAccumulator(
             params=None, values=[(1, 2), (1, 4), (1, 8), (1, 16)])

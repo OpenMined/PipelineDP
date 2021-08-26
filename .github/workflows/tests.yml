@@ -2,9 +2,11 @@ name: tests-pipelinedp
 
 on:
   push:
-    branches: [ $default-branch ]
+    branches:
+      - main
   pull_request:
-    branches: [ $default-branch ]
+    branches:
+      - main
 
 jobs:
   linting:
@@ -21,15 +23,15 @@ jobs:
       uses: actions/setup-python@v2
       with:
         python-version: ${{ matrix.python-version }}
-        
+
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         if [ -f requirements.dev.txt ]; then pip install -r requirements.dev.txt; fi
 
-    - name: linting
+    - name: Check formatting
       run: |
-        python -m pip install pylint --rcfile=pylintrc.dms pipeline_dp tests
+        yapf --diff --recursive pipeline_dp tests
 
   test:
     runs-on:  ${{ matrix.os }}
@@ -46,6 +48,11 @@ jobs:
         with:
           submodules: true
 
-      - name: Test with pytest
+      - name: Install dependencies
         run: |
-         pytest tests -n auto
+          python -m pip install --upgrade pip
+          if [ -f requirements.dev.txt ]; then pip install -r requirements.dev.txt; fi
+
+      - name: Run pytest
+        run: |
+          pytest tests

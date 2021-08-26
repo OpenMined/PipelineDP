@@ -301,10 +301,11 @@ def compute_dp_var(count: int, sum: float, sum_squares: float,
     squares_low, squares_high = dp_params.squares_interval()
 
     # Computes and adds noise to the mean of squares.
-    dp_mean_squares = _compute_mean(
-        count, dp_count, sum_squares, squares_low, squares_high,
-        sum_squares_eps, sum_squares_delta, l0_sensitivity,
-        dp_params.max_contributions_per_partition, dp_params.noise_kind)
+    dp_mean_squares = _compute_mean(count, dp_count, sum_squares, squares_low,
+                                    squares_high, sum_squares_eps,
+                                    sum_squares_delta, l0_sensitivity,
+                                    dp_params.max_contributions_per_partition,
+                                    dp_params.noise_kind)
 
     dp_var = dp_mean_squares - dp_mean**2
     return dp_count, dp_mean * dp_count, dp_mean_squares * dp_count, dp_var
