@@ -25,8 +25,8 @@ class MeanVarParams:
     def squares_interval(self):
         """Returns the bounds of the interval [low^2, high^2]."""
         if self.low < 0 and self.high > 0:
-            return 0, max(self.low ** 2, self.high ** 2)
-        return self.low ** 2, self.high ** 2
+            return 0, max(self.low**2, self.high**2)
+        return self.low**2, self.high**2
 
 
 def compute_middle(low: float, high: float):
@@ -88,9 +88,8 @@ def apply_laplace_mechanism(value: float, eps: float, l1_sensitivity: float):
     return value + np.random.laplace(0, l1_sensitivity / eps)
 
 
-def apply_gaussian_mechanism(
-    value: float, eps: float, delta: float, l2_sensitivity: float
-):
+def apply_gaussian_mechanism(value: float, eps: float, delta: float,
+                             l2_sensitivity: float):
     """Applies the Gaussian mechanism to the value.
 
     Args:
@@ -129,57 +128,58 @@ def _add_random_noise(
         The value resulted after adding the random noise.
     """
     if noise_kind == pipeline_dp.NoiseKind.LAPLACE:
-        l1_sensitivity = compute_l1_sensitivity(l0_sensitivity, linf_sensitivity)
+        l1_sensitivity = compute_l1_sensitivity(l0_sensitivity,
+                                                linf_sensitivity)
         return apply_laplace_mechanism(value, eps, l1_sensitivity)
     if noise_kind == pipeline_dp.NoiseKind.GAUSSIAN:
-        l2_sensitivity = compute_l2_sensitivity(l0_sensitivity, linf_sensitivity)
+        l2_sensitivity = compute_l2_sensitivity(l0_sensitivity,
+                                                linf_sensitivity)
         return apply_gaussian_mechanism(value, eps, delta, l2_sensitivity)
     raise ValueError("Noise kind must be either Laplace or Gaussian.")
 
 
 @dataclass
 class AdditiveVectorNoiseParams:
-    eps: float
-    delta: float
+    eps_per_coordinate: float
+    delta_per_coordinate: float
     max_norm: float
     l0_sensitivity: float
-    linf_sensitivit: float
+    linf_sensitivity: float
     norm_kind: str
     noise_kind: pipeline_dp.NoiseKind
 
 
-def _clip_vector(vec_sum: np.ndarray, max_norm: float, norm_kind="linf"):
+def _clip_vector(vec: np.ndarray, max_norm: float, norm_kind="linf"):
     if norm_kind == "linf":
-        return np.clip(vec_sum, -max_norm, max_norm)
-    elif norm_kind in ["l1", "l2"]:
+        return np.clip(vec, -max_norm, max_norm)
+    if norm_kind in ["l1", "l2"]:
         norm_kind = int(norm_kind[-1])
-        vec_norm = np.linalg.norm(vec_sum, ord=norm_kind)
+        vec_norm = np.linalg.norm(vec, ord=norm_kind)
         mul_coef = min(1, max_norm / vec_norm)
-        return vec_sum * mul_coef
+        return vec * mul_coef
+    raise NotImplementedError(
+        f"Vector Norm of kind '{norm_kind}' is not supported.")
 
 
-def add_noise_vector(vec_sum: np.ndarray, noise_params: AdditiveVectorNoiseParams):
+def add_noise_vector(vec: np.ndarray, noise_params: AdditiveVectorNoiseParams):
     """Adds noise to vector to make the vector sum computation (eps, delta)-DP.
 
     Args:
         vec_sum: the queried raw vector sum
         noise_params: parameters of the noise to add to the computation
     """
-    vec_sum = _clip_vector(vec_sum, noise_params.max_norm, noise_params.norm_kind)
-    vec_sum = np.array(
-        [
-            _add_random_noise(
-                s,
-                noise_params.eps,
-                noise_params.delta,
-                noise_params.l0_sensitivity,
-                noise_params.linf_sensitivit,
-                noise_params.noise_kind,
-            )
-            for s in vec_sum
-        ]
-    )
-    return vec_sum
+    vec = _clip_vector(vec, noise_params.max_norm, noise_params.norm_kind)
+    vec = np.array([
+        _add_random_noise(
+            s,
+            noise_params.eps_per_coordinate,
+            noise_params.delta_per_coordinate,
+            noise_params.l0_sensitivity,
+            noise_params.linf_sensitivity,
+            noise_params.noise_kind,
+        ) for s in vec
+    ])
+    return vec
 
 
 def equally_split_budget(eps: float, delta: float, no_mechanisms: int):
@@ -248,8 +248,7 @@ def compute_dp_sum(sum: float, dp_params: MeanVarParams):
     """
     l0_sensitivity = dp_params.l0_sensitivity()
     linf_sensitivity = dp_params.max_contributions_per_partition * max(
-        abs(dp_params.low), abs(dp_params.high)
-    )
+        abs(dp_params.low), abs(dp_params.high))
 
     return _add_random_noise(
         sum,
@@ -296,9 +295,9 @@ def _compute_mean(
     linf_sensitivity = max_contributions_per_partition * abs(middle - low)
 
     normalized_sum = sum - count * middle
-    dp_normalized_sum = _add_random_noise(
-        normalized_sum, eps, delta, l0_sensitivity, linf_sensitivity, noise_kind
-    )
+    dp_normalized_sum = _add_random_noise(normalized_sum, eps, delta,
+                                          l0_sensitivity, linf_sensitivity,
+                                          noise_kind)
     return dp_normalized_sum / dp_count + middle
 
 
@@ -318,8 +317,7 @@ def compute_dp_mean(count: int, sum: float, dp_params: MeanVarParams):
     """
     # Splits the budget equally between the two mechanisms.
     (count_eps, count_delta), (sum_eps, sum_delta) = equally_split_budget(
-        dp_params.eps, dp_params.delta, 2
-    )
+        dp_params.eps, dp_params.delta, 2)
     l0_sensitivity = dp_params.l0_sensitivity()
 
     dp_count = _add_random_noise(
@@ -346,9 +344,8 @@ def compute_dp_mean(count: int, sum: float, dp_params: MeanVarParams):
     return dp_count, dp_mean * dp_count, dp_mean
 
 
-def compute_dp_var(
-    count: int, sum: float, sum_squares: float, dp_params: MeanVarParams
-):
+def compute_dp_var(count: int, sum: float, sum_squares: float,
+                   dp_params: MeanVarParams):
     """Computes DP variance.
 
     Args:
@@ -410,5 +407,5 @@ def compute_dp_var(
         dp_params.noise_kind,
     )
 
-    dp_var = dp_mean_squares - dp_mean ** 2
+    dp_var = dp_mean_squares - dp_mean**2
     return dp_count, dp_mean * dp_count, dp_mean_squares * dp_count, dp_var

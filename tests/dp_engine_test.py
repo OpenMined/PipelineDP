@@ -10,7 +10,9 @@ from pipeline_dp.accumulator import CountAccumulator
 from pipeline_dp.accumulator import AccumulatorFactory
 """DPEngine Test"""
 
+
 class _MockPartitionStrategy(partition_selection.PartitionSelectionStrategy):
+
     def __init__(self, eps, delta, max_partitions_contributed, min_users):
         self.eps = eps
         self.delta = delta
@@ -20,13 +22,18 @@ class _MockPartitionStrategy(partition_selection.PartitionSelectionStrategy):
     def should_keep(self, num_users: int) -> bool:
         return num_users > self.min_users
 
+
 def _mock_partition_strategy_factory(min_users):
+
     def partition_strategy_factory(e, d, mpc):
         return _MockPartitionStrategy(e, d, mpc, min_users)
+
     return partition_strategy_factory
 
+
 class _MockAccumulator(pipeline_dp.accumulator.Accumulator):
-    def __init__(self, values_list: list=None) -> None:
+
+    def __init__(self, values_list: list = None) -> None:
         self.values_list = values_list or []
 
     @property
@@ -36,7 +43,8 @@ class _MockAccumulator(pipeline_dp.accumulator.Accumulator):
     def add_value(self, value):
         self.values_list.append(value)
 
-    def add_accumulator(self, accumulator: '_MockAccumulator') -> '_MockAccumulator':
+    def add_accumulator(self,
+                        accumulator: '_MockAccumulator') -> '_MockAccumulator':
         self.values_list.extend(accumulator.values_list)
         return self
 
@@ -246,65 +254,50 @@ class dp_engineTest(unittest.TestCase):
             self.assertListEqual(list(data_filtered), expected_partitions)
 
     def test_select_private_partitions(self):
-        input_col = [
-            ("pid1", ( 'pk1', 1 )),
-            ("pid1", ( 'pk1', 2 )),
-            ("pid1", ( 'pk2', 3 )),
-            ("pid1", ( 'pk2', 4 )),
-            ("pid1", ( 'pk2', 5 )),
-            ("pid1", ( 'pk3', 6 )),
-            ("pid1", ( 'pk4', 7 )),
-            ("pid2", ( 'pk4', 8 ))
-        ]
+        input_col = [("pid1", ('pk1', 1)), ("pid1", ('pk1', 2)),
+                     ("pid1", ('pk2', 3)), ("pid1", ('pk2', 4)),
+                     ("pid1", ('pk2', 5)), ("pid1", ('pk3', 6)),
+                     ("pid1", ('pk4', 7)), ("pid2", ('pk4', 8))]
         max_partitions_contributed = 3
-        engine = pipeline_dp.DPEngine(
-            pipeline_dp.BudgetAccountant(1, 1e-10),
-            pipeline_dp.LocalPipelineOperations()
-        )
+        engine = pipeline_dp.DPEngine(pipeline_dp.BudgetAccountant(1, 1e-10),
+                                      pipeline_dp.LocalPipelineOperations())
         groups = engine._ops.group_by_key(input_col, None)
         groups = engine._ops.map_values(groups,
-            lambda group: _MockAccumulator(group)
-        )
+                                        lambda group: _MockAccumulator(group))
         groups = list(groups)
+        expected_data_filtered = [("pid1",
+                                   _MockAccumulator([
+                                       ('pk1', 1),
+                                       ('pk1', 2),
+                                       ('pk2', 3),
+                                       ('pk2', 4),
+                                       ('pk2', 5),
+                                       ('pk3', 6),
+                                       ('pk4', 7),
+                                   ])),
+                                  ("pid2", _MockAccumulator([('pk4', 8)]))]
+        self._mock_and_assert_private_partitions(engine, groups, 0,
+                                                 expected_data_filtered,
+                                                 max_partitions_contributed)
         expected_data_filtered = [
-            ("pid1", _MockAccumulator([
-                ( 'pk1', 1 ),
-                ( 'pk1', 2 ),
-                ( 'pk2', 3 ),
-                ( 'pk2', 4 ),
-                ( 'pk2', 5 ),
-                ( 'pk3', 6 ),
-                ( 'pk4', 7 ),
-            ])),
-            ("pid2", _MockAccumulator([
-                ('pk4', 8)
-            ]))
+            ("pid1",
+             _MockAccumulator([
+                 ('pk1', 1),
+                 ('pk1', 2),
+                 ('pk2', 3),
+                 ('pk2', 4),
+                 ('pk2', 5),
+                 ('pk3', 6),
+                 ('pk4', 7),
+             ])),
         ]
-        self._mock_and_assert_private_partitions(
-            engine, groups, 0, expected_data_filtered,
-            max_partitions_contributed
-        )
-        expected_data_filtered = [
-            ("pid1", _MockAccumulator([
-                ( 'pk1', 1 ),
-                ( 'pk1', 2 ),
-                ( 'pk2', 3 ),
-                ( 'pk2', 4 ),
-                ( 'pk2', 5 ),
-                ( 'pk3', 6 ),
-                ( 'pk4', 7 ),
-            ])),
-        ]
-        self._mock_and_assert_private_partitions(
-            engine, groups, 3, expected_data_filtered,
-            max_partitions_contributed
-        )
+        self._mock_and_assert_private_partitions(engine, groups, 3,
+                                                 expected_data_filtered,
+                                                 max_partitions_contributed)
         expected_data_filtered = []
-        self._mock_and_assert_private_partitions(
-            engine, groups, 100, expected_data_filtered,
-            max_partitions_contributed
-        )
-
+        self._mock_and_assert_private_partitions(engine, groups, 100,
+                                                 expected_data_filtered,
+                                                 max_partitions_contributed)
 
 
 if __name__ == '__main__':

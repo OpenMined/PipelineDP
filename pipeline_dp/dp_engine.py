@@ -52,8 +52,8 @@ class DPEngine:
             return None
         self._report_generators.append(ReportGenerator(params))
 
-        accumulator_factory = AccumulatorFactory(params=params,
-                                                 budget_accountant=self._budget_accountant)
+        accumulator_factory = AccumulatorFactory(
+            params=params, budget_accountant=self._budget_accountant)
         accumulator_factory.initialize()
         aggregator_fn = accumulator_factory.create
 
@@ -64,9 +64,9 @@ class DPEngine:
                               data_extractors.value_extractor(row)),
             "Extract (privacy_id, partition_key, value))")
         # col : (privacy_id, partition_key, value)
-        col = self._bound_contributions(
-            col, params.max_partitions_contributed,
-            params.max_contributions_per_partition, aggregator_fn)
+        col = self._bound_contributions(col, params.max_partitions_contributed,
+                                        params.max_contributions_per_partition,
+                                        aggregator_fn)
         # col : ((privacy_id, partition_key), accumulator)
         result = col
 
@@ -145,18 +145,21 @@ class DPEngine:
         Returns:
             collection of elements (partition_key, accumulator)
         """
-        budget = self._budget_accountant.request_budget(weight=1, use_eps=True, use_delta=True)
+        budget = self._budget_accountant.request_budget(weight=1,
+                                                        use_eps=True,
+                                                        use_delta=True)
 
-        def filter_fn(captures: Tuple[Budget, int], row: Tuple[Any, Accumulator]) -> bool:
+        def filter_fn(captures: Tuple[Budget, int],
+                      row: Tuple[Any, Accumulator]) -> bool:
             """Lazily creates a partition selection strategy and uses it to determine which 
             partitions to keep."""
             budget, max_partitions = captures
             accumulator = row[1]
             partition_selection_strategy = create_truncated_geometric_partition_strategy(
-                budget.eps, budget.delta,
-                max_partitions
-            )
-            return partition_selection_strategy.should_keep(accumulator.privacy_id_count)
+                budget.eps, budget.delta, max_partitions)
+            return partition_selection_strategy.should_keep(
+                accumulator.privacy_id_count)
+
         # make filter_fn serializable
         filter_fn = partial(filter_fn, (budget, max_partitions_contributed))
         return self._ops.filter(col, filter_fn)
