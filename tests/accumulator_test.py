@@ -142,7 +142,6 @@ class GenericAccumulatorTest(unittest.TestCase):
             norm_kind="linf",
             noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)
         vec_sum_accumulator1 = accumulator.VectorSummationAccumulator(
-
             params=vec_params, values=[(15, 2)])
         vec_sum_accumulator2 = accumulator.VectorSummationAccumulator(
             params=vec_params, values=[(27, 40)])
@@ -403,7 +402,6 @@ class VectorSummuationAccumulatorTest(unittest.TestCase):
             vec_sum_accumulator.add_accumulator(vec_sum_accumulator_2)
             self.assertEqual(tuple(vec_sum_accumulator.compute_metrics()),
                              (20, 50))
-
 
 
 if __name__ == '__main__':
