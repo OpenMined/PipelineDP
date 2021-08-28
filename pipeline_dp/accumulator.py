@@ -202,7 +202,7 @@ class VectorSummationAccumulator(Accumulator):
     _params: dp_computations.AdditiveVectorNoiseParams
 
     def __init__(self, params: dp_computations.AdditiveVectorNoiseParams,
-                 values: Iterable[_FloatVector]) -> None:
+                 values: Iterable[_FloatVector]):
         if not isinstance(params, dp_computations.AdditiveVectorNoiseParams):
             raise TypeError(
                 f"'params' parameters should be of type "

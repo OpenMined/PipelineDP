@@ -18,6 +18,13 @@ class NoiseKind(Enum):
     GAUSSIAN = 'gaussian'
 
 
+class NormKind(Enum):
+    Linf = "linf"
+    L0 = "l0"
+    L1 = "l1"
+    L2 = "l2"
+
+
 @dataclass
 class AggregateParams:
     """Specifies parameters for function DPEngine.aggregate()
