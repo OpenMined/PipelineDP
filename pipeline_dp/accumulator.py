@@ -239,6 +239,54 @@ class VectorSummationAccumulator(Accumulator):
         return dp_computations.add_noise_vector(self._vec_sum, self._params)
 
 
+class VectorMeanAccumulator(Accumulator):
+    _vec_sum: np.ndarray
+    _params: dp_computations.VectorMeanVarParams
+
+    def __init__(self, params: dp_computations.VectorMeanVarParams,
+                 values: Iterable[_FloatVector]):
+        if not isinstance(params, dp_computations.VectorMeanVarParams):
+            raise TypeError(
+                f"'params' parameters should be of type "
+                f"dp_computations.VectorMeanVarParams, not {params.__class__.__name__}"
+            )
+        self._params = params
+        self._vec_sum = None
+        self._n_values = 0
+        for val in values:
+            self.add_value(val)
+
+    def add_value(self, value: _FloatVector):
+        if not isinstance(value, np.ndarray):
+            value = np.array(value)
+
+        if self._vec_sum is None:
+            self._vec_sum = value
+        else:
+            if self._vec_sum.shape != value.shape:
+                raise TypeError(
+                    f"Shape mismatch: {self._vec_sum.shape} != {value.shape}")
+            self._vec_sum += value 
+            self._n_values += 1
+        return self
+
+    def add_accumulator(
+        self, accumulator: 'VectorMeanAccumulator'
+    ) -> 'VectorMeanAccumulator':
+        self._check_mergeable(accumulator)
+        self.add_value(accumulator._vec_sum)
+        return self
+
+    def compute_metrics(self):
+        if self._vec_sum is None:
+            raise IndexError("No data provided for metrics computation.")
+        vec_sum = dp_computations.add_noise_vector(
+            self._vec_sum, self._params.params_add)
+        vec_count = dp_computations.compute_dp_count(
+            self._n_values, self._params.params_count)
+        return vec_sum / vec_count
+
+
 @dataclass
 class SumParams:
     noise: dp_computations.MeanVarParams

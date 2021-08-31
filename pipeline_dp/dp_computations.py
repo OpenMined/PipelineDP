@@ -149,6 +149,12 @@ class AdditiveVectorNoiseParams:
     noise_kind: pipeline_dp.NoiseKind
 
 
+@dataclass
+class VectorMeanVarParams:
+    params_add: AdditiveVectorNoiseParams
+    params_count: MeanVarParams
+
+
 def _clip_vector(vec: np.ndarray, max_norm: float,
                  norm_kind: pipeline_dp.NormKind):
     norm_kind = norm_kind.value  # type: str
