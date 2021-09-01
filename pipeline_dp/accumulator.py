@@ -191,15 +191,15 @@ class CountAccumulator(Accumulator):
         return self
 
     def compute_metrics(self) -> float:
-        return dp_computations.compute_dp_count(
-            self._count, self._params._inner_params
-        )
+        return dp_computations.compute_dp_count(self._count,
+                                                self._params._inner_params)
 
 
 _FloatVector = Union[Tuple[float], np.ndarray]
 
 
 class VectorSummationAccumulator(Accumulator):
+
     def __init__(self, params: dp_computations.VectorSumNoiseParams,
                  values: Iterable[_FloatVector]):
         if not isinstance(params, dp_computations.VectorSumNoiseParams):
@@ -208,13 +208,13 @@ class VectorSummationAccumulator(Accumulator):
                 f"dp_computations.AdditiveVectorNoiseParams, not {params.__class__.__name__}"
             )
         self._params = params
-        self._vec_sum = None # type: np.ndarray
+        self._vec_sum = None  # type: np.ndarray
         for val in values:
             self.add_value(val)
 
     def add_value(self, value: _FloatVector):
         if not isinstance(value, np.ndarray):
-            value = np.array(value) # type: np.ndarray
+            value = np.array(value)  # type: np.ndarray
 
         if self._vec_sum is None:
             self._vec_sum = value
@@ -239,6 +239,7 @@ class VectorSummationAccumulator(Accumulator):
 
 
 class VectorMeanAccumulator(Accumulator):
+
     def __init__(self, params: dp_computations.VectorMeanVarParams,
                  values: Iterable[_FloatVector]):
         if not isinstance(params, dp_computations.VectorMeanVarParams):
@@ -246,7 +247,8 @@ class VectorMeanAccumulator(Accumulator):
                 f"'params' parameters should be of type "
                 f"dp_computations.VectorMeanVarParams, not {params.__class__.__name__}"
             )
-        self._sum_accumulator = VectorSummationAccumulator(params.sum_params, values)
+        self._sum_accumulator = VectorSummationAccumulator(
+            params.sum_params, values)
         count_params = CountParams(params.count_params)
         self._count_accumulator = CountAccumulator(count_params, values)
         for val in values:
@@ -258,8 +260,8 @@ class VectorMeanAccumulator(Accumulator):
         return self
 
     def add_accumulator(
-        self, accumulator: 'VectorMeanAccumulator'
-    ) -> 'VectorMeanAccumulator':
+            self,
+            accumulator: 'VectorMeanAccumulator') -> 'VectorMeanAccumulator':
         self._check_mergeable(accumulator)
         self._sum_accumulator.add_accumulator(accumulator._sum_accumulator)
         self._count_accumulator.add_accumulator(accumulator._count_accumulator)
@@ -269,6 +271,7 @@ class VectorMeanAccumulator(Accumulator):
         vec_sum = self._sum_accumulator.compute_metrics()
         vec_count = self._count_accumulator.compute_metrics()
         return vec_sum / vec_count
+
 
 @dataclass
 class SumParams:
