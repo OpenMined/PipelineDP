@@ -1,5 +1,6 @@
 """Privacy budget accounting for DP pipelines."""
 
+import abc
 import logging
 import math
 from dataclasses import dataclass
@@ -53,62 +54,6 @@ class RequestedBudget:
     use_delta: bool
 
 
-class BudgetAccountant:
-    """Manages the privacy budget."""
-
-    def __init__(self, epsilon: float, delta: float):
-        """Constructs a BudgetAccountant.
-
-        Args:
-            epsilon, delta: Parameters of (epsilon, delta)-differential privacy.
-        """
-
-        _validate_epsilon_delta(epsilon, delta)
-
-        self._eps = epsilon
-        self._delta = delta
-        self._requested_budgets = []
-
-    def request_budget(self, weight: float, *, use_eps: bool,
-                       use_delta: bool) -> Budget:
-        """Requests a budget.
-
-        Args:
-            weight: The weight used to compute epsilon and delta for the budget.
-            use_eps: False when the operation doesn't need epsilon.
-            use_delta: False when the operation doesn't need delta.
-
-        Returns:
-            A "lazy" budget object that doesn't contain epsilon/delta until the
-            method compute_budgets is called.
-        """
-        budget = Budget()
-        requested_budget = RequestedBudget(budget, weight, use_eps, use_delta)
-        self._requested_budgets.append(requested_budget)
-        return budget
-
-    def compute_budgets(self):
-        """Updates all previously requested Budget objects with corresponding budget values."""
-        if not self._requested_budgets:
-            logging.warning("No budgets were requested.")
-            return
-
-        total_weight_eps = total_weight_delta = 0
-        for requested_budget in self._requested_budgets:
-            total_weight_eps += requested_budget.use_eps * requested_budget.weight
-            total_weight_delta += requested_budget.use_delta * requested_budget.weight
-
-        for requested_budget in self._requested_budgets:
-            eps = delta = 0
-            if total_weight_eps:
-                numerator = requested_budget.use_eps * self._eps * requested_budget.weight
-                eps = numerator / total_weight_eps
-            if total_weight_delta:
-                numerator = requested_budget.use_delta * self._delta * requested_budget.weight
-                delta = numerator / total_weight_delta
-            requested_budget.budget.set_eps_delta(eps, delta)
-
-
 @dataclass
 class MechanismSpec:
     """Specifies the parameters for a mechanism.
@@ -118,6 +63,8 @@ class MechanismSpec:
     """
     noise_kind: NoiseKind
     _noise_standard_deviation: float = None
+    _eps: float = None
+    _delta: float = None
 
     @property
     def noise_standard_deviation(self):
@@ -131,6 +78,26 @@ class MechanismSpec:
                 "Noise standard deviation is not calculated yet.")
         return self._noise_standard_deviation
 
+    @property
+    def eps(self):
+        """Parameter of (eps, delta)-differential privacy.
+               Raises:
+                   AssertionError: The privacy budget is not calculated yet.
+               """
+        if self._eps is None:
+            raise AssertionError("Privacy budget is not calculated yet.")
+        return self._eps
+
+    @property
+    def delta(self):
+        """Parameter of (eps, delta)-differential privacy.
+                Raises:
+                    AssertionError: The privacy budget is not calculated yet.
+                """
+        if self._delta is None:
+            raise AssertionError("Privacy budget is not calculated yet.")
+        return self._delta
+
 
 @dataclass
 class MechanismSpecInternal:
@@ -140,7 +107,87 @@ class MechanismSpecInternal:
     mechanism_spec: MechanismSpec
 
 
-class PLDBudgetAccountant:
+class BudgetAccountant(abc.ABC):
+    """Base class for budget accountants."""
+
+    @abc.abstractmethod
+    def request_budget(self, noise_kind: NoiseKind, sensitivity: float = 1, weight: float = 1) -> MechanismSpec:
+        pass
+
+    @abc.abstractmethod
+    def request_budget(self):
+        pass
+
+
+class NaiveBudgetAccountant(BudgetAccountant):
+    """Manages the privacy budget."""
+
+    def __init__(self, total_epsilon: float, total_delta: float):
+        """Constructs a BudgetAccountant.
+
+        Args:
+            epsilon, delta: Parameters of (epsilon, delta)-differential privacy.
+        """
+
+        _validate_epsilon_delta(total_epsilon, total_delta)
+
+        self._total_epsilon = total_epsilon
+        self._total_delta = total_delta
+        self._mechanisms = []
+
+    def request_budget(self, noise_kind: NoiseKind, sensitivity: float = 1, weight: float = 1) -> MechanismSpec:
+        """Request a budget.
+
+        Constructs a mechanism spec based on the parameters.
+        Adds the mechanism to the pipeline for future calculation.
+
+        Args:
+            noise_kind: The kind of noise distribution for the mechanism.
+            sensitivity: The sensitivity for the mechanism.
+            weight: The weight for the mechanism.
+
+        Returns:
+            A "lazy" mechanism spec object that doesn't contain the noise
+            standard deviation until compute_budgets is called.
+        """
+        if noise_kind == NoiseKind.GAUSSIAN and self._total_delta == 0:
+            raise AssertionError(
+                "The Gaussian mechanism requires that the pipeline delta is greater than 0"
+            )
+        mechanism_spec = MechanismSpec(noise_kind=noise_kind)
+        mechanism_spec_internal = MechanismSpecInternal(
+            mechanism_spec=mechanism_spec,
+            sensitivity=sensitivity,
+            weight=weight)
+        self._mechanisms.append(mechanism_spec_internal)
+        return mechanism_spec
+
+    def compute_budgets(self):
+        """Updates all previously requested Budget objects with corresponding budget values."""
+        if not self._mechanisms:
+            logging.warning("No budgets were requested.")
+            return
+
+        total_weight_eps = total_weight_delta = 0
+        for mechanism in self._mechanisms:
+            total_weight_eps += mechanism.weight
+            if mechanism.mechanism_spec.noise_kind == NoiseKind.GAUSSIAN:
+                total_weight_delta += mechanism.weight
+
+        for mechanism in self._mechanisms:
+            eps = delta = 0
+            if total_weight_eps:
+                numerator = self._total_epsilon * mechanism.weight
+                eps = numerator / total_weight_eps
+            if mechanism.mechanism_spec.noise_kind == NoiseKind.GAUSSIAN:
+                if total_weight_delta:
+                    numerator = self._total_delta * mechanism.weight
+                    delta = numerator / total_weight_delta
+            mechanism.mechanism_spec._eps = eps
+            mechanism.mechanism_spec._delta = delta
+
+
+class PLDBudgetAccountant(BudgetAccountant):
     """Manages the privacy budget for privacy loss distributions.
 
     It manages the privacy budget for the pipeline using the
