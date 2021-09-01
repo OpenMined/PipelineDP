@@ -198,9 +198,6 @@ _FloatVector = Union[Tuple[float], np.ndarray]
 
 
 class VectorSummationAccumulator(Accumulator):
-    _vec_sum: np.ndarray
-    _params: dp_computations.AdditiveVectorNoiseParams
-
     def __init__(self, params: dp_computations.AdditiveVectorNoiseParams,
                  values: Iterable[_FloatVector]):
         if not isinstance(params, dp_computations.AdditiveVectorNoiseParams):
@@ -209,13 +206,13 @@ class VectorSummationAccumulator(Accumulator):
                 f"dp_computations.AdditiveVectorNoiseParams, not {params.__class__.__name__}"
             )
         self._params = params
-        self._vec_sum = None
+        self._vec_sum = None # type: np.ndarray
         for val in values:
             self.add_value(val)
 
     def add_value(self, value: _FloatVector):
         if not isinstance(value, np.ndarray):
-            value = np.array(value)
+            value = np.array(value) # type: np.ndarray
 
         if self._vec_sum is None:
             self._vec_sum = value
@@ -240,9 +237,6 @@ class VectorSummationAccumulator(Accumulator):
 
 
 class VectorMeanAccumulator(Accumulator):
-    _vec_sum: np.ndarray
-    _params: dp_computations.VectorMeanVarParams
-
     def __init__(self, params: dp_computations.VectorMeanVarParams,
                  values: Iterable[_FloatVector]):
         if not isinstance(params, dp_computations.VectorMeanVarParams):
@@ -251,14 +245,14 @@ class VectorMeanAccumulator(Accumulator):
                 f"dp_computations.VectorMeanVarParams, not {params.__class__.__name__}"
             )
         self._params = params
-        self._vec_sum = None
+        self._vec_sum = None # type: np.ndarray
         self._n_values = 0
         for val in values:
             self.add_value(val)
 
     def add_value(self, value: _FloatVector):
         if not isinstance(value, np.ndarray):
-            value = np.array(value)
+            value = np.array(value) # type: np.ndarray
 
         if self._vec_sum is None:
             self._vec_sum = value
