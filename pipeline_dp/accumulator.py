@@ -172,13 +172,14 @@ class AccumulatorFactory:
 
 @dataclass
 class CountParams:
-    pass
+    _inner_params: dp_computations.MeanVarParams
 
 
 class CountAccumulator(Accumulator):
 
     def __init__(self, params: CountParams, values):
         self._count = len(values)
+        self._params = params
 
     def add_value(self, value):
         self._count += 1
@@ -190,17 +191,18 @@ class CountAccumulator(Accumulator):
         return self
 
     def compute_metrics(self) -> float:
-        # TODO: add differential privacy
-        return self._count
+        return dp_computations.compute_dp_count(
+            self._count, self._params._inner_params
+        )
 
 
 _FloatVector = Union[Tuple[float], np.ndarray]
 
 
 class VectorSummationAccumulator(Accumulator):
-    def __init__(self, params: dp_computations.AdditiveVectorNoiseParams,
+    def __init__(self, params: dp_computations.VectorSumNoiseParams,
                  values: Iterable[_FloatVector]):
-        if not isinstance(params, dp_computations.AdditiveVectorNoiseParams):
+        if not isinstance(params, dp_computations.VectorSumNoiseParams):
             raise TypeError(
                 f"'params' parameters should be of type "
                 f"dp_computations.AdditiveVectorNoiseParams, not {params.__class__.__name__}"
@@ -244,42 +246,29 @@ class VectorMeanAccumulator(Accumulator):
                 f"'params' parameters should be of type "
                 f"dp_computations.VectorMeanVarParams, not {params.__class__.__name__}"
             )
-        self._params = params
-        self._vec_sum = None # type: np.ndarray
-        self._n_values = 0
+        self._sum_accumulator = VectorSummationAccumulator(params.sum_params, values)
+        count_params = CountParams(params.count_params)
+        self._count_accumulator = CountAccumulator(count_params, values)
         for val in values:
             self.add_value(val)
 
     def add_value(self, value: _FloatVector):
-        if not isinstance(value, np.ndarray):
-            value = np.array(value) # type: np.ndarray
-
-        if self._vec_sum is None:
-            self._vec_sum = value
-        else:
-            if self._vec_sum.shape != value.shape:
-                raise TypeError(
-                    f"Shape mismatch: {self._vec_sum.shape} != {value.shape}")
-            self._vec_sum += value 
-            self._n_values += 1
+        self._sum_accumulator.add_value(value)
+        self._count_accumulator.add_value(value)
         return self
 
     def add_accumulator(
         self, accumulator: 'VectorMeanAccumulator'
     ) -> 'VectorMeanAccumulator':
         self._check_mergeable(accumulator)
-        self.add_value(accumulator._vec_sum)
+        self._sum_accumulator.add_accumulator(accumulator._sum_accumulator)
+        self._count_accumulator.add_accumulator(accumulator._count_accumulator)
         return self
 
     def compute_metrics(self):
-        if self._vec_sum is None:
-            raise IndexError("No data provided for metrics computation.")
-        vec_sum = dp_computations.add_noise_vector(
-            self._vec_sum, self._params.params_add)
-        vec_count = dp_computations.compute_dp_count(
-            self._n_values, self._params.params_count)
+        vec_sum = self._sum_accumulator.compute_metrics()
+        vec_count = self._count_accumulator.compute_metrics()
         return vec_sum / vec_count
-
 
 @dataclass
 class SumParams:

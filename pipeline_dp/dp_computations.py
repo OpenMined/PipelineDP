@@ -139,7 +139,7 @@ def _add_random_noise(
 
 
 @dataclass
-class AdditiveVectorNoiseParams:
+class VectorSumNoiseParams:
     eps_per_coordinate: float
     delta_per_coordinate: float
     max_norm: float
@@ -151,8 +151,8 @@ class AdditiveVectorNoiseParams:
 
 @dataclass
 class VectorMeanVarParams:
-    params_add: AdditiveVectorNoiseParams
-    params_count: MeanVarParams
+    sum_params: VectorSumNoiseParams
+    count_params: MeanVarParams
 
 
 def _clip_vector(vec: np.ndarray, max_norm: float,
@@ -169,7 +169,7 @@ def _clip_vector(vec: np.ndarray, max_norm: float,
         f"Vector Norm of kind '{norm_kind}' is not supported.")
 
 
-def add_noise_vector(vec: np.ndarray, noise_params: AdditiveVectorNoiseParams):
+def add_noise_vector(vec: np.ndarray, noise_params: VectorSumNoiseParams):
     """Adds noise to vector to make the vector sum computation (eps, delta)-DP.
 
     Args:

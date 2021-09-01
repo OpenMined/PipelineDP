@@ -133,7 +133,7 @@ class GenericAccumulatorTest(unittest.TestCase):
 
         self.assertEqual(merged_accumulator.compute_metrics(), 10)
 
-        vec_params = dp_computations.AdditiveVectorNoiseParams(
+        vec_params = dp_computations.VectorSumNoiseParams(
             eps_per_coordinate=0,
             delta_per_coordinate=0,
             max_norm=0,
@@ -156,7 +156,7 @@ class GenericAccumulatorTest(unittest.TestCase):
     def test_merge_diff_type_throws_type_error(self):
         mean_accumulator1 = MeanAccumulator(params=[], values=[15])
         sum_squares_acc = SumOfSquaresAccumulator(params=[], values=[1])
-        vec_params = dp_computations.AdditiveVectorNoiseParams(
+        vec_params = dp_computations.VectorSumNoiseParams(
             eps_per_coordinate=0,
             delta_per_coordinate=0,
             max_norm=0,
@@ -379,7 +379,7 @@ class VectorSummuationAccumulatorTest(unittest.TestCase):
     def test_without_noise(self):
         with patch("pipeline_dp.dp_computations.add_noise_vector",
                    new=mock_add_noise_vector):
-            params = dp_computations.AdditiveVectorNoiseParams(
+            params = dp_computations.VectorSumNoiseParams(
                 eps_per_coordinate=0,
                 delta_per_coordinate=0,
                 max_norm=0,
