@@ -65,7 +65,10 @@ class BudgetAccountant(abc.ABC):
     """Base class for budget accountants."""
 
     @abc.abstractmethod
-    def request_budget(self, noise_kind: NoiseKind, sensitivity: float = 1, weight: float = 1) -> MechanismSpec:
+    def request_budget(self,
+                       noise_kind: NoiseKind,
+                       sensitivity: float = 1,
+                       weight: float = 1) -> MechanismSpec:
         pass
 
     @abc.abstractmethod
@@ -77,10 +80,14 @@ class NaiveBudgetAccountant(BudgetAccountant):
     """Manages the privacy budget."""
 
     def __init__(self, total_epsilon: float, total_delta: float):
-        """Constructs a BudgetAccountant.
+        """Constructs a NaiveBudgetAccountant.
 
         Args:
-            epsilon, delta: Parameters of (epsilon, delta)-differential privacy.
+            total_epsilon: epsilon for the entire pipeline.
+            total_delta: delta for the entire pipeline.
+
+        Raises:
+            A ValueError if either argument is out of range.
         """
 
         _validate_epsilon_delta(total_epsilon, total_delta)
@@ -89,7 +96,10 @@ class NaiveBudgetAccountant(BudgetAccountant):
         self._total_delta = total_delta
         self._mechanisms = []
 
-    def request_budget(self, noise_kind: NoiseKind, sensitivity: float = 1, weight: float = 1) -> MechanismSpec:
+    def request_budget(self,
+                       noise_kind: NoiseKind,
+                       sensitivity: float = 1,
+                       weight: float = 1) -> MechanismSpec:
         """Request a budget.
 
         Constructs a mechanism spec based on the parameters.
@@ -117,7 +127,7 @@ class NaiveBudgetAccountant(BudgetAccountant):
         return mechanism_spec
 
     def compute_budgets(self):
-        """Updates all previously requested Budget objects with corresponding budget values."""
+        """Updates all previously requested MechanismSpec objects with corresponding budget values."""
         if not self._mechanisms:
             logging.warning("No budgets were requested.")
             return
