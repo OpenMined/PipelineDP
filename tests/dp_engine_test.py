@@ -4,6 +4,7 @@ import numpy as np
 import unittest
 
 import pipeline_dp
+from pipeline_dp.budget_accounting import NaiveBudgetAccountant
 import pydp.algorithms.partition_selection as partition_selection
 """DPEngine Test"""
 
@@ -96,7 +97,7 @@ class dp_engineTest(unittest.TestCase):
         max_contributions_per_partition = 2
 
         dp_engine = pipeline_dp.DPEngine(
-            pipeline_dp.BudgetAccountant(epsilon=1, delta=1e-10),
+            NaiveBudgetAccountant(total_epsilon=1, total_delta=1e-10),
             pipeline_dp.LocalPipelineOperations())
         bound_result = list(
             dp_engine._bound_contributions(
@@ -121,7 +122,7 @@ class dp_engineTest(unittest.TestCase):
         max_contributions_per_partition = 5
 
         dp_engine = pipeline_dp.DPEngine(
-            pipeline_dp.BudgetAccountant(epsilon=1, delta=1e-10),
+            NaiveBudgetAccountant(total_epsilon=1, total_delta=1e-10),
             pipeline_dp.LocalPipelineOperations())
         bound_result = list(
             dp_engine._bound_contributions(

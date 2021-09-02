@@ -9,52 +9,6 @@ from dp_accounting import privacy_loss_distribution as pldlib
 
 
 @dataclass
-class Budget:
-    """Manages the budget allocated for an operation.
-
-    The values for eps and delta are computed when the method compute_budgets
-    of the corresponding BudgetAccount is called.
-    """
-    _eps: float = None
-    _delta: float = None
-
-    @property
-    def eps(self):
-        """Parameter of (eps, delta)-differential privacy.
-
-        Raises:
-            AssertionError: The privacy budget is not calculated yet.
-        """
-        if self._eps is None:
-            raise AssertionError("Privacy budget is not calculated yet.")
-        return self._eps
-
-    @property
-    def delta(self):
-        """Parameter of (eps, delta)-differential privacy.
-
-        Raises:
-            AssertionError: The privacy budget is not calculated yet.
-        """
-        if self._delta is None:
-            raise AssertionError("Privacy budget is not calculated yet.")
-        return self._delta
-
-    def set_eps_delta(self, eps, delta):
-        self._eps = eps
-        self._delta = delta
-
-
-@dataclass
-class RequestedBudget:
-    """Manages the budget requested for an operation."""
-    budget: Budget
-    weight: float
-    use_eps: bool
-    use_delta: bool
-
-
-@dataclass
 class MechanismSpec:
     """Specifies the parameters for a mechanism.
 

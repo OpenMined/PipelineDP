@@ -5,7 +5,7 @@ from typing import Any, Callable, Tuple
 
 from dataclasses import dataclass
 from pipeline_dp.aggregate_params import AggregateParams
-from pipeline_dp.budget_accounting import BudgetAccountant, Budget
+from pipeline_dp.budget_accounting import BudgetAccountant, MechanismSpec, NoiseKind
 from pipeline_dp.pipeline_operations import PipelineOperations
 from pipeline_dp.report_generator import ReportGenerator
 from pipeline_dp.accumulator import Accumulator
@@ -127,15 +127,15 @@ class DPEngine:
         Returns:
             collection of elements (partition_key, accumulator)
         """
-        budget = self._budget_accountant.request_budget(weight=1, use_eps=True, use_delta=True)
+        budget = self._budget_accountant.request_budget(noise_kind=NoiseKind.GAUSSIAN)
 
-        def filter_fn(captures: Tuple[Budget, int], row: Tuple[Any, Accumulator]) -> bool:
+        def filter_fn(captures: Tuple[MechanismSpec, int], row: Tuple[Any, Accumulator]) -> bool:
             """Lazily creates a partition selection strategy and uses it to determine which 
             partitions to keep."""
-            budget, max_partitions = captures
+            mechanism, max_partitions = captures
             accumulator = row[1]
             partition_selection_strategy = create_truncated_geometric_partition_strategy(
-                budget.eps, budget.delta,
+                mechanism.eps, mechanism.delta,
                 max_partitions
             )
             return partition_selection_strategy.should_keep(accumulator.privacy_id_count)

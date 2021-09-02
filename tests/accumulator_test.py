@@ -6,6 +6,7 @@ import numpy as np
 import pipeline_dp
 from pipeline_dp import aggregate_params as agg
 from pipeline_dp.dp_computations import MeanVarParams
+from pipeline_dp.budget_accounting import NaiveBudgetAccountant
 import pipeline_dp.accumulator as accumulator
 
 
@@ -165,7 +166,7 @@ class GenericAccumulatorTest(unittest.TestCase):
     @patch('pipeline_dp.accumulator.create_accumulator_params')
     def test_accumulator_factory(self, mock_create_accumulator_params_function):
         aggregate_params = pipeline_dp.AggregateParams([agg.Metrics.MEAN], 5, 3)
-        budget_accountant = pipeline_dp.BudgetAccountant(1, 0.01)
+        budget_accountant = NaiveBudgetAccountant(total_epsilon=1, total_delta=0.01)
 
         values = [10]
         mock_create_accumulator_params_function.return_value = [
@@ -187,7 +188,7 @@ class GenericAccumulatorTest(unittest.TestCase):
             self, mock_create_accumulator_params_function):
         aggregate_params = pipeline_dp.AggregateParams(
             [agg.Metrics.MEAN, agg.Metrics.VAR], 5, 3)
-        budget_accountant = pipeline_dp.BudgetAccountant(1, 0.01)
+        budget_accountant = NaiveBudgetAccountant(total_epsilon=1, total_delta=0.01)
         values = [10]
 
         mock_create_accumulator_params_function.return_value = [
