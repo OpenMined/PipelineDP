@@ -114,10 +114,10 @@ class BudgetAccountant:
 class MechanismSpec:
     """Specifies the parameters for a mechanism.
 
-    MechanismType defines the kind of noise distribution.
+    MechanismType defines the type of noise distribution.
     noise is the minimized noise standard deviation.
     """
-    noise_kind: MechanismType
+    mechanism_type: MechanismType
     _noise_standard_deviation: float = None
 
     @property
@@ -174,7 +174,7 @@ class PLDBudgetAccountant:
         self._pld_discretization = pld_discretization
 
     def request_budget(self,
-                       noise_kind: MechanismType,
+                       mechanism_type: MechanismType,
                        sensitivity: float = 1,
                        weight: float = 1) -> MechanismSpec:
         """Request a budget.
@@ -183,7 +183,7 @@ class PLDBudgetAccountant:
         Adds the mechanism to the pipeline for future calculation.
 
         Args:
-            noise_kind: The kind of noise distribution for the mechanism.
+            mechanism_type: The type of noise distribution for the mechanism.
             sensitivity: The sensitivity for the mechanism.
             weight: The weight for the mechanism.
 
@@ -191,11 +191,11 @@ class PLDBudgetAccountant:
             A "lazy" mechanism spec object that doesn't contain the noise
             standard deviation until compute_budgets is called.
         """
-        if noise_kind == MechanismType.GAUSSIAN and self._total_delta == 0:
+        if mechanism_type == MechanismType.GAUSSIAN and self._total_delta == 0:
             raise AssertionError(
                 "The Gaussian mechanism requires that the pipeline delta is greater than 0"
             )
-        mechanism_spec = MechanismSpec(noise_kind=noise_kind)
+        mechanism_spec = MechanismSpec(mechanism_type=mechanism_type)
         mechanism_spec_internal = MechanismSpecInternal(
             mechanism_spec=mechanism_spec,
             sensitivity=sensitivity,
@@ -273,19 +273,23 @@ class PLDBudgetAccountant:
         composed, pld = None, None
 
         for mechanism_spec_internal in self._mechanisms:
-            if mechanism_spec_internal.mechanism_spec.noise_kind == MechanismType.LAPLACE:
+            if mechanism_spec_internal.mechanism_spec.mechanism_type == MechanismType.LAPLACE:
                 # The Laplace distribution parameter = std/sqrt(2).
                 pld = pldlib.PrivacyLossDistribution.from_laplace_mechanism(
                     mechanism_spec_internal.sensitivity *
                     noise_standard_deviation / math.sqrt(2) /
                     mechanism_spec_internal.weight,
                     value_discretization_interval=self._pld_discretization)
-            elif mechanism_spec_internal.mechanism_spec.noise_kind == MechanismType.GAUSSIAN:
+            elif mechanism_spec_internal.mechanism_spec.mechanism_type == MechanismType.GAUSSIAN:
                 pld = pldlib.PrivacyLossDistribution.from_gaussian_mechanism(
                     mechanism_spec_internal.sensitivity *
                     noise_standard_deviation / mechanism_spec_internal.weight,
                     value_discretization_interval=self._pld_discretization)
-            elif mechanism_spec_internal.mechanism_spec.noise_kind == MechanismType.GENERIC:
+            elif mechanism_spec_internal.mechanism_spec.mechanism_type == MechanismType.GENERIC:
+                # It is required to convert between the noise_standard_deviation of a Laplace or Gaussian mechanism
+                # and the (epsilon, delta) Generic mechanism because the calibration is defined by one parameter.
+                # There are multiple ways to do this; here it is assumed that (epsilon, delta) specifies the Laplace
+                # mechanism and epsilon is computed based on this. The delta is computed to be proportional to epsilon.
                 epsilon_0 = math.sqrt(2) / noise_standard_deviation
                 delta_0 = epsilon_0 / self._total_epsilon * self._total_delta
                 pld = pldlib.PrivacyLossDistribution.from_privacy_parameters(
