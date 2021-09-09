@@ -13,7 +13,8 @@ class MechanismSpec:
     """Specifies the parameters for a mechanism.
 
     NoiseKind defines the kind of noise distribution.
-    noise is the minimized noise standard deviation.
+    _noise_standard_deviation is the minimized noise standard deviation.
+    (_eps, _delta) are parameters of (eps, delta)-differential privacy
     """
     noise_kind: NoiseKind
     _noise_standard_deviation: float = None
@@ -37,7 +38,7 @@ class MechanismSpec:
         """Parameter of (eps, delta)-differential privacy.
                Raises:
                    AssertionError: The privacy budget is not calculated yet.
-               """
+       """
         if self._eps is None:
             raise AssertionError("Privacy budget is not calculated yet.")
         return self._eps
@@ -47,10 +48,26 @@ class MechanismSpec:
         """Parameter of (eps, delta)-differential privacy.
                 Raises:
                     AssertionError: The privacy budget is not calculated yet.
-                """
+        """
         if self._delta is None:
             raise AssertionError("Privacy budget is not calculated yet.")
         return self._delta
+
+    def set_eps_delta(self, eps: float, delta: float) -> None:
+        """Set parameters for (eps, delta)-differential privacy.
+
+        delta can be None.
+        Raises:
+            AssertionError: eps must not be None.
+        """
+        if eps is None:
+            raise AssertionError("eps must not be None.")
+        self._eps = eps
+        self._delta = delta
+        return
+
+    def use_delta(self) -> bool:
+        return self.noise_kind == NoiseKind.GAUSSIAN
 
 
 @dataclass
@@ -135,7 +152,7 @@ class NaiveBudgetAccountant(BudgetAccountant):
         total_weight_eps = total_weight_delta = 0
         for mechanism in self._mechanisms:
             total_weight_eps += mechanism.weight
-            if mechanism.mechanism_spec.noise_kind == NoiseKind.GAUSSIAN:
+            if mechanism.mechanism_spec.use_delta():
                 total_weight_delta += mechanism.weight
 
         for mechanism in self._mechanisms:
@@ -143,12 +160,11 @@ class NaiveBudgetAccountant(BudgetAccountant):
             if total_weight_eps:
                 numerator = self._total_epsilon * mechanism.weight
                 eps = numerator / total_weight_eps
-            if mechanism.mechanism_spec.noise_kind == NoiseKind.GAUSSIAN:
+            if mechanism.mechanism_spec.use_delta():
                 if total_weight_delta:
                     numerator = self._total_delta * mechanism.weight
                     delta = numerator / total_weight_delta
-            mechanism.mechanism_spec._eps = eps
-            mechanism.mechanism_spec._delta = delta
+            mechanism.mechanism_spec.set_eps_delta(eps, delta)
 
 
 class PLDBudgetAccountant(BudgetAccountant):

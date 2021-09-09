@@ -59,7 +59,7 @@ class dp_engineTest(unittest.TestCase):
         max_contributions_per_partition = 2
 
         dp_engine = pipeline_dp.DPEngine(
-            pipeline_dp.BudgetAccountant(epsilon=1, delta=1e-10),
+            NaiveBudgetAccountant(total_epsilon=1, total_delta=1e-10),
             pipeline_dp.LocalPipelineOperations())
         bound_result = list(
             dp_engine._bound_contributions(
@@ -77,7 +77,7 @@ class dp_engineTest(unittest.TestCase):
         max_contributions_per_partition = 2
 
         dp_engine = pipeline_dp.DPEngine(
-            pipeline_dp.BudgetAccountant(epsilon=1, delta=1e-10),
+            NaiveBudgetAccountant(total_epsilon=1, total_delta=1e-10),
             pipeline_dp.LocalPipelineOperations())
         bound_result = list(
             dp_engine._bound_contributions(
@@ -202,7 +202,7 @@ class dp_engineTest(unittest.TestCase):
         ]
         max_partitions_contributed = 3
         engine = pipeline_dp.DPEngine(
-            pipeline_dp.BudgetAccountant(1, 1e-10),
+            NaiveBudgetAccountant(total_epsilon=1, total_delta=1e-10),
             pipeline_dp.LocalPipelineOperations()
         )
         groups = engine._ops.group_by_key(input_col, None)
