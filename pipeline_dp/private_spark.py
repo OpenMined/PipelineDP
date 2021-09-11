@@ -58,17 +58,16 @@ class PrivateRDD:
         params = pipeline_dp.AggregateParams(
             metrics=[pipeline_dp.Metrics.SUM],
             max_partitions_contributed=sum_params.max_partitions_contributed,
-            max_contributions_per_partition=sum_params.max_contributions_per_partition,
+            max_contributions_per_partition=
+                sum_params.max_contributions_per_partition,
             low=sum_params.low,
             high=sum_params.high,
-            public_partitions=sum_params.public_partitions
-        )
+            public_partitions=sum_params.public_partitions)
 
         data_extractors = pipeline_dp.DataExtractors(
             partition_extractor=sum_params.partition_extractor,
             privacy_id_extractor=self.__privacy_id_extractor,
-            value_extractor=sum_params.value_extractor
-        )
+            value_extractor=sum_params.value_extractor)
 
         dp_result = dp_engine.aggregate(self.__rdd, params, data_extractors)
 
