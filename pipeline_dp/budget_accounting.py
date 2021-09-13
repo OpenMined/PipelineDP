@@ -4,13 +4,14 @@ import abc
 import logging
 import math
 from dataclasses import dataclass
+from typing import Optional
 from pipeline_dp.aggregate_params import NoiseKind
 from dp_accounting import privacy_loss_distribution as pldlib
 
 
 @dataclass
 class MechanismSpec:
-    """Specifies the parameters for a mechanism.
+    """Specifies the parameters for a DP mechanism.
 
     NoiseKind defines the kind of noise distribution.
     _noise_standard_deviation is the minimized noise standard deviation.
@@ -53,10 +54,9 @@ class MechanismSpec:
             raise AssertionError("Privacy budget is not calculated yet.")
         return self._delta
 
-    def set_eps_delta(self, eps: float, delta: float) -> None:
+    def set_eps_delta(self, eps: float, delta: Optional[float]) -> None:
         """Set parameters for (eps, delta)-differential privacy.
 
-        delta can be None.
         Raises:
             AssertionError: eps must not be None.
         """
@@ -89,7 +89,7 @@ class BudgetAccountant(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def request_budget(self):
+    def compute_budgets(self):
         pass
 
 
@@ -117,10 +117,10 @@ class NaiveBudgetAccountant(BudgetAccountant):
                        noise_kind: NoiseKind,
                        sensitivity: float = 1,
                        weight: float = 1) -> MechanismSpec:
-        """Request a budget.
+        """Requests a budget.
 
         Constructs a mechanism spec based on the parameters.
-        Adds the mechanism to the pipeline for future calculation.
+        Keeps the mechanism spec for future calculations.
 
         Args:
             noise_kind: The kind of noise distribution for the mechanism.
