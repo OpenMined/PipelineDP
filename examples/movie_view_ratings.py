@@ -183,8 +183,3 @@ if __name__ == '__main__':
     flags.mark_flag_as_required("input_file")
     flags.mark_flag_as_required("output_file")
     app.run(main)
-
-
-# todo: add test for Spark pipeline map and map_tuples ops
-# todo: check map vs map_tuple in dp_endige
-# todo: make multi-process testn
