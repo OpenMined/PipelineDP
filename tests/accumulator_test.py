@@ -233,7 +233,8 @@ class GenericAccumulatorTest(unittest.TestCase):
                 max_partitions_contributed=4,
                 max_contributions_per_partition=5,
                 budget_weight=1),
-            budget_accountant=pipeline_dp.BudgetAccountant(1, 0.01))
+            budget_accountant=NaiveBudgetAccountant(total_epsilon=1,
+                                                    total_delta=0.01))
         self.assertEqual(len(acc_params), 1)
         self.assertEqual(acc_params[0].accumulator_type,
                          accumulator.CountAccumulator)
