@@ -55,7 +55,6 @@ def calc_dp_rating_metrics(movie_views, ops, public_partitions):
         metrics=[
             pipeline_dp.Metrics.COUNT,
         ],
-        noise_kind=pipeline_dp.NoiseKind.LAPLACE,
         max_partitions_contributed=2,
         max_contributions_per_partition=1,
         low=1,
