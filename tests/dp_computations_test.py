@@ -191,7 +191,7 @@ class MeanVarParams(unittest.TestCase):
             count_values, 1000, count_eps,
             pipeline_dp.dp_computations.compute_l1_sensitivity(
                 l0_sensitivity, count_linf_sensitivity))
-        self.assertAlmostEqual(np.mean(sum_values), 10000, delta=0.1)
+        self.assertAlmostEqual(np.mean(sum_values), 10000, delta=0.2)
         self.assertAlmostEqual(np.mean(mean_values), 10, delta=0.1)
 
         # Gaussian Mechanism
@@ -207,7 +207,7 @@ class MeanVarParams(unittest.TestCase):
             count_values, 1000, count_eps, count_delta,
             pipeline_dp.dp_computations.compute_l2_sensitivity(
                 l0_sensitivity, count_linf_sensitivity))
-        self.assertAlmostEqual(np.mean(sum_values), 10000, delta=0.1)
+        self.assertAlmostEqual(np.mean(sum_values), 10000, delta=1)
         self.assertAlmostEqual(np.mean(mean_values), 10, delta=0.1)
 
     def test_compute_dp_var(self):
@@ -239,8 +239,8 @@ class MeanVarParams(unittest.TestCase):
             count_values, 100000, count_eps,
             pipeline_dp.dp_computations.compute_l1_sensitivity(
                 l0_sensitivity, count_linf_sensitivity))
-        self.assertAlmostEqual(np.mean(sum_values), 1000000, delta=0.1)
-        self.assertAlmostEqual(np.mean(sum_squares_values), 20000000, delta=0.1)
+        self.assertAlmostEqual(np.mean(sum_values), 1000000, delta=1)
+        self.assertAlmostEqual(np.mean(sum_squares_values), 20000000, delta=5.5)
         self.assertAlmostEqual(np.mean(var_values), 100, delta=0.1)
 
         # Gaussian Mechanism
@@ -257,8 +257,8 @@ class MeanVarParams(unittest.TestCase):
             count_values, 100000, count_eps, count_delta,
             pipeline_dp.dp_computations.compute_l2_sensitivity(
                 l0_sensitivity, count_linf_sensitivity))
-        self.assertAlmostEqual(np.mean(sum_values), 1000000, delta=0.1)
-        self.assertAlmostEqual(np.mean(sum_squares_values), 20000000, delta=0.1)
+        self.assertAlmostEqual(np.mean(sum_values), 1000000, delta=1)
+        self.assertAlmostEqual(np.mean(sum_squares_values), 20000000, delta=18)
         self.assertAlmostEqual(np.mean(var_values), 100, delta=0.1)
 
 
