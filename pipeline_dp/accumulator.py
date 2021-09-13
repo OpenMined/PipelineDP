@@ -4,11 +4,13 @@ import pickle
 from dataclasses import dataclass
 from functools import reduce
 
-from typing import Iterable, Tuple, Union
+from typing import Iterable, Optional, Tuple, Union
 import pipeline_dp
 from pipeline_dp import dp_computations
 from pipeline_dp import aggregate_params
+from pipeline_dp import dp_computations
 import numpy as np
+
 
 @dataclass
 class AccumulatorParams:
@@ -25,8 +27,15 @@ def create_accumulator_params(
     aggregation_params: pipeline_dp.AggregateParams,
     budget_accountant: pipeline_dp.BudgetAccountant
 ) -> typing.List[AccumulatorParams]:
-
-    raise NotImplemented()  # implementation will be done later
+    accumulator_params = []
+    if pipeline_dp.Metrics.COUNT in aggregation_params.metrics:
+        # TODO: populate CountParams from budget_accountant when it is ready
+        accumulator_params.append(
+            AccumulatorParams(accumulator_type=CountAccumulator,
+                              constructor_params=CountParams()))
+    else:
+        raise NotImplemented()  # implementation will be done later
+    return accumulator_params
 
 
 class Accumulator(abc.ABC):
@@ -185,18 +194,20 @@ class CountAccumulator(Accumulator):
         return self._count
 
 
-@dataclass
-class VectorSummationParams:
-    noise_kind: aggregate_params.NoiseKind
-    max_norm: float
-
 _FloatVector = Union[Tuple[float], np.ndarray]
+
 
 class VectorSummationAccumulator(Accumulator):
     _vec_sum: np.ndarray
+    _params: dp_computations.AdditiveVectorNoiseParams
 
-    def __init__(self, params: VectorSummationParams,
-                 values: Iterable[_FloatVector]) -> None:
+    def __init__(self, params: dp_computations.AdditiveVectorNoiseParams,
+                 values: Iterable[_FloatVector]):
+        if not isinstance(params, dp_computations.AdditiveVectorNoiseParams):
+            raise TypeError(
+                f"'params' parameters should be of type "
+                f"dp_computations.AdditiveVectorNoiseParams, not {params.__class__.__name__}"
+            )
         self._params = params
         self._vec_sum = None
         for val in values:
@@ -223,12 +234,12 @@ class VectorSummationAccumulator(Accumulator):
         return self
 
     def compute_metrics(self):
-        # TODO - add DP anonymization
         if self._vec_sum is None:
             raise IndexError("No data provided for metrics computation.")
-        return self._vec_sum
+        return dp_computations.add_noise_vector(self._vec_sum, self._params)
 
 
+@dataclass
 class SumParams:
     noise: dp_computations.MeanVarParams
 
