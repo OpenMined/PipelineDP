@@ -58,7 +58,7 @@ class DPEngine:
         aggregator_fn = accumulator_factory.create
 
         # extract the columns
-        col = self._ops.map_tuple(
+        col = self._ops.map(
             col, lambda row: (data_extractors.privacy_id_extractor(row),
                               data_extractors.partition_extractor(row),
                               data_extractors.value_extractor(row)),
