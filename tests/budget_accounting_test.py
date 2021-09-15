@@ -214,6 +214,7 @@ class PLDBudgetAccountantTest(unittest.TestCase):
             self.assertAlmostEqual(
                 first=case.expected_pipeline_noise_std,
                 second=accountant.minimum_noise_std,
+                places=3,
                 msg=
                 f"failed test {case.name} expected pipeline noise {case.expected_pipeline_noise_std} "
                 f"got {accountant.minimum_noise_std}")
