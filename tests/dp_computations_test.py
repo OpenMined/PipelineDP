@@ -212,7 +212,7 @@ class MeanVarParams(unittest.TestCase):
 
     def test_compute_dp_var(self):
         params = pipeline_dp.dp_computations.MeanVarParams(
-            eps=0.5,
+            eps=10,
             delta=1e-10,
             low=1,
             high=20,
@@ -240,7 +240,7 @@ class MeanVarParams(unittest.TestCase):
             pipeline_dp.dp_computations.compute_l1_sensitivity(
                 l0_sensitivity, count_linf_sensitivity))
         self.assertAlmostEqual(np.mean(sum_values), 1000000, delta=1)
-        self.assertAlmostEqual(np.mean(sum_squares_values), 20000000, delta=5.5)
+        self.assertAlmostEqual(np.mean(sum_squares_values), 20000000, delta=1)
         self.assertAlmostEqual(np.mean(var_values), 100, delta=0.1)
 
         # Gaussian Mechanism
@@ -258,7 +258,7 @@ class MeanVarParams(unittest.TestCase):
             pipeline_dp.dp_computations.compute_l2_sensitivity(
                 l0_sensitivity, count_linf_sensitivity))
         self.assertAlmostEqual(np.mean(sum_values), 1000000, delta=1)
-        self.assertAlmostEqual(np.mean(sum_squares_values), 20000000, delta=18)
+        self.assertAlmostEqual(np.mean(sum_squares_values), 20000000, delta=1)
         self.assertAlmostEqual(np.mean(var_values), 100, delta=0.1)
 
 
