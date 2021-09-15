@@ -212,8 +212,10 @@ class PLDBudgetAccountantTest(unittest.TestCase):
                 )
             accountant.compute_budgets()
             self.assertAlmostEqual(
-                first=case.expected_pipeline_noise_std, second=accountant.minimum_noise_std,
-                msg=f"failed test {case.name} expected pipeline noise {case.expected_pipeline_noise_std} "
+                first=case.expected_pipeline_noise_std,
+                second=accountant.minimum_noise_std,
+                msg=
+                f"failed test {case.name} expected pipeline noise {case.expected_pipeline_noise_std} "
                 f"got {accountant.minimum_noise_std}")
             for actual_mechanism_tuple in actual_mechanisms:
                 expected_mechanism_noise_std, actual_mechanism = actual_mechanism_tuple
