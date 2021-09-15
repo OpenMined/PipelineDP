@@ -156,12 +156,11 @@ class SparkRDDOperationsTest(parameterized.TestCase):
         self.assertDictEqual(result, {'a': 2, 'b': 1})
 
     def test_reduce_accumulators_per_key(self):
-        spark_operations = SparkRDDOperations()
         data = [(1, 11), (2, 22), (3, 33), (1, 14), (2, 25), (1, 16)]
         dist_data = SparkRDDOperationsTest.sc.parallelize(data)
-        rdd = spark_operations.map_values(dist_data, SumAccumulator,
+        rdd = self.ops.map_values(dist_data, SumAccumulator,
                                           "Wrap into accumulators")
-        result = spark_operations\
+        result = self.ops\
             .reduce_accumulators_per_key(rdd, "Reduce accumulator per key")\
             .map(lambda row: (row[0], row[1].get_metrics()))\
             .collect()
