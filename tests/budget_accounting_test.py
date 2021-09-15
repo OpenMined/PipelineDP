@@ -10,7 +10,8 @@ from pipeline_dp.budget_accounting import MechanismSpec, NaiveBudgetAccountant, 
 class NaiveBudgetAccountantTest(unittest.TestCase):
 
     def test_validation(self):
-        NaiveBudgetAccountant(total_epsilon=1, total_delta=1e-10)  # No exception.
+        NaiveBudgetAccountant(total_epsilon=1,
+                              total_delta=1e-10)  # No exception.
         NaiveBudgetAccountant(total_epsilon=1, total_delta=0)  # No exception.
 
         with self.assertRaises(ValueError):
@@ -19,10 +20,12 @@ class NaiveBudgetAccountantTest(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             NaiveBudgetAccountant(
-                total_epsilon=0.5, total_delta=-1e-10)  # Delta must be non-negative.
+                total_epsilon=0.5,
+                total_delta=-1e-10)  # Delta must be non-negative.
 
     def test_request_budget(self):
-        budget_accountant = NaiveBudgetAccountant(total_epsilon=1, total_delta=0)
+        budget_accountant = NaiveBudgetAccountant(total_epsilon=1,
+                                                  total_delta=0)
         budget = budget_accountant.request_budget(noise_kind=NoiseKind.LAPLACE)
         self.assertTrue(budget)  # An object must be returned.
 
@@ -33,10 +36,11 @@ class NaiveBudgetAccountantTest(unittest.TestCase):
             print(budget.delta)  # The privacy budget is not calculated yet.
 
     def test_compute_budgets(self):
-        budget_accountant = NaiveBudgetAccountant(total_epsilon=1, total_delta=1e-6)
+        budget_accountant = NaiveBudgetAccountant(total_epsilon=1,
+                                                  total_delta=1e-6)
         budget1 = budget_accountant.request_budget(noise_kind=NoiseKind.LAPLACE)
-        budget2 = budget_accountant.request_budget(noise_kind=NoiseKind.GAUSSIAN,
-                                                   weight=3)
+        budget2 = budget_accountant.request_budget(
+            noise_kind=NoiseKind.GAUSSIAN, weight=3)
         budget_accountant.compute_budgets()
 
         self.assertEqual(budget1.eps, 0.25)
@@ -207,15 +211,20 @@ class PLDBudgetAccountantTest(unittest.TestCase):
                     f"failed test {case.name} expected epsilon {case.epsilon} got {actual_epsilon}"
                 )
             accountant.compute_budgets()
-            self.assertEqual(
-                case.expected_pipeline_noise_std, accountant.minimum_noise_std,
+            self.assertAlmostEqual(
+                first=case.expected_pipeline_noise_std,
+                second=accountant.minimum_noise_std,
+                places=3,
+                msg=
                 f"failed test {case.name} expected pipeline noise {case.expected_pipeline_noise_std} "
                 f"got {accountant.minimum_noise_std}")
             for actual_mechanism_tuple in actual_mechanisms:
                 expected_mechanism_noise_std, actual_mechanism = actual_mechanism_tuple
-                self.assertEqual(
-                    expected_mechanism_noise_std,
-                    actual_mechanism.noise_standard_deviation,
+                self.assertAlmostEqual(
+                    first=expected_mechanism_noise_std,
+                    second=actual_mechanism.noise_standard_deviation,
+                    places=3,
+                    msg=
                     f"failed test {case.name} expected mechanism noise {expected_mechanism_noise_std} "
                     f"got {actual_mechanism.noise_standard_deviation}")
 

@@ -145,7 +145,8 @@ class DPEngine:
         Returns:
             collection of elements (partition_key, accumulator)
         """
-        budget = self._budget_accountant.request_budget(noise_kind=NoiseKind.GAUSSIAN)
+        budget = self._budget_accountant.request_budget(
+            noise_kind=NoiseKind.GAUSSIAN)
 
         def filter_fn(captures: Tuple[MechanismSpec, int],
                       row: Tuple[Any, Accumulator]) -> bool:
