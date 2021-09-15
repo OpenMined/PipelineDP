@@ -220,9 +220,11 @@ class PLDBudgetAccountantTest(unittest.TestCase):
                 f"got {accountant.minimum_noise_std}")
             for actual_mechanism_tuple in actual_mechanisms:
                 expected_mechanism_noise_std, actual_mechanism = actual_mechanism_tuple
-                self.assertEqual(
-                    expected_mechanism_noise_std,
-                    actual_mechanism.noise_standard_deviation,
+                self.assertAlmostEqual(
+                    first=expected_mechanism_noise_std,
+                    second=actual_mechanism.noise_standard_deviation,
+                    places=3,
+                    msg=
                     f"failed test {case.name} expected mechanism noise {expected_mechanism_noise_std} "
                     f"got {actual_mechanism.noise_standard_deviation}")
 
