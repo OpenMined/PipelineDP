@@ -320,6 +320,8 @@ class PLDBudgetAccountant(BudgetAccountant):
                 # mechanism and epsilon is computed based on this. The delta is computed to be proportional to epsilon.
                 epsilon_0 = math.sqrt(2) / noise_standard_deviation
                 delta_0 = epsilon_0 / self._total_epsilon * self._total_delta
+                mechanism_spec_internal.mechanism_spec.set_eps_delta(
+                    epsilon_0, delta_0)
                 pld = pldlib.PrivacyLossDistribution.from_privacy_parameters(
                     common.DifferentialPrivacyParameters(epsilon_0, delta_0),
                     value_discretization_interval=self._pld_discretization)

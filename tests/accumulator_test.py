@@ -348,8 +348,7 @@ class SumAccumulatorTest(unittest.TestCase):
                               high=1,
                               max_partitions_contributed=1,
                               max_contributions_per_partition=3,
-                              noise_kind=NoiseKind.GAUSSIAN)),
-            list(range(6)))
+                              noise_kind=NoiseKind.GAUSSIAN)), list(range(6)))
         self.assertAlmostEqual(first=sum_accumulator.compute_metrics(),
                                second=15,
                                delta=4)
@@ -367,8 +366,7 @@ class SumAccumulatorTest(unittest.TestCase):
                               high=1,
                               max_partitions_contributed=1,
                               max_contributions_per_partition=3,
-                              noise_kind=NoiseKind.GAUSSIAN)),
-            list(range(3)))
+                              noise_kind=NoiseKind.GAUSSIAN)), list(range(3)))
         sum_accumulator.add_accumulator(sum_accumulator_2)
         self.assertAlmostEqual(first=sum_accumulator.compute_metrics(),
                                second=23,

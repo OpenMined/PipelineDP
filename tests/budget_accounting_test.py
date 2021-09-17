@@ -28,7 +28,8 @@ class NaiveBudgetAccountantTest(unittest.TestCase):
     def test_request_budget(self):
         budget_accountant = NaiveBudgetAccountant(total_epsilon=1,
                                                   total_delta=0)
-        budget = budget_accountant.request_budget(mechanism_type=MechanismType.LAPLACE)
+        budget = budget_accountant.request_budget(
+            mechanism_type=MechanismType.LAPLACE)
         self.assertTrue(budget)  # An object must be returned.
 
         with self.assertRaises(AssertionError):
@@ -40,7 +41,8 @@ class NaiveBudgetAccountantTest(unittest.TestCase):
     def test_compute_budgets(self):
         budget_accountant = NaiveBudgetAccountant(total_epsilon=1,
                                                   total_delta=1e-6)
-        budget1 = budget_accountant.request_budget(mechanism_type=MechanismType.LAPLACE)
+        budget1 = budget_accountant.request_budget(
+            mechanism_type=MechanismType.LAPLACE)
         budget2 = budget_accountant.request_budget(
             mechanism_type=MechanismType.GAUSSIAN, weight=3)
         budget_accountant.compute_budgets()

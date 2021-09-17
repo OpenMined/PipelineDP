@@ -6,6 +6,7 @@ import pipeline_dp
 from pipeline_dp.dp_computations import *
 from pipeline_dp.aggregate_params import NoiseKind
 
+
 class MeanVarParams(unittest.TestCase):
 
     def test_l0_sensitivity(self):
