@@ -89,6 +89,8 @@ class PLDBudgetAccountantTest(unittest.TestCase):
             noise_kind: MechanismType
             weight: float
             sensitivity: float
+            expected_mechanism_epsilon: float = None
+            expected_mechanism_delta: float = None
 
         @dataclass
         class ComputeBudgetTestCase:
@@ -99,24 +101,36 @@ class PLDBudgetAccountantTest(unittest.TestCase):
             mechanisms: []
 
         testcases = [
-            ComputeBudgetTestCase(name="generic",
-                                  epsilon=0.22999925338484556,
-                                  delta=1e-5,
-                                  mechanisms=[
-                                      ComputeBudgetMechanisms(
-                                          1, 6.41455078125,
-                                          MechanismType.GENERIC, 1, 1)
-                                  ],
-                                  expected_pipeline_noise_std=6.41455078125),
-            ComputeBudgetTestCase(name="generic_multiple",
-                                  epsilon=0.6599974547358093,
-                                  delta=1e-5,
-                                  mechanisms=[
-                                      ComputeBudgetMechanisms(
-                                          3, 6.71649169921875,
-                                          MechanismType.GENERIC, 1, 1)
-                                  ],
-                                  expected_pipeline_noise_std=6.71649169921875),
+            ComputeBudgetTestCase(
+                name="generic",
+                epsilon=0.22999925338484556,
+                delta=1e-5,
+                mechanisms=[
+                    ComputeBudgetMechanisms(
+                        1,
+                        6.41455078125,
+                        MechanismType.GENERIC,
+                        1,
+                        1,
+                        expected_mechanism_epsilon=0.2204717161227536,
+                        expected_mechanism_delta=9.585757904781109e-06)
+                ],
+                expected_pipeline_noise_std=6.41455078125),
+            ComputeBudgetTestCase(
+                name="generic_multiple",
+                epsilon=0.6599974547358093,
+                delta=1e-5,
+                mechanisms=[
+                    ComputeBudgetMechanisms(
+                        3,
+                        6.71649169921875,
+                        MechanismType.GENERIC,
+                        1,
+                        1,
+                        expected_mechanism_epsilon=0.21055837268995567,
+                        expected_mechanism_delta=3.190290677321479e-06)
+                ],
+                expected_pipeline_noise_std=6.71649169921875),
             ComputeBudgetTestCase(
                 name="standard_laplace",
                 epsilon=4,
@@ -169,8 +183,14 @@ class PLDBudgetAccountantTest(unittest.TestCase):
                                             MechanismType.LAPLACE, 1, 1),
                     ComputeBudgetMechanisms(5, 49.81597900390625,
                                             MechanismType.GAUSSIAN, 1, 1),
-                    ComputeBudgetMechanisms(5, 49.81597900390625,
-                                            MechanismType.GENERIC, 1, 1)
+                    ComputeBudgetMechanisms(
+                        5,
+                        49.81597900390625,
+                        MechanismType.GENERIC,
+                        1,
+                        1,
+                        expected_mechanism_epsilon=0.02838875378244,
+                        expected_mechanism_delta=0.00010439193305478515)
                 ],
                 expected_pipeline_noise_std=49.81597900390625),
             ComputeBudgetTestCase(
@@ -222,6 +242,8 @@ class PLDBudgetAccountantTest(unittest.TestCase):
                 for _ in range(0, mechanism.count):
                     actual_mechanisms.append(
                         (mechanism.expected_noise_std,
+                         mechanism.expected_mechanism_epsilon,
+                         mechanism.expected_mechanism_delta,
                          accountant.request_budget(
                              mechanism.noise_kind,
                              weight=mechanism.weight,
@@ -246,8 +268,8 @@ class PLDBudgetAccountantTest(unittest.TestCase):
                 msg=
                 f"failed test {case.name} expected pipeline noise {case.expected_pipeline_noise_std} "
                 f"got {accountant.minimum_noise_std}")
-            for actual_mechanism_tuple in actual_mechanisms:
-                expected_mechanism_noise_std, actual_mechanism = actual_mechanism_tuple
+            for mechanism_expectations in actual_mechanisms:
+                expected_mechanism_noise_std, expected_mechanism_epsilon, expected_mechanism_delta, actual_mechanism = mechanism_expectations
                 self.assertAlmostEqual(
                     first=expected_mechanism_noise_std,
                     second=actual_mechanism.noise_standard_deviation,
@@ -255,6 +277,21 @@ class PLDBudgetAccountantTest(unittest.TestCase):
                     msg=
                     f"failed test {case.name} expected mechanism noise {expected_mechanism_noise_std} "
                     f"got {actual_mechanism.noise_standard_deviation}")
+                if actual_mechanism.mechanism_type == MechanismType.GENERIC:
+                    self.assertAlmostEqual(
+                        first=expected_mechanism_epsilon,
+                        second=actual_mechanism._eps,
+                        places=3,
+                        msg=
+                        f"failed test {case.name} expected mechanism epsilon {expected_mechanism_epsilon} "
+                        f"got {actual_mechanism._eps}")
+                    self.assertAlmostEqual(
+                        first=expected_mechanism_delta,
+                        second=actual_mechanism._delta,
+                        places=3,
+                        msg=
+                        f"failed test {case.name} expected mechanism delta {expected_mechanism_delta} "
+                        f"got {actual_mechanism._delta}")
 
 
 if __name__ == '__main__':
