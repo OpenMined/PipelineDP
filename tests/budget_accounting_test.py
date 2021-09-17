@@ -2,31 +2,33 @@
 
 import unittest
 from dataclasses import dataclass
-import pipeline_dp
+from pipeline_dp.budget_accounting import MechanismSpec
 from pipeline_dp.aggregate_params import MechanismType
-from pipeline_dp.budget_accounting import MechanismSpec, PLDBudgetAccountant
+from pipeline_dp.budget_accounting import NaiveBudgetAccountant
+from pipeline_dp.budget_accounting import PLDBudgetAccountant
 
 
 # pylint: disable=protected-access
-class BudgetAccountantTest(unittest.TestCase):
+class NaiveBudgetAccountantTest(unittest.TestCase):
 
     def test_validation(self):
-        pipeline_dp.BudgetAccountant(epsilon=1, delta=1e-10)  # No exception.
-        pipeline_dp.BudgetAccountant(epsilon=1, delta=0)  # No exception.
+        NaiveBudgetAccountant(total_epsilon=1,
+                              total_delta=1e-10)  # No exception.
+        NaiveBudgetAccountant(total_epsilon=1, total_delta=0)  # No exception.
 
         with self.assertRaises(ValueError):
-            pipeline_dp.BudgetAccountant(
-                epsilon=0, delta=1e-10)  # Epsilon must be positive.
+            NaiveBudgetAccountant(
+                total_epsilon=0, total_delta=1e-10)  # Epsilon must be positive.
 
         with self.assertRaises(ValueError):
-            pipeline_dp.BudgetAccountant(
-                epsilon=0.5, delta=-1e-10)  # Delta must be non-negative.
+            NaiveBudgetAccountant(
+                total_epsilon=0.5,
+                total_delta=-1e-10)  # Delta must be non-negative.
 
     def test_request_budget(self):
-        budget_accountant = pipeline_dp.BudgetAccountant(epsilon=1, delta=0)
-        budget = budget_accountant.request_budget(1,
-                                                  use_eps=False,
-                                                  use_delta=False)
+        budget_accountant = NaiveBudgetAccountant(total_epsilon=1,
+                                                  total_delta=0)
+        budget = budget_accountant.request_budget(mechanism_type=MechanismType.LAPLACE)
         self.assertTrue(budget)  # An object must be returned.
 
         with self.assertRaises(AssertionError):
@@ -36,18 +38,16 @@ class BudgetAccountantTest(unittest.TestCase):
             print(budget.delta)  # The privacy budget is not calculated yet.
 
     def test_compute_budgets(self):
-        budget_accountant = pipeline_dp.BudgetAccountant(epsilon=1, delta=1e-6)
-        budget1 = budget_accountant.request_budget(1,
-                                                   use_eps=True,
-                                                   use_delta=False)
-        budget2 = budget_accountant.request_budget(3,
-                                                   use_eps=True,
-                                                   use_delta=True)
+        budget_accountant = NaiveBudgetAccountant(total_epsilon=1,
+                                                  total_delta=1e-6)
+        budget1 = budget_accountant.request_budget(mechanism_type=MechanismType.LAPLACE)
+        budget2 = budget_accountant.request_budget(
+            mechanism_type=MechanismType.GAUSSIAN, weight=3)
         budget_accountant.compute_budgets()
 
         self.assertEqual(budget1.eps, 0.25)
         self.assertEqual(budget1.delta,
-                         0)  # Delta should be 0 if use_delta is False.
+                         0)  # Delta should be 0 if mechanism is Gaussian.
 
         self.assertEqual(budget2.eps, 0.75)
         self.assertEqual(budget2.delta, 1e-6)
@@ -237,15 +237,20 @@ class PLDBudgetAccountantTest(unittest.TestCase):
                     f"failed test {case.name} expected epsilon {case.epsilon} got {actual_epsilon}"
                 )
             accountant.compute_budgets()
-            self.assertEqual(
-                case.expected_pipeline_noise_std, accountant.minimum_noise_std,
+            self.assertAlmostEqual(
+                first=case.expected_pipeline_noise_std,
+                second=accountant.minimum_noise_std,
+                places=3,
+                msg=
                 f"failed test {case.name} expected pipeline noise {case.expected_pipeline_noise_std} "
                 f"got {accountant.minimum_noise_std}")
             for actual_mechanism_tuple in actual_mechanisms:
                 expected_mechanism_noise_std, actual_mechanism = actual_mechanism_tuple
-                self.assertEqual(
-                    expected_mechanism_noise_std,
-                    actual_mechanism.noise_standard_deviation,
+                self.assertAlmostEqual(
+                    first=expected_mechanism_noise_std,
+                    second=actual_mechanism.noise_standard_deviation,
+                    places=3,
+                    msg=
                     f"failed test {case.name} expected mechanism noise {expected_mechanism_noise_std} "
                     f"got {actual_mechanism.noise_standard_deviation}")
 

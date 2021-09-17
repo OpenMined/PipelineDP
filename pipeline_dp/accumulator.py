@@ -3,7 +3,13 @@ import typing
 import pickle
 from dataclasses import dataclass
 from functools import reduce
+
+from typing import Iterable, Optional, Tuple, Union
 import pipeline_dp
+from pipeline_dp import dp_computations
+from pipeline_dp import aggregate_params
+from pipeline_dp import dp_computations
+import numpy as np
 
 
 @dataclass
@@ -21,8 +27,15 @@ def create_accumulator_params(
     aggregation_params: pipeline_dp.AggregateParams,
     budget_accountant: pipeline_dp.BudgetAccountant
 ) -> typing.List[AccumulatorParams]:
-
-    raise NotImplemented()  # implementation will be done later
+    accumulator_params = []
+    if pipeline_dp.Metrics.COUNT in aggregation_params.metrics:
+        # TODO: populate CountParams from budget_accountant when it is ready
+        accumulator_params.append(
+            AccumulatorParams(accumulator_type=CountAccumulator,
+                              constructor_params=CountParams()))
+    else:
+        raise NotImplemented()  # implementation will be done later
+    return accumulator_params
 
 
 class Accumulator(abc.ABC):
@@ -41,6 +54,13 @@ class Accumulator(abc.ABC):
     Returns: self.
     """
         pass
+
+    def _check_mergeable(self, accumulator: 'Accumulator'):
+        if not isinstance(accumulator, type(self)):
+            raise TypeError(
+                f"The accumulator to be added is not of the same type: "
+                f"{accumulator.__class__.__name__} != "
+                f"{self.__class__.__name__}")
 
     @abc.abstractmethod
     def add_accumulator(self, accumulator: 'Accumulator') -> 'Accumulator':
@@ -94,7 +114,7 @@ class CompoundAccumulator(Accumulator):
 
     The expectation is that the internal accumulators are of the same type and
     are in the same order."""
-
+        self._check_mergeable(accumulator)
         if len(accumulator.accumulators) != len(self.accumulators):
             raise ValueError(
                 "Accumulators in the input are not of the same size." +
@@ -165,6 +185,7 @@ class CountAccumulator(Accumulator):
 
     def add_accumulator(self,
                         accumulator: 'CountAccumulator') -> 'CountAccumulator':
+        self._check_mergeable(accumulator)
         self._count += accumulator._count
         return self
 
@@ -173,23 +194,70 @@ class CountAccumulator(Accumulator):
         return self._count
 
 
+_FloatVector = Union[Tuple[float], np.ndarray]
+
+
+class VectorSummationAccumulator(Accumulator):
+    _vec_sum: np.ndarray
+    _params: dp_computations.AdditiveVectorNoiseParams
+
+    def __init__(self, params: dp_computations.AdditiveVectorNoiseParams,
+                 values: Iterable[_FloatVector]):
+        if not isinstance(params, dp_computations.AdditiveVectorNoiseParams):
+            raise TypeError(
+                f"'params' parameters should be of type "
+                f"dp_computations.AdditiveVectorNoiseParams, not {params.__class__.__name__}"
+            )
+        self._params = params
+        self._vec_sum = None
+        for val in values:
+            self.add_value(val)
+
+    def add_value(self, value: _FloatVector):
+        if not isinstance(value, np.ndarray):
+            value = np.array(value)
+
+        if self._vec_sum is None:
+            self._vec_sum = value
+        else:
+            if self._vec_sum.shape != value.shape:
+                raise TypeError(
+                    f"Shape mismatch: {self._vec_sum.shape} != {value.shape}")
+            self._vec_sum += value
+        return self
+
+    def add_accumulator(
+        self, accumulator: 'VectorSummationAccumulator'
+    ) -> 'VectorSummationAccumulator':
+        self._check_mergeable(accumulator)
+        self.add_value(accumulator._vec_sum)
+        return self
+
+    def compute_metrics(self):
+        if self._vec_sum is None:
+            raise IndexError("No data provided for metrics computation.")
+        return dp_computations.add_noise_vector(self._vec_sum, self._params)
+
+
 @dataclass
 class SumParams:
-    pass
+    noise: dp_computations.MeanVarParams
 
 
 class SumAccumulator(Accumulator):
 
     def __init__(self, params: SumParams, values):
         self._sum = sum(values)
+        self._params = params
 
     def add_value(self, value):
         self._sum += value
 
     def add_accumulator(self,
                         accumulator: 'SumAccumulator') -> 'SumAccumulator':
+        self._check_mergeable(accumulator)
         self._sum += accumulator._sum
 
     def compute_metrics(self) -> float:
-        # TODO: add differential privacy
-        return self._sum
+        return pipeline_dp.dp_computations.compute_dp_sum(
+            self._sum, self._params.noise)

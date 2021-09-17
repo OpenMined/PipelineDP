@@ -1,4 +1,4 @@
-"""Contains classes used for specifying DP aggregation parameters."""
+"""Contains utility classes used for specifying DP aggregation parameters, noise types, and norms."""
 
 from dataclasses import dataclass
 from enum import Enum
@@ -13,10 +13,22 @@ class Metrics(Enum):
     VAR = 'variance'
 
 
+class NoiseKind(Enum):
+    LAPLACE = 'laplace'
+    GAUSSIAN = 'gaussian'
+
+
 class MechanismType(Enum):
     LAPLACE = 'laplace'
     GAUSSIAN = 'gaussian'
     GENERIC = 'generic'
+
+
+class NormKind(Enum):
+    Linf = "linf"
+    L0 = "l0"
+    L1 = "l1"
+    L2 = "l2"
 
 
 @dataclass
