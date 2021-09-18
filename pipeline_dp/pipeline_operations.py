@@ -207,7 +207,7 @@ class SparkRDDOperations(PipelineOperations):
         return rdd.flatMap(fn)
 
     def map_tuple(self, rdd, fn, stage_name: str = None):
-        return rdd.map(fn)
+        return rdd.map(lambda x: fn(*x))
 
     def map_values(self, rdd, fn, stage_name: str = None):
         return rdd.mapValues(fn)

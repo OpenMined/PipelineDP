@@ -26,10 +26,13 @@ from dataclasses import dataclass
 import pipeline_dp
 
 FLAGS = flags.FLAGS
-flags.DEFINE_string('input_file', '', 'The file with the movie view data')
+flags.DEFINE_string('input_file', None, 'The file with the movie view data')
 flags.DEFINE_string('output_file', None, 'Output file')
-flags.DEFINE_enum('framework', None, ['beam', 'spark'], 'Pipeline framework to use.')
-flags.DEFINE_list('public_partitions', None, 'List of comma-separated public partition keys')
+flags.DEFINE_enum('framework', None, ['beam', 'spark', 'local'],
+                  'Pipeline framework to use.')
+flags.DEFINE_list('public_partitions', None,
+                  'List of comma-separated public partition keys')
+
 
 @dataclass
 class MovieView:
@@ -50,15 +53,13 @@ def calc_dp_rating_metrics(movie_views, ops, public_partitions):
     # Specify which DP aggregated metrics to compute.
     params = pipeline_dp.AggregateParams(
         metrics=[
-            pipeline_dp.Metrics.PRIVACY_ID_COUNT, pipeline_dp.Metrics.COUNT,
-            pipeline_dp.Metrics.MEAN
+            pipeline_dp.Metrics.COUNT,
         ],
         max_partitions_contributed=2,
         max_contributions_per_partition=1,
         low=1,
         high=5,
-        public_partitions=public_partitions
-    )
+        public_partitions=public_partitions)
 
     # Specify how to extract is privacy_id, partition_key and value from an element of movie view collection.
     data_extractors = pipeline_dp.DataExtractors(
@@ -69,6 +70,7 @@ def calc_dp_rating_metrics(movie_views, ops, public_partitions):
     # Run aggregation.
     dp_result = dp_engine.aggregate(movie_views, params, data_extractors)
 
+    budget_accountant.compute_budgets()
     return dp_result
 
 
@@ -98,7 +100,9 @@ def get_public_partitions():
     public_partitions = None
     if FLAGS.public_partitions is not None:
         print(FLAGS.public_partitions)
-        public_partitions = [int(partition) for partition in FLAGS.public_partitions]
+        public_partitions = [
+            int(partition) for partition in FLAGS.public_partitions
+        ]
     return public_partitions
 
 
@@ -106,10 +110,11 @@ def compute_on_beam():
     runner = fn_api_runner.FnApiRunner()  # local runner
     public_partitions = get_public_partitions()
     with beam.Pipeline(runner=runner) as pipeline:
-        movie_views = pipeline | beam.io.ReadFromText(FLAGS.input_file) | beam.ParDo(
-            ParseFile())
+        movie_views = pipeline | beam.io.ReadFromText(
+            FLAGS.input_file) | beam.ParDo(ParseFile())
         pipeline_operations = pipeline_dp.BeamOperations()
-        dp_result = calc_dp_rating_metrics(movie_views, pipeline_operations, public_partitions)
+        dp_result = calc_dp_rating_metrics(movie_views, pipeline_operations,
+                                           public_partitions)
         dp_result | beam.io.WriteToText(FLAGS.output_file)
 
 
@@ -132,12 +137,35 @@ def compute_on_spark():
         .mapPartitions(parse_partition)
     pipeline_operations = pipeline_dp.SparkRDDOperations()
     public_partitions = get_public_partitions()
-    dp_result = calc_dp_rating_metrics(movie_views, pipeline_operations, public_partitions)
+    dp_result = calc_dp_rating_metrics(movie_views, pipeline_operations,
+                                       public_partitions)
     dp_result.saveAsTextFile(FLAGS.output_file)
 
 
+def parse_file(filename):  # used for the local run
+    res = []
+    for line in open(filename):
+        line = line.strip()
+        if line[-1] == ':':
+            movie_id = int(line[:-1])
+        else:
+            res.append(parse_line(line, movie_id))
+    return res
+
+
+def write_to_file(col, filename):
+    with open(filename, 'w') as out:
+        out.write('\n'.join(map(str, col)))
+
+
 def compute_on_local():
-    raise NotImplementedError
+    public_partitions = get_public_partitions()
+    movie_views = parse_file(FLAGS.input_file)
+    pipeline_operations = pipeline_dp.LocalPipelineOperations()
+    dp_result = list(
+        calc_dp_rating_metrics(movie_views, pipeline_operations,
+                               public_partitions))
+    write_to_file(dp_result, FLAGS.output_file)
 
 
 def main(unused_argv):
@@ -151,4 +179,6 @@ def main(unused_argv):
 
 
 if __name__ == '__main__':
+    flags.mark_flag_as_required("input_file")
+    flags.mark_flag_as_required("output_file")
     app.run(main)

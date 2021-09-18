@@ -4,6 +4,7 @@ import numpy as np
 import unittest
 
 import pipeline_dp
+from pipeline_dp.budget_accounting import NaiveBudgetAccountant
 import pydp.algorithms.partition_selection as partition_selection
 from pipeline_dp import aggregate_params as agg
 from pipeline_dp.accumulator import CountAccumulator
@@ -69,7 +70,7 @@ class dp_engineTest(unittest.TestCase):
         max_contributions_per_partition = 2
 
         dp_engine = pipeline_dp.DPEngine(
-            pipeline_dp.BudgetAccountant(epsilon=1, delta=1e-10),
+            NaiveBudgetAccountant(total_epsilon=1, total_delta=1e-10),
             pipeline_dp.LocalPipelineOperations())
         bound_result = list(
             dp_engine._bound_contributions(
@@ -87,7 +88,7 @@ class dp_engineTest(unittest.TestCase):
         max_contributions_per_partition = 2
 
         dp_engine = pipeline_dp.DPEngine(
-            pipeline_dp.BudgetAccountant(epsilon=1, delta=1e-10),
+            NaiveBudgetAccountant(total_epsilon=1, total_delta=1e-10),
             pipeline_dp.LocalPipelineOperations())
         bound_result = list(
             dp_engine._bound_contributions(
@@ -107,7 +108,7 @@ class dp_engineTest(unittest.TestCase):
         max_contributions_per_partition = 2
 
         dp_engine = pipeline_dp.DPEngine(
-            pipeline_dp.BudgetAccountant(epsilon=1, delta=1e-10),
+            NaiveBudgetAccountant(total_epsilon=1, total_delta=1e-10),
             pipeline_dp.LocalPipelineOperations())
         bound_result = list(
             dp_engine._bound_contributions(
@@ -132,7 +133,7 @@ class dp_engineTest(unittest.TestCase):
         max_contributions_per_partition = 5
 
         dp_engine = pipeline_dp.DPEngine(
-            pipeline_dp.BudgetAccountant(epsilon=1, delta=1e-10),
+            NaiveBudgetAccountant(total_epsilon=1, total_delta=1e-10),
             pipeline_dp.LocalPipelineOperations())
         bound_result = list(
             dp_engine._bound_contributions(
@@ -195,9 +196,9 @@ class dp_engineTest(unittest.TestCase):
             pipeline_dp.accumulator.AccumulatorParams(
                 pipeline_dp.accumulator.CountAccumulator, None)
         ]
-        engine = pipeline_dp.DPEngine(
-            budget_accountant=pipeline_dp.BudgetAccountant(1, 1e-10),
-            ops=pipeline_dp.LocalPipelineOperations())
+        engine = pipeline_dp.DPEngine(budget_accountant=NaiveBudgetAccountant(
+            total_epsilon=1, total_delta=1e-10),
+                                      ops=pipeline_dp.LocalPipelineOperations())
         engine.aggregate(col, params1, data_extractor)
         engine.aggregate(col, params2, data_extractor)
         self.assertEqual(len(engine._report_generators), 2)  # pylint: disable=protected-access
@@ -208,7 +209,8 @@ class dp_engineTest(unittest.TestCase):
         # Arrange
         aggregator_params = pipeline_dp.AggregateParams([agg.Metrics.COUNT], 5,
                                                         3)
-        budget_accountant = pipeline_dp.BudgetAccountant(1, 1e-10)
+        budget_accountant = NaiveBudgetAccountant(total_epsilon=1,
+                                                  total_delta=1e-10)
         accumulator_factory = AccumulatorFactory(
             params=aggregator_params, budget_accountant=budget_accountant)
         accumulator_factory.initialize()
@@ -259,8 +261,9 @@ class dp_engineTest(unittest.TestCase):
                      ("pid1", ('pk2', 5)), ("pid1", ('pk3', 6)),
                      ("pid1", ('pk4', 7)), ("pid2", ('pk4', 8))]
         max_partitions_contributed = 3
-        engine = pipeline_dp.DPEngine(pipeline_dp.BudgetAccountant(1, 1e-10),
-                                      pipeline_dp.LocalPipelineOperations())
+        engine = pipeline_dp.DPEngine(
+            NaiveBudgetAccountant(total_epsilon=1, total_delta=1e-10),
+            pipeline_dp.LocalPipelineOperations())
         groups = engine._ops.group_by_key(input_col, None)
         groups = engine._ops.map_values(groups,
                                         lambda group: _MockAccumulator(group))
