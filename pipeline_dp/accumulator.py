@@ -47,7 +47,7 @@ class Accumulator(abc.ABC):
 
     @abc.abstractmethod
     def add_value(self, value):
-        """Adds the value to each of the accumulator.
+        """Add 'value' to accumulate.
         Args:
           value: value to be added.
 
@@ -93,7 +93,7 @@ class Accumulator(abc.ABC):
 
 
 class CompoundAccumulator(Accumulator):
-    """Accumulator for computing multiple metrics.
+    """Accumulator for computing multiple metrics at once.
 
     CompoundAccumulator contains one or more accumulators of other types for
     computing multiple metrics.
@@ -104,14 +104,14 @@ class CompoundAccumulator(Accumulator):
     def __init__(self, accumulators: typing.Iterable['Accumulator']):
         """Constructs CompoundAccumulator.
 
-        The assumption is that all accumulators contain data from the same
-        privacy id.
+        The assumption is that each accumulator from 'accumulators' contain data
+        from the same privacy id.
         """
         self._accumulators = accumulators
         self._privacy_id_count = 1
 
     def add_value(self, value):
-        """Add value to accumulate.
+        """Add 'value' to accumulate.
 
         The assumption is that value correspond to privacy id which is already
         known for self.
@@ -155,7 +155,7 @@ class CompoundAccumulator(Accumulator):
 
     @property
     def privacy_id_count(self):
-        """Returns the number of privacy ids which contributed in aggregations."""
+        """Returns the number of privacy ids which contributed to 'self'."""
         return self._privacy_id_count
 
     def compute_metrics(self):
