@@ -21,6 +21,7 @@ class MechanismSpec:
     _noise_standard_deviation: float = None
     _eps: float = None
     _delta: float = None
+    _count: int = 1
 
     @property
     def noise_standard_deviation(self):
@@ -54,6 +55,11 @@ class MechanismSpec:
             raise AssertionError("Privacy budget is not calculated yet.")
         return self._delta
 
+    @property
+    def count(self):
+        """The number of times the mechanism is going to be applied"""
+        return self._count
+
     def set_eps_delta(self, eps: float, delta: Optional[float]) -> None:
         """Set parameters for (eps, delta)-differential privacy.
 
@@ -85,7 +91,9 @@ class BudgetAccountant(abc.ABC):
     def request_budget(self,
                        noise_kind: NoiseKind,
                        sensitivity: float = 1,
-                       weight: float = 1) -> MechanismSpec:
+                       weight: float = 1,
+                       count: int = 1,
+                       noise_standard_deviation: float = 1) -> MechanismSpec:
         pass
 
     @abc.abstractmethod
@@ -116,7 +124,9 @@ class NaiveBudgetAccountant(BudgetAccountant):
     def request_budget(self,
                        noise_kind: NoiseKind,
                        sensitivity: float = 1,
-                       weight: float = 1) -> MechanismSpec:
+                       weight: float = 1,
+                       count: int = 1,
+                       noise_standard_deviation: float = 1) -> MechanismSpec:
         """Requests a budget.
 
         Constructs a mechanism spec based on the parameters.
@@ -126,6 +136,8 @@ class NaiveBudgetAccountant(BudgetAccountant):
             noise_kind: The kind of noise distribution for the mechanism.
             sensitivity: The sensitivity for the mechanism.
             weight: The weight for the mechanism.
+            count: The number of times the mechanism will be applied.
+            noise_standard_deviation: The standard deviation for the mechanism.
 
         Returns:
             A "lazy" mechanism spec object that doesn't contain the noise
@@ -202,7 +214,9 @@ class PLDBudgetAccountant(BudgetAccountant):
     def request_budget(self,
                        noise_kind: NoiseKind,
                        sensitivity: float = 1,
-                       weight: float = 1) -> MechanismSpec:
+                       weight: float = 1,
+                       count: int = 1,
+                       noise_standard_deviation: float = 1) -> MechanismSpec:
         """Request a budget.
 
         Constructs a mechanism spec based on the parameters.
@@ -212,6 +226,9 @@ class PLDBudgetAccountant(BudgetAccountant):
             noise_kind: The kind of noise distribution for the mechanism.
             sensitivity: The sensitivity for the mechanism.
             weight: The weight for the mechanism.
+            count: The number of times the mechanism will be applied.
+            noise_standard_deviation: The standard deviation for the mechanism.
+
 
         Returns:
             A "lazy" mechanism spec object that doesn't contain the noise
