@@ -43,16 +43,16 @@ class Accumulator(abc.ABC):
 
     Accumulators are objects that encapsulate aggregations and computations of
     differential private metrics.
-  """
+    """
 
     @abc.abstractmethod
     def add_value(self, value):
         """Adds the value to each of the accumulator.
-    Args:
-      value: value to be added.
+        Args:
+          value: value to be added.
 
-    Returns: self.
-    """
+        Returns: self.
+        """
         pass
 
     def _check_mergeable(self, accumulator: 'Accumulator'):
@@ -66,13 +66,14 @@ class Accumulator(abc.ABC):
     def add_accumulator(self, accumulator: 'Accumulator') -> 'Accumulator':
         """Merges the accumulator to self and returns self.
 
-       Sub-class implementation is responsible for checking that types of
-       self and accumulator are the same.
-      Args:
-        accumulator:
+        Sub-class implementation is responsible for checking that types of
+        self and accumulator are the same.
 
-      Returns: self
-    """
+        Args:
+         accumulator:
+
+        Returns: self
+        """
         pass
 
     @abc.abstractmethod
@@ -98,13 +99,24 @@ class CompoundAccumulator(Accumulator):
     computing multiple metrics.
     For example it can contain [CountAccumulator,  SumAccumulator].
     CompoundAccumulator delegates all operations to the internal accumulators.
-  """
+    """
 
     def __init__(self, accumulators: typing.Iterable['Accumulator']):
-        self.accumulators = accumulators
+        """Constructs CompoundAccumulator.
+
+        The assumption is that all accumulators contain data from the same
+        privacy id.
+        """
+        self._accumulators = accumulators
+        self._privacy_id_count = 1
 
     def add_value(self, value):
-        for accumulator in self.accumulators:
+        """Add value to accumulate.
+
+        The assumption is that value correspond to privacy id which is already
+        known for self.
+        """
+        for accumulator in self._accumulators:
             accumulator.add_value(value)
         return self
 
@@ -112,17 +124,23 @@ class CompoundAccumulator(Accumulator):
       'CompoundAccumulator':
         """Merges the accumulators of the CompoundAccumulators.
 
-    The expectation is that the internal accumulators are of the same type and
-    are in the same order."""
+        The expectation is that the internal accumulators are of the same type
+        and are in the same order.
+
+        The assumption is that self and accumulator have data from
+        non-overlapping set of privacy ids.
+        """
         self._check_mergeable(accumulator)
-        if len(accumulator.accumulators) != len(self.accumulators):
+        if len(accumulator._accumulators) != len(self._accumulators):
             raise ValueError(
                 "Accumulators in the input are not of the same size." +
-                f" Expected size = {len(self.accumulators)}" +
-                f" received size = {len(accumulator.accumulators)}.")
+                f" Expected size = {len(self._accumulators)}" +
+                f" received size = {len(accumulator._accumulators)}.")
+
+        self._privacy_id_count += accumulator._privacy_id_count
 
         for pos, (base_accumulator_type, to_add_accumulator_type) in enumerate(
-                zip(self.accumulators, accumulator.accumulators)):
+                zip(self._accumulators, accumulator._accumulators)):
             if type(base_accumulator_type) != type(to_add_accumulator_type):
                 raise TypeError(
                     "The type of the accumulators don't match at "
@@ -130,16 +148,20 @@ class CompoundAccumulator(Accumulator):
                     f"!= {type(to_add_accumulator_type).__name__}.")
 
         for (base_accumulator,
-             to_add_accumulator) in zip(self.accumulators,
-                                        accumulator.accumulators):
+             to_add_accumulator) in zip(self._accumulators,
+                                        accumulator._accumulators):
             base_accumulator.add_accumulator(to_add_accumulator)
         return self
 
+    @property
+    def privacy_id_count(self):
+        """Returns the number of privacy ids which contributed in aggregations."""
+        return self._privacy_id_count
+
     def compute_metrics(self):
-        """Computes and returns a list of metrics computed by internal
-    accumulators."""
+        """Returns a list of metrics computed by internal accumulators."""
         return [
-            accumulator.compute_metrics() for accumulator in self.accumulators
+            accumulator.compute_metrics() for accumulator in self._accumulators
         ]
 
 
@@ -162,10 +184,6 @@ class AccumulatorFactory:
             accumulators.append(
                 accumulator_param.accumulator_type(
                     accumulator_param.constructor_params, values))
-
-        # No need to create CompoundAccumulator if there is only 1 accumulator.
-        if len(accumulators) == 1:
-            return accumulators[0]
 
         return CompoundAccumulator(accumulators)
 

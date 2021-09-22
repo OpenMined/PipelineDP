@@ -105,9 +105,10 @@ class CompoundAccumulatorTest(unittest.TestCase):
 
         self.assertIsInstance(deserialized_obj, accumulator.CompoundAccumulator)
 
-        self.assertEqual(len(deserialized_obj.accumulators), 2)
-        self.assertIsInstance(deserialized_obj.accumulators[0], MeanAccumulator)
-        self.assertIsInstance(deserialized_obj.accumulators[1],
+        self.assertEqual(len(deserialized_obj._accumulators), 2)
+        self.assertIsInstance(deserialized_obj._accumulators[0],
+                              MeanAccumulator)
+        self.assertIsInstance(deserialized_obj._accumulators[1],
                               SumOfSquaresAccumulator)
         self.assertEqual(deserialized_obj.compute_metrics(),
                          compound_accumulator.compute_metrics())
@@ -121,6 +122,23 @@ class CompoundAccumulatorTest(unittest.TestCase):
             SumOfSquaresAccumulator.deserialize(serialized_obj)
         self.assertEqual("The deserialized object is not of the right type.",
                          str(context.exception))
+
+    def test_privacy_id_count(self):
+        compound_accumulator1 = accumulator.CompoundAccumulator([])
+        compound_accumulator2 = accumulator.CompoundAccumulator([])
+
+        # Freshly created CompoundAccumulator has data of one privacy id.
+        self.assertEqual(1, compound_accumulator1.privacy_id_count)
+
+        # The call of add_value does not change number of privacy ids.
+        compound_accumulator1.add_value(3)
+        self.assertEqual(1, compound_accumulator1.privacy_id_count)
+
+        # The count of privacy ids after addition is the sum of privacy id
+        # counts because the assumption is that different CompoundAccumulator
+        # have data from on-overlapping set of privacy ids.
+        compound_accumulator1.add_accumulator(compound_accumulator2)
+        self.assertEqual(2, compound_accumulator1.privacy_id_count)
 
 
 class GenericAccumulatorTest(unittest.TestCase):
@@ -196,8 +214,9 @@ class GenericAccumulatorTest(unittest.TestCase):
         accumulator_factory.initialize()
         created_accumulator = accumulator_factory.create(values)
 
-        self.assertTrue(isinstance(created_accumulator, MeanAccumulator))
-        self.assertEqual(created_accumulator.compute_metrics(), 10)
+        self.assertTrue(isinstance(created_accumulator,
+                                   accumulator.CompoundAccumulator))
+        self.assertEqual(created_accumulator.compute_metrics(), [10])
         mock_create_accumulator_params_function.assert_called_with(
             aggregate_params, budget_accountant)
 
