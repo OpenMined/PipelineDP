@@ -253,6 +253,10 @@ class PLDBudgetAccountant(BudgetAccountant):
         for mechanism in self._mechanisms:
             mechanism_noise_std = mechanism.sensitivity * minimum_noise_std / mechanism.weight
             mechanism.mechanism_spec._noise_standard_deviation = mechanism_noise_std
+            if mechanism.mechanism_spec.mechanism_type == MechanismType.GENERIC:
+                epsilon_0 = math.sqrt(2) / mechanism_noise_std
+                delta_0 = epsilon_0 / self._total_epsilon * self._total_delta
+                mechanism.mechanism_spec.set_eps_delta(epsilon_0, delta_0)
 
     def _find_minimum_noise_std(self) -> float:
         """Finds the minimum noise which satisfies the total budget.
@@ -319,12 +323,11 @@ class PLDBudgetAccountant(BudgetAccountant):
                 # and the (epsilon, delta) Generic mechanism because the calibration is defined by one parameter.
                 # There are multiple ways to do this; here it is assumed that (epsilon, delta) specifies the Laplace
                 # mechanism and epsilon is computed based on this. The delta is computed to be proportional to epsilon.
-                epsilon_0 = math.sqrt(2) / noise_standard_deviation
-                delta_0 = epsilon_0 / self._total_epsilon * self._total_delta
-                mechanism_spec_internal.mechanism_spec.set_eps_delta(
-                    epsilon_0, delta_0)
+                epsilon_0_interim = math.sqrt(2) / noise_standard_deviation
+                delta_0_interim = epsilon_0_interim / self._total_epsilon * self._total_delta
                 pld = pldlib.PrivacyLossDistribution.from_privacy_parameters(
-                    common.DifferentialPrivacyParameters(epsilon_0, delta_0),
+                    common.DifferentialPrivacyParameters(
+                        epsilon_0_interim, delta_0_interim),
                     value_discretization_interval=self._pld_discretization)
 
             composed = pld if composed is None else composed.compose(pld)
