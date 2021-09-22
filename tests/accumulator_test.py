@@ -8,6 +8,7 @@ import pipeline_dp
 from pipeline_dp import aggregate_params as agg
 from pipeline_dp.dp_computations import MeanVarParams
 from pipeline_dp.budget_accounting import NaiveBudgetAccountant
+from pipeline_dp.aggregate_params import NoiseKind
 import pipeline_dp.accumulator as accumulator
 
 
@@ -141,7 +142,7 @@ class GenericAccumulatorTest(unittest.TestCase):
             l0_sensitivity=0,
             linf_sensitivity=0,
             norm_kind="linf",
-            noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)
+            noise_kind=NoiseKind.GAUSSIAN)
         vec_sum_accumulator1 = accumulator.VectorSummationAccumulator(
             params=vec_params, values=[(15, 2)])
         vec_sum_accumulator2 = accumulator.VectorSummationAccumulator(
@@ -164,7 +165,7 @@ class GenericAccumulatorTest(unittest.TestCase):
             l0_sensitivity=0,
             linf_sensitivity=0,
             norm_kind="linf",
-            noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)
+            noise_kind=NoiseKind.GAUSSIAN)
         vec_sum_accumulator = accumulator.VectorSummationAccumulator(
             params=vec_params, values=[(27, 40)])
 
@@ -323,7 +324,7 @@ class SumAccumulatorTest(unittest.TestCase):
                                  high=0,
                                  max_partitions_contributed=1,
                                  max_contributions_per_partition=1,
-                                 noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)
+                                 noise_kind=NoiseKind.GAUSSIAN)
         sum_accumulator = accumulator.SumAccumulator(
             accumulator.SumParams(no_noise), list(range(6)))
 
@@ -347,8 +348,7 @@ class SumAccumulatorTest(unittest.TestCase):
                               high=1,
                               max_partitions_contributed=1,
                               max_contributions_per_partition=3,
-                              noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)),
-            list(range(6)))
+                              noise_kind=NoiseKind.GAUSSIAN)), list(range(6)))
         self.assertAlmostEqual(first=sum_accumulator.compute_metrics(),
                                second=15,
                                delta=4)
@@ -366,8 +366,7 @@ class SumAccumulatorTest(unittest.TestCase):
                               high=1,
                               max_partitions_contributed=1,
                               max_contributions_per_partition=3,
-                              noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)),
-            list(range(3)))
+                              noise_kind=NoiseKind.GAUSSIAN)), list(range(3)))
         sum_accumulator.add_accumulator(sum_accumulator_2)
         self.assertAlmostEqual(first=sum_accumulator.compute_metrics(),
                                second=23,
@@ -390,7 +389,7 @@ class VectorSummuationAccumulatorTest(unittest.TestCase):
                 l0_sensitivity=0,
                 linf_sensitivity=0,
                 norm_kind="linf",
-                noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)
+                noise_kind=NoiseKind.GAUSSIAN)
             vec_sum_accumulator = accumulator.VectorSummationAccumulator(
                 params=params, values=[(1, 2), (3, 4), (5, 6)])
             self.assertEqual(tuple(vec_sum_accumulator.compute_metrics()),

@@ -1,11 +1,12 @@
 """DP aggregations."""
-
+# TODO: import only modules https://google.github.io/styleguide/pyguide.html#22-imports
 from functools import partial
 from typing import Any, Callable, Tuple
 
 from dataclasses import dataclass
 from pipeline_dp.aggregate_params import AggregateParams
-from pipeline_dp.budget_accounting import BudgetAccountant, MechanismSpec, NoiseKind
+from pipeline_dp.aggregate_params import MechanismType
+from pipeline_dp.budget_accounting import BudgetAccountant, MechanismSpec
 from pipeline_dp.pipeline_operations import PipelineOperations
 from pipeline_dp.report_generator import ReportGenerator
 from pipeline_dp.accumulator import Accumulator
@@ -146,7 +147,7 @@ class DPEngine:
             collection of elements (partition_key, accumulator)
         """
         budget = self._budget_accountant.request_budget(
-            noise_kind=NoiseKind.GAUSSIAN)
+            mechanism_type=MechanismType.GENERIC)
 
         def filter_fn(captures: Tuple[MechanismSpec, int],
                       row: Tuple[Any, Accumulator]) -> bool:
