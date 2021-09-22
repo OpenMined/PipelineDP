@@ -1,5 +1,5 @@
 """DP aggregations."""
-
+# TODO: import only modules https://google.github.io/styleguide/pyguide.html#22-imports
 from functools import partial
 from typing import Any, Callable, Tuple
 
@@ -147,7 +147,7 @@ class DPEngine:
             collection of elements (partition_key, accumulator)
         """
         budget = self._budget_accountant.request_budget(
-            mechanism_type=MechanismType.GAUSSIAN)
+            mechanism_type=MechanismType.GENERIC)
 
         def filter_fn(captures: Tuple[MechanismSpec, int],
                       row: Tuple[Any, Accumulator]) -> bool:
