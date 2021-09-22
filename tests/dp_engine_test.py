@@ -60,7 +60,7 @@ class _MockAccumulator(pipeline_dp.accumulator.Accumulator):
         return f"MockAccumulator({self.values_list})"
 
 
-class dp_engineTest(unittest.TestCase):
+class DpEngineTest(unittest.TestCase):
     aggregator_fn = lambda input_values: (len(input_values), np.sum(
         input_values), np.sum(np.square(input_values)))
 
@@ -77,7 +77,7 @@ class dp_engineTest(unittest.TestCase):
                 input_col,
                 max_partitions_contributed=max_partitions_contributed,
                 max_contributions_per_partition=max_contributions_per_partition,
-                aggregator_fn=dp_engineTest.aggregator_fn))
+                aggregator_fn=DpEngineTest.aggregator_fn))
 
         self.assertFalse(bound_result)
 
@@ -95,7 +95,7 @@ class dp_engineTest(unittest.TestCase):
                 input_col,
                 max_partitions_contributed=max_partitions_contributed,
                 max_contributions_per_partition=max_contributions_per_partition,
-                aggregator_fn=dp_engineTest.aggregator_fn))
+                aggregator_fn=DpEngineTest.aggregator_fn))
 
         expected_result = [(('pid1', 'pk2'), (2, 7, 25)),
                            (('pid1', 'pk1'), (2, 3, 5))]
@@ -115,7 +115,7 @@ class dp_engineTest(unittest.TestCase):
                 input_col,
                 max_partitions_contributed=max_partitions_contributed,
                 max_contributions_per_partition=max_contributions_per_partition,
-                aggregator_fn=dp_engineTest.aggregator_fn))
+                aggregator_fn=DpEngineTest.aggregator_fn))
 
         self.assertEqual(len(bound_result), 3)
         # Check contributions per partitions
@@ -140,7 +140,7 @@ class dp_engineTest(unittest.TestCase):
                 input_col,
                 max_partitions_contributed=max_partitions_contributed,
                 max_contributions_per_partition=max_contributions_per_partition,
-                aggregator_fn=dp_engineTest.aggregator_fn))
+                aggregator_fn=DpEngineTest.aggregator_fn))
 
         self.assertEqual(len(bound_result), 4)
         # Check contributions per partitions

@@ -16,10 +16,11 @@ from pydp.algorithms.partition_selection import create_truncated_geometric_parti
 
 @dataclass
 class DataExtractors:
-    """Data extractors
-  A set of functions that, given an input, return the privacy id, partition key,
-  and value.
-  """
+    """Data extractors.
+
+    A set of functions that, given an input, return the privacy id, partition key,
+    and value.
+    """
 
     privacy_id_extractor: Callable = None
     partition_extractor: Callable = None
@@ -40,14 +41,14 @@ class DPEngine:
 
     def aggregate(self, col, params: AggregateParams,
                   data_extractors: DataExtractors):
-        """Computes DP aggregation metrics
+        """Computes DP aggregation metrics.
 
-    Args:
-      col: collection with elements of the same type.
-      params: specifies which metrics to compute and computation parameters.
-      data_extractors: functions that extract needed pieces of information from
-        elements of 'col'
-    """
+        Args:
+          col: collection with elements of the same type.
+          params: specifies which metrics to compute and computation parameters.
+          data_extractors: functions that extract needed pieces of information
+            from elements of 'col'.
+        """
         if params is None:
             return None
         self._report_generators.append(ReportGenerator(params))
@@ -68,16 +69,22 @@ class DPEngine:
                                         params.max_contributions_per_partition,
                                         aggregator_fn)
         # col : ((privacy_id, partition_key), accumulator)
-        result = col
+
+        col = self._ops.map_tuple(col, lambda k, v: (k[1], v), "drop pid")
+        col = self._ops.reduce_accumulators_per_key(col, "reduce accumulators")
 
         # If no public partitions were specified, return aggregation results
         # directly.
         if params.public_partitions is None:
-            return result
+            col = self._select_private_partitions(
+                col, params.max_partitions_contributed)
         else:
-            return self._drop_not_public_partitions(result,
-                                                    params.public_partitions,
-                                                    data_extractors)
+            col = self._drop_not_public_partitions(col,
+                                                   params.public_partitions,
+                                                   data_extractors)
+        # col : ((privacy_id, partition_key), accumulator)
+
+        return col
 
     def _drop_not_public_partitions(self, col, public_partitions,
                                     data_extractors):

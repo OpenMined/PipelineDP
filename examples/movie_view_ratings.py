@@ -45,7 +45,8 @@ def calc_dp_rating_metrics(movie_views, ops, public_partitions):
     """Computes dp metrics."""
 
     # Set the total privacy budget.
-    budget_accountant = pipeline_dp.BudgetAccountant(epsilon=1, delta=1e-6)
+    budget_accountant = pipeline_dp.NaiveBudgetAccountant(total_epsilon=1,
+                                                          total_delta=1e-6)
 
     # Create a DPEngine instance.
     dp_engine = pipeline_dp.DPEngine(budget_accountant, ops)
