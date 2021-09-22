@@ -214,8 +214,8 @@ class GenericAccumulatorTest(unittest.TestCase):
         accumulator_factory.initialize()
         created_accumulator = accumulator_factory.create(values)
 
-        self.assertTrue(isinstance(created_accumulator,
-                                   accumulator.CompoundAccumulator))
+        self.assertTrue(
+            isinstance(created_accumulator, accumulator.CompoundAccumulator))
         self.assertEqual(created_accumulator.compute_metrics(), [10])
         mock_create_accumulator_params_function.assert_called_with(
             aggregate_params, budget_accountant)
