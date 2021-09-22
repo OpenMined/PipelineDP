@@ -91,12 +91,13 @@ class BudgetAccountant(abc.ABC):
     """Base class for budget accountants."""
 
     @abc.abstractmethod
-    def request_budget(self,
-                       mechanism_type: MechanismType,
-                       sensitivity: float = 1,
-                       weight: float = 1,
-                       count: int = 1,
-                       noise_standard_deviation: float = 1) -> MechanismSpec:
+    def request_budget(
+            self,
+            mechanism_type: MechanismType,
+            sensitivity: float = 1,
+            weight: float = 1,
+            count: int = 1,
+            noise_standard_deviation: Optional[float] = None) -> MechanismSpec:
         pass
 
     @abc.abstractmethod
@@ -124,12 +125,13 @@ class NaiveBudgetAccountant(BudgetAccountant):
         self._total_delta = total_delta
         self._mechanisms = []
 
-    def request_budget(self,
-                       mechanism_type: MechanismType,
-                       sensitivity: float = 1,
-                       weight: float = 1,
-                       count: int = 1,
-                       noise_standard_deviation: float = 1) -> MechanismSpec:
+    def request_budget(
+            self,
+            mechanism_type: MechanismType,
+            sensitivity: float = 1,
+            weight: float = 1,
+            count: int = 1,
+            noise_standard_deviation: Optional[float] = None) -> MechanismSpec:
         """Requests a budget.
 
         Constructs a mechanism spec based on the parameters.
@@ -146,6 +148,10 @@ class NaiveBudgetAccountant(BudgetAccountant):
             A "lazy" mechanism spec object that doesn't contain the noise
             standard deviation until compute_budgets is called.
         """
+        if count != 1 or noise_standard_deviation is not None:
+            raise NotImplementedError(
+                "Count and noise standard deviation have not been implemented yet."
+            )
         if mechanism_type == MechanismType.GAUSSIAN and self._total_delta == 0:
             raise AssertionError(
                 "The Gaussian mechanism requires that the pipeline delta is greater than 0"
@@ -214,12 +220,13 @@ class PLDBudgetAccountant(BudgetAccountant):
         self.minimum_noise_std = None
         self._pld_discretization = pld_discretization
 
-    def request_budget(self,
-                       mechanism_type: MechanismType,
-                       sensitivity: float = 1,
-                       weight: float = 1,
-                       count: int = 1,
-                       noise_standard_deviation: float = 1) -> MechanismSpec:
+    def request_budget(
+            self,
+            mechanism_type: MechanismType,
+            sensitivity: float = 1,
+            weight: float = 1,
+            count: int = 1,
+            noise_standard_deviation: Optional[float] = None) -> MechanismSpec:
         """Request a budget.
 
         Constructs a mechanism spec based on the parameters.
@@ -237,6 +244,10 @@ class PLDBudgetAccountant(BudgetAccountant):
             A "lazy" mechanism spec object that doesn't contain the noise
             standard deviation until compute_budgets is called.
         """
+        if count != 1 or noise_standard_deviation is not None:
+            raise NotImplementedError(
+                "Count and noise standard deviation have not been implemented yet."
+            )
         if mechanism_type == MechanismType.GAUSSIAN and self._total_delta == 0:
             raise AssertionError(
                 "The Gaussian mechanism requires that the pipeline delta is greater than 0"
