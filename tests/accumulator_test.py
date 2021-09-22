@@ -230,8 +230,8 @@ class GenericAccumulatorTest(unittest.TestCase):
         acc_params = accumulator.create_accumulator_params(
             aggregation_params=pipeline_dp.AggregateParams(
                 metrics=[pipeline_dp.Metrics.COUNT],
-                max_partitions_contributed=4,
-                max_contributions_per_partition=5,
+                max_partitions_contributed=0,
+                max_contributions_per_partition=0,
                 budget_weight=1),
             budget_accountant=NaiveBudgetAccountant(total_epsilon=1,
                                                     total_delta=0.01))
@@ -293,23 +293,24 @@ class SumOfSquaresAccumulator(accumulator.Accumulator):
 class CountAccumulatorTest(unittest.TestCase):
 
     def test_without_noise(self):
+        no_noise = (1, 1, 0, 0, 0, 0, pipeline_dp.NoiseKind.GAUSSIAN)
         count_accumulator = accumulator.CountAccumulator(
-            accumulator.CountParams(), list(range(5)))
+            accumulator.CountParams(*no_noise), list(range(5)))
         self.assertEqual(count_accumulator.compute_metrics(), 5)
 
         count_accumulator = accumulator.CountAccumulator(
-            accumulator.CountParams(), 'a' * 50)
+            accumulator.CountParams(*no_noise), 'a' * 50)
         self.assertEqual(count_accumulator.compute_metrics(), 50)
 
         count_accumulator = accumulator.CountAccumulator(
-            accumulator.CountParams(), list(range(50)))
+            accumulator.CountParams(*no_noise), list(range(50)))
         count_accumulator.add_value(49)
         self.assertEqual(count_accumulator.compute_metrics(), 51)
 
         count_accumulator_1 = accumulator.CountAccumulator(
-            accumulator.CountParams(), list(range(50)))
+            accumulator.CountParams(*no_noise), list(range(50)))
         count_accumulator_2 = accumulator.CountAccumulator(
-            accumulator.CountParams(), 'a' * 50)
+            accumulator.CountParams(*no_noise), 'a' * 50)
         count_accumulator_1.add_accumulator(count_accumulator_2)
         self.assertEqual(count_accumulator_1.compute_metrics(), 100)
 

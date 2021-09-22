@@ -8,7 +8,7 @@ from typing import Iterable, Optional, Tuple, Union
 import pipeline_dp
 from pipeline_dp import dp_computations
 from pipeline_dp import aggregate_params
-from pipeline_dp import dp_computations
+from pipeline_dp import NoiseKind
 import numpy as np
 
 
@@ -29,10 +29,21 @@ def create_accumulator_params(
 ) -> typing.List[AccumulatorParams]:
     accumulator_params = []
     if pipeline_dp.Metrics.COUNT in aggregation_params.metrics:
-        # TODO: populate CountParams from budget_accountant when it is ready
+        request_budget = budget_accountant.request_budget
+        low, high, max_partitions_contributed,\
+        max_contributions_per_partition = \
+            aggregation_params.low, aggregation_params.high, \
+            aggregation_params.max_partitions_contributed, \
+            aggregation_params.max_contributions_per_partition
+        noise_kind = NoiseKind.GAUSSIAN
+        # TODO: see hoe to obtain eps and delta from the BudgetAccountant
+        eps = 1
+        delta = 1
+        count_params = (eps, delta, low, high, max_partitions_contributed,
+                        max_contributions_per_partition, noise_kind)
         accumulator_params.append(
             AccumulatorParams(accumulator_type=CountAccumulator,
-                              constructor_params=CountParams()))
+                              constructor_params=CountParams(*count_params)))
     else:
         raise NotImplemented()  # implementation will be done later
     return accumulator_params
@@ -171,7 +182,7 @@ class AccumulatorFactory:
 
 
 @dataclass
-class CountParams:
+class CountParams(dp_computations.MeanVarParams):
     pass
 
 
@@ -179,6 +190,7 @@ class CountAccumulator(Accumulator):
 
     def __init__(self, params: CountParams, values):
         self._count = len(values)
+        self._params = params
 
     def add_value(self, value):
         self._count += 1
@@ -190,8 +202,8 @@ class CountAccumulator(Accumulator):
         return self
 
     def compute_metrics(self) -> float:
-        # TODO: add differential privacy
-        return self._count
+        return pipeline_dp.dp_computations.compute_dp_count(
+            self._count, self._params)
 
 
 _FloatVector = Union[Tuple[float], np.ndarray]
