@@ -47,7 +47,7 @@ class Accumulator(abc.ABC):
 
     @abc.abstractmethod
     def add_value(self, value):
-        """Add 'value' to accumulate.
+        """Adds 'value' to accumulate.
         Args:
           value: value to be added.
 
@@ -111,7 +111,7 @@ class CompoundAccumulator(Accumulator):
         self._privacy_id_count = 1
 
     def add_value(self, value):
-        """Add 'value' to accumulate.
+        """Adds 'value' to accumulate.
 
         The assumption is that value correspond to privacy id which is already
         known for self.
