@@ -92,7 +92,8 @@ class DPEngine:
         # col : (partition_key, accumulator)
 
         # Compute DP metrics.
-        col = self._ops.map_values(col, lambda acc: acc.compute_metrics())
+        col = self._ops.map_values(col, lambda acc: acc.compute_metrics(),
+                                   "Compute DP` metrics")
 
         return col
 
@@ -178,4 +179,4 @@ class DPEngine:
 
         # make filter_fn serializable
         filter_fn = partial(filter_fn, (budget, max_partitions_contributed))
-        return self._ops.filter(col, filter_fn)
+        return self._ops.filter(col, filter_fn, "Filter private parititions")
