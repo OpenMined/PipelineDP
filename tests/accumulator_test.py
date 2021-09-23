@@ -8,6 +8,7 @@ import pipeline_dp
 from pipeline_dp import aggregate_params as agg
 from pipeline_dp.dp_computations import MeanVarParams
 from pipeline_dp.budget_accounting import NaiveBudgetAccountant
+from pipeline_dp.aggregate_params import NoiseKind
 import pipeline_dp.accumulator as accumulator
 
 
@@ -105,9 +106,10 @@ class CompoundAccumulatorTest(unittest.TestCase):
 
         self.assertIsInstance(deserialized_obj, accumulator.CompoundAccumulator)
 
-        self.assertEqual(len(deserialized_obj.accumulators), 2)
-        self.assertIsInstance(deserialized_obj.accumulators[0], MeanAccumulator)
-        self.assertIsInstance(deserialized_obj.accumulators[1],
+        self.assertEqual(len(deserialized_obj._accumulators), 2)
+        self.assertIsInstance(deserialized_obj._accumulators[0],
+                              MeanAccumulator)
+        self.assertIsInstance(deserialized_obj._accumulators[1],
                               SumOfSquaresAccumulator)
         self.assertEqual(deserialized_obj.compute_metrics(),
                          compound_accumulator.compute_metrics())
@@ -121,6 +123,23 @@ class CompoundAccumulatorTest(unittest.TestCase):
             SumOfSquaresAccumulator.deserialize(serialized_obj)
         self.assertEqual("The deserialized object is not of the right type.",
                          str(context.exception))
+
+    def test_privacy_id_count(self):
+        compound_accumulator1 = accumulator.CompoundAccumulator([])
+        compound_accumulator2 = accumulator.CompoundAccumulator([])
+
+        # Freshly created CompoundAccumulator has data of one privacy id.
+        self.assertEqual(1, compound_accumulator1.privacy_id_count)
+
+        # The call of add_value does not change number of privacy ids.
+        compound_accumulator1.add_value(3)
+        self.assertEqual(1, compound_accumulator1.privacy_id_count)
+
+        # The count of privacy ids after addition is the sum of privacy id
+        # counts because the assumption is that different CompoundAccumulator
+        # have data from on-overlapping set of privacy ids.
+        compound_accumulator1.add_accumulator(compound_accumulator2)
+        self.assertEqual(2, compound_accumulator1.privacy_id_count)
 
 
 class GenericAccumulatorTest(unittest.TestCase):
@@ -141,7 +160,7 @@ class GenericAccumulatorTest(unittest.TestCase):
             l0_sensitivity=0,
             linf_sensitivity=0,
             norm_kind="linf",
-            noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)
+            noise_kind=NoiseKind.GAUSSIAN)
         vec_sum_accumulator1 = accumulator.VectorSummationAccumulator(
             params=vec_params, values=[(15, 2)])
         vec_sum_accumulator2 = accumulator.VectorSummationAccumulator(
@@ -164,7 +183,7 @@ class GenericAccumulatorTest(unittest.TestCase):
             l0_sensitivity=0,
             linf_sensitivity=0,
             norm_kind="linf",
-            noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)
+            noise_kind=NoiseKind.GAUSSIAN)
         vec_sum_accumulator = accumulator.VectorSummationAccumulator(
             params=vec_params, values=[(27, 40)])
 
@@ -196,8 +215,9 @@ class GenericAccumulatorTest(unittest.TestCase):
         accumulator_factory.initialize()
         created_accumulator = accumulator_factory.create(values)
 
-        self.assertTrue(isinstance(created_accumulator, MeanAccumulator))
-        self.assertEqual(created_accumulator.compute_metrics(), 10)
+        self.assertTrue(
+            isinstance(created_accumulator, accumulator.CompoundAccumulator))
+        self.assertEqual(created_accumulator.compute_metrics(), [10])
         mock_create_accumulator_params_function.assert_called_with(
             aggregate_params, budget_accountant)
 
@@ -323,7 +343,7 @@ class SumAccumulatorTest(unittest.TestCase):
                                  high=0,
                                  max_partitions_contributed=1,
                                  max_contributions_per_partition=1,
-                                 noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)
+                                 noise_kind=NoiseKind.GAUSSIAN)
         sum_accumulator = accumulator.SumAccumulator(
             accumulator.SumParams(no_noise), list(range(6)))
 
@@ -347,8 +367,7 @@ class SumAccumulatorTest(unittest.TestCase):
                               high=1,
                               max_partitions_contributed=1,
                               max_contributions_per_partition=3,
-                              noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)),
-            list(range(6)))
+                              noise_kind=NoiseKind.GAUSSIAN)), list(range(6)))
         self.assertAlmostEqual(first=sum_accumulator.compute_metrics(),
                                second=15,
                                delta=4)
@@ -366,8 +385,7 @@ class SumAccumulatorTest(unittest.TestCase):
                               high=1,
                               max_partitions_contributed=1,
                               max_contributions_per_partition=3,
-                              noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)),
-            list(range(3)))
+                              noise_kind=NoiseKind.GAUSSIAN)), list(range(3)))
         sum_accumulator.add_accumulator(sum_accumulator_2)
         self.assertAlmostEqual(first=sum_accumulator.compute_metrics(),
                                second=23,
@@ -390,7 +408,7 @@ class VectorSummuationAccumulatorTest(unittest.TestCase):
                 l0_sensitivity=0,
                 linf_sensitivity=0,
                 norm_kind="linf",
-                noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)
+                noise_kind=NoiseKind.GAUSSIAN)
             vec_sum_accumulator = accumulator.VectorSummationAccumulator(
                 params=params, values=[(1, 2), (3, 4), (5, 6)])
             self.assertEqual(tuple(vec_sum_accumulator.compute_metrics()),
