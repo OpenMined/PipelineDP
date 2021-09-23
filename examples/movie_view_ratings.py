@@ -61,7 +61,8 @@ def calc_dp_rating_metrics(movie_views, ops, public_partitions):
                                          high=5,
                                          public_partitions=public_partitions)
 
-    # Specify how to extract is privacy_id, partition_key and value from an element of movie view collection.
+    # Specify how to extract is privacy_id, partition_key and value from an
+    # element of movie view collection.
     data_extractors = pipeline_dp.DataExtractors(
         partition_extractor=lambda mv: mv.movie_id,
         privacy_id_extractor=lambda mv: mv.user_id,

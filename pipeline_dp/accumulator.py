@@ -197,7 +197,6 @@ class CountAccumulator(Accumulator):
 
     def __init__(self, params: CountParams, values):
         self._count = len(values)
-        self.privacy_id_count = 27  # todo remove, only for debug
 
     def add_value(self, value):
         self._count += 1

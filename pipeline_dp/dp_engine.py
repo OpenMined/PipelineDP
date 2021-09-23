@@ -60,7 +60,7 @@ class DPEngine:
         aggregator_fn = accumulator_factory.create
 
         if params.public_partitions is not None:
-            # TODO: make aggregate with public partition work.
+            # TODO: make work with public partition.
             col = self._drop_not_public_partitions(col,
                                                    params.public_partitions,
                                                    data_extractors)

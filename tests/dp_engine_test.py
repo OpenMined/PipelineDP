@@ -302,17 +302,73 @@ class DpEngineTest(unittest.TestCase):
                                                  expected_data_filtered,
                                                  max_partitions_contributed)
 
-class DpEngineComputationGraphTest(unittest.TestCase):
+    def test_aggregate_private_partition_selection_keep_everything(self):
+        # Arrange
+        aggregator_params = pipeline_dp.AggregateParams([agg.Metrics.COUNT], 1,
+                                                        1)
+        # Set a large budget for having the small noise and keeping all
+        # partition keys.
+        budget_accountant = NaiveBudgetAccountant(total_epsilon=1000,
+                                                  total_delta=1e-10)
 
-    def test_aggregate_private_partitions(self):
-        input_col = []
-        params = pipeline_dp.AggregateParams()
+        col = list(range(10)) + list(range(100, 120))
+        data_extractor = pipeline_dp.DataExtractors(
+            privacy_id_extractor=lambda x: x,
+            partition_extractor=lambda x: "pk" + str(x // 100),
+            value_extractor=lambda x: None)
 
-        dp_engine = pipeline_dp.DPEngine(
-            NaiveBudgetAccountant(total_epsilon=1, total_delta=1e-10),
-            pipeline_dp.LocalPipelineOperations())
+        engine = pipeline_dp.DPEngine(budget_accountant=budget_accountant,
+                                      ops=pipeline_dp.LocalPipelineOperations())
 
-        res_col = dp_engine.aggregate(input_col, params)
+        col = engine.aggregate(col=col,
+                               params=aggregator_params,
+                               data_extractors=data_extractor)
+        budget_accountant.compute_budgets()
+
+        col = list(col)
+
+        # Assert
+        approximate_expected = {"pk0": 10, "pk1": 20}
+        self.assertEqual(2, len(col))  # all partition keys are kept.
+        for pk, anonymized_count in col:
+            self.assertAlmostEqual(approximate_expected[pk],
+                                   anonymized_count[0],
+                                   delta=1e-3)
+
+    def test_aggregate_private_partition_selection_drop_many(self):
+        # Arrange
+        aggregator_params = pipeline_dp.AggregateParams([agg.Metrics.COUNT], 1,
+                                                        1)
+        # Set a large budget for having the small noise and keeping all
+        # partition keys.
+        budget_accountant = NaiveBudgetAccountant(total_epsilon=1,
+                                                  total_delta=1e-10)
+
+        # Input collection has 100 elements, such that each privacy id
+        # contributes 1 time and each partition has 1 element.
+        col = list(range(100))
+        data_extractor = pipeline_dp.DataExtractors(
+            privacy_id_extractor=lambda x: x,
+            partition_extractor=lambda x: "pk" + str(x),
+            value_extractor=lambda x: None)
+
+        engine = pipeline_dp.DPEngine(budget_accountant=budget_accountant,
+                                      ops=pipeline_dp.LocalPipelineOperations())
+
+        col = engine.aggregate(col=col,
+                               params=aggregator_params,
+                               data_extractors=data_extractor)
+        budget_accountant.compute_budgets()
+
+        col = list(col)
+
+        # Assert
+
+        # Most partition should be dropped by private partition selection.
+        # This tests is non-deterministic, but it should pass with probability
+        # very close to 1.
+        self.assertLess(len(col), 5)
+
 
 if __name__ == '__main__':
     unittest.main()
