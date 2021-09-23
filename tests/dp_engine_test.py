@@ -302,6 +302,17 @@ class DpEngineTest(unittest.TestCase):
                                                  expected_data_filtered,
                                                  max_partitions_contributed)
 
+class DpEngineComputationGraphTest(unittest.TestCase):
+
+    def test_aggregate_private_partitions(self):
+        input_col = []
+        params = pipeline_dp.AggregateParams()
+
+        dp_engine = pipeline_dp.DPEngine(
+            NaiveBudgetAccountant(total_epsilon=1, total_delta=1e-10),
+            pipeline_dp.LocalPipelineOperations())
+
+        res_col = dp_engine.aggregate(input_col, params)
 
 if __name__ == '__main__':
     unittest.main()

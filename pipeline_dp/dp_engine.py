@@ -58,7 +58,12 @@ class DPEngine:
         accumulator_factory.initialize()
         aggregator_fn = accumulator_factory.create
 
-        # extract the columns
+        if params.public_partitions is not None:
+            # TODO: make aggregate with public partition work.
+            col = self._drop_not_public_partitions(col,
+                                                   params.public_partitions,
+                                                   data_extractors)
+        # Extract the columns.
         col = self._ops.map(
             col, lambda row: (data_extractors.privacy_id_extractor(row),
                               data_extractors.partition_extractor(row),
@@ -70,19 +75,23 @@ class DPEngine:
                                         aggregator_fn)
         # col : ((privacy_id, partition_key), accumulator)
 
-        col = self._ops.map_tuple(col, lambda k, v: (k[1], v), "drop pid")
-        col = self._ops.reduce_accumulators_per_key(col, "reduce accumulators")
+        col = self._ops.map_tuple(col, lambda pid_pk, v: (pid_pk[1], v),
+                                  "Drop privacy id")
+        # col : (partition_key, accumulator)
+        col = self._ops.reduce_accumulators_per_key(
+            col, "Reduce accumulators per partition key")
+        # col : (partition_key, accumulator)
 
-        # If no public partitions were specified, return aggregation results
-        # directly.
         if params.public_partitions is None:
             col = self._select_private_partitions(
                 col, params.max_partitions_contributed)
         else:
-            col = self._drop_not_public_partitions(col,
-                                                   params.public_partitions,
-                                                   data_extractors)
-        # col : ((privacy_id, partition_key), accumulator)
+            # TODO: add public partitions which are missing in data.
+            pass
+        # col : (partition_key, accumulator)
+
+        # Compute DP metrics.
+        col = self._ops.map_values(col, lambda acc: acc.compute_metrics())
 
         return col
 
