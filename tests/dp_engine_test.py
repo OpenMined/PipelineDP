@@ -168,8 +168,8 @@ class DpEngineTest(unittest.TestCase):
     def test_aggregate_report(self, mock_create_accumulator_params_function):
         col = [[1], [2], [3], [3]]
         data_extractor = pipeline_dp.DataExtractors(
-            privacy_id_extractor=lambda x: "pid" + str(x),
-            partition_extractor=lambda x: "pk" + str(x),
+            privacy_id_extractor=lambda x: f"pid{x}",
+            partition_extractor=lambda x: f"pk{x}",
             value_extractor=lambda x: x)
         params1 = pipeline_dp.AggregateParams(
             max_partitions_contributed=3,
@@ -217,8 +217,8 @@ class DpEngineTest(unittest.TestCase):
 
         col = [[1], [2], [3], [3]]
         data_extractor = pipeline_dp.DataExtractors(
-            privacy_id_extractor=lambda x: "pid" + str(x),
-            partition_extractor=lambda x: "pk" + str(x),
+            privacy_id_extractor=lambda x: f"pid{x}",
+            partition_extractor=lambda x: f"pk{x}",
             value_extractor=lambda x: x)
 
         mock_bound_contributions.return_value = [
@@ -314,7 +314,7 @@ class DpEngineTest(unittest.TestCase):
         col = list(range(10)) + list(range(100, 120))
         data_extractor = pipeline_dp.DataExtractors(
             privacy_id_extractor=lambda x: x,
-            partition_extractor=lambda x: "pk" + str(x // 100),
+            partition_extractor=lambda x: f"pk{x//100}",
             value_extractor=lambda x: None)
 
         engine = pipeline_dp.DPEngine(budget_accountant=budget_accountant,
@@ -349,7 +349,7 @@ class DpEngineTest(unittest.TestCase):
         col = list(range(100))
         data_extractor = pipeline_dp.DataExtractors(
             privacy_id_extractor=lambda x: x,
-            partition_extractor=lambda x: "pk" + str(x),
+            partition_extractor=lambda x: f"pk{x}",
             value_extractor=lambda x: None)
 
         engine = pipeline_dp.DPEngine(budget_accountant=budget_accountant,

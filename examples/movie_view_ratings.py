@@ -52,9 +52,7 @@ def calc_dp_rating_metrics(movie_views, ops, public_partitions):
     dp_engine = pipeline_dp.DPEngine(budget_accountant, ops)
 
     # Specify which DP aggregated metrics to compute.
-    params = pipeline_dp.AggregateParams(metrics=[
-        pipeline_dp.Metrics.COUNT,
-    ],
+    params = pipeline_dp.AggregateParams(metrics=[pipeline_dp.Metrics.COUNT],
                                          max_partitions_contributed=2,
                                          max_contributions_per_partition=1,
                                          low=1,

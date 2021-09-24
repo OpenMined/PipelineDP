@@ -1,3 +1,4 @@
+from pipeline_dp.budget_accounting import BudgetAccountant
 from pipeline_dp.budget_accounting import NaiveBudgetAccountant
 from pipeline_dp.aggregate_params import AggregateParams
 from pipeline_dp.aggregate_params import Metrics
