@@ -76,7 +76,7 @@ class MechanismSpec:
         return
 
     def use_delta(self) -> bool:
-        return self.mechanism_type == MechanismType.GAUSSIAN
+        return self.mechanism_type != MechanismType.LAPLACE
 
 
 @dataclass

@@ -6,9 +6,9 @@ from functools import reduce
 
 from typing import Iterable, Optional, Tuple, Union
 import pipeline_dp
-from pipeline_dp import dp_computations
 from pipeline_dp import aggregate_params
 from pipeline_dp import dp_computations
+from pipeline_dp import budget_accounting
 import numpy as np
 
 
@@ -25,7 +25,7 @@ def merge(accumulators: typing.Iterable['Accumulator']) -> 'Accumulator':
 
 def create_accumulator_params(
     aggregation_params: pipeline_dp.AggregateParams,
-    budget_accountant: pipeline_dp.BudgetAccountant
+    budget_accountant: budget_accounting.BudgetAccountant
 ) -> typing.List[AccumulatorParams]:
     accumulator_params = []
     if pipeline_dp.Metrics.COUNT in aggregation_params.metrics:
@@ -170,7 +170,7 @@ class AccumulatorFactory:
     AggregateParams and BudgetAccountant."""
 
     def __init__(self, params: pipeline_dp.AggregateParams,
-                 budget_accountant: pipeline_dp.BudgetAccountant):
+                 budget_accountant: budget_accounting.BudgetAccountant):
         self._params = params
         self._budget_accountant = budget_accountant
 
