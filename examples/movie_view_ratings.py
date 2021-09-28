@@ -52,24 +52,28 @@ def calc_dp_rating_metrics(movie_views, ops, public_partitions):
     dp_engine = pipeline_dp.DPEngine(budget_accountant, ops)
 
     # Specify which DP aggregated metrics to compute.
-    params = pipeline_dp.AggregateParams(metrics=[pipeline_dp.Metrics.COUNT],
-                                         max_partitions_contributed=2,
-                                         max_contributions_per_partition=1,
-                                         low=1,
-                                         high=5,
-                                         public_partitions=public_partitions)
+    params = pipeline_dp.AggregateParams(
+        noise_kind=pipeline_dp.aggregate_params.NoiseKind.LAPLACE,
+        metrics=[pipeline_dp.Metrics.COUNT, pipeline_dp.Metrics.SUM],
+        max_partitions_contributed=2,
+        max_contributions_per_partition=1,
+        low=1,
+        high=5,
+        public_partitions=public_partitions)
 
-    # Specify how to extract is privacy_id, partition_key and value from an
+    # Specify how to extract privacy_id, partition_key and value from an
     # element of movie view collection.
     data_extractors = pipeline_dp.DataExtractors(
         partition_extractor=lambda mv: mv.movie_id,
         privacy_id_extractor=lambda mv: mv.user_id,
         value_extractor=lambda mv: mv.rating)
-
+    # TODO Not sure if we want the client to have to make these calls to budget accountant
+    # but without these there will be epsilon, delta, and empty mechanisms errors
+    budget_accountant.request_budget(pipeline_dp.MechanismType.LAPLACE)
+    budget_accountant.compute_budgets()
     # Run aggregation.
     dp_result = dp_engine.aggregate(movie_views, params, data_extractors)
 
-    budget_accountant.compute_budgets()
     return dp_result
 
 

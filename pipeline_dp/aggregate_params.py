@@ -17,6 +17,12 @@ class NoiseKind(Enum):
     LAPLACE = 'laplace'
     GAUSSIAN = 'gaussian'
 
+    def convert_to_mechanism_type(self):
+        if self.value == NoiseKind.LAPLACE.value:
+            return MechanismType.LAPLACE
+        elif self.value == NoiseKind.GAUSSIAN.value:
+            return MechanismType.GAUSSIAN
+
 
 class MechanismType(Enum):
     LAPLACE = 'laplace'
@@ -36,6 +42,7 @@ class AggregateParams:
     """Specifies parameters for function DPEngine.aggregate()
 
   Args:
+    noise_kind: Kind of noise to use for the calculation.
     metrics: Metrics to compute.
     max_partitions_contributed: Bounds the number of partitions in which one
       unit of privacy (e.g., a user) can participate.
@@ -48,6 +55,7 @@ class AggregateParams:
       the result.
   """
 
+    noise_kind: NoiseKind
     metrics: Iterable[Metrics]
     max_partitions_contributed: int
     max_contributions_per_partition: int

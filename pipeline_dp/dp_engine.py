@@ -165,6 +165,7 @@ class DPEngine:
         """
         budget = self._budget_accountant.request_budget(
             mechanism_type=MechanismType.GENERIC)
+        self._budget_accountant.compute_budgets()
 
         def filter_fn(captures: Tuple[MechanismSpec, int],
                       row: Tuple[Any, Accumulator]) -> bool:
