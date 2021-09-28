@@ -172,6 +172,7 @@ class DpEngineTest(unittest.TestCase):
             partition_extractor=lambda x: f"pk{x}",
             value_extractor=lambda x: x)
         params1 = pipeline_dp.AggregateParams(
+            noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
             max_partitions_contributed=3,
             max_contributions_per_partition=2,
             low=1,
@@ -182,6 +183,7 @@ class DpEngineTest(unittest.TestCase):
             ],
         )
         params2 = pipeline_dp.AggregateParams(
+            noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
             max_partitions_contributed=1,
             max_contributions_per_partition=3,
             low=2,
@@ -207,8 +209,11 @@ class DpEngineTest(unittest.TestCase):
     def test_aggregate_computation_graph_verification(self,
                                                       mock_bound_contributions):
         # Arrange
-        aggregator_params = pipeline_dp.AggregateParams([agg.Metrics.COUNT], 5,
-                                                        3)
+        aggregator_params = pipeline_dp.AggregateParams(
+            noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+            metrics=[agg.Metrics.COUNT],
+            max_partitions_contributed=5,
+            max_contributions_per_partition=3)
         budget_accountant = NaiveBudgetAccountant(total_epsilon=1,
                                                   total_delta=1e-10)
         accumulator_factory = AccumulatorFactory(
@@ -304,8 +309,11 @@ class DpEngineTest(unittest.TestCase):
 
     def test_aggregate_private_partition_selection_keep_everything(self):
         # Arrange
-        aggregator_params = pipeline_dp.AggregateParams([agg.Metrics.COUNT], 1,
-                                                        1)
+        aggregator_params = pipeline_dp.AggregateParams(
+            noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+            metrics=[agg.Metrics.COUNT],
+            max_partitions_contributed=1,
+            max_contributions_per_partition=1)
         # Set a large budget for having the small noise and keeping all
         # partition keys.
         budget_accountant = NaiveBudgetAccountant(total_epsilon=1000,
@@ -337,8 +345,11 @@ class DpEngineTest(unittest.TestCase):
 
     def test_aggregate_private_partition_selection_drop_many(self):
         # Arrange
-        aggregator_params = pipeline_dp.AggregateParams([agg.Metrics.COUNT], 1,
-                                                        1)
+        aggregator_params = pipeline_dp.AggregateParams(
+            noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+            metrics=[agg.Metrics.COUNT],
+            max_partitions_contributed=1,
+            max_contributions_per_partition=1)
         # Set a large budget for having the small noise and keeping all
         # partition keys.
         budget_accountant = NaiveBudgetAccountant(total_epsilon=1,

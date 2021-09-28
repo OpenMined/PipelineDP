@@ -40,8 +40,7 @@ def create_accumulator_params(
         accumulator_params.append(
             AccumulatorParams(accumulator_type=SumAccumulator,
                               constructor_params=sum_params))
-    else:
-        raise NotImplemented()  # implementation will be done later
+
     return accumulator_params
 
 
