@@ -265,7 +265,7 @@ class VectorSummationAccumulator(Accumulator):
 
 
 class SumParams:
-    """Parameters for a sum accumulator.
+    """Parameters for a SumAccumulator.
 
     Wraps epsilon and delta from the budget which are lazily loaded.
     AggregateParams are copied into a MeanVarParams instance.

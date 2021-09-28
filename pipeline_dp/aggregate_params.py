@@ -42,7 +42,7 @@ class AggregateParams:
     """Specifies parameters for function DPEngine.aggregate()
 
   Args:
-    noise_kind: Kind of noise to use for the calculation.
+    noise_kind: Kind of noise to use for the DP calculations.
     metrics: Metrics to compute.
     max_partitions_contributed: Bounds the number of partitions in which one
       unit of privacy (e.g., a user) can participate.
