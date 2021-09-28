@@ -1,11 +1,12 @@
 """DP aggregations."""
-
+# TODO: import only modules https://google.github.io/styleguide/pyguide.html#22-imports
 from functools import partial
 from typing import Any, Callable, Tuple
 
 from dataclasses import dataclass
 from pipeline_dp.aggregate_params import AggregateParams
-from pipeline_dp.budget_accounting import BudgetAccountant, MechanismSpec, NoiseKind
+from pipeline_dp.aggregate_params import MechanismType
+from pipeline_dp.budget_accounting import BudgetAccountant, MechanismSpec
 from pipeline_dp.pipeline_operations import PipelineOperations
 from pipeline_dp.report_generator import ReportGenerator
 from pipeline_dp.accumulator import Accumulator
@@ -16,10 +17,11 @@ from pydp.algorithms.partition_selection import create_truncated_geometric_parti
 
 @dataclass
 class DataExtractors:
-    """Data extractors
-  A set of functions that, given an input, return the privacy id, partition key,
-  and value.
-  """
+    """Data extractors.
+
+    A set of functions that, given an input, return the privacy id, partition key,
+    and value.
+    """
 
     privacy_id_extractor: Callable = None
     partition_extractor: Callable = None
@@ -40,14 +42,14 @@ class DPEngine:
 
     def aggregate(self, col, params: AggregateParams,
                   data_extractors: DataExtractors):
-        """Computes DP aggregation metrics
+        """Computes DP aggregation metrics.
 
-    Args:
-      col: collection with elements of the same type.
-      params: specifies which metrics to compute and computation parameters.
-      data_extractors: functions that extract needed pieces of information from
-        elements of 'col'
-    """
+        Args:
+          col: collection with elements of the same type.
+          params: specifies which metrics to compute and computation parameters.
+          data_extractors: functions that extract needed pieces of information
+            from elements of 'col'.
+        """
         if params is None:
             return None
         self._report_generators.append(ReportGenerator(params))
@@ -57,7 +59,12 @@ class DPEngine:
         accumulator_factory.initialize()
         aggregator_fn = accumulator_factory.create
 
-        # extract the columns
+        if params.public_partitions is not None:
+            # TODO: make work with public partition.
+            col = self._drop_not_public_partitions(col,
+                                                   params.public_partitions,
+                                                   data_extractors)
+        # Extract the columns.
         col = self._ops.map(
             col, lambda row: (data_extractors.privacy_id_extractor(row),
                               data_extractors.partition_extractor(row),
@@ -68,16 +75,27 @@ class DPEngine:
                                         params.max_contributions_per_partition,
                                         aggregator_fn)
         # col : ((privacy_id, partition_key), accumulator)
-        result = col
 
-        # If no public partitions were specified, return aggregation results
-        # directly.
+        col = self._ops.map_tuple(col, lambda pid_pk, v: (pid_pk[1], v),
+                                  "Drop privacy id")
+        # col : (partition_key, accumulator)
+        col = self._ops.reduce_accumulators_per_key(
+            col, "Reduce accumulators per partition key")
+        # col : (partition_key, accumulator)
+
         if params.public_partitions is None:
-            return result
+            col = self._select_private_partitions(
+                col, params.max_partitions_contributed)
         else:
-            return self._drop_not_public_partitions(result,
-                                                    params.public_partitions,
-                                                    data_extractors)
+            # TODO: add public partitions which are missing in data.
+            pass
+        # col : (partition_key, accumulator)
+
+        # Compute DP metrics.
+        col = self._ops.map_values(col, lambda acc: acc.compute_metrics(),
+                                   "Compute DP` metrics")
+
+        return col
 
     def _drop_not_public_partitions(self, col, public_partitions,
                                     data_extractors):
@@ -146,7 +164,7 @@ class DPEngine:
             collection of elements (partition_key, accumulator)
         """
         budget = self._budget_accountant.request_budget(
-            noise_kind=NoiseKind.GAUSSIAN)
+            mechanism_type=MechanismType.GENERIC)
 
         def filter_fn(captures: Tuple[MechanismSpec, int],
                       row: Tuple[Any, Accumulator]) -> bool:
@@ -161,4 +179,4 @@ class DPEngine:
 
         # make filter_fn serializable
         filter_fn = partial(filter_fn, (budget, max_partitions_contributed))
-        return self._ops.filter(col, filter_fn)
+        return self._ops.filter(col, filter_fn, "Filter private parititions")

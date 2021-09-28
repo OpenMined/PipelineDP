@@ -4,6 +4,7 @@ from scipy.stats import skew, kurtosis
 
 import pipeline_dp
 from pipeline_dp.dp_computations import *
+from pipeline_dp.aggregate_params import NoiseKind
 
 
 class MeanVarParams(unittest.TestCase):
@@ -16,7 +17,7 @@ class MeanVarParams(unittest.TestCase):
             high=3,
             max_partitions_contributed=4,
             max_contributions_per_partition=5,
-            noise_kind=pipeline_dp.NoiseKind.LAPLACE)
+            noise_kind=NoiseKind.LAPLACE)
         self.assertEqual(params.l0_sensitivity(), 4)
 
     def test_l1_sensitivity(self):
@@ -85,7 +86,7 @@ class MeanVarParams(unittest.TestCase):
             high=3,
             max_partitions_contributed=1,
             max_contributions_per_partition=1,
-            noise_kind=pipeline_dp.NoiseKind.LAPLACE)
+            noise_kind=NoiseKind.LAPLACE)
         l0_sensitivity = params.l0_sensitivity()
         linf_sensitivity = params.max_contributions_per_partition
 
@@ -100,7 +101,7 @@ class MeanVarParams(unittest.TestCase):
         self._test_laplace_noise(results, 10, params.eps, l1_sensitivity)
 
         # Gaussian Mechanism
-        params.noise_kind = pipeline_dp.NoiseKind.GAUSSIAN
+        params.noise_kind = NoiseKind.GAUSSIAN
         l2_sensitivity = pipeline_dp.dp_computations.compute_l2_sensitivity(
             l0_sensitivity, linf_sensitivity)
         results = [
@@ -119,7 +120,7 @@ class MeanVarParams(unittest.TestCase):
             high=3,
             max_partitions_contributed=1,
             max_contributions_per_partition=1,
-            noise_kind=pipeline_dp.NoiseKind.LAPLACE)
+            noise_kind=NoiseKind.LAPLACE)
         l0_sensitivity = params.l0_sensitivity()
         linf_sensitivity = params.max_contributions_per_partition * max(
             params.low, params.high)
@@ -134,7 +135,7 @@ class MeanVarParams(unittest.TestCase):
         self._test_laplace_noise(results, 10, params.eps, l1_sensitivity)
 
         # Gaussian Mechanism
-        params.noise_kind = pipeline_dp.NoiseKind.GAUSSIAN
+        params.noise_kind = NoiseKind.GAUSSIAN
         l2_sensitivity = pipeline_dp.dp_computations.compute_l2_sensitivity(
             l0_sensitivity, linf_sensitivity)
         results = [
@@ -170,7 +171,7 @@ class MeanVarParams(unittest.TestCase):
             high=20,
             max_partitions_contributed=1,
             max_contributions_per_partition=1,
-            noise_kind=pipeline_dp.NoiseKind.LAPLACE)
+            noise_kind=NoiseKind.LAPLACE)
 
         (count_eps,
          count_delta), (_,
@@ -195,7 +196,7 @@ class MeanVarParams(unittest.TestCase):
         self.assertAlmostEqual(np.mean(mean_values), 10, delta=0.1)
 
         # Gaussian Mechanism
-        params.noise_kind = pipeline_dp.NoiseKind.GAUSSIAN
+        params.noise_kind = NoiseKind.GAUSSIAN
         results = [
             pipeline_dp.dp_computations.compute_dp_mean(count=1000,
                                                         sum=10000,
@@ -218,7 +219,7 @@ class MeanVarParams(unittest.TestCase):
             high=20,
             max_partitions_contributed=1,
             max_contributions_per_partition=1,
-            noise_kind=pipeline_dp.NoiseKind.LAPLACE)
+            noise_kind=NoiseKind.LAPLACE)
 
         (count_eps, count_delta), (_, _), (
             _, _) = pipeline_dp.dp_computations.equally_split_budget(
@@ -244,7 +245,7 @@ class MeanVarParams(unittest.TestCase):
         self.assertAlmostEqual(np.mean(var_values), 100, delta=0.1)
 
         # Gaussian Mechanism
-        params.noise_kind = pipeline_dp.NoiseKind.GAUSSIAN
+        params.noise_kind = NoiseKind.GAUSSIAN
         results = [
             pipeline_dp.dp_computations.compute_dp_var(count=100000,
                                                        sum=1000000,
