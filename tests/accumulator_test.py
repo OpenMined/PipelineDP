@@ -6,9 +6,9 @@ from unittest.mock import patch
 import numpy as np
 import pipeline_dp
 from pipeline_dp import aggregate_params as agg
-from pipeline_dp.dp_computations import MeanVarParams
 from pipeline_dp.budget_accounting import NaiveBudgetAccountant
 from pipeline_dp.aggregate_params import NoiseKind
+from pipeline_dp.aggregate_params import NormKind
 import pipeline_dp.accumulator as accumulator
 
 
@@ -159,7 +159,7 @@ class GenericAccumulatorTest(unittest.TestCase):
             max_norm=0,
             l0_sensitivity=0,
             linf_sensitivity=0,
-            norm_kind="linf",
+            norm_kind=NormKind.Linf,
             noise_kind=NoiseKind.GAUSSIAN)
         vec_sum_accumulator1 = accumulator.VectorSummationAccumulator(
             params=vec_params, values=[(15, 2)])
@@ -182,7 +182,7 @@ class GenericAccumulatorTest(unittest.TestCase):
             max_norm=0,
             l0_sensitivity=0,
             linf_sensitivity=0,
-            norm_kind="linf",
+            norm_kind=NormKind.Linf,
             noise_kind=NoiseKind.GAUSSIAN)
         vec_sum_accumulator = accumulator.VectorSummationAccumulator(
             params=vec_params, values=[(27, 40)])
@@ -201,7 +201,11 @@ class GenericAccumulatorTest(unittest.TestCase):
 
     @patch('pipeline_dp.accumulator.create_accumulator_params')
     def test_accumulator_factory(self, mock_create_accumulator_params_function):
-        aggregate_params = pipeline_dp.AggregateParams([agg.Metrics.MEAN], 5, 3)
+        aggregate_params = pipeline_dp.AggregateParams(
+            noise_kind=NoiseKind.GAUSSIAN,
+            metrics=[agg.Metrics.MEAN],
+            max_partitions_contributed=5,
+            max_contributions_per_partition=3)
         budget_accountant = NaiveBudgetAccountant(total_epsilon=1,
                                                   total_delta=0.01)
 
@@ -225,7 +229,10 @@ class GenericAccumulatorTest(unittest.TestCase):
     def test_accumulator_factory_multiple_types(
             self, mock_create_accumulator_params_function):
         aggregate_params = pipeline_dp.AggregateParams(
-            [agg.Metrics.MEAN, agg.Metrics.VAR], 5, 3)
+            noise_kind=NoiseKind.GAUSSIAN,
+            metrics=[agg.Metrics.MEAN, agg.Metrics.VAR],
+            max_partitions_contributed=5,
+            max_contributions_per_partition=3)
         budget_accountant = NaiveBudgetAccountant(total_epsilon=1,
                                                   total_delta=0.01)
         values = [10]
@@ -249,6 +256,7 @@ class GenericAccumulatorTest(unittest.TestCase):
     def test_create_accumulator_params_with_count_params(self):
         acc_params = accumulator.create_accumulator_params(
             aggregation_params=pipeline_dp.AggregateParams(
+                noise_kind=NoiseKind.GAUSSIAN,
                 metrics=[pipeline_dp.Metrics.COUNT],
                 max_partitions_contributed=4,
                 max_contributions_per_partition=5,
@@ -261,6 +269,22 @@ class GenericAccumulatorTest(unittest.TestCase):
         self.assertTrue(
             isinstance(acc_params[0].constructor_params,
                        accumulator.CountParams))
+
+    def test_create_accumulator_params_with_sum_params(self):
+        acc_params = accumulator.create_accumulator_params(
+            aggregation_params=pipeline_dp.AggregateParams(
+                noise_kind=NoiseKind.GAUSSIAN,
+                metrics=[pipeline_dp.Metrics.SUM],
+                max_partitions_contributed=4,
+                max_contributions_per_partition=5,
+                budget_weight=1),
+            budget_accountant=NaiveBudgetAccountant(total_epsilon=1,
+                                                    total_delta=0.01))
+        self.assertEqual(len(acc_params), 1)
+        self.assertEqual(acc_params[0].accumulator_type,
+                         accumulator.SumAccumulator)
+        self.assertTrue(
+            isinstance(acc_params[0].constructor_params, accumulator.SumParams))
 
 
 class MeanAccumulator(accumulator.Accumulator):
@@ -337,15 +361,20 @@ class CountAccumulatorTest(unittest.TestCase):
 class SumAccumulatorTest(unittest.TestCase):
 
     def test_without_noise(self):
-        no_noise = MeanVarParams(eps=1,
-                                 delta=1,
-                                 low=0,
-                                 high=0,
-                                 max_partitions_contributed=1,
-                                 max_contributions_per_partition=1,
-                                 noise_kind=NoiseKind.GAUSSIAN)
+        budget_accountant = NaiveBudgetAccountant(total_epsilon=1,
+                                                  total_delta=0.01)
+        budget = budget_accountant.request_budget(
+            pipeline_dp.MechanismType.GAUSSIAN)
+        budget_accountant.compute_budgets()
+        no_noise = pipeline_dp.AggregateParams(
+            low=0,
+            high=0,
+            max_partitions_contributed=1,
+            max_contributions_per_partition=1,
+            noise_kind=NoiseKind.GAUSSIAN,
+            metrics=[pipeline_dp.Metrics.SUM])
         sum_accumulator = accumulator.SumAccumulator(
-            accumulator.SumParams(no_noise), list(range(6)))
+            accumulator.SumParams(budget, no_noise), list(range(6)))
 
         self.assertEqual(sum_accumulator.compute_metrics(), 15)
 
@@ -353,21 +382,26 @@ class SumAccumulatorTest(unittest.TestCase):
         self.assertEqual(sum_accumulator.compute_metrics(), 20)
 
         sum_accumulator_2 = accumulator.SumAccumulator(
-            accumulator.SumParams(no_noise), list(range(3)))
+            accumulator.SumParams(budget, no_noise), list(range(3)))
 
         sum_accumulator.add_accumulator(sum_accumulator_2)
         self.assertEqual(sum_accumulator.compute_metrics(), 23)
 
     def test_with_noise(self):
+        budget_accountant = NaiveBudgetAccountant(total_epsilon=10,
+                                                  total_delta=1e-5)
+        budget = budget_accountant.request_budget(
+            pipeline_dp.MechanismType.GAUSSIAN)
+        budget_accountant.compute_budgets()
+
+        params = pipeline_dp.AggregateParams(low=0,
+                                             high=1,
+                                             max_partitions_contributed=1,
+                                             max_contributions_per_partition=3,
+                                             noise_kind=NoiseKind.GAUSSIAN,
+                                             metrics=[pipeline_dp.Metrics.SUM])
         sum_accumulator = accumulator.SumAccumulator(
-            accumulator.SumParams(
-                MeanVarParams(eps=10,
-                              delta=1e-5,
-                              low=0,
-                              high=1,
-                              max_partitions_contributed=1,
-                              max_contributions_per_partition=3,
-                              noise_kind=NoiseKind.GAUSSIAN)), list(range(6)))
+            accumulator.SumParams(budget, params), list(range(6)))
         self.assertAlmostEqual(first=sum_accumulator.compute_metrics(),
                                second=15,
                                delta=4)
@@ -378,14 +412,7 @@ class SumAccumulatorTest(unittest.TestCase):
                                delta=4)
 
         sum_accumulator_2 = accumulator.SumAccumulator(
-            accumulator.SumParams(
-                MeanVarParams(eps=10,
-                              delta=1e-5,
-                              low=0,
-                              high=1,
-                              max_partitions_contributed=1,
-                              max_contributions_per_partition=3,
-                              noise_kind=NoiseKind.GAUSSIAN)), list(range(3)))
+            accumulator.SumParams(budget, params), list(range(3)))
         sum_accumulator.add_accumulator(sum_accumulator_2)
         self.assertAlmostEqual(first=sum_accumulator.compute_metrics(),
                                second=23,

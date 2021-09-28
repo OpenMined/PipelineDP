@@ -33,8 +33,14 @@ def create_accumulator_params(
         accumulator_params.append(
             AccumulatorParams(accumulator_type=CountAccumulator,
                               constructor_params=CountParams()))
-    else:
-        raise NotImplemented()  # implementation will be done later
+    if pipeline_dp.Metrics.SUM in aggregation_params.metrics:
+        budget = budget_accountant.request_budget(
+            aggregation_params.noise_kind.convert_to_mechanism_type())
+        sum_params = SumParams(budget, aggregation_params)
+        accumulator_params.append(
+            AccumulatorParams(accumulator_type=SumAccumulator,
+                              constructor_params=sum_params))
+
     return accumulator_params
 
 
@@ -257,9 +263,34 @@ class VectorSummationAccumulator(Accumulator):
         return dp_computations.add_noise_vector(self._vec_sum, self._params)
 
 
-@dataclass
 class SumParams:
-    noise: dp_computations.MeanVarParams
+    """Parameters for a SumAccumulator.
+
+    Wraps epsilon and delta from the budget which are lazily loaded.
+    AggregateParams are copied into a MeanVarParams instance.
+    """
+
+    def __init__(self, budget: pipeline_dp.budget_accounting.MechanismSpec,
+                 aggregate_params: aggregate_params.AggregateParams):
+        self._budget = budget
+        self._aggregate_params = aggregate_params
+
+    @property
+    def eps(self):
+        return self._budget.eps
+
+    @property
+    def delta(self):
+        return self._budget.delta
+
+    @property
+    def mean_var_params(self):
+        return dp_computations.MeanVarParams(
+            self.eps, self.delta, self._aggregate_params.low,
+            self._aggregate_params.high,
+            self._aggregate_params.max_partitions_contributed,
+            self._aggregate_params.max_contributions_per_partition,
+            self._aggregate_params.noise_kind)
 
 
 class SumAccumulator(Accumulator):
@@ -278,4 +309,4 @@ class SumAccumulator(Accumulator):
 
     def compute_metrics(self) -> float:
         return pipeline_dp.dp_computations.compute_dp_sum(
-            self._sum, self._params.noise)
+            self._sum, self._params.mean_var_params)
