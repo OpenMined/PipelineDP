@@ -337,26 +337,72 @@ class SumOfSquaresAccumulator(accumulator.Accumulator):
 class CountAccumulatorTest(unittest.TestCase):
 
     def test_without_noise(self):
-        no_noise = (1, 1, 0, 0, 0, 0, pipeline_dp.NoiseKind.GAUSSIAN)
+        budget_accountant = NaiveBudgetAccountant(total_epsilon=1,
+                                                  total_delta=0.01)
+        budget = budget_accountant.request_budget(
+            pipeline_dp.MechanismType.GAUSSIAN)
+        budget_accountant.compute_budgets()
+        no_noise = pipeline_dp.AggregateParams(
+            low=0,
+            high=0,
+            max_partitions_contributed=0,
+            max_contributions_per_partition=0,
+            noise_kind=NoiseKind.GAUSSIAN,
+            metrics=[pipeline_dp.Metrics.COUNT])
         count_accumulator = accumulator.CountAccumulator(
-            accumulator.CountParams(*no_noise), list(range(5)))
+            accumulator.CountParams(budget, no_noise), list(range(5)))
         self.assertEqual(count_accumulator.compute_metrics(), 5)
 
         count_accumulator = accumulator.CountAccumulator(
-            accumulator.CountParams(*no_noise), 'a' * 50)
+            accumulator.CountParams(budget, no_noise), 'a' * 50)
         self.assertEqual(count_accumulator.compute_metrics(), 50)
 
         count_accumulator = accumulator.CountAccumulator(
-            accumulator.CountParams(*no_noise), list(range(50)))
+            accumulator.CountParams(budget, no_noise), list(range(50)))
         count_accumulator.add_value(49)
         self.assertEqual(count_accumulator.compute_metrics(), 51)
 
         count_accumulator_1 = accumulator.CountAccumulator(
-            accumulator.CountParams(*no_noise), list(range(50)))
+            accumulator.CountParams(budget, no_noise), list(range(50)))
         count_accumulator_2 = accumulator.CountAccumulator(
-            accumulator.CountParams(*no_noise), 'a' * 50)
+            accumulator.CountParams(budget, no_noise), 'a' * 50)
         count_accumulator_1.add_accumulator(count_accumulator_2)
         self.assertEqual(count_accumulator_1.compute_metrics(), 100)
+
+    def test_with_noise(self):
+        budget_accountant = NaiveBudgetAccountant(total_epsilon=10,
+                                                  total_delta=1e-5)
+        budget = budget_accountant.request_budget(
+            pipeline_dp.MechanismType.GAUSSIAN)
+        budget_accountant.compute_budgets()
+
+        params = pipeline_dp.AggregateParams(
+            low=0,
+            high=1,
+            max_partitions_contributed=1,
+            max_contributions_per_partition=3,
+            noise_kind=NoiseKind.GAUSSIAN,
+            metrics=[pipeline_dp.Metrics.COUNT])
+        count_accumulator = accumulator.CountAccumulator(
+            accumulator.CountParams(budget, params), list(range(5)))
+        self.assertAlmostEqual(first=count_accumulator.compute_metrics(),
+                               second=5,
+                               delta=3)
+
+        count_accumulator.add_value(50)
+        self.assertAlmostEqual(first=count_accumulator.compute_metrics(),
+                               second=6,
+                               delta=3)
+
+        count_accumulator.add_value(list(range(49)))
+        self.assertAlmostEqual(first=count_accumulator.compute_metrics(),
+                               second=7,
+                               delta=3)
+
+        count_accumulator.add_value('*' * 100)
+        self.assertAlmostEqual(first=count_accumulator.compute_metrics(),
+                               second=8,
+                               delta=3)
 
 
 class SumAccumulatorTest(unittest.TestCase):

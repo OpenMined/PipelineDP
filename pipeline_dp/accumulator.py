@@ -9,6 +9,7 @@ import pipeline_dp
 from pipeline_dp import aggregate_params
 from pipeline_dp import dp_computations
 from pipeline_dp import budget_accounting
+from pipeline_dp.aggregate_params import NoiseKind
 import numpy as np
 
 
@@ -28,24 +29,14 @@ def create_accumulator_params(
     budget_accountant: budget_accounting.BudgetAccountant
 ) -> typing.List[AccumulatorParams]:
     accumulator_params = []
+    budget = budget_accountant.request_budget(
+        aggregation_params.noise_kind.convert_to_mechanism_type())
     if pipeline_dp.Metrics.COUNT in aggregation_params.metrics:
-        low, high, max_partitions_contributed,\
-        max_contributions_per_partition = \
-            aggregation_params.low, aggregation_params.high, \
-            aggregation_params.max_partitions_contributed, \
-            aggregation_params.max_contributions_per_partition
-        noise_kind = NoiseKind.GAUSSIAN
-        # TODO: see hoe to obtain eps and delta from the BudgetAccountant
-        eps = 1
-        delta = 1
-        count_params = (eps, delta, low, high, max_partitions_contributed,
-                        max_contributions_per_partition, noise_kind)
+        count_params = CountParams(budget, aggregate_params)
         accumulator_params.append(
             AccumulatorParams(accumulator_type=CountAccumulator,
-                              constructor_params=CountParams()))
+                              constructor_params=count_params))
     if pipeline_dp.Metrics.SUM in aggregation_params.metrics:
-        budget = budget_accountant.request_budget(
-            aggregation_params.noise_kind.convert_to_mechanism_type())
         sum_params = SumParams(budget, aggregation_params)
         accumulator_params.append(
             AccumulatorParams(accumulator_type=SumAccumulator,
@@ -204,8 +195,37 @@ class AccumulatorFactory:
         return CompoundAccumulator(accumulators)
 
 
-@dataclass
-class CountParams(dp_computations.MeanVarParams):
+class AggregatorParams:
+    """Parameters for a an aggregator.
+
+    Wraps epsilon and delta from the budget which are lazily loaded.
+    AggregateParams are copied into a MeanVarParams instance.
+    """
+
+    def __init__(self, budget: pipeline_dp.budget_accounting.MechanismSpec,
+                 aggregate_params: aggregate_params.AggregateParams):
+        self._budget = budget
+        self._aggregate_params = aggregate_params
+
+    @property
+    def eps(self):
+        return self._budget.eps
+
+    @property
+    def delta(self):
+        return self._budget.delta
+
+    @property
+    def mean_var_params(self):
+        return dp_computations.MeanVarParams(
+            self.eps, self.delta, self._aggregate_params.low,
+            self._aggregate_params.high,
+            self._aggregate_params.max_partitions_contributed,
+            self._aggregate_params.max_contributions_per_partition,
+            self._aggregate_params.noise_kind)
+
+
+class CountParams(AggregatorParams):
     pass
 
 
@@ -233,7 +253,7 @@ class CountAccumulator(Accumulator):
 
     def compute_metrics(self) -> float:
         return pipeline_dp.dp_computations.compute_dp_count(
-            self._count, self._params)
+            self._count, self._params.mean_var_params)
 
 
 _FloatVector = Union[Tuple[float], np.ndarray]
@@ -281,34 +301,8 @@ class VectorSummationAccumulator(Accumulator):
         return dp_computations.add_noise_vector(self._vec_sum, self._params)
 
 
-class SumParams:
-    """Parameters for a SumAccumulator.
-
-    Wraps epsilon and delta from the budget which are lazily loaded.
-    AggregateParams are copied into a MeanVarParams instance.
-    """
-
-    def __init__(self, budget: pipeline_dp.budget_accounting.MechanismSpec,
-                 aggregate_params: aggregate_params.AggregateParams):
-        self._budget = budget
-        self._aggregate_params = aggregate_params
-
-    @property
-    def eps(self):
-        return self._budget.eps
-
-    @property
-    def delta(self):
-        return self._budget.delta
-
-    @property
-    def mean_var_params(self):
-        return dp_computations.MeanVarParams(
-            self.eps, self.delta, self._aggregate_params.low,
-            self._aggregate_params.high,
-            self._aggregate_params.max_partitions_contributed,
-            self._aggregate_params.max_contributions_per_partition,
-            self._aggregate_params.noise_kind)
+class SumParams(AggregatorParams):
+    pass
 
 
 class SumAccumulator(Accumulator):
