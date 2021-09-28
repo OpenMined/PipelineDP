@@ -252,7 +252,7 @@ class CountAccumulator(Accumulator):
         return self
 
     def compute_metrics(self) -> float:
-        return pipeline_dp.dp_computations.compute_dp_count(
+        return dp_computations.compute_dp_count(
             self._count, self._params.mean_var_params)
 
 
@@ -320,5 +320,5 @@ class SumAccumulator(Accumulator):
         self._sum += accumulator._sum
 
     def compute_metrics(self) -> float:
-        return pipeline_dp.dp_computations.compute_dp_sum(
+        return dp_computations.compute_dp_sum(
             self._sum, self._params.mean_var_params)

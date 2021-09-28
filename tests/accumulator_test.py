@@ -387,22 +387,22 @@ class CountAccumulatorTest(unittest.TestCase):
             accumulator.CountParams(budget, params), list(range(5)))
         self.assertAlmostEqual(first=count_accumulator.compute_metrics(),
                                second=5,
-                               delta=3)
+                               delta=4)
 
         count_accumulator.add_value(50)
         self.assertAlmostEqual(first=count_accumulator.compute_metrics(),
                                second=6,
-                               delta=3)
+                               delta=4)
 
         count_accumulator.add_value(list(range(49)))
         self.assertAlmostEqual(first=count_accumulator.compute_metrics(),
                                second=7,
-                               delta=3)
+                               delta=4)
 
         count_accumulator.add_value('*' * 100)
         self.assertAlmostEqual(first=count_accumulator.compute_metrics(),
                                second=8,
-                               delta=3)
+                               delta=4)
 
 
 class SumAccumulatorTest(unittest.TestCase):
