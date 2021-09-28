@@ -9,6 +9,7 @@ import pipeline_dp
 from pipeline_dp import dp_computations
 from pipeline_dp import aggregate_params
 from pipeline_dp import NoiseKind
+from pipeline_dp import budget_accounting
 import numpy as np
 
 
@@ -29,7 +30,6 @@ def create_accumulator_params(
 ) -> typing.List[AccumulatorParams]:
     accumulator_params = []
     if pipeline_dp.Metrics.COUNT in aggregation_params.metrics:
-        request_budget = budget_accountant.request_budget
         low, high, max_partitions_contributed,\
         max_contributions_per_partition = \
             aggregation_params.low, aggregation_params.high, \
@@ -191,6 +191,13 @@ class CountAccumulator(Accumulator):
     def __init__(self, params: CountParams, values):
         self._count = len(values)
         self._params = params
+        self._budget = budget_accounting.MechanismSpec
+
+    def eps(self):
+        return self._budget.eps
+
+    def delta(self):
+        return self._budget.delta
 
     def add_value(self, value):
         self._count += 1
