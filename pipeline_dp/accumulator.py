@@ -244,8 +244,8 @@ class CountAccumulator(Accumulator):
         return self
 
     def compute_metrics(self) -> float:
-        return dp_computations.compute_dp_count(
-            self._count, self._params.mean_var_params)
+        return dp_computations.compute_dp_count(self._count,
+                                                self._params.mean_var_params)
 
 
 _FloatVector = Union[Tuple[float], np.ndarray]
@@ -312,5 +312,5 @@ class SumAccumulator(Accumulator):
         self._sum += accumulator._sum
 
     def compute_metrics(self) -> float:
-        return dp_computations.compute_dp_sum(
-            self._sum, self._params.mean_var_params)
+        return dp_computations.compute_dp_sum(self._sum,
+                                              self._params.mean_var_params)
