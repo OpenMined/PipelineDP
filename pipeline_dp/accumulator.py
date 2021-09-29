@@ -9,7 +9,6 @@ import pipeline_dp
 from pipeline_dp import aggregate_params
 from pipeline_dp import dp_computations
 from pipeline_dp import budget_accounting
-from pipeline_dp.aggregate_params import NoiseKind
 import numpy as np
 
 
@@ -195,8 +194,8 @@ class AccumulatorFactory:
         return CompoundAccumulator(accumulators)
 
 
-class AggregatorParams:
-    """Parameters for a an aggregator.
+class AccumulatorClassParams:
+    """Parameters for a an accumulator.
 
     Wraps epsilon and delta from the budget which are lazily loaded.
     AggregateParams are copied into a MeanVarParams instance.
@@ -225,7 +224,7 @@ class AggregatorParams:
             self._aggregate_params.noise_kind)
 
 
-class CountParams(AggregatorParams):
+class CountParams(AccumulatorClassParams):
     pass
 
 
@@ -234,13 +233,6 @@ class CountAccumulator(Accumulator):
     def __init__(self, params: CountParams, values):
         self._count = len(values)
         self._params = params
-        self._budget = budget_accounting.MechanismSpec
-
-    def eps(self):
-        return self._budget.eps
-
-    def delta(self):
-        return self._budget.delta
 
     def add_value(self, value):
         self._count += 1
@@ -301,7 +293,7 @@ class VectorSummationAccumulator(Accumulator):
         return dp_computations.add_noise_vector(self._vec_sum, self._params)
 
 
-class SumParams(AggregatorParams):
+class SumParams(AccumulatorClassParams):
     pass
 
 
