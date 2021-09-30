@@ -40,6 +40,11 @@ def create_accumulator_params(
         accumulator_params.append(
             AccumulatorParams(accumulator_type=SumAccumulator,
                               constructor_params=sum_params))
+    if pipeline_dp.Metrics.PRIVACY_ID_COUNT in aggregation_params.metrics:
+        privacy_id_count_params = PrivacyIdCountParams(budget, aggregation_params)
+        accumulator_params.append(
+            AccumulatorParams(accumulator_type=PrivacyIdCountAccumulator,
+                              constructor_params=privacy_id_count_params))
 
     return accumulator_params
 
@@ -222,6 +227,29 @@ class AccumulatorClassParams:
             self._aggregate_params.max_partitions_contributed,
             self._aggregate_params.max_contributions_per_partition,
             self._aggregate_params.noise_kind)
+
+class PrivacyIdCountParams(AccumulatorClassParams):
+    pass
+
+class PrivacyIdCountAccumulator(Accumulator):
+
+    def __init__(self, params: PrivacyIdCountParams, values):
+        self._count = 1
+        self._params = params
+
+    def add_value(self, value):
+        pass
+
+    def add_accumulator(self,
+                        accumulator: 'PrivacyIdCountAccumulator') -> \
+                        'PrivacyIdCountAccumulator':
+        self._check_mergeable(accumulator)
+        self._count += accumulator._count
+        return self
+
+    def compute_metrics(self) -> float:
+        return dp_computations.compute_dp_count(self._count,
+                                                self._params.mean_var_params)
 
 
 class CountParams(AccumulatorClassParams):
