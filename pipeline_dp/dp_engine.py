@@ -91,19 +91,37 @@ class DPEngine:
             pass
         # col : (partition_key, accumulator)
 
-        if self._ops.is_spark():
-            # This is workaround to fix the following issue.
-            #
-            # Spark serializes code
-            mechanism_specs = accumulator_factory.get_mechanism_specs()
-            col = self._ops.map_values(
-                col, lambda acc: acc.set_mechanism_specs(mechanism_specs))
+        col = self._fix_budget_accounting_for_spark(col, accumulator_factory)
 
         # Compute DP metrics.
         col = self._ops.map_values(col, lambda acc: acc.compute_metrics(),
                                    "Compute DP` metrics")
 
         return col
+
+    def _fix_budget_accounting_for_spark(self, col, accumulator_factory):
+        """Adds MechanismSpec to accumulators.
+
+        This function is a workaround to fix the following problem Spark:
+        1.When accumulators are created, they do not have full MechanismSpec.
+        2.ReduceByKey is called and Spark does serialization of accumulators.
+        3.BudgetAccountant computes budget and updates MechanismSpecs, but
+        accumulators are already serialized and they have incomplete
+        MechanismSpecs.
+
+        Args:
+            col: PCollection of type (key, accumulator).
+            accumulator_factory: AccumulatorFactory that was used for creating
+             accumulators in 'col'.
+
+        Returns:
+            col: PCollection of type (key, accumulator).
+        """
+        if not self._ops.is_spark():
+            return col
+        mechanism_specs = accumulator_factory.get_mechanism_specs()
+        return self._ops.map_values(
+            col, lambda acc: acc.set_mechanism_specs(mechanism_specs))
 
     def _drop_not_public_partitions(self, col, public_partitions,
                                     data_extractors):
