@@ -252,7 +252,7 @@ class DpEngineTest(unittest.TestCase):
                                             expected_partitions,
                                             max_partitions_contributed):
         with patch(
-                "pipeline_dp.dp_engine.create_truncated_geometric_partition_strategy",
+                "pydp.algorithms.partition_selection.create_truncated_geometric_partition_strategy",
                 new=_mock_partition_strategy_factory(
                     min_users)) as mock_factory:
             data_filtered = engine._select_private_partitions(
