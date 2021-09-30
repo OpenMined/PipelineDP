@@ -97,7 +97,8 @@ class DPEngine:
         return col
 
     def _drop_not_public_partitions(self, col, public_partitions,
-                                    data_extractors):
+                                    data_extractors: DataExtractors):
+        """"""
         col = self._ops.map(
             col, lambda row: (data_extractors.partition_extractor(row), row),
             "Extract partition id")
@@ -108,21 +109,21 @@ class DPEngine:
     def _bound_contributions(self, col, max_partitions_contributed: int,
                              max_contributions_per_partition: int,
                              aggregator_fn):
-        """
-    Bounds the contribution by privacy_id in and cross partitions.
-    Args:
-      col: collection, with types of each element: (privacy_id,
-        partition_key, value).
-      max_partitions_contributed: maximum number of partitions that one
-        privacy id can contribute to.
-      max_contributions_per_partition: maximum number of records that one
-        privacy id can contribute to one partition.
-      aggregator_fn: function that takes a list of values and returns an
-        aggregator object which handles all aggregation logic.
+        """Bounds the contribution by privacy_id in and cross partitions.
 
-    return: collection with elements ((privacy_id, partition_key),
-          aggregator).
-    """
+        Args:
+          col: collection, with types of each element: (privacy_id,
+            partition_key, value).
+          max_partitions_contributed: maximum number of partitions that one
+            privacy id can contribute to.
+          max_contributions_per_partition: maximum number of records that one
+            privacy id can contribute to one partition.
+          aggregator_fn: function that takes a list of values and returns an
+            aggregator object which handles all aggregation logic.
+
+        return: collection with elements ((privacy_id, partition_key),
+              aggregator).
+        """
         # per partition-contribution bounding with bounding of each contribution
         col = self._ops.map_tuple(
             col, lambda pid, pk, v: ((pid, pk), v),
