@@ -44,7 +44,7 @@ class BeamOperationsTest(parameterized.TestCase):
         with test_pipeline.TestPipeline() as p:
             data = [(7, 1), (2, 1), (3, 9), (4, 1), (9, 10)]
             col = p | "Create PCollection" >> beam.Create(data)
-            keys_to_keep = [7, 9]
+            keys_to_keep = [7, 9, 9]
             expected_result = [(7, 1), (9, 10)]
             if not in_memory:
                 keys_to_keep = p | "To PCollection" >> beam.Create(keys_to_keep)
@@ -114,7 +114,7 @@ class SparkRDDOperationsTest(parameterized.TestCase):
     def test_filter_by_key_nonempty_keys_to_keep(self, distributed):
         data = [(1, 11), (2, 22)]
         dist_data = self.sc.parallelize(data)
-        keys_to_keep = [1, 3]
+        keys_to_keep = [1, 3, 3]
         if distributed:
             keys_to_keep = self.sc.parallelize(keys_to_keep)
         result = self.ops.filter_by_key(dist_data, keys_to_keep).collect()
