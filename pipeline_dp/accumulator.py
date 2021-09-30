@@ -31,7 +31,7 @@ def create_accumulator_params(
     budget = budget_accountant.request_budget(
         aggregation_params.noise_kind.convert_to_mechanism_type())
     if pipeline_dp.Metrics.COUNT in aggregation_params.metrics:
-        count_params = CountParams(budget, aggregate_params)
+        count_params = CountParams(budget, aggregation_params)
         accumulator_params.append(
             AccumulatorParams(accumulator_type=CountAccumulator,
                               constructor_params=count_params))
@@ -159,6 +159,11 @@ class CompoundAccumulator(Accumulator):
             base_accumulator.add_accumulator(to_add_accumulator)
         return self
 
+    def set_mechanism_specs(self, mechanism_specs) -> 'CompoundAccumulator':
+        for spec, acc in zip(mechanism_specs, self._accumulators):
+            acc._params._budget = spec
+        return self
+
     @property
     def privacy_id_count(self):
         """Returns the number of privacy ids which contributed to 'self'."""
@@ -193,6 +198,13 @@ class AccumulatorFactory:
 
         return CompoundAccumulator(accumulators)
 
+    def get_mechanism_specs(
+            self) -> typing.List[budget_accounting.MechanismSpec]:
+        """Returns MechanismSpecs of accumulators which will be created."""
+        return [
+            acc.constructor_params._budget for acc in self._accumulator_params
+        ]
+
 
 class AccumulatorClassParams:
     """Parameters for a an accumulator.
@@ -202,9 +214,9 @@ class AccumulatorClassParams:
     """
 
     def __init__(self, budget: pipeline_dp.budget_accounting.MechanismSpec,
-                 aggregate_params: aggregate_params.AggregateParams):
+                 aggregation_params: aggregate_params.AggregateParams):
         self._budget = budget
-        self._aggregate_params = aggregate_params
+        self._aggregate_params = aggregation_params
 
     @property
     def eps(self):

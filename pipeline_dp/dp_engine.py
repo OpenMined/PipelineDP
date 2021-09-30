@@ -12,7 +12,7 @@ from pipeline_dp.report_generator import ReportGenerator
 from pipeline_dp.accumulator import Accumulator
 from pipeline_dp.accumulator import AccumulatorFactory
 
-from pydp.algorithms.partition_selection import create_truncated_geometric_partition_strategy
+import pydp.algorithms.partition_selection as partition_selection
 
 
 @dataclass
@@ -90,6 +90,14 @@ class DPEngine:
             # TODO: add public partitions which are missing in data.
             pass
         # col : (partition_key, accumulator)
+
+        if self._ops.is_spark():
+            # This is workaround to fix the following issue.
+            #
+            # Spark serializes code
+            mechanism_specs = accumulator_factory.get_mechanism_specs()
+            col = self._ops.map_values(
+                col, lambda acc: acc.set_mechanism_specs(mechanism_specs))
 
         # Compute DP metrics.
         col = self._ops.map_values(col, lambda acc: acc.compute_metrics(),
@@ -172,7 +180,7 @@ class DPEngine:
             partitions to keep."""
             mechanism, max_partitions = captures
             accumulator = row[1]
-            partition_selection_strategy = create_truncated_geometric_partition_strategy(
+            partition_selection_strategy = partition_selection.create_truncated_geometric_partition_strategy(
                 budget.eps, budget.delta, max_partitions)
             return partition_selection_strategy.should_keep(
                 accumulator.privacy_id_count)

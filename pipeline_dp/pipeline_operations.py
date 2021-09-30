@@ -92,6 +92,9 @@ class PipelineOperations(abc.ABC):
         """
         pass
 
+    def is_spark(self):
+        return False
+
 
 class BeamOperations(PipelineOperations):
     """Apache Beam adapter."""
@@ -277,6 +280,9 @@ class SparkRDDOperations(PipelineOperations):
 
     def reduce_accumulators_per_key(self, rdd, stage_name: str = None):
         return rdd.reduceByKey(lambda acc1, acc2: acc1.add_accumulator(acc2))
+
+    def is_spark(self):
+        return True
 
 
 class LocalPipelineOperations(PipelineOperations):
