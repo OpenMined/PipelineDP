@@ -99,30 +99,6 @@ class DPEngine:
 
         return col
 
-    def _fix_budget_accounting_for_spark(self, col, accumulator_factory):
-        """Adds MechanismSpec to accumulators.
-
-        This function is a workaround to fix the following problem Spark:
-        1.When accumulators are created, they do not have full MechanismSpec.
-        2.ReduceByKey is called and Spark does serialization of accumulators.
-        3.BudgetAccountant computes budget and updates MechanismSpecs, but
-        accumulators are already serialized and they have incomplete
-        MechanismSpecs.
-
-        Args:
-            col: PCollection of type (key, accumulator).
-            accumulator_factory: AccumulatorFactory that was used for creating
-             accumulators in 'col'.
-
-        Returns:
-            col: PCollection of type (key, accumulator).
-        """
-        if not self._ops.is_spark():
-            return col
-        mechanism_specs = accumulator_factory.get_mechanism_specs()
-        return self._ops.map_values(
-            col, lambda acc: acc.set_mechanism_specs(mechanism_specs))
-
     def _drop_not_public_partitions(self, col, public_partitions,
                                     data_extractors):
         return self._ops.filter_by_key(col, public_partitions, data_extractors,
@@ -206,3 +182,27 @@ class DPEngine:
         # make filter_fn serializable
         filter_fn = partial(filter_fn, (budget, max_partitions_contributed))
         return self._ops.filter(col, filter_fn, "Filter private parititions")
+
+    def _fix_budget_accounting_for_spark(self, col, accumulator_factory):
+        """Adds MechanismSpec to accumulators.
+
+        This function is a workaround to fix the following problem Spark:
+        1.When accumulators are created, they do not have full MechanismSpec.
+        2.ReduceByKey is called and Spark does serialization of accumulators.
+        3.BudgetAccountant computes budget and updates MechanismSpecs, but
+        accumulators are already serialized and they have incomplete
+        MechanismSpecs.
+
+        Args:
+            col: PCollection of type (key, accumulator).
+            accumulator_factory: AccumulatorFactory that was used for creating
+             accumulators in 'col'.
+
+        Returns:
+            col: PCollection of type (key, accumulator).
+        """
+        if not self._ops.is_spark():
+            return col
+        mechanism_specs = accumulator_factory.get_mechanism_specs()
+        return self._ops.map_values(
+            col, lambda acc: acc.set_mechanism_specs(mechanism_specs))
