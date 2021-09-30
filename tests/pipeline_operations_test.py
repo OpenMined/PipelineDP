@@ -4,8 +4,7 @@ import pyspark
 from absl.testing import parameterized
 import apache_beam as beam
 import apache_beam.testing.test_pipeline as test_pipeline
-from apache_beam.testing.util import assert_that
-from apache_beam.testing.util import equal_to
+import apache_beam.testing.util as beam_util
 import pytest
 
 from pipeline_dp import DataExtractors
@@ -30,14 +29,12 @@ class BeamOperationsTest(parameterized.TestCase):
 
     def test_filter_by_key_must_not_be_none(self):
         with test_pipeline.TestPipeline() as p:
-            col = p | "Create PCollection" >> beam.Create([(1, 6, 1), (2, 7, 1),
-                                                           (3, 6, 1), (4, 7, 1),
-                                                           (5, 8, 1)])
-            public_partitions = None
+            data = [(7, 1), (2, 1), (3, 9), (4, 1), (9, 10)]
+            col = p | "Create PCollection" >> beam.Create(data)
+            key_to_keep = None
             with self.assertRaises(TypeError):
-                result = self.ops.filter_by_key(col, public_partitions,
-                                                self.data_extractors,
-                                                "Public partition filtering")
+                result = self.ops.filter_by_key(col, key_to_keep,
+                                                "filte_by_key")
 
     @parameterized.parameters(
         {'in_memory': True},
@@ -45,36 +42,29 @@ class BeamOperationsTest(parameterized.TestCase):
     )
     def test_filter_by_key_remove(self, in_memory):
         with test_pipeline.TestPipeline() as p:
-            col = p | "Create input data PCollection" >> beam.Create(
-                [(1, 7, 1), (2, 19, 1), (3, 9, 1), (4, 11, 1), (5, 10, 1)])
-            public_partitions = [7, 9]
-            expected_result = [(7, (1, 7, 1)), (9, (3, 9, 1))]
+            data = [(7, 1), (2, 1), (3, 9), (4, 1), (9, 10)]
+            col = p | "Create PCollection" >> beam.Create(data)
+            keys_to_keep = [7, 9, 9]
+            expected_result = [(7, 1), (9, 10)]
             if not in_memory:
-                public_partitions = p | "Create public partitions PCollection" >> beam.Create(
-                    public_partitions)
-            result = self.ops.filter_by_key(col, public_partitions,
-                                            self.data_extractors,
-                                            "Public partition filtering")
-            assert_that(result, equal_to(expected_result))
+                keys_to_keep = p | "To PCollection" >> beam.Create(keys_to_keep)
+            result = self.ops.filter_by_key(col, keys_to_keep, "filte_by_key")
+            beam_util.assert_that(result, beam_util.equal_to(expected_result))
 
     @parameterized.parameters(
         {'in_memory': True},
         {'in_memory': False},
     )
-    def test_filter_by_key_pcollection_empty_public_keys(self, in_memory):
+    def test_filter_by_key_empty_keys_to_keep(self, in_memory):
         with test_pipeline.TestPipeline() as p:
-            col = p | "Create PCollection" >> beam.Create([(1, 6, 1), (2, 7, 1),
-                                                           (3, 6, 1), (4, 7, 1),
-                                                           (5, 8, 1)])
-            public_partitions = []
-            expected_result = []
+            col = p | "Create PCollection" >> beam.Create([(7, 1), (2, 1),
+                                                           (3, 9), (4, 1),
+                                                           (9, 10)])
+            keys_to_keep = []
             if not in_memory:
-                public_partitions = p | "Create public partitions PCollection" >> beam.Create(
-                    public_partitions)
-            result = self.ops.filter_by_key(col, public_partitions,
-                                            self.data_extractors,
-                                            "Public partition filtering")
-            assert_that(result, equal_to(expected_result))
+                keys_to_keep = p | "To PCollection" >> beam.Create(keys_to_keep)
+            result = self.ops.filter_by_key(col, keys_to_keep, "filter_by_key")
+            beam_util.assert_that(result, beam_util.equal_to([]))
 
     def test_reduce_accumulators_per_key(self):
         with test_pipeline.TestPipeline() as p:
@@ -87,7 +77,8 @@ class BeamOperationsTest(parameterized.TestCase):
             result = col | "Get accumulated values" >> beam.Map(
                 lambda row: (row[0], row[1].get_metrics()))
 
-            assert_that(result, equal_to([(6, 2), (7, 2), (8, 1)]))
+            beam_util.assert_that(result,
+                                  beam_util.equal_to([(6, 2), (7, 2), (8, 1)]))
 
 
 class SparkRDDOperationsTest(parameterized.TestCase):
@@ -102,44 +93,36 @@ class SparkRDDOperationsTest(parameterized.TestCase):
             value_extractor=lambda x: x[2])
         cls.ops = SparkRDDOperations()
 
-    def test_filter_by_key_none_public_partitions(self):
-        data = [(1, 11, 111), (2, 22, 222)]
-        dist_data = SparkRDDOperationsTest.sc.parallelize(data)
-        public_partitions = None
+    def test_filter_by_key_none_keys_to_keep(self):
+        data = [(1, 11), (2, 22)]
+        dist_data = self.sc.parallelize(data)
+        key_to_keep = None
         with self.assertRaises(TypeError):
-            self.ops.filter_by_key(dist_data, public_partitions,
-                                   SparkRDDOperationsTest.data_extractors)
+            self.ops.filter_by_key(dist_data, key_to_keep)
 
     @parameterized.parameters({'distributed': False}, {'distributed': True})
-    def test_filter_by_key_empty_public_partitions(self, distributed):
-        data = [(1, 11, 111), (2, 22, 222)]
-        dist_data = SparkRDDOperationsTest.sc.parallelize(data)
-        public_partitions = []
+    def test_filter_by_key_empty_keys_to_keep(self, distributed):
+        data = [(1, 11), (2, 22)]
+        dist_data = self.sc.parallelize(data)
+        keys_to_keep = []
         if distributed:
-            public_partitions = SparkRDDOperationsTest.sc.parallelize(
-                public_partitions)
-        result = self.ops.filter_by_key(
-            dist_data, public_partitions,
-            SparkRDDOperationsTest.data_extractors).collect()
+            keys_to_keep = self.sc.parallelize(keys_to_keep)
+        result = self.ops.filter_by_key(dist_data, keys_to_keep).collect()
         self.assertListEqual(result, [])
 
     @parameterized.parameters({'distributed': False}, {'distributed': True})
-    def test_filter_by_key_nonempty_public_partitions(self, distributed):
-        spark_operations = SparkRDDOperations()
-        data = [(1, 11, 111), (2, 22, 222)]
-        dist_data = SparkRDDOperationsTest.sc.parallelize(data)
-        public_partitions = [11, 33]
+    def test_filter_by_key_nonempty_keys_to_keep(self, distributed):
+        data = [(1, 11), (2, 22)]
+        dist_data = self.sc.parallelize(data)
+        keys_to_keep = [1, 3, 3]
         if distributed:
-            public_partitions = SparkRDDOperationsTest.sc.parallelize(
-                public_partitions)
-        result = spark_operations.filter_by_key(
-            dist_data, public_partitions,
-            SparkRDDOperationsTest.data_extractors).collect()
-        self.assertListEqual(result, [(11, (1, 11, 111))])
+            keys_to_keep = self.sc.parallelize(keys_to_keep)
+        result = self.ops.filter_by_key(dist_data, keys_to_keep).collect()
+        self.assertListEqual(result, [(1, 11)])
 
     def test_sample_fixed_per_key(self):
         data = [(1, 11), (2, 22), (3, 33), (1, 14), (2, 25), (1, 16)]
-        dist_data = SparkRDDOperationsTest.sc.parallelize(data)
+        dist_data = self.sc.parallelize(data)
         rdd = self.ops.sample_fixed_per_key(dist_data, 2)
         result = dict(rdd.collect())
         self.assertEqual(len(result[1]), 2)
@@ -149,7 +132,7 @@ class SparkRDDOperationsTest(parameterized.TestCase):
 
     def test_count_per_element(self):
         data = ['a', 'b', 'a']
-        dist_data = SparkRDDOperationsTest.sc.parallelize(data)
+        dist_data = self.sc.parallelize(data)
         rdd = self.ops.count_per_element(dist_data)
         result = rdd.collect()
         result = dict(result)
@@ -157,7 +140,7 @@ class SparkRDDOperationsTest(parameterized.TestCase):
 
     def test_reduce_accumulators_per_key(self):
         data = [(1, 11), (2, 22), (3, 33), (1, 14), (2, 25), (1, 16)]
-        dist_data = SparkRDDOperationsTest.sc.parallelize(data)
+        dist_data = self.sc.parallelize(data)
         rdd = self.ops.map_values(dist_data, SumAccumulator,
                                   "Wrap into accumulators")
         result = self.ops\
@@ -169,19 +152,19 @@ class SparkRDDOperationsTest(parameterized.TestCase):
 
     def test_map_tuple(self):
         data = [(1, 2), (3, 4)]
-        dist_data = SparkRDDOperationsTest.sc.parallelize(data)
+        dist_data = self.sc.parallelize(data)
         result = self.ops.map_tuple(dist_data, lambda a, b: a + b).collect()
         self.assertEqual(result, [3, 7])
 
     def test_flat_map(self):
         data = [[1, 2, 3, 4], [5, 6, 7, 8]]
-        dist_data = SparkRDDOperationsTest.sc.parallelize(data)
+        dist_data = self.sc.parallelize(data)
         self.assertEqual(
             self.ops.flat_map(dist_data, lambda x: x).collect(),
             [1, 2, 3, 4, 5, 6, 7, 8])
 
         data = [("a", [1, 2, 3, 4]), ("b", [5, 6, 7, 8])]
-        dist_data = SparkRDDOperationsTest.sc.parallelize(data)
+        dist_data = self.sc.parallelize(data)
         self.assertEqual(
             self.ops.flat_map(dist_data, lambda x: x[1]).collect(),
             [1, 2, 3, 4, 5, 6, 7, 8])
@@ -253,21 +236,17 @@ class LocalPipelineOperationsTest(unittest.TestCase):
         self.assertEqual(list(self.ops.filter(example_list, lambda x: x < 3)),
                          [1, 2, 2, 2])
 
-    def test_local_filter_by_key_empty_public_keys(self):
-        col = [(1, 6, 1), (2, 7, 1), (3, 6, 1), (4, 7, 1), (5, 8, 1)]
-        public_partitions = []
-        result = self.ops.filter_by_key(col, public_partitions,
-                                        self.data_extractors,
-                                        "Public partition filtering")
+    def test_local_filter_by_key_empty_keys_to_keep(self):
+        col = [(7, 1), (2, 1), (3, 9), (4, 1), (9, 10)]
+        keys_to_keep = []
+        result = self.ops.filter_by_key(col, keys_to_keep, "filte_by_key")
         self.assertEqual(result, [])
 
     def test_local_filter_by_key_remove(self):
-        col = [(1, 7, 1), (2, 19, 1), (3, 9, 1), (4, 11, 1), (5, 10, 1)]
-        public_partitions = [7, 9]
-        result = self.ops.filter_by_key(col, public_partitions,
-                                        self.data_extractors,
-                                        "Public partition filtering")
-        self.assertEqual(result, [(7, (1, 7, 1)), (9, (3, 9, 1))])
+        col = [(7, 1), (2, 1), (3, 9), (4, 1), (9, 10)]
+        keys_to_keep = [7, 9]
+        result = self.ops.filter_by_key(col, keys_to_keep, "filte_by_key")
+        self.assertEqual(result, [(7, 1), (9, 10)])
 
     def test_local_keys(self):
         self.assertEqual(list(self.ops.keys([])), [])
@@ -498,22 +477,18 @@ class MultiProcLocalPipelineOperationsTest(unittest.TestCase):
             list(self.ops.filter(example_list, lambda x: x < 3)), [1, 2, 2, 2])
 
     @pytest.mark.timeout(10)
-    def test_multiproc_filter_by_key_empty_public_keys(self):
-        col = [(1, 6, 1), (2, 7, 1), (3, 6, 1), (4, 7, 1), (5, 8, 1)]
-        public_partitions = []
-        result = self.ops.filter_by_key(col, public_partitions,
-                                        self.data_extractors,
-                                        "Public partition filtering")
+    def test_multiproc_filter_by_key_empty_keys_to_keep(self):
+        col = [(7, 1), (2, 1), (3, 9), (4, 1), (9, 10)]
+        keys_to_keep = []
+        result = self.ops.filter_by_key(col, keys_to_keep, "filter_by_key")
         self.assertEqual(list(result), [])
 
     @pytest.mark.timeout(10)
     def test_multiproc_filter_by_key_remove(self):
-        col = [(1, 7, 1), (2, 19, 1), (3, 9, 1), (4, 11, 1), (5, 10, 1)]
-        public_partitions = [7, 9]
-        result = self.ops.filter_by_key(col, public_partitions,
-                                        self.data_extractors,
-                                        "Public partition filtering")
-        self.assertDatasetsEqual(list(result), [(7, (1, 7, 1)), (9, (3, 9, 1))])
+        col = [(7, 1), (2, 1), (3, 9), (4, 1), (9, 10)]
+        keys_to_keep = [7, 9]
+        result = self.ops.filter_by_key(col, keys_to_keep, "filter_by_keys")
+        self.assertDatasetsEqual(list(result), [(7, 1), (9, 10)])
 
     @pytest.mark.timeout(10)
     def test_multiproc_keys(self):

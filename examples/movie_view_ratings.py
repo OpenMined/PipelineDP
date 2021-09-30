@@ -100,7 +100,6 @@ class ParseFile(beam.DoFn):
 def get_public_partitions():
     public_partitions = None
     if FLAGS.public_partitions is not None:
-        print(FLAGS.public_partitions)
         public_partitions = [
             int(partition) for partition in FLAGS.public_partitions
         ]
