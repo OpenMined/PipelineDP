@@ -133,8 +133,6 @@ class BeamOperations(PipelineOperations):
                 key, rest = joined_data
                 values, is_public = rest.get(VALUES), rest.get(IS_PUBLIC)
 
-                # TODO the Issue #4 says this is blocked on other tasks. Revisit
-                # this once unblocked
                 if not values:
                     return
 
@@ -151,9 +149,6 @@ class BeamOperations(PipelineOperations):
         if keys_to_keep is None:
             raise TypeError("Must provide a valid keys to keep")
 
-        col = col | "Mapping data by partition" >> beam.Map(
-            lambda x: (data_extractors.partition_extractor(x), x))
-
         if isinstance(keys_to_keep, (list, set)):
             # Keys to keep are in memory.
             if not isinstance(keys_to_keep, set):
@@ -161,7 +156,7 @@ class BeamOperations(PipelineOperations):
             return col | "Filtering data from public partitions" >> beam.Filter(
                 has_public_partition_key)
 
-        # Public paritions are not in memory. Filter out with a join.
+        # Public partitions are not in memory. Filter out with a join.
         keys_to_keep = (keys_to_keep | "Creating public_partitions PCollection"
                         >> beam.Map(lambda x: (x, True)))
         return ({
@@ -238,8 +233,6 @@ class SparkRDDOperations(PipelineOperations):
         if keys_to_keep is None:
             raise TypeError("Must provide a valid keys to keep")
 
-        rdd = rdd.map(lambda x: (data_extractors.partition_extractor(x), x))
-
         if isinstance(keys_to_keep, (list, set)):
             # Keys to keep are local.
             if not isinstance(keys_to_keep, set):
@@ -315,9 +308,7 @@ class LocalPipelineOperations(PipelineOperations):
         data_extractors,
         stage_name: typing.Optional[str] = None,
     ):
-        return [(data_extractors.partition_extractor(x), x)
-                for x in col
-                if data_extractors.partition_extractor(x) in keys_to_keep]
+        return [kv for kv in col if kv[0] in keys_to_keep]
 
     def keys(self, col, stage_name: typing.Optional[str] = None):
         return (k for k, v in col)

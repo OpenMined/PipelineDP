@@ -60,7 +60,6 @@ class DPEngine:
         aggregator_fn = accumulator_factory.create
 
         if params.public_partitions is not None:
-            # TODO: make work with public partition.
             col = self._drop_not_public_partitions(col,
                                                    params.public_partitions,
                                                    data_extractors)
@@ -99,8 +98,12 @@ class DPEngine:
 
     def _drop_not_public_partitions(self, col, public_partitions,
                                     data_extractors):
-        return self._ops.filter_by_key(col, public_partitions, data_extractors,
-                                       "Filtering out non-public partitions")
+        col = self._ops.map(
+            col, lambda row: (data_extractors.partition_extractor(row), row),
+            "Extract partition id")
+        col = self._ops.filter_by_key(col, public_partitions, data_extractors,
+                                      "Filtering out non-public partitions")
+        return self._ops.map_tuple(col, lambda k, v: v, "Drop key")
 
     def _bound_contributions(self, col, max_partitions_contributed: int,
                              max_contributions_per_partition: int,
