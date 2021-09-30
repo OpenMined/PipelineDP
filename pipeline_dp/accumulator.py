@@ -31,7 +31,7 @@ def create_accumulator_params(
     budget = budget_accountant.request_budget(
         aggregation_params.noise_kind.convert_to_mechanism_type())
     if pipeline_dp.Metrics.COUNT in aggregation_params.metrics:
-        count_params = CountParams(budget, aggregate_params)
+        count_params = CountParams(budget, aggregation_params)
         accumulator_params.append(
             AccumulatorParams(accumulator_type=CountAccumulator,
                               constructor_params=count_params))

@@ -316,7 +316,7 @@ class DpEngineTest(unittest.TestCase):
             max_contributions_per_partition=1)
         # Set a large budget for having the small noise and keeping all
         # partition keys.
-        budget_accountant = NaiveBudgetAccountant(total_epsilon=1000,
+        budget_accountant = NaiveBudgetAccountant(total_epsilon=100000,
                                                   total_delta=1e-10)
 
         col = list(range(10)) + list(range(100, 120))
