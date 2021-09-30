@@ -194,12 +194,12 @@ class DPEngine:
         MechanismSpecs.
 
         Args:
-            col: PCollection of type (key, accumulator).
+            col: collection with elements (key, accumulator).
             accumulator_factory: AccumulatorFactory that was used for creating
              accumulators in 'col'.
 
         Returns:
-            col: PCollection of type (key, accumulator).
+            col: collection with elements (key, accumulator).
         """
         if not self._ops.is_spark():
             return col
