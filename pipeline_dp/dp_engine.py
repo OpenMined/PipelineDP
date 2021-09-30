@@ -102,7 +102,7 @@ class DPEngine:
         col = self._ops.map(
             col, lambda row: (data_extractors.partition_extractor(row), row),
             "Extract partition id")
-        col = self._ops.filter_by_key(col, public_partitions, data_extractors,
+        col = self._ops.filter_by_key(col, public_partitions,
                                       "Filtering out non-public partitions")
         return self._ops.map_tuple(col, lambda k, v: v, "Drop key")
 
