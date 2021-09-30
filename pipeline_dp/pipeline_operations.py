@@ -51,10 +51,9 @@ class PipelineOperations(abc.ABC):
         """Filters out elements with keys which are not in `keys_to_keep`.
 
         Args:
-          col: collection with elements (partition_key, data).
-          keys_to_keep: collection of public partition keys,
-            both local (currently `list` and `set`) and distributed collections
-            are supported.
+          col: collection with elements (key, data).
+          keys_to_keep: collection of keys to keep, both local (currently `list`
+            and `set`) and distributed collections are supported.
           stage_name: name of the stage.
 
         Returns:
@@ -130,20 +129,20 @@ class BeamOperations(PipelineOperations):
 
             def process(self, joined_data):
                 key, rest = joined_data
-                values, is_public = rest.get(VALUES), rest.get(IS_PUBLIC)
+                values, to_keep = rest.get(VALUES), rest.get(TO_KEEP)
 
                 if not values:
                     return
 
-                if is_public:
+                if to_keep:
                     for value in values:
                         yield key, value
 
-        def has_public_partition_key(pk_val):
+        def does_keep(pk_val):
             return pk_val[0] in keys_to_keep
 
         # define constants for using as keys in CoGroupByKey
-        VALUES, IS_PUBLIC = 0, 1
+        VALUES, TO_KEEP = 0, 1
 
         if keys_to_keep is None:
             raise TypeError("Must provide a valid keys to keep")
@@ -152,18 +151,17 @@ class BeamOperations(PipelineOperations):
             # Keys to keep are in memory.
             if not isinstance(keys_to_keep, set):
                 keys_to_keep = set(keys_to_keep)
-            return col | "Filtering data from public partitions" >> beam.Filter(
-                has_public_partition_key)
+            return col | "Filtering out" >> beam.Filter(does_keep)
 
-        # Public partitions are not in memory. Filter out with a join.
-        keys_to_keep = (keys_to_keep | "Creating public_partitions PCollection"
-                        >> beam.Map(lambda x: (x, True)))
+        # `keys_to_keep` are not in memory. Filter out with a join.
+        keys_to_keep = (keys_to_keep |
+                        "Reformat PCollection" >> beam.Map(lambda x: (x, True)))
         return ({
             VALUES: col,
-            IS_PUBLIC: keys_to_keep
-        } | "Aggregating elements by values and is_public partition flag " >>
-                beam.CoGroupByKey() | "Filtering data from public partitions" >>
-                beam.ParDo(PartitionsFilterJoin()))
+            TO_KEEP: keys_to_keep
+        } | "CoGroup by values and to_keep partition flag " >>
+                beam.CoGroupByKey() |
+                "Filtering out" >> beam.ParDo(PartitionsFilterJoin()))
 
     def keys(self, col, stage_name: str):
         return col | stage_name >> beam.Keys()
