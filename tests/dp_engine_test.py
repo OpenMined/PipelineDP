@@ -433,7 +433,7 @@ class DpEngineTest(unittest.TestCase):
 
         self.assertEqual(5, len(output.collect()))
 
-    def test_run_e2e_spark(self):
+    def test_run_e2e_beam(self):
         with test_pipeline.TestPipeline() as p:
             input = p | "Create input" >> beam.Create(list(range(10)))
 
