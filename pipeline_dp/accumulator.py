@@ -1,4 +1,5 @@
 import abc
+import copy
 import typing
 import pickle
 from dataclasses import dataclass
@@ -28,20 +29,25 @@ def create_accumulator_params(
     budget_accountant: budget_accounting.BudgetAccountant
 ) -> typing.List[AccumulatorParams]:
     accumulator_params = []
-    budget = budget_accountant.request_budget(
-        aggregation_params.noise_kind.convert_to_mechanism_type())
     if pipeline_dp.Metrics.COUNT in aggregation_params.metrics:
-        count_params = CountParams(budget, aggregation_params)
+        budget_count = budget_accountant.request_budget(
+            aggregation_params.noise_kind.convert_to_mechanism_type())
+        count_params = CountParams(budget_count, aggregation_params)
         accumulator_params.append(
             AccumulatorParams(accumulator_type=CountAccumulator,
                               constructor_params=count_params))
     if pipeline_dp.Metrics.SUM in aggregation_params.metrics:
-        sum_params = SumParams(budget, aggregation_params)
+        budget_sum = budget_accountant.request_budget(
+            aggregation_params.noise_kind.convert_to_mechanism_type())
+        sum_params = SumParams(budget_sum, aggregation_params)
         accumulator_params.append(
             AccumulatorParams(accumulator_type=SumAccumulator,
                               constructor_params=sum_params))
     if pipeline_dp.Metrics.PRIVACY_ID_COUNT in aggregation_params.metrics:
-        privacy_id_count_params = PrivacyIdCountParams(budget, aggregation_params)
+        budget_privacy_id_count = budget_accountant.request_budget(
+            aggregation_params.noise_kind.convert_to_mechanism_type())
+        privacy_id_count_params = PrivacyIdCountParams(budget_privacy_id_count,
+                                                       aggregation_params)
         accumulator_params.append(
             AccumulatorParams(accumulator_type=PrivacyIdCountAccumulator,
                               constructor_params=privacy_id_count_params))
@@ -209,7 +215,7 @@ class AccumulatorClassParams:
     def __init__(self, budget: pipeline_dp.budget_accounting.MechanismSpec,
                  aggregate_params: aggregate_params.AggregateParams):
         self._budget = budget
-        self._aggregate_params = aggregate_params
+        self._aggregate_params = copy.copy(aggregate_params)
 
     @property
     def eps(self):
@@ -228,8 +234,14 @@ class AccumulatorClassParams:
             self._aggregate_params.max_contributions_per_partition,
             self._aggregate_params.noise_kind)
 
+
 class PrivacyIdCountParams(AccumulatorClassParams):
-    pass
+
+    def __init__(self, budget: pipeline_dp.budget_accounting.MechanismSpec,
+                 aggregation_params: aggregate_params.AggregateParams):
+        super().__init__(budget, aggregation_params)
+        self._aggregate_params.max_contributions_per_partition = 1
+
 
 class PrivacyIdCountAccumulator(Accumulator):
 
@@ -240,9 +252,9 @@ class PrivacyIdCountAccumulator(Accumulator):
     def add_value(self, value):
         pass
 
-    def add_accumulator(self,
-                        accumulator: 'PrivacyIdCountAccumulator') -> \
-                        'PrivacyIdCountAccumulator':
+    def add_accumulator(
+        self, accumulator: 'PrivacyIdCountAccumulator'
+    ) -> 'PrivacyIdCountAccumulator':
         self._check_mergeable(accumulator)
         self._count += accumulator._count
         return self

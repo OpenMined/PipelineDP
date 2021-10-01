@@ -334,6 +334,77 @@ class SumOfSquaresAccumulator(accumulator.Accumulator):
         return self.sum_squares
 
 
+class PrivacyIdCountAccumulatorTest(unittest.TestCase):
+
+    def test_without_noise(self):
+        budget_accountant = NaiveBudgetAccountant(total_epsilon=1,
+                                                  total_delta=0.01)
+        budget = budget_accountant.request_budget(
+            pipeline_dp.MechanismType.GAUSSIAN)
+        budget_accountant.compute_budgets()
+        no_noise = pipeline_dp.AggregateParams(
+            low=0,
+            high=0,
+            max_partitions_contributed=0,
+            max_contributions_per_partition=0,
+            noise_kind=NoiseKind.GAUSSIAN,
+            metrics=[pipeline_dp.Metrics.PRIVACY_ID_COUNT])
+        id_count_accumulator = accumulator.PrivacyIdCountAccumulator(
+            accumulator.PrivacyIdCountParams(budget, no_noise), list(range(5)))
+        self.assertEqual(id_count_accumulator.compute_metrics(), 1)
+
+        id_count_accumulator = accumulator.PrivacyIdCountAccumulator(
+            accumulator.PrivacyIdCountParams(budget, no_noise), 'a' * 50)
+        self.assertEqual(id_count_accumulator.compute_metrics(), 1)
+
+        id_count_accumulator = accumulator.PrivacyIdCountAccumulator(
+            accumulator.PrivacyIdCountParams(budget, no_noise), list(range(50)))
+        id_count_accumulator.add_value(49)
+        self.assertEqual(id_count_accumulator.compute_metrics(), 1)
+
+        id_count_accumulator_1 = accumulator.PrivacyIdCountAccumulator(
+            accumulator.PrivacyIdCountParams(budget, no_noise), list(range(50)))
+        id_count_accumulator_2 = accumulator.PrivacyIdCountAccumulator(
+            accumulator.PrivacyIdCountParams(budget, no_noise), 'a' * 50)
+        id_count_accumulator_1.add_accumulator(id_count_accumulator_2)
+        self.assertEqual(id_count_accumulator_1.compute_metrics(), 2)
+
+    def test_with_noise(self):
+        budget_accountant = NaiveBudgetAccountant(total_epsilon=10,
+                                                  total_delta=1e-5)
+        budget = budget_accountant.request_budget(
+            pipeline_dp.MechanismType.GAUSSIAN)
+        budget_accountant.compute_budgets()
+
+        params = pipeline_dp.AggregateParams(
+            low=0,
+            high=1,
+            max_partitions_contributed=1,
+            max_contributions_per_partition=3,
+            noise_kind=NoiseKind.GAUSSIAN,
+            metrics=[pipeline_dp.Metrics.COUNT])
+        id_count_accumulator = accumulator.PrivacyIdCountAccumulator(
+            accumulator.PrivacyIdCountParams(budget, params), list(range(5)))
+        self.assertAlmostEqual(first=id_count_accumulator.compute_metrics(),
+                               second=1,
+                               delta=4)
+
+        id_count_accumulator.add_value(50)
+        self.assertAlmostEqual(first=id_count_accumulator.compute_metrics(),
+                               second=1,
+                               delta=4)
+
+        id_count_accumulator.add_value(list(range(49)))
+        self.assertAlmostEqual(first=id_count_accumulator.compute_metrics(),
+                               second=1,
+                               delta=4)
+
+        id_count_accumulator.add_value('*' * 100)
+        self.assertAlmostEqual(first=id_count_accumulator.compute_metrics(),
+                               second=1,
+                               delta=4)
+
+
 class CountAccumulatorTest(unittest.TestCase):
 
     def test_without_noise(self):
