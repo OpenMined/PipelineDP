@@ -81,7 +81,8 @@ class BeamOperationsTest(parameterized.TestCase):
                                   beam_util.equal_to([(6, 2), (7, 2), (8, 1)]))
 
 
-@unittest.skipIf(sys.platform == "win32", "There are some problems with PySpark setup on Windows")
+@unittest.skipIf(sys.platform == "win32",
+                 "There are some problems with PySpark setup on Windows")
 class SparkRDDOperationsTest(parameterized.TestCase):
 
     @classmethod
@@ -362,7 +363,8 @@ class LocalPipelineOperationsTest(unittest.TestCase):
                           ("bread", ["sourdough"])])
 
 
-@unittest.skipIf(sys.platform == 'win32', "Problems with serialisation on Windows")
+@unittest.skipIf(sys.platform == 'win32',
+                 "Problems with serialisation on Windows")
 class MultiProcLocalPipelineOperationsTest(unittest.TestCase):
 
     @staticmethod
