@@ -86,7 +86,7 @@ class SparkRDDOperationsTest(parameterized.TestCase):
     @classmethod
     def setUpClass(cls):
         conf = pyspark.SparkConf()
-        cls.sc = pyspark.SparkContext(conf=conf)
+        cls.sc = pyspark.SparkContext.getOrCreate(conf=conf)
         cls.data_extractors = DataExtractors(
             partition_extractor=lambda x: x[1],
             privacy_id_extractor=lambda x: x[0],

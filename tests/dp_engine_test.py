@@ -425,7 +425,7 @@ class DpEngineTest(unittest.TestCase):
 
     def test_run_e2e_spark(self):
         conf = pyspark.SparkConf()
-        sc = pyspark.SparkContext(conf=conf)
+        sc = pyspark.SparkContext.getOrCreate(conf=conf)
         input = sc.parallelize(list(range(10)))
 
         output = self.run_e2e_private_partition_selection_large_budget(
