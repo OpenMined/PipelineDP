@@ -1,11 +1,11 @@
 import unittest
 import pyspark
-
 from absl.testing import parameterized
 import apache_beam as beam
 import apache_beam.testing.test_pipeline as test_pipeline
 import apache_beam.testing.util as beam_util
 import pytest
+import sys
 
 from pipeline_dp import DataExtractors
 from pipeline_dp.pipeline_operations import MultiProcLocalPipelineOperations, SparkRDDOperations
@@ -81,6 +81,7 @@ class BeamOperationsTest(parameterized.TestCase):
                                   beam_util.equal_to([(6, 2), (7, 2), (8, 1)]))
 
 
+@unittest.skipIf(sys.platform == "win32", "There are some problems with PySpark setup on Windows")
 class SparkRDDOperationsTest(parameterized.TestCase):
 
     @classmethod
@@ -361,6 +362,7 @@ class LocalPipelineOperationsTest(unittest.TestCase):
                           ("bread", ["sourdough"])])
 
 
+@unittest.skipIf(sys.platform == 'win32', "Problems with serialisation on Windows")
 class MultiProcLocalPipelineOperationsTest(unittest.TestCase):
 
     @staticmethod
