@@ -12,7 +12,7 @@ from pipeline_dp.report_generator import ReportGenerator
 from pipeline_dp.accumulator import Accumulator
 from pipeline_dp.accumulator import AccumulatorFactory
 
-from pydp.algorithms.partition_selection import create_truncated_geometric_partition_strategy
+import pydp.algorithms.partition_selection as partition_selection
 
 
 @dataclass
@@ -89,6 +89,8 @@ class DPEngine:
             # TODO: add public partitions which are missing in data.
             pass
         # col : (partition_key, accumulator)
+
+        col = self._fix_budget_accounting_if_needed(col, accumulator_factory)
 
         # Compute DP metrics.
         col = self._ops.map_values(col, lambda acc: acc.compute_metrics(),
@@ -176,7 +178,7 @@ class DPEngine:
             partitions to keep."""
             mechanism, max_partitions = captures
             accumulator = row[1]
-            partition_selection_strategy = create_truncated_geometric_partition_strategy(
+            partition_selection_strategy = partition_selection.create_truncated_geometric_partition_strategy(
                 budget.eps, budget.delta, max_partitions)
             return partition_selection_strategy.should_keep(
                 accumulator.privacy_id_count)
@@ -184,3 +186,28 @@ class DPEngine:
         # make filter_fn serializable
         filter_fn = partial(filter_fn, (budget, max_partitions_contributed))
         return self._ops.filter(col, filter_fn, "Filter private parititions")
+
+    def _fix_budget_accounting_if_needed(self, col, accumulator_factory):
+        """Adds MechanismSpec to accumulators.
+
+        This function is a workaround to fix the following problem in Spark:
+        1.When accumulators are created, they do not have full MechanismSpec.
+        2.ReduceByKey is called and Spark does serialization of accumulators.
+        3.BudgetAccountant computes budget and updates MechanismSpecs, but
+        accumulators are already serialized and they have incomplete
+        MechanismSpecs.
+
+        Args:
+            col: collection with elements (key, accumulator).
+            accumulator_factory: AccumulatorFactory that was used for creating
+             accumulators in 'col'.
+
+        Returns:
+            col: collection with elements (key, accumulator).
+        """
+        if not self._ops.is_serialization_immediate_on_reduce_by_key():
+            # No need to fix, since accumulators contain correct MechanismSpec.
+            return col
+        mechanism_specs = accumulator_factory.get_mechanism_specs()
+        return self._ops.map_values(
+            col, lambda acc: acc.set_mechanism_specs(mechanism_specs))

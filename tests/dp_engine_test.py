@@ -2,6 +2,11 @@ import collections
 from unittest.mock import patch
 import numpy as np
 import unittest
+import pyspark
+
+import apache_beam as beam
+import apache_beam.testing.test_pipeline as test_pipeline
+import apache_beam.testing.util as beam_util
 
 import pipeline_dp
 from pipeline_dp.budget_accounting import NaiveBudgetAccountant
@@ -252,7 +257,7 @@ class DpEngineTest(unittest.TestCase):
                                             expected_partitions,
                                             max_partitions_contributed):
         with patch(
-                "pipeline_dp.dp_engine.create_truncated_geometric_partition_strategy",
+                "pydp.algorithms.partition_selection.create_truncated_geometric_partition_strategy",
                 new=_mock_partition_strategy_factory(
                     min_users)) as mock_factory:
             data_filtered = engine._select_private_partitions(
@@ -350,8 +355,8 @@ class DpEngineTest(unittest.TestCase):
             metrics=[agg.Metrics.COUNT],
             max_partitions_contributed=1,
             max_contributions_per_partition=1)
-        # Set a large budget for having the small noise and keeping all
-        # partition keys.
+
+        # Set a small budget for dropping most partition keys.
         budget_accountant = NaiveBudgetAccountant(total_epsilon=1,
                                                   total_delta=1e-10)
 
@@ -379,6 +384,63 @@ class DpEngineTest(unittest.TestCase):
         # This tests is non-deterministic, but it should pass with probability
         # very close to 1.
         self.assertLess(len(col), 5)
+
+    @staticmethod
+    def run_e2e_private_partition_selection_large_budget(col, ops):
+        # Arrange
+        aggregator_params = pipeline_dp.AggregateParams(
+            noise_kind=pipeline_dp.NoiseKind.LAPLACE,
+            metrics=[agg.Metrics.COUNT, agg.Metrics.SUM],
+            low=1,
+            high=10,
+            max_partitions_contributed=1,
+            max_contributions_per_partition=1)
+
+        # Set a large budget for having the small noise and keeping all
+        # partition keys.
+        budget_accountant = NaiveBudgetAccountant(total_epsilon=100000,
+                                                  total_delta=1)
+
+        data_extractor = pipeline_dp.DataExtractors(
+            privacy_id_extractor=lambda x: x,
+            partition_extractor=lambda x: f"pk{x//2}",
+            value_extractor=lambda x: x)
+
+        engine = pipeline_dp.DPEngine(budget_accountant, ops)
+
+        col = engine.aggregate(col=col,
+                               params=aggregator_params,
+                               data_extractors=data_extractor)
+        budget_accountant.compute_budgets()
+
+        return col
+
+    def test_run_e2e_local(self):
+        input = list(range(10))
+
+        output = self.run_e2e_private_partition_selection_large_budget(
+            input, pipeline_dp.LocalPipelineOperations())
+
+        self.assertEqual(5, len(list(output)))
+
+    def test_run_e2e_spark(self):
+        conf = pyspark.SparkConf()
+        sc = pyspark.SparkContext.getOrCreate(conf=conf)
+        input = sc.parallelize(list(range(10)))
+
+        output = self.run_e2e_private_partition_selection_large_budget(
+            input, pipeline_dp.SparkRDDOperations())
+
+        self.assertEqual(5, len(output.collect()))
+
+    def test_run_e2e_beam(self):
+        with test_pipeline.TestPipeline() as p:
+            input = p | "Create input" >> beam.Create(list(range(10)))
+
+            output = self.run_e2e_private_partition_selection_large_budget(
+                input, pipeline_dp.BeamOperations())
+
+            beam_util.assert_that(output, beam_util.is_not_empty())
 
 
 if __name__ == '__main__':
