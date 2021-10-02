@@ -3,6 +3,7 @@ from unittest.mock import patch
 import numpy as np
 import unittest
 import pyspark
+import sys
 
 import apache_beam as beam
 import apache_beam.testing.test_pipeline as test_pipeline
@@ -423,6 +424,8 @@ class DpEngineTest(unittest.TestCase):
 
         self.assertEqual(5, len(list(output)))
 
+    @unittest.skipIf(sys.platform == "win32",
+                     "There are some problems with PySpark setup on Windows")
     def test_run_e2e_spark(self):
         conf = pyspark.SparkConf()
         sc = pyspark.SparkContext.getOrCreate(conf=conf)
