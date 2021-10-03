@@ -4,7 +4,7 @@ import unittest
 
 import pipeline_dp
 from pipeline_dp import aggregate_params as agg
-from pipeline_dp import accumulator, budget_accounting, dp_computations, private_spark
+from pipeline_dp import budget_accounting, private_spark
 
 
 class PrivateRDDTest(unittest.TestCase):
@@ -14,12 +14,9 @@ class PrivateRDDTest(unittest.TestCase):
         conf = pyspark.SparkConf()
         cls.sc = pyspark.SparkContext(conf=conf)
 
-    @patch('pipeline_dp.accumulator.create_accumulator_params')
-    def test_sum(self, mock_create_accumulator_params_function):
-        data = [11,
-                22, 32, 42,  # privacy id 2 is contributing to too many partitions
-                65, 65, 65]  # privacy id 5 is contributing too many times to some partition
-        dist_data = PrivateRDDTest.sc.parallelize(data)
+    @patch('pipeline_dp.dp_engine.DPEngine.aggregate')
+    def test_sum(self, mock_aggregate):
+        dist_data = PrivateRDDTest.sc.parallelize([])
         budget_accountant = budget_accounting.NaiveBudgetAccountant(1, 1e-10)
 
         def privacy_id_extractor(x):
@@ -34,26 +31,32 @@ class PrivateRDDTest(unittest.TestCase):
             partition_extractor=lambda x: "pk" + str(x // 10),
             value_extractor=lambda x: x
         )
-        mock_create_accumulator_params_function.return_value = [
-            pipeline_dp.accumulator.AccumulatorParams(
-                pipeline_dp.accumulator.SumAccumulator, accumulator.SumParams(
-                    noise=dp_computations.MeanVarParams(eps=1,
-                                                        delta=1e-10,
-                                                        low=1,
-                                                        high=3,
-                                                        max_partitions_contributed=1,
-                                                        max_contributions_per_partition=2,
-                                                        noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)))]
+        prdd.sum(sum_params)
 
-        # [((pid_1, pk_1), dp_sum_1_1), …, ((pid_m, pk_n), dp_sum_m_n)]
-        result = prdd.sum(sum_params).collect()
-        keys = {v[0] for v in result}
+        mock_aggregate.assert_called_once()
 
-        self.assertTrue(keys.issuperset({('pid1', 'pk1'), ('pid5', 'pk6')}))
+        args = mock_aggregate.call_args[0]
 
-        keys -= {('pid1', 'pk1'), ('pid5', 'pk6')}
-        self.assertTrue(keys.issubset({('pid2', 'pk2'), ('pid2', 'pk3'), ('pid2', 'pk4')}))
-        self.assertTrue(len(keys), 2)
+        self.assertEqual(args[0], dist_data)
+
+        params = pipeline_dp.AggregateParams(
+            metrics=[pipeline_dp.Metrics.SUM],
+            max_partitions_contributed=sum_params.max_partitions_contributed,
+            max_contributions_per_partition=sum_params.max_contributions_per_partition,
+            low=sum_params.low,
+            high=sum_params.high,
+            public_partitions=sum_params.public_partitions)
+        self.assertEqual(args[1], params)
+
+        data_extractors = pipeline_dp.DataExtractors(
+            partition_extractor=sum_params.partition_extractor,
+            privacy_id_extractor=privacy_id_extractor,
+            value_extractor=sum_params.value_extractor)
+        self.assertEqual(args[2], data_extractors)
+
+        mock_aggregate.return_value = "some DPEngine.aggregate's return result"
+        result = prdd.sum(sum_params)
+        self.assertEquals(result, "some DPEngine.aggregate's return result")
 
     @classmethod
     def tearDownClass(cls):

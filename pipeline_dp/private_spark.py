@@ -6,7 +6,9 @@ from pipeline_dp import aggregate_params, budget_accounting
 
 
 class PrivateRDD:
-    """A Spark RDD counterpart in PipelineDP guaranteeing that only anonymized data
+    """ A Spark RDD counterpart.
+
+    PrivateRDD guarantees that only anonymized data
     within the specified privacy budget can be extracted from it through its API.
     """
 
@@ -39,8 +41,7 @@ class PrivateRDD:
             privacy_id_extractor=self._privacy_id_extractor,
             value_extractor=sum_params.value_extractor)
 
-        aggr_result = dp_engine.aggregate(self._rdd, params, data_extractors)
-        dp_result = ops.map_values(aggr_result, lambda acc: acc.compute_metrics())
+        dp_result = dp_engine.aggregate(self._rdd, params, data_extractors)
 
         return dp_result
 
