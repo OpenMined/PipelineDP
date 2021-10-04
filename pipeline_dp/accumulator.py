@@ -169,6 +169,11 @@ class CompoundAccumulator(Accumulator):
             base_accumulator.add_accumulator(to_add_accumulator)
         return self
 
+    def set_mechanism_specs(self, mechanism_specs) -> 'CompoundAccumulator':
+        for spec, acc in zip(mechanism_specs, self._accumulators):
+            acc._params._mechanism_spec = spec
+        return self
+
     @property
     def privacy_id_count(self):
         """Returns the number of privacy ids which contributed to 'self'."""
@@ -203,6 +208,14 @@ class AccumulatorFactory:
 
         return CompoundAccumulator(accumulators)
 
+    def get_mechanism_specs(
+            self) -> typing.List[budget_accounting.MechanismSpec]:
+        """Returns MechanismSpecs of accumulators which will be created."""
+        return [
+            acc.constructor_params._mechanism_spec
+            for acc in self._accumulator_params
+        ]
+
 
 class AccumulatorClassParams:
     """Parameters for a an accumulator.
@@ -211,18 +224,18 @@ class AccumulatorClassParams:
     AggregateParams are copied into a MeanVarParams instance.
     """
 
-    def __init__(self, budget: pipeline_dp.budget_accounting.MechanismSpec,
+    def __init__(self, spec: budget_accounting.MechanismSpec,
                  aggregate_params: aggregate_params.AggregateParams):
         self._budget = budget
         self._aggregate_params = copy.copy(aggregate_params)
 
     @property
     def eps(self):
-        return self._budget.eps
+        return self._mechanism_spec.eps
 
     @property
     def delta(self):
-        return self._budget.delta
+        return self._mechanism_spec.delta
 
     @property
     def mean_var_params(self):
