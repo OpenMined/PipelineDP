@@ -220,13 +220,13 @@ class AccumulatorFactory:
 class AccumulatorClassParams:
     """Parameters for a an accumulator.
 
-    Wraps epsilon and delta from the budget which are lazily loaded.
+    Wraps epsilon and delta from the MechanismSpec which are lazily loaded.
     AggregateParams are copied into a MeanVarParams instance.
     """
 
     def __init__(self, spec: budget_accounting.MechanismSpec,
                  aggregate_params: aggregate_params.AggregateParams):
-        self._budget = budget
+        self._mechanism_spec = spec
         self._aggregate_params = copy.copy(aggregate_params)
 
     @property
