@@ -356,9 +356,6 @@ class PrivacyIdCountAccumulatorTest(unittest.TestCase):
         id_count_accumulator = accumulator.PrivacyIdCountAccumulator(
             accumulator.PrivacyIdCountParams(budget, no_noise), 'a' * 50)
         self.assertEqual(id_count_accumulator.compute_metrics(), 1)
-
-        id_count_accumulator = accumulator.PrivacyIdCountAccumulator(
-            accumulator.PrivacyIdCountParams(budget, no_noise), list(range(50)))
         id_count_accumulator.add_value(49)
         self.assertEqual(id_count_accumulator.compute_metrics(), 1)
 
@@ -390,16 +387,6 @@ class PrivacyIdCountAccumulatorTest(unittest.TestCase):
                                delta=4)
 
         id_count_accumulator.add_value(50)
-        self.assertAlmostEqual(first=id_count_accumulator.compute_metrics(),
-                               second=1,
-                               delta=4)
-
-        id_count_accumulator.add_value(list(range(49)))
-        self.assertAlmostEqual(first=id_count_accumulator.compute_metrics(),
-                               second=1,
-                               delta=4)
-
-        id_count_accumulator.add_value('*' * 100)
         self.assertAlmostEqual(first=id_count_accumulator.compute_metrics(),
                                second=1,
                                delta=4)

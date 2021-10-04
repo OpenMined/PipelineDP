@@ -29,23 +29,22 @@ def create_accumulator_params(
     budget_accountant: budget_accounting.BudgetAccountant
 ) -> typing.List[AccumulatorParams]:
     accumulator_params = []
+    mechanism_type = aggregation_params.noise_kind.convert_to_mechanism_type()
     if pipeline_dp.Metrics.COUNT in aggregation_params.metrics:
-        budget_count = budget_accountant.request_budget(
-            aggregation_params.noise_kind.convert_to_mechanism_type())
+        budget_count = budget_accountant.request_budget(mechanism_type)
         count_params = CountParams(budget_count, aggregation_params)
         accumulator_params.append(
             AccumulatorParams(accumulator_type=CountAccumulator,
                               constructor_params=count_params))
     if pipeline_dp.Metrics.SUM in aggregation_params.metrics:
-        budget_sum = budget_accountant.request_budget(
-            aggregation_params.noise_kind.convert_to_mechanism_type())
+        budget_sum = budget_accountant.request_budget(mechanism_type)
         sum_params = SumParams(budget_sum, aggregation_params)
         accumulator_params.append(
             AccumulatorParams(accumulator_type=SumAccumulator,
                               constructor_params=sum_params))
     if pipeline_dp.Metrics.PRIVACY_ID_COUNT in aggregation_params.metrics:
         budget_privacy_id_count = budget_accountant.request_budget(
-            aggregation_params.noise_kind.convert_to_mechanism_type())
+            mechanism_type)
         privacy_id_count_params = PrivacyIdCountParams(budget_privacy_id_count,
                                                        aggregation_params)
         accumulator_params.append(
