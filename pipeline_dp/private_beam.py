@@ -77,4 +77,4 @@ class Sum(PrivateTransform):
 
         dp_result = dp_engine.aggregate(pcol.pcol, params, data_extractors)
 
-        return self._sum_params
+        return dp_result
