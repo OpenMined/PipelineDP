@@ -361,7 +361,7 @@ class SumAccumulator(Accumulator):
         self._sum += self.clamp_value(value)
 
     def add_accumulator(self,
-        accumulator: 'SumAccumulator') -> 'SumAccumulator':
+                        accumulator: 'SumAccumulator') -> 'SumAccumulator':
         self._check_mergeable(accumulator)
         self._sum += accumulator._sum
 
