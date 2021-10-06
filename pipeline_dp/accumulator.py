@@ -353,7 +353,9 @@ class SumAccumulator(Accumulator):
 
     def __init__(self, params: SumParams, values):
         self._params = params
-        self._sum = self.clamp_value(sum(values))
+        self._sum = 0
+        for value in values:
+            self._sum += self.clamp_value(value)
 
     def add_value(self, value):
         self._sum += self.clamp_value(value)
