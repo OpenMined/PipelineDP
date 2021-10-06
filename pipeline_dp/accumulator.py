@@ -352,17 +352,24 @@ class SumParams(AccumulatorClassParams):
 class SumAccumulator(Accumulator):
 
     def __init__(self, params: SumParams, values):
-        self._sum = sum(values)
         self._params = params
+        self._sum = self.clamp_value(sum(values))
 
     def add_value(self, value):
-        self._sum += value
+        self._sum += self.clamp_value(value)
 
     def add_accumulator(self,
-                        accumulator: 'SumAccumulator') -> 'SumAccumulator':
+        accumulator: 'SumAccumulator') -> 'SumAccumulator':
         self._check_mergeable(accumulator)
         self._sum += accumulator._sum
 
     def compute_metrics(self) -> float:
         return dp_computations.compute_dp_sum(self._sum,
                                               self._params.mean_var_params)
+
+    def clamp_value(self, value):
+        if value < self._params.mean_var_params.low:
+            return self._params.mean_var_params.low
+        if value > self._params.mean_var_params.high:
+            return self._params.mean_var_params.high
+        return value
