@@ -105,3 +105,4 @@ class Sum(PrivatePTransform):
             value_extractor=self._sum_params.value_extractor)
 
         return dp_engine.aggregate(pcol, params, data_extractors)
+
