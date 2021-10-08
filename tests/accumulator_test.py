@@ -517,7 +517,7 @@ class SumAccumulatorTest(unittest.TestCase):
                                second=6,
                                delta=6)
 
-        sum_accumulator.add_value(5)  # Clamped to 3
+        sum_accumulator.add_value(100)  # Clamped to 3
         self.assertAlmostEqual(first=sum_accumulator.compute_metrics(),
                                second=9,
                                delta=6)

@@ -355,10 +355,12 @@ class SumAccumulator(Accumulator):
         self._params = params
         self._sum = 0
         for value in values:
-            self._sum += self.clamp_value(value)
+            self._sum += np.clip(value, self._params.mean_var_params.low,
+                                 self._params.mean_var_params.high)
 
     def add_value(self, value):
-        self._sum += self.clamp_value(value)
+        self._sum += np.clip(value, self._params.mean_var_params.low,
+                             self._params.mean_var_params.high)
 
     def add_accumulator(self,
                         accumulator: 'SumAccumulator') -> 'SumAccumulator':
@@ -368,10 +370,3 @@ class SumAccumulator(Accumulator):
     def compute_metrics(self) -> float:
         return dp_computations.compute_dp_sum(self._sum,
                                               self._params.mean_var_params)
-
-    def clamp_value(self, value):
-        if value < self._params.mean_var_params.low:
-            return self._params.mean_var_params.low
-        if value > self._params.mean_var_params.high:
-            return self._params.mean_var_params.high
-        return value
