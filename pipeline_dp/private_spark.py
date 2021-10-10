@@ -31,7 +31,7 @@ class PrivateRDD:
             metrics=[pipeline_dp.Metrics.SUM],
             max_partitions_contributed=sum_params.max_partitions_contributed,
             max_contributions_per_partition=sum_params.
-                max_contributions_per_partition,
+            max_contributions_per_partition,
             low=sum_params.low,
             high=sum_params.high,
             public_partitions=sum_params.public_partitions)
