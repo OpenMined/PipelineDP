@@ -30,8 +30,8 @@ class PrivateRDD:
         params = pipeline_dp.AggregateParams(
             metrics=[pipeline_dp.Metrics.SUM],
             max_partitions_contributed=sum_params.max_partitions_contributed,
-            max_contributions_per_partition=
-                sum_params.max_contributions_per_partition,
+            max_contributions_per_partition=sum_params.
+                max_contributions_per_partition,
             low=sum_params.low,
             high=sum_params.high,
             public_partitions=sum_params.public_partitions)
@@ -46,7 +46,8 @@ class PrivateRDD:
         return dp_result
 
 
-def make_private(rdd: RDD, budget_accountant: budget_accounting.BudgetAccountant,
+def make_private(rdd: RDD,
+                 budget_accountant: budget_accounting.BudgetAccountant,
                  privacy_id_extractor: Callable) -> PrivateRDD:
     """A factory method for PrivateRDD instance creation."""
     prdd = PrivateRDD(rdd, budget_accountant, privacy_id_extractor)
