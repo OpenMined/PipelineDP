@@ -438,7 +438,7 @@ class CountAccumulatorTest(unittest.TestCase):
             low=0,
             high=1,
             max_partitions_contributed=1,
-            max_contributions_per_partition=3,
+            max_contributions_per_partition=1,
             noise_kind=NoiseKind.GAUSSIAN,
             metrics=[pipeline_dp.Metrics.COUNT])
         count_accumulator = accumulator.CountAccumulator(
@@ -515,19 +515,19 @@ class SumAccumulatorTest(unittest.TestCase):
             accumulator.SumParams(budget, params), list(range(3)))
         self.assertAlmostEqual(first=sum_accumulator.compute_metrics(),
                                second=6,
-                               delta=6)
+                               delta=8)
 
         sum_accumulator.add_value(100)  # Clamped to 3
         self.assertAlmostEqual(first=sum_accumulator.compute_metrics(),
                                second=9,
-                               delta=6)
+                               delta=8)
 
         sum_accumulator_2 = accumulator.SumAccumulator(
             accumulator.SumParams(budget, params), list(range(3)))
         sum_accumulator.add_accumulator(sum_accumulator_2)
         self.assertAlmostEqual(first=sum_accumulator.compute_metrics(),
                                second=12,
-                               delta=6)
+                               delta=8)
 
 
 def mock_add_noise_vector(x, *args):
