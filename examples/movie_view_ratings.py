@@ -45,15 +45,18 @@ def calc_dp_rating_metrics(movie_views, ops, public_partitions):
     """Computes dp metrics."""
 
     # Set the total privacy budget.
-    budget_accountant = pipeline_dp.BudgetAccountant(epsilon=1, delta=1e-6)
+    budget_accountant = pipeline_dp.NaiveBudgetAccountant(total_epsilon=1,
+                                                          total_delta=1e-6)
 
     # Create a DPEngine instance.
     dp_engine = pipeline_dp.DPEngine(budget_accountant, ops)
 
     # Specify which DP aggregated metrics to compute.
     params = pipeline_dp.AggregateParams(
+        noise_kind=pipeline_dp.NoiseKind.LAPLACE,
         metrics=[
-            pipeline_dp.Metrics.COUNT,
+            pipeline_dp.Metrics.COUNT, pipeline_dp.Metrics.SUM,
+            pipeline_dp.Metrics.PRIVACY_ID_COUNT
         ],
         max_partitions_contributed=2,
         max_contributions_per_partition=1,
@@ -61,7 +64,8 @@ def calc_dp_rating_metrics(movie_views, ops, public_partitions):
         high=5,
         public_partitions=public_partitions)
 
-    # Specify how to extract is privacy_id, partition_key and value from an element of movie view collection.
+    # Specify how to extract privacy_id, partition_key and value from an
+    # element of movie view collection.
     data_extractors = pipeline_dp.DataExtractors(
         partition_extractor=lambda mv: mv.movie_id,
         privacy_id_extractor=lambda mv: mv.user_id,
@@ -99,7 +103,6 @@ class ParseFile(beam.DoFn):
 def get_public_partitions():
     public_partitions = None
     if FLAGS.public_partitions is not None:
-        print(FLAGS.public_partitions)
         public_partitions = [
             int(partition) for partition in FLAGS.public_partitions
         ]

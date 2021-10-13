@@ -2,7 +2,8 @@
 
 import numpy as np
 import pipeline_dp
-
+# TODO: import only modules https://google.github.io/styleguide/pyguide.html#22-imports
+from pipeline_dp.aggregate_params import NoiseKind
 from dataclasses import dataclass
 
 
@@ -16,7 +17,7 @@ class MeanVarParams:
     high: float
     max_partitions_contributed: int
     max_contributions_per_partition: int
-    noise_kind: pipeline_dp.NoiseKind  # Laplace or Gaussian
+    noise_kind: NoiseKind  # Laplace or Gaussian
 
     def l0_sensitivity(self):
         """"Returns the L0 sensitivity of the parameters."""
@@ -112,7 +113,7 @@ def _add_random_noise(
     delta: float,
     l0_sensitivity: float,
     linf_sensitivity: float,
-    noise_kind: pipeline_dp.NoiseKind,
+    noise_kind: NoiseKind,
 ):
     """Adds random noise according to the parameters.
 
@@ -127,11 +128,11 @@ def _add_random_noise(
     Returns:
         The value resulted after adding the random noise.
     """
-    if noise_kind == pipeline_dp.NoiseKind.LAPLACE:
+    if noise_kind == NoiseKind.LAPLACE:
         l1_sensitivity = compute_l1_sensitivity(l0_sensitivity,
                                                 linf_sensitivity)
         return apply_laplace_mechanism(value, eps, l1_sensitivity)
-    if noise_kind == pipeline_dp.NoiseKind.GAUSSIAN:
+    if noise_kind == NoiseKind.GAUSSIAN:
         l2_sensitivity = compute_l2_sensitivity(l0_sensitivity,
                                                 linf_sensitivity)
         return apply_gaussian_mechanism(value, eps, delta, l2_sensitivity)
@@ -146,7 +147,7 @@ class AdditiveVectorNoiseParams:
     l0_sensitivity: float
     linf_sensitivity: float
     norm_kind: pipeline_dp.NormKind
-    noise_kind: pipeline_dp.NoiseKind
+    noise_kind: NoiseKind
 
 
 def _clip_vector(vec: np.ndarray, max_norm: float,
@@ -272,7 +273,7 @@ def _compute_mean(
     delta: float,
     l0_sensitivity: float,
     max_contributions_per_partition: float,
-    noise_kind: pipeline_dp.NoiseKind,
+    noise_kind: NoiseKind,
 ):
     """Helper function to compute the DP mean of a raw sum using the DP count.
 
