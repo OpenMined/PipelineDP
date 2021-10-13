@@ -353,10 +353,8 @@ class SumAccumulator(Accumulator):
 
     def __init__(self, params: SumParams, values):
         self._params = params
-        self._sum = 0
-        for value in values:
-            self._sum += np.clip(value, self._params.mean_var_params.low,
-                                 self._params.mean_var_params.high)
+        self._sum = np.clip(values, self._params.mean_var_params.low,
+                            self._params.mean_var_params.high).sum()
 
     def add_value(self, value):
         self._sum += np.clip(value, self._params.mean_var_params.low,
