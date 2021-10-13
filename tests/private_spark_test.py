@@ -44,6 +44,7 @@ class PrivateRDDTest(unittest.TestCase):
         self.assertEqual(args[0], dist_data)
 
         params = pipeline_dp.AggregateParams(
+            noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
             metrics=[pipeline_dp.Metrics.SUM],
             max_partitions_contributed=sum_params.max_partitions_contributed,
             max_contributions_per_partition=sum_params.
