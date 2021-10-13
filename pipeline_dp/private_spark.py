@@ -17,23 +17,18 @@ class PrivateRDD:
         self._budget_accountant = budget_accountant
         self._privacy_id_extractor = privacy_id_extractor
 
-    def sum(
-        self,
-        sum_params: aggregate_params.SumParams,
-        noise_kind: aggregate_params.NoiseKind = pipeline_dp.NoiseKind.GAUSSIAN
-    ) -> RDD:
+    def sum(self, sum_params: aggregate_params.SumParams) -> RDD:
         """Computes DP sum.
 
         Args:
             sum_params: parameters for calculation
-            noise_kind: kind of noise to use for the DP sum calculation
         """
 
         ops = pipeline_dp.SparkRDDOperations()
         dp_engine = pipeline_dp.DPEngine(self._budget_accountant, ops)
 
         params = pipeline_dp.AggregateParams(
-            noise_kind=noise_kind,
+            noise_kind=sum_params.noise_kind,
             metrics=[pipeline_dp.Metrics.SUM],
             max_partitions_contributed=sum_params.max_partitions_contributed,
             max_contributions_per_partition=sum_params.

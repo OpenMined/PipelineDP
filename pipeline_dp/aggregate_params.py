@@ -71,6 +71,7 @@ class SumParams:
     """Specifies parameters for sum calculation from PrivateRDD.
 
     Args:
+        noise_kind: Kind of noise to use for the DP calculations.
         max_partitions_contributed: Bounds the number of partitions in which one
             unit of privacy (e.g., a user) can participate.
         max_contributions_per_partition: Bounds the number of times one unit of
@@ -85,6 +86,7 @@ class SumParams:
             for which the sum will be calculated.
   """
 
+    noise_kind: NoiseKind
     max_partitions_contributed: int
     max_contributions_per_partition: int
     low: float

@@ -27,6 +27,7 @@ class PrivateRDDTest(unittest.TestCase):
                                         privacy_id_extractor)
 
         sum_params = agg.SumParams(
+            noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
             max_partitions_contributed=2,
             max_contributions_per_partition=3,
             low=1,
