@@ -17,8 +17,11 @@ class PrivateRDD:
         self._budget_accountant = budget_accountant
         self._privacy_id_extractor = privacy_id_extractor
 
-    def sum(self, sum_params: aggregate_params.SumParams,
-            noise_kind: aggregate_params.NoiseKind = pipeline_dp.NoiseKind.GAUSSIAN) -> RDD:
+    def sum(
+        self,
+        sum_params: aggregate_params.SumParams,
+        noise_kind: aggregate_params.NoiseKind = pipeline_dp.NoiseKind.GAUSSIAN
+    ) -> RDD:
         """Computes DP sum.
 
         Args:
