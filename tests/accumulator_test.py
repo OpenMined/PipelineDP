@@ -438,7 +438,7 @@ class CountAccumulatorTest(unittest.TestCase):
             low=0,
             high=1,
             max_partitions_contributed=1,
-            max_contributions_per_partition=3,
+            max_contributions_per_partition=1,
             noise_kind=NoiseKind.GAUSSIAN,
             metrics=[pipeline_dp.Metrics.COUNT])
         count_accumulator = accumulator.CountAccumulator(
@@ -466,14 +466,14 @@ class CountAccumulatorTest(unittest.TestCase):
 class SumAccumulatorTest(unittest.TestCase):
 
     def test_without_noise(self):
-        budget_accountant = NaiveBudgetAccountant(total_epsilon=1,
-                                                  total_delta=0.01)
+        budget_accountant = NaiveBudgetAccountant(total_epsilon=10000000,
+                                                  total_delta=0.9999999)
         budget = budget_accountant.request_budget(
             pipeline_dp.MechanismType.GAUSSIAN)
         budget_accountant.compute_budgets()
         no_noise = pipeline_dp.AggregateParams(
             low=0,
-            high=0,
+            high=15,
             max_partitions_contributed=1,
             max_contributions_per_partition=1,
             noise_kind=NoiseKind.GAUSSIAN,
@@ -481,16 +481,22 @@ class SumAccumulatorTest(unittest.TestCase):
         sum_accumulator = accumulator.SumAccumulator(
             accumulator.SumParams(budget, no_noise), list(range(6)))
 
-        self.assertEqual(sum_accumulator.compute_metrics(), 15)
+        self.assertAlmostEqual(first=sum_accumulator.compute_metrics(),
+                               second=15,
+                               delta=0.1)
 
         sum_accumulator.add_value(5)
-        self.assertEqual(sum_accumulator.compute_metrics(), 20)
+        self.assertAlmostEqual(first=sum_accumulator.compute_metrics(),
+                               second=20,
+                               delta=0.1)
 
         sum_accumulator_2 = accumulator.SumAccumulator(
             accumulator.SumParams(budget, no_noise), list(range(3)))
 
         sum_accumulator.add_accumulator(sum_accumulator_2)
-        self.assertEqual(sum_accumulator.compute_metrics(), 23)
+        self.assertAlmostEqual(first=sum_accumulator.compute_metrics(),
+                               second=23,
+                               delta=0.1)
 
     def test_with_noise(self):
         budget_accountant = NaiveBudgetAccountant(total_epsilon=10,
@@ -500,28 +506,28 @@ class SumAccumulatorTest(unittest.TestCase):
         budget_accountant.compute_budgets()
 
         params = pipeline_dp.AggregateParams(low=0,
-                                             high=1,
+                                             high=3,
                                              max_partitions_contributed=1,
-                                             max_contributions_per_partition=3,
+                                             max_contributions_per_partition=1,
                                              noise_kind=NoiseKind.GAUSSIAN,
                                              metrics=[pipeline_dp.Metrics.SUM])
         sum_accumulator = accumulator.SumAccumulator(
-            accumulator.SumParams(budget, params), list(range(6)))
+            accumulator.SumParams(budget, params), list(range(3)))
         self.assertAlmostEqual(first=sum_accumulator.compute_metrics(),
-                               second=15,
-                               delta=4)
+                               second=6,
+                               delta=8)
 
-        sum_accumulator.add_value(5)
+        sum_accumulator.add_value(100)  # Clamped to 3
         self.assertAlmostEqual(first=sum_accumulator.compute_metrics(),
-                               second=20,
-                               delta=4)
+                               second=9,
+                               delta=8)
 
         sum_accumulator_2 = accumulator.SumAccumulator(
             accumulator.SumParams(budget, params), list(range(3)))
         sum_accumulator.add_accumulator(sum_accumulator_2)
         self.assertAlmostEqual(first=sum_accumulator.compute_metrics(),
-                               second=23,
-                               delta=4)
+                               second=12,
+                               delta=8)
 
 
 def mock_add_noise_vector(x, *args):
