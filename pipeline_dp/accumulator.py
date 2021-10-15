@@ -227,7 +227,7 @@ class AccumulatorClassParams:
     def __init__(self, spec: budget_accounting.MechanismSpec,
                  aggregate_params: aggregate_params.AggregateParams):
         self._mechanism_spec = spec
-        self._aggregate_params = copy.copy(aggregate_params)
+        self.aggregate_params = copy.copy(aggregate_params)
 
     @property
     def eps(self):
@@ -240,11 +240,11 @@ class AccumulatorClassParams:
     @property
     def mean_var_params(self):
         return dp_computations.MeanVarParams(
-            self.eps, self.delta, self._aggregate_params.low,
-            self._aggregate_params.high,
-            self._aggregate_params.max_partitions_contributed,
-            self._aggregate_params.max_contributions_per_partition,
-            self._aggregate_params.noise_kind)
+            self.eps, self.delta, self.aggregate_params.low,
+            self.aggregate_params.high,
+            self.aggregate_params.max_partitions_contributed,
+            self.aggregate_params.max_contributions_per_partition,
+            self.aggregate_params.noise_kind)
 
 
 class PrivacyIdCountParams(AccumulatorClassParams):
@@ -252,7 +252,7 @@ class PrivacyIdCountParams(AccumulatorClassParams):
     def __init__(self, budget: pipeline_dp.budget_accounting.MechanismSpec,
                  aggregation_params: aggregate_params.AggregateParams):
         super().__init__(budget, aggregation_params)
-        self._aggregate_params.max_contributions_per_partition = 1
+        self.aggregate_params.max_contributions_per_partition = 1
 
 
 class PrivacyIdCountAccumulator(Accumulator):
@@ -353,12 +353,12 @@ class SumAccumulator(Accumulator):
 
     def __init__(self, params: SumParams, values):
         self._params = params
-        self._sum = np.clip(values, self._params.mean_var_params.low,
-                            self._params.mean_var_params.high).sum()
+        self._sum = np.clip(values, self._params.aggregate_params.low,
+                            self._params.aggregate_params.high).sum()
 
     def add_value(self, value):
-        self._sum += np.clip(value, self._params.mean_var_params.low,
-                             self._params.mean_var_params.high)
+        self._sum += np.clip(value, self._params.aggregate_params.low,
+                             self._params.aggregate_params.high)
 
     def add_accumulator(self,
                         accumulator: 'SumAccumulator') -> 'SumAccumulator':
