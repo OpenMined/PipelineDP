@@ -49,9 +49,10 @@ jobs:
           submodules: true
 
       - name: Install dependencies
+        # In macOS, python && pip use python2 and python3 && pip3 use python3.
         run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.dev.txt
+          python -m pip install --upgrade pip || python3 -m pip install --upgrade pip
+          pip install -r requirements.dev.txt || pip3 install -r requirements.dev.txt
 
       - name: Run pytest
         run: |
