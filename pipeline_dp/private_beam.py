@@ -42,7 +42,7 @@ class PrivateTransform(ptransform.PTransform):
         self.privacy_id_extractor = privacy_id_extractor
 
     @abstractmethod
-    def expand(self, pcol: PCollection):
+    def expand(self, pcol: PCollection) -> PCollection:
         pass
 
 
@@ -103,7 +103,7 @@ class Sum(PrivateTransform):
         super(Sum, self).__init__(label)
         self._sum_params = sum_params
 
-    def expand(self, pcol: PCollection):
+    def expand(self, pcol: PCollection) -> PCollection:
         beam_operations = pipeline_dp.BeamOperations()
         dp_engine = pipeline_dp.DPEngine(self.budget_accountant,
                                          beam_operations)
