@@ -7,13 +7,9 @@ from pipeline_dp import aggregate_params, budget_accounting
 
 
 # TODO (prerag) comments and return type
-class PrivateCollection(PCollection):
+class PrivateCollection:
 
     def __init__(self, pcol, budget_accountant, privacy_id_extractor):
-        super(PrivateCollection, self).__init__(pcol.pipeline,
-                                                is_bounded=pcol.is_bounded)
-        for key, value in pcol.__dict__.items():
-            self.__dict__[key] = value
         self.pcol = pcol
         self.budget_accountant = budget_accountant
         self.privacy_id_extractor = privacy_id_extractor
@@ -23,11 +19,28 @@ class PrivateCollection(PCollection):
             raise TypeError(
                 "private_transform should of type PrivateTransform but is " +
                 "%s", private_transform)
-        transformed = self.pipeline.apply(private_transform, self)
-        return transformed
+        private_transform.set_additional_parameters(budget_accountant=self.budget_accountant,
+                                                    privacy_id_extractor=self.privacy_id_extractor)
+        transformed = self.pcol.pipeline.apply(private_transform, self.pcol)
+        return (PrivateCollection(transformed, self.budget_accountant,
+                                 self.privacy_id_extractor) if
+         private_transform.return_private else transformed)
 
 
 class PrivateTransform(ptransform.PTransform):
+
+    def __init__(self):
+        self.return_private = False
+        self.budget_accountant = None
+        self.privacy_id_extractor = None
+
+    def set_return_private(self) -> bool:
+        self.return_private = True
+
+    def set_additional_parameters(self, budget_accountant,
+                                  privacy_id_extractor):
+        self.budget_accountant = budget_accountant
+        self.privacy_id_extractor = privacy_id_extractor
 
     @abstractmethod
     def expand(self, pcol):
@@ -57,7 +70,7 @@ class Sum(PrivateTransform):
                 "pcol should of type PrivateCollection but is " + "%s", pcol)
 
         beam_operations = pipeline_dp.BeamOperations
-        dp_engine = pipeline_dp.DPEngine(pcol.budget_accountant,
+        dp_engine = pipeline_dp.DPEngine(self.budget_accountant,
                                          beam_operations)
 
         params = pipeline_dp.AggregateParams(
@@ -72,9 +85,9 @@ class Sum(PrivateTransform):
 
         data_extractors = pipeline_dp.DataExtractors(
             partition_extractor=self._sum_params.partition_extractor,
-            privacy_id_extractor=pcol.privacy_id_extractor,
+            privacy_id_extractor=self.privacy_id_extractor,
             value_extractor=self._sum_params.value_extractor)
 
-        dp_result = dp_engine.aggregate(pcol.pcol, params, data_extractors)
+        dp_result = dp_engine.aggregate(pcol, params, data_extractors)
 
         return dp_result
