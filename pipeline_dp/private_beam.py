@@ -1,79 +1,115 @@
 from apache_beam.transforms import ptransform
-from abc import ABC, abstractmethod
+from abc import abstractmethod
+from typing import Callable, Optional
 from apache_beam.pvalue import PCollection
 
 import pipeline_dp
 from pipeline_dp import aggregate_params, budget_accounting
 
 
-# TODO (prerag) comments and return type
-class PrivateCollection:
-
-    def __init__(self, pcol, budget_accountant, privacy_id_extractor):
-        self.pcol = pcol
-        self.budget_accountant = budget_accountant
-        self.privacy_id_extractor = privacy_id_extractor
-
-    def __or__(self, private_transform):
-        if not isinstance(private_transform, PrivateTransform):
-            raise TypeError(
-                "private_transform should of type PrivateTransform but is " +
-                "%s", private_transform)
-        private_transform.set_additional_parameters(budget_accountant=self.budget_accountant,
-                                                    privacy_id_extractor=self.privacy_id_extractor)
-        transformed = self.pcol.pipeline.apply(private_transform, self.pcol)
-        return (PrivateCollection(transformed, self.budget_accountant,
-                                 self.privacy_id_extractor) if
-         private_transform.return_private else transformed)
-
-
 class PrivateTransform(ptransform.PTransform):
+    """
+    Abstract class for PrivateTransforms.
+    """
 
-    def __init__(self):
+    def __init__(self, label: Optional[str] = None):
+        super(PrivateTransform, self).__init__(label)
         self.return_private = False
         self.budget_accountant = None
         self.privacy_id_extractor = None
 
-    def set_return_private(self) -> bool:
+    def set_return_private(self):
+        """
+        Sets the return_private to True making the result of a transform a
+        PrivateCollection and not a PCollection.
+
+        """
         self.return_private = True
 
-    def set_additional_parameters(self, budget_accountant,
-                                  privacy_id_extractor):
+    def set_additional_parameters(
+            self, budget_accountant: budget_accounting.BudgetAccountant,
+            privacy_id_extractor: Callable):
+        """
+        Sets the additional parameters needed for transform. These are to be
+        passed from the PrivateCollection's __or__ before private_transform is
+        applied.
+
+        Args:
+            budget_accountant:
+            privacy_id_extractor:
+        """
         self.budget_accountant = budget_accountant
         self.privacy_id_extractor = privacy_id_extractor
 
     @abstractmethod
-    def expand(self, pcol):
+    def expand(self, pcol: PCollection):
         pass
 
 
-class MakePrivate(PrivateTransform):
+class PrivateCollection:
+    """
+    Private counterpart for PCollection.
+    """
 
-    def __init__(self, budget_accountant, privacy_id_extractor):
+    def __init__(self, pcol: PCollection,
+                 budget_accountant: budget_accounting.BudgetAccountant,
+                 privacy_id_extractor: Callable):
+        self.pcol = pcol
         self.budget_accountant = budget_accountant
         self.privacy_id_extractor = privacy_id_extractor
 
-    def expand(self, pcol):
+    def __or__(self, private_transform: PrivateTransform):
+        if not isinstance(private_transform, PrivateTransform):
+            raise TypeError(
+                "private_transform should be of type PrivateTransform but is " +
+                "%s", private_transform)
+
+        private_transform.set_additional_parameters(
+            budget_accountant=self.budget_accountant,
+            privacy_id_extractor=self.privacy_id_extractor)
+        transformed = self.pcol.pipeline.apply(private_transform, self.pcol)
+
+        return (PrivateCollection(transformed, self.budget_accountant,
+                                  self.privacy_id_extractor)
+                if private_transform.return_private else transformed)
+
+
+class MakePrivate(PrivateTransform):
+    """
+    Transform class for creating a PrivateCollection.
+    """
+
+    def __init__(self,
+                 budget_accountant: budget_accounting.BudgetAccountant,
+                 privacy_id_extractor: Callable,
+                 label: Optional[str] = None):
+        super(MakePrivate, self).__init__(label)
+        self.budget_accountant = budget_accountant
+        self.privacy_id_extractor = privacy_id_extractor
+
+    def expand(self, pcol: PCollection):
         return PrivateCollection(pcol, self.budget_accountant,
                                  self.privacy_id_extractor)
 
 
 class Sum(PrivateTransform):
+    """
+    Transform class for performing DP Sum on PrivateCollection.
+    """
 
-    def __init__(self, sum_params, partition_id_extractor):
+    def __init__(self,
+                 sum_params: aggregate_params.SumParams,
+                 label: Optional[str] = None):
+        super(Sum, self).__init__(label)
         self._sum_params = sum_params
-        self._partition_id_extractor = partition_id_extractor
 
-    def expand(self, pcol):
-        if not isinstance(pcol, PrivateCollection):
-            raise TypeError(
-                "pcol should of type PrivateCollection but is " + "%s", pcol)
-
-        beam_operations = pipeline_dp.BeamOperations
+    def expand(self, pcol: PCollection):
+        beam_operations = pipeline_dp.BeamOperations()
         dp_engine = pipeline_dp.DPEngine(self.budget_accountant,
                                          beam_operations)
 
         params = pipeline_dp.AggregateParams(
+            noise_kind=self._sum_params.noise_kind,
             metrics=[pipeline_dp.Metrics.SUM],
             max_partitions_contributed=self._sum_params.
             max_partitions_contributed,
