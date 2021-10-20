@@ -19,14 +19,7 @@ class PrivateTransform(ptransform.PTransform):
     def set_additional_parameters(
             self, budget_accountant: budget_accounting.BudgetAccountant,
             privacy_id_extractor: Callable):
-        """Sets the additional parameters needed for transform. These are to be
-        passed from the PrivateCollection's __or__ before private_transform is
-        applied.
-
-        Args:
-            budget_accountant:
-            privacy_id_extractor:
-        """
+        """Set the additional parameters needed for the private transform."""
         self._budget_accountant = budget_accountant
         self._privacy_id_extractor = privacy_id_extractor
 
