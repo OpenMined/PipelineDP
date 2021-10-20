@@ -14,9 +14,9 @@ class PrivateTransform(ptransform.PTransform):
 
     def __init__(self, label: Optional[str] = None):
         super(PrivateTransform, self).__init__(label)
-        self.return_private = False
-        self.budget_accountant = None
-        self.privacy_id_extractor = None
+        self._return_private = False
+        self._budget_accountant = None
+        self._privacy_id_extractor = None
 
     def set_return_private(self):
         """
@@ -24,7 +24,7 @@ class PrivateTransform(ptransform.PTransform):
         PrivateCollection and not a PCollection.
 
         """
-        self.return_private = True
+        self._return_private = True
 
     def set_additional_parameters(
             self, budget_accountant: budget_accounting.BudgetAccountant,
@@ -38,8 +38,8 @@ class PrivateTransform(ptransform.PTransform):
             budget_accountant:
             privacy_id_extractor:
         """
-        self.budget_accountant = budget_accountant
-        self.privacy_id_extractor = privacy_id_extractor
+        self._budget_accountant = budget_accountant
+        self._privacy_id_extractor = privacy_id_extractor
 
     @abstractmethod
     def expand(self, pcol: PCollection) -> PCollection:
@@ -54,9 +54,9 @@ class PrivateCollection:
     def __init__(self, pcol: PCollection,
                  budget_accountant: budget_accounting.BudgetAccountant,
                  privacy_id_extractor: Callable):
-        self.pcol = pcol
-        self.budget_accountant = budget_accountant
-        self.privacy_id_extractor = privacy_id_extractor
+        self._pcol = pcol
+        self._budget_accountant = budget_accountant
+        self._privacy_id_extractor = privacy_id_extractor
 
     def __or__(self, private_transform: PrivateTransform):
         if not isinstance(private_transform, PrivateTransform):
@@ -65,13 +65,13 @@ class PrivateCollection:
                 "%s", private_transform)
 
         private_transform.set_additional_parameters(
-            budget_accountant=self.budget_accountant,
-            privacy_id_extractor=self.privacy_id_extractor)
-        transformed = self.pcol.pipeline.apply(private_transform, self.pcol)
+            budget_accountant=self._budget_accountant,
+            privacy_id_extractor=self._privacy_id_extractor)
+        transformed = self._pcol.pipeline.apply(private_transform, self._pcol)
 
-        return (PrivateCollection(transformed, self.budget_accountant,
-                                  self.privacy_id_extractor)
-                if private_transform.return_private else transformed)
+        return (PrivateCollection(transformed, self._budget_accountant,
+                                  self._privacy_id_extractor)
+                if private_transform._return_private else transformed)
 
 
 class MakePrivate(PrivateTransform):
@@ -84,12 +84,12 @@ class MakePrivate(PrivateTransform):
                  privacy_id_extractor: Callable,
                  label: Optional[str] = None):
         super(MakePrivate, self).__init__(label)
-        self.budget_accountant = budget_accountant
-        self.privacy_id_extractor = privacy_id_extractor
+        self._budget_accountant = budget_accountant
+        self._privacy_id_extractor = privacy_id_extractor
 
     def expand(self, pcol: PCollection):
-        return PrivateCollection(pcol, self.budget_accountant,
-                                 self.privacy_id_extractor)
+        return PrivateCollection(pcol, self._budget_accountant,
+                                 self._privacy_id_extractor)
 
 
 class Sum(PrivateTransform):
@@ -105,7 +105,7 @@ class Sum(PrivateTransform):
 
     def expand(self, pcol: PCollection) -> PCollection:
         beam_operations = pipeline_dp.BeamOperations()
-        dp_engine = pipeline_dp.DPEngine(self.budget_accountant,
+        dp_engine = pipeline_dp.DPEngine(self._budget_accountant,
                                          beam_operations)
 
         params = pipeline_dp.AggregateParams(
@@ -121,7 +121,7 @@ class Sum(PrivateTransform):
 
         data_extractors = pipeline_dp.DataExtractors(
             partition_extractor=self._sum_params.partition_extractor,
-            privacy_id_extractor=self.privacy_id_extractor,
+            privacy_id_extractor=self._privacy_id_extractor,
             value_extractor=self._sum_params.value_extractor)
 
         dp_result = dp_engine.aggregate(pcol, params, data_extractors)

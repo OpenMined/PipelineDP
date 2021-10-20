@@ -39,9 +39,9 @@ class PrivateBeamTest(unittest.TestCase):
             # Assert
             self.assertIsInstance(private_collection,
                                   private_beam.PrivateCollection)
-            self.assertEqual(private_collection.budget_accountant,
+            self.assertEqual(private_collection._budget_accountant,
                              budget_accountant)
-            self.assertEqual(private_collection.privacy_id_extractor,
+            self.assertEqual(private_collection._privacy_id_extractor,
                              PrivateBeamTest.privacy_id_extractor)
 
     def test_private_collection_with_non_private_transform_throws_error(self):
@@ -139,8 +139,8 @@ class PrivateBeamTest(unittest.TestCase):
             private_collection | transformer
 
             # Assert
-            self.assertEqual(transformer.budget_accountant, budget_accountant)
-            self.assertEqual(transformer.privacy_id_extractor,
+            self.assertEqual(transformer._budget_accountant, budget_accountant)
+            self.assertEqual(transformer._privacy_id_extractor,
                              PrivateBeamTest.privacy_id_extractor)
             mock_aggregate.assert_called_once()
 
