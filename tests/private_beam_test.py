@@ -1,7 +1,7 @@
 import unittest
 import apache_beam as beam
 from apache_beam.runners.portability import fn_api_runner
-from apache_beam.pvalue import PCollection
+from apache_beam import pvalue
 from unittest.mock import patch
 
 import pipeline_dp
@@ -106,7 +106,7 @@ class PrivateBeamTest(unittest.TestCase):
                 return_private=False)
 
             # Assert
-            self.assertIsInstance(transformed, PCollection)
+            self.assertIsInstance(transformed, pvalue.PCollection)
 
     @patch('pipeline_dp.dp_engine.DPEngine.aggregate')
     def test_sum(self, mock_aggregate):
