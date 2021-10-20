@@ -82,10 +82,8 @@ class PrivateBeamTest(unittest.TestCase):
                     privacy_id_extractor=PrivateBeamTest.privacy_id_extractor))
 
             # Act
-            private_transformer = SimplePrivateTransform()
-            private_transformer.set_return_private()
-
-            transformed = private_collection | private_transformer
+            transformed = private_collection | SimplePrivateTransform(
+                return_private=True)
 
             # Assert
             self.assertIsInstance(transformed, private_beam.PrivateCollection)
@@ -104,7 +102,8 @@ class PrivateBeamTest(unittest.TestCase):
                     privacy_id_extractor=PrivateBeamTest.privacy_id_extractor))
 
             # Act
-            transformed = private_collection | SimplePrivateTransform()
+            transformed = private_collection | SimplePrivateTransform(
+                return_private=False)
 
             # Assert
             self.assertIsInstance(transformed, PCollection)
@@ -135,7 +134,8 @@ class PrivateBeamTest(unittest.TestCase):
                 value_extractor=lambda x: x)
 
             # Act
-            transformer = private_beam.Sum(sum_params)
+            transformer = private_beam.Sum(sum_params=sum_params,
+                                           return_private=False)
             private_collection | transformer
 
             # Assert

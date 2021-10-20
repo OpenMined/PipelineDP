@@ -10,16 +10,11 @@ from pipeline_dp import aggregate_params, budget_accounting
 class PrivateTransform(ptransform.PTransform):
     """Abstract class for PrivateTransforms."""
 
-    def __init__(self, label: Optional[str] = None):
+    def __init__(self, return_private: bool, label: Optional[str] = None):
         super(PrivateTransform, self).__init__(label)
-        self._return_private = False
+        self._return_private = return_private
         self._budget_accountant = None
         self._privacy_id_extractor = None
-
-    def set_return_private(self):
-        """Sets the return_private to True making the result of a transform a
-        PrivateCollection and not a PCollection."""
-        self._return_private = True
 
     def set_additional_parameters(
             self, budget_accountant: budget_accounting.BudgetAccountant,
@@ -73,7 +68,7 @@ class MakePrivate(PrivateTransform):
                  budget_accountant: budget_accounting.BudgetAccountant,
                  privacy_id_extractor: Callable,
                  label: Optional[str] = None):
-        super(MakePrivate, self).__init__(label)
+        super(MakePrivate, self).__init__(return_private=True, label=label)
         self._budget_accountant = budget_accountant
         self._privacy_id_extractor = privacy_id_extractor
 
@@ -87,8 +82,9 @@ class Sum(PrivateTransform):
 
     def __init__(self,
                  sum_params: aggregate_params.SumParams,
+                 return_private: bool,
                  label: Optional[str] = None):
-        super(Sum, self).__init__(label)
+        super(Sum, self).__init__(return_private=return_private, label=label)
         self._sum_params = sum_params
 
     def expand(self, pcol: PCollection) -> PCollection:
