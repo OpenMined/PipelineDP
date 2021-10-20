@@ -8,9 +8,7 @@ from pipeline_dp import aggregate_params, budget_accounting
 
 
 class PrivateTransform(ptransform.PTransform):
-    """
-    Abstract class for PrivateTransforms.
-    """
+    """Abstract class for PrivateTransforms."""
 
     def __init__(self, label: Optional[str] = None):
         super(PrivateTransform, self).__init__(label)
@@ -19,18 +17,14 @@ class PrivateTransform(ptransform.PTransform):
         self._privacy_id_extractor = None
 
     def set_return_private(self):
-        """
-        Sets the return_private to True making the result of a transform a
-        PrivateCollection and not a PCollection.
-
-        """
+        """Sets the return_private to True making the result of a transform a
+        PrivateCollection and not a PCollection."""
         self._return_private = True
 
     def set_additional_parameters(
             self, budget_accountant: budget_accounting.BudgetAccountant,
             privacy_id_extractor: Callable):
-        """
-        Sets the additional parameters needed for transform. These are to be
+        """Sets the additional parameters needed for transform. These are to be
         passed from the PrivateCollection's __or__ before private_transform is
         applied.
 
@@ -47,9 +41,7 @@ class PrivateTransform(ptransform.PTransform):
 
 
 class PrivateCollection:
-    """
-    Private counterpart for PCollection.
-    """
+    """Private counterpart for PCollection."""
 
     def __init__(self, pcol: PCollection,
                  budget_accountant: budget_accounting.BudgetAccountant,
@@ -75,9 +67,7 @@ class PrivateCollection:
 
 
 class MakePrivate(PrivateTransform):
-    """
-    Transform class for creating a PrivateCollection.
-    """
+    """Transform class for creating a PrivateCollection."""
 
     def __init__(self,
                  budget_accountant: budget_accounting.BudgetAccountant,
@@ -93,9 +83,7 @@ class MakePrivate(PrivateTransform):
 
 
 class Sum(PrivateTransform):
-    """
-    Transform class for performing DP Sum on PrivateCollection.
-    """
+    """Transform class for performing DP Sum on PrivateCollection."""
 
     def __init__(self,
                  sum_params: aggregate_params.SumParams,
