@@ -1,3 +1,4 @@
+from __future__ import annotations
 from pyspark import RDD
 from typing import Callable
 
@@ -16,6 +17,22 @@ class PrivateRDD:
         self._rdd = rdd
         self._budget_accountant = budget_accountant
         self._privacy_id_extractor = privacy_id_extractor
+
+    def map(self, fn: Callable) -> PrivateRDD:
+        """ A Spark map counterpart.
+
+        The transformation keep the state (budget_accountant, privacy_id_extractor, etc.)
+        """
+        rdd = self._rdd.map(fn)
+        return make_private(rdd, self._budget_accountant, self._privacy_id_extractor)
+
+    def flat_map(self, fn: Callable) -> PrivateRDD:
+        """ A Spark flatMap counterpart.
+
+        The transformation keep the state (budget_accountant, privacy_id_extractor, etc.)
+        """
+        rdd = self._rdd.flatMap(fn)
+        return make_private(rdd, self._budget_accountant, self._privacy_id_extractor)
 
     def sum(self, sum_params: aggregate_params.SumParams) -> RDD:
         """Computes DP sum.
