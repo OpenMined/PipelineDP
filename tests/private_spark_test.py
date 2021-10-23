@@ -46,8 +46,8 @@ class PrivateRDDTest(unittest.TestCase):
 
         result = prdd.map(lambda x: (x[0], [x[1] * 2, x[1] * 2 + 1]))
 
-        self.assertEqual(result._rdd.collect(),
-                         [(1, 22), (1, 23), (2, 24), (2, 25)])
+        self.assertEqual(result._rdd.collect(), [(1, 22), (1, 23), (2, 24),
+                                                 (2, 25)])
         self.assertEqual(result._budget_accountant, prdd._budget_accountant)
         self.assertEqual(result._privacy_id_extractor,
                          prdd._privacy_id_extractor)
