@@ -24,7 +24,8 @@ class PrivateRDD:
         The transformation keep the state (budget_accountant, privacy_id_extractor, etc.)
         """
         rdd = self._rdd.map(fn)
-        return make_private(rdd, self._budget_accountant, self._privacy_id_extractor)
+        return make_private(rdd, self._budget_accountant,
+                            self._privacy_id_extractor)
 
     def flat_map(self, fn: Callable) -> PrivateRDD:
         """ A Spark flatMap counterpart.
@@ -32,7 +33,8 @@ class PrivateRDD:
         The transformation keep the state (budget_accountant, privacy_id_extractor, etc.)
         """
         rdd = self._rdd.flatMap(fn)
-        return make_private(rdd, self._budget_accountant, self._privacy_id_extractor)
+        return make_private(rdd, self._budget_accountant,
+                            self._privacy_id_extractor)
 
     def sum(self, sum_params: aggregate_params.SumParams) -> RDD:
         """Computes DP sum.
