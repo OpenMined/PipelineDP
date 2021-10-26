@@ -19,7 +19,7 @@ class PrivateBeamTest(unittest.TestCase):
 
     @staticmethod
     def privacy_id_extractor(x):
-        return "pid:" + x
+        return f"pid:{x}"
 
     def test_MakePrivate_transform_succeeds(self):
         runner = fn_api_runner.FnApiRunner()
@@ -130,7 +130,7 @@ class PrivateBeamTest(unittest.TestCase):
                 high=5,
                 budget_weight=1,
                 public_partitions=[],
-                partition_extractor=lambda x: "pk" + str(x // 10),
+                partition_extractor=lambda x: f"pk:{x // 10}",
                 value_extractor=lambda x: x)
 
             # Act
