@@ -44,17 +44,17 @@ class PrivatePCollection:
     def __or__(self, private_transform: PrivatePTransform):
         if not isinstance(private_transform, PrivatePTransform):
             raise TypeError(
-                "private_transform should be of type PrivatePTransform but is " +
-                "%s", private_transform)
+                "private_transform should be of type PrivatePTransform but is "
+                + "%s", private_transform)
 
         private_transform.set_additional_parameters(
             budget_accountant=self._budget_accountant,
             privacy_id_extractor=self._privacy_id_extractor)
         transformed = self._pcol.pipeline.apply(private_transform, self._pcol)
 
-        return (transformed if private_transform._return_anonymized else (
-            PrivatePCollection(transformed, self._budget_accountant,
-                              self._privacy_id_extractor)))
+        return (transformed if private_transform._return_anonymized else
+                (PrivatePCollection(transformed, self._budget_accountant,
+                                    self._privacy_id_extractor)))
 
 
 class MakePrivate(PrivatePTransform):
@@ -70,7 +70,7 @@ class MakePrivate(PrivatePTransform):
 
     def expand(self, pcol: pvalue.PCollection):
         return PrivatePCollection(pcol, self._budget_accountant,
-                                 self._privacy_id_extractor)
+                                  self._privacy_id_extractor)
 
 
 class Sum(PrivatePTransform):
