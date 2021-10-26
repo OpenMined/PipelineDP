@@ -156,9 +156,8 @@ class NaiveBudgetAccountant(BudgetAccountant):
             raise AssertionError(
                 "The Gaussian mechanism requires that the pipeline delta is greater than 0"
             )
-        mechanism_spec = MechanismSpec(
-            mechanism_type=mechanism_type,
-            _count=count)
+        mechanism_spec = MechanismSpec(mechanism_type=mechanism_type,
+                                       _count=count)
         mechanism_spec_internal = MechanismSpecInternal(
             mechanism_spec=mechanism_spec,
             sensitivity=sensitivity,
@@ -174,21 +173,19 @@ class NaiveBudgetAccountant(BudgetAccountant):
 
         total_weight_eps = total_weight_delta = 0
         for mechanism in self._mechanisms:
-            for i in range(mechanism.mechanism_spec.count):
-                total_weight_eps += mechanism.weight
-                if mechanism.mechanism_spec.use_delta():
-                    total_weight_delta += mechanism.weight
+            total_weight_eps += mechanism.weight * mechanism.mechanism_spec.count
+            if mechanism.mechanism_spec.use_delta():
+                total_weight_delta += mechanism.weight * mechanism.mechanism_spec.count
 
         for mechanism in self._mechanisms:
             eps = delta = 0
-            for i in range(mechanism.mechanism_spec.count):
-                if total_weight_eps:
-                    numerator = self._total_epsilon * mechanism.weight
-                    eps = numerator / total_weight_eps
-                if mechanism.mechanism_spec.use_delta():
-                    if total_weight_delta:
-                        numerator = self._total_delta * mechanism.weight
-                        delta = numerator / total_weight_delta
+            if total_weight_eps:
+                numerator = self._total_epsilon * mechanism.weight
+                eps = numerator / total_weight_eps
+            if mechanism.mechanism_spec.use_delta():
+                if total_weight_delta:
+                    numerator = self._total_delta * mechanism.weight
+                    delta = numerator / total_weight_delta
             mechanism.mechanism_spec.set_eps_delta(eps, delta)
 
 
