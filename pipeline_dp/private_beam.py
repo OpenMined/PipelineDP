@@ -7,19 +7,19 @@ import pipeline_dp
 from pipeline_dp import aggregate_params, budget_accounting
 
 
-class PrivateTransform(ptransform.PTransform):
-    """Abstract class for PrivateTransforms."""
+class PrivatePTransform(ptransform.PTransform):
+    """Abstract class for PrivatePTransforms."""
 
-    def __init__(self, return_private: bool, label: Optional[str] = None):
+    def __init__(self, return_anonymized: bool, label: Optional[str] = None):
         super().__init__(label)
-        self._return_private = return_private
+        self._return_anonymized = return_anonymized
         self._budget_accountant = None
         self._privacy_id_extractor = None
 
     def set_additional_parameters(
             self, budget_accountant: budget_accounting.BudgetAccountant,
             privacy_id_extractor: Callable):
-        """Set the additional parameters needed for the private transform."""
+        """Sets the additional parameters needed for the private transform."""
         self._budget_accountant = budget_accountant
         self._privacy_id_extractor = privacy_id_extractor
 
@@ -28,8 +28,11 @@ class PrivateTransform(ptransform.PTransform):
         pass
 
 
-class PrivateCollection:
-    """Private counterpart for PCollection."""
+class PrivatePCollection:
+    """Private counterpart for PCollection.
+
+    PrivatePCollection guarantees that only anonymized data within the specified
+    privacy budget can be extracted from it through PrivatePTransforms."""
 
     def __init__(self, pcol: pvalue.PCollection,
                  budget_accountant: budget_accounting.BudgetAccountant,
@@ -38,10 +41,10 @@ class PrivateCollection:
         self._budget_accountant = budget_accountant
         self._privacy_id_extractor = privacy_id_extractor
 
-    def __or__(self, private_transform: PrivateTransform):
-        if not isinstance(private_transform, PrivateTransform):
+    def __or__(self, private_transform: PrivatePTransform):
+        if not isinstance(private_transform, PrivatePTransform):
             raise TypeError(
-                "private_transform should be of type PrivateTransform but is " +
+                "private_transform should be of type PrivatePTransform but is " +
                 "%s", private_transform)
 
         private_transform.set_additional_parameters(
@@ -49,35 +52,34 @@ class PrivateCollection:
             privacy_id_extractor=self._privacy_id_extractor)
         transformed = self._pcol.pipeline.apply(private_transform, self._pcol)
 
-        return (PrivateCollection(transformed, self._budget_accountant,
-                                  self._privacy_id_extractor)
-                if private_transform._return_private else transformed)
+        return (transformed if private_transform._return_anonymized else (
+            PrivatePCollection(transformed, self._budget_accountant,
+                              self._privacy_id_extractor)))
 
 
-class MakePrivate(PrivateTransform):
-    """Transform class for creating a PrivateCollection."""
+class MakePrivate(PrivatePTransform):
+    """Transform class for creating a PrivatePCollection."""
 
     def __init__(self,
                  budget_accountant: budget_accounting.BudgetAccountant,
                  privacy_id_extractor: Callable,
                  label: Optional[str] = None):
-        super().__init__(return_private=True, label=label)
+        super().__init__(return_anonymized=False, label=label)
         self._budget_accountant = budget_accountant
         self._privacy_id_extractor = privacy_id_extractor
 
     def expand(self, pcol: pvalue.PCollection):
-        return PrivateCollection(pcol, self._budget_accountant,
+        return PrivatePCollection(pcol, self._budget_accountant,
                                  self._privacy_id_extractor)
 
 
-class Sum(PrivateTransform):
-    """Transform class for performing DP Sum on PrivateCollection."""
+class Sum(PrivatePTransform):
+    """Transform class for performing DP Sum on PrivatePCollection."""
 
     def __init__(self,
                  sum_params: aggregate_params.SumParams,
-                 return_private: bool,
                  label: Optional[str] = None):
-        super().__init__(return_private=return_private, label=label)
+        super().__init__(return_anonymized=True, label=label)
         self._sum_params = sum_params
 
     def expand(self, pcol: pvalue.PCollection) -> pvalue.PCollection:

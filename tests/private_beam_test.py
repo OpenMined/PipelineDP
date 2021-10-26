@@ -9,7 +9,7 @@ from pipeline_dp import private_beam
 from pipeline_dp import aggregate_params, budget_accounting
 
 
-class SimplePrivateTransform(private_beam.PrivateTransform):
+class SimplePrivatePTransform(private_beam.PrivatePTransform):
 
     def expand(self, pcol):
         return pcol | "Identity transform" >> beam.Map(lambda x: x)
@@ -38,7 +38,7 @@ class PrivateBeamTest(unittest.TestCase):
 
             # Assert
             self.assertIsInstance(private_collection,
-                                  private_beam.PrivateCollection)
+                                  private_beam.PrivatePCollection)
             self.assertEqual(private_collection._budget_accountant,
                              budget_accountant)
             self.assertEqual(private_collection._privacy_id_extractor,
@@ -60,14 +60,14 @@ class PrivateBeamTest(unittest.TestCase):
             # Act and Assert
             with self.assertRaises(TypeError) as context:
                 (private_collection | 'Non private transform on '
-                 'privateCollection' >> beam.Map(lambda x: x))
+                 'PrivatePCollection' >> beam.Map(lambda x: x))
             self.assertIsInstance(private_collection,
-                                  private_beam.PrivateCollection)
+                                  private_beam.PrivatePCollection)
             self.assertTrue(
                 "private_transform should be of type "
-                "PrivateTransform but is " in str(context.exception))
+                "PrivatePTransform but is " in str(context.exception))
 
-    def test_transform_with_make_private_enabled_returns_private_collection(
+    def test_transform_with_return_anonymized_disabled_returns_private_collection(
             self):
         runner = fn_api_runner.FnApiRunner()
         with beam.Pipeline(runner=runner) as pipeline:
@@ -82,13 +82,13 @@ class PrivateBeamTest(unittest.TestCase):
                     privacy_id_extractor=PrivateBeamTest.privacy_id_extractor))
 
             # Act
-            transformed = private_collection | SimplePrivateTransform(
-                return_private=True)
+            transformed = private_collection | SimplePrivatePTransform(
+                return_anonymized=False)
 
             # Assert
-            self.assertIsInstance(transformed, private_beam.PrivateCollection)
+            self.assertIsInstance(transformed, private_beam.PrivatePCollection)
 
-    def test_transform_with_make_private_disabled_returns_PCollection(self):
+    def test_transform_with_return_anonymized_enabled_returns_PCollection(self):
         runner = fn_api_runner.FnApiRunner()
         with beam.Pipeline(runner=runner) as pipeline:
             # Arrange
@@ -102,8 +102,8 @@ class PrivateBeamTest(unittest.TestCase):
                     privacy_id_extractor=PrivateBeamTest.privacy_id_extractor))
 
             # Act
-            transformed = private_collection | SimplePrivateTransform(
-                return_private=False)
+            transformed = private_collection | SimplePrivatePTransform(
+                return_anonymized=True)
 
             # Assert
             self.assertIsInstance(transformed, pvalue.PCollection)
@@ -134,8 +134,7 @@ class PrivateBeamTest(unittest.TestCase):
                 value_extractor=lambda x: x)
 
             # Act
-            transformer = private_beam.Sum(sum_params=sum_params,
-                                           return_private=False)
+            transformer = private_beam.Sum(sum_params=sum_params)
             private_collection | transformer
 
             # Assert
