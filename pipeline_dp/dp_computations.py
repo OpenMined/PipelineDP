@@ -5,6 +5,7 @@ import pipeline_dp
 # TODO: import only modules https://google.github.io/styleguide/pyguide.html#22-imports
 from pipeline_dp.aggregate_params import NoiseKind
 from dataclasses import dataclass
+from pydp.algorithms import numerical_mechanisms as dp_mechanisms
 
 
 @dataclass
@@ -85,8 +86,9 @@ def apply_laplace_mechanism(value: float, eps: float, l1_sensitivity: float):
     Returns:
         The value resulted after adding the noise.
     """
-    # TODO: use the secure noise instead of np.random
-    return value + np.random.laplace(0, l1_sensitivity / eps)
+    mechanism = dp_mechanisms.LaplaceMechanism(epsilon=eps,
+                                               sensitivity=l1_sensitivity)
+    return mechanism.add_noise(value)
 
 
 def apply_gaussian_mechanism(value: float, eps: float, delta: float,
@@ -102,9 +104,10 @@ def apply_gaussian_mechanism(value: float, eps: float, delta: float,
     Returns:
         The value resulted after adding the noise.
     """
-    sigma = compute_sigma(eps, delta, l2_sensitivity)
-    # TODO: use the secure noise instead of np.random
-    return value + np.random.normal(0, sigma)
+    mechanism = dp_mechanisms.GaussianMechanism(epsilon=eps,
+                                                delta=delta,
+                                                sensitivity=l2_sensitivity)
+    return mechanism.add_noise(value)
 
 
 def _add_random_noise(
