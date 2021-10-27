@@ -104,9 +104,9 @@ def apply_gaussian_mechanism(value: float, eps: float, delta: float,
     Returns:
         The value resulted after adding the noise.
     """
-    mechanism = dp_mechanisms.GaussianMechanism(epsilon=eps,
-                                                delta=delta,
-                                                sensitivity=l2_sensitivity)
+    # TODO: use named arguments, when argument names are added in PyDP on PR
+    # https://github.com/OpenMined/PyDP/pull/398.
+    mechanism = dp_mechanisms.GaussianMechanism(eps, delta, l2_sensitivity)
     return mechanism.add_noise(value)
 
 

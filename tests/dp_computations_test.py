@@ -8,7 +8,7 @@ import pipeline_dp.dp_computations as dp_computations
 from pipeline_dp.aggregate_params import NoiseKind
 
 
-class MeanVarParams(unittest.TestCase):
+class DPComputationsTest(unittest.TestCase):
 
     def test_l0_sensitivity(self):
         params = dp_computations.MeanVarParams(
@@ -111,9 +111,7 @@ class MeanVarParams(unittest.TestCase):
             value=20, eps=0.5, delta=1e-10, l2_sensitivity=3)
 
         # Assert
-        gaussian_mechanism.assert_called_with(epsilon=0.5,
-                                              delta=1e-10,
-                                              sensitivity=3)
+        gaussian_mechanism.assert_called_with(0.5, 1e-10, 3)
         mock_gaussian_mechanism.add_noise.assert_called_with(20)
         self.assertEqual("value_with_noise", anonymized_value)
 
