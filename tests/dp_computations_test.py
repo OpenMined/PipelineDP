@@ -46,7 +46,7 @@ class DPComputationsTest(unittest.TestCase):
                                np.sqrt(2) * l1_sensitivity / eps,
                                delta=0.1)
         self.assertAlmostEqual(skew(results), 0, delta=0.1)
-        self.assertAlmostEqual(kurtosis(results), 3, delta=1)
+        self.assertAlmostEqual(kurtosis(results), 3, delta=2)
 
     def _test_gaussian_noise(self, results, value, eps, delta, l2_sensitivity):
         self.assertAlmostEqual(np.mean(results), value, delta=0.1)
