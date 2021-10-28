@@ -70,9 +70,9 @@ def compute_sigma(eps: float, delta: float, l2_sensitivity: float):
         delta: The delta value.
         l2_sensitivity: The L2 sensitivity.
     """
-    # TODO: use the optimal sigma.
-    # Theorem 3.22: https://www.cis.upenn.edu/~aaroth/Papers/privacybook.pdf
-    return np.sqrt(2 * np.log(1.25 / delta)) * l2_sensitivity / eps
+    # TODO: use named arguments, when argument names are added in PyDP on PR
+    # https://github.com/OpenMined/PyDP/pull/398.
+    return dp_mechanisms.GaussianMechanism(eps, delta, l2_sensitivity).std
 
 
 def apply_laplace_mechanism(value: float, eps: float, l1_sensitivity: float):

@@ -7,6 +7,8 @@ from unittest.mock import MagicMock
 import pipeline_dp.dp_computations as dp_computations
 from pipeline_dp.aggregate_params import NoiseKind
 
+N_ITERATIONS = 200000
+
 
 class DPComputationsTest(unittest.TestCase):
 
@@ -33,13 +35,10 @@ class DPComputationsTest(unittest.TestCase):
 
     def test_compute_sigma(self):
         self.assertEqual(
-            dp_computations.compute_sigma(eps=1, delta=1, l2_sensitivity=10),
-            np.sqrt(2 * np.log(1.25)) * 10)
-        self.assertEqual(
+            114.375,
             dp_computations.compute_sigma(eps=0.5,
                                           delta=1e-10,
-                                          l2_sensitivity=10),
-            np.sqrt(2 * np.log(1.25 / 1e-10)) * 20)
+                                          l2_sensitivity=10))
 
     def _test_laplace_noise(self, results, value, eps, l1_sensitivity):
         self.assertAlmostEqual(np.mean(results), value, delta=0.1)
@@ -47,7 +46,7 @@ class DPComputationsTest(unittest.TestCase):
                                np.sqrt(2) * l1_sensitivity / eps,
                                delta=0.1)
         self.assertAlmostEqual(skew(results), 0, delta=0.1)
-        self.assertAlmostEqual(kurtosis(results), 3, delta=0.1)
+        self.assertAlmostEqual(kurtosis(results), 3, delta=1)
 
     def _test_gaussian_noise(self, results, value, eps, delta, l2_sensitivity):
         self.assertAlmostEqual(np.mean(results), value, delta=0.1)
@@ -132,7 +131,7 @@ class DPComputationsTest(unittest.TestCase):
             l0_sensitivity, linf_sensitivity)
         results = [
             dp_computations.compute_dp_count(count=10, dp_params=params)
-            for _ in range(1000000)
+            for _ in range(N_ITERATIONS)
         ]
         self._test_laplace_noise(results, 10, params.eps, l1_sensitivity)
 
@@ -142,7 +141,7 @@ class DPComputationsTest(unittest.TestCase):
             l0_sensitivity, linf_sensitivity)
         results = [
             dp_computations.compute_dp_count(count=10, dp_params=params)
-            for _ in range(1000000)
+            for _ in range(N_ITERATIONS)
         ]
         self._test_gaussian_noise(results, 10, params.eps, params.delta,
                                   l2_sensitivity)
@@ -165,7 +164,7 @@ class DPComputationsTest(unittest.TestCase):
             l0_sensitivity, linf_sensitivity)
         results = [
             dp_computations.compute_dp_sum(sum=10, dp_params=params)
-            for _ in range(1000000)
+            for _ in range(N_ITERATIONS)
         ]
         self._test_laplace_noise(results, 10, params.eps, l1_sensitivity)
 
@@ -175,7 +174,7 @@ class DPComputationsTest(unittest.TestCase):
             l0_sensitivity, linf_sensitivity)
         results = [
             dp_computations.compute_dp_sum(sum=10, dp_params=params)
-            for _ in range(1000000)
+            for _ in range(N_ITERATIONS)
         ]
         self._test_gaussian_noise(results, 10, params.eps, params.delta,
                                   l2_sensitivity)
@@ -216,7 +215,7 @@ class DPComputationsTest(unittest.TestCase):
             dp_computations.compute_dp_mean(count=1000,
                                             sum=10000,
                                             dp_params=params)
-            for _ in range(1000000)
+            for _ in range(N_ITERATIONS)
         ]
         count_values, sum_values, mean_values = zip(*results)
         self._test_laplace_noise(
@@ -264,7 +263,7 @@ class DPComputationsTest(unittest.TestCase):
                                            sum=1000000,
                                            sum_squares=20000000,
                                            dp_params=params)
-            for _ in range(1500000)
+            for _ in range(N_ITERATIONS)
         ]
         count_values, sum_values, sum_squares_values, var_values = zip(*results)
         self._test_laplace_noise(
@@ -282,7 +281,7 @@ class DPComputationsTest(unittest.TestCase):
                                            sum=1000000,
                                            sum_squares=20000000,
                                            dp_params=params)
-            for _ in range(1500000)
+            for _ in range(N_ITERATIONS)
         ]
         count_values, sum_values, sum_squares_values, var_values = zip(*results)
         self._test_gaussian_noise(
