@@ -21,7 +21,7 @@ class PrivateRDD:
     def map(self, fn: Callable) -> PrivateRDD:
         """ A Spark map counterpart.
 
-        The transformation keep the state (budget_accountant, privacy_id_extractor, etc.)
+        The transformation keeps the state (budget_accountant, privacy_id_extractor, etc.)
         """
         rdd = self._rdd.map(fn)
         return make_private(rdd, self._budget_accountant,
@@ -30,7 +30,7 @@ class PrivateRDD:
     def flat_map(self, fn: Callable) -> PrivateRDD:
         """ A Spark flatMap counterpart.
 
-        The transformation keep the state (budget_accountant, privacy_id_extractor, etc.)
+        The transformation keeps the state (budget_accountant, privacy_id_extractor, etc.)
         """
         rdd = self._rdd.flatMap(fn)
         return make_private(rdd, self._budget_accountant,
