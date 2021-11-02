@@ -50,7 +50,7 @@ class NaiveBudgetAccountantTest(unittest.TestCase):
 
         self.assertEqual(budget1.eps, 0.25)
         self.assertEqual(budget1.delta,
-                         0)  # Delta should be 0 if mechanism is Gaussian.
+                         0)  # Delta should be 0 if mechanism is Laplace.
 
         self.assertEqual(budget2.eps, 0.75)
         self.assertEqual(budget2.delta, 1e-6)
@@ -66,7 +66,7 @@ class NaiveBudgetAccountantTest(unittest.TestCase):
 
         self.assertEqual(budget1.eps, 0.4)
         self.assertEqual(budget1.delta,
-                         0)  # Delta should be 0 if mechanism is Gaussian.
+                         0)  # Delta should be 0 if mechanism is Laplace.
 
         self.assertEqual(budget2.eps, 0.3)
         self.assertEqual(budget2.delta, 5e-7)
