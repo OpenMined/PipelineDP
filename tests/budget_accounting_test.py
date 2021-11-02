@@ -50,10 +50,26 @@ class NaiveBudgetAccountantTest(unittest.TestCase):
 
         self.assertEqual(budget1.eps, 0.25)
         self.assertEqual(budget1.delta,
-                         0)  # Delta should be 0 if mechanism is Gaussian.
+                         0)  # Delta should be 0 if mechanism is Laplace.
 
         self.assertEqual(budget2.eps, 0.75)
         self.assertEqual(budget2.delta, 1e-6)
+
+    def test_count(self):
+        budget_accountant = NaiveBudgetAccountant(total_epsilon=1,
+                                                  total_delta=1e-6)
+        budget1 = budget_accountant.request_budget(
+            mechanism_type=MechanismType.LAPLACE, weight=4)
+        budget2 = budget_accountant.request_budget(
+            mechanism_type=MechanismType.GAUSSIAN, weight=3, count=2)
+        budget_accountant.compute_budgets()
+
+        self.assertEqual(budget1.eps, 0.4)
+        self.assertEqual(budget1.delta,
+                         0)  # Delta should be 0 if mechanism is Laplace.
+
+        self.assertEqual(budget2.eps, 0.3)
+        self.assertEqual(budget2.delta, 5e-7)
 
 
 class PLDBudgetAccountantTest(unittest.TestCase):
