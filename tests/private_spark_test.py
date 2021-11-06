@@ -26,7 +26,7 @@ class PrivateRDDTest(unittest.TestCase):
         prdd = private_spark.PrivateRDD(dist_data, budget_accountant,
                                         privacy_id_extractor)
 
-        result = prdd.map(lambda x: (x[0], x[1] * 2))
+        result = prdd.map(lambda x: x * 2)
 
         self.assertEqual(result._rdd.collect(), [(1, 22), (2, 24)])
         self.assertEqual(result._budget_accountant, prdd._budget_accountant)
@@ -44,8 +44,7 @@ class PrivateRDDTest(unittest.TestCase):
         prdd = private_spark.PrivateRDD(dist_data, budget_accountant,
                                         privacy_id_extractor)
 
-        result = prdd.flat_map(lambda x: [(x[0], x[1] * 2),
-                                          (x[0], x[1] * 2 + 1)])
+        result = prdd.flat_map(lambda x: [x * 2, x * 2 + 1])
 
         self.assertEqual(result._rdd.collect(), [(1, 22), (1, 23), (2, 24),
                                                  (2, 25)])

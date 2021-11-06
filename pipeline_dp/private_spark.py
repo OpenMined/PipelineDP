@@ -19,20 +19,24 @@ class PrivateRDD:
         self._privacy_id_extractor = privacy_id_extractor
 
     def map(self, fn: Callable) -> PrivateRDD:
-        """ A Spark map counterpart.
+        """ A Spark mapValues equivalent.
 
-        The transformation keeps the state (budget_accountant, privacy_id_extractor, etc.)
+        Keeps the state (namely budget_accountant and privacy_id_extractor).
+        Assumes that `self._rdd` consists of tuples `(privacy_id, element)`
+        and transforms each `element` according to the supplied function `fn`.
         """
-        rdd = self._rdd.map(fn)
+        rdd = self._rdd.mapValues(fn)
         return make_private(rdd, self._budget_accountant,
                             self._privacy_id_extractor)
 
     def flat_map(self, fn: Callable) -> PrivateRDD:
-        """ A Spark flatMap counterpart.
+        """ A Spark flatMapValues equivalent.
 
-        The transformation keeps the state (budget_accountant, privacy_id_extractor, etc.)
+        Keeps the state (namely budget_accountant and privacy_id_extractor).
+        Assumes that `self._rdd` consists of tuples `(privacy_id, element)`
+        and transforms each `element` according to the supplied function `fn`.
         """
-        rdd = self._rdd.flatMap(fn)
+        rdd = self._rdd.flatMapValues(fn)
         return make_private(rdd, self._budget_accountant,
                             self._privacy_id_extractor)
 
