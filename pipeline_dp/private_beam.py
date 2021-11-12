@@ -125,6 +125,7 @@ class FlatMap(PrivatePTransform):
     class _FlattenValues(beam.DoFn):
         """Inner class for flattening values of key value pair.
         Flattens (1, (2,3,4)) into ((1,2), (1,3), (1,4))"""
+
         def process(self, row):
             key = row[0]
             values = row[1] if isinstance(row[1], Iterable) else [row[1]]
