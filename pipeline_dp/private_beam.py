@@ -2,6 +2,8 @@ from apache_beam.transforms import ptransform
 from abc import abstractmethod
 from typing import Callable, Optional
 from apache_beam import pvalue
+import apache_beam as beam
+from collections.abc import Iterable
 
 import pipeline_dp
 from pipeline_dp import aggregate_params, budget_accounting
@@ -104,3 +106,35 @@ class Sum(PrivatePTransform):
             value_extractor=self._sum_params.value_extractor)
 
         return dp_engine.aggregate(pcol, params, data_extractors)
+
+
+class Map(PrivatePTransform):
+    """Transform class for performing Map on PrivatePCollection."""
+
+    def __init__(self, fn: Callable, label: Optional[str] = None):
+        super().__init__(return_anonymized=False, label=label)
+        self._fn = fn
+
+    def expand(self, pcol: pvalue.PCollection):
+        return pcol | "map values" >> beam.Map(lambda x: (x[0], self._fn(x[1])))
+
+
+class FlatMap(PrivatePTransform):
+    """Transform class for performing FlatMap on PrivatePCollection."""
+
+    class _FlattenValues(beam.DoFn):
+        """Inner class for flattening values of key value pair.
+        Flattens (1, (2,3,4)) into ((1,2), (1,3), (1,4))"""
+        def process(self, row):
+            key = row[0]
+            values = row[1] if isinstance(row[1], Iterable) else [row[1]]
+            for value in values:
+                yield key, value
+
+    def __init__(self, fn: Callable, label: Optional[str] = None):
+        super().__init__(return_anonymized=False, label=label)
+        self._fn = fn
+
+    def expand(self, pcol: pvalue.PCollection):
+        return pcol | "map values" >> beam.Map(lambda x: (x[0], self._fn(x[
+            1]))) | "flatten values" >> beam.ParDo(FlatMap._FlattenValues())
