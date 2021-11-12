@@ -107,6 +107,7 @@ class Sum(PrivatePTransform):
 
         return dp_engine.aggregate(pcol, params, data_extractors)
 
+
 class Map(PrivatePTransform):
     """Transform class for performing Map on PrivatePCollection."""
 
