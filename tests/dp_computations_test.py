@@ -271,7 +271,7 @@ class DPComputationsTest(unittest.TestCase):
             dp_computations.compute_l1_sensitivity(l0_sensitivity,
                                                    count_linf_sensitivity))
         self.assertAlmostEqual(np.mean(sum_values), 1000000, delta=1)
-        self.assertAlmostEqual(np.mean(sum_squares_values), 20000000, delta=1)
+        self.assertAlmostEqual(np.mean(sum_squares_values), 20000000, delta=2)
         self.assertAlmostEqual(np.mean(var_values), 100, delta=0.1)
 
         # Gaussian Mechanism
