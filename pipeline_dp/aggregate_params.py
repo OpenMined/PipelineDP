@@ -2,7 +2,6 @@
 
 from dataclasses import dataclass
 from enum import Enum
-from pyspark import RDD
 from typing import Any, Iterable, Callable, Union
 
 
@@ -92,6 +91,6 @@ class SumParams:
     low: float
     high: float
     budget_weight: float
-    public_partitions: Union[list, RDD]
+    public_partitions: Union[list, 'PCollection', 'RDD']
     partition_extractor: Callable
     value_extractor: Callable
