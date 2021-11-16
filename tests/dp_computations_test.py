@@ -41,21 +41,21 @@ class DPComputationsTest(unittest.TestCase):
                                           l2_sensitivity=10))
 
     def _test_laplace_noise(self, results, value, eps, l1_sensitivity):
-        self.assertAlmostEqual(np.mean(results), value, delta=0.1)
+        self.assertAlmostEqual(np.mean(results), value, delta=0.5)
         self.assertAlmostEqual(np.std(results),
                                np.sqrt(2) * l1_sensitivity / eps,
-                               delta=0.1)
-        self.assertAlmostEqual(skew(results), 0, delta=0.1)
+                               delta=0.5)
+        self.assertAlmostEqual(skew(results), 0, delta=0.5)
         self.assertAlmostEqual(kurtosis(results), 3, delta=2)
 
     def _test_gaussian_noise(self, results, value, eps, delta, l2_sensitivity):
-        self.assertAlmostEqual(np.mean(results), value, delta=0.1)
+        self.assertAlmostEqual(np.mean(results), value, delta=0.5)
         self.assertAlmostEqual(np.std(results),
                                dp_computations.compute_sigma(
                                    eps, delta, l2_sensitivity),
-                               delta=0.1)
-        self.assertAlmostEqual(skew(results), 0, delta=0.1)
-        self.assertAlmostEqual(kurtosis(results), 0, delta=0.1)
+                               delta=0.5)
+        self.assertAlmostEqual(skew(results), 0, delta=0.5)
+        self.assertAlmostEqual(kurtosis(results), 0, delta=0.5)
 
     def test_apply_laplace_mechanism(self):
         results = [
@@ -223,7 +223,7 @@ class DPComputationsTest(unittest.TestCase):
             dp_computations.compute_l1_sensitivity(l0_sensitivity,
                                                    count_linf_sensitivity))
         self.assertAlmostEqual(np.mean(sum_values), 10000, delta=0.2)
-        self.assertAlmostEqual(np.mean(mean_values), 10, delta=0.1)
+        self.assertAlmostEqual(np.mean(mean_values), 10, delta=0.2)
 
         # Gaussian Mechanism
         params.noise_kind = NoiseKind.GAUSSIAN
