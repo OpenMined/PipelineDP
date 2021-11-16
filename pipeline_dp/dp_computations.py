@@ -5,6 +5,7 @@ import pipeline_dp
 # TODO: import only modules https://google.github.io/styleguide/pyguide.html#22-imports
 from pipeline_dp.aggregate_params import NoiseKind
 from dataclasses import dataclass
+from pydp.algorithms import numerical_mechanisms as dp_mechanisms
 
 
 @dataclass
@@ -69,9 +70,9 @@ def compute_sigma(eps: float, delta: float, l2_sensitivity: float):
         delta: The delta value.
         l2_sensitivity: The L2 sensitivity.
     """
-    # TODO: use the optimal sigma.
-    # Theorem 3.22: https://www.cis.upenn.edu/~aaroth/Papers/privacybook.pdf
-    return np.sqrt(2 * np.log(1.25 / delta)) * l2_sensitivity / eps
+    # TODO: use named arguments, when argument names are added in PyDP on PR
+    # https://github.com/OpenMined/PyDP/pull/398.
+    return dp_mechanisms.GaussianMechanism(eps, delta, l2_sensitivity).std
 
 
 def apply_laplace_mechanism(value: float, eps: float, l1_sensitivity: float):
@@ -85,8 +86,9 @@ def apply_laplace_mechanism(value: float, eps: float, l1_sensitivity: float):
     Returns:
         The value resulted after adding the noise.
     """
-    # TODO: use the secure noise instead of np.random
-    return value + np.random.laplace(0, l1_sensitivity / eps)
+    mechanism = dp_mechanisms.LaplaceMechanism(epsilon=eps,
+                                               sensitivity=l1_sensitivity)
+    return mechanism.add_noise(value)
 
 
 def apply_gaussian_mechanism(value: float, eps: float, delta: float,
@@ -102,9 +104,10 @@ def apply_gaussian_mechanism(value: float, eps: float, delta: float,
     Returns:
         The value resulted after adding the noise.
     """
-    sigma = compute_sigma(eps, delta, l2_sensitivity)
-    # TODO: use the secure noise instead of np.random
-    return value + np.random.normal(0, sigma)
+    # TODO: use named arguments, when argument names are added in PyDP on PR
+    # https://github.com/OpenMined/PyDP/pull/398.
+    mechanism = dp_mechanisms.GaussianMechanism(eps, delta, l2_sensitivity)
+    return mechanism.add_noise(value)
 
 
 def _add_random_noise(
