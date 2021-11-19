@@ -133,6 +133,9 @@ class DPEngine:
         col = self._ops.sample_fixed_per_key(
             col, max_contributions_per_partition,
             "Sample per (privacy_id, partition_key)")
+        self._add_report_stage(
+            f"Per-partition contribution: randomly selected not "
+            f"more than {max_contributions_per_partition} contributions")
         # ((privacy_id, partition_key), [value])
         col = self._ops.map_values(
             col, aggregator_fn,
@@ -147,8 +150,11 @@ class DPEngine:
         col = self._ops.sample_fixed_per_key(col, max_partitions_contributed,
                                              "Sample per privacy_id")
 
-        # (privacy_id, [(partition_key, aggregator)])
+        self._add_report_stage(
+            f"Contribution bounding: randomly selected not more than "
+            f"{max_partitions_contributed} partitions per user")
 
+        # (privacy_id, [(partition_key, aggregator)])
         def unnest_cross_partition_bound_sampled_per_key(pid_pk_v):
             pid, pk_values = pid_pk_v
             return (((pid, pk), v) for (pk, v) in pk_values)

@@ -13,7 +13,7 @@ class ReportGeneratorTest(unittest.TestCase):
         self.assertEqual("", ReportGenerator(None).report())
 
     def test_report_params(self):
-        test_report = ("Differential private: Computing metrics: "
+        test_report = ("Differentially private: Computing metrics: "
                        "['p', 'c', 'm', 's', 'v']"
                        "\n1. Eat between (1, 5) snacks"
                        "\n2. Eat a maximum of snack varieties total: 2"

@@ -25,7 +25,7 @@ class ReportGenerator:
         if self._params is None:
             return ""
         title = f"Computing metrics: {[m.value[0] for m in self._params.metrics]}"
-        result = [f"Differential private: {title}"]
+        result = [f"Differentially private: {title}"]
         for i, stage_str in enumerate(self._stages):
             if hasattr(stage_str, "__call__"):
                 result.append(f"{i+1}. {stage_str()}")

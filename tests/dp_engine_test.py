@@ -14,6 +14,7 @@ import pydp.algorithms.partition_selection as partition_selection
 from pipeline_dp import aggregate_params as agg
 from pipeline_dp.accumulator import CountAccumulator
 from pipeline_dp.accumulator import AccumulatorFactory
+from pipeline_dp.pipeline_operations import PipelineOperations
 """DPEngine Test"""
 
 
@@ -74,9 +75,7 @@ class DpEngineTest(unittest.TestCase):
         max_partitions_contributed = 2
         max_contributions_per_partition = 2
 
-        dp_engine = pipeline_dp.DPEngine(
-            NaiveBudgetAccountant(total_epsilon=1, total_delta=1e-10),
-            pipeline_dp.LocalPipelineOperations())
+        dp_engine = self.create_dp_engine_default()
         bound_result = list(
             dp_engine._bound_contributions(
                 input_col,
@@ -92,9 +91,7 @@ class DpEngineTest(unittest.TestCase):
         max_partitions_contributed = 2
         max_contributions_per_partition = 2
 
-        dp_engine = pipeline_dp.DPEngine(
-            NaiveBudgetAccountant(total_epsilon=1, total_delta=1e-10),
-            pipeline_dp.LocalPipelineOperations())
+        dp_engine = self.create_dp_engine_default()
         bound_result = list(
             dp_engine._bound_contributions(
                 input_col,
@@ -112,9 +109,7 @@ class DpEngineTest(unittest.TestCase):
         max_partitions_contributed = 5
         max_contributions_per_partition = 2
 
-        dp_engine = pipeline_dp.DPEngine(
-            NaiveBudgetAccountant(total_epsilon=1, total_delta=1e-10),
-            pipeline_dp.LocalPipelineOperations())
+        dp_engine = self.create_dp_engine_default()
         bound_result = list(
             dp_engine._bound_contributions(
                 input_col,
@@ -137,9 +132,7 @@ class DpEngineTest(unittest.TestCase):
         max_partitions_contributed = 3
         max_contributions_per_partition = 5
 
-        dp_engine = pipeline_dp.DPEngine(
-            NaiveBudgetAccountant(total_epsilon=1, total_delta=1e-10),
-            pipeline_dp.LocalPipelineOperations())
+        dp_engine = self.create_dp_engine_default()
         bound_result = list(
             dp_engine._bound_contributions(
                 input_col,
@@ -209,6 +202,12 @@ class DpEngineTest(unittest.TestCase):
         engine.aggregate(col, params1, data_extractor)
         engine.aggregate(col, params2, data_extractor)
         self.assertEqual(len(engine._report_generators), 2)  # pylint: disable=protected-access
+        self.assertEqual(
+            engine._report_generators[0].report(),
+            "Differentially private: Computing metrics: ['p', 'c', 'm']"
+            "\n1. Per-partition contribution: randomly selected not more than 2 contributions"
+            "\n2. Contribution bounding: randomly selected not more than 3 partitions per user"
+        )
 
     @patch('pipeline_dp.DPEngine._bound_contributions')
     def test_aggregate_computation_graph_verification(self,
@@ -384,6 +383,28 @@ class DpEngineTest(unittest.TestCase):
         # This tests is non-deterministic, but it should pass with probability
         # very close to 1.
         self.assertLess(len(col), 5)
+
+    @staticmethod
+    def create_dp_engine_default(accountant: NaiveBudgetAccountant = None,
+                                 ops: PipelineOperations = None):
+        if not accountant:
+            accountant = NaiveBudgetAccountant(total_epsilon=1,
+                                               total_delta=1e-10)
+        if not ops:
+            ops = pipeline_dp.LocalPipelineOperations()
+        dp_engine = pipeline_dp.DPEngine(accountant, ops)
+        aggregator_params = pipeline_dp.AggregateParams(
+            noise_kind=pipeline_dp.NoiseKind.LAPLACE,
+            metrics=[agg.Metrics.COUNT],
+            max_partitions_contributed=1,
+            max_contributions_per_partition=1)
+        data_extractor = pipeline_dp.DataExtractors(
+            privacy_id_extractor=lambda x: x,
+            partition_extractor=lambda x: f"pk{x//2}",
+            value_extractor=lambda x: x)
+        dp_engine.aggregate([], aggregator_params, data_extractor)
+        dp_engine._add_report_stage("DP Engine Test")
+        return dp_engine
 
     @staticmethod
     def run_e2e_private_partition_selection_large_budget(col, ops):
