@@ -12,8 +12,9 @@ import pipeline_dp
 from pipeline_dp.budget_accounting import NaiveBudgetAccountant
 import pydp.algorithms.partition_selection as partition_selection
 from pipeline_dp import aggregate_params as agg
-from pipeline_dp.accumulator import CountAccumulator
 from pipeline_dp.accumulator import AccumulatorFactory
+from pipeline_dp.accumulator import CountAccumulator
+from pipeline_dp.report_generator import ReportGenerator
 from pipeline_dp.pipeline_operations import PipelineOperations
 """DPEngine Test"""
 
@@ -196,17 +197,27 @@ class DpEngineTest(unittest.TestCase):
             pipeline_dp.accumulator.AccumulatorParams(
                 pipeline_dp.accumulator.CountAccumulator, None)
         ]
-        engine = pipeline_dp.DPEngine(budget_accountant=NaiveBudgetAccountant(
-            total_epsilon=1, total_delta=1e-10),
+        budget_accountant = NaiveBudgetAccountant(total_epsilon=1,
+                                                  total_delta=1e-10)
+        engine = pipeline_dp.DPEngine(budget_accountant=budget_accountant,
                                       ops=pipeline_dp.LocalPipelineOperations())
         engine.aggregate(col, params1, data_extractor)
         engine.aggregate(col, params2, data_extractor)
         self.assertEqual(len(engine._report_generators), 2)  # pylint: disable=protected-access
+        budget_accountant.compute_budgets()
         self.assertEqual(
             engine._report_generators[0].report(),
-            "Differentially private: Computing metrics: ['p', 'c', 'm']"
-            "\n1. Per-partition contribution: randomly selected not more than 2 contributions"
-            "\n2. Contribution bounding: randomly selected not more than 3 partitions per user"
+            "Differentially private: Computing metrics: ['privacy_id_count', 'count', 'mean']"
+            "\n1. Per-partition contribution bounding: randomly selected not more than 2 contributions"
+            "\n2. Cross-partition contribution bounding: randomly selected not more than 3 partitions per user"
+            "\n3. Private Partition selection: using Truncated Geometric method with (eps= 1.0, delta = 1e-10)"
+        )
+        self.assertEqual(
+            engine._report_generators[1].report(),
+            "Differentially private: Computing metrics: ['variance', 'sum', 'mean']"
+            "\n1. Public partition selection: dropped non public partitions"
+            "\n2. Per-partition contribution bounding: randomly selected not more than 3 contributions"
+            "\n3. Cross-partition contribution bounding: randomly selected not more than 1 partitions per user"
         )
 
     @patch('pipeline_dp.DPEngine._bound_contributions')
@@ -270,9 +281,7 @@ class DpEngineTest(unittest.TestCase):
                      ("pid1", ('pk2', 5)), ("pid1", ('pk3', 6)),
                      ("pid1", ('pk4', 7)), ("pid2", ('pk4', 8))]
         max_partitions_contributed = 3
-        engine = pipeline_dp.DPEngine(
-            NaiveBudgetAccountant(total_epsilon=1, total_delta=1e-10),
-            pipeline_dp.LocalPipelineOperations())
+        engine = self.create_dp_engine_default()
         groups = engine._ops.group_by_key(input_col, None)
         groups = engine._ops.map_values(groups,
                                         lambda group: _MockAccumulator(group))
@@ -395,14 +404,10 @@ class DpEngineTest(unittest.TestCase):
         dp_engine = pipeline_dp.DPEngine(accountant, ops)
         aggregator_params = pipeline_dp.AggregateParams(
             noise_kind=pipeline_dp.NoiseKind.LAPLACE,
-            metrics=[agg.Metrics.COUNT],
+            metrics=[],
             max_partitions_contributed=1,
             max_contributions_per_partition=1)
-        data_extractor = pipeline_dp.DataExtractors(
-            privacy_id_extractor=lambda x: x,
-            partition_extractor=lambda x: f"pk{x//2}",
-            value_extractor=lambda x: x)
-        dp_engine.aggregate([], aggregator_params, data_extractor)
+        dp_engine._report_generators.append(ReportGenerator(aggregator_params))
         dp_engine._add_report_stage("DP Engine Test")
         return dp_engine
 

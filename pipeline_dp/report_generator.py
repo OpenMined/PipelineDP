@@ -24,7 +24,7 @@ class ReportGenerator:
         """Constructs a report based on stages and metrics."""
         if self._params is None:
             return ""
-        title = f"Computing metrics: {[m.value[0] for m in self._params.metrics]}"
+        title = f"Computing metrics: {[m.value for m in self._params.metrics]}"
         result = [f"Differentially private: {title}"]
         for i, stage_str in enumerate(self._stages):
             if hasattr(stage_str, "__call__"):
