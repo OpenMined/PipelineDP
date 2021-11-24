@@ -2,6 +2,7 @@
 
 import unittest
 
+import pipeline_dp
 from pipeline_dp.aggregate_params import AggregateParams, Metrics
 from pipeline_dp.report_generator import ReportGenerator
 
@@ -17,7 +18,8 @@ class ReportGeneratorTest(unittest.TestCase):
                        "\n1. Eat between (1, 5) snacks"
                        "\n2. Eat a maximum of snack varieties total: 2"
                        "\n3. Eat a maximum of a single snack variety: 1")
-        params = AggregateParams(max_partitions_contributed=2,
+        params = AggregateParams(noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+                                 max_partitions_contributed=2,
                                  max_contributions_per_partition=1,
                                  low=1,
                                  high=5,
