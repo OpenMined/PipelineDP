@@ -1,18 +1,19 @@
 """DP aggregations."""
+from dataclasses import dataclass
 # TODO: import only modules https://google.github.io/styleguide/pyguide.html#22-imports
 from functools import partial
 from typing import Any, Callable, Tuple
 
-from dataclasses import dataclass
+import pydp.algorithms.partition_selection as partition_selection
+
+from pipeline_dp.accumulator import Accumulator
+from pipeline_dp.accumulator import AccumulatorFactory
+from pipeline_dp.accumulator import CompoundAccumulator
 from pipeline_dp.aggregate_params import AggregateParams
 from pipeline_dp.aggregate_params import MechanismType
 from pipeline_dp.budget_accounting import BudgetAccountant, MechanismSpec
 from pipeline_dp.pipeline_operations import PipelineOperations
 from pipeline_dp.report_generator import ReportGenerator
-from pipeline_dp.accumulator import Accumulator
-from pipeline_dp.accumulator import AccumulatorFactory
-
-import pydp.algorithms.partition_selection as partition_selection
 
 
 @dataclass
@@ -95,7 +96,69 @@ class DPEngine:
         # Compute DP metrics.
         col = self._ops.map_values(col, lambda acc: acc.compute_metrics(),
                                    "Compute DP` metrics")
-:
+
+        return col
+
+    def select_private_partitions(self, col, max_partitions_contributed: int, data_extractors: DataExtractors):
+        """Retrieves a list of differentially-private partitions.
+
+        Args:
+          col: collection with elements of the same type.
+          max_partitions_contributed: Maximum number of partitions per privacy ID. The algorithm will drop contributions
+            over this limit. To keep more data, this should be a good estimate of the realistic upper bound.
+            Significantly over- or under-estimating this may increase the amount of dropped partitions.
+            You can experiment with different values to select which one retains more partitions.
+          data_extractors: functions that extract needed pieces of information
+            from elements of 'col'. Only privacy_id_extractor and partition_extractor are required.
+            value_extractor is not required.
+        """
+        # Extract the columns.
+        col = self._ops.map(
+            col, lambda row: (data_extractors.privacy_id_extractor(row),
+                              data_extractors.partition_extractor(row)),
+            "Extract (privacy_id, partition_key))")
+        # col : (privacy_id, partition_key)
+
+        # Apply cross-partition contribution bounding
+        col = self._ops.group_by_key(col)
+        # col : (privacy_id, [partition_key])
+
+        def k_unique_elements_fn(pid_and_pks):
+            pid, pks = pid_and_pks
+            unique = set()
+            for pk in pks:
+                unique.add(pk)
+                if len(unique) >= max_partitions_contributed:
+                    break
+
+            return ((pid, pk) for pk in unique)
+
+        col = self._ops.flat_map(col, k_unique_elements_fn)
+        # col : (privacy_id, partition_key)
+
+        col = self._ops.sample_fixed_per_key(col, max_partitions_contributed,
+                                             "Sample max_partitions_contributed per privacy_id")
+        # col: (privacy_id, [partition_key])
+
+        def unnest(pid_pks):
+            pid, pks = pid_pks
+            return ((pid, pk) for pk in pks)
+        col = self._ops.flat_map(col, unnest, "Unnest")
+
+        # col: (privacy_id, partition_key)
+
+        # A compound accumulator without any child accumulators is used to calculate the raw privacy ID count.
+        col = self._ops.map_tuple(col, lambda pid, pk: (pk, CompoundAccumulator([])),
+                                  "Drop privacy id and add accumulator")
+        # col : (partition_key, accumulator)
+
+        col = self._ops.reduce_accumulators_per_key(
+            col, "Reduce accumulators per partition key")
+        # col : (partition_key, accumulator)
+
+        col = self._select_private_partitions(col, max_partitions_contributed)
+        col = self._ops.map_tuple(col, lambda pk, acc: pk, "Drop accumulators")
+
         return col
 
     def _drop_not_public_partitions(self, col, public_partitions,
