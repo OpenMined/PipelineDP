@@ -11,7 +11,6 @@ from pipeline_dp.pipeline_operations import PipelineOperations
 from pipeline_dp.report_generator import ReportGenerator
 from pipeline_dp.accumulator import Accumulator
 from pipeline_dp.accumulator import AccumulatorFactory
-from pipeline_dp.accumulator import CompoundAccumulator
 
 import pydp.algorithms.partition_selection as partition_selection
 
@@ -96,42 +95,7 @@ class DPEngine:
         # Compute DP metrics.
         col = self._ops.map_values(col, lambda acc: acc.compute_metrics(),
                                    "Compute DP` metrics")
-
-        return col
-
-    def select_private_partitions(self, col, max_partitions_contributed, data_extractors: DataExtractors):
-        # Extract the columns.
-        col = self._ops.map(
-            col, lambda row: (data_extractors.privacy_id_extractor(row),
-                              data_extractors.partition_extractor(row)),
-            "Extract (privacy_id, partition_key))")
-
-        # col : (privacy_id, partition_key)
-
-        # Cross-partition contribution bounding
-        col = self._ops.sample_fixed_per_key(col, max_partitions_contributed,
-                                             "Sample per privacy_id")
-        # col: (privacy_id, [partition_key])
-
-        def unnest(pid_pks):
-            pid, pks = pid_pks
-            return ((pid, pk) for pk in pks)
-        col = self._ops.flat_map(col, unnest, "Unnest")
-
-        # (privacy_id, partition_key)
-
-        # A compound accumulator without any child accumulators is used to calculate the raw privacy ID count.
-        col = self._ops.map_tuple(col, lambda pid, pk: (pk, CompoundAccumulator([])),
-                                  "Drop privacy id, Add accumulator")
-        # col : (partition_key, accumulator)
-
-        col = self._ops.reduce_accumulators_per_key(
-            col, "Reduce accumulators per partition key")
-        # col : (partition_key, accumulator)
-
-        col = self._select_private_partitions(col, max_partitions_contributed)
-        col = self._ops.map_tuple(col, lambda pk, acc: pk, "Drop accumulators")
-
+:
         return col
 
     def _drop_not_public_partitions(self, col, public_partitions,
