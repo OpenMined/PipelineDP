@@ -90,6 +90,8 @@ class MechanismSpecInternal:
 class BudgetAccountant(abc.ABC):
     """Base class for budget accountants."""
 
+    _weights = []
+
     @abc.abstractmethod
     def request_budget(
             self,
@@ -103,6 +105,34 @@ class BudgetAccountant(abc.ABC):
     @abc.abstractmethod
     def compute_budgets(self):
         pass
+
+    def scope(self, weight: float):
+        return BudgetAccountantScope(self, weight)
+
+    def _enter_scope(self, weight):
+        self._weights.append(weight)
+
+    def _exit_scope(self):
+        self._weights.pop()
+
+    def _get_scope_weight(self):
+        weight = 1.0
+        for w in self._weights:
+            weight *= w
+        return weight
+
+
+@dataclass
+class BudgetAccountantScope:
+    accountant: BudgetAccountant
+    weight: float
+
+    def __enter__(self):
+        self.accountant._enter_scope(self.weight)
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.accountant._exit_scope()
+
 
 
 class NaiveBudgetAccountant(BudgetAccountant):
@@ -156,6 +186,7 @@ class NaiveBudgetAccountant(BudgetAccountant):
             raise AssertionError(
                 "The Gaussian mechanism requires that the pipeline delta is greater than 0"
             )
+        weight *= self._get_scope_weight()
         mechanism_spec = MechanismSpec(mechanism_type=mechanism_type,
                                        _count=count)
         mechanism_spec_internal = MechanismSpecInternal(
@@ -253,6 +284,7 @@ class PLDBudgetAccountant(BudgetAccountant):
             raise AssertionError(
                 "The Gaussian mechanism requires that the pipeline delta is greater than 0"
             )
+        weight *= self._get_scope_weight()
         mechanism_spec = MechanismSpec(mechanism_type=mechanism_type)
         mechanism_spec_internal = MechanismSpecInternal(
             mechanism_spec=mechanism_spec,

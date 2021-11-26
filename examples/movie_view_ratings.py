@@ -52,17 +52,18 @@ def calc_dp_rating_metrics(movie_views, ops, public_partitions):
     dp_engine = pipeline_dp.DPEngine(budget_accountant, ops)
 
     # Specify which DP aggregated metrics to compute.
-    params = pipeline_dp.AggregateParams(
-        noise_kind=pipeline_dp.NoiseKind.LAPLACE,
-        metrics=[
-            pipeline_dp.Metrics.COUNT, pipeline_dp.Metrics.SUM,
-            pipeline_dp.Metrics.PRIVACY_ID_COUNT
-        ],
-        max_partitions_contributed=2,
-        max_contributions_per_partition=1,
-        low=1,
-        high=5,
-        public_partitions=public_partitions)
+    with budget_accountant.scope(1.0): # This isn't needed, it's here just for demoing accounting scopes
+        params = pipeline_dp.AggregateParams(
+            noise_kind=pipeline_dp.NoiseKind.LAPLACE,
+            metrics=[
+                pipeline_dp.Metrics.COUNT, pipeline_dp.Metrics.SUM,
+                pipeline_dp.Metrics.PRIVACY_ID_COUNT
+            ],
+            max_partitions_contributed=2,
+            max_contributions_per_partition=1,
+            low=1,
+            high=5,
+            public_partitions=public_partitions)
 
     # Specify how to extract privacy_id, partition_key and value from an
     # element of movie view collection.

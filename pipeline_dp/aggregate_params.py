@@ -61,7 +61,6 @@ class AggregateParams:
     max_contributions_per_partition: int
     low: float = None
     high: float = None
-    budget_weight: float = 1
     public_partitions: Any = None
 
 
@@ -90,7 +89,6 @@ class SumParams:
     max_contributions_per_partition: int
     low: float
     high: float
-    budget_weight: float
     public_partitions: Union[list, 'PCollection', 'RDD']
     partition_extractor: Callable
     value_extractor: Callable
