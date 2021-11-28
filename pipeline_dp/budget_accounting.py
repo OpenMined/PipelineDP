@@ -91,8 +91,7 @@ class BudgetAccountant(abc.ABC):
     """Base class for budget accountants."""
 
     def __init__(self):
-        # A stack of the nested budget scopes
-        self._scopes = []
+        self._scopes_stack = []
         self._mechanisms = []
 
     @abc.abstractmethod
@@ -110,16 +109,20 @@ class BudgetAccountant(abc.ABC):
         pass
 
     def scope(self, weight: float):
-        """
-        Defines a scope for DP operations that should consume no more than "weight" proportion of the budget
-        of the parent scope. The accountant will automatically scale the budgets of all sub-operations accordingly.
+        """Defines a scope for DP operations that should consume no more than "weight" proportion of the budget
+        of the parent scope.
+
+        The accountant will automatically scale the budgets of all sub-operations accordingly.
 
         Example usage:
           with accountant.scope(weight = 0.5):
              ... some code that consumes DP budget ...
 
-        :param weight: budget weight of all operations made within this scope as compared to.
-        :return: the scope that should be used in a "with" block enclosing the operations consuming the budget.
+        Args:
+            weight: budget weight of all operations made within this scope as compared to.
+
+        Returns:
+            the scope that should be used in a "with" block enclosing the operations consuming the budget.
         """
         return BudgetAccountantScope(self, weight)
 
@@ -130,16 +133,16 @@ class BudgetAccountant(abc.ABC):
         self._mechanisms.append(mechanism)
 
         # Register in all of the current scopes
-        for scope in self._scopes:
+        for scope in self._scopes_stack:
             scope.mechanisms.append(mechanism)
 
         return mechanism
 
     def _enter_scope(self, scope):
-        self._scopes.append(scope)
+        self._scopes_stack.append(scope)
 
     def _exit_scope(self):
-        self._scopes.pop()
+        self._scopes_stack.pop()
 
 
 
@@ -159,12 +162,15 @@ class BudgetAccountantScope:
         self._normalise_mechanism_weights()
 
     def _normalise_mechanism_weights(self):
-        """Normalise all mechanism weights so that they sum up to no more than the weight of the current scope."""
-        total_weight = 0
+        """Normalise all mechanism weights so that they sum up to the weight of the current scope."""
+
+        if not self.mechanisms:
+            return
+
+        total_weight = sum([m.weight for m in self.mechanisms])
+        normalisation_factor = self.weight / total_weight
         for mechanism in self.mechanisms:
-            total_weight += mechanism.weight
-        for mechanism in self.mechanisms:
-            mechanism.weight *= self.weight / total_weight
+            mechanism.weight *= normalisation_factor
 
 
 
@@ -181,12 +187,13 @@ class NaiveBudgetAccountant(BudgetAccountant):
         Raises:
             A ValueError if either argument is out of range.
         """
+        super().__init__()
 
         _validate_epsilon_delta(total_epsilon, total_delta)
 
         self._total_epsilon = total_epsilon
         self._total_delta = total_delta
-        super().__init__()
+
 
     def request_budget(
             self,
@@ -235,7 +242,7 @@ class NaiveBudgetAccountant(BudgetAccountant):
             logging.warning("No budgets were requested.")
             return
 
-        if len(self._scopes) > 0:
+        if self._scopes_stack:
             raise Exception("Cannot call compute_budgets from within a budget scope.");
 
         total_weight_eps = total_weight_delta = 0
@@ -280,13 +287,15 @@ class PLDBudgetAccountant(BudgetAccountant):
             ValueError: Arguments are missing or out of range.
         """
 
+        super().__init__()
+
         _validate_epsilon_delta(total_epsilon, total_delta)
 
         self._total_epsilon = total_epsilon
         self._total_delta = total_delta
         self.minimum_noise_std = None
         self._pld_discretization = pld_discretization
-        super().__init__()
+
 
     def request_budget(
             self,
@@ -339,7 +348,7 @@ class PLDBudgetAccountant(BudgetAccountant):
             logging.warning("No budgets were requested.")
             return
 
-        if len(self._scopes) > 0:
+        if self._scopes_stack:
             raise Exception("Cannot call compute_budgets from within a budget scope.");
 
         if self._total_delta == 0:

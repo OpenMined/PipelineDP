@@ -59,6 +59,7 @@ class AggregateParams:
     metrics: Iterable[Metrics]
     max_partitions_contributed: int
     max_contributions_per_partition: int
+    budget_weight: float = 1
     low: float = None
     high: float = None
     public_partitions: Any = None

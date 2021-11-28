@@ -167,6 +167,3 @@ Thumbs.db
 # End of https://www.toptal.com/developers/gitignore/api/python,jupyternotebooks
 
 poetry.lock
-/dp_libraries/
-/examples/netflix_dataset_100000.txt
-/examples/output.txt
