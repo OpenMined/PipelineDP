@@ -91,8 +91,9 @@ class BudgetAccountant(abc.ABC):
     """Base class for budget accountants."""
 
     def __init__(self):
-        # A stack of weights for the nested budget scopes
-        self._scope_weights = []
+        # A stack of the nested budget scopes
+        self._scopes = []
+        self._mechanisms = []
 
     @abc.abstractmethod
     def request_budget(
@@ -122,29 +123,48 @@ class BudgetAccountant(abc.ABC):
         """
         return BudgetAccountantScope(self, weight)
 
-    def _enter_scope(self, weight):
-        self._scope_weights.append(weight)
+    def _register_mechanism(self, mechanism: MechanismSpecInternal):
+        """Registers this mechanism for the future normalisation."""
+
+        # Register in the global list of mechanisms
+        self._mechanisms.append(mechanism)
+
+        # Register in all of the current scopes
+        for scope in self._scopes:
+            scope.mechanisms.append(mechanism)
+
+        return mechanism
+
+    def _enter_scope(self, scope):
+        self._scopes.append(scope)
 
     def _exit_scope(self):
-        self._scope_weights.pop()
+        self._scopes.pop()
 
-    def _get_scope_weight(self):
-        weight = 1.0
-        for w in self._scope_weights:
-            weight *= w
-        return weight
+
 
 
 @dataclass
 class BudgetAccountantScope:
-    accountant: BudgetAccountant
-    weight: float
+    def __init__(self, accountant, weight):
+        self.weight = weight
+        self.accountant = accountant
+        self.mechanisms = []
 
     def __enter__(self):
-        self.accountant._enter_scope(self.weight)
+        self.accountant._enter_scope(self)
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.accountant._exit_scope()
+        self._normalise_mechanism_weights()
+
+    def _normalise_mechanism_weights(self):
+        """Normalise all mechanism weights so that they sum up to no more than the weight of the current scope."""
+        total_weight = 0
+        for mechanism in self.mechanisms:
+            total_weight += mechanism.weight
+        for mechanism in self.mechanisms:
+            mechanism.weight *= self.weight / total_weight
 
 
 
@@ -166,7 +186,6 @@ class NaiveBudgetAccountant(BudgetAccountant):
 
         self._total_epsilon = total_epsilon
         self._total_delta = total_delta
-        self._mechanisms = []
         super().__init__()
 
     def request_budget(
@@ -200,14 +219,14 @@ class NaiveBudgetAccountant(BudgetAccountant):
             raise AssertionError(
                 "The Gaussian mechanism requires that the pipeline delta is greater than 0"
             )
-        weight *= self._get_scope_weight()
         mechanism_spec = MechanismSpec(mechanism_type=mechanism_type,
                                        _count=count)
         mechanism_spec_internal = MechanismSpecInternal(
             mechanism_spec=mechanism_spec,
             sensitivity=sensitivity,
             weight=weight)
-        self._mechanisms.append(mechanism_spec_internal)
+
+        self._register_mechanism(mechanism_spec_internal)
         return mechanism_spec
 
     def compute_budgets(self):
@@ -215,6 +234,9 @@ class NaiveBudgetAccountant(BudgetAccountant):
         if not self._mechanisms:
             logging.warning("No budgets were requested.")
             return
+
+        if len(self._scopes) > 0:
+            raise Exception("Cannot call compute_budgets from within a budget scope.");
 
         total_weight_eps = total_weight_delta = 0
         for mechanism in self._mechanisms:
@@ -262,7 +284,6 @@ class PLDBudgetAccountant(BudgetAccountant):
 
         self._total_epsilon = total_epsilon
         self._total_delta = total_delta
-        self._mechanisms = []
         self.minimum_noise_std = None
         self._pld_discretization = pld_discretization
         super().__init__()
@@ -299,13 +320,12 @@ class PLDBudgetAccountant(BudgetAccountant):
             raise AssertionError(
                 "The Gaussian mechanism requires that the pipeline delta is greater than 0"
             )
-        weight *= self._get_scope_weight()
         mechanism_spec = MechanismSpec(mechanism_type=mechanism_type)
         mechanism_spec_internal = MechanismSpecInternal(
             mechanism_spec=mechanism_spec,
             sensitivity=sensitivity,
             weight=weight)
-        self._mechanisms.append(mechanism_spec_internal)
+        self._register_mechanism(mechanism_spec_internal)
         return mechanism_spec
 
     def compute_budgets(self):
@@ -316,7 +336,12 @@ class PLDBudgetAccountant(BudgetAccountant):
         entire pipeline.
         """
         if not self._mechanisms:
+            logging.warning("No budgets were requested.")
             return
+
+        if len(self._scopes) > 0:
+            raise Exception("Cannot call compute_budgets from within a budget scope.");
+
         if self._total_delta == 0:
             sum_weights = 0
             for mechanism in self._mechanisms:
