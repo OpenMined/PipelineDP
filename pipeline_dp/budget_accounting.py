@@ -90,7 +90,9 @@ class MechanismSpecInternal:
 class BudgetAccountant(abc.ABC):
     """Base class for budget accountants."""
 
-    _weights = []
+    def __init__(self):
+        # A stack of weights for the nested budget scopes
+        self._scope_weights = []
 
     @abc.abstractmethod
     def request_budget(
@@ -107,17 +109,28 @@ class BudgetAccountant(abc.ABC):
         pass
 
     def scope(self, weight: float):
+        """
+        Defines a scope for DP operations that should consume no more than "weight" proportion of the budget
+        of the parent scope. The accountant will automatically scale the budgets of all sub-operations accordingly.
+
+        Example usage:
+          with accountant.scope(weight = 0.5):
+             ... some code that consumes DP budget ...
+
+        :param weight: budget weight of all operations made within this scope as compared to.
+        :return: the scope that should be used in a "with" block enclosing the operations consuming the budget.
+        """
         return BudgetAccountantScope(self, weight)
 
     def _enter_scope(self, weight):
-        self._weights.append(weight)
+        self._scope_weights.append(weight)
 
     def _exit_scope(self):
-        self._weights.pop()
+        self._scope_weights.pop()
 
     def _get_scope_weight(self):
         weight = 1.0
-        for w in self._weights:
+        for w in self._scope_weights:
             weight *= w
         return weight
 
@@ -154,6 +167,7 @@ class NaiveBudgetAccountant(BudgetAccountant):
         self._total_epsilon = total_epsilon
         self._total_delta = total_delta
         self._mechanisms = []
+        super().__init__()
 
     def request_budget(
             self,
@@ -251,6 +265,7 @@ class PLDBudgetAccountant(BudgetAccountant):
         self._mechanisms = []
         self.minimum_noise_std = None
         self._pld_discretization = pld_discretization
+        super().__init__()
 
     def request_budget(
             self,
