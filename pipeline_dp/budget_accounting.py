@@ -145,10 +145,9 @@ class BudgetAccountant(abc.ABC):
         self._scopes_stack.pop()
 
 
-
-
 @dataclass
 class BudgetAccountantScope:
+
     def __init__(self, accountant, weight):
         self.weight = weight
         self.accountant = accountant
@@ -173,7 +172,6 @@ class BudgetAccountantScope:
             mechanism.weight *= normalisation_factor
 
 
-
 class NaiveBudgetAccountant(BudgetAccountant):
     """Manages the privacy budget."""
 
@@ -193,7 +191,6 @@ class NaiveBudgetAccountant(BudgetAccountant):
 
         self._total_epsilon = total_epsilon
         self._total_delta = total_delta
-
 
     def request_budget(
             self,
@@ -243,7 +240,8 @@ class NaiveBudgetAccountant(BudgetAccountant):
             return
 
         if self._scopes_stack:
-            raise Exception("Cannot call compute_budgets from within a budget scope.");
+            raise Exception(
+                "Cannot call compute_budgets from within a budget scope.")
 
         total_weight_eps = total_weight_delta = 0
         for mechanism in self._mechanisms:
@@ -295,7 +293,6 @@ class PLDBudgetAccountant(BudgetAccountant):
         self._total_delta = total_delta
         self.minimum_noise_std = None
         self._pld_discretization = pld_discretization
-
 
     def request_budget(
             self,
@@ -349,7 +346,8 @@ class PLDBudgetAccountant(BudgetAccountant):
             return
 
         if self._scopes_stack:
-            raise Exception("Cannot call compute_budgets from within a budget scope.");
+            raise Exception(
+                "Cannot call compute_budgets from within a budget scope.")
 
         if self._total_delta == 0:
             sum_weights = 0

@@ -50,7 +50,7 @@ class AggregateParams:
       privacy (e.g. a user) can contribute to a partition.
     low: Lower bound on a value contributed by a unit of privacy in a partition.
     high: Upper bound on a value contributed by a unit of privacy in a
-      partition.
+      partition.[]fd[]p[p'fgdd]b-tt-t
     public_partitions: a collection of partition keys that will be present in
       the result.
   """

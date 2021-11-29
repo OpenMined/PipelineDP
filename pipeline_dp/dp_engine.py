@@ -57,7 +57,7 @@ class DPEngine:
             return self._aggregate(col, params, data_extractors)
 
     def _aggregate(self, col, params: AggregateParams,
-                  data_extractors: DataExtractors):
+                   data_extractors: DataExtractors):
 
         self._report_generators.append(ReportGenerator(params))
 
