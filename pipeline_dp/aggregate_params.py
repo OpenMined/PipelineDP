@@ -67,7 +67,7 @@ class AggregateParams:
 
 @dataclass
 class SumParams:
-    """Specifies parameters for sum calculation from PrivateRDD.
+    """Specifies parameters for differentially-private sum calculation.
 
     Args:
         noise_kind: Kind of noise to use for the DP calculations.
@@ -93,3 +93,4 @@ class SumParams:
     public_partitions: Union[list, 'PCollection', 'RDD']
     partition_extractor: Callable
     value_extractor: Callable
+    budget_weight: float = 1
