@@ -59,15 +59,15 @@ class AggregateParams:
     metrics: Iterable[Metrics]
     max_partitions_contributed: int
     max_contributions_per_partition: int
+    budget_weight: float = 1
     low: float = None
     high: float = None
-    budget_weight: float = 1
     public_partitions: Any = None
 
 
 @dataclass
 class SumParams:
-    """Specifies parameters for sum calculation from PrivateRDD.
+    """Specifies parameters for differentially-private sum calculation.
 
     Args:
         noise_kind: Kind of noise to use for the DP calculations.
@@ -90,7 +90,7 @@ class SumParams:
     max_contributions_per_partition: int
     low: float
     high: float
-    budget_weight: float
     public_partitions: Union[list, 'PCollection', 'RDD']
     partition_extractor: Callable
     value_extractor: Callable
+    budget_weight: float = 1

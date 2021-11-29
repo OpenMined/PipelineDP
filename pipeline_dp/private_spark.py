@@ -35,7 +35,8 @@ class PrivateRDD:
             max_contributions_per_partition,
             low=sum_params.low,
             high=sum_params.high,
-            public_partitions=sum_params.public_partitions)
+            public_partitions=sum_params.public_partitions,
+            budget_weight=sum_params.budget_weight)
 
         data_extractors = pipeline_dp.DataExtractors(
             partition_extractor=sum_params.partition_extractor,
