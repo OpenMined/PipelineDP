@@ -7,36 +7,42 @@ from pipeline_dp import aggregate_params, budget_accounting
 
 
 class PrivateRDD:
-    """ A Spark RDD counterpart.
+    """A Spark RDD counterpart.
 
     PrivateRDD guarantees that only anonymized data
     within the specified privacy budget can be extracted from it through its API.
+
+    PrivateRDD keeps `privacy_id` for each element
+    in order to guarantees correct DP computations.
     """
 
     def __init__(self, rdd, budget_accountant, privacy_id_extractor=None):
         if privacy_id_extractor:
             self._rdd = rdd.map(lambda x: (privacy_id_extractor(x), x))
         else:
+            # It's assumed that rdd is already in format (privacy_id, value)
             self._rdd = rdd
         self._budget_accountant = budget_accountant
 
     def map(self, fn: Callable) -> PrivateRDD:
-        """ A Spark mapValues equivalent.
+        """A Spark map equivalent.
 
-        Keeps the state (namely budget_accountant and privacy_id_extractor).
-        Assumes that `self._rdd` consists of tuples `(privacy_id, element)`
-        and transforms each `element` according to the supplied function `fn`.
+        Keeps track of privacy_id for each element.
+        The output PrivateRDD has the same BudgetAccountant as self.
         """
+        # Assumes that `self._rdd` consists of tuples `(privacy_id, element)`
+        # and transforms each `element` according to the supplied function `fn`.
         rdd = self._rdd.mapValues(fn)
         return make_private(rdd, self._budget_accountant, None)
 
     def flat_map(self, fn: Callable) -> PrivateRDD:
-        """ A Spark flatMapValues equivalent.
+        """A Spark flatMap equivalent.
 
-        Keeps the state (namely budget_accountant and privacy_id_extractor).
-        Assumes that `self._rdd` consists of tuples `(privacy_id, element)`
-        and transforms each `element` according to the supplied function `fn`.
+        Keeps track of privacy_id for each element.
+        The output PrivateRDD has the same BudgetAccountant as self.
         """
+        # Assumes that `self._rdd` consists of tuples `(privacy_id, element)`
+        # and transforms each `element` according to the supplied function `fn`.
         rdd = self._rdd.flatMapValues(fn)
         return make_private(rdd, self._budget_accountant, None)
 
