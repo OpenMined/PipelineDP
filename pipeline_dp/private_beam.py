@@ -116,7 +116,8 @@ class Map(PrivatePTransform):
         self._fn = fn
 
     def expand(self, pcol: pvalue.PCollection):
-        return pcol | "map values" >> beam.Map(lambda x: (x[0], self._fn(x[1])))
+        return pcol | "map values" >> beam.Map(
+            lambda x: (self._privacy_id_extractor(x), self._fn(x)))
 
 
 class FlatMap(PrivatePTransform):
@@ -126,9 +127,13 @@ class FlatMap(PrivatePTransform):
         """Inner class for flattening values of key value pair.
         Flattens (1, (2,3,4)) into ((1,2), (1,3), (1,4))"""
 
+        def __init__(self, privacy_id_extractor: Callable, map_fn: Callable):
+            self._map_fn = map_fn
+            self._privacy_id_extractor = privacy_id_extractor
+
         def process(self, row):
-            key = row[0]
-            values = row[1] if isinstance(row[1], Iterable) else [row[1]]
+            key = self._privacy_id_extractor(row)
+            values = self._map_fn(row)
             for value in values:
                 yield key, value
 
@@ -137,5 +142,7 @@ class FlatMap(PrivatePTransform):
         self._fn = fn
 
     def expand(self, pcol: pvalue.PCollection):
-        return pcol | "map values" >> beam.Map(lambda x: (x[0], self._fn(x[
-            1]))) | "flatten values" >> beam.ParDo(FlatMap._FlattenValues())
+        return pcol | "flatten values" >> beam.ParDo(
+            FlatMap._FlattenValues(
+                privacy_id_extractor=self._privacy_id_extractor,
+                map_fn=self._fn))
