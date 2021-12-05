@@ -10,6 +10,7 @@ from pipeline_dp.accumulator import Accumulator
 from pipeline_dp.accumulator import AccumulatorFactory
 from pipeline_dp.accumulator import CompoundAccumulator
 from pipeline_dp.aggregate_params import AggregateParams
+from pipeline_dp.aggregate_params import SelectPrivatePartitionsParams
 from pipeline_dp.aggregate_params import MechanismType
 from pipeline_dp.budget_accounting import BudgetAccountant, MechanismSpec
 from pipeline_dp.pipeline_operations import PipelineOperations
@@ -91,7 +92,7 @@ class DPEngine:
         # col : (partition_key, accumulator)
 
         if params.public_partitions is None:
-            col = self._select_private_partitions(
+            col = self._select_private_partitions_internal(
                 col, params.max_partitions_contributed)
         else:
             # TODO: add public partitions which are missing in data.
@@ -106,19 +107,21 @@ class DPEngine:
 
         return col
 
-    def select_private_partitions(self, col, max_partitions_contributed: int, data_extractors: DataExtractors):
+    def select_private_partitions(self, col,
+                                  params: SelectPrivatePartitionsParams,
+                                  data_extractors: DataExtractors):
         """Retrieves a list of differentially-private partitions.
 
         Args:
           col: collection with elements of the same type.
-          max_partitions_contributed: Maximum number of partitions per privacy ID. The algorithm will drop contributions
-            over this limit. To keep more data, this should be a good estimate of the realistic upper bound.
-            Significantly over- or under-estimating this may increase the amount of dropped partitions.
-            You can experiment with different values to select which one retains more partitions.
+          params: parameters, see doc for SelectPrivatePartitionsParams.
           data_extractors: functions that extract needed pieces of information
             from elements of 'col'. Only privacy_id_extractor and partition_extractor are required.
             value_extractor is not required.
         """
+        self._report_generators.append(ReportGenerator(params))
+        max_partitions_contributed = params.max_partitions_contributed
+
         # Extract the columns.
         col = self._ops.map(
             col, lambda row: (data_extractors.privacy_id_extractor(row),
@@ -130,17 +133,17 @@ class DPEngine:
         col = self._ops.group_by_key(col)
         # col : (privacy_id, [partition_key])
 
-        def k_unique_elements_fn(pid_and_pks):
+        # Note: This may not be scalable if a single privacy ID contributes
+        # to _way_ too many partitions.
+        def unique_elements_fn(pid_and_pks):
             pid, pks = pid_and_pks
             unique = set()
             for pk in pks:
                 unique.add(pk)
-                if len(unique) >= max_partitions_contributed:
-                    break
 
             return ((pid, pk) for pk in unique)
 
-        col = self._ops.flat_map(col, k_unique_elements_fn)
+        col = self._ops.flat_map(col, unique_elements_fn)
         # col : (privacy_id, partition_key)
 
         col = self._ops.sample_fixed_per_key(col, max_partitions_contributed,
@@ -163,7 +166,7 @@ class DPEngine:
             col, "Reduce accumulators per partition key")
         # col : (partition_key, accumulator)
 
-        col = self._select_private_partitions(col, max_partitions_contributed)
+        col = self._select_private_partitions_internal(col, max_partitions_contributed)
         col = self._ops.map_tuple(col, lambda pk, acc: pk, "Drop accumulators")
 
         return col
@@ -235,7 +238,8 @@ class DPEngine:
                                   unnest_cross_partition_bound_sampled_per_key,
                                   "Unnest")
 
-    def _select_private_partitions(self, col, max_partitions_contributed: int):
+    def _select_private_partitions_internal(self, col,
+                                            max_partitions_contributed: int):
         """Selects and publishes private partitions.
 
         Args:
