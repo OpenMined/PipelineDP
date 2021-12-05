@@ -131,6 +131,7 @@ class DPEngine:
 
         # Apply cross-partition contribution bounding
         col = self._ops.group_by_key(col)
+
         # col : (privacy_id, [partition_key])
 
         # Note: This may not be scalable if a single privacy ID contributes
@@ -146,19 +147,23 @@ class DPEngine:
         col = self._ops.flat_map(col, unique_elements_fn)
         # col : (privacy_id, partition_key)
 
-        col = self._ops.sample_fixed_per_key(col, max_partitions_contributed,
-                                             "Sample max_partitions_contributed per privacy_id")
+        col = self._ops.sample_fixed_per_key(
+            col, max_partitions_contributed,
+            "Sample max_partitions_contributed per privacy_id")
+
         # col: (privacy_id, [partition_key])
 
         def unnest(pid_pks):
             pid, pks = pid_pks
             return ((pid, pk) for pk in pks)
+
         col = self._ops.flat_map(col, unnest, "Unnest")
 
         # col: (privacy_id, partition_key)
 
         # A compound accumulator without any child accumulators is used to calculate the raw privacy ID count.
-        col = self._ops.map_tuple(col, lambda pid, pk: (pk, CompoundAccumulator([])),
+        col = self._ops.map_tuple(col, lambda pid, pk:
+                                  (pk, CompoundAccumulator([])),
                                   "Drop privacy id and add accumulator")
         # col : (partition_key, accumulator)
 
@@ -166,7 +171,8 @@ class DPEngine:
             col, "Reduce accumulators per partition key")
         # col : (partition_key, accumulator)
 
-        col = self._select_private_partitions_internal(col, max_partitions_contributed)
+        col = self._select_private_partitions_internal(
+            col, max_partitions_contributed)
         col = self._ops.map_tuple(col, lambda pk, acc: pk, "Drop accumulators")
 
         return col

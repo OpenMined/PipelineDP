@@ -26,7 +26,6 @@ from dataclasses import dataclass
 import pipeline_dp
 from pipeline_dp.aggregate_params import SelectPrivatePartitionsParams
 
-
 FLAGS = flags.FLAGS
 flags.DEFINE_string('input_file', None, 'The file with the movie view data')
 flags.DEFINE_string('output_file', None, 'Output file')
@@ -34,8 +33,9 @@ flags.DEFINE_enum('framework', None, ['beam', 'spark', 'local'],
                   'Pipeline framework to use.')
 flags.DEFINE_list('public_partitions', None,
                   'List of comma-separated public partition keys')
-flags.DEFINE_boolean('private_partitions', False,
-                  'Output private partitions (do not calculate any DP metrics)')
+flags.DEFINE_boolean(
+    'private_partitions', False,
+    'Output private partitions (do not calculate any DP metrics)')
 
 
 @dataclass
@@ -49,7 +49,8 @@ def calculate_private_result(movie_views, pipeline_operations):
     if FLAGS.private_partitions:
         return get_private_movies(movie_views, pipeline_operations)
     else:
-        return calc_dp_rating_metrics(movie_views, pipeline_operations, get_public_partitions())
+        return calc_dp_rating_metrics(movie_views, pipeline_operations,
+                                      get_public_partitions())
 
 
 def calc_dp_rating_metrics(movie_views, ops, public_partitions):

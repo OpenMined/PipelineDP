@@ -206,8 +206,8 @@ class DpEngineTest(unittest.TestCase):
                                       ops=pipeline_dp.LocalPipelineOperations())
         engine.aggregate(col, params1, data_extractor)
         engine.aggregate(col, params2, data_extractor)
-        engine.select_private_partitions(
-            col, select_partitions_params, data_extractor)
+        engine.select_private_partitions(col, select_partitions_params,
+                                         data_extractor)
         self.assertEqual(len(engine._report_generators), 3)  # pylint: disable=protected-access
         budget_accountant.compute_budgets()
         self.assertEqual(
@@ -420,7 +420,8 @@ class DpEngineTest(unittest.TestCase):
         col = [(u, "pk-many-contribs") for u in range(25)]
 
         # A partition with many contributions, but only a few unique users.
-        col += [(100 + u // 10, "pk-many-contribs-few-users") for u in range(30)]
+        col += [(100 + u // 10, "pk-many-contribs-few-users") for u in range(30)
+               ]
 
         # A partition with few contributions.
         col += [(200 + u, "pk-few-contribs") for u in range(3)]
@@ -429,7 +430,8 @@ class DpEngineTest(unittest.TestCase):
         # 25 users is sufficient to keep the partition, but because of
         # contribution bounding, much less users per partition will be kept.
         for i in range(30):
-            col += [(500 + u, f"few-contribs-after-bound{i}") for u in range(25)]
+            col += [(500 + u, f"few-contribs-after-bound{i}") for u in range(25)
+                   ]
 
         col = list(col)
         data_extractor = pipeline_dp.DataExtractors(
@@ -439,7 +441,8 @@ class DpEngineTest(unittest.TestCase):
         engine = pipeline_dp.DPEngine(budget_accountant=budget_accountant,
                                       ops=pipeline_dp.LocalPipelineOperations())
 
-        col = engine.select_private_partitions(col=col, params=params,
+        col = engine.select_private_partitions(col=col,
+                                               params=params,
                                                data_extractors=data_extractor)
         budget_accountant.compute_budgets()
 

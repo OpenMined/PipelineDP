@@ -118,4 +118,3 @@ class SumParams:
     partition_extractor: Callable
     value_extractor: Callable
     budget_weight: float = 1
-
