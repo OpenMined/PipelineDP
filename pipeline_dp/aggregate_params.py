@@ -25,9 +25,9 @@ class NoiseKind(Enum):
 
 
 class MechanismType(Enum):
-    LAPLACE = 'Laplace'
-    GAUSSIAN = 'Gaussian'
-    GENERIC = 'Truncated Geometric'
+    LAPLACE = 'laplace'
+    GAUSSIAN = 'gaussian'
+    GENERIC = 'generic'
 
 
 class NormKind(Enum):

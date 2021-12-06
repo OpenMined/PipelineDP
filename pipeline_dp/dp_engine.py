@@ -113,8 +113,6 @@ class DPEngine:
             "Extract partition id")
         col = self._ops.filter_by_key(col, public_partitions,
                                       "Filtering out non-public partitions")
-        self._add_report_stage(
-            f"Public partition selection: dropped non public partitions")
         return self._ops.map_tuple(col, lambda k, v: v, "Drop key")
 
     def _bound_contributions(self, col, max_partitions_contributed: int,
@@ -142,9 +140,6 @@ class DPEngine:
         col = self._ops.sample_fixed_per_key(
             col, max_contributions_per_partition,
             "Sample per (privacy_id, partition_key)")
-        self._add_report_stage(
-            f"Per-partition contribution bounding: randomly selected not "
-            f"more than {max_contributions_per_partition} contributions")
         # ((privacy_id, partition_key), [value])
         col = self._ops.map_values(
             col, aggregator_fn,
@@ -159,11 +154,8 @@ class DPEngine:
         col = self._ops.sample_fixed_per_key(col, max_partitions_contributed,
                                              "Sample per privacy_id")
 
-        self._add_report_stage(
-            f"Cross-partition contribution bounding: randomly selected not more than "
-            f"{max_partitions_contributed} partitions per user")
-
         # (privacy_id, [(partition_key, aggregator)])
+
         def unnest_cross_partition_bound_sampled_per_key(pid_pk_v):
             pid, pk_values = pid_pk_v
             return (((pid, pk), v) for (pk, v) in pk_values)
@@ -200,12 +192,7 @@ class DPEngine:
 
         # make filter_fn serializable
         filter_fn = partial(filter_fn, (budget, max_partitions_contributed))
-        self._add_report_stage(
-            lambda:
-            f"Private Partition selection: using {budget.mechanism_type.value} "
-            f"method with (eps= {budget.eps}, delta = {budget.delta})")
-
-        return self._ops.filter(col, filter_fn, "Filter private partitions")
+        return self._ops.filter(col, filter_fn, "Filter private parititions")
 
     def _fix_budget_accounting_if_needed(self, col, accumulator_factory):
         """Adds MechanismSpec to accumulators.
