@@ -1,5 +1,4 @@
 from apache_beam.transforms import ptransform
-
 from abc import abstractmethod
 from typing import Callable, Optional
 from apache_beam import pvalue
