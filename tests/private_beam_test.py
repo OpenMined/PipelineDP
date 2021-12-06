@@ -178,18 +178,14 @@ class PrivateBeamTest(unittest.TestCase):
                     privacy_id_extractor=PrivateBeamTest.privacy_id_extractor))
 
             # Act
-            transformed = private_collection | private_beam.Map(
-                fn=lambda x: x[1]**2)
+            transformer = private_beam.Map(fn=lambda x: x**2)
+            transformed = private_collection | transformer
 
             # Assert
             self.assertIsInstance(transformed, private_beam.PrivatePCollection)
             beam_util.assert_that(
                 transformed._pcol,
-                beam_util.equal_to(
-                    map(
-                        lambda x:
-                        (PrivateBeamTest.privacy_id_extractor(x), x[1]**2),
-                        pcol_input)))
+                beam_util.equal_to(map(lambda x: (x[0], x[1]**2), pcol_input)))
             self.assertEqual(transformed._budget_accountant, budget_accountant)
             self.assertEqual(transformed._privacy_id_extractor,
                              PrivateBeamTest.privacy_id_extractor)
@@ -197,7 +193,7 @@ class PrivateBeamTest(unittest.TestCase):
     def test_FlatMap(self):
 
         def flat_map_fn(x):
-            return [(x[0], x[1] + i) for i in range(2)]
+            return [x + i for i in range(2)]
 
         runner = fn_api_runner.FnApiRunner()
         with beam.Pipeline(runner=runner) as pipeline:
@@ -212,18 +208,41 @@ class PrivateBeamTest(unittest.TestCase):
                     privacy_id_extractor=PrivateBeamTest.privacy_id_extractor))
 
             # Act
-            transformed = private_collection | private_beam.FlatMap(flat_map_fn)
+            transformer = private_beam.FlatMap(flat_map_fn)
+            transformed = private_collection | transformer
 
             # Assert
             self.assertIsInstance(transformed, private_beam.PrivatePCollection)
             beam_util.assert_that(
                 transformed._pcol,
-                beam_util.equal_to([('pid:(1, 2)', (1, 2)),
-                                    ('pid:(1, 2)', (1, 3)),
-                                    ('pid:(2, 3)', (2, 3)),
-                                    ('pid:(2, 3)', (2, 4)),
-                                    ('pid:(3, 4)', (3, 4)),
-                                    ('pid:(3, 4)', (3, 5))]))
+                beam_util.equal_to([(1, 2), (1, 3), (2, 3), (2, 4), (3, 4),
+                                    (3, 5)]))
+            self.assertEqual(transformed._budget_accountant, budget_accountant)
+            self.assertEqual(transformed._privacy_id_extractor,
+                             PrivateBeamTest.privacy_id_extractor)
+
+    def test_FlatMap_with_function_returning_non_iterable_values(self):
+
+        runner = fn_api_runner.FnApiRunner()
+        with beam.Pipeline(runner=runner) as pipeline:
+            # Arrange
+            pcol_input = [(1, 2), (2, 3), (3, 4)]
+            pcol = pipeline | 'Create produce' >> beam.Create(pcol_input)
+            budget_accountant = budget_accounting.NaiveBudgetAccountant(
+                total_epsilon=1, total_delta=0.01)
+            private_collection = (
+                pcol | 'Create private collection' >> private_beam.MakePrivate(
+                    budget_accountant=budget_accountant,
+                    privacy_id_extractor=PrivateBeamTest.privacy_id_extractor))
+
+            # Act
+            transformer = private_beam.FlatMap(lambda x: x - 1)
+            transformed = private_collection | transformer
+
+            # Assert
+            self.assertIsInstance(transformed, private_beam.PrivatePCollection)
+            beam_util.assert_that(transformed._pcol,
+                                  beam_util.equal_to([(1, 1), (2, 2), (3, 3)]))
             self.assertEqual(transformed._budget_accountant, budget_accountant)
             self.assertEqual(transformed._privacy_id_extractor,
                              PrivateBeamTest.privacy_id_extractor)
