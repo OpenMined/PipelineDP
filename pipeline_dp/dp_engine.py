@@ -52,13 +52,6 @@ class DPEngine:
         """
         if params is None:
             return None
-
-        with self._budget_accountant.scope(weight=params.budget_weight):
-            return self._aggregate(col, params, data_extractors)
-
-    def _aggregate(self, col, params: AggregateParams,
-                   data_extractors: DataExtractors):
-
         self._report_generators.append(ReportGenerator(params))
 
         accumulator_factory = AccumulatorFactory(
