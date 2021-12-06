@@ -10,7 +10,7 @@ from pipeline_dp.budget_accounting import BudgetAccountant, MechanismSpec
 from pipeline_dp.pipeline_operations import PipelineOperations
 from pipeline_dp.report_generator import ReportGenerator
 from pipeline_dp.accumulator import Accumulator
-from pipeline_dp.accumulator import AccumulatorFactory
+from pipeline_dp.accumulator import CompoundAccumulatorFactory
 
 import pydp.algorithms.partition_selection as partition_selection
 
@@ -54,9 +54,8 @@ class DPEngine:
             return None
         self._report_generators.append(ReportGenerator(params))
 
-        accumulator_factory = AccumulatorFactory(
+        accumulator_factory = CompoundAccumulatorFactory(
             params=params, budget_accountant=self._budget_accountant)
-        accumulator_factory.initialize()
         aggregator_fn = accumulator_factory.create
 
         if params.public_partitions is not None:

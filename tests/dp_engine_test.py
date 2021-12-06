@@ -13,7 +13,7 @@ from pipeline_dp.budget_accounting import NaiveBudgetAccountant
 import pydp.algorithms.partition_selection as partition_selection
 from pipeline_dp import aggregate_params as agg
 from pipeline_dp.accumulator import CountAccumulator
-from pipeline_dp.accumulator import AccumulatorFactory
+from pipeline_dp.accumulator import CompoundAccumulatorFactory
 """DPEngine Test"""
 
 
@@ -221,7 +221,7 @@ class DpEngineTest(unittest.TestCase):
             max_contributions_per_partition=3)
         budget_accountant = NaiveBudgetAccountant(total_epsilon=1,
                                                   total_delta=1e-10)
-        accumulator_factory = AccumulatorFactory(
+        accumulator_factory = CompoundAccumulatorFactory(
             params=aggregator_params, budget_accountant=budget_accountant)
         accumulator_factory.initialize()
 
