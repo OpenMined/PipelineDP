@@ -1,7 +1,6 @@
 import unittest
 import apache_beam as beam
 from apache_beam.runners.portability import fn_api_runner
-<<<<<<< HEAD
 from apache_beam import pvalue
 from unittest.mock import patch
 import apache_beam.testing.util as beam_util
