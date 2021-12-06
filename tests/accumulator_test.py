@@ -337,16 +337,16 @@ class SumOfSquaresAccumulator(accumulator.Accumulator):
 class PrivacyIdCountAccumulatorTest(unittest.TestCase):
 
     def test_without_noise(self):
-        budget_accountant = NaiveBudgetAccountant(total_epsilon=1000000,
-                                                  total_delta=0.9999999)
+        budget_accountant = NaiveBudgetAccountant(total_epsilon=1,
+                                                  total_delta=0.01)
         budget = budget_accountant.request_budget(
             pipeline_dp.MechanismType.GAUSSIAN)
         budget_accountant.compute_budgets()
         no_noise = pipeline_dp.AggregateParams(
             low=0,
-            high=1,
-            max_partitions_contributed=1,
-            max_contributions_per_partition=1,
+            high=0,
+            max_partitions_contributed=0,
+            max_contributions_per_partition=0,
             noise_kind=NoiseKind.GAUSSIAN,
             metrics=[pipeline_dp.Metrics.PRIVACY_ID_COUNT])
         id_count_accumulator = accumulator.PrivacyIdCountAccumulator(
@@ -395,16 +395,16 @@ class PrivacyIdCountAccumulatorTest(unittest.TestCase):
 class CountAccumulatorTest(unittest.TestCase):
 
     def test_without_noise(self):
-        budget_accountant = NaiveBudgetAccountant(total_epsilon=1000000,
-                                                  total_delta=0.9999999)
+        budget_accountant = NaiveBudgetAccountant(total_epsilon=1,
+                                                  total_delta=0.01)
         budget = budget_accountant.request_budget(
             pipeline_dp.MechanismType.GAUSSIAN)
         budget_accountant.compute_budgets()
         no_noise = pipeline_dp.AggregateParams(
             low=0,
-            high=1,
-            max_partitions_contributed=1,
-            max_contributions_per_partition=1,
+            high=0,
+            max_partitions_contributed=0,
+            max_contributions_per_partition=0,
             noise_kind=NoiseKind.GAUSSIAN,
             metrics=[pipeline_dp.Metrics.COUNT])
         count_accumulator = accumulator.CountAccumulator(
