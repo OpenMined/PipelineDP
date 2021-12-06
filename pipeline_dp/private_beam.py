@@ -1,4 +1,5 @@
 from apache_beam.transforms import ptransform
+
 from abc import abstractmethod
 from typing import Callable, Optional
 from apache_beam import pvalue
@@ -22,6 +23,19 @@ class PrivatePTransform(ptransform.PTransform):
         """Sets the additional parameters needed for the private transform."""
         self._budget_accountant = budget_accountant
         self._privacy_id_extractor = privacy_id_extractor
+
+    def __init__(self):
+        self.return_private = False
+        self.budget_accountant = None
+        self.privacy_id_extractor = None
+
+    def set_return_private(self) -> bool:
+        self.return_private = True
+
+    def set_additional_parameters(self, budget_accountant,
+                                  privacy_id_extractor):
+        self.budget_accountant = budget_accountant
+        self.privacy_id_extractor = privacy_id_extractor
 
     @abstractmethod
     def expand(self, pcol: pvalue.PCollection) -> pvalue.PCollection:
@@ -85,8 +99,6 @@ class Sum(PrivatePTransform):
     def expand(self, pcol: pvalue.PCollection) -> pvalue.PCollection:
         beam_operations = pipeline_dp.BeamOperations()
         dp_engine = pipeline_dp.DPEngine(self._budget_accountant,
-                                         beam_operations)
-
         params = pipeline_dp.AggregateParams(
             noise_kind=self._sum_params.noise_kind,
             metrics=[pipeline_dp.Metrics.SUM],
@@ -104,3 +116,4 @@ class Sum(PrivatePTransform):
             value_extractor=self._sum_params.value_extractor)
 
         return dp_engine.aggregate(pcol, params, data_extractors)
+
