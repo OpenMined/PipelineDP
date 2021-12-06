@@ -2,6 +2,7 @@ import collections
 from unittest.mock import patch
 import numpy as np
 import unittest
+import pyspark
 import sys
 
 import apache_beam as beam
@@ -426,7 +427,6 @@ class DpEngineTest(unittest.TestCase):
     @unittest.skipIf(sys.platform == "win32",
                      "There are some problems with PySpark setup on Windows")
     def test_run_e2e_spark(self):
-        import pyspark
         conf = pyspark.SparkConf()
         sc = pyspark.SparkContext.getOrCreate(conf=conf)
         input = sc.parallelize(list(range(10)))

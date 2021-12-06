@@ -1,4 +1,5 @@
 import unittest
+import pyspark
 from absl.testing import parameterized
 import apache_beam as beam
 import apache_beam.testing.test_pipeline as test_pipeline
@@ -86,7 +87,6 @@ class SparkRDDOperationsTest(parameterized.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        import pyspark
         conf = pyspark.SparkConf()
         cls.sc = pyspark.SparkContext.getOrCreate(conf=conf)
         cls.data_extractors = DataExtractors(
