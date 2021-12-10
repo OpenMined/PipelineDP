@@ -18,7 +18,7 @@ def merge(accumulators: typing.Iterable['Accumulator']) -> 'Accumulator':
     return reduce(lambda acc1, acc2: acc1.add_accumulator(acc2), accumulators)
 
 
-def create_accumulator_factories(
+def _create_accumulator_factories(
     aggregation_params: pipeline_dp.AggregateParams,
     budget_accountant: budget_accounting.BudgetAccountant
 ) -> typing.List['AccumulatorFactory']:
@@ -199,7 +199,7 @@ class CompoundAccumulatorFactory(AccumulatorFactory):
                  budget_accountant: budget_accounting.BudgetAccountant):
         self._params = params
         self._budget_accountant = budget_accountant
-        self._accumulator_factories = create_accumulator_factories(
+        self._accumulator_factories = _create_accumulator_factories(
             params, budget_accountant)
 
     def create(self, values: typing.List) -> Accumulator:

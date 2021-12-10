@@ -199,7 +199,7 @@ class GenericAccumulatorTest(unittest.TestCase):
         self.assertIn("The accumulator to be added is not of the same type"
                       "", str(context.exception))
 
-    @patch('pipeline_dp.accumulator.create_accumulator_factories')
+    @patch('pipeline_dp.accumulator._create_accumulator_factories')
     def test_accumulator_factory(self, mock_create_accumulator_factories):
         aggregate_params = pipeline_dp.AggregateParams(
             noise_kind=NoiseKind.GAUSSIAN,
@@ -224,7 +224,7 @@ class GenericAccumulatorTest(unittest.TestCase):
         mock_create_accumulator_factories.assert_called_with(
             aggregate_params, budget_accountant)
 
-    @patch('pipeline_dp.accumulator.create_accumulator_factories')
+    @patch('pipeline_dp.accumulator._create_accumulator_factories')
     def test_accumulator_factory_multiple_types(
             self, mock_create_accumulator_factories):
         aggregate_params = pipeline_dp.AggregateParams(
@@ -252,7 +252,7 @@ class GenericAccumulatorTest(unittest.TestCase):
             aggregate_params, budget_accountant)
 
     def test_create_accumulator_factories_with_count_params(self):
-        acc_factories = accumulator.create_accumulator_factories(
+        acc_factories = accumulator._create_accumulator_factories(
             aggregation_params=pipeline_dp.AggregateParams(
                 noise_kind=NoiseKind.GAUSSIAN,
                 metrics=[pipeline_dp.Metrics.COUNT],
@@ -266,7 +266,7 @@ class GenericAccumulatorTest(unittest.TestCase):
                               accumulator.CountAccumulatorFactory)
 
     def test_create_accumulator_params_with_sum_params(self):
-        acc_params = accumulator.create_accumulator_factories(
+        acc_params = accumulator._create_accumulator_factories(
             aggregation_params=pipeline_dp.AggregateParams(
                 noise_kind=NoiseKind.GAUSSIAN,
                 metrics=[pipeline_dp.Metrics.SUM],
