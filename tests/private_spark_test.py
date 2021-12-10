@@ -2,12 +2,15 @@ import pyspark
 from pyspark import SparkContext
 from unittest.mock import patch
 import unittest
+import sys
 
 import pipeline_dp
 from pipeline_dp import aggregate_params as agg
 from pipeline_dp import budget_accounting, private_spark
 
 
+@unittest.skipIf(sys.platform == "win32",
+                 "There are some problems with PySpark setup on Windows")
 class PrivateRDDTest(unittest.TestCase):
 
     @classmethod
