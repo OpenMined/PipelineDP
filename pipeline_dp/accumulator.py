@@ -13,45 +13,34 @@ from pipeline_dp import budget_accounting
 import numpy as np
 
 
-@dataclass
-class AccumulatorParams:
-    accumulator_type: type
-    constructor_params: typing.Any
-
-
 def merge(accumulators: typing.Iterable['Accumulator']) -> 'Accumulator':
     """Merges the accumulators."""
     return reduce(lambda acc1, acc2: acc1.add_accumulator(acc2), accumulators)
 
 
-def create_accumulator_params(
+def _create_accumulator_factories(
     aggregation_params: pipeline_dp.AggregateParams,
     budget_accountant: budget_accounting.BudgetAccountant
-) -> typing.List[AccumulatorParams]:
-    accumulator_params = []
+) -> typing.List['AccumulatorFactory']:
+    factories = []
     mechanism_type = aggregation_params.noise_kind.convert_to_mechanism_type()
     if pipeline_dp.Metrics.COUNT in aggregation_params.metrics:
         budget_count = budget_accountant.request_budget(mechanism_type)
         count_params = CountParams(budget_count, aggregation_params)
-        accumulator_params.append(
-            AccumulatorParams(accumulator_type=CountAccumulator,
-                              constructor_params=count_params))
+        factories.append(CountAccumulatorFactory(count_params))
     if pipeline_dp.Metrics.SUM in aggregation_params.metrics:
         budget_sum = budget_accountant.request_budget(mechanism_type)
         sum_params = SumParams(budget_sum, aggregation_params)
-        accumulator_params.append(
-            AccumulatorParams(accumulator_type=SumAccumulator,
-                              constructor_params=sum_params))
+        factories.append(SumAccumulatorFactory(sum_params))
     if pipeline_dp.Metrics.PRIVACY_ID_COUNT in aggregation_params.metrics:
         budget_privacy_id_count = budget_accountant.request_budget(
             mechanism_type)
         privacy_id_count_params = PrivacyIdCountParams(budget_privacy_id_count,
                                                        aggregation_params)
-        accumulator_params.append(
-            AccumulatorParams(accumulator_type=PrivacyIdCountAccumulator,
-                              constructor_params=privacy_id_count_params))
+        factories.append(
+            PrivacyIdCountAccumulatorFactory(privacy_id_count_params))
 
-    return accumulator_params
+    return factories
 
 
 class Accumulator(abc.ABC):
@@ -186,25 +175,37 @@ class CompoundAccumulator(Accumulator):
         ]
 
 
-class AccumulatorFactory:
-    """Factory for producing the appropriate Accumulator depending on the
-    AggregateParams and BudgetAccountant."""
+class AccumulatorFactory(abc.ABC):
+    """Abstract base class for all accumulator factories.
+
+    Each concrete implementation of AccumulatorFactory creates Accumulator of
+    the specific type.
+    """
+
+    @abc.abstractmethod
+    def create(self, values: typing.List) -> Accumulator:
+        pass
+
+
+class CompoundAccumulatorFactory(AccumulatorFactory):
+    """Factory for creating CompoundAccumulator.
+
+    CompoundAccumulatorFactory contains one or more AccumulatorFactories which
+    create accumulators for specific metrics. These AccumulatorFactories are
+    created based on pipeline_dp.AggregateParams.
+    """
 
     def __init__(self, params: pipeline_dp.AggregateParams,
                  budget_accountant: budget_accounting.BudgetAccountant):
         self._params = params
         self._budget_accountant = budget_accountant
-
-    def initialize(self):
-        self._accumulator_params = create_accumulator_params(
-            self._params, self._budget_accountant)
+        self._accumulator_factories = _create_accumulator_factories(
+            params, budget_accountant)
 
     def create(self, values: typing.List) -> Accumulator:
         accumulators = []
-        for accumulator_param in self._accumulator_params:
-            accumulators.append(
-                accumulator_param.accumulator_type(
-                    accumulator_param.constructor_params, values))
+        for factory in self._accumulator_factories:
+            accumulators.append(factory.create(values))
 
         return CompoundAccumulator(accumulators)
 
@@ -212,13 +213,13 @@ class AccumulatorFactory:
             self) -> typing.List[budget_accounting.MechanismSpec]:
         """Returns MechanismSpecs of accumulators which will be created."""
         return [
-            acc.constructor_params._mechanism_spec
-            for acc in self._accumulator_params
+            factory._params._mechanism_spec
+            for factory in self._accumulator_factories
         ]
 
 
 class AccumulatorClassParams:
-    """Parameters for a an accumulator.
+    """Parameters for an accumulator.
 
     Wraps epsilon and delta from the MechanismSpec which are lazily loaded.
     AggregateParams are copied into a MeanVarParams instance.
@@ -276,6 +277,15 @@ class PrivacyIdCountAccumulator(Accumulator):
                                                 self._params.mean_var_params)
 
 
+class PrivacyIdCountAccumulatorFactory(AccumulatorFactory):
+
+    def __init__(self, params: PrivacyIdCountParams):
+        self._params = params
+
+    def create(self, values: typing.List) -> PrivacyIdCountAccumulator:
+        return PrivacyIdCountAccumulator(self._params, values)
+
+
 class CountParams(AccumulatorClassParams):
     pass
 
@@ -298,6 +308,15 @@ class CountAccumulator(Accumulator):
     def compute_metrics(self) -> float:
         return dp_computations.compute_dp_count(self._count,
                                                 self._params.mean_var_params)
+
+
+class CountAccumulatorFactory(AccumulatorFactory):
+
+    def __init__(self, params: CountParams):
+        self._params = params
+
+    def create(self, values: typing.List) -> CountAccumulator:
+        return CountAccumulator(self._params, values)
 
 
 _FloatVector = Union[Tuple[float], np.ndarray]
@@ -368,3 +387,12 @@ class SumAccumulator(Accumulator):
     def compute_metrics(self) -> float:
         return dp_computations.compute_dp_sum(self._sum,
                                               self._params.mean_var_params)
+
+
+class SumAccumulatorFactory(AccumulatorFactory):
+
+    def __init__(self, params: SumParams):
+        self._params = params
+
+    def create(self, values: typing.List) -> SumAccumulator:
+        return SumAccumulator(self._params, values)

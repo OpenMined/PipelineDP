@@ -12,8 +12,8 @@ import pipeline_dp
 from pipeline_dp.budget_accounting import NaiveBudgetAccountant
 import pydp.algorithms.partition_selection as partition_selection
 from pipeline_dp import aggregate_params as agg
+from pipeline_dp.accumulator import CompoundAccumulatorFactory
 from pipeline_dp.aggregate_params import SelectPrivatePartitionsParams
-from pipeline_dp.accumulator import AccumulatorFactory
 from pipeline_dp.accumulator import CountAccumulator
 from pipeline_dp.report_generator import ReportGenerator
 from pipeline_dp.pipeline_operations import PipelineOperations
@@ -164,8 +164,8 @@ class DpEngineTest(unittest.TestCase):
         self.assertIsNone(
             pipeline_dp.DPEngine(None, None).aggregate(None, None, None))
 
-    @patch('pipeline_dp.accumulator.create_accumulator_params')
-    def test_report(self, mock_create_accumulator_params_function):
+    @patch('pipeline_dp.accumulator._create_accumulator_factories')
+    def test_aggregate_report(self, mock_create_accumulator_factories_function):
         col = [[1], [2], [3], [3]]
         data_extractor = pipeline_dp.DataExtractors(
             privacy_id_extractor=lambda x: f"pid{x}",
@@ -194,11 +194,11 @@ class DpEngineTest(unittest.TestCase):
             ],
             public_partitions=list(range(1, 40)),
         )
+
         select_partitions_params = SelectPrivatePartitionsParams(
             max_partitions_contributed=2)
-        mock_create_accumulator_params_function.return_value = [
-            pipeline_dp.accumulator.AccumulatorParams(
-                pipeline_dp.accumulator.CountAccumulator, None)
+        mock_create_accumulator_factories_function.return_value = [
+            pipeline_dp.accumulator.CountAccumulatorFactory(None)
         ]
         budget_accountant = NaiveBudgetAccountant(total_epsilon=1,
                                                   total_delta=1e-10)
@@ -241,9 +241,8 @@ class DpEngineTest(unittest.TestCase):
             max_contributions_per_partition=3)
         budget_accountant = NaiveBudgetAccountant(total_epsilon=1,
                                                   total_delta=1e-10)
-        accumulator_factory = AccumulatorFactory(
+        accumulator_factory = CompoundAccumulatorFactory(
             params=aggregator_params, budget_accountant=budget_accountant)
-        accumulator_factory.initialize()
 
         col = [[1], [2], [3], [3]]
         data_extractor = pipeline_dp.DataExtractors(
