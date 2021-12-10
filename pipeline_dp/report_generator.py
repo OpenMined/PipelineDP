@@ -13,7 +13,9 @@ class ReportGenerator:
 
     def __init__(self, params):
         """Initialize the ReportGenerator."""
-        self._params_str = str(params)
+        self._params_str = None
+        if params:
+            self._params_str = str(params)
         self._stages = []
 
     def add_stage(self, text: str):
@@ -22,7 +24,7 @@ class ReportGenerator:
 
     def report(self) -> str:
         """Constructs a report based on stages and metrics."""
-        if self._params_str is None:
+        if not self._params_str:
             return ""
         title = f"Computing <{self._params_str}>"
         result = [f"Differentially private: {title}"]
