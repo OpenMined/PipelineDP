@@ -1,10 +1,17 @@
 """DP aggregations."""
+from dataclasses import dataclass
 # TODO: import only modules https://google.github.io/styleguide/pyguide.html#22-imports
 from functools import partial
 from typing import Any, Callable, Tuple
+import numpy as np
 
-from dataclasses import dataclass
+import pydp.algorithms.partition_selection as partition_selection
+
+from pipeline_dp.accumulator import Accumulator
+from pipeline_dp.accumulator import AccumulatorFactory
+from pipeline_dp.accumulator import CompoundAccumulator
 from pipeline_dp.aggregate_params import AggregateParams
+from pipeline_dp.aggregate_params import SelectPrivatePartitionsParams
 from pipeline_dp.aggregate_params import MechanismType
 from pipeline_dp.budget_accounting import BudgetAccountant, MechanismSpec
 from pipeline_dp.pipeline_operations import PipelineOperations
@@ -13,6 +20,7 @@ from pipeline_dp.accumulator import Accumulator
 from pipeline_dp.accumulator import CompoundAccumulatorFactory
 
 import pydp.algorithms.partition_selection as partition_selection
+
 
 
 @dataclass
@@ -89,7 +97,7 @@ class DPEngine:
         # col : (partition_key, accumulator)
 
         if params.public_partitions is None:
-            col = self._select_private_partitions(
+            col = self._select_private_partitions_internal(
                 col, params.max_partitions_contributed)
         else:
             # TODO: add public partitions which are missing in data.
@@ -101,6 +109,63 @@ class DPEngine:
         # Compute DP metrics.
         col = self._ops.map_values(col, lambda acc: acc.compute_metrics(),
                                    "Compute DP` metrics")
+
+        return col
+
+    def select_private_partitions(self, col,
+                                  params: SelectPrivatePartitionsParams,
+                                  data_extractors: DataExtractors):
+        """Retrieves a collection of differentially-private partitions.
+
+        Args:
+          col: collection with elements of the same type.
+          params: parameters, see doc for SelectPrivatePartitionsParams.
+          data_extractors: functions that extract needed pieces of information
+            from elements of 'col'. Only privacy_id_extractor and partition_extractor are required.
+            value_extractor is not required.
+        """
+        self._report_generators.append(ReportGenerator(params))
+        max_partitions_contributed = params.max_partitions_contributed
+
+        # Extract the columns.
+        col = self._ops.map(
+            col, lambda row: (data_extractors.privacy_id_extractor(row),
+                              data_extractors.partition_extractor(row)),
+            "Extract (privacy_id, partition_key))")
+        # col : (privacy_id, partition_key)
+
+        # Apply cross-partition contribution bounding
+        col = self._ops.group_by_key(col)
+
+        # col : (privacy_id, [partition_key])
+
+        # Note: This may not be scalable if a single privacy ID contributes
+        # to _way_ too many partitions.
+        def sample_unique_elements_fn(pid_and_pks):
+            pid, pks = pid_and_pks
+            unique_pks = set(pks)
+
+            sampled_elements = np.random.choice(np.array(list(unique_pks)),
+                                                max_partitions_contributed)
+
+            return ((pid, pk) for pk in sampled_elements)
+
+        col = self._ops.flat_map(col, sample_unique_elements_fn)
+        # col : (privacy_id, partition_key)
+
+        # A compound accumulator without any child accumulators is used to calculate the raw privacy ID count.
+        col = self._ops.map_tuple(col, lambda pid, pk:
+                                  (pk, CompoundAccumulator([])),
+                                  "Drop privacy id and add accumulator")
+        # col : (partition_key, accumulator)
+
+        col = self._ops.reduce_accumulators_per_key(
+            col, "Reduce accumulators per partition key")
+        # col : (partition_key, accumulator)
+
+        col = self._select_private_partitions_internal(
+            col, max_partitions_contributed)
+        col = self._ops.keys(col, "Drop accumulators, keep only partition keys")
 
         return col
 
@@ -171,7 +236,8 @@ class DPEngine:
                                   unnest_cross_partition_bound_sampled_per_key,
                                   "Unnest")
 
-    def _select_private_partitions(self, col, max_partitions_contributed: int):
+    def _select_private_partitions_internal(self, col,
+                                            max_partitions_contributed: int):
         """Selects and publishes private partitions.
 
         Args:
