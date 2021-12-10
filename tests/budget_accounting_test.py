@@ -78,6 +78,23 @@ class NaiveBudgetAccountantTest(unittest.TestCase):
         self.assertEqual(budget3.eps, 0.6 * (1 / 5))
         self.assertEqual(budget4.eps, 0.6 * (4 / 5))
 
+    def test_budget_scopes_no_parentscope(self):
+        budget_accountant = NaiveBudgetAccountant(total_epsilon=1,
+                                                  total_delta=1e-6)
+
+        # Allocated in the top-level scope with no weight specified
+        budget1 = budget_accountant.request_budget(
+            mechanism_type=MechanismType.LAPLACE)
+
+        with budget_accountant.scope(weight=0.5):
+            budget2 = budget_accountant.request_budget(
+                mechanism_type=MechanismType.LAPLACE)
+
+        budget_accountant.compute_budgets()
+
+        self.assertEqual(budget1.eps, 1.0 / (1.0 + 0.5))
+        self.assertEqual(budget2.eps, 0.5 / (1.0 + 0.5))
+
     def test_count(self):
         budget_accountant = NaiveBudgetAccountant(total_epsilon=1,
                                                   total_delta=1e-6)

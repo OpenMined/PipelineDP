@@ -14,8 +14,8 @@ class ReportGeneratorTest(unittest.TestCase):
 
     def test_report_params(self):
         test_report = (
-            "Differentially private: Computing metrics: "
-            "['privacy_id_count', 'count', 'mean', 'sum', 'variance']"
+            "Differentially private: Computing <Metrics: "
+            "['privacy_id_count', 'count', 'mean', 'sum', 'variance']>"
             "\n1. Eat between (1, 5) snacks"
             "\n2. Eat a maximum of snack varieties total: 2"
             "\n3. Eat a maximum of a single snack variety: 1")
