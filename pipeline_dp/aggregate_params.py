@@ -72,7 +72,7 @@ class AggregateParams:
 #       (dp_engine) and high-level API (private_spark, private_beam, etc.).
 @dataclass
 class SelectPrivatePartitionsParams:
-    """Specifies parameters for differentially-private sum calculation.
+    """Specifies parameters for differentially-private partition selection.
 
     Args:
         max_partitions_contributed: Maximum number of partitions per privacy ID.

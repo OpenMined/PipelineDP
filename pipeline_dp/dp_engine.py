@@ -3,6 +3,7 @@ from dataclasses import dataclass
 # TODO: import only modules https://google.github.io/styleguide/pyguide.html#22-imports
 from functools import partial
 from typing import Any, Callable, Tuple
+import numpy as np
 
 import pydp.algorithms.partition_selection as partition_selection
 
@@ -110,7 +111,7 @@ class DPEngine:
     def select_private_partitions(self, col,
                                   params: SelectPrivatePartitionsParams,
                                   data_extractors: DataExtractors):
-        """Retrieves a list of differentially-private partitions.
+        """Retrieves a collection of differentially-private partitions.
 
         Args:
           col: collection with elements of the same type.
@@ -136,30 +137,19 @@ class DPEngine:
 
         # Note: This may not be scalable if a single privacy ID contributes
         # to _way_ too many partitions.
-        def unique_elements_fn(pid_and_pks):
+        def sample_unique_elements_fn(pid_and_pks):
             pid, pks = pid_and_pks
-            unique = set()
+            unique_pks = set()
             for pk in pks:
-                unique.add(pk)
+                unique_pks.add(pk)
 
-            return ((pid, pk) for pk in unique)
+            sampled_elements = np.random.choice(np.array(list(unique_pks)),
+                                                max_partitions_contributed)
 
-        col = self._ops.flat_map(col, unique_elements_fn)
+            return ((pid, pk) for pk in sampled_elements)
+
+        col = self._ops.flat_map(col, sample_unique_elements_fn)
         # col : (privacy_id, partition_key)
-
-        col = self._ops.sample_fixed_per_key(
-            col, max_partitions_contributed,
-            "Sample max_partitions_contributed per privacy_id")
-
-        # col: (privacy_id, [partition_key])
-
-        def unnest(pid_pks):
-            pid, pks = pid_pks
-            return ((pid, pk) for pk in pks)
-
-        col = self._ops.flat_map(col, unnest, "Unnest")
-
-        # col: (privacy_id, partition_key)
 
         # A compound accumulator without any child accumulators is used to calculate the raw privacy ID count.
         col = self._ops.map_tuple(col, lambda pid, pk:
@@ -173,7 +163,7 @@ class DPEngine:
 
         col = self._select_private_partitions_internal(
             col, max_partitions_contributed)
-        col = self._ops.map_tuple(col, lambda pk, acc: pk, "Drop accumulators")
+        col = self._ops.keys(col, "Drop accumulators, keep only partition keys")
 
         return col
 

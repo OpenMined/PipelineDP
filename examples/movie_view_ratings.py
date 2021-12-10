@@ -24,7 +24,6 @@ from apache_beam.runners.portability import fn_api_runner
 import pyspark
 from dataclasses import dataclass
 import pipeline_dp
-from pipeline_dp.aggregate_params import SelectPrivatePartitionsParams
 
 FLAGS = flags.FLAGS
 flags.DEFINE_string('input_file', None, 'The file with the movie view data')
@@ -54,7 +53,7 @@ def calculate_private_result(movie_views, pipeline_operations):
 
 
 def calc_dp_rating_metrics(movie_views, ops, public_partitions):
-    """Computes dp metrics."""
+    """Computes DP metrics."""
 
     # Set the total privacy budget.
     budget_accountant = pipeline_dp.NaiveBudgetAccountant(total_epsilon=1,
@@ -91,7 +90,11 @@ def calc_dp_rating_metrics(movie_views, ops, public_partitions):
 
 
 def get_private_movies(movie_views, ops):
-    """Computes dp metrics."""
+    """Obtain the list of movies in a private manner.
+
+    This does not calculate any private metrics; it merely obtains the list of
+    movies but does so making sure the result is differentially private.
+    """
 
     # Set the total privacy budget.
     budget_accountant = pipeline_dp.NaiveBudgetAccountant(total_epsilon=0.1,
@@ -109,7 +112,7 @@ def get_private_movies(movie_views, ops):
     # Run aggregation.
     dp_result = dp_engine.select_private_partitions(
         movie_views,
-        SelectPrivatePartitionsParams(max_partitions_contributed=2),
+        pipeline_dp.SelectPrivatePartitionsParams(max_partitions_contributed=2),
         data_extractors=data_extractors)
 
     budget_accountant.compute_budgets()
