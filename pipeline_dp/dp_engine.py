@@ -22,7 +22,6 @@ from pipeline_dp.accumulator import CompoundAccumulatorFactory
 import pydp.algorithms.partition_selection as partition_selection
 
 
-
 @dataclass
 class DataExtractors:
     """Data extractors.
