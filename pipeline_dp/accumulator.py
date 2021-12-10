@@ -176,6 +176,11 @@ class CompoundAccumulator(Accumulator):
 
 
 class AccumulatorFactory(abc.ABC):
+    """Abstract base class for all accumulator factories.
+
+    Each concrete implementation of AccumulatorFactory creates Accumulator of
+    the specific type.
+    """
 
     @abc.abstractmethod
     def create(self, values: typing.List) -> Accumulator:
@@ -183,8 +188,12 @@ class AccumulatorFactory(abc.ABC):
 
 
 class CompoundAccumulatorFactory(AccumulatorFactory):
-    """TODO: Factory for producing the appropriate Accumulator depending on the
-    AggregateParams and BudgetAccountant."""
+    """Factory for creating CompoundAccumulator.
+
+    CompoundAccumulatorFactory contains one or more AccumulatorFactories which
+    create accumulators for specific metrics. These AccumulatorFactories are
+    created based on pipeline_dp.AggregateParams.
+    """
 
     def __init__(self, params: pipeline_dp.AggregateParams,
                  budget_accountant: budget_accounting.BudgetAccountant):
@@ -210,7 +219,7 @@ class CompoundAccumulatorFactory(AccumulatorFactory):
 
 
 class AccumulatorClassParams:
-    """Parameters for a an accumulator.
+    """Parameters for an accumulator.
 
     Wraps epsilon and delta from the MechanismSpec which are lazily loaded.
     AggregateParams are copied into a MeanVarParams instance.
