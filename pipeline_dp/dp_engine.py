@@ -139,9 +139,7 @@ class DPEngine:
         # to _way_ too many partitions.
         def sample_unique_elements_fn(pid_and_pks):
             pid, pks = pid_and_pks
-            unique_pks = set()
-            for pk in pks:
-                unique_pks.add(pk)
+            unique_pks = set(pks)
 
             sampled_elements = np.random.choice(np.array(list(unique_pks)),
                                                 max_partitions_contributed)

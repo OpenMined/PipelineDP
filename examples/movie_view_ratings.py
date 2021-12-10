@@ -90,7 +90,7 @@ def calc_dp_rating_metrics(movie_views, ops, public_partitions):
 
 
 def get_private_movies(movie_views, ops):
-    """Obtain the list of movies in a private manner.
+    """Obtains the list of movies in a private manner.
 
     This does not calculate any private metrics; it merely obtains the list of
     movies but does so making sure the result is differentially private.
