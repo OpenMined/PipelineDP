@@ -163,8 +163,8 @@ class DpEngineTest(unittest.TestCase):
         self.assertIsNone(
             pipeline_dp.DPEngine(None, None).aggregate(None, None, None))
 
-    @patch('pipeline_dp.accumulator.create_accumulator_params')
-    def test_aggregate_report(self, mock_create_accumulator_params_function):
+    @patch('pipeline_dp.accumulator.create_accumulator_factories')
+    def test_aggregate_report(self, mock_create_accumulator_factories_function):
         col = [[1], [2], [3], [3]]
         data_extractor = pipeline_dp.DataExtractors(
             privacy_id_extractor=lambda x: f"pid{x}",
@@ -193,9 +193,8 @@ class DpEngineTest(unittest.TestCase):
             ],
             public_partitions=list(range(1, 40)),
         )
-        mock_create_accumulator_params_function.return_value = [
-            pipeline_dp.accumulator.AccumulatorParams(
-                pipeline_dp.accumulator.CountAccumulator, None)
+        mock_create_accumulator_factories_function.return_value = [
+            pipeline_dp.accumulator.CountAccumulatorFactory(None)
         ]
         budget_accountant = NaiveBudgetAccountant(total_epsilon=1,
                                                   total_delta=1e-10)
@@ -233,7 +232,6 @@ class DpEngineTest(unittest.TestCase):
                                                   total_delta=1e-10)
         accumulator_factory = CompoundAccumulatorFactory(
             params=aggregator_params, budget_accountant=budget_accountant)
-        accumulator_factory.initialize()
 
         col = [[1], [2], [3], [3]]
         data_extractor = pipeline_dp.DataExtractors(

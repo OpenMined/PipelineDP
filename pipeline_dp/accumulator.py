@@ -204,8 +204,8 @@ class CompoundAccumulatorFactory(AccumulatorFactory):
             self) -> typing.List[budget_accounting.MechanismSpec]:
         """Returns MechanismSpecs of accumulators which will be created."""
         return [
-            acc.constructor_params._mechanism_spec
-            for acc in self._accumulator_params
+            factory._params._mechanism_spec
+            for factory in self._accumulator_factories
         ]
 
 
