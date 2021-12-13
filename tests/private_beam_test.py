@@ -42,8 +42,6 @@ class PrivateBeamTest(unittest.TestCase):
                                   private_beam.PrivatePCollection)
             self.assertEqual(private_collection._budget_accountant,
                              budget_accountant)
-            self.assertEqual(private_collection._privacy_id_extractor,
-                             PrivateBeamTest.privacy_id_extractor)
 
     def test_private_collection_with_non_private_transform_throws_error(self):
         runner = fn_api_runner.FnApiRunner()
@@ -140,8 +138,6 @@ class PrivateBeamTest(unittest.TestCase):
 
             # Assert
             self.assertEqual(transformer._budget_accountant, budget_accountant)
-            self.assertEqual(transformer._privacy_id_extractor,
-                             PrivateBeamTest.privacy_id_extractor)
             mock_aggregate.assert_called_once()
 
             args = mock_aggregate.call_args[0]
@@ -157,12 +153,6 @@ class PrivateBeamTest(unittest.TestCase):
                 high=sum_params.high,
                 public_partitions=sum_params.public_partitions)
             self.assertEqual(args[1], params)
-
-            data_extractors = pipeline_dp.DataExtractors(
-                partition_extractor=sum_params.partition_extractor,
-                privacy_id_extractor=PrivateBeamTest.privacy_id_extractor,
-                value_extractor=sum_params.value_extractor)
-            self.assertEqual(args[2], data_extractors)
 
     def test_Map(self):
         runner = fn_api_runner.FnApiRunner()
@@ -191,8 +181,6 @@ class PrivateBeamTest(unittest.TestCase):
                         (PrivateBeamTest.privacy_id_extractor(x), x[1]**2),
                         pcol_input)))
             self.assertEqual(transformed._budget_accountant, budget_accountant)
-            self.assertEqual(transformed._privacy_id_extractor,
-                             PrivateBeamTest.privacy_id_extractor)
 
     def test_FlatMap(self):
 
@@ -225,8 +213,6 @@ class PrivateBeamTest(unittest.TestCase):
                                     ('pid:(3, 4)', (3, 4)),
                                     ('pid:(3, 4)', (3, 5))]))
             self.assertEqual(transformed._budget_accountant, budget_accountant)
-            self.assertEqual(transformed._privacy_id_extractor,
-                             PrivateBeamTest.privacy_id_extractor)
 
 
 if __name__ == '__main__':

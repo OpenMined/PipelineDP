@@ -16,14 +16,11 @@ class PrivatePTransform(ptransform.PTransform):
         super().__init__(label)
         self._return_anonymized = return_anonymized
         self._budget_accountant = None
-        self._privacy_id_extractor = None
 
     def set_additional_parameters(
-            self, budget_accountant: budget_accounting.BudgetAccountant,
-            privacy_id_extractor: Callable):
+            self, budget_accountant: budget_accounting.BudgetAccountant):
         """Sets the additional parameters needed for the private transform."""
         self._budget_accountant = budget_accountant
-        self._privacy_id_extractor = privacy_id_extractor
 
     @abstractmethod
     def expand(self, pcol: pvalue.PCollection) -> pvalue.PCollection:
@@ -37,11 +34,9 @@ class PrivatePCollection:
     privacy budget can be extracted from it through PrivatePTransforms."""
 
     def __init__(self, pcol: pvalue.PCollection,
-                 budget_accountant: budget_accounting.BudgetAccountant,
-                 privacy_id_extractor: Callable):
+                 budget_accountant: budget_accounting.BudgetAccountant):
         self._pcol = pcol
         self._budget_accountant = budget_accountant
-        self._privacy_id_extractor = privacy_id_extractor
 
     def __or__(self, private_transform: PrivatePTransform):
         if not isinstance(private_transform, PrivatePTransform):
@@ -50,13 +45,11 @@ class PrivatePCollection:
                 + "%s", private_transform)
 
         private_transform.set_additional_parameters(
-            budget_accountant=self._budget_accountant,
-            privacy_id_extractor=self._privacy_id_extractor)
+            budget_accountant=self._budget_accountant)
         transformed = self._pcol.pipeline.apply(private_transform, self._pcol)
 
         return (transformed if private_transform._return_anonymized else
-                (PrivatePCollection(transformed, self._budget_accountant,
-                                    self._privacy_id_extractor)))
+                (PrivatePCollection(transformed, self._budget_accountant)))
 
 
 class MakePrivate(PrivatePTransform):
@@ -71,8 +64,9 @@ class MakePrivate(PrivatePTransform):
         self._privacy_id_extractor = privacy_id_extractor
 
     def expand(self, pcol: pvalue.PCollection):
-        return PrivatePCollection(pcol, self._budget_accountant,
-                                  self._privacy_id_extractor)
+        pcol = pcol | "Extract privacy id" >> beam.Map(
+            lambda x: (self._privacy_id_extractor(x), x))
+        return PrivatePCollection(pcol, self._budget_accountant)
 
 
 class Sum(PrivatePTransform):
@@ -101,9 +95,10 @@ class Sum(PrivatePTransform):
             public_partitions=self._sum_params.public_partitions)
 
         data_extractors = pipeline_dp.DataExtractors(
-            partition_extractor=self._sum_params.partition_extractor,
-            privacy_id_extractor=self._privacy_id_extractor,
-            value_extractor=self._sum_params.value_extractor)
+            partition_extractor=lambda x: self._sum_params.partition_extractor(
+                x[1]),
+            privacy_id_extractor=lambda x: x[0],
+            value_extractor=lambda x: self._sum_params.value_extractor(x[1]))
 
         return dp_engine.aggregate(pcol, params, data_extractors)
 
@@ -116,8 +111,7 @@ class Map(PrivatePTransform):
         self._fn = fn
 
     def expand(self, pcol: pvalue.PCollection):
-        return pcol | "map values" >> beam.Map(
-            lambda x: (self._privacy_id_extractor(x), self._fn(x)))
+        return pcol | "map values" >> beam.Map(lambda x: (x[0], self._fn(x[1])))
 
 
 class FlatMap(PrivatePTransform):
@@ -127,13 +121,12 @@ class FlatMap(PrivatePTransform):
         """Inner class for flattening values of key value pair.
         Flattens (1, (2,3,4)) into ((1,2), (1,3), (1,4))"""
 
-        def __init__(self, privacy_id_extractor: Callable, map_fn: Callable):
+        def __init__(self, map_fn: Callable):
             self._map_fn = map_fn
-            self._privacy_id_extractor = privacy_id_extractor
 
         def process(self, row):
-            key = self._privacy_id_extractor(row)
-            values = self._map_fn(row)
+            key = row[0]
+            values = self._map_fn(row[1])
             for value in values:
                 yield key, value
 
@@ -143,6 +136,4 @@ class FlatMap(PrivatePTransform):
 
     def expand(self, pcol: pvalue.PCollection):
         return pcol | "flatten values" >> beam.ParDo(
-            FlatMap._FlattenValues(
-                privacy_id_extractor=self._privacy_id_extractor,
-                map_fn=self._fn))
+            FlatMap._FlattenValues(map_fn=self._fn))
