@@ -65,6 +65,30 @@ class AggregateParams:
     budget_weight: float = 1
     public_partitions: Any = None
 
+    def __str__(self):
+        return f"Metrics: {[m.value for m in self.metrics]}"
+
+
+# TODO: Think of whether this class should be used for both low-level API
+#       (dp_engine) and high-level API (private_spark, private_beam, etc.).
+@dataclass
+class SelectPrivatePartitionsParams:
+    """Specifies parameters for differentially-private partition selection.
+
+    Args:
+        max_partitions_contributed: Maximum number of partitions per privacy ID.
+            The algorithm will drop contributions over this limit. To keep more
+            data, this should be a good estimate of the realistic upper bound.
+            Significantly over- or under-estimating this may increase the amount
+            of dropped partitions. You can experiment with different values to
+            select which one retains more partitions.
+
+    """
+    max_partitions_contributed: int
+
+    def __str__(self):
+        return "Private Partitions"
+
 
 @dataclass
 class SumParams:
