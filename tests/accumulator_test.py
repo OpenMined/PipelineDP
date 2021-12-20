@@ -280,6 +280,20 @@ class GenericAccumulatorTest(unittest.TestCase):
         self.assertTrue(isinstance(acc_params[0]._params,
                                    accumulator.SumParams))
 
+    def test_create_accumulator_params_with_count_params(self):
+        acc_params = accumulator.create_accumulator_params(
+            aggregation_params=pipeline_dp.AggregateParams(
+                metrics=[pipeline_dp.Metrics.COUNT],
+                max_partitions_contributed=4,
+                max_contributions_per_partition=5,
+                budget_weight=1),
+            budget_accountant=pipeline_dp.BudgetAccountant(1, 0.01))
+        self.assertEqual(len(acc_params), 1)
+        self.assertEqual(acc_params[0].accumulator_type,
+                         accumulator.CountAccumulator)
+        self.assertTrue(isinstance(acc_params[0].constructor_params,
+                                   accumulator.CountParams))
+
 
 class MeanAccumulator(accumulator.Accumulator):
 
