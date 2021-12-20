@@ -11,11 +11,9 @@ class ReportGenerator:
   and generates a report.
   """
 
-    def __init__(self, params):
+    def __init__(self, params: AggregateParams):
         """Initialize the ReportGenerator."""
-        self._params_str = None
-        if params:
-            self._params_str = str(params)
+        self._params = params
         self._stages = []
 
     def add_stage(self, text: str):
@@ -24,11 +22,10 @@ class ReportGenerator:
 
     def report(self) -> str:
         """Constructs a report based on stages and metrics."""
-        if not self._params_str:
+        if self._params is None:
             return ""
-        title = f"Computing <{self._params_str}>"
-        result = [f"Differentially private: {title}"]
-
+        title = f"Computing metrics: {[m.value[0] for m in self._params.metrics]}"
+        result = [f"Differential private: {title}"]
         for i, stage_str in enumerate(self._stages):
             if hasattr(stage_str, "__call__"):
                 result.append(f"{i+1}. {stage_str()}")

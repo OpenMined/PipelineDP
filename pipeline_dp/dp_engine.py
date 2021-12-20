@@ -1,34 +1,25 @@
 """DP aggregations."""
-from dataclasses import dataclass
-# TODO: import only modules https://google.github.io/styleguide/pyguide.html#22-imports
+
 from functools import partial
 from typing import Any, Callable, Tuple
-import numpy as np
 
-import pydp.algorithms.partition_selection as partition_selection
-
-from pipeline_dp.accumulator import Accumulator
-from pipeline_dp.accumulator import AccumulatorFactory
-from pipeline_dp.accumulator import CompoundAccumulator
+from dataclasses import dataclass
 from pipeline_dp.aggregate_params import AggregateParams
-from pipeline_dp.aggregate_params import SelectPrivatePartitionsParams
-from pipeline_dp.aggregate_params import MechanismType
-from pipeline_dp.budget_accounting import BudgetAccountant, MechanismSpec
+from pipeline_dp.budget_accounting import BudgetAccountant, Budget
 from pipeline_dp.pipeline_operations import PipelineOperations
 from pipeline_dp.report_generator import ReportGenerator
 from pipeline_dp.accumulator import Accumulator
-from pipeline_dp.accumulator import CompoundAccumulatorFactory
+from pipeline_dp.accumulator import AccumulatorFactory
 
-import pydp.algorithms.partition_selection as partition_selection
+from pydp.algorithms.partition_selection import create_truncated_geometric_partition_strategy
 
 
 @dataclass
 class DataExtractors:
-    """Data extractors.
-
-    A set of functions that, given an input, return the privacy id, partition key,
-    and value.
-    """
+    """Data extractors
+  A set of functions that, given an input, return the privacy id, partition key,
+  and value.
+  """
 
     privacy_id_extractor: Callable = None
     partition_extractor: Callable = None
@@ -49,146 +40,68 @@ class DPEngine:
 
     def aggregate(self, col, params: AggregateParams,
                   data_extractors: DataExtractors):
-        """Computes DP aggregation metrics.
+        """Computes DP aggregation metrics
 
-        Args:
-          col: collection with elements of the same type.
-          params: specifies which metrics to compute and computation parameters.
-          data_extractors: functions that extract needed pieces of information
-            from elements of 'col'.
-        """
+    Args:
+      col: collection with elements of the same type.
+      params: specifies which metrics to compute and computation parameters.
+      data_extractors: functions that extract needed pieces of information from
+        elements of 'col'
+    """
         if params is None:
             return None
         self._report_generators.append(ReportGenerator(params))
 
-        accumulator_factory = CompoundAccumulatorFactory(
-            params=params, budget_accountant=self._budget_accountant)
+        accumulator_factory = AccumulatorFactory(params=params,
+                                                 budget_accountant=self._budget_accountant)
+        accumulator_factory.initialize()
         aggregator_fn = accumulator_factory.create
 
-        if params.public_partitions is not None:
-            col = self._drop_not_public_partitions(col,
-                                                   params.public_partitions,
-                                                   data_extractors)
-        # Extract the columns.
-        col = self._ops.map(
+        # extract the columns
+        col = self._ops.map_tuple(
             col, lambda row: (data_extractors.privacy_id_extractor(row),
                               data_extractors.partition_extractor(row),
                               data_extractors.value_extractor(row)),
             "Extract (privacy_id, partition_key, value))")
         # col : (privacy_id, partition_key, value)
-        col = self._bound_contributions(col, params.max_partitions_contributed,
-                                        params.max_contributions_per_partition,
-                                        aggregator_fn)
+        col = self._bound_contributions(
+            col, params.max_partitions_contributed,
+            params.max_contributions_per_partition, aggregator_fn)
         # col : ((privacy_id, partition_key), accumulator)
+        result = col
 
-        col = self._ops.map_tuple(col, lambda pid_pk, v: (pid_pk[1], v),
-                                  "Drop privacy id")
-        # col : (partition_key, accumulator)
-        col = self._ops.reduce_accumulators_per_key(
-            col, "Reduce accumulators per partition key")
-        # col : (partition_key, accumulator)
-
+        # If no public partitions were specified, return aggregation results
+        # directly.
         if params.public_partitions is None:
-            col = self._select_private_partitions_internal(
-                col, params.max_partitions_contributed)
+            return result
         else:
-            # TODO: add public partitions which are missing in data.
-            pass
-        # col : (partition_key, accumulator)
-
-        col = self._fix_budget_accounting_if_needed(col, accumulator_factory)
-
-        # Compute DP metrics.
-        col = self._ops.map_values(col, lambda acc: acc.compute_metrics(),
-                                   "Compute DP` metrics")
-
-        return col
-
-    def select_private_partitions(self, col,
-                                  params: SelectPrivatePartitionsParams,
-                                  data_extractors: DataExtractors):
-        """Retrieves a collection of differentially-private partitions.
-
-        Args:
-          col: collection with elements of the same type.
-          params: parameters, see doc for SelectPrivatePartitionsParams.
-          data_extractors: functions that extract needed pieces of information
-            from elements of 'col'. Only privacy_id_extractor and partition_extractor are required.
-            value_extractor is not required.
-        """
-        self._report_generators.append(ReportGenerator(params))
-        max_partitions_contributed = params.max_partitions_contributed
-
-        # Extract the columns.
-        col = self._ops.map(
-            col, lambda row: (data_extractors.privacy_id_extractor(row),
-                              data_extractors.partition_extractor(row)),
-            "Extract (privacy_id, partition_key))")
-        # col : (privacy_id, partition_key)
-
-        # Apply cross-partition contribution bounding
-        col = self._ops.group_by_key(col)
-
-        # col : (privacy_id, [partition_key])
-
-        # Note: This may not be scalable if a single privacy ID contributes
-        # to _way_ too many partitions.
-        def sample_unique_elements_fn(pid_and_pks):
-            pid, pks = pid_and_pks
-            unique_pks = set(pks)
-
-            sampled_elements = np.random.choice(np.array(list(unique_pks)),
-                                                max_partitions_contributed)
-
-            return ((pid, pk) for pk in sampled_elements)
-
-        col = self._ops.flat_map(col, sample_unique_elements_fn)
-        # col : (privacy_id, partition_key)
-
-        # A compound accumulator without any child accumulators is used to calculate the raw privacy ID count.
-        col = self._ops.map_tuple(col, lambda pid, pk:
-                                  (pk, CompoundAccumulator([])),
-                                  "Drop privacy id and add accumulator")
-        # col : (partition_key, accumulator)
-
-        col = self._ops.reduce_accumulators_per_key(
-            col, "Reduce accumulators per partition key")
-        # col : (partition_key, accumulator)
-
-        col = self._select_private_partitions_internal(
-            col, max_partitions_contributed)
-        col = self._ops.keys(col, "Drop accumulators, keep only partition keys")
-
-        return col
+            return self._drop_not_public_partitions(result,
+                                                    params.public_partitions,
+                                                    data_extractors)
 
     def _drop_not_public_partitions(self, col, public_partitions,
-                                    data_extractors: DataExtractors):
-        """Drops partitions in `col` which are not in `public_partitions`."""
-        col = self._ops.map(
-            col, lambda row: (data_extractors.partition_extractor(row), row),
-            "Extract partition id")
-        col = self._ops.filter_by_key(col, public_partitions,
-                                      "Filtering out non-public partitions")
-        return self._ops.map_tuple(col, lambda k, v: v, "Drop key")
+                                    data_extractors):
+        return self._ops.filter_by_key(col, public_partitions, data_extractors,
+                                       "Filtering out non-public partitions")
 
     def _bound_contributions(self, col, max_partitions_contributed: int,
                              max_contributions_per_partition: int,
                              aggregator_fn):
-        """Bounds the contribution by privacy_id in and cross partitions.
-
-        Args:
-          col: collection, with types of each element: (privacy_id,
-            partition_key, value).
-          max_partitions_contributed: maximum number of partitions that one
-            privacy id can contribute to.
-          max_contributions_per_partition: maximum number of records that one
-            privacy id can contribute to one partition.
-          aggregator_fn: function that takes a list of values and returns an
-            aggregator object which handles all aggregation logic.
-
-        return: collection with elements ((privacy_id, partition_key),
-              aggregator).
         """
+    Bounds the contribution by privacy_id in and cross partitions.
+    Args:
+      col: collection, with types of each element: (privacy_id,
+        partition_key, value).
+      max_partitions_contributed: maximum number of partitions that one
+        privacy id can contribute to.
+      max_contributions_per_partition: maximum number of records that one
+        privacy id can contribute to one partition.
+      aggregator_fn: function that takes a list of values and returns an
+        aggregator object which handles all aggregation logic.
+
+    return: collection with elements ((privacy_id, partition_key),
+          aggregator).
+    """
         # per partition-contribution bounding with bounding of each contribution
         col = self._ops.map_tuple(
             col, lambda pid, pk, v: ((pid, pk), v),
@@ -220,8 +133,7 @@ class DPEngine:
                                   unnest_cross_partition_bound_sampled_per_key,
                                   "Unnest")
 
-    def _select_private_partitions_internal(self, col,
-                                            max_partitions_contributed: int):
+    def _select_private_partitions(self, col, max_partitions_contributed: int):
         """Selects and publishes private partitions.
 
         Args:
@@ -233,45 +145,18 @@ class DPEngine:
         Returns:
             collection of elements (partition_key, accumulator)
         """
-        budget = self._budget_accountant.request_budget(
-            mechanism_type=MechanismType.GENERIC)
+        budget = self._budget_accountant.request_budget(weight=1, use_eps=True, use_delta=True)
 
-        def filter_fn(captures: Tuple[MechanismSpec, int],
-                      row: Tuple[Any, Accumulator]) -> bool:
+        def filter_fn(captures: Tuple[Budget, int], row: Tuple[Any, Accumulator]) -> bool:
             """Lazily creates a partition selection strategy and uses it to determine which 
             partitions to keep."""
-            mechanism, max_partitions = captures
+            budget, max_partitions = captures
             accumulator = row[1]
-            partition_selection_strategy = partition_selection.create_truncated_geometric_partition_strategy(
-                budget.eps, budget.delta, max_partitions)
-            return partition_selection_strategy.should_keep(
-                accumulator.privacy_id_count)
-
+            partition_selection_strategy = create_truncated_geometric_partition_strategy(
+                budget.eps, budget.delta,
+                max_partitions
+            )
+            return partition_selection_strategy.should_keep(accumulator.privacy_id_count)
         # make filter_fn serializable
         filter_fn = partial(filter_fn, (budget, max_partitions_contributed))
-        return self._ops.filter(col, filter_fn, "Filter private parititions")
-
-    def _fix_budget_accounting_if_needed(self, col, accumulator_factory):
-        """Adds MechanismSpec to accumulators.
-
-        This function is a workaround to fix the following problem in Spark:
-        1.When accumulators are created, they do not have full MechanismSpec.
-        2.ReduceByKey is called and Spark does serialization of accumulators.
-        3.BudgetAccountant computes budget and updates MechanismSpecs, but
-        accumulators are already serialized and they have incomplete
-        MechanismSpecs.
-
-        Args:
-            col: collection with elements (key, accumulator).
-            accumulator_factory: AccumulatorFactory that was used for creating
-             accumulators in 'col'.
-
-        Returns:
-            col: collection with elements (key, accumulator).
-        """
-        if not self._ops.is_serialization_immediate_on_reduce_by_key():
-            # No need to fix, since accumulators contain correct MechanismSpec.
-            return col
-        mechanism_specs = accumulator_factory.get_mechanism_specs()
-        return self._ops.map_values(
-            col, lambda acc: acc.set_mechanism_specs(mechanism_specs))
+        return self._ops.filter(col, filter_fn)
