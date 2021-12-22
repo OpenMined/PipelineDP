@@ -72,12 +72,70 @@ class BeamOperationsTest(parameterized.TestCase):
                                                            (8, 1)])
             col = self.ops.map_values(col, SumAccumulator,
                                       "Wrap into accumulators")
-            col = self.ops.reduce_accumulators_per_key(col)
+            col = self.ops.reduce_accumulators_per_key(
+                col, "Reduce accumulators per key")
             result = col | "Get accumulated values" >> beam.Map(
                 lambda row: (row[0], row[1].get_metrics()))
 
             beam_util.assert_that(result,
                                   beam_util.equal_to([(6, 2), (7, 2), (8, 1)]))
+
+
+class BeamOperationsStageNameTest(unittest.TestCase):
+
+    def test_ops_stage_name_must_be_unique(self):
+        ops_1 = BeamOperations("SAME_OPS_SUFFIX")
+        ops_2 = BeamOperations("SAME_OPS_SUFFIX")
+        with test_pipeline.TestPipeline() as p:
+            col = p | f"UNIQUE_BEAM_CREATE_NAME" >> beam.Create([(6, 1),
+                                                                 (6, 2)])
+            ops_1.map(col, lambda x: x, "SAME_MAP_NAME")
+            with self.assertRaisesRegex(RuntimeError,
+                                        expected_regex="A transform with label "
+                                        "\"SAME_MAP_NAME_SAME_OPS_SUFFIX\" "
+                                        "already exists in the pipeline"):
+                ops_2.map(col, lambda x: x, "SAME_MAP_NAME")
+
+    def test_one_suffix_multiple_same_stage_name(self):
+        ops = BeamOperations("UNIQUE_OPS_SUFFIX")
+        with test_pipeline.TestPipeline() as p:
+            col = p | f"UNIQUE_BEAM_CREATE_NAME" >> beam.Create([(6, 1),
+                                                                 (6, 2)])
+            ops.map(col, lambda x: x, "SAME_MAP_NAME")
+            ops.map(col, lambda x: x, "SAME_MAP_NAME")
+            ops.map(col, lambda x: x, "SAME_MAP_NAME")
+
+        self.assertEqual("UNIQUE_OPS_SUFFIX", ops._ulg._suffix)
+        self.assertEqual(3, len(ops._ulg._labels))
+        self.assertIn("SAME_MAP_NAME_UNIQUE_OPS_SUFFIX", ops._ulg._labels)
+        self.assertIn("SAME_MAP_NAME_1_UNIQUE_OPS_SUFFIX", ops._ulg._labels)
+        self.assertIn("SAME_MAP_NAME_2_UNIQUE_OPS_SUFFIX", ops._ulg._labels)
+
+    def test_multiple_suffix_same_ops_stage_name(self):
+        ops = []
+        with test_pipeline.TestPipeline() as p:
+            for i in range(0, 2):
+                ops.insert(i, BeamOperations(f"UNIQUE_OPS_SUFFIX_{i}"))
+                col = p | f"UNIQUE_BEAM_CREATE_NAME_{i}" >> beam.Create([(6, 1),
+                                                                         (6, 2)
+                                                                        ])
+                ops[i].map(col, lambda x: x, "SAME_MAP_NAME")
+                ops[i].map_values(col, lambda x: x, "SAME_MAP_VALUES_NAME")
+                ops[i].flat_map(col, lambda x: x, "SAME_FLAT_MAP_NAME")
+                ops[i].map_tuple(col, lambda k, v: k + v,
+                                 "SAME_MAP_TUPLES_NAME")
+                ops[i].group_by_key(col, "SAME_GROUP_BY_KEY_NAME")
+                ops[i].filter(col, lambda x: True, "SAME_FILTER_NAME")
+                ops[i].filter_by_key(col, [1], "SAME_FILTER_BY_KEY_NAME")
+                ops[i].keys(col, "SAME_KEYS_NAME")
+                ops[i].values(col, "SAME_VALUES_NAME")
+                ops[i].sample_fixed_per_key(col, 1, "SAME_SAMPLE_NAME")
+                ops[i].count_per_element(col, "SAME_COUNT_NAME")
+
+            self.assertEqual("UNIQUE_OPS_SUFFIX_0", ops[0]._ulg._suffix)
+            self.assertEqual("UNIQUE_OPS_SUFFIX_1", ops[1]._ulg._suffix)
+            self.assertEqual(11, len(ops[0]._ulg._labels))
+            self.assertEqual(11, len(ops[1]._ulg._labels))
 
 
 @unittest.skipIf(sys.platform == "win32",
