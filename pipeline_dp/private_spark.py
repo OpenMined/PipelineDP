@@ -1,4 +1,3 @@
-from __future__ import annotations
 from pyspark import RDD
 from typing import Callable
 
@@ -24,7 +23,7 @@ class PrivateRDD:
             self._rdd = rdd
         self._budget_accountant = budget_accountant
 
-    def map(self, fn: Callable) -> PrivateRDD:
+    def map(self, fn: Callable) -> 'PrivateRDD':
         """A Spark map equivalent.
 
         Keeps track of privacy_id for each element.
@@ -35,7 +34,7 @@ class PrivateRDD:
         rdd = self._rdd.mapValues(fn)
         return make_private(rdd, self._budget_accountant, None)
 
-    def flat_map(self, fn: Callable) -> PrivateRDD:
+    def flat_map(self, fn: Callable) -> 'PrivateRDD':
         """A Spark flatMap equivalent.
 
         Keeps track of privacy_id for each element.
