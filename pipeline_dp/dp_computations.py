@@ -88,7 +88,7 @@ def apply_laplace_mechanism(value: float, eps: float, l1_sensitivity: float):
     """
     mechanism = dp_mechanisms.LaplaceMechanism(epsilon=eps,
                                                sensitivity=l1_sensitivity)
-    return mechanism.add_noise(value)
+    return mechanism.add_noise(1.0*value)
 
 
 def apply_gaussian_mechanism(value: float, eps: float, delta: float,
@@ -107,7 +107,7 @@ def apply_gaussian_mechanism(value: float, eps: float, delta: float,
     # TODO: use named arguments, when argument names are added in PyDP on PR
     # https://github.com/OpenMined/PyDP/pull/398.
     mechanism = dp_mechanisms.GaussianMechanism(eps, delta, l2_sensitivity)
-    return mechanism.add_noise(value)
+    return mechanism.add_noise(1.0*value)
 
 
 def _add_random_noise(
