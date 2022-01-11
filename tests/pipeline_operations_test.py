@@ -137,9 +137,10 @@ class BeamOperationsStageNameTest(unittest.TestCase):
             self.assertEqual(11, len(ops[0]._ulg._labels))
             self.assertEqual(11, len(ops[1]._ulg._labels))
 
-
-@unittest.skipIf(sys.platform == "win32",
-                 "There are some problems with PySpark setup on Windows")
+@unittest.skipIf(sys.platform == "win32" or sys.platform == 'darwin' or (
+    sys.version_info.minor <= 7 and sys.version_info.major == 3
+), "There are some problems with PySpark setup on older python and Windows and macOS"
+                )
 class SparkRDDOperationsTest(parameterized.TestCase):
 
     @classmethod
@@ -421,8 +422,8 @@ class LocalPipelineOperationsTest(unittest.TestCase):
                           ("bread", ["sourdough"])])
 
 
-@unittest.skipIf(sys.platform == 'win32',
-                 "Problems with serialisation on Windows")
+@unittest.skipIf(sys.platform == 'win32' or sys.platform == 'darwin',
+                 "Problems with serialisation on Windows and macOS")
 class MultiProcLocalPipelineOperationsTest(unittest.TestCase):
 
     @staticmethod

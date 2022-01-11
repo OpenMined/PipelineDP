@@ -508,8 +508,11 @@ class DpEngineTest(unittest.TestCase):
 
         self.assertEqual(5, len(list(output)))
 
-    @unittest.skipIf(sys.platform == "win32",
-                     "There are some problems with PySpark setup on Windows")
+    @unittest.skipIf(
+        sys.platform == "win32" or
+        (sys.version_info.minor <= 7 and sys.version_info.major == 3),
+        "There are some problems with PySpark setup on older python and Windows"
+    )
     def test_run_e2e_spark(self):
         import pyspark
         conf = pyspark.SparkConf()
