@@ -1,5 +1,6 @@
 import unittest
 import numpy as np
+import typing
 from scipy.stats import skew, kurtosis
 from unittest.mock import patch
 from unittest.mock import MagicMock
@@ -57,6 +58,9 @@ class DPComputationsTest(unittest.TestCase):
         self.assertAlmostEqual(skew(results), 0, delta=0.5)
         self.assertAlmostEqual(kurtosis(results), 0, delta=0.5)
 
+    def _not_all_integers(self, results: typing.Iterable[float]):
+        return any(map(lambda x: not x.is_integer(), results))
+
     def test_apply_laplace_mechanism(self):
         results = [
             dp_computations.apply_laplace_mechanism(value=20,
@@ -64,6 +68,7 @@ class DPComputationsTest(unittest.TestCase):
                                                     l1_sensitivity=1)
             for _ in range(1000000)
         ]
+        self.assertTrue(self._not_all_integers(results))
         self._test_laplace_noise(results, value=20, eps=0.5, l1_sensitivity=1)
 
     @patch('pydp.algorithms.numerical_mechanisms.LaplaceMechanism')
@@ -91,6 +96,7 @@ class DPComputationsTest(unittest.TestCase):
                                                      l2_sensitivity=1)
             for _ in range(1000000)
         ]
+        self.assertTrue(self._not_all_integers(results))
         self._test_gaussian_noise(results,
                                   value=20,
                                   eps=0.5,
