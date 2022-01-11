@@ -529,7 +529,7 @@ class DpEngineTest(unittest.TestCase):
             input = p | "Create input" >> beam.Create(list(range(10)))
 
             output = self.run_e2e_private_partition_selection_large_budget(
-                input, pipeline_dp.BeamOperations("e2e_test"))
+                input, pipeline_dp.BeamOperations())
 
             beam_util.assert_that(output, beam_util.is_not_empty())
 

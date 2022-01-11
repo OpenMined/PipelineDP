@@ -79,7 +79,7 @@ class Sum(PrivatePTransform):
         self._sum_params = sum_params
 
     def expand(self, pcol: pvalue.PCollection) -> pvalue.PCollection:
-        beam_operations = pipeline_dp.BeamOperations("Expand")
+        beam_operations = pipeline_dp.BeamOperations()
         dp_engine = pipeline_dp.DPEngine(self._budget_accountant,
                                          beam_operations)
 

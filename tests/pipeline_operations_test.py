@@ -5,6 +5,7 @@ import apache_beam.testing.test_pipeline as test_pipeline
 import apache_beam.testing.util as beam_util
 import pytest
 import sys
+from unittest.mock import Mock, MagicMock, patch
 
 from pipeline_dp import DataExtractors
 from pipeline_dp.pipeline_operations import MultiProcLocalPipelineOperations, SparkRDDOperations
@@ -83,6 +84,97 @@ class BeamOperationsTest(parameterized.TestCase):
 
 class BeamOperationsStageNameTest(unittest.TestCase):
 
+    class MockUniqueLabelGenerators:
+
+        def unique(self, stage_name: str = ""):
+            return "unique_label"
+
+    @staticmethod
+    def _create_mock_pcollection():
+        mock = Mock()
+        mock.__or__ = MagicMock(return_value=mock)
+        return mock
+
+    @staticmethod
+    def _test_helper():
+        mock_pcollection = BeamOperationsStageNameTest._create_mock_pcollection(
+        )
+        ops = BeamOperations()
+        ops._ulg = BeamOperationsStageNameTest.MockUniqueLabelGenerators()
+        return mock_pcollection, ops
+
+    @patch("apache_beam.transforms.ptransform.PTransform.__rrshift__")
+    def test_map(self, mock_rrshift):
+        mock_pcollection, ops = self._test_helper()
+        ops.map(mock_pcollection, lambda x: x, "stage_name")
+        mock_rrshift.assert_called_once_with("unique_label")
+
+    @patch("apache_beam.transforms.ptransform.PTransform.__rrshift__")
+    def test_map_values(self, mock_rrshift):
+        mock_pcollection, ops = self._test_helper()
+        ops.map_values(mock_pcollection, lambda x: x, "stage_name")
+        mock_rrshift.assert_called_once_with("unique_label")
+
+    @patch("apache_beam.transforms.ptransform.PTransform.__rrshift__")
+    def test_flat_map(self, mock_rrshift):
+        mock_pcollection, ops = self._test_helper()
+        ops.flat_map(mock_pcollection, lambda x: x, "stage_name")
+        mock_rrshift.assert_called_once_with("unique_label")
+
+    @patch("apache_beam.transforms.ptransform.PTransform.__rrshift__")
+    def test_map_tuple(self, mock_rrshift):
+        mock_pcollection, ops = self._test_helper()
+        ops.map_tuple(mock_pcollection, lambda x: x, "stage_name")
+        mock_rrshift.assert_called_once_with("unique_label")
+
+    @patch("apache_beam.transforms.ptransform.PTransform.__rrshift__")
+    def test_group_by_key(self, mock_rrshift):
+        mock_pcollection, ops = self._test_helper()
+        ops.group_by_key(mock_pcollection, "stage_name")
+        mock_rrshift.assert_called_once_with("unique_label")
+
+    @patch("apache_beam.transforms.ptransform.PTransform.__rrshift__")
+    def test_filter(self, mock_rrshift):
+        mock_pcollection, ops = self._test_helper()
+        ops.filter(mock_pcollection, lambda x: True, "stage_name")
+        mock_rrshift.assert_called_once_with("unique_label")
+
+    @patch("apache_beam.transforms.ptransform.PTransform.__rrshift__")
+    def test_filter_by_key(self, mock_rrshift):
+        mock_pcollection, ops = self._test_helper()
+        ops.filter_by_key(mock_pcollection, [1], "stage_name")
+        mock_rrshift.assert_called_once_with("unique_label")
+
+    @patch("apache_beam.transforms.ptransform.PTransform.__rrshift__")
+    def test_keys(self, mock_rrshift):
+        mock_pcollection, ops = self._test_helper()
+        ops.keys(mock_pcollection, "stage_name")
+        mock_rrshift.assert_called_once_with("unique_label")
+
+    @patch("apache_beam.transforms.ptransform.PTransform.__rrshift__")
+    def test_values(self, mock_rrshift):
+        mock_pcollection, ops = self._test_helper()
+        ops.values(mock_pcollection, "stage_name")
+        mock_rrshift.assert_called_once_with("unique_label")
+
+    @patch("apache_beam.transforms.ptransform.PTransform.__rrshift__")
+    def test_sample_fixed_per_key(self, mock_rrshift):
+        mock_pcollection, ops = self._test_helper()
+        ops.sample_fixed_per_key(mock_pcollection, 1, "stage_name")
+        mock_rrshift.assert_called_once_with("unique_label")
+
+    @patch("apache_beam.transforms.ptransform.PTransform.__rrshift__")
+    def test_count_per_element(self, mock_rrshift):
+        mock_pcollection, ops = self._test_helper()
+        ops.count_per_element(mock_pcollection, "stage_name")
+        mock_rrshift.assert_called_once_with("unique_label")
+
+    @patch("apache_beam.transforms.ptransform.PTransform.__rrshift__")
+    def test_reduce_accumulators_per_key(self, mock_rrshift):
+        mock_pcollection, ops = self._test_helper()
+        ops.reduce_accumulators_per_key(mock_pcollection, "stage_name")
+        mock_rrshift.assert_called_once_with("unique_label")
+
     def test_ops_stage_name_must_be_unique(self):
         ops_1 = BeamOperations("SAME_OPS_SUFFIX")
         ops_2 = BeamOperations("SAME_OPS_SUFFIX")
@@ -111,31 +203,6 @@ class BeamOperationsStageNameTest(unittest.TestCase):
         self.assertIn("SAME_MAP_NAME_1_UNIQUE_OPS_SUFFIX", ops._ulg._labels)
         self.assertIn("SAME_MAP_NAME_2_UNIQUE_OPS_SUFFIX", ops._ulg._labels)
 
-    def test_multiple_suffix_same_ops_stage_name(self):
-        ops = []
-        with test_pipeline.TestPipeline() as p:
-            for i in range(0, 2):
-                ops.insert(i, BeamOperations(f"UNIQUE_OPS_SUFFIX_{i}"))
-                col = p | f"UNIQUE_BEAM_CREATE_NAME_{i}" >> beam.Create([(6, 1),
-                                                                         (6, 2)
-                                                                        ])
-                ops[i].map(col, lambda x: x, "SAME_MAP_NAME")
-                ops[i].map_values(col, lambda x: x, "SAME_MAP_VALUES_NAME")
-                ops[i].flat_map(col, lambda x: x, "SAME_FLAT_MAP_NAME")
-                ops[i].map_tuple(col, lambda k, v: k + v,
-                                 "SAME_MAP_TUPLES_NAME")
-                ops[i].group_by_key(col, "SAME_GROUP_BY_KEY_NAME")
-                ops[i].filter(col, lambda x: True, "SAME_FILTER_NAME")
-                ops[i].filter_by_key(col, [1], "SAME_FILTER_BY_KEY_NAME")
-                ops[i].keys(col, "SAME_KEYS_NAME")
-                ops[i].values(col, "SAME_VALUES_NAME")
-                ops[i].sample_fixed_per_key(col, 1, "SAME_SAMPLE_NAME")
-                ops[i].count_per_element(col, "SAME_COUNT_NAME")
-
-            self.assertEqual("UNIQUE_OPS_SUFFIX_0", ops[0]._ulg._suffix)
-            self.assertEqual("UNIQUE_OPS_SUFFIX_1", ops[1]._ulg._suffix)
-            self.assertEqual(11, len(ops[0]._ulg._labels))
-            self.assertEqual(11, len(ops[1]._ulg._labels))
 
 @unittest.skipIf(sys.platform == "win32" or sys.platform == 'darwin' or (
     sys.version_info.minor <= 7 and sys.version_info.major == 3
