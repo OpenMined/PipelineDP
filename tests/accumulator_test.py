@@ -277,8 +277,7 @@ class GenericAccumulatorTest(unittest.TestCase):
                                                     total_delta=0.01))
         self.assertEqual(len(acc_params), 1)
         self.assertIsInstance(acc_params[0], accumulator.SumAccumulatorFactory)
-        self.assertTrue(isinstance(acc_params[0]._params,
-                                   accumulator.SumParams))
+        self.assertIsInstance(acc_params[0]._params, accumulator.SumParams)
 
 
 class MeanAccumulator(accumulator.Accumulator):
