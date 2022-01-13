@@ -400,7 +400,7 @@ class DpEngineTest(unittest.TestCase):
         # Most partition should be dropped by private partition selection.
         # This tests is non-deterministic, but it should pass with probability
         # very close to 1.
-        self.assertLess(len(col), 5)
+        self.assertLess(5, len(col))
 
     def test_select_private_partitions(self):
         # This test is probabilistic, but the parameters were chosen to ensure
@@ -451,6 +451,95 @@ class DpEngineTest(unittest.TestCase):
         # Only one partition is retained, the one that has many unique _after_
         # applying the "max_partitions_contributed" bound is retained.
         self.assertEqual(["pk-many-contribs"], col)
+
+    def test_aggregate_public_partitions_drop_non_public(self):
+        # Arrange
+        aggregator_params = pipeline_dp.AggregateParams(
+            noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+            metrics=[
+                agg.Metrics.COUNT, agg.Metrics.SUM, agg.Metrics.PRIVACY_ID_COUNT
+            ],
+            low=0,
+            high=1,
+            max_partitions_contributed=1,
+            max_contributions_per_partition=1,
+            public_partitions=["pk0", "pk1", "pk10"])
+
+        # Set an arbitrary budget, we are not interested in the DP outputs, only
+        # the partition keys.
+        budget_accountant = NaiveBudgetAccountant(total_epsilon=1,
+                                                  total_delta=1e-10)
+
+        # Input collection has 10 elements, such that each privacy id
+        # contributes 1 time and each partition has 1 element.
+        col = list(range(10))
+        data_extractor = pipeline_dp.DataExtractors(
+            privacy_id_extractor=lambda x: x,
+            partition_extractor=lambda x: f"pk{x}",
+            value_extractor=lambda x: x)
+
+        engine = pipeline_dp.DPEngine(budget_accountant=budget_accountant,
+                                      ops=pipeline_dp.LocalPipelineOperations())
+
+        col = engine.aggregate(col=col,
+                               params=aggregator_params,
+                               data_extractors=data_extractor)
+        budget_accountant.compute_budgets()
+
+        col = list(col)
+        partition_keys = [x[0] for x in col]
+        # Assert
+
+        # Only public partitions (0, 1, 2) should be kept and the rest of the
+        # partitions should be dropped.
+        self.assertEqual(["pk0", "pk1", "pk10"], partition_keys)
+
+    def test_aggregate_public_partitions_add_empty_public_partitions(self):
+        # Arrange
+        aggregator_params = pipeline_dp.AggregateParams(
+            noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+            metrics=[
+                agg.Metrics.COUNT, agg.Metrics.SUM, agg.Metrics.PRIVACY_ID_COUNT
+            ],
+            low=0,
+            high=1,
+            max_partitions_contributed=1,
+            max_contributions_per_partition=1,
+            public_partitions=["pk0", "pk10", "pk11"])
+
+        # Set a high budget to add close to 0 noise.
+        budget_accountant = NaiveBudgetAccountant(total_epsilon=100000,
+                                                  total_delta=1 - 1e-10)
+
+        # Input collection has 10 elements, such that each privacy id
+        # contributes 1 time and each partition has 1 element.
+        col = list(range(10))
+        data_extractor = pipeline_dp.DataExtractors(
+            privacy_id_extractor=lambda x: x,
+            partition_extractor=lambda x: f"pk{x}",
+            value_extractor=lambda x: 1)
+
+        engine = pipeline_dp.DPEngine(budget_accountant=budget_accountant,
+                                      ops=pipeline_dp.LocalPipelineOperations())
+
+        col = engine.aggregate(col=col,
+                               params=aggregator_params,
+                               data_extractors=data_extractor)
+        budget_accountant.compute_budgets()
+
+        col = list(col)
+        partition_keys = [x[0] for x in col]
+        # Assert
+
+        # Only public partitions ("pk0") should be kept and empty public
+        # partitions ("pk10", "pk11") should be added.
+        self.assertEqual(["pk0", "pk10", "pk11"], partition_keys)
+        self.assertAlmostEqual(1, col[0][1][0])  # "pk0" COUNT ≈ 1
+        self.assertAlmostEqual(1, col[0][1][1])  # "pk0" SUM ≈ 1
+        self.assertAlmostEqual(1, col[0][1][2])  # "pk0" PRIVACY_ID_COUNT ≈ 1
+        self.assertAlmostEqual(0, col[1][1][0])  # "pk10" COUNT ≈ 0
+        self.assertAlmostEqual(0, col[1][1][1])  # "pk10" SUM ≈ 0
+        self.assertAlmostEqual(0, col[1][1][2])  # "pk10" PRIVACY_ID_COUNT ≈ 0
 
     @staticmethod
     def create_dp_engine_default(accountant: NaiveBudgetAccountant = None,
