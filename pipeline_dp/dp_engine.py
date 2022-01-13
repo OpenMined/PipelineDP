@@ -134,7 +134,7 @@ class DPEngine:
         # col : (privacy_id, partition_key)
 
         # Apply cross-partition contribution bounding
-        col = self._ops.group_by_key(col)
+        col = self._ops.group_by_key(col, "Group by privacy_id")
 
         # col : (privacy_id, [partition_key])
 
