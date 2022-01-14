@@ -154,6 +154,49 @@ class PrivateBeamTest(unittest.TestCase):
                 public_partitions=sum_params.public_partitions)
             self.assertEqual(args[1], params)
 
+    @patch('pipeline_dp.dp_engine.DPEngine.aggregate')
+    def test_count(self, mock_aggregate):
+        runner = fn_api_runner.FnApiRunner()
+        with beam.Pipeline(runner=runner) as pipeline:
+            # Arrange
+            pcol = pipeline | 'Create produce' >> beam.Create(
+                [1, 2, 3, 4, 5, 6])
+            budget_accountant = budget_accounting.NaiveBudgetAccountant(
+                total_epsilon=1, total_delta=0.01)
+            private_collection = (
+                pcol | 'Create private collection' >> private_beam.MakePrivate(
+                    budget_accountant=budget_accountant,
+                    privacy_id_extractor=PrivateBeamTest.privacy_id_extractor))
+
+            count_params = aggregate_params.CountParams(
+                noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+                max_partitions_contributed=2,
+                max_contributions_per_partition=3,
+                budget_weight=1,
+                public_partitions=[],
+                partition_extractor=lambda x: f"pk:{x // 10}",
+                value_extractor=lambda x: x)
+
+            # Act
+            transformer = private_beam.Count(count_params=count_params)
+            private_collection | transformer
+
+            # Assert
+            self.assertEqual(transformer._budget_accountant, budget_accountant)
+            mock_aggregate.assert_called_once()
+
+            args = mock_aggregate.call_args[0]
+
+            params = pipeline_dp.AggregateParams(
+                noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+                metrics=[pipeline_dp.Metrics.COUNT],
+                max_partitions_contributed=count_params.
+                max_partitions_contributed,
+                max_contributions_per_partition=count_params.
+                max_contributions_per_partition,
+                public_partitions=count_params.public_partitions)
+            self.assertEqual(args[1], params)
+
     def test_Map(self):
         runner = fn_api_runner.FnApiRunner()
         with beam.Pipeline(runner=runner) as pipeline:

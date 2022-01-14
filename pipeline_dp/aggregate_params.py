@@ -114,7 +114,34 @@ class SumParams:
     max_contributions_per_partition: int
     low: float
     high: float
-    public_partitions: Union[list, 'PCollection', 'RDD']
+    public_partitions: Union[Iterable, 'PCollection', 'RDD']
+    partition_extractor: Callable
+    value_extractor: Callable
+    budget_weight: float = 1
+
+
+@dataclass
+class CountParams:
+    """Specifies parameters for differentially-private count calculation.
+
+    Args:
+        noise_kind: Kind of noise to use for the DP calculations.
+        max_partitions_contributed: Bounds the number of partitions in which one
+            unit of privacy (e.g., a user) can participate.
+        max_contributions_per_partition: Bounds the number of times one unit of
+            privacy (e.g. a user) can contribute to a partition.
+        public_partitions: A collection of partition keys that will be present in
+            the result.
+        partition_extractor: A function for partition id extraction from an RDD record.
+        value_extractor: A function for extraction of value
+            for which the sum will be calculated.
+
+    """
+
+    noise_kind: NoiseKind
+    max_partitions_contributed: int
+    max_contributions_per_partition: int
+    public_partitions: Union[Iterable, 'PCollection', 'RDD']
     partition_extractor: Callable
     value_extractor: Callable
     budget_weight: float = 1
