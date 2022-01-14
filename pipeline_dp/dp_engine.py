@@ -1,4 +1,5 @@
 """DP aggregations."""
+import math
 from dataclasses import dataclass
 # TODO: import only modules https://google.github.io/styleguide/pyguide.html#22-imports
 from functools import partial
@@ -7,6 +8,8 @@ import numpy as np
 
 import pydp.algorithms.partition_selection as partition_selection
 
+import pipeline_dp
+from pipeline_dp.aggregate_params import Metrics
 from pipeline_dp.accumulator import Accumulator
 from pipeline_dp.accumulator import AccumulatorFactory
 from pipeline_dp.accumulator import CompoundAccumulator
@@ -46,18 +49,6 @@ class DPEngine:
 
     def _add_report_stage(self, text):
         self._report_generators[-1].add_stage(text)
-
-    def _check_aggregate_params(self, col, params: AggregateParams,
-        data_extractors: DataExtractors):
-        print(params.metrics[0])
-        if col is None or col == False:
-            raise Exception("col must be be non-empty")
-        if params is None:
-            raise Exception("params must be non-empty")
-        if params.max_partitions_contributed is None:
-            raise Exception("params.max_partitions_contributed must be set")
-        if params.max_contributions_per_partition is None:
-            raise Exception("params.max_contributions_per_partition must be set")
 
     def aggregate(self, col, params: AggregateParams,
                   data_extractors: DataExtractors):
@@ -122,6 +113,37 @@ class DPEngine:
 
         return col
 
+    def _check_aggregate_params(self, col, params: AggregateParams,
+                                data_extractors: DataExtractors):
+
+        if col is None or not col:
+            raise Exception("col must be non-empty")
+        if params is None or not isinstance(params, AggregateParams):
+            raise Exception("params must be set to valid AggregateParams")
+        if not isinstance(params.max_partitions_contributed,
+                          int) or params.max_partitions_contributed <= 0:
+            raise Exception("params.max_partitions_contributed must be set "
+                            "to a positive integer")
+        if not isinstance(params.max_contributions_per_partition,
+                          int) or params.max_contributions_per_partition <= 0:
+            raise Exception(
+                "params.max_contributions_per_partition must be set "
+                "to a positive integer")
+        needs_low_high = any(metric == Metrics.SUM for metric in params.metrics)
+        if needs_low_high and (params.low is None or params.high is None):
+            raise Exception("params.low and params.high must be set")
+        if needs_low_high and (math.isinf(params.low) or math.isnan(
+                params.low) or math.isinf(params.high) or
+                               math.isnan(params.high)):
+            raise Exception(
+                "params.low and params.high must be both finite numbers")
+        if needs_low_high and params.high < params.low:
+            raise Exception(
+                "params.high must be equal to or greater than params.low")
+        if data_extractors is None or not isinstance(
+                data_extractors, pipeline_dp.DataExtractors):
+            raise Exception("data_extractors must be set to a DataExtractors")
+
     def select_private_partitions(self, col,
                                   params: SelectPrivatePartitionsParams,
                                   data_extractors: DataExtractors):
@@ -134,6 +156,20 @@ class DPEngine:
             from elements of 'col'. Only privacy_id_extractor and partition_extractor are required.
             value_extractor is not required.
         """
+        if col is None or not col:
+            raise Exception("col must be non-empty")
+        if params is None or not isinstance(params,
+                                            SelectPrivatePartitionsParams):
+            raise Exception(
+                "params must be set to a valid SelectPrivatePartitionsParams")
+        if not isinstance(params.max_partitions_contributed,
+                          int) or params.max_partitions_contributed <= 0:
+            raise Exception("params.max_partitions_contributed must be set "
+                            "(to a positive integer)")
+        if data_extractors is None or not isinstance(
+                data_extractors, pipeline_dp.DataExtractors):
+            raise Exception("data_extractors must be non-empty")
+
         self._report_generators.append(ReportGenerator(params))
         max_partitions_contributed = params.max_partitions_contributed
 

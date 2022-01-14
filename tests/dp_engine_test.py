@@ -161,8 +161,217 @@ class DpEngineTest(unittest.TestCase):
                     max_partitions_contributed, dict_of_pid_to_pk)))
 
     def test_aggregate_none(self):
-        self.assertIsNone(
-            pipeline_dp.DPEngine(None, None).aggregate(None, None, None))
+        with self.assertRaises(Exception):
+            pipeline_dp.DPEngine(None, None).aggregate(None, None, None)
+
+    def test_check_aggregate_params(self):
+        test_cases = [
+            {
+                "desc":
+                    "None col",
+                "col":
+                    None,
+                "params":
+                    pipeline_dp.AggregateParams(
+                        noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+                        max_partitions_contributed=1,
+                        max_contributions_per_partition=1,
+                        metrics=[pipeline_dp.Metrics.PRIVACY_ID_COUNT]),
+                "data_extractor":
+                    pipeline_dp.DataExtractors(
+                        privacy_id_extractor=lambda x: x,
+                        partition_extractor=lambda x: x,
+                        value_extractor=lambda x: x,
+                    ),
+            },
+            {
+                "desc":
+                    "empty col",
+                "col": [],
+                "params":
+                    pipeline_dp.AggregateParams(
+                        noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+                        max_partitions_contributed=1,
+                        max_contributions_per_partition=1,
+                        metrics=[pipeline_dp.Metrics.PRIVACY_ID_COUNT]),
+                "data_extractor":
+                    pipeline_dp.DataExtractors(
+                        privacy_id_extractor=lambda x: x,
+                        partition_extractor=lambda x: x,
+                        value_extractor=lambda x: x,
+                    ),
+            },
+            {
+                "desc":
+                    "none params",
+                "col": [0],
+                "params":
+                    None,
+                "data_extractor":
+                    pipeline_dp.DataExtractors(
+                        privacy_id_extractor=lambda x: x,
+                        partition_extractor=lambda x: x,
+                        value_extractor=lambda x: x,
+                    ),
+            },
+            {
+                "desc":
+                    "negative max_partitions_contributed",
+                "col": [0],
+                "params":
+                    pipeline_dp.AggregateParams(
+                        noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+                        max_partitions_contributed=-1,
+                        max_contributions_per_partition=1,
+                        metrics=[pipeline_dp.Metrics.PRIVACY_ID_COUNT]),
+                "data_extractor":
+                    pipeline_dp.DataExtractors(
+                        privacy_id_extractor=lambda x: x,
+                        partition_extractor=lambda x: x,
+                        value_extractor=lambda x: x,
+                    ),
+            },
+            {
+                "desc":
+                    "float max_partitions_contributed",
+                "col": [0],
+                "params":
+                    pipeline_dp.AggregateParams(
+                        noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+                        max_partitions_contributed=1.5,
+                        max_contributions_per_partition=1,
+                        metrics=[pipeline_dp.Metrics.PRIVACY_ID_COUNT]),
+                "data_extractor":
+                    pipeline_dp.DataExtractors(
+                        privacy_id_extractor=lambda x: x,
+                        partition_extractor=lambda x: x,
+                        value_extractor=lambda x: x,
+                    ),
+            },
+            {
+                "desc":
+                    "negative max_contributions_per_partition",
+                "col": [0],
+                "params":
+                    pipeline_dp.AggregateParams(
+                        noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+                        max_partitions_contributed=1,
+                        max_contributions_per_partition=-1,
+                        metrics=[pipeline_dp.Metrics.PRIVACY_ID_COUNT]),
+                "data_extractor":
+                    pipeline_dp.DataExtractors(
+                        privacy_id_extractor=lambda x: x,
+                        partition_extractor=lambda x: x,
+                        value_extractor=lambda x: x,
+                    ),
+            },
+            {
+                "desc":
+                    "float max_contributions_per_partition",
+                "col": [0],
+                "params":
+                    pipeline_dp.AggregateParams(
+                        noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+                        max_partitions_contributed=1,
+                        max_contributions_per_partition=1.5,
+                        metrics=[pipeline_dp.Metrics.PRIVACY_ID_COUNT]),
+                "data_extractor":
+                    pipeline_dp.DataExtractors(
+                        privacy_id_extractor=lambda x: x,
+                        partition_extractor=lambda x: x,
+                        value_extractor=lambda x: x,
+                    ),
+            },
+            {
+                "desc":
+                    "unspecified low",
+                "col": [0],
+                "params":
+                    pipeline_dp.AggregateParams(
+                        noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+                        max_partitions_contributed=1,
+                        max_contributions_per_partition=1,
+                        metrics=[pipeline_dp.Metrics.SUM]),
+                "data_extractor":
+                    pipeline_dp.DataExtractors(
+                        privacy_id_extractor=lambda x: x,
+                        partition_extractor=lambda x: x,
+                        value_extractor=lambda x: x,
+                    ),
+            },
+            {
+                "desc":
+                    "unspecified high",
+                "col": [0],
+                "params":
+                    pipeline_dp.AggregateParams(
+                        noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+                        max_partitions_contributed=1,
+                        max_contributions_per_partition=1,
+                        metrics=[pipeline_dp.Metrics.SUM]),
+                "data_extractor":
+                    pipeline_dp.DataExtractors(
+                        privacy_id_extractor=lambda x: x,
+                        partition_extractor=lambda x: x,
+                        value_extractor=lambda x: x,
+                    ),
+            },
+            {
+                "desc":
+                    "low > high",
+                "col": [0],
+                "params":
+                    pipeline_dp.AggregateParams(
+                        noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+                        max_partitions_contributed=1,
+                        max_contributions_per_partition=1,
+                        low=1,
+                        high=0,
+                        metrics=[pipeline_dp.Metrics.SUM]),
+                "data_extractor":
+                    pipeline_dp.DataExtractors(
+                        privacy_id_extractor=lambda x: x,
+                        partition_extractor=lambda x: x,
+                        value_extractor=lambda x: x,
+                    ),
+            },
+            {
+                "desc":
+                    "None data_extractor",
+                "col": [0],
+                "params":
+                    pipeline_dp.AggregateParams(
+                        noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+                        max_partitions_contributed=1,
+                        max_contributions_per_partition=1,
+                        metrics=[pipeline_dp.Metrics.PRIVACY_ID_COUNT]),
+                "data_extractor":
+                    None,
+            },
+            {
+                "desc":
+                    "data_extractor with an incorrect type",
+                "col": [0],
+                "params":
+                    pipeline_dp.AggregateParams(
+                        noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+                        max_partitions_contributed=1,
+                        max_contributions_per_partition=1,
+                        metrics=[pipeline_dp.Metrics.PRIVACY_ID_COUNT]),
+                "data_extractor":
+                    1,
+            },
+        ]
+
+        for test_case in test_cases:
+            with self.assertRaises(Exception, msg=test_case["desc"]):
+                budget_accountant = NaiveBudgetAccountant(total_epsilon=1,
+                                                          total_delta=1e-10)
+                engine = pipeline_dp.DPEngine(
+                    budget_accountant=budget_accountant,
+                    ops=pipeline_dp.LocalPipelineOperations())
+                engine.aggregate(test_case["col"], test_case["params"],
+                                 test_case["data_extractor"])
 
     @patch('pipeline_dp.accumulator._create_accumulator_factories')
     def test_aggregate_report(self, mock_create_accumulator_factories_function):
@@ -451,6 +660,112 @@ class DpEngineTest(unittest.TestCase):
         # Only one partition is retained, the one that has many unique _after_
         # applying the "max_partitions_contributed" bound is retained.
         self.assertEqual(["pk-many-contribs"], col)
+
+    def test_check_select_private_partitions(self):
+        """ Tests validation of parameters for select_private_partitions()"""
+        test_cases = [
+            {
+                "desc":
+                    "None col",
+                "col":
+                    None,
+                "params":
+                    pipeline_dp.SelectPrivatePartitionsParams(
+                        max_partitions_contributed=1,),
+                "data_extractor":
+                    pipeline_dp.DataExtractors(
+                        privacy_id_extractor=lambda x: x,
+                        partition_extractor=lambda x: x,
+                        value_extractor=lambda x: x,
+                    ),
+            },
+            {
+                "desc":
+                    "empty col",
+                "col": [],
+                "params":
+                    pipeline_dp.SelectPrivatePartitionsParams(
+                        max_partitions_contributed=1,),
+                "data_extractor":
+                    pipeline_dp.DataExtractors(
+                        privacy_id_extractor=lambda x: x,
+                        partition_extractor=lambda x: x,
+                        value_extractor=lambda x: x,
+                    ),
+            },
+            {
+                "desc":
+                    "none params",
+                "col": [0],
+                "params":
+                    None,
+                "data_extractor":
+                    pipeline_dp.DataExtractors(
+                        privacy_id_extractor=lambda x: x,
+                        partition_extractor=lambda x: x,
+                        value_extractor=lambda x: x,
+                    ),
+            },
+            {
+                "desc":
+                    "negative max_partitions_contributed",
+                "col": [0],
+                "params":
+                    pipeline_dp.SelectPrivatePartitionsParams(
+                        max_partitions_contributed=-1,),
+                "data_extractor":
+                    pipeline_dp.DataExtractors(
+                        privacy_id_extractor=lambda x: x,
+                        partition_extractor=lambda x: x,
+                        value_extractor=lambda x: x,
+                    ),
+            },
+            {
+                "desc":
+                    "float max_partitions_contributed",
+                "col": [0],
+                "params":
+                    pipeline_dp.SelectPrivatePartitionsParams(
+                        max_partitions_contributed=1.1,),
+                "data_extractor":
+                    pipeline_dp.DataExtractors(
+                        privacy_id_extractor=lambda x: x,
+                        partition_extractor=lambda x: x,
+                        value_extractor=lambda x: x,
+                    ),
+            },
+            {
+                "desc":
+                    "None data_extractor",
+                "col": [0],
+                "params":
+                    pipeline_dp.SelectPrivatePartitionsParams(
+                        max_partitions_contributed=1,),
+                "data_extractor":
+                    None,
+            },
+            {
+                "desc":
+                    "Not a function data_extractor",
+                "col": [0],
+                "params":
+                    pipeline_dp.SelectPrivatePartitionsParams(
+                        max_partitions_contributed=1,),
+                "data_extractor":
+                    1,
+            },
+        ]
+
+        for test_case in test_cases:
+            with self.assertRaises(Exception, msg=test_case["desc"]):
+                budget_accountant = NaiveBudgetAccountant(total_epsilon=1,
+                                                          total_delta=1e-10)
+                engine = pipeline_dp.DPEngine(
+                    budget_accountant=budget_accountant,
+                    ops=pipeline_dp.LocalPipelineOperations())
+                engine.select_private_partitions(test_case["col"],
+                                                 test_case["params"],
+                                                 test_case["data_extractor"])
 
     @staticmethod
     def create_dp_engine_default(accountant: NaiveBudgetAccountant = None,
