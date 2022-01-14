@@ -114,7 +114,7 @@ class SumParams:
     max_contributions_per_partition: int
     low: float
     high: float
-    public_partitions: Union[list, 'PCollection', 'RDD']
+    public_partitions: Union[Iterable, 'PCollection', 'RDD']
     partition_extractor: Callable
     value_extractor: Callable
     budget_weight: float = 1
@@ -141,7 +141,7 @@ class CountParams:
     noise_kind: NoiseKind
     max_partitions_contributed: int
     max_contributions_per_partition: int
-    public_partitions: Union[list, 'PCollection', 'RDD']
+    public_partitions: Union[Iterable, 'PCollection', 'RDD']
     partition_extractor: Callable
     value_extractor: Callable
     budget_weight: float = 1

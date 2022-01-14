@@ -119,9 +119,8 @@ class Count(PrivatePTransform):
         self._count_params = count_params
 
     def expand(self, pcol: pvalue.PCollection) -> pvalue.PCollection:
-        beam_operations = pipeline_dp.BeamOperations()
-        dp_engine = pipeline_dp.DPEngine(self._budget_accountant,
-                                         beam_operations)
+        ops = pipeline_dp.BeamOperations()
+        dp_engine = pipeline_dp.DPEngine(self._budget_accountant, ops)
 
         params = pipeline_dp.AggregateParams(
             noise_kind=self._count_params.noise_kind,
@@ -138,7 +137,15 @@ class Count(PrivatePTransform):
             privacy_id_extractor=lambda x: x[0],
             value_extractor=lambda x: self._count_params.value_extractor(x[1]))
 
-        return dp_engine.aggregate(pcol, params, data_extractors)
+        dp_result = dp_engine.aggregate(pcol, params, data_extractors)
+        # dp_result : (partition_key, [dp_count])
+
+        # aggregate() returns a list of metrics for each partition key.
+        # Here is only one metric - count. Remove list.
+        dp_result = ops.map_values(dp_result, lambda v: v[0], "Unnest list")
+        # dp_result : (partition_key, dp_count)
+
+        return dp_result
 
 
 class Map(PrivatePTransform):
