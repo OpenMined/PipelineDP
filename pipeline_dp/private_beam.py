@@ -103,6 +103,35 @@ class Sum(PrivatePTransform):
         return dp_engine.aggregate(pcol, params, data_extractors)
 
 
+class Count(PrivatePTransform):
+    """Transform class for performing DP Count on PrivatePCollection."""
+
+    def __init__(self, count_params: aggregate_params.CountParams, label: Optional[str] = None):
+        super().__init__(return_anonymized=True, label=label)
+        self._count_params = count_params
+
+    def expand(self, pcol: pvalue.PCollection) -> pvalue.PCollection:
+        beam_operations = pipeline_dp.BeamOperations()
+        dp_engine = pipeline_dp.DPEngine(self._budget_accountant, beam_operations)
+
+        params = pipeline_dp.AggregateParams(
+            noise_kind=self._count_params.noise_kind,
+            metrics=[pipeline_dp.Metrics.COUNT],
+            max_partitions_contributed=self._count_params.
+                max_partitions_contributed,
+            max_contributions_per_partition=self._count_params.
+                max_contributions_per_partition,
+            public_partitions=self._count_params.public_partitions)
+
+        data_extractors = pipeline_dp.DataExtractors(
+            partition_extractor=lambda x: self._count_params.partition_extractor(
+                x[1]),
+            privacy_id_extractor=lambda x: x[0],
+            value_extractor=lambda x: self._count_params.value_extractor(x[1]))
+
+        return dp_engine.aggregate(pcol, params, data_extractors)
+
+
 class Map(PrivatePTransform):
     """Transform class for performing Map on PrivatePCollection."""
 
