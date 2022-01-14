@@ -91,6 +91,13 @@ class DPEngine:
         col = self._ops.map_tuple(col, lambda pid_pk, v: (pid_pk[1], v),
                                   "Drop privacy id")
         # col : (partition_key, accumulator)
+
+        if params.public_partitions:
+            col = self._add_empty_public_partitions(col,
+                                                    params.public_partitions,
+                                                    aggregator_fn)
+        # col : (partition_key, accumulator)
+
         col = self._ops.reduce_accumulators_per_key(
             col, "Reduce accumulators per partition key")
         # col : (partition_key, accumulator)
@@ -180,6 +187,21 @@ class DPEngine:
             f"Public partition selection: dropped non public partitions")
         return self._ops.map_tuple(col, lambda k, v: v, "Drop key")
 
+    def _add_empty_public_partitions(self, col, public_partitions,
+                                     aggregator_fn):
+        """Adds empty accumulators to all `public_partitions` and returns those
+        empty accumulators joined with `col`."""
+        self._add_report_stage(
+            "Adding empty partitions to public partitions that are missing in "
+            "data")
+        empty_accumulators = self._ops.map(
+            public_partitions, lambda partition_key:
+            (partition_key, aggregator_fn([])))
+
+        return self._ops.flatten(
+            col, empty_accumulators,
+            "Join public partitions with partitions from data")
+
     def _bound_contributions(self, col, max_partitions_contributed: int,
                              max_contributions_per_partition: int,
                              aggregator_fn):
@@ -212,13 +234,13 @@ class DPEngine:
         col = self._ops.map_values(
             col, aggregator_fn,
             "Apply aggregate_fn after per partition bounding")
-        # ((privacy_id, partition_key), aggregator)
+        # ((privacy_id, partition_key), accumulator)
 
         # Cross partition bounding
         col = self._ops.map_tuple(
             col, lambda pid_pk, v: (pid_pk[0], (pid_pk[1], v)),
             "Rekey to (privacy_id, (partition_key, "
-            "aggregator))")
+            "accumulator))")
         col = self._ops.sample_fixed_per_key(col, max_partitions_contributed,
                                              "Sample per privacy_id")
 
@@ -226,7 +248,7 @@ class DPEngine:
             f"Cross-partition contribution bounding: randomly selected not more than "
             f"{max_partitions_contributed} partitions per user")
 
-        # (privacy_id, [(partition_key, aggregator)])
+        # (privacy_id, [(partition_key, accumulator)])
         def unnest_cross_partition_bound_sampled_per_key(pid_pk_v):
             pid, pk_values = pid_pk_v
             return (((pid, pk), v) for (pk, v) in pk_values)

@@ -86,6 +86,14 @@ class PipelineOperations(abc.ABC):
         """
         pass
 
+    @abc.abstractmethod
+    def flatten(self, col1, col2, stage_name: str):
+        """
+        Returns:
+          A collection that contains all values from col1 and col2.
+        """
+        pass
+
     def is_serialization_immediate_on_reduce_by_key(self):
         return False
 
@@ -220,6 +228,9 @@ class BeamOperations(PipelineOperations):
         return col | self._ulg.unique(stage_name) >> beam.CombinePerKey(
             merge_accumulators)
 
+    def flatten(self, col1, col2, stage_name: str):
+        return (col1, col2) | self._ulg.unique(stage_name) >> beam.Flatten()
+
 
 class SparkRDDOperations(PipelineOperations):
     """Apache Spark RDD adapter."""
@@ -299,6 +310,9 @@ class SparkRDDOperations(PipelineOperations):
     def is_serialization_immediate_on_reduce_by_key(self):
         return True
 
+    def flatten(self, col1, col2, stage_name: str = None):
+        raise NotImplementedError("Not yet implemented for Spark")
+
 
 class LocalPipelineOperations(PipelineOperations):
     """Local Pipeline adapter."""
@@ -366,6 +380,9 @@ class LocalPipelineOperations(PipelineOperations):
 
     def reduce_accumulators_per_key(self, col, stage_name: str = None):
         return self.map_values(self.group_by_key(col), accumulator.merge)
+
+    def flatten(self, col1, col2, stage_name: str = None):
+        return itertools.chain(col1, col2)
 
 
 # workaround for passing lambda functions to multiprocessing
@@ -573,3 +590,6 @@ class MultiProcLocalPipelineOperations(PipelineOperations):
                                     col,
                                     stage_name: typing.Optional[str] = None):
         return self.map_values(col, accumulator.merge)
+
+    def flatten(self, col1, col2, stage_name: str = None):
+        return itertools.chain(col1, col2)
