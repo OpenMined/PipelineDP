@@ -47,6 +47,18 @@ class DPEngine:
     def _add_report_stage(self, text):
         self._report_generators[-1].add_stage(text)
 
+    def _check_aggregate_params(self, col, params: AggregateParams,
+        data_extractors: DataExtractors):
+        print(params.metrics[0])
+        if col is None or col == False:
+            raise Exception("col must be be non-empty")
+        if params is None:
+            raise Exception("params must be non-empty")
+        if params.max_partitions_contributed is None:
+            raise Exception("params.max_partitions_contributed must be set")
+        if params.max_contributions_per_partition is None:
+            raise Exception("params.max_contributions_per_partition must be set")
+
     def aggregate(self, col, params: AggregateParams,
                   data_extractors: DataExtractors):
         """Computes DP aggregation metrics.
@@ -57,8 +69,7 @@ class DPEngine:
           data_extractors: functions that extract needed pieces of information
             from elements of 'col'.
         """
-        if params is None:
-            return None
+        self._check_aggregate_params(col, params, data_extractors)
 
         with self._budget_accountant.scope(weight=params.budget_weight):
             return self._aggregate(col, params, data_extractors)
@@ -253,7 +264,7 @@ class DPEngine:
 
         def filter_fn(captures: Tuple[MechanismSpec, int],
                       row: Tuple[Any, Accumulator]) -> bool:
-            """Lazily creates a partition selection strategy and uses it to determine which 
+            """Lazily creates a partition selection strategy and uses it to determine which
             partitions to keep."""
             mechanism, max_partitions = captures
             accumulator = row[1]
