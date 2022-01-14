@@ -165,8 +165,8 @@ class PrivateBeamTest(unittest.TestCase):
                 total_epsilon=1, total_delta=0.01)
             private_collection = (
                 pcol | 'Create private collection' >> private_beam.MakePrivate(
-                budget_accountant=budget_accountant,
-                privacy_id_extractor=PrivateBeamTest.privacy_id_extractor))
+                    budget_accountant=budget_accountant,
+                    privacy_id_extractor=PrivateBeamTest.privacy_id_extractor))
 
             count_params = aggregate_params.CountParams(
                 noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
@@ -191,9 +191,9 @@ class PrivateBeamTest(unittest.TestCase):
                 noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
                 metrics=[pipeline_dp.Metrics.COUNT],
                 max_partitions_contributed=count_params.
-                    max_partitions_contributed,
+                max_partitions_contributed,
                 max_contributions_per_partition=count_params.
-                    max_contributions_per_partition,
+                max_contributions_per_partition,
                 public_partitions=count_params.public_partitions)
             self.assertEqual(args[1], params)
 
