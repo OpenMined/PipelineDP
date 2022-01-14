@@ -189,9 +189,11 @@ class DPEngine:
 
     def _add_empty_public_partitions(self, col, public_partitions,
                                      aggregator_fn):
+        """Adds empty accumulators to all `public_partitions` and returns those
+        empty accumulators joined with `col`."""
         self._add_report_stage(
-            "Adding empty accumulators to public partitions and joining "
-            "them with accumulators from data")
+            "Adding empty partitions to public partitions that are missing in"
+            "data")
         empty_accumulators = self._ops.map(
             public_partitions, lambda partition_key:
             (partition_key, aggregator_fn([])))
