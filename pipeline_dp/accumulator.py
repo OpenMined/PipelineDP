@@ -259,7 +259,7 @@ class PrivacyIdCountParams(AccumulatorClassParams):
 class PrivacyIdCountAccumulator(Accumulator):
 
     def __init__(self, params: PrivacyIdCountParams, values):
-        self._count = 1
+        self._count = 1 if values else 0  # count is 0 for empty accumulators
         self._params = params
 
     def add_value(self, value):
