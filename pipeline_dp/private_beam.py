@@ -3,7 +3,6 @@ from abc import abstractmethod
 from typing import Callable, Optional
 from apache_beam import pvalue
 import apache_beam as beam
-from collections.abc import Iterable
 
 import pipeline_dp
 from pipeline_dp import aggregate_params, budget_accounting
@@ -79,9 +78,8 @@ class Sum(PrivatePTransform):
         self._sum_params = sum_params
 
     def expand(self, pcol: pvalue.PCollection) -> pvalue.PCollection:
-        beam_operations = pipeline_dp.BeamOperations()
-        dp_engine = pipeline_dp.DPEngine(self._budget_accountant,
-                                         beam_operations)
+        ops = pipeline_dp.BeamOperations()
+        dp_engine = pipeline_dp.DPEngine(self._budget_accountant, ops)
 
         params = pipeline_dp.AggregateParams(
             noise_kind=self._sum_params.noise_kind,
@@ -100,7 +98,15 @@ class Sum(PrivatePTransform):
             privacy_id_extractor=lambda x: x[0],
             value_extractor=lambda x: self._sum_params.value_extractor(x[1]))
 
-        return dp_engine.aggregate(pcol, params, data_extractors)
+        dp_result = dp_engine.aggregate(pcol, params, data_extractors)
+        # dp_result : (partition_key, [dp_sum])
+
+        # aggregate() returns a list of metrics for each partition key.
+        # Here is only one metric - sum. Remove list.
+        dp_result = ops.map_values(dp_result, lambda v: v[0], "Unnest list")
+        # dp_result : (partition_key, dp_sum)
+
+        return dp_result
 
 
 class Count(PrivatePTransform):
