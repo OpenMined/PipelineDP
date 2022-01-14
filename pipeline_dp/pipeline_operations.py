@@ -310,6 +310,9 @@ class SparkRDDOperations(PipelineOperations):
     def is_serialization_immediate_on_reduce_by_key(self):
         return True
 
+    def flatten(self, col1, col2, stage_name: str = None):
+        raise NotImplementedError("Not yet implemented for Spark")
+
 
 class LocalPipelineOperations(PipelineOperations):
     """Local Pipeline adapter."""
@@ -587,3 +590,6 @@ class MultiProcLocalPipelineOperations(PipelineOperations):
                                     col,
                                     stage_name: typing.Optional[str] = None):
         return self.map_values(col, accumulator.merge)
+
+    def flatten(self, col1, col2, stage_name: str = None):
+        return itertools.chain(col1, col2)

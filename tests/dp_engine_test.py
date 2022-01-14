@@ -119,7 +119,7 @@ class DpEngineTest(unittest.TestCase):
                 max_contributions_per_partition=max_contributions_per_partition,
                 aggregator_fn=DpEngineTest.aggregator_fn))
 
-        self.assertEqual(len(bound_result), 3)
+        self.assertEqual(3, len(bound_result))
         # Check contributions per partitions
         self.assertTrue(
             all(
@@ -142,7 +142,7 @@ class DpEngineTest(unittest.TestCase):
                 max_contributions_per_partition=max_contributions_per_partition,
                 aggregator_fn=DpEngineTest.aggregator_fn))
 
-        self.assertEqual(len(bound_result), 4)
+        self.assertEqual(4, len(bound_result))
         # Check contributions per partitions
         self.assertTrue(
             all(
@@ -153,7 +153,7 @@ class DpEngineTest(unittest.TestCase):
         dict_of_pid_to_pk = collections.defaultdict(lambda: [])
         for key, _ in bound_result:
             dict_of_pid_to_pk[key[0]].append(key[1])
-        self.assertEqual(len(dict_of_pid_to_pk), 2)
+        self.assertEqual(2, len(dict_of_pid_to_pk))
         self.assertTrue(
             all(
                 map(
@@ -208,7 +208,7 @@ class DpEngineTest(unittest.TestCase):
         engine.aggregate(col, params2, data_extractor)
         engine.select_private_partitions(col, select_partitions_params,
                                          data_extractor)
-        self.assertEqual(len(engine._report_generators), 3)  # pylint: disable=protected-access
+        self.assertEqual(3, len(engine._report_generators))  # pylint: disable=protected-access
         budget_accountant.compute_budgets()
         self.assertEqual(
             engine._report_generators[0].report(),
@@ -223,6 +223,7 @@ class DpEngineTest(unittest.TestCase):
             "\n1. Public partition selection: dropped non public partitions"
             "\n2. Per-partition contribution bounding: randomly selected not more than 3 contributions"
             "\n3. Cross-partition contribution bounding: randomly selected not more than 1 partitions per user"
+            "\n4. Adding empty partitions to public partitions that are missing in data"
         )
         self.assertEqual(
             engine._report_generators[2].report(),
@@ -400,7 +401,7 @@ class DpEngineTest(unittest.TestCase):
         # Most partition should be dropped by private partition selection.
         # This tests is non-deterministic, but it should pass with probability
         # very close to 1.
-        self.assertLess(5, len(col))
+        self.assertLess(len(col), 5)
 
     def test_select_private_partitions(self):
         # This test is probabilistic, but the parameters were chosen to ensure
