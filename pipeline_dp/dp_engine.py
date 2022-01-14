@@ -240,22 +240,21 @@ class DPEngine:
         """Selects and publishes private partitions.
 
         Args:
-            col: collection, with types for each element: 
+            col: collection, with types for each element:
                 (partition_key, Accumulator)
             max_partitions_contributed: maximum amount of partitions that one privacy unit
                 might contribute.
-        
+
         Returns:
             collection of elements (partition_key, accumulator)
         """
         budget = self._budget_accountant.request_budget(
             mechanism_type=MechanismType.GENERIC)
 
-        def filter_fn(captures: Tuple[MechanismSpec, int],
+        def filter_fn(budget: MechanismSpec, max_partitions: int,
                       row: Tuple[Any, Accumulator]) -> bool:
-            """Lazily creates a partition selection strategy and uses it to determine which 
+            """Lazily creates a partition selection strategy and uses it to determine which
             partitions to keep."""
-            mechanism, max_partitions = captures
             accumulator = row[1]
             partition_selection_strategy = partition_selection.create_truncated_geometric_partition_strategy(
                 budget.eps, budget.delta, max_partitions)
@@ -263,7 +262,7 @@ class DPEngine:
                 accumulator.privacy_id_count)
 
         # make filter_fn serializable
-        filter_fn = partial(filter_fn, (budget, max_partitions_contributed))
+        filter_fn = partial(filter_fn, budget, max_partitions_contributed)
         self._add_report_stage(
             lambda:
             f"Private Partition selection: using {budget.mechanism_type.value} "
