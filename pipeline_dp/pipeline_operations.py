@@ -1,20 +1,15 @@
 """Adapters for working with pipeline frameworks."""
 
-from enum import Enum
 from functools import partial
-import os
 import multiprocessing as mp
-from pipeline_dp import accumulator
 import random
 import numpy as np
 
 import abc
 import apache_beam as beam
 import apache_beam.transforms.combiners as combiners
-import collections
 import pipeline_dp.accumulator as accumulator
 import typing
-from typing import Any, Optional, Callable, Tuple
 import collections
 import itertools
 
@@ -91,24 +86,62 @@ class PipelineOperations(abc.ABC):
         """
         pass
 
+    @abc.abstractmethod
+    def flatten(self, col1, col2, stage_name: str):
+        """
+        Returns:
+          A collection that contains all values from col1 and col2.
+        """
+        pass
+
     def is_serialization_immediate_on_reduce_by_key(self):
         return False
+
+
+class UniqueLabelsGenerator:
+    """Generate unique labels for each pipeline aggregation."""
+
+    def __init__(self, suffix):
+        self._labels = set()
+        self._suffix = suffix
+
+    def _add_if_unique(self, label):
+        if label in self._labels:
+            return False
+        self._labels.add(label)
+        return True
+
+    def unique(self, label):
+        if not label:
+            label = "UNDEFINED_STAGE_NAME"
+        suffix_label = label + "_" + self._suffix
+        if self._add_if_unique(suffix_label):
+            return suffix_label
+        for i in itertools.count(1):
+            label_candidate = f"{label}_{i}_{self._suffix}"
+            if self._add_if_unique(label_candidate):
+                return label_candidate
 
 
 class BeamOperations(PipelineOperations):
     """Apache Beam adapter."""
 
+    def __init__(self, suffix: str = ""):
+        super().__init__()
+        self._ulg = UniqueLabelsGenerator(suffix)
+
     def map(self, col, fn, stage_name: str):
-        return col | stage_name >> beam.Map(fn)
+        return col | self._ulg.unique(stage_name) >> beam.Map(fn)
 
     def flat_map(self, col, fn, stage_name: str):
-        return col | stage_name >> beam.FlatMap(fn)
+        return col | self._ulg.unique(stage_name) >> beam.FlatMap(fn)
 
     def map_tuple(self, col, fn, stage_name: str):
-        return col | stage_name >> beam.Map(lambda x: fn(*x))
+        return col | self._ulg.unique(stage_name) >> beam.Map(lambda x: fn(*x))
 
     def map_values(self, col, fn, stage_name: str):
-        return col | stage_name >> beam.MapTuple(lambda k, v: (k, fn(v)))
+        return col | self._ulg.unique(stage_name) >> beam.MapTuple(lambda k, v:
+                                                                   (k, fn(v)))
 
     def group_by_key(self, col, stage_name: str):
         """Group the values for each key in the PCollection into a single sequence.
@@ -121,10 +154,10 @@ class BeamOperations(PipelineOperations):
           An PCollection of tuples in which the type of the second item is list.
 
         """
-        return col | stage_name >> beam.GroupByKey()
+        return col | self._ulg.unique(stage_name) >> beam.GroupByKey()
 
     def filter(self, col, fn, stage_name: str):
-        return col | stage_name >> beam.Filter(fn)
+        return col | self._ulg.unique(stage_name) >> beam.Filter(fn)
 
     def filter_by_key(self, col, keys_to_keep, stage_name: str):
 
@@ -154,31 +187,34 @@ class BeamOperations(PipelineOperations):
             # Keys to keep are in memory.
             if not isinstance(keys_to_keep, set):
                 keys_to_keep = set(keys_to_keep)
-            return col | "Filtering out" >> beam.Filter(does_keep)
+            return col | self._ulg.unique("Filtering out") >> beam.Filter(
+                does_keep)
 
         # `keys_to_keep` are not in memory. Filter out with a join.
-        keys_to_keep = (keys_to_keep |
-                        "Reformat PCollection" >> beam.Map(lambda x: (x, True)))
+        keys_to_keep = (keys_to_keep | self._ulg.unique("Reformat PCollection")
+                        >> beam.Map(lambda x: (x, True)))
         return ({
             VALUES: col,
             TO_KEEP: keys_to_keep
         } | "CoGroup by values and to_keep partition flag " >>
-                beam.CoGroupByKey() |
-                "Filtering out" >> beam.ParDo(PartitionsFilterJoin()))
+                beam.CoGroupByKey() | self._ulg.unique("Partitions Filter Join")
+                >> beam.ParDo(PartitionsFilterJoin()))
 
     def keys(self, col, stage_name: str):
-        return col | stage_name >> beam.Keys()
+        return col | self._ulg.unique(stage_name) >> beam.Keys()
 
     def values(self, col, stage_name: str):
-        return col | stage_name >> beam.Values()
+        return col | self._ulg.unique(stage_name) >> beam.Values()
 
     def sample_fixed_per_key(self, col, n: int, stage_name: str):
-        return col | stage_name >> combiners.Sample.FixedSizePerKey(n)
+        return col | self._ulg.unique(
+            stage_name) >> combiners.Sample.FixedSizePerKey(n)
 
     def count_per_element(self, col, stage_name: str):
-        return col | stage_name >> combiners.Count.PerElement()
+        return col | self._ulg.unique(
+            stage_name) >> combiners.Count.PerElement()
 
-    def reduce_accumulators_per_key(self, col, stage_name: str = None):
+    def reduce_accumulators_per_key(self, col, stage_name: str):
         # TODO: Use merge function from the accumulator framework.
         def merge_accumulators(accumulators):
             res = None
@@ -189,7 +225,11 @@ class BeamOperations(PipelineOperations):
                     res = acc
             return res
 
-        return col | stage_name >> beam.CombinePerKey(merge_accumulators)
+        return col | self._ulg.unique(stage_name) >> beam.CombinePerKey(
+            merge_accumulators)
+
+    def flatten(self, col1, col2, stage_name: str):
+        return (col1, col2) | self._ulg.unique(stage_name) >> beam.Flatten()
 
 
 class SparkRDDOperations(PipelineOperations):
@@ -264,11 +304,14 @@ class SparkRDDOperations(PipelineOperations):
     def count_per_element(self, rdd, stage_name: str = None):
         return rdd.map(lambda x: (x, 1)).reduceByKey(lambda x, y: (x + y))
 
-    def reduce_accumulators_per_key(self, rdd, stage_name: str = None):
+    def reduce_accumulators_per_key(self, rdd, stage_name: str):
         return rdd.reduceByKey(lambda acc1, acc2: acc1.add_accumulator(acc2))
 
     def is_serialization_immediate_on_reduce_by_key(self):
         return True
+
+    def flatten(self, col1, col2, stage_name: str = None):
+        raise NotImplementedError("Not yet implemented for Spark")
 
 
 class LocalPipelineOperations(PipelineOperations):
@@ -337,6 +380,9 @@ class LocalPipelineOperations(PipelineOperations):
 
     def reduce_accumulators_per_key(self, col, stage_name: str = None):
         return self.map_values(self.group_by_key(col), accumulator.merge)
+
+    def flatten(self, col1, col2, stage_name: str = None):
+        return itertools.chain(col1, col2)
 
 
 # workaround for passing lambda functions to multiprocessing
@@ -544,3 +590,6 @@ class MultiProcLocalPipelineOperations(PipelineOperations):
                                     col,
                                     stage_name: typing.Optional[str] = None):
         return self.map_values(col, accumulator.merge)
+
+    def flatten(self, col1, col2, stage_name: str = None):
+        return itertools.chain(col1, col2)

@@ -5,6 +5,7 @@ import apache_beam.testing.test_pipeline as test_pipeline
 import apache_beam.testing.util as beam_util
 import pytest
 import sys
+from unittest.mock import Mock, MagicMock, patch
 
 from pipeline_dp import DataExtractors
 from pipeline_dp.pipeline_operations import MultiProcLocalPipelineOperations, SparkRDDOperations
@@ -72,7 +73,8 @@ class BeamOperationsTest(parameterized.TestCase):
                                                            (8, 1)])
             col = self.ops.map_values(col, SumAccumulator,
                                       "Wrap into accumulators")
-            col = self.ops.reduce_accumulators_per_key(col)
+            col = self.ops.reduce_accumulators_per_key(
+                col, "Reduce accumulators per key")
             result = col | "Get accumulated values" >> beam.Map(
                 lambda row: (row[0], row[1].get_metrics()))
 
@@ -80,8 +82,132 @@ class BeamOperationsTest(parameterized.TestCase):
                                   beam_util.equal_to([(6, 2), (7, 2), (8, 1)]))
 
 
-@unittest.skipIf(sys.platform == "win32",
-                 "There are some problems with PySpark setup on Windows")
+class BeamOperationsStageNameTest(unittest.TestCase):
+
+    class MockUniqueLabelGenerators:
+
+        def unique(self, stage_name: str = ""):
+            return "unique_label"
+
+    @staticmethod
+    def _create_mock_pcollection():
+        mock = Mock()
+        mock.__or__ = MagicMock(return_value=mock)
+        return mock
+
+    @staticmethod
+    def _test_helper():
+        mock_pcollection = BeamOperationsStageNameTest._create_mock_pcollection(
+        )
+        ops = BeamOperations()
+        ops._ulg = BeamOperationsStageNameTest.MockUniqueLabelGenerators()
+        return mock_pcollection, ops
+
+    @patch("apache_beam.transforms.ptransform.PTransform.__rrshift__")
+    def test_map(self, mock_rrshift):
+        mock_pcollection, ops = self._test_helper()
+        ops.map(mock_pcollection, lambda x: x, "stage_name")
+        mock_rrshift.assert_called_once_with("unique_label")
+
+    @patch("apache_beam.transforms.ptransform.PTransform.__rrshift__")
+    def test_map_values(self, mock_rrshift):
+        mock_pcollection, ops = self._test_helper()
+        ops.map_values(mock_pcollection, lambda x: x, "stage_name")
+        mock_rrshift.assert_called_once_with("unique_label")
+
+    @patch("apache_beam.transforms.ptransform.PTransform.__rrshift__")
+    def test_flat_map(self, mock_rrshift):
+        mock_pcollection, ops = self._test_helper()
+        ops.flat_map(mock_pcollection, lambda x: x, "stage_name")
+        mock_rrshift.assert_called_once_with("unique_label")
+
+    @patch("apache_beam.transforms.ptransform.PTransform.__rrshift__")
+    def test_map_tuple(self, mock_rrshift):
+        mock_pcollection, ops = self._test_helper()
+        ops.map_tuple(mock_pcollection, lambda x: x, "stage_name")
+        mock_rrshift.assert_called_once_with("unique_label")
+
+    @patch("apache_beam.transforms.ptransform.PTransform.__rrshift__")
+    def test_group_by_key(self, mock_rrshift):
+        mock_pcollection, ops = self._test_helper()
+        ops.group_by_key(mock_pcollection, "stage_name")
+        mock_rrshift.assert_called_once_with("unique_label")
+
+    @patch("apache_beam.transforms.ptransform.PTransform.__rrshift__")
+    def test_filter(self, mock_rrshift):
+        mock_pcollection, ops = self._test_helper()
+        ops.filter(mock_pcollection, lambda x: True, "stage_name")
+        mock_rrshift.assert_called_once_with("unique_label")
+
+    @patch("apache_beam.transforms.ptransform.PTransform.__rrshift__")
+    def test_filter_by_key(self, mock_rrshift):
+        mock_pcollection, ops = self._test_helper()
+        ops.filter_by_key(mock_pcollection, [1], "stage_name")
+        mock_rrshift.assert_called_once_with("unique_label")
+
+    @patch("apache_beam.transforms.ptransform.PTransform.__rrshift__")
+    def test_keys(self, mock_rrshift):
+        mock_pcollection, ops = self._test_helper()
+        ops.keys(mock_pcollection, "stage_name")
+        mock_rrshift.assert_called_once_with("unique_label")
+
+    @patch("apache_beam.transforms.ptransform.PTransform.__rrshift__")
+    def test_values(self, mock_rrshift):
+        mock_pcollection, ops = self._test_helper()
+        ops.values(mock_pcollection, "stage_name")
+        mock_rrshift.assert_called_once_with("unique_label")
+
+    @patch("apache_beam.transforms.ptransform.PTransform.__rrshift__")
+    def test_sample_fixed_per_key(self, mock_rrshift):
+        mock_pcollection, ops = self._test_helper()
+        ops.sample_fixed_per_key(mock_pcollection, 1, "stage_name")
+        mock_rrshift.assert_called_once_with("unique_label")
+
+    @patch("apache_beam.transforms.ptransform.PTransform.__rrshift__")
+    def test_count_per_element(self, mock_rrshift):
+        mock_pcollection, ops = self._test_helper()
+        ops.count_per_element(mock_pcollection, "stage_name")
+        mock_rrshift.assert_called_once_with("unique_label")
+
+    @patch("apache_beam.transforms.ptransform.PTransform.__rrshift__")
+    def test_reduce_accumulators_per_key(self, mock_rrshift):
+        mock_pcollection, ops = self._test_helper()
+        ops.reduce_accumulators_per_key(mock_pcollection, "stage_name")
+        mock_rrshift.assert_called_once_with("unique_label")
+
+    def test_ops_stage_name_must_be_unique(self):
+        ops_1 = BeamOperations("SAME_OPS_SUFFIX")
+        ops_2 = BeamOperations("SAME_OPS_SUFFIX")
+        with test_pipeline.TestPipeline() as p:
+            col = p | f"UNIQUE_BEAM_CREATE_NAME" >> beam.Create([(6, 1),
+                                                                 (6, 2)])
+            ops_1.map(col, lambda x: x, "SAME_MAP_NAME")
+            with self.assertRaisesRegex(RuntimeError,
+                                        expected_regex="A transform with label "
+                                        "\"SAME_MAP_NAME_SAME_OPS_SUFFIX\" "
+                                        "already exists in the pipeline"):
+                ops_2.map(col, lambda x: x, "SAME_MAP_NAME")
+
+    def test_one_suffix_multiple_same_stage_name(self):
+        ops = BeamOperations("UNIQUE_OPS_SUFFIX")
+        with test_pipeline.TestPipeline() as p:
+            col = p | f"UNIQUE_BEAM_CREATE_NAME" >> beam.Create([(6, 1),
+                                                                 (6, 2)])
+            ops.map(col, lambda x: x, "SAME_MAP_NAME")
+            ops.map(col, lambda x: x, "SAME_MAP_NAME")
+            ops.map(col, lambda x: x, "SAME_MAP_NAME")
+
+        self.assertEqual("UNIQUE_OPS_SUFFIX", ops._ulg._suffix)
+        self.assertEqual(3, len(ops._ulg._labels))
+        self.assertIn("SAME_MAP_NAME_UNIQUE_OPS_SUFFIX", ops._ulg._labels)
+        self.assertIn("SAME_MAP_NAME_1_UNIQUE_OPS_SUFFIX", ops._ulg._labels)
+        self.assertIn("SAME_MAP_NAME_2_UNIQUE_OPS_SUFFIX", ops._ulg._labels)
+
+
+@unittest.skipIf(sys.platform == "win32" or sys.platform == 'darwin' or (
+    sys.version_info.minor <= 7 and sys.version_info.major == 3
+), "There are some problems with PySpark setup on older python and Windows and macOS"
+                )
 class SparkRDDOperationsTest(parameterized.TestCase):
 
     @classmethod
@@ -363,8 +489,8 @@ class LocalPipelineOperationsTest(unittest.TestCase):
                           ("bread", ["sourdough"])])
 
 
-@unittest.skipIf(sys.platform == 'win32',
-                 "Problems with serialisation on Windows")
+@unittest.skipIf(sys.platform == 'win32' or sys.platform == 'darwin',
+                 "Problems with serialisation on Windows and macOS")
 class MultiProcLocalPipelineOperationsTest(unittest.TestCase):
 
     @staticmethod

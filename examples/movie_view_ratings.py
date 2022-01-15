@@ -32,6 +32,9 @@ flags.DEFINE_enum('framework', None, ['beam', 'spark', 'local'],
                   'Pipeline framework to use.')
 flags.DEFINE_list('public_partitions', None,
                   'List of comma-separated public partition keys')
+flags.DEFINE_boolean(
+    'private_partitions', False,
+    'Output private partitions (do not calculate any DP metrics)')
 
 
 @dataclass
@@ -41,8 +44,16 @@ class MovieView:
     rating: int
 
 
+def calculate_private_result(movie_views, pipeline_operations):
+    if FLAGS.private_partitions:
+        return get_private_movies(movie_views, pipeline_operations)
+    else:
+        return calc_dp_rating_metrics(movie_views, pipeline_operations,
+                                      get_public_partitions())
+
+
 def calc_dp_rating_metrics(movie_views, ops, public_partitions):
-    """Computes dp metrics."""
+    """Computes DP metrics."""
 
     # Set the total privacy budget.
     budget_accountant = pipeline_dp.NaiveBudgetAccountant(total_epsilon=1,
@@ -73,6 +84,36 @@ def calc_dp_rating_metrics(movie_views, ops, public_partitions):
 
     # Run aggregation.
     dp_result = dp_engine.aggregate(movie_views, params, data_extractors)
+
+    budget_accountant.compute_budgets()
+    return dp_result
+
+
+def get_private_movies(movie_views, ops):
+    """Obtains the list of movies in a private manner.
+
+    This does not calculate any private metrics; it merely obtains the list of
+    movies but does so making sure the result is differentially private.
+    """
+
+    # Set the total privacy budget.
+    budget_accountant = pipeline_dp.NaiveBudgetAccountant(total_epsilon=0.1,
+                                                          total_delta=1e-6)
+
+    # Create a DPEngine instance.
+    dp_engine = pipeline_dp.DPEngine(budget_accountant, ops)
+
+    # Specify how to extract privacy_id, partition_key and value from an
+    # element of movie view collection.
+    data_extractors = pipeline_dp.DataExtractors(
+        partition_extractor=lambda mv: mv.movie_id,
+        privacy_id_extractor=lambda mv: mv.user_id)
+
+    # Run aggregation.
+    dp_result = dp_engine.select_private_partitions(
+        movie_views,
+        pipeline_dp.SelectPrivatePartitionsParams(max_partitions_contributed=2),
+        data_extractors=data_extractors)
 
     budget_accountant.compute_budgets()
     return dp_result
@@ -111,13 +152,11 @@ def get_public_partitions():
 
 def compute_on_beam():
     runner = fn_api_runner.FnApiRunner()  # local runner
-    public_partitions = get_public_partitions()
     with beam.Pipeline(runner=runner) as pipeline:
         movie_views = pipeline | beam.io.ReadFromText(
             FLAGS.input_file) | beam.ParDo(ParseFile())
         pipeline_operations = pipeline_dp.BeamOperations()
-        dp_result = calc_dp_rating_metrics(movie_views, pipeline_operations,
-                                           public_partitions)
+        dp_result = calculate_private_result(movie_views, pipeline_operations)
         dp_result | beam.io.WriteToText(FLAGS.output_file)
 
 
@@ -139,9 +178,7 @@ def compute_on_spark():
     movie_views = sc.textFile(FLAGS.input_file) \
         .mapPartitions(parse_partition)
     pipeline_operations = pipeline_dp.SparkRDDOperations()
-    public_partitions = get_public_partitions()
-    dp_result = calc_dp_rating_metrics(movie_views, pipeline_operations,
-                                       public_partitions)
+    dp_result = calculate_private_result(movie_views, pipeline_operations)
     dp_result.saveAsTextFile(FLAGS.output_file)
 
 
@@ -162,12 +199,9 @@ def write_to_file(col, filename):
 
 
 def compute_on_local():
-    public_partitions = get_public_partitions()
     movie_views = parse_file(FLAGS.input_file)
     pipeline_operations = pipeline_dp.LocalPipelineOperations()
-    dp_result = list(
-        calc_dp_rating_metrics(movie_views, pipeline_operations,
-                               public_partitions))
+    dp_result = list(calculate_private_result(movie_views, pipeline_operations))
     write_to_file(dp_result, FLAGS.output_file)
 
 

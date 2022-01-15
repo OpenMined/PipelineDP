@@ -3,6 +3,7 @@ import apache_beam as beam
 from apache_beam.runners.portability import fn_api_runner
 from apache_beam import pvalue
 from unittest.mock import patch
+import apache_beam.testing.util as beam_util
 
 import pipeline_dp
 from pipeline_dp import private_beam
@@ -41,8 +42,6 @@ class PrivateBeamTest(unittest.TestCase):
                                   private_beam.PrivatePCollection)
             self.assertEqual(private_collection._budget_accountant,
                              budget_accountant)
-            self.assertEqual(private_collection._privacy_id_extractor,
-                             PrivateBeamTest.privacy_id_extractor)
 
     def test_private_collection_with_non_private_transform_throws_error(self):
         runner = fn_api_runner.FnApiRunner()
@@ -139,8 +138,6 @@ class PrivateBeamTest(unittest.TestCase):
 
             # Assert
             self.assertEqual(transformer._budget_accountant, budget_accountant)
-            self.assertEqual(transformer._privacy_id_extractor,
-                             PrivateBeamTest.privacy_id_extractor)
             mock_aggregate.assert_called_once()
 
             args = mock_aggregate.call_args[0]
@@ -157,11 +154,108 @@ class PrivateBeamTest(unittest.TestCase):
                 public_partitions=sum_params.public_partitions)
             self.assertEqual(args[1], params)
 
-            data_extractors = pipeline_dp.DataExtractors(
-                partition_extractor=sum_params.partition_extractor,
-                privacy_id_extractor=PrivateBeamTest.privacy_id_extractor,
-                value_extractor=sum_params.value_extractor)
-            self.assertEqual(args[2], data_extractors)
+    @patch('pipeline_dp.dp_engine.DPEngine.aggregate')
+    def test_count(self, mock_aggregate):
+        runner = fn_api_runner.FnApiRunner()
+        with beam.Pipeline(runner=runner) as pipeline:
+            # Arrange
+            pcol = pipeline | 'Create produce' >> beam.Create(
+                [1, 2, 3, 4, 5, 6])
+            budget_accountant = budget_accounting.NaiveBudgetAccountant(
+                total_epsilon=1, total_delta=0.01)
+            private_collection = (
+                pcol | 'Create private collection' >> private_beam.MakePrivate(
+                    budget_accountant=budget_accountant,
+                    privacy_id_extractor=PrivateBeamTest.privacy_id_extractor))
+
+            count_params = aggregate_params.CountParams(
+                noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+                max_partitions_contributed=2,
+                max_contributions_per_partition=3,
+                budget_weight=1,
+                public_partitions=[],
+                partition_extractor=lambda x: f"pk:{x // 10}",
+                value_extractor=lambda x: x)
+
+            # Act
+            transformer = private_beam.Count(count_params=count_params)
+            private_collection | transformer
+
+            # Assert
+            self.assertEqual(transformer._budget_accountant, budget_accountant)
+            mock_aggregate.assert_called_once()
+
+            args = mock_aggregate.call_args[0]
+
+            params = pipeline_dp.AggregateParams(
+                noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+                metrics=[pipeline_dp.Metrics.COUNT],
+                max_partitions_contributed=count_params.
+                max_partitions_contributed,
+                max_contributions_per_partition=count_params.
+                max_contributions_per_partition,
+                public_partitions=count_params.public_partitions)
+            self.assertEqual(args[1], params)
+
+    def test_Map(self):
+        runner = fn_api_runner.FnApiRunner()
+        with beam.Pipeline(runner=runner) as pipeline:
+            # Arrange
+            pcol_input = [(1, 2), (2, 3), (3, 4), (4, 5)]
+            pcol = pipeline | 'Create produce' >> beam.Create(pcol_input)
+            budget_accountant = budget_accounting.NaiveBudgetAccountant(
+                total_epsilon=1, total_delta=0.01)
+            private_collection = (
+                pcol | 'Create private collection' >> private_beam.MakePrivate(
+                    budget_accountant=budget_accountant,
+                    privacy_id_extractor=PrivateBeamTest.privacy_id_extractor))
+
+            # Act
+            transformed = private_collection | private_beam.Map(
+                fn=lambda x: x[1]**2)
+
+            # Assert
+            self.assertIsInstance(transformed, private_beam.PrivatePCollection)
+            beam_util.assert_that(
+                transformed._pcol,
+                beam_util.equal_to(
+                    map(
+                        lambda x:
+                        (PrivateBeamTest.privacy_id_extractor(x), x[1]**2),
+                        pcol_input)))
+            self.assertEqual(transformed._budget_accountant, budget_accountant)
+
+    def test_FlatMap(self):
+
+        def flat_map_fn(x):
+            return [(x[0], x[1] + i) for i in range(2)]
+
+        runner = fn_api_runner.FnApiRunner()
+        with beam.Pipeline(runner=runner) as pipeline:
+            # Arrange
+            pcol_input = [(1, 2), (2, 3), (3, 4)]
+            pcol = pipeline | 'Create produce' >> beam.Create(pcol_input)
+            budget_accountant = budget_accounting.NaiveBudgetAccountant(
+                total_epsilon=1, total_delta=0.01)
+            private_collection = (
+                pcol | 'Create private collection' >> private_beam.MakePrivate(
+                    budget_accountant=budget_accountant,
+                    privacy_id_extractor=PrivateBeamTest.privacy_id_extractor))
+
+            # Act
+            transformed = private_collection | private_beam.FlatMap(flat_map_fn)
+
+            # Assert
+            self.assertIsInstance(transformed, private_beam.PrivatePCollection)
+            beam_util.assert_that(
+                transformed._pcol,
+                beam_util.equal_to([('pid:(1, 2)', (1, 2)),
+                                    ('pid:(1, 2)', (1, 3)),
+                                    ('pid:(2, 3)', (2, 3)),
+                                    ('pid:(2, 3)', (2, 4)),
+                                    ('pid:(3, 4)', (3, 4)),
+                                    ('pid:(3, 4)', (3, 5))]))
+            self.assertEqual(transformed._budget_accountant, budget_accountant)
 
 
 if __name__ == '__main__':
