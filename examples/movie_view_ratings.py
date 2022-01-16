@@ -22,7 +22,7 @@ from absl import flags
 import apache_beam as beam
 from apache_beam.runners.portability import fn_api_runner
 import pyspark
-from dataclasses import dataclass
+from examples.parse_utils import *
 import pipeline_dp
 
 FLAGS = flags.FLAGS
@@ -37,11 +37,7 @@ flags.DEFINE_boolean(
     'Output private partitions (do not calculate any DP metrics)')
 
 
-@dataclass
-class MovieView:
-    user_id: int
-    movie_id: int
-    rating: int
+
 
 
 def calculate_private_result(movie_views, pipeline_operations):
