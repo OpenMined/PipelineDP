@@ -1,5 +1,7 @@
 from dataclasses import dataclass
 import os
+import shutil
+
 
 @dataclass
 class MovieView:
@@ -45,4 +47,7 @@ def write_to_file(col, filename):
 
 def delete_if_exists(filename):
     if os.path.exists(filename):
-        os.remove(filename)
+        if os.path.isdir(filename):
+            shutil.rmtree(filename)
+        else:
+            os.remove(filename)

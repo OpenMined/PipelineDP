@@ -1,7 +1,7 @@
 """ The example of using DPEngine for performing DP aggregation.
 
-Warning: DP aggregations has not been implemented yet, this example is only for
-demonstration of the API and development purposes.
+This is a pretty elaborate example demonstrating many features. For a simpler
+
 
 In order to run an example:
 
@@ -22,7 +22,7 @@ from absl import flags
 import apache_beam as beam
 from apache_beam.runners.portability import fn_api_runner
 import pyspark
-from examples.parse_utils import *
+from examples.example_utils import *
 import pipeline_dp
 
 FLAGS = flags.FLAGS
@@ -35,9 +35,6 @@ flags.DEFINE_list('public_partitions', None,
 flags.DEFINE_boolean(
     'private_partitions', False,
     'Output private partitions (do not calculate any DP metrics)')
-
-
-
 
 
 def calculate_private_result(movie_views, pipeline_operations):
@@ -178,22 +175,6 @@ def compute_on_spark():
     dp_result.saveAsTextFile(FLAGS.output_file)
 
 
-def parse_file(filename):  # used for the local run
-    res = []
-    for line in open(filename):
-        line = line.strip()
-        if line[-1] == ':':
-            movie_id = int(line[:-1])
-        else:
-            res.append(parse_line(line, movie_id))
-    return res
-
-
-def write_to_file(col, filename):
-    with open(filename, 'w') as out:
-        out.write('\n'.join(map(str, col)))
-
-
 def compute_on_local():
     movie_views = parse_file(FLAGS.input_file)
     pipeline_operations = pipeline_dp.LocalPipelineOperations()
@@ -202,6 +183,9 @@ def compute_on_local():
 
 
 def main(unused_argv):
+
+    delete_if_exists(FLAGS.output_file)
+
     if FLAGS.framework == 'beam':
         compute_on_beam()
     elif FLAGS.framework == 'spark':
