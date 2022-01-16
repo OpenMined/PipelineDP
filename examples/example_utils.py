@@ -1,3 +1,8 @@
+"""Helper utilities used by examples.
+
+Prefer not to include any privacy-related logic here. Keep privacy related code
+in the actual example scripts.
+"""
 from dataclasses import dataclass
 import os
 import shutil

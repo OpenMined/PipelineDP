@@ -1,7 +1,7 @@
 """ The example of using DPEngine for performing DP aggregation.
 
-This is a pretty elaborate example demonstrating many features. For a simpler
-
+This is a quite elaborate example demonstrating many features. For a simpler
+example of how to use PipelineDP with spark, check movie_view_ratings_spark.py.
 
 In order to run an example:
 
