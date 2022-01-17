@@ -92,7 +92,7 @@ class CountCombiner(Combiner):
         return len(values)
 
     def merge_accumulators(self, count1: int, count2: int):
-        return count1 + count1
+        return count1 + count2
 
     def compute_metrics(self, count: int) -> float:
         return dp_computations.compute_dp_count(count,
