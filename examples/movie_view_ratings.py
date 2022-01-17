@@ -113,14 +113,6 @@ def get_private_movies(movie_views, backend):
     return dp_result
 
 
-def parse_line(line, movie_id):
-    # 'line' has format "user_id,rating,date"
-    split_parts = line.split(',')
-    user_id = int(split_parts[0])
-    rating = int(split_parts[1])
-    return MovieView(user_id, movie_id, rating)
-
-
 def get_public_partitions():
     public_partitions = None
     if FLAGS.public_partitions is not None:
@@ -138,17 +130,6 @@ def compute_on_beam():
         pipeline_backend = pipeline_dp.BeamBackend()
         dp_result = calculate_private_result(movie_views, pipeline_backend)
         dp_result | beam.io.WriteToText(FLAGS.output_file)
-
-
-def parse_partition(iterator):
-    movie_id = None
-    for line in iterator:
-        if line[-1] == ':':
-            # 'line' has a format "movie_id:'
-            movie_id = int(line[:-1])
-        else:
-            # 'line' has a format "user_id,rating,date"
-            yield parse_line(line, movie_id)
 
 
 def compute_on_spark():
