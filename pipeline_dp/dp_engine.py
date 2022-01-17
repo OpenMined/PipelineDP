@@ -174,8 +174,8 @@ class DPEngine:
 
             return ((pid, pk) for pk in sampled_elements)
 
-        col = self._backend.flat_map(col, sample_unique_elements_fn,
-                                     "Sample cross-partition contributions")
+        col = self._ops.flat_map(col, sample_unique_elements_fn,
+                                 "Bound cross-partition contributions")
         # col : (privacy_id, partition_key)
 
         # A compound accumulator without any child accumulators is used to calculate the raw privacy ID count.

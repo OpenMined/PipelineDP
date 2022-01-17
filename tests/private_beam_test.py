@@ -404,8 +404,8 @@ class PrivateBeamTest(unittest.TestCase):
                 total_epsilon=800, total_delta=0.999)
             private_collection = (
                 pcol | 'Create private collection' >> private_beam.MakePrivate(
-                    budget_accountant=budget_accountant,
-                    privacy_id_extractor=lambda x: x[0]))
+                budget_accountant=budget_accountant,
+                privacy_id_extractor=lambda x: x[0]))
 
             privacy_id_count_params = aggregate_params.PrivacyIdCountParams(
                 noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
@@ -428,7 +428,7 @@ class PrivateBeamTest(unittest.TestCase):
                                    value_per_key_within_tolerance(e, a, 5)))
 
     def test_privacy_id_count_with_public_partitions_returns_sensible_result(
-            self):
+        self):
         with TestPipeline() as pipeline:
             # Arrange
             col = [(u, "pubK1") for u in range(30)]
@@ -440,8 +440,8 @@ class PrivateBeamTest(unittest.TestCase):
                 total_epsilon=800, total_delta=0.999)
             private_collection = (
                 pcol | 'Create private collection' >> private_beam.MakePrivate(
-                    budget_accountant=budget_accountant,
-                    privacy_id_extractor=lambda x: x[0]))
+                budget_accountant=budget_accountant,
+                privacy_id_extractor=lambda x: x[0]))
 
             privacy_id_count_params = aggregate_params.PrivacyIdCountParams(
                 noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
@@ -524,6 +524,70 @@ class PrivateBeamTest(unittest.TestCase):
                                     ('pid:(3, 4)', (3, 5))]))
             self.assertEqual(transformed._budget_accountant, budget_accountant)
 
+    @patch('pipeline_dp.dp_engine.DPEngine.select_private_partitions')
+    def test_select_private_partitions_calls_aggregate_with_params(
+        self, mock_select_private_partitions):
+        runner = fn_api_runner.FnApiRunner()
+        with beam.Pipeline(runner=runner) as pipeline:
+            # Arrange
+            pcol = pipeline | 'Create produce' >> beam.Create(
+                [1, 2, 3, 4, 5, 6])
+            budget_accountant = budget_accounting.NaiveBudgetAccountant(
+                total_epsilon=1, total_delta=0.01)
+            private_collection = (
+                pcol | 'Create private collection' >> private_beam.MakePrivate(
+                budget_accountant=budget_accountant,
+                privacy_id_extractor=PrivateBeamTest.privacy_id_extractor))
+
+            select_partitions_params = \
+                aggregate_params.SelectPartitionsParams(
+                    max_partitions_contributed=2)
+            partition_extractor = lambda x: f"pk:{x // 10}"
+
+            # Act
+            transformer = private_beam.SelectPrivatePartitions(
+                select_partitions_params=select_partitions_params,
+                partition_extractor=partition_extractor,
+                label="Test select partitions")
+            private_collection | transformer
+
+            # Assert
+            self.assertEqual(transformer._budget_accountant, budget_accountant)
+            mock_select_private_partitions.assert_called_once()
+
+            args = mock_select_private_partitions.call_args[0]
+            self.assertEqual(args[1], select_partitions_params)
+
+    def test_select_private_partitions_returns_sensible_result(self):
+        runner = fn_api_runner.FnApiRunner()
+        with beam.Pipeline(runner=runner) as pipeline:
+            # Arrange
+            col = [(u, "pk-many-contribs") for u in range(100)]
+            pcol = pipeline | 'Create produce' >> beam.Create(col)
+
+            budget_accountant = budget_accounting.NaiveBudgetAccountant(
+                total_epsilon=1, total_delta=0.3)
+
+            private_collection = (
+                pcol | 'Create private collection' >> private_beam.MakePrivate(
+                budget_accountant=budget_accountant,
+                privacy_id_extractor=lambda x: x[0]))
+
+            select_partitions_params = \
+                aggregate_params.SelectPartitionsParams(
+                    max_partitions_contributed=2)
+            partition_extractor = lambda x: x[1]
+
+            # Act
+            transformer = private_beam.SelectPrivatePartitions(
+                select_partitions_params=select_partitions_params,
+                partition_extractor=partition_extractor,
+                label="Test select partitions")
+            x = private_collection | transformer
+
+            # Assert
+            #            self.assertEqual(transformer._budget_accountant, budget_accountant)
+        #  x | beam.Map(print)
 
 if __name__ == '__main__':
     unittest.main()

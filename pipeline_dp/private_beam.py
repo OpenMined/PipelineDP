@@ -189,6 +189,30 @@ class PrivacyIdCount(PrivatePTransform):
         return dp_result
 
 
+class SelectPrivatePartitions(PrivatePTransform):
+    """Transform class for computing a collection of PrivatePCollection partition keys using DP."""
+
+    def __init__(self, select_partitions_params: aggregate_params.
+                 SelectPrivatePartitionsParams, partition_extractor: Callable,
+                 label: Optional[str]):
+        super().__init__(return_anonymized=True, label=label)
+        self._select_partitions_params = select_partitions_params
+        self._partition_extractor = partition_extractor
+
+    def expand(self, pcol: pvalue.PCollection) -> pvalue.PCollection:
+        ops = pipeline_dp.BeamBackend()
+        dp_engine = pipeline_dp.DPEngine(self._budget_accountant, ops)
+
+        data_extractors = pipeline_dp.DataExtractors(
+            partition_extractor=lambda x: self._partition_extractor(x[1]),
+            privacy_id_extractor=lambda x: x[0])
+
+        dp_result = dp_engine.select_private_partitions(
+            pcol, self._select_partitions_params, data_extractors)
+
+        return dp_result
+
+
 class Map(PrivatePTransform):
     """Transform class for performing Map on PrivatePCollection."""
 
