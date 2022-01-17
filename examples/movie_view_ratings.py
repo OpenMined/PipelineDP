@@ -173,6 +173,7 @@ def compute_on_spark():
     pipeline_backend = pipeline_dp.SparkRDDBackend()
     dp_result = calculate_private_result(movie_views, pipeline_backend)
 
+
     delete_if_exists(FLAGS.output_file)
     dp_result.saveAsTextFile(FLAGS.output_file)
 
