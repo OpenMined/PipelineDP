@@ -6,6 +6,7 @@ in the actual example scripts.
 from dataclasses import dataclass
 import os
 import shutil
+import apache_beam as beam
 
 
 @dataclass
@@ -56,3 +57,17 @@ def delete_if_exists(filename):
             shutil.rmtree(filename)
         else:
             os.remove(filename)
+
+
+class ParseFile(beam.DoFn):
+
+    def __init__(self):
+        self.movie_id = -1
+
+    def process(self, line):
+        if line[-1] == ':':
+            # 'line' has a format "movie_id:'
+            self.movie_id = int(line[:-1])
+            return
+        # 'line' has a format "user_id,rating,date"
+        yield parse_line(line, self.movie_id)

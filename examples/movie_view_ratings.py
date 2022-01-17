@@ -1,7 +1,8 @@
 """ The example of using DPEngine for performing DP aggregation.
 
 This is a quite elaborate example demonstrating many features. For a simpler
-example of how to use PipelineDP with spark, check movie_view_ratings_spark.py.
+example of how to use PipelineDP with spark, check
+movie_view_ratings_spark.py or movie_view_ratings_beam.py.
 
 In order to run an example:
 
@@ -118,20 +119,6 @@ def parse_line(line, movie_id):
     user_id = int(split_parts[0])
     rating = int(split_parts[1])
     return MovieView(user_id, movie_id, rating)
-
-
-class ParseFile(beam.DoFn):
-
-    def __init__(self):
-        self.movie_id = -1
-
-    def process(self, line):
-        if line[-1] == ':':
-            # 'line' has a format "movie_id:'
-            self.movie_id = int(line[:-1])
-            return
-        # 'line' has a format "user_id,rating,date"
-        yield parse_line(line, self.movie_id)
 
 
 def get_public_partitions():
