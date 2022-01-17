@@ -14,6 +14,18 @@ class Combiner(abc.ABC):
     aggregation state. Combiners contain logic, while accumulators contain data.
     The API of combiners are inspired by Apache Beam CombineFn class.
     https://beam.apache.org/documentation/transforms/python/aggregation/combineperkey/#example-5-combining-with-a-combinefn
+
+    Let we have some dataset X to aggregate. The workflow of running an
+    aggregation with combiners on X is the following:
+    1.Split dataset X on sub-datasets which might be kept in memory.
+    2.Call create_accumulators() for each sub-dataset and keep resulting accumulators.
+    3.Choosing any pair of accumulators and merge them by calling merge_accumulators().
+    4.Continue 3 until 1 accumulator is left.
+    5.Call compute_metrics() for the accumulator that left.
+
+    Assumption: merge_accumulators is associative binary operation.
+
+    The type of the accumulator is specific for each concrete Combiner.
     """
 
     @abc.abstractmethod
@@ -27,13 +39,13 @@ class Combiner(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def compute_metrics(self, accumulator: 'Accumulator'):
+    def compute_metrics(self, accumulator):
         """Computes and returns the result of aggregation."""
         pass
 
 
 class CombinerParams:
-    """Parameters for an combiner.
+    """Parameters for a combiner.
 
     Wraps epsilon and delta from the MechanismSpec which are lazily loaded.
     AggregateParams are copied into a MeanVarParams instance.
@@ -63,6 +75,11 @@ class CombinerParams:
 
 
 class CountCombiner(Combiner):
+    """Combiner for computing DP Count.
+
+    The type of the accumulator is int, which represents count of the elements
+    in the dataset for which this accumulator is computed.
+    """
 
     def __init__(self, params: CombinerParams):
         self._params = params
@@ -70,9 +87,9 @@ class CountCombiner(Combiner):
     def create_accumulator(self, values) -> int:
         return len(values)
 
-    def merge_accumulators(self, accumulator1: int, accumulator2: int):
-        return accumulator1 + accumulator2
+    def merge_accumulators(self, count1: int, count2: int):
+        return count1 + count1
 
-    def compute_metrics(self, accumulator: int) -> float:
-        return dp_computations.compute_dp_count(accumulator,
+    def compute_metrics(self, count: int) -> float:
+        return dp_computations.compute_dp_count(count,
                                                 self._params.mean_var_params)
