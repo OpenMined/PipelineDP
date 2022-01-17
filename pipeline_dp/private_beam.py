@@ -158,7 +158,7 @@ class PrivacyIdCount(PrivatePTransform):
         self._privacy_id_count_params = privacy_id_count_params
 
     def expand(self, pcol: pvalue.PCollection) -> pvalue.PCollection:
-        ops = pipeline_dp.BeamOperations()
+        ops = pipeline_dp.BeamBackend()
         dp_engine = pipeline_dp.DPEngine(self._budget_accountant, ops)
 
         params = pipeline_dp.AggregateParams(
