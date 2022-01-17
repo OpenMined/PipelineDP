@@ -16,6 +16,8 @@ flags.DEFINE_string('output_file', None, 'Output file')
 
 
 def main(unused_argv):
+    delete_if_exists(FLAGS.output_file)
+
     # Setup Spark
     master = "local[1]"  # use one worker thread to load the file as 1 partition
     conf = pyspark.SparkConf().setMaster(master)
@@ -44,7 +46,6 @@ def main(unused_argv):
     budget_accountant.compute_budgets()
 
     # Save the results
-    delete_if_exists(FLAGS.output_file)
     dp_result.saveAsTextFile(FLAGS.output_file)
 
     return 0
