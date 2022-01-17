@@ -97,8 +97,7 @@ class BeamBackendStageNameTest(unittest.TestCase):
 
     @staticmethod
     def _test_helper():
-        mock_pcollection = BeamBackendStageNameTest._create_mock_pcollection(
-        )
+        mock_pcollection = BeamBackendStageNameTest._create_mock_pcollection()
         ops = BeamBackend()
         ops._ulg = BeamBackendStageNameTest.MockUniqueLabelGenerators()
         return mock_pcollection, ops
