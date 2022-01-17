@@ -47,8 +47,10 @@ class Combiner(abc.ABC):
 class CombinerParams:
     """Parameters for a combiner.
 
-    Wraps epsilon and delta from the MechanismSpec which are lazily loaded.
-    AggregateParams are copied into a MeanVarParams instance.
+    Wraps all the information needed by the combiner to do the
+    differentially-private computation, e.g. privacy budget and mechanism.
+
+    Note: 'aggregate_params' is copied.
     """
 
     def __init__(self, spec: budget_accounting.MechanismSpec,
