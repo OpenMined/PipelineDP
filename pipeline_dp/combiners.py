@@ -15,17 +15,19 @@ class Combiner(abc.ABC):
     The API of combiners are inspired by Apache Beam CombineFn class.
     https://beam.apache.org/documentation/transforms/python/aggregation/combineperkey/#example-5-combining-with-a-combinefn
 
-    Let we have some dataset X to aggregate. The workflow of running an
-    aggregation with combiners on X is the following:
-    1.Split dataset X on sub-datasets which might be kept in memory.
-    2.Call create_accumulators() for each sub-dataset and keep resulting accumulators.
-    3.Choosing any pair of accumulators and merge them by calling merge_accumulators().
-    4.Continue 3 until 1 accumulator is left.
-    5.Call compute_metrics() for the accumulator that left.
+    Here's how PipelineDP uses combiners to performs an aggregation on some
+    dataset X:
+    1. Split dataset X on sub-datasets which might be kept in memory.
+    2. Call create_accumulators() for each sub-dataset and keep resulting accumulators.
+    3. Choosing any pair of accumulators and merge them by calling merge_accumulators().
+    4. Continue 3 until 1 accumulator is left.
+    5. Call compute_metrics() for the accumulator that left.
 
     Assumption: merge_accumulators is associative binary operation.
 
-    The type of the accumulator is specific for each concrete Combiner.
+    The type of accumulator depends on the aggregation performed by this Combiner.
+    For example, this can be a primitive type (e.g. int for a simple "count"
+    aggregation) or a more complex structure (e.g. for "mean")
     """
 
     @abc.abstractmethod
