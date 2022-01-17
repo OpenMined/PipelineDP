@@ -8,20 +8,20 @@ import sys
 from unittest.mock import Mock, MagicMock, patch
 
 from pipeline_dp import DataExtractors
-from pipeline_dp.pipeline_operations import MultiProcLocalPipelineOperations, SparkRDDOperations
-from pipeline_dp.pipeline_operations import LocalPipelineOperations
-from pipeline_dp.pipeline_operations import BeamOperations
+from pipeline_dp.pipeline_backend import MultiProcLocalPipelineBackend, SparkRDDBackend
+from pipeline_dp.pipeline_backend import LocalBackend
+from pipeline_dp.pipeline_backend import BeamBackend
 
 
-class PipelineOperationsTest(unittest.TestCase):
+class PipelineBackendTest(unittest.TestCase):
     pass
 
 
-class BeamOperationsTest(parameterized.TestCase):
+class BeamBackendTest(parameterized.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.ops = BeamOperations()
+        cls.ops = BeamBackend()
         cls.data_extractors = DataExtractors(
             partition_extractor=lambda x: x[1],
             privacy_id_extractor=lambda x: x[0],
@@ -82,7 +82,7 @@ class BeamOperationsTest(parameterized.TestCase):
                                   beam_util.equal_to([(6, 2), (7, 2), (8, 1)]))
 
 
-class BeamOperationsStageNameTest(unittest.TestCase):
+class BeamBackendStageNameTest(unittest.TestCase):
 
     class MockUniqueLabelGenerators:
 
@@ -97,10 +97,10 @@ class BeamOperationsStageNameTest(unittest.TestCase):
 
     @staticmethod
     def _test_helper():
-        mock_pcollection = BeamOperationsStageNameTest._create_mock_pcollection(
+        mock_pcollection = BeamBackendStageNameTest._create_mock_pcollection(
         )
-        ops = BeamOperations()
-        ops._ulg = BeamOperationsStageNameTest.MockUniqueLabelGenerators()
+        ops = BeamBackend()
+        ops._ulg = BeamBackendStageNameTest.MockUniqueLabelGenerators()
         return mock_pcollection, ops
 
     @patch("apache_beam.transforms.ptransform.PTransform.__rrshift__")
@@ -176,8 +176,8 @@ class BeamOperationsStageNameTest(unittest.TestCase):
         mock_rrshift.assert_called_once_with("unique_label")
 
     def test_ops_stage_name_must_be_unique(self):
-        ops_1 = BeamOperations("SAME_OPS_SUFFIX")
-        ops_2 = BeamOperations("SAME_OPS_SUFFIX")
+        ops_1 = BeamBackend("SAME_OPS_SUFFIX")
+        ops_2 = BeamBackend("SAME_OPS_SUFFIX")
         with test_pipeline.TestPipeline() as p:
             col = p | f"UNIQUE_BEAM_CREATE_NAME" >> beam.Create([(6, 1),
                                                                  (6, 2)])
@@ -189,7 +189,7 @@ class BeamOperationsStageNameTest(unittest.TestCase):
                 ops_2.map(col, lambda x: x, "SAME_MAP_NAME")
 
     def test_one_suffix_multiple_same_stage_name(self):
-        ops = BeamOperations("UNIQUE_OPS_SUFFIX")
+        ops = BeamBackend("UNIQUE_OPS_SUFFIX")
         with test_pipeline.TestPipeline() as p:
             col = p | f"UNIQUE_BEAM_CREATE_NAME" >> beam.Create([(6, 1),
                                                                  (6, 2)])
@@ -208,7 +208,7 @@ class BeamOperationsStageNameTest(unittest.TestCase):
     sys.version_info.minor <= 7 and sys.version_info.major == 3
 ), "There are some problems with PySpark setup on older python and Windows and macOS"
                 )
-class SparkRDDOperationsTest(parameterized.TestCase):
+class SparkRDDBackendTest(parameterized.TestCase):
 
     @classmethod
     def setUpClass(cls):
@@ -219,7 +219,7 @@ class SparkRDDOperationsTest(parameterized.TestCase):
             partition_extractor=lambda x: x[1],
             privacy_id_extractor=lambda x: x[0],
             value_extractor=lambda x: x[2])
-        cls.ops = SparkRDDOperations()
+        cls.ops = SparkRDDBackend()
 
     def test_filter_by_key_none_keys_to_keep(self):
         data = [(1, 11), (2, 22)]
@@ -307,11 +307,11 @@ class SparkRDDOperationsTest(parameterized.TestCase):
         cls.sc.stop()
 
 
-class LocalPipelineOperationsTest(unittest.TestCase):
+class LocalPipelineBackendTest(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.ops = LocalPipelineOperations()
+        cls.ops = LocalBackend()
         cls.data_extractors = DataExtractors(
             partition_extractor=lambda x: x[1],
             privacy_id_extractor=lambda x: x[0],
@@ -491,7 +491,7 @@ class LocalPipelineOperationsTest(unittest.TestCase):
 
 @unittest.skipIf(sys.platform == 'win32' or sys.platform == 'darwin',
                  "Problems with serialisation on Windows and macOS")
-class MultiProcLocalPipelineOperationsTest(unittest.TestCase):
+class MultiProcLocalPipelineBackendTest(unittest.TestCase):
 
     @staticmethod
     def partition_extract(x):
@@ -507,7 +507,7 @@ class MultiProcLocalPipelineOperationsTest(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.ops = MultiProcLocalPipelineOperations(n_jobs=1)
+        cls.ops = MultiProcLocalPipelineBackend(n_jobs=1)
         cls.data_extractors = DataExtractors(
             partition_extractor=cls.partition_extract,
             privacy_id_extractor=cls.privacy_id_extract,

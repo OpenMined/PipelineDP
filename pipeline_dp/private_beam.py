@@ -78,7 +78,7 @@ class Sum(PrivatePTransform):
         self._sum_params = sum_params
 
     def expand(self, pcol: pvalue.PCollection) -> pvalue.PCollection:
-        ops = pipeline_dp.BeamOperations()
+        ops = pipeline_dp.BeamBackend()
         dp_engine = pipeline_dp.DPEngine(self._budget_accountant, ops)
 
         params = pipeline_dp.AggregateParams(
@@ -119,7 +119,7 @@ class Count(PrivatePTransform):
         self._count_params = count_params
 
     def expand(self, pcol: pvalue.PCollection) -> pvalue.PCollection:
-        ops = pipeline_dp.BeamOperations()
+        ops = pipeline_dp.BeamBackend()
         dp_engine = pipeline_dp.DPEngine(self._budget_accountant, ops)
 
         params = pipeline_dp.AggregateParams(

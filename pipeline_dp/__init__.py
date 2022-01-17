@@ -9,7 +9,7 @@ from pipeline_dp.aggregate_params import SelectPrivatePartitionsParams
 from pipeline_dp.aggregate_params import SumParams
 from pipeline_dp.dp_engine import DataExtractors
 from pipeline_dp.dp_engine import DPEngine
-from pipeline_dp.pipeline_operations import LocalPipelineOperations
-from pipeline_dp.pipeline_operations import BeamOperations
-from pipeline_dp.pipeline_operations import SparkRDDOperations
+from pipeline_dp.pipeline_backend import LocalBackend
+from pipeline_dp.pipeline_backend import BeamBackend
+from pipeline_dp.pipeline_backend import SparkRDDBackend
 from pipeline_dp import accumulator

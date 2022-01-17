@@ -38,7 +38,7 @@ In order to run an example:
 # What should be changed in production implementation.
   1. Unit tests.
   2. Secure noise should be used instead of np noise. 
-  3. Implement lazy execution in LocalOperations (which would allow to use more effective privacy budget).
+  3. Implement lazy execution in LocalBackend (which would allow to use more effective privacy budget).
   4. Using class for computing unique privacy units, count, sum, sum^2 instead of vectors.
   5. Using dp_accounting library  https://github.com/google/differential-privacy/tree/main/python/dp_accounting with Privacy Loss Distribution (PLD) for budget accounting (instead of naive composition).
 

@@ -140,7 +140,7 @@ class PipelineOperations(ABC):
     pass
 
 
-class BeamOperations(PipelineOperations):
+class BeamBackend(PipelineOperations):
 
   def is_lazy_execution(self):
     return True
@@ -199,7 +199,7 @@ class BeamOperations(PipelineOperations):
     return (pcoll, zero_pcoll) | "Add zero elements" >> beam.Flatten()
 
 
-class LocalOperations(PipelineOperations):
+class LocalBackend(PipelineOperations):
 
   def is_lazy_execution(self):
     return False

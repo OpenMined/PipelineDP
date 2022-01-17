@@ -9,14 +9,15 @@ import apache_beam as beam
 from apache_beam.runners.portability import fn_api_runner
 from budget_accounting import BudgetAccountant
 from dataclasses import dataclass
-from private_beam import DPEngine, BeamOperations, LocalOperations, DataExtractors, AggregateParams, Metrics
+from private_beam import DPEngine, BeamBackend, LocalBackend, DataExtractors, AggregateParams, Metrics
 
 FLAGS = flags.FLAGS
 flags.DEFINE_string('data_dir', None, 'Input/output directory')
 flags.DEFINE_string('input_file', None,
                     'The file with the data, it should be in data_dir')
-# False means the run based on LocalOperations(), i.e. w/o any frameworks, true local run with Apache Beam framework
-flags.DEFINE_bool('use_beam', False, 'Use beam or local pipeline operations')
+# False means the run based on LocalBackend(), i.e. w/o any frameworks, true local run with Apache Beam framework
+flags.DEFINE_bool('use_beam', False,
+                  'Set to use Beam backend, otherwise use local backend')
 
 
 @dataclass
@@ -92,7 +93,7 @@ def calc_rating(pipeline, use_beam):
   )
 
   budget_accountant = BudgetAccountant(eps=1, delta=1e-6)
-  ops = BeamOperations() if use_beam else LocalOperations()
+  ops = BeamBackend() if use_beam else LocalBackend()
   dpe = DPEngine(budget_accountant, ops)
 
   dp_result = dpe.aggregate(movie_views, params, data_extractors)
