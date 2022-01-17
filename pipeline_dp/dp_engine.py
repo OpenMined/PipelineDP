@@ -196,7 +196,8 @@ class DPEngine:
             "data")
         empty_accumulators = self._ops.map(
             public_partitions, lambda partition_key:
-            (partition_key, aggregator_fn([])))
+            (partition_key, aggregator_fn([])),
+            "Build empty accumulators")
 
         return self._ops.flatten(
             col, empty_accumulators,
