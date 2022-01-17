@@ -197,6 +197,38 @@ class PrivateBeamTest(unittest.TestCase):
                 public_partitions=count_params.public_partitions)
             self.assertEqual(args[1], params)
 
+    @patch('pipeline_dp.dp_engine.DPEngine.select_private_partitions')
+    def test_select_private_partitions(self, mock_select_private_partitions):
+        runner = fn_api_runner.FnApiRunner()
+        with beam.Pipeline(runner=runner) as pipeline:
+            # Arrange
+            pcol = pipeline | 'Create produce' >> beam.Create(
+                [1, 2, 3, 4, 5, 6])
+            budget_accountant = budget_accounting.NaiveBudgetAccountant(
+                total_epsilon=1, total_delta=0.01)
+            private_collection = (
+                pcol | 'Create private collection' >> private_beam.MakePrivate(
+                budget_accountant=budget_accountant,
+                privacy_id_extractor=PrivateBeamTest.privacy_id_extractor))
+
+            select_partitions_params = \
+                aggregate_params.SelectPrivatePartitionsParams(
+                    max_partitions_contributed=2)
+            partition_extractor = lambda x: f"pk:{x // 10}"
+
+            # Act
+            transformer = private_beam.SelectPrivatePartitions(
+                select_partitions_params=select_partitions_params,
+                partition_extractor=partition_extractor)
+            private_collection | transformer
+
+            # Assert
+            self.assertEqual(transformer._budget_accountant, budget_accountant)
+            mock_select_private_partitions.assert_called_once()
+
+            args_params = mock_select_private_partitions.call_args[0]
+            self.assertEqual(args_params[1], select_partitions_params)
+
     def test_Map(self):
         runner = fn_api_runner.FnApiRunner()
         with beam.Pipeline(runner=runner) as pipeline:
