@@ -21,14 +21,14 @@ def main(unused_argv):
     runner = fn_api_runner.FnApiRunner()  # Local Beam runner
     with beam.Pipeline(runner=runner) as pipeline:
 
-        # Load and parse input data
-        movie_views_pcol = pipeline | \
-                      beam.io.ReadFromText(FLAGS.input_file) | \
-                      beam.ParDo(ParseFile())
-
         # Define the privacy budget available for our computation.
         budget_accountant = pipeline_dp.NaiveBudgetAccountant(total_epsilon=1,
                                                               total_delta=1e-6)
+
+        # Load and parse input data
+        movie_views_pcol = pipeline | \
+                           beam.io.ReadFromText(FLAGS.input_file) | \
+                           beam.ParDo(ParseFile())
 
         # Wrap Beam's PCollection into it's private version
         private_movie_views = (movie_views_pcol |
