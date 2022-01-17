@@ -14,7 +14,7 @@ from pipeline_dp.aggregate_params import AggregateParams
 from pipeline_dp.aggregate_params import SelectPrivatePartitionsParams
 from pipeline_dp.aggregate_params import MechanismType
 from pipeline_dp.budget_accounting import BudgetAccountant, MechanismSpec
-from pipeline_dp.pipeline_operations import PipelineOperations
+from pipeline_dp.pipeline_backend import PipelineBackend
 from pipeline_dp.report_generator import ReportGenerator
 from pipeline_dp.accumulator import Accumulator
 from pipeline_dp.accumulator import CompoundAccumulatorFactory
@@ -39,7 +39,7 @@ class DPEngine:
     """Performs DP aggregations."""
 
     def __init__(self, budget_accountant: BudgetAccountant,
-                 ops: PipelineOperations):
+                 ops: PipelineBackend):
         self._budget_accountant = budget_accountant
         self._ops = ops
         self._report_generators = []
@@ -196,8 +196,7 @@ class DPEngine:
             "data")
         empty_accumulators = self._ops.map(
             public_partitions, lambda partition_key:
-            (partition_key, aggregator_fn([])),
-            "Build empty accumulators")
+            (partition_key, aggregator_fn([])), "Build empty accumulators")
 
         return self._ops.flatten(
             col, empty_accumulators,

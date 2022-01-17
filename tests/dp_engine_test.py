@@ -16,7 +16,7 @@ from pipeline_dp.accumulator import CompoundAccumulatorFactory
 from pipeline_dp.aggregate_params import SelectPrivatePartitionsParams
 from pipeline_dp.accumulator import CountAccumulator
 from pipeline_dp.report_generator import ReportGenerator
-from pipeline_dp.pipeline_operations import PipelineOperations
+from pipeline_dp.pipeline_backend import PipelineBackend
 """DPEngine Test"""
 
 
@@ -203,7 +203,7 @@ class DpEngineTest(unittest.TestCase):
         budget_accountant = NaiveBudgetAccountant(total_epsilon=1,
                                                   total_delta=1e-10)
         engine = pipeline_dp.DPEngine(budget_accountant=budget_accountant,
-                                      ops=pipeline_dp.LocalPipelineOperations())
+                                      ops=pipeline_dp.LocalBackend())
         engine.aggregate(col, params1, data_extractor)
         engine.aggregate(col, params2, data_extractor)
         engine.select_private_partitions(col, select_partitions_params,
@@ -261,7 +261,7 @@ class DpEngineTest(unittest.TestCase):
         ]
 
         engine = pipeline_dp.DPEngine(budget_accountant=budget_accountant,
-                                      ops=pipeline_dp.LocalPipelineOperations())
+                                      ops=pipeline_dp.LocalBackend())
         col = engine.aggregate(col=col,
                                params=aggregator_params,
                                data_extractors=data_extractor)
@@ -349,7 +349,7 @@ class DpEngineTest(unittest.TestCase):
             value_extractor=lambda x: None)
 
         engine = pipeline_dp.DPEngine(budget_accountant=budget_accountant,
-                                      ops=pipeline_dp.LocalPipelineOperations())
+                                      ops=pipeline_dp.LocalBackend())
 
         col = engine.aggregate(col=col,
                                params=aggregator_params,
@@ -387,7 +387,7 @@ class DpEngineTest(unittest.TestCase):
             value_extractor=lambda x: None)
 
         engine = pipeline_dp.DPEngine(budget_accountant=budget_accountant,
-                                      ops=pipeline_dp.LocalPipelineOperations())
+                                      ops=pipeline_dp.LocalBackend())
 
         col = engine.aggregate(col=col,
                                params=aggregator_params,
@@ -439,7 +439,7 @@ class DpEngineTest(unittest.TestCase):
             partition_extractor=lambda x: x[1])
 
         engine = pipeline_dp.DPEngine(budget_accountant=budget_accountant,
-                                      ops=pipeline_dp.LocalPipelineOperations())
+                                      ops=pipeline_dp.LocalBackend())
 
         col = engine.select_private_partitions(col=col,
                                                params=params,
@@ -480,7 +480,7 @@ class DpEngineTest(unittest.TestCase):
             value_extractor=lambda x: x)
 
         engine = pipeline_dp.DPEngine(budget_accountant=budget_accountant,
-                                      ops=pipeline_dp.LocalPipelineOperations())
+                                      ops=pipeline_dp.LocalBackend())
 
         col = engine.aggregate(col=col,
                                params=aggregator_params,
@@ -521,7 +521,7 @@ class DpEngineTest(unittest.TestCase):
             value_extractor=lambda x: 1)
 
         engine = pipeline_dp.DPEngine(budget_accountant=budget_accountant,
-                                      ops=pipeline_dp.LocalPipelineOperations())
+                                      ops=pipeline_dp.LocalBackend())
 
         col = engine.aggregate(col=col,
                                params=aggregator_params,
@@ -544,12 +544,12 @@ class DpEngineTest(unittest.TestCase):
 
     @staticmethod
     def create_dp_engine_default(accountant: NaiveBudgetAccountant = None,
-                                 ops: PipelineOperations = None):
+                                 ops: PipelineBackend = None):
         if not accountant:
             accountant = NaiveBudgetAccountant(total_epsilon=1,
                                                total_delta=1e-10)
         if not ops:
-            ops = pipeline_dp.LocalPipelineOperations()
+            ops = pipeline_dp.LocalBackend()
         dp_engine = pipeline_dp.DPEngine(accountant, ops)
         aggregator_params = pipeline_dp.AggregateParams(
             noise_kind=pipeline_dp.NoiseKind.LAPLACE,
@@ -594,7 +594,7 @@ class DpEngineTest(unittest.TestCase):
         input = list(range(10))
 
         output = self.run_e2e_private_partition_selection_large_budget(
-            input, pipeline_dp.LocalPipelineOperations())
+            input, pipeline_dp.LocalBackend())
 
         self.assertEqual(5, len(list(output)))
 
@@ -610,7 +610,7 @@ class DpEngineTest(unittest.TestCase):
         input = sc.parallelize(list(range(10)))
 
         output = self.run_e2e_private_partition_selection_large_budget(
-            input, pipeline_dp.SparkRDDOperations())
+            input, pipeline_dp.SparkRDDBackend())
 
         self.assertEqual(5, len(output.collect()))
 
@@ -619,7 +619,7 @@ class DpEngineTest(unittest.TestCase):
             input = p | "Create input" >> beam.Create(list(range(10)))
 
             output = self.run_e2e_private_partition_selection_large_budget(
-                input, pipeline_dp.BeamOperations())
+                input, pipeline_dp.BeamBackend())
 
             beam_util.assert_that(output, beam_util.is_not_empty())
 

@@ -52,7 +52,7 @@ class PrivateRDD:
             sum_params: parameters for calculation
         """
 
-        ops = pipeline_dp.SparkRDDOperations()
+        ops = pipeline_dp.SparkRDDBackend()
         dp_engine = pipeline_dp.DPEngine(self._budget_accountant, ops)
 
         params = pipeline_dp.AggregateParams(
