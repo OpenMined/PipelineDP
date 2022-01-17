@@ -8,7 +8,7 @@ import sys
 from unittest.mock import Mock, MagicMock, patch
 
 from pipeline_dp import DataExtractors
-from pipeline_dp.pipeline_backend import MultiProcLocalPipelineBackend, SparkRDDBackend
+from pipeline_dp.pipeline_backend import MultiProcLocalBackend, SparkRDDBackend
 from pipeline_dp.pipeline_backend import LocalBackend
 from pipeline_dp.pipeline_backend import BeamBackend
 
@@ -307,7 +307,7 @@ class SparkRDDBackendTest(parameterized.TestCase):
         cls.sc.stop()
 
 
-class LocalPipelineBackendTest(unittest.TestCase):
+class LocalBackendTest(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
@@ -491,7 +491,7 @@ class LocalPipelineBackendTest(unittest.TestCase):
 
 @unittest.skipIf(sys.platform == 'win32' or sys.platform == 'darwin',
                  "Problems with serialisation on Windows and macOS")
-class MultiProcLocalPipelineBackendTest(unittest.TestCase):
+class MultiProcLocalBackendTest(unittest.TestCase):
 
     @staticmethod
     def partition_extract(x):
@@ -507,7 +507,7 @@ class MultiProcLocalPipelineBackendTest(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.ops = MultiProcLocalPipelineBackend(n_jobs=1)
+        cls.ops = MultiProcLocalBackend(n_jobs=1)
         cls.data_extractors = DataExtractors(
             partition_extractor=cls.partition_extract,
             privacy_id_extractor=cls.privacy_id_extract,

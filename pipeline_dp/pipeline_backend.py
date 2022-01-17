@@ -512,7 +512,7 @@ class _LazyMultiProcCountIterator(_LazyMultiProcIterator):
             self._outputs = self.results_dict.items()
 
 
-class MultiProcLocalPipelineBackend(PipelineBackend):
+class MultiProcLocalBackend(PipelineBackend):
 
     def __init__(self,
                  n_jobs: typing.Optional[int] = None,
