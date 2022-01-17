@@ -108,16 +108,15 @@ class SumParams:
         value_extractor: A function for extraction of value
             for which the sum will be calculated.
   """
-
-    noise_kind: NoiseKind
     max_partitions_contributed: int
     max_contributions_per_partition: int
     low: float
     high: float
-    public_partitions: Union[Iterable, 'PCollection', 'RDD']
     partition_extractor: Callable
     value_extractor: Callable
     budget_weight: float = 1
+    noise_kind: NoiseKind = NoiseKind.LAPLACE
+    public_partitions: Union[Iterable, 'PCollection', 'RDD'] = None
 
 
 @dataclass
