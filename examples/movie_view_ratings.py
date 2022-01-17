@@ -172,6 +172,8 @@ def compute_on_spark():
         .mapPartitions(parse_partition)
     pipeline_operations = pipeline_dp.SparkRDDOperations()
     dp_result = calculate_private_result(movie_views, pipeline_operations)
+
+    delete_if_exists(FLAGS.output_file)
     dp_result.saveAsTextFile(FLAGS.output_file)
 
 
@@ -183,9 +185,6 @@ def compute_on_local():
 
 
 def main(unused_argv):
-
-    delete_if_exists(FLAGS.output_file)
-
     if FLAGS.framework == 'beam':
         compute_on_beam()
     elif FLAGS.framework == 'spark':
