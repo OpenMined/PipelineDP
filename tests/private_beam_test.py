@@ -404,8 +404,8 @@ class PrivateBeamTest(unittest.TestCase):
                 total_epsilon=800, total_delta=0.999)
             private_collection = (
                 pcol | 'Create private collection' >> private_beam.MakePrivate(
-                budget_accountant=budget_accountant,
-                privacy_id_extractor=lambda x: x[0]))
+                    budget_accountant=budget_accountant,
+                    privacy_id_extractor=lambda x: x[0]))
 
             privacy_id_count_params = aggregate_params.PrivacyIdCountParams(
                 noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
@@ -428,7 +428,7 @@ class PrivateBeamTest(unittest.TestCase):
                                    value_per_key_within_tolerance(e, a, 5)))
 
     def test_privacy_id_count_with_public_partitions_returns_sensible_result(
-        self):
+            self):
         with TestPipeline() as pipeline:
             # Arrange
             col = [(u, "pubK1") for u in range(30)]
@@ -440,8 +440,8 @@ class PrivateBeamTest(unittest.TestCase):
                 total_epsilon=800, total_delta=0.999)
             private_collection = (
                 pcol | 'Create private collection' >> private_beam.MakePrivate(
-                budget_accountant=budget_accountant,
-                privacy_id_extractor=lambda x: x[0]))
+                    budget_accountant=budget_accountant,
+                    privacy_id_extractor=lambda x: x[0]))
 
             privacy_id_count_params = aggregate_params.PrivacyIdCountParams(
                 noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
@@ -524,9 +524,9 @@ class PrivateBeamTest(unittest.TestCase):
                                     ('pid:(3, 4)', (3, 5))]))
             self.assertEqual(transformed._budget_accountant, budget_accountant)
 
-    @patch('pipeline_dp.dp_engine.DPEngine.select_private_partitions')
-    def test_select_private_partitions_calls_aggregate_with_params(
-        self, mock_select_private_partitions):
+    @patch('pipeline_dp.dp_engine.DPEngine.select_partitions')
+    def test_select_partitions_calls_aggregate_with_params(
+            self, mock_select_partitions):
         runner = fn_api_runner.FnApiRunner()
         with beam.Pipeline(runner=runner) as pipeline:
             # Arrange
@@ -536,8 +536,8 @@ class PrivateBeamTest(unittest.TestCase):
                 total_epsilon=1, total_delta=0.01)
             private_collection = (
                 pcol | 'Create private collection' >> private_beam.MakePrivate(
-                budget_accountant=budget_accountant,
-                privacy_id_extractor=PrivateBeamTest.privacy_id_extractor))
+                    budget_accountant=budget_accountant,
+                    privacy_id_extractor=PrivateBeamTest.privacy_id_extractor))
 
             select_partitions_params = \
                 aggregate_params.SelectPartitionsParams(
@@ -545,7 +545,7 @@ class PrivateBeamTest(unittest.TestCase):
             partition_extractor = lambda x: f"pk:{x // 10}"
 
             # Act
-            transformer = private_beam.SelectPrivatePartitions(
+            transformer = private_beam.SelectPartitions(
                 select_partitions_params=select_partitions_params,
                 partition_extractor=partition_extractor,
                 label="Test select partitions")
@@ -553,25 +553,25 @@ class PrivateBeamTest(unittest.TestCase):
 
             # Assert
             self.assertEqual(transformer._budget_accountant, budget_accountant)
-            mock_select_private_partitions.assert_called_once()
+            mock_select_partitions.assert_called_once()
 
-            args = mock_select_private_partitions.call_args[0]
+            args = mock_select_partitions.call_args[0]
             self.assertEqual(args[1], select_partitions_params)
 
     def test_select_private_partitions_returns_sensible_result(self):
-        runner = fn_api_runner.FnApiRunner()
-        with beam.Pipeline(runner=runner) as pipeline:
+        with TestPipeline() as pipeline:
             # Arrange
-            col = [(u, "pk-many-contribs") for u in range(100)]
+            col = [(u, "pk1") for u in range(50)]
+            col += [(50 + u, "pk2") for u in range(50)]
             pcol = pipeline | 'Create produce' >> beam.Create(col)
-
+            # Use very high epsilon and delta to minimize noise and test
+            # flakiness.
             budget_accountant = budget_accounting.NaiveBudgetAccountant(
-                total_epsilon=1, total_delta=0.3)
-
+                total_epsilon=800, total_delta=0.999)
             private_collection = (
                 pcol | 'Create private collection' >> private_beam.MakePrivate(
-                budget_accountant=budget_accountant,
-                privacy_id_extractor=lambda x: x[0]))
+                    budget_accountant=budget_accountant,
+                    privacy_id_extractor=lambda x: x[0]))
 
             select_partitions_params = \
                 aggregate_params.SelectPartitionsParams(
@@ -579,15 +579,17 @@ class PrivateBeamTest(unittest.TestCase):
             partition_extractor = lambda x: x[1]
 
             # Act
-            transformer = private_beam.SelectPrivatePartitions(
+            result = private_collection | private_beam.SelectPartitions(
                 select_partitions_params=select_partitions_params,
                 partition_extractor=partition_extractor,
                 label="Test select partitions")
-            x = private_collection | transformer
+            budget_accountant.compute_budgets()
 
             # Assert
-            #            self.assertEqual(transformer._budget_accountant, budget_accountant)
-        #  x | beam.Map(print)
+            # This is a health check to validate that the result is sensible.
+            # Hence, we use a very large tolerance to reduce test flakiness.
+            beam_util.assert_that(result, beam_util.equal_to(["pk1", "pk2"]))
+
 
 if __name__ == '__main__':
     unittest.main()

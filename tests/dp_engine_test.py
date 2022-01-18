@@ -15,7 +15,7 @@ from pipeline_dp.budget_accounting import NaiveBudgetAccountant
 import pydp.algorithms.partition_selection as partition_selection
 from pipeline_dp import aggregate_params as agg
 from pipeline_dp.accumulator import CompoundAccumulatorFactory
-from pipeline_dp.aggregate_params import SelectPrivatePartitionsParams
+from pipeline_dp.aggregate_params import SelectPartitionsParams
 from pipeline_dp.accumulator import CountAccumulator
 from pipeline_dp.report_generator import ReportGenerator
 from pipeline_dp.pipeline_backend import PipelineBackend
@@ -300,7 +300,7 @@ class DpEngineTest(parameterized.TestCase):
             public_partitions=list(range(1, 40)),
         )
 
-        select_partitions_params = SelectPrivatePartitionsParams(
+        select_partitions_params = SelectPartitionsParams(
             max_partitions_contributed=2)
 
         budget_accountant = NaiveBudgetAccountant(total_epsilon=1,
@@ -309,8 +309,7 @@ class DpEngineTest(parameterized.TestCase):
                                       backend=pipeline_dp.LocalBackend())
         engine.aggregate(col, params1, data_extractor)
         engine.aggregate(col, params2, data_extractor)
-        engine.select_private_partitions(col, select_partitions_params,
-                                         data_extractor)
+        engine.select_partitions(col, select_partitions_params, data_extractor)
         self.assertEqual(3, len(engine._report_generators))  # pylint: disable=protected-access
         budget_accountant.compute_budgets()
         self.assertEqual(
@@ -472,12 +471,12 @@ class DpEngineTest(parameterized.TestCase):
         # very close to 1.
         self.assertLess(len(col), 5)
 
-    def test_select_private_partitions(self):
+    def test_select_partitions(self):
         # This test is probabilistic, but the parameters were chosen to ensure
         # the test has passed at least 10000 runs.
 
         # Arrange
-        params = SelectPrivatePartitionsParams(max_partitions_contributed=1)
+        params = SelectPartitionsParams(max_partitions_contributed=1)
 
         budget_accountant = NaiveBudgetAccountant(total_epsilon=1,
                                                   total_delta=1e-5)
@@ -510,9 +509,9 @@ class DpEngineTest(parameterized.TestCase):
         engine = pipeline_dp.DPEngine(budget_accountant=budget_accountant,
                                       backend=pipeline_dp.LocalBackend())
 
-        col = engine.select_private_partitions(col=col,
-                                               params=params,
-                                               data_extractors=data_extractor)
+        col = engine.select_partitions(col=col,
+                                       params=params,
+                                       data_extractors=data_extractor)
         budget_accountant.compute_budgets()
 
         col = list(col)
@@ -522,8 +521,8 @@ class DpEngineTest(parameterized.TestCase):
         # applying the "max_partitions_contributed" bound is retained.
         self.assertEqual(["pk-many-contribs"], col)
 
-    def test_check_select_private_partitions(self):
-        """ Tests validation of parameters for select_private_partitions()"""
+    def test_check_select_partitions(self):
+        """ Tests validation of parameters for select_partitions()"""
         default_extractor = pipeline_dp.DataExtractors(
             privacy_id_extractor=lambda x: x,
             partition_extractor=lambda x: x,
@@ -537,7 +536,7 @@ class DpEngineTest(parameterized.TestCase):
                 "col":
                     None,
                 "params":
-                    pipeline_dp.SelectPrivatePartitionsParams(
+                    pipeline_dp.SelectPartitionsParams(
                         max_partitions_contributed=1,),
                 "data_extractor":
                     default_extractor,
@@ -547,7 +546,7 @@ class DpEngineTest(parameterized.TestCase):
                     "empty col",
                 "col": [],
                 "params":
-                    pipeline_dp.SelectPrivatePartitionsParams(
+                    pipeline_dp.SelectPartitionsParams(
                         max_partitions_contributed=1,),
                 "data_extractor":
                     default_extractor,
@@ -563,7 +562,7 @@ class DpEngineTest(parameterized.TestCase):
                     "negative max_partitions_contributed",
                 "col": [0],
                 "params":
-                    pipeline_dp.SelectPrivatePartitionsParams(
+                    pipeline_dp.SelectPartitionsParams(
                         max_partitions_contributed=-1,),
                 "data_extractor":
                     default_extractor,
@@ -573,7 +572,7 @@ class DpEngineTest(parameterized.TestCase):
                     "float max_partitions_contributed",
                 "col": [0],
                 "params":
-                    pipeline_dp.SelectPrivatePartitionsParams(
+                    pipeline_dp.SelectPartitionsParams(
                         max_partitions_contributed=1.1,),
                 "data_extractor":
                     default_extractor,
@@ -583,7 +582,7 @@ class DpEngineTest(parameterized.TestCase):
                     "None data_extractor",
                 "col": [0],
                 "params":
-                    pipeline_dp.SelectPrivatePartitionsParams(
+                    pipeline_dp.SelectPartitionsParams(
                         max_partitions_contributed=1,),
                 "data_extractor":
                     None,
@@ -593,7 +592,7 @@ class DpEngineTest(parameterized.TestCase):
                     "Not a function data_extractor",
                 "col": [0],
                 "params":
-                    pipeline_dp.SelectPrivatePartitionsParams(
+                    pipeline_dp.SelectPartitionsParams(
                         max_partitions_contributed=1,),
                 "data_extractor":
                     1,
@@ -607,9 +606,8 @@ class DpEngineTest(parameterized.TestCase):
                 engine = pipeline_dp.DPEngine(
                     budget_accountant=budget_accountant,
                     backend=pipeline_dp.LocalBackend())
-                engine.select_private_partitions(test_case["col"],
-                                                 test_case["params"],
-                                                 test_case["data_extractor"])
+                engine.select_partitions(test_case["col"], test_case["params"],
+                                         test_case["data_extractor"])
 
     def test_aggregate_public_partitions_drop_non_public(self):
         # Arrange

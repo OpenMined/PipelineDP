@@ -102,10 +102,8 @@ class AggregateParams:
         return f"Metrics: {[m.value for m in self.metrics]}"
 
 
-# TODO: Think of whether this class should be used for both low-level API
-#       (dp_engine) and high-level API (private_spark, private_beam, etc.).
 @dataclass
-class SelectPrivatePartitionsParams:
+class SelectPartitionsParams:
     """Specifies parameters for differentially-private partition selection.
 
     Args:
