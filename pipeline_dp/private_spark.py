@@ -75,6 +75,35 @@ class PrivateRDD:
 
         return dp_result
 
+    def count(self, count_params: aggregate_params.CountParams) -> RDD:
+        """Computes DP count.
+
+        Args:
+            count_params: parameters for calculation
+        """
+
+        ops = pipeline_dp.SparkRDDOperations()
+        dp_engine = pipeline_dp.DPEngine(self._budget_accountant, ops)
+
+        params = pipeline_dp.AggregateParams(
+            noise_kind=count_params.noise_kind,
+            metrics=[pipeline_dp.Metrics.COUNT],
+            max_partitions_contributed=count_params.max_partitions_contributed,
+            max_contributions_per_partition=count_params.
+            max_contributions_per_partition,
+            public_partitions=count_params.public_partitions,
+            budget_weight=count_params.budget_weight)
+
+        data_extractors = pipeline_dp.DataExtractors(
+            partition_extractor=lambda x: count_params.partition_extractor(x[1]
+                                                                          ),
+            privacy_id_extractor=lambda x: x[0],
+            value_extractor=lambda x: count_params.value_extractor(x[1]))
+
+        dp_result = dp_engine.aggregate(self._rdd, params, data_extractors)
+
+        return dp_result
+
 
 def make_private(rdd: RDD,
                  budget_accountant: budget_accounting.BudgetAccountant,
