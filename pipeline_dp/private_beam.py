@@ -78,7 +78,7 @@ class Sum(PrivatePTransform):
         self._sum_params = sum_params
 
     def expand(self, pcol: pvalue.PCollection) -> pvalue.PCollection:
-        ops = pipeline_dp.BeamOperations()
+        ops = pipeline_dp.BeamBackend()
         dp_engine = pipeline_dp.DPEngine(self._budget_accountant, ops)
 
         params = pipeline_dp.AggregateParams(
@@ -105,6 +105,84 @@ class Sum(PrivatePTransform):
         # Here is only one metric - sum. Remove list.
         dp_result = ops.map_values(dp_result, lambda v: v[0], "Unnest list")
         # dp_result : (partition_key, dp_sum)
+
+        return dp_result
+
+
+class Count(PrivatePTransform):
+    """Transform class for performing DP Count on PrivatePCollection."""
+
+    def __init__(self,
+                 count_params: aggregate_params.CountParams,
+                 label: Optional[str] = None):
+        super().__init__(return_anonymized=True, label=label)
+        self._count_params = count_params
+
+    def expand(self, pcol: pvalue.PCollection) -> pvalue.PCollection:
+        ops = pipeline_dp.BeamBackend()
+        dp_engine = pipeline_dp.DPEngine(self._budget_accountant, ops)
+
+        params = pipeline_dp.AggregateParams(
+            noise_kind=self._count_params.noise_kind,
+            metrics=[pipeline_dp.Metrics.COUNT],
+            max_partitions_contributed=self._count_params.
+            max_partitions_contributed,
+            max_contributions_per_partition=self._count_params.
+            max_contributions_per_partition,
+            public_partitions=self._count_params.public_partitions)
+
+        data_extractors = pipeline_dp.DataExtractors(
+            partition_extractor=lambda x: self._count_params.
+            partition_extractor(x[1]),
+            privacy_id_extractor=lambda x: x[0],
+            value_extractor=lambda x: self._count_params.value_extractor(x[1]))
+
+        dp_result = dp_engine.aggregate(pcol, params, data_extractors)
+        # dp_result : (partition_key, [dp_count])
+
+        # aggregate() returns a list of metrics for each partition key.
+        # Here is only one metric - count. Remove list.
+        dp_result = ops.map_values(dp_result, lambda v: v[0], "Unnest list")
+        # dp_result : (partition_key, dp_count)
+
+        return dp_result
+
+
+class PrivacyIdCount(PrivatePTransform):
+    """Transform class for performing DP Privacy ID Count on PrivatePCollection."""
+
+    def __init__(self,
+                 privacy_id_count_params: aggregate_params.PrivacyIdCountParams,
+                 label: Optional[str] = None):
+        super().__init__(return_anonymized=True, label=label)
+        self._privacy_id_count_params = privacy_id_count_params
+
+    def expand(self, pcol: pvalue.PCollection) -> pvalue.PCollection:
+        ops = pipeline_dp.BeamBackend()
+        dp_engine = pipeline_dp.DPEngine(self._budget_accountant, ops)
+
+        params = pipeline_dp.AggregateParams(
+            noise_kind=self._privacy_id_count_params.noise_kind,
+            metrics=[pipeline_dp.Metrics.PRIVACY_ID_COUNT],
+            max_partitions_contributed=self._privacy_id_count_params.
+            max_partitions_contributed,
+            max_contributions_per_partition=1,
+            public_partitions=self._privacy_id_count_params.public_partitions)
+
+        data_extractors = pipeline_dp.DataExtractors(
+            partition_extractor=lambda x: self._privacy_id_count_params.
+            partition_extractor(x[1]),
+            privacy_id_extractor=lambda x: x[0],
+            value_extractor=lambda x: self._privacy_id_count_params.
+            value_extractor(x[1]))
+
+        dp_result = dp_engine.aggregate(pcol, params, data_extractors)
+        # dp_result : (partition_key, [dp_privacy_id_count])
+
+        # aggregate() returns a list of metrics for each partition key.
+        # Here is only one metric - privacy_id_count. Remove list.
+        dp_result = ops.map_values(dp_result, lambda v: v[0], "Unnest list")
+        # dp_result : (partition_key, dp_privacy_id_count)
 
         return dp_result
 

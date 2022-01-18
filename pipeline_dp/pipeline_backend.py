@@ -14,8 +14,9 @@ import collections
 import itertools
 
 
-class PipelineOperations(abc.ABC):
-    """Interface for pipeline frameworks adapters."""
+class PipelineBackend(abc.ABC):
+    """Interface implemented by the pipeline backends compatible with PipelineDP
+    """
 
     @abc.abstractmethod
     def map(self, col, fn, stage_name: str):
@@ -86,6 +87,14 @@ class PipelineOperations(abc.ABC):
         """
         pass
 
+    @abc.abstractmethod
+    def flatten(self, col1, col2, stage_name: str):
+        """
+        Returns:
+          A collection that contains all values from col1 and col2.
+        """
+        pass
+
     def is_serialization_immediate_on_reduce_by_key(self):
         return False
 
@@ -115,7 +124,7 @@ class UniqueLabelsGenerator:
                 return label_candidate
 
 
-class BeamOperations(PipelineOperations):
+class BeamBackend(PipelineBackend):
     """Apache Beam adapter."""
 
     def __init__(self, suffix: str = ""):
@@ -220,8 +229,11 @@ class BeamOperations(PipelineOperations):
         return col | self._ulg.unique(stage_name) >> beam.CombinePerKey(
             merge_accumulators)
 
+    def flatten(self, col1, col2, stage_name: str):
+        return (col1, col2) | self._ulg.unique(stage_name) >> beam.Flatten()
 
-class SparkRDDOperations(PipelineOperations):
+
+class SparkRDDBackend(PipelineBackend):
     """Apache Spark RDD adapter."""
 
     def map(self, rdd, fn, stage_name: str = None):
@@ -299,8 +311,11 @@ class SparkRDDOperations(PipelineOperations):
     def is_serialization_immediate_on_reduce_by_key(self):
         return True
 
+    def flatten(self, col1, col2, stage_name: str = None):
+        raise NotImplementedError("Not yet implemented for Spark")
 
-class LocalPipelineOperations(PipelineOperations):
+
+class LocalBackend(PipelineBackend):
     """Local Pipeline adapter."""
 
     def map(self, col, fn, stage_name: typing.Optional[str] = None):
@@ -366,6 +381,9 @@ class LocalPipelineOperations(PipelineOperations):
 
     def reduce_accumulators_per_key(self, col, stage_name: str = None):
         return self.map_values(self.group_by_key(col), accumulator.merge)
+
+    def flatten(self, col1, col2, stage_name: str = None):
+        return itertools.chain(col1, col2)
 
 
 # workaround for passing lambda functions to multiprocessing
@@ -494,7 +512,7 @@ class _LazyMultiProcCountIterator(_LazyMultiProcIterator):
             self._outputs = self.results_dict.items()
 
 
-class MultiProcLocalPipelineOperations(PipelineOperations):
+class MultiProcLocalBackend(PipelineBackend):
 
     def __init__(self,
                  n_jobs: typing.Optional[int] = None,
@@ -573,3 +591,6 @@ class MultiProcLocalPipelineOperations(PipelineOperations):
                                     col,
                                     stage_name: typing.Optional[str] = None):
         return self.map_values(col, accumulator.merge)
+
+    def flatten(self, col1, col2, stage_name: str = None):
+        return itertools.chain(col1, col2)
