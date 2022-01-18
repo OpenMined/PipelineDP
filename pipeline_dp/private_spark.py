@@ -72,6 +72,12 @@ class PrivateRDD:
             value_extractor=lambda x: sum_params.value_extractor(x[1]))
 
         dp_result = dp_engine.aggregate(self._rdd, params, data_extractors)
+        # dp_result : (partition_key, [dp_sum])
+
+        # aggregate() returns a list of metrics for each partition key.
+        # Here is only one metric - sum. Remove list.
+        dp_result = ops.map_values(dp_result, lambda v: v[0], "Unnest list")
+        # dp_result : (partition_key, dp_sum)
 
         return dp_result
 
@@ -82,7 +88,7 @@ class PrivateRDD:
             count_params: parameters for calculation
         """
 
-        ops = pipeline_dp.SparkRDDOperations()
+        ops = pipeline_dp.SparkRDDBackend()
         dp_engine = pipeline_dp.DPEngine(self._budget_accountant, ops)
 
         params = pipeline_dp.AggregateParams(
@@ -101,6 +107,12 @@ class PrivateRDD:
             value_extractor=lambda x: count_params.value_extractor(x[1]))
 
         dp_result = dp_engine.aggregate(self._rdd, params, data_extractors)
+        # dp_result : (partition_key, [dp_count])
+
+        # aggregate() returns a list of metrics for each partition key.
+        # Here is only one metric - count. Remove list.
+        dp_result = ops.map_values(dp_result, lambda v: v[0], "Unnest list")
+        # dp_result : (partition_key, dp_count)
 
         return dp_result
 
