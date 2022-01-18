@@ -1,7 +1,8 @@
 """ The example of using DPEngine for performing DP aggregation.
 
-Warning: DP aggregations has not been implemented yet, this example is only for
-demonstration of the API and development purposes.
+This is a quite elaborate example demonstrating many features. For a simpler
+example of how to use PipelineDP with spark, check
+movie_view_ratings_spark.py or movie_view_ratings_beam.py.
 
 In order to run an example:
 
@@ -22,7 +23,7 @@ from absl import flags
 import apache_beam as beam
 from apache_beam.runners.portability import fn_api_runner
 import pyspark
-from dataclasses import dataclass
+from examples.example_utils import *
 import pipeline_dp
 
 FLAGS = flags.FLAGS
@@ -37,22 +38,15 @@ flags.DEFINE_boolean(
     'Output private partitions (do not calculate any DP metrics)')
 
 
-@dataclass
-class MovieView:
-    user_id: int
-    movie_id: int
-    rating: int
-
-
-def calculate_private_result(movie_views, pipeline_operations):
+def calculate_private_result(movie_views, pipeline_backend):
     if FLAGS.private_partitions:
-        return get_private_movies(movie_views, pipeline_operations)
+        return get_private_movies(movie_views, pipeline_backend)
     else:
-        return calc_dp_rating_metrics(movie_views, pipeline_operations,
+        return calc_dp_rating_metrics(movie_views, pipeline_backend,
                                       get_public_partitions())
 
 
-def calc_dp_rating_metrics(movie_views, ops, public_partitions):
+def calc_dp_rating_metrics(movie_views, backend, public_partitions):
     """Computes DP metrics."""
 
     # Set the total privacy budget.
@@ -60,7 +54,7 @@ def calc_dp_rating_metrics(movie_views, ops, public_partitions):
                                                           total_delta=1e-6)
 
     # Create a DPEngine instance.
-    dp_engine = pipeline_dp.DPEngine(budget_accountant, ops)
+    dp_engine = pipeline_dp.DPEngine(budget_accountant, backend)
 
     # Specify which DP aggregated metrics to compute.
     params = pipeline_dp.AggregateParams(
@@ -89,7 +83,7 @@ def calc_dp_rating_metrics(movie_views, ops, public_partitions):
     return dp_result
 
 
-def get_private_movies(movie_views, ops):
+def get_private_movies(movie_views, backend):
     """Obtains the list of movies in a private manner.
 
     This does not calculate any private metrics; it merely obtains the list of
@@ -101,7 +95,7 @@ def get_private_movies(movie_views, ops):
                                                           total_delta=1e-6)
 
     # Create a DPEngine instance.
-    dp_engine = pipeline_dp.DPEngine(budget_accountant, ops)
+    dp_engine = pipeline_dp.DPEngine(budget_accountant, backend)
 
     # Specify how to extract privacy_id, partition_key and value from an
     # element of movie view collection.
@@ -119,28 +113,6 @@ def get_private_movies(movie_views, ops):
     return dp_result
 
 
-def parse_line(line, movie_id):
-    # 'line' has format "user_id,rating,date"
-    split_parts = line.split(',')
-    user_id = int(split_parts[0])
-    rating = int(split_parts[1])
-    return MovieView(user_id, movie_id, rating)
-
-
-class ParseFile(beam.DoFn):
-
-    def __init__(self):
-        self.movie_id = -1
-
-    def process(self, line):
-        if line[-1] == ':':
-            # 'line' has a format "movie_id:'
-            self.movie_id = int(line[:-1])
-            return
-        # 'line' has a format "user_id,rating,date"
-        yield parse_line(line, self.movie_id)
-
-
 def get_public_partitions():
     public_partitions = None
     if FLAGS.public_partitions is not None:
@@ -155,20 +127,9 @@ def compute_on_beam():
     with beam.Pipeline(runner=runner) as pipeline:
         movie_views = pipeline | beam.io.ReadFromText(
             FLAGS.input_file) | beam.ParDo(ParseFile())
-        pipeline_operations = pipeline_dp.BeamOperations()
-        dp_result = calculate_private_result(movie_views, pipeline_operations)
+        pipeline_backend = pipeline_dp.BeamBackend()
+        dp_result = calculate_private_result(movie_views, pipeline_backend)
         dp_result | beam.io.WriteToText(FLAGS.output_file)
-
-
-def parse_partition(iterator):
-    movie_id = None
-    for line in iterator:
-        if line[-1] == ':':
-            # 'line' has a format "movie_id:'
-            movie_id = int(line[:-1])
-        else:
-            # 'line' has a format "user_id,rating,date"
-            yield parse_line(line, movie_id)
 
 
 def compute_on_spark():
@@ -177,31 +138,17 @@ def compute_on_spark():
     sc = pyspark.SparkContext(conf=conf)
     movie_views = sc.textFile(FLAGS.input_file) \
         .mapPartitions(parse_partition)
-    pipeline_operations = pipeline_dp.SparkRDDOperations()
-    dp_result = calculate_private_result(movie_views, pipeline_operations)
+    pipeline_backend = pipeline_dp.SparkRDDBackend()
+    dp_result = calculate_private_result(movie_views, pipeline_backend)
+
+    delete_if_exists(FLAGS.output_file)
     dp_result.saveAsTextFile(FLAGS.output_file)
-
-
-def parse_file(filename):  # used for the local run
-    res = []
-    for line in open(filename):
-        line = line.strip()
-        if line[-1] == ':':
-            movie_id = int(line[:-1])
-        else:
-            res.append(parse_line(line, movie_id))
-    return res
-
-
-def write_to_file(col, filename):
-    with open(filename, 'w') as out:
-        out.write('\n'.join(map(str, col)))
 
 
 def compute_on_local():
     movie_views = parse_file(FLAGS.input_file)
-    pipeline_operations = pipeline_dp.LocalPipelineOperations()
-    dp_result = list(calculate_private_result(movie_views, pipeline_operations))
+    pipeline_backend = pipeline_dp.LocalBackend()
+    dp_result = list(calculate_private_result(movie_views, pipeline_backend))
     write_to_file(dp_result, FLAGS.output_file)
 
 
