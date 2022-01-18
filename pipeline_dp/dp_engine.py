@@ -115,34 +115,55 @@ class DPEngine:
 
     def _check_aggregate_params(self, col, params: AggregateParams,
                                 data_extractors: DataExtractors):
-
         if col is None or not col:
-            raise Exception("col must be non-empty")
-        if params is None or not isinstance(params, AggregateParams):
-            raise Exception("params must be set to valid AggregateParams")
+            raise ValueError("col must be non-empty")
+        if params is None:
+            raise ValueError("params must be set to a valid AggregateParams")
+        if not isinstance(params, AggregateParams):
+            raise TypeError("params must be set to a valid AggregateParams")
         if not isinstance(params.max_partitions_contributed,
                           int) or params.max_partitions_contributed <= 0:
-            raise Exception("params.max_partitions_contributed must be set "
-                            "to a positive integer")
+            raise ValueError("params.max_partitions_contributed must be set "
+                             "to a positive integer")
         if not isinstance(params.max_contributions_per_partition,
                           int) or params.max_contributions_per_partition <= 0:
-            raise Exception(
+            raise ValueError(
                 "params.max_contributions_per_partition must be set "
                 "to a positive integer")
         needs_low_high = any(metric == Metrics.SUM for metric in params.metrics)
         if needs_low_high and (params.low is None or params.high is None):
-            raise Exception("params.low and params.high must be set")
-        if needs_low_high and (math.isinf(params.low) or math.isnan(
-                params.low) or math.isinf(params.high) or
-                               math.isnan(params.high)):
-            raise Exception(
+            raise ValueError("params.low and params.high must be set")
+        if needs_low_high and (self._not_a_proper_number(params.low) or
+                               self._not_a_proper_number(params.high)):
+            raise ValueError(
                 "params.low and params.high must be both finite numbers")
         if needs_low_high and params.high < params.low:
-            raise Exception(
+            raise ValueError(
                 "params.high must be equal to or greater than params.low")
-        if data_extractors is None or not isinstance(
-                data_extractors, pipeline_dp.DataExtractors):
-            raise Exception("data_extractors must be set to a DataExtractors")
+        if data_extractors is None:
+            raise ValueError("data_extractors must be set to a DataExtractors")
+        if not isinstance(data_extractors, pipeline_dp.DataExtractors):
+            raise TypeError("data_extractors must be set to a DataExtractors")
+
+    def _check_select_private_partitions(self, col,
+                                         params: SelectPrivatePartitionsParams,
+                                         data_extractors: DataExtractors):
+        if col is None or not col:
+            raise ValueError("col must be non-empty")
+        if params is None:
+            raise ValueError(
+                "params must be set to a valid SelectPrivatePartitionsParams")
+        if not isinstance(params, SelectPrivatePartitionsParams):
+            raise TypeError(
+                "params must be set to a valid SelectPrivatePartitionsParams")
+        if not isinstance(params.max_partitions_contributed,
+                          int) or params.max_partitions_contributed <= 0:
+            raise ValueError("params.max_partitions_contributed must be set "
+                             "(to a positive integer)")
+        if data_extractors is None:
+            raise ValueError("data_extractors must be set to a DataExtractors")
+        if not isinstance(data_extractors, pipeline_dp.DataExtractors):
+            raise TypeError("data_extractors must be set to a DataExtractors")
 
     def select_private_partitions(self, col,
                                   params: SelectPrivatePartitionsParams,
@@ -156,19 +177,7 @@ class DPEngine:
             from elements of 'col'. Only privacy_id_extractor and partition_extractor are required.
             value_extractor is not required.
         """
-        if col is None or not col:
-            raise Exception("col must be non-empty")
-        if params is None or not isinstance(params,
-                                            SelectPrivatePartitionsParams):
-            raise Exception(
-                "params must be set to a valid SelectPrivatePartitionsParams")
-        if not isinstance(params.max_partitions_contributed,
-                          int) or params.max_partitions_contributed <= 0:
-            raise Exception("params.max_partitions_contributed must be set "
-                            "(to a positive integer)")
-        if data_extractors is None or not isinstance(
-                data_extractors, pipeline_dp.DataExtractors):
-            raise Exception("data_extractors must be non-empty")
+        self._check_select_private_partitions(col, params, data_extractors)
 
         self._report_generators.append(ReportGenerator(params))
         max_partitions_contributed = params.max_partitions_contributed
@@ -342,3 +351,10 @@ class DPEngine:
         mechanism_specs = accumulator_factory.get_mechanism_specs()
         return self._ops.map_values(
             col, lambda acc: acc.set_mechanism_specs(mechanism_specs))
+
+    def _not_a_proper_number(self, num):
+        """
+        Returns:
+            true if num is inf or NaN, false otherwise.
+        """
+        return math.isnan(num) or math.isinf(num)

@@ -165,54 +165,35 @@ class DpEngineTest(unittest.TestCase):
             pipeline_dp.DPEngine(None, None).aggregate(None, None, None)
 
     def test_check_aggregate_params(self):
+        default_extractors = pipeline_dp.DataExtractors(
+            privacy_id_extractor=lambda x: x,
+            partition_extractor=lambda x: x,
+            value_extractor=lambda x: x,
+        )
+        default_params = pipeline_dp.AggregateParams(
+            noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+            max_partitions_contributed=1,
+            max_contributions_per_partition=1,
+            metrics=[pipeline_dp.Metrics.PRIVACY_ID_COUNT])
+
         test_cases = [
             {
-                "desc":
-                    "None col",
-                "col":
-                    None,
-                "params":
-                    pipeline_dp.AggregateParams(
-                        noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
-                        max_partitions_contributed=1,
-                        max_contributions_per_partition=1,
-                        metrics=[pipeline_dp.Metrics.PRIVACY_ID_COUNT]),
-                "data_extractor":
-                    pipeline_dp.DataExtractors(
-                        privacy_id_extractor=lambda x: x,
-                        partition_extractor=lambda x: x,
-                        value_extractor=lambda x: x,
-                    ),
+                "desc": "None col",
+                "col": None,
+                "params": default_params,
+                "data_extractor": default_extractors,
             },
             {
-                "desc":
-                    "empty col",
+                "desc": "empty col",
                 "col": [],
-                "params":
-                    pipeline_dp.AggregateParams(
-                        noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
-                        max_partitions_contributed=1,
-                        max_contributions_per_partition=1,
-                        metrics=[pipeline_dp.Metrics.PRIVACY_ID_COUNT]),
-                "data_extractor":
-                    pipeline_dp.DataExtractors(
-                        privacy_id_extractor=lambda x: x,
-                        partition_extractor=lambda x: x,
-                        value_extractor=lambda x: x,
-                    ),
+                "params": default_params,
+                "data_extractor": default_extractors
             },
             {
-                "desc":
-                    "none params",
+                "desc": "none params",
                 "col": [0],
-                "params":
-                    None,
-                "data_extractor":
-                    pipeline_dp.DataExtractors(
-                        privacy_id_extractor=lambda x: x,
-                        partition_extractor=lambda x: x,
-                        value_extractor=lambda x: x,
-                    ),
+                "params": None,
+                "data_extractor": default_extractors,
             },
             {
                 "desc":
@@ -225,11 +206,7 @@ class DpEngineTest(unittest.TestCase):
                         max_contributions_per_partition=1,
                         metrics=[pipeline_dp.Metrics.PRIVACY_ID_COUNT]),
                 "data_extractor":
-                    pipeline_dp.DataExtractors(
-                        privacy_id_extractor=lambda x: x,
-                        partition_extractor=lambda x: x,
-                        value_extractor=lambda x: x,
-                    ),
+                    default_extractors,
             },
             {
                 "desc":
@@ -242,11 +219,7 @@ class DpEngineTest(unittest.TestCase):
                         max_contributions_per_partition=1,
                         metrics=[pipeline_dp.Metrics.PRIVACY_ID_COUNT]),
                 "data_extractor":
-                    pipeline_dp.DataExtractors(
-                        privacy_id_extractor=lambda x: x,
-                        partition_extractor=lambda x: x,
-                        value_extractor=lambda x: x,
-                    ),
+                    default_extractors,
             },
             {
                 "desc":
@@ -259,11 +232,7 @@ class DpEngineTest(unittest.TestCase):
                         max_contributions_per_partition=-1,
                         metrics=[pipeline_dp.Metrics.PRIVACY_ID_COUNT]),
                 "data_extractor":
-                    pipeline_dp.DataExtractors(
-                        privacy_id_extractor=lambda x: x,
-                        partition_extractor=lambda x: x,
-                        value_extractor=lambda x: x,
-                    ),
+                    default_extractors,
             },
             {
                 "desc":
@@ -276,11 +245,7 @@ class DpEngineTest(unittest.TestCase):
                         max_contributions_per_partition=1.5,
                         metrics=[pipeline_dp.Metrics.PRIVACY_ID_COUNT]),
                 "data_extractor":
-                    pipeline_dp.DataExtractors(
-                        privacy_id_extractor=lambda x: x,
-                        partition_extractor=lambda x: x,
-                        value_extractor=lambda x: x,
-                    ),
+                    default_extractors,
             },
             {
                 "desc":
@@ -293,11 +258,7 @@ class DpEngineTest(unittest.TestCase):
                         max_contributions_per_partition=1,
                         metrics=[pipeline_dp.Metrics.SUM]),
                 "data_extractor":
-                    pipeline_dp.DataExtractors(
-                        privacy_id_extractor=lambda x: x,
-                        partition_extractor=lambda x: x,
-                        value_extractor=lambda x: x,
-                    ),
+                    default_extractors,
             },
             {
                 "desc":
@@ -310,11 +271,7 @@ class DpEngineTest(unittest.TestCase):
                         max_contributions_per_partition=1,
                         metrics=[pipeline_dp.Metrics.SUM]),
                 "data_extractor":
-                    pipeline_dp.DataExtractors(
-                        privacy_id_extractor=lambda x: x,
-                        partition_extractor=lambda x: x,
-                        value_extractor=lambda x: x,
-                    ),
+                    default_extractors,
             },
             {
                 "desc":
@@ -329,37 +286,19 @@ class DpEngineTest(unittest.TestCase):
                         high=0,
                         metrics=[pipeline_dp.Metrics.SUM]),
                 "data_extractor":
-                    pipeline_dp.DataExtractors(
-                        privacy_id_extractor=lambda x: x,
-                        partition_extractor=lambda x: x,
-                        value_extractor=lambda x: x,
-                    ),
+                    default_extractors,
             },
             {
-                "desc":
-                    "None data_extractor",
+                "desc": "None data_extractor",
                 "col": [0],
-                "params":
-                    pipeline_dp.AggregateParams(
-                        noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
-                        max_partitions_contributed=1,
-                        max_contributions_per_partition=1,
-                        metrics=[pipeline_dp.Metrics.PRIVACY_ID_COUNT]),
-                "data_extractor":
-                    None,
+                "params": default_params,
+                "data_extractor": None,
             },
             {
-                "desc":
-                    "data_extractor with an incorrect type",
+                "desc": "data_extractor with an incorrect type",
                 "col": [0],
-                "params":
-                    pipeline_dp.AggregateParams(
-                        noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
-                        max_partitions_contributed=1,
-                        max_contributions_per_partition=1,
-                        metrics=[pipeline_dp.Metrics.PRIVACY_ID_COUNT]),
-                "data_extractor":
-                    1,
+                "params": default_params,
+                "data_extractor": 1,
             },
         ]
 
@@ -663,6 +602,12 @@ class DpEngineTest(unittest.TestCase):
 
     def test_check_select_private_partitions(self):
         """ Tests validation of parameters for select_private_partitions()"""
+        default_extractor = pipeline_dp.DataExtractors(
+            privacy_id_extractor=lambda x: x,
+            partition_extractor=lambda x: x,
+            value_extractor=lambda x: x,
+        )
+
         test_cases = [
             {
                 "desc":
@@ -673,11 +618,7 @@ class DpEngineTest(unittest.TestCase):
                     pipeline_dp.SelectPrivatePartitionsParams(
                         max_partitions_contributed=1,),
                 "data_extractor":
-                    pipeline_dp.DataExtractors(
-                        privacy_id_extractor=lambda x: x,
-                        partition_extractor=lambda x: x,
-                        value_extractor=lambda x: x,
-                    ),
+                    default_extractor,
             },
             {
                 "desc":
@@ -687,24 +628,13 @@ class DpEngineTest(unittest.TestCase):
                     pipeline_dp.SelectPrivatePartitionsParams(
                         max_partitions_contributed=1,),
                 "data_extractor":
-                    pipeline_dp.DataExtractors(
-                        privacy_id_extractor=lambda x: x,
-                        partition_extractor=lambda x: x,
-                        value_extractor=lambda x: x,
-                    ),
+                    default_extractor,
             },
             {
-                "desc":
-                    "none params",
+                "desc": "none params",
                 "col": [0],
-                "params":
-                    None,
-                "data_extractor":
-                    pipeline_dp.DataExtractors(
-                        privacy_id_extractor=lambda x: x,
-                        partition_extractor=lambda x: x,
-                        value_extractor=lambda x: x,
-                    ),
+                "params": None,
+                "data_extractor": default_extractor,
             },
             {
                 "desc":
@@ -714,11 +644,7 @@ class DpEngineTest(unittest.TestCase):
                     pipeline_dp.SelectPrivatePartitionsParams(
                         max_partitions_contributed=-1,),
                 "data_extractor":
-                    pipeline_dp.DataExtractors(
-                        privacy_id_extractor=lambda x: x,
-                        partition_extractor=lambda x: x,
-                        value_extractor=lambda x: x,
-                    ),
+                    default_extractor,
             },
             {
                 "desc":
@@ -728,11 +654,7 @@ class DpEngineTest(unittest.TestCase):
                     pipeline_dp.SelectPrivatePartitionsParams(
                         max_partitions_contributed=1.1,),
                 "data_extractor":
-                    pipeline_dp.DataExtractors(
-                        privacy_id_extractor=lambda x: x,
-                        partition_extractor=lambda x: x,
-                        value_extractor=lambda x: x,
-                    ),
+                    default_extractor,
             },
             {
                 "desc":
