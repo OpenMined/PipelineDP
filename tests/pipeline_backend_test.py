@@ -302,8 +302,8 @@ class SparkRDDBackendTest(parameterized.TestCase):
         rdd = self.ops.map_values(rdd, sum_combiner.create_accumulator)
         rdd = self.ops.combine_accumulators_per_key(rdd, sum_combiner)
         rdd = self.ops.map_values(rdd, sum_combiner.compute_metrics)
-        result = rdd.collect()
-        self.assertEqual(result, [(1, 6), (2, 4), (3, 8)])
+        result = dict(rdd.collect())
+        self.assertDictEqual(result, {1: 6, 2: 4, 3: 8})
 
     def test_map_tuple(self):
         data = [(1, 2), (3, 4)]
