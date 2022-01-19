@@ -1,7 +1,9 @@
 import abc
 import copy
+from typing import Iterable, Tuple, Any, List
 
 import pipeline_dp
+import numpy as np
 from pipeline_dp import dp_computations
 from pipeline_dp import budget_accounting
 
@@ -33,17 +35,14 @@ class Combiner(abc.ABC):
     @abc.abstractmethod
     def create_accumulator(self, values):
         """Creates accumulator from 'values'."""
-        pass
 
     @abc.abstractmethod
     def merge_accumulators(self, accumulator1, accumulator2):
         """Merges the accumulators and returns accumulator."""
-        pass
 
     @abc.abstractmethod
     def compute_metrics(self, accumulator):
         """Computes and returns the result of aggregation."""
-        pass
 
 
 class CombinerParams:
@@ -84,16 +83,82 @@ class CountCombiner(Combiner):
     The type of the accumulator is int, which represents count of the elements
     in the dataset for which this accumulator is computed.
     """
+    AccumulatorType = int
 
     def __init__(self, params: CombinerParams):
         self._params = params
 
-    def create_accumulator(self, values) -> int:
+    def create_accumulator(self, values: Iterable[float]) -> 'AccumulatorType':
         return len(values)
 
-    def merge_accumulators(self, count1: int, count2: int):
+    def merge_accumulators(self, count1: AccumulatorType,
+                           count2: AccumulatorType):
         return count1 + count2
 
-    def compute_metrics(self, count: int) -> float:
+    def compute_metrics(self, count: AccumulatorType) -> float:
         return dp_computations.compute_dp_count(count,
                                                 self._params.mean_var_params)
+
+
+class SumCombiner(Combiner):
+    """Combiner for computing dp sum.
+
+    the type of the accumulator is int, which represents sum of the elements
+    in the dataset for which this accumulator is computed.
+    """
+    AccumulatorType = float
+
+    def __init__(self, params: CombinerParams):
+        self._params = params
+
+    def create_accumulator(self, values: Iterable[float]) -> 'AccumulatorType':
+        return np.clip(values, self._params.aggregate_params.low,
+                       self._params.aggregate_params.high).sum()
+
+    def merge_accumulators(self, sum1: AccumulatorType, sum2: AccumulatorType):
+        return sum1 + sum2
+
+    def compute_metrics(self, sum: AccumulatorType) -> float:
+        return dp_computations.compute_dp_sum(sum, self._params.mean_var_params)
+
+
+class CompoundCombiner(Combiner):
+    """Combiner for computing a set of dp aggregations.
+
+    CompoundCombiner contains one or more combiners of other types for computing multiple metrics.
+    For example it can contain [CountCombiner, SumCombiner].
+    CompoundCombiner delegates all operations to the internal combiners.
+
+    The type of the accumulator is a a tuple of int and an iterable.
+    The first int represents the privacy id count. The second iterable
+    contains accumulators from internal combiners.
+    """
+
+    AccumulatorType = Tuple[int, list]
+
+    def __init__(self, combiners: Iterable['Combiner']):
+        self._combiners = combiners
+
+    def create_accumulator(self, values) -> 'AccumulatorType':
+        return (1, [
+            combiner.create_accumulator(values) for combiner in self._combiners
+        ])
+
+    def merge_accumulators(
+            self, compound_accumulator1: AccumulatorType,
+            compound_accumulator2: AccumulatorType) -> AccumulatorType:
+        merged_accumulators = []
+        privacy_id_count1, accumulator1 = compound_accumulator1
+        privacy_id_count2, accumulator2 = compound_accumulator2
+        for combiner, acc1, acc2 in zip(self._combiners, accumulator1,
+                                        accumulator2):
+            merged_accumulators.append(combiner.merge_accumulators(acc1, acc2))
+        return (privacy_id_count1 + privacy_id_count2, merged_accumulators)
+
+    def compute_metrics(
+            self, compound_accumulator: AccumulatorType) -> Tuple[int, list]:
+        privacy_id_count, accumulator = compound_accumulator
+        metrics = []
+        for combiner, acc in zip(self._combiners, accumulator):
+            metrics.append(combiner.compute_metrics(acc))
+        return (privacy_id_count, metrics)
