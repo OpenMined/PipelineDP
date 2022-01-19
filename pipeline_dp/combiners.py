@@ -4,6 +4,8 @@ import copy
 import pipeline_dp
 from pipeline_dp import dp_computations
 from pipeline_dp import budget_accounting
+import numpy as np
+from collections import namedtuple
 
 
 class Combiner(abc.ABC):
@@ -97,3 +99,29 @@ class CountCombiner(Combiner):
     def compute_metrics(self, count: int) -> float:
         return dp_computations.compute_dp_count(count,
                                                 self._params.mean_var_params)
+
+
+class MeanCombiner(Combiner):
+    """Combiner for computing DP Mean. Also returns sum and count in addition to
+    the mean.
+
+    The type of the accumulator is a tuple(count: int, sum: float) that holds
+    the count and sum of elements in the dataset for which this accumulator is
+    computed.
+    """
+
+    def __init__(self, params: CombinerParams):
+        self._params = params
+
+    def create_accumulator(self, values) -> (int, float):
+        return len(values), np.clip(values, self._params.aggregate_params.low,
+                                    self._params.aggregate_params.high).sum()
+
+    def merge_accumulators(self, accum1: tuple, accum2: tuple):
+        return accum1[0] + accum2[0], accum1[1] + accum2[1]
+
+    def compute_metrics(self, accum: tuple) -> namedtuple:
+        noisy_count, noisy_sum, noisy_mean = dp_computations.compute_dp_mean(
+            accum[0], accum[1], self._params.mean_var_params)
+        MeanTuple = namedtuple('MeanTuple', ['count', 'sum', 'mean'])
+        return MeanTuple(count=noisy_count, sum=noisy_sum, mean=noisy_mean)

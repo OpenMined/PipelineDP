@@ -33,6 +33,8 @@ class MeanVarParams:
 
 def compute_middle(low: float, high: float):
     """"Returns the middle point of the interval [low, high]."""
+    # (low + high) / 2 may cause an overflow or loss of precision if low and
+    # high are large.
     return low + (high - low) / 2
 
 
@@ -304,7 +306,11 @@ def _compute_mean(
     dp_normalized_sum = _add_random_noise(normalized_sum, eps, delta,
                                           l0_sensitivity, linf_sensitivity,
                                           noise_kind)
-    return dp_normalized_sum / dp_count + middle
+    # Clamps dp_count to 1.0. We know that actual count > 1 except when the
+    # input set is empty, in which case it shouldn't matter much what the
+    # denominator is.
+    dp_count_clamped = max(1.0, dp_count)
+    return dp_normalized_sum / dp_count_clamped + middle
 
 
 def compute_dp_mean(count: int, sum: float, dp_params: MeanVarParams):
@@ -347,7 +353,10 @@ def compute_dp_mean(count: int, sum: float, dp_params: MeanVarParams):
         dp_params.max_contributions_per_partition,
         dp_params.noise_kind,
     )
-    return dp_count, dp_mean * dp_count, dp_mean
+
+    # Clamps dp_mean to be in the range [low, high].
+    return dp_count, dp_mean * dp_count, np.clip(dp_mean, dp_params.low,
+                                                 dp_params.high).item()
 
 
 def compute_dp_var(count: int, sum: float, sum_squares: float,
