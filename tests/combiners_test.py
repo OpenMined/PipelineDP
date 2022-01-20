@@ -70,7 +70,7 @@ class CreateCompoundCombinersTest(parameterized.TestCase):
         budget_accountant.request_budget = mock.Mock(side_effect=mock_budgets)
 
         # Act.
-        compound_combiner = dp_combiners.create_compound_combiners(
+        compound_combiner = dp_combiners.create_compound_combiner(
             aggregate_params, budget_accountant)
 
         # Assert

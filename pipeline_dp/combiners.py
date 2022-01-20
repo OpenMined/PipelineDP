@@ -189,7 +189,7 @@ class CompoundCombiner(Combiner):
         return (privacy_id_count, metrics)
 
 
-def create_compound_combiners(
+def create_compound_combiner(
         aggregate_params: pipeline_dp.AggregateParams,
         budget_accountant: budget_accounting.BudgetAccountant
 ) -> CompoundCombiner:
