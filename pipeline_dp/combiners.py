@@ -8,27 +8,6 @@ from pipeline_dp import dp_computations
 from pipeline_dp import budget_accounting
 
 
-def create_compound_combiners(
-    aggregation_params: pipeline_dp.AggregateParams,
-    budget_accountant: budget_accounting.BudgetAccountant
-) -> 'CompoundCombiner':
-    combiners = []
-    mechanism_type = aggregation_params.noise_kind.convert_to_mechanism_type()
-    if pipeline_dp.Metrics.COUNT in aggregation_params.metrics:
-        budget = budget_accountant.request_budget(mechanism_type)
-        combiners.append(
-            CountCombiner(CombinerParams(budget, aggregation_params)))
-    if pipeline_dp.Metrics.SUM in aggregation_params.metrics:
-        budget = budget_accountant.request_budget(mechanism_type)
-        combiners.append(SumCombiner(CombinerParams(budget,
-                                                    aggregation_params)))
-    if pipeline_dp.Metrics.PRIVACY_ID_COUNT in aggregation_params.metrics:
-        budget = budget_accountant.request_budget(mechanism_type)
-        combiners.append(
-            PrivacyIdCountCombiner(CombinerParams(budget, aggregation_params)))
-    return CompoundCombiner(combiners)
-
-
 class Combiner(abc.ABC):
     """Base class for all combiners.
 
@@ -208,3 +187,29 @@ class CompoundCombiner(Combiner):
         for combiner, acc in zip(self._combiners, accumulator):
             metrics.append(combiner.compute_metrics(acc))
         return (privacy_id_count, metrics)
+
+
+def create_compound_combiners(
+        aggregate_params: pipeline_dp.AggregateParams,
+        budget_accountant: budget_accounting.BudgetAccountant
+) -> CompoundCombiner:
+    combiners = []
+    mechanism_type = aggregate_params.noise_kind.convert_to_mechanism_type()
+
+    if pipeline_dp.Metrics.COUNT in aggregate_params.metrics:
+        budget_count = budget_accountant.request_budget(
+            mechanism_type, weight=aggregate_params.budget_weight)
+        combiners.append(
+            CountCombiner(CombinerParams(budget_count, aggregate_params)))
+    if pipeline_dp.Metrics.SUM in aggregate_params.metrics:
+        budget_sum = budget_accountant.request_budget(
+            mechanism_type, weight=aggregate_params.budget_weight)
+        combiners.append(
+            SumCombiner(CombinerParams(budget_sum, aggregate_params)))
+    if pipeline_dp.Metrics.PRIVACY_ID_COUNT in aggregate_params.metrics:
+        budget_privacy_id_count = budget_accountant.request_budget(
+            mechanism_type, weight=aggregate_params.budget_weight)
+        combiners.append(
+            PrivacyIdCountCombiner(
+                CombinerParams(budget_privacy_id_count, aggregate_params)))
+    return CompoundCombiner(combiners)

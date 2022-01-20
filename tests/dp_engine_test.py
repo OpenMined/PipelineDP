@@ -2,6 +2,8 @@ import collections
 from unittest.mock import patch
 import numpy as np
 import unittest
+from absl.testing import absltest
+from absl.testing import parameterized
 import sys
 
 import apache_beam as beam
@@ -68,7 +70,7 @@ class _MockAccumulator(pipeline_dp.accumulator.Accumulator):
         return f"MockAccumulator({self.values_list})"
 
 
-class DpEngineTest(unittest.TestCase):
+class DpEngineTest(parameterized.TestCase):
     aggregator_fn = lambda input_values: (len(input_values), np.sum(
         input_values), np.sum(np.square(input_values)))
 
@@ -312,8 +314,7 @@ class DpEngineTest(unittest.TestCase):
                 engine.aggregate(test_case["col"], test_case["params"],
                                  test_case["data_extractor"])
 
-    @patch('pipeline_dp.accumulator._create_accumulator_factories')
-    def test_aggregate_report(self, mock_create_accumulator_factories_function):
+    def test_aggregate_report(self):
         col = [[1], [2], [3], [3]]
         data_extractor = pipeline_dp.DataExtractors(
             privacy_id_extractor=lambda x: f"pid{x}",
@@ -345,9 +346,7 @@ class DpEngineTest(unittest.TestCase):
 
         select_partitions_params = SelectPrivatePartitionsParams(
             max_partitions_contributed=2)
-        mock_create_accumulator_factories_function.return_value = [
-            pipeline_dp.accumulator.CountAccumulatorFactory(None)
-        ]
+
         budget_accountant = NaiveBudgetAccountant(total_epsilon=1,
                                                   total_delta=1e-10)
         engine = pipeline_dp.DPEngine(budget_accountant=budget_accountant,
@@ -363,7 +362,7 @@ class DpEngineTest(unittest.TestCase):
             "Differentially private: Computing <Metrics: ['privacy_id_count', 'count', 'mean']>"
             "\n1. Per-partition contribution bounding: randomly selected not more than 2 contributions"
             "\n2. Cross-partition contribution bounding: randomly selected not more than 3 partitions per user"
-            "\n3. Private Partition selection: using Truncated Geometric method with (eps= 0.5, delta = 5e-11)"
+            "\n3. Private Partition selection: using Truncated Geometric method with (eps= 0.1111111111111111, delta = 1.1111111111111111e-11)"
         )
         self.assertEqual(
             engine._report_generators[1].report(),
@@ -376,7 +375,7 @@ class DpEngineTest(unittest.TestCase):
         self.assertEqual(
             engine._report_generators[2].report(),
             "Differentially private: Computing <Private Partitions>"
-            "\n1. Private Partition selection: using Truncated Geometric method with (eps= 0.5, delta = 5e-11)"
+            "\n1. Private Partition selection: using Truncated Geometric method with (eps= 0.3333333333333333, delta = 3.3333333333333335e-11)"
         )
 
     @patch('pipeline_dp.DPEngine._bound_contributions')
@@ -416,62 +415,33 @@ class DpEngineTest(unittest.TestCase):
             unittest.mock.ANY)
 
     def _mock_and_assert_private_partitions(self, engine: pipeline_dp.DPEngine,
-                                            groups, min_users,
-                                            expected_partitions,
+                                            col, min_users, expected_partitions,
                                             max_partitions_contributed):
         with patch(
                 "pydp.algorithms.partition_selection.create_truncated_geometric_partition_strategy",
                 new=_mock_partition_strategy_factory(
                     min_users)) as mock_factory:
             data_filtered = engine._select_private_partitions_internal(
-                groups, max_partitions_contributed)
+                col, max_partitions_contributed)
             engine._budget_accountant.compute_budgets()
             self.assertListEqual(list(data_filtered), expected_partitions)
 
-    def test_select_private_partitions_internal(self):
-        input_col = [("pid1", ('pk1', 1)), ("pid1", ('pk1', 2)),
-                     ("pid1", ('pk2', 3)), ("pid1", ('pk2', 4)),
-                     ("pid1", ('pk2', 5)), ("pid1", ('pk3', 6)),
-                     ("pid1", ('pk4', 7)), ("pid2", ('pk4', 8))]
-        max_partitions_contributed = 3
+    @parameterized.named_parameters(
+        dict(testcase_name='all_data_kept', min_users=1),
+        dict(testcase_name='1 partition left', min_users=5),
+        dict(testcase_name='empty result', min_users=20),
+    )
+    def test_select_private_partitions_internal(self, min_users):
+        input_col = [("pk1", (3, None)), ("pk2", (10, None))]
+
         engine = self.create_dp_engine_default()
-        groups = engine._ops.group_by_key(input_col, None)
-        groups = engine._ops.map_values(groups,
-                                        lambda group: _MockAccumulator(group))
-        groups = list(groups)
-        expected_data_filtered = [("pid1",
-                                   _MockAccumulator([
-                                       ('pk1', 1),
-                                       ('pk1', 2),
-                                       ('pk2', 3),
-                                       ('pk2', 4),
-                                       ('pk2', 5),
-                                       ('pk3', 6),
-                                       ('pk4', 7),
-                                   ])),
-                                  ("pid2", _MockAccumulator([('pk4', 8)]))]
-        self._mock_and_assert_private_partitions(engine, groups, 0,
+        expected_data_filtered = [x for x in input_col if x[1][0] > min_users]
+
+        self._mock_and_assert_private_partitions(engine,
+                                                 input_col,
+                                                 min_users,
                                                  expected_data_filtered,
-                                                 max_partitions_contributed)
-        expected_data_filtered = [
-            ("pid1",
-             _MockAccumulator([
-                 ('pk1', 1),
-                 ('pk1', 2),
-                 ('pk2', 3),
-                 ('pk2', 4),
-                 ('pk2', 5),
-                 ('pk3', 6),
-                 ('pk4', 7),
-             ])),
-        ]
-        self._mock_and_assert_private_partitions(engine, groups, 3,
-                                                 expected_data_filtered,
-                                                 max_partitions_contributed)
-        expected_data_filtered = []
-        self._mock_and_assert_private_partitions(engine, groups, 100,
-                                                 expected_data_filtered,
-                                                 max_partitions_contributed)
+                                                 max_partitions_contributed=1)
 
     def test_aggregate_private_partition_selection_keep_everything(self):
         # Arrange
@@ -857,4 +827,4 @@ class DpEngineTest(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    unittest.main()
+    absltest.main()
