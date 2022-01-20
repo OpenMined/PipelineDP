@@ -19,6 +19,10 @@ def main(unused_argv):
     delete_if_exists(FLAGS.output_file)
 
     # Setup Spark
+
+    # Here, we use one worker thread to load the file as 1 partition.
+    # For a truly distributed calculation, connect to a Spark cluster (e.g.
+    # running on some cloud provider).
     master = "local[1]"  # use one worker thread to load the file as 1 partition
     conf = pyspark.SparkConf().setMaster(master)
     sc = pyspark.SparkContext(conf=conf)

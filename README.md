@@ -14,6 +14,14 @@ To make differential privacy accessible to non-experts, PipelineDP:
 
 The project is in the early development stage. More description will be added later.
 
+## Getting started
+
+Take a look on examples of how to run PipelineDP Apache Spark or Beam:
+
+* [Apache Spark example](examples/movie_view_ratings_spark.py)
+* [Apache Beam example](examples/movie_view_ratings_beam.py)
+* [Local execution example](examples/movie_view_ratings.py)
+
 ## Development
 
 To install the requirements for local development, run `make dev`.

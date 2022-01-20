@@ -18,6 +18,10 @@ flags.DEFINE_string('output_file', None, 'Output file')
 
 def main(unused_argv):
     # Setup Beam
+
+    # Here, we use a local Beam runner.
+    # For a truly distributed calculation, connect to a Spark cluster (e.g.
+    # running on some cloud provider).
     runner = fn_api_runner.FnApiRunner()  # Local Beam runner
     with beam.Pipeline(runner=runner) as pipeline:
 
