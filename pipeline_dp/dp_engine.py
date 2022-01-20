@@ -108,7 +108,6 @@ class DPEngine:
             col = self._select_private_partitions_internal(
                 col, params.max_partitions_contributed)
         else:
-            # TODO: add public partitions which are missing in data.
             pass
         # col : (partition_key, accumulator)
 
