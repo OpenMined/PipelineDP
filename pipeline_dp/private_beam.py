@@ -135,7 +135,9 @@ class Count(PrivatePTransform):
             partition_extractor=lambda x: self._count_params.
             partition_extractor(x[1]),
             privacy_id_extractor=lambda x: x[0],
-            value_extractor=lambda x: self._count_params.value_extractor(x[1]))
+            # Count calculates the number of elements per partition key and
+            # doesn't use value extractor.
+            value_extractor=lambda x: None)
 
         dp_result = dp_engine.aggregate(pcol, params, data_extractors)
         # dp_result : (partition_key, [dp_count])
@@ -173,8 +175,8 @@ class PrivacyIdCount(PrivatePTransform):
             partition_extractor=lambda x: self._privacy_id_count_params.
             partition_extractor(x[1]),
             privacy_id_extractor=lambda x: x[0],
-            value_extractor=lambda x: self._privacy_id_count_params.
-            value_extractor(x[1]))
+            # PrivacyIdCount ignores values.
+            value_extractor=lambda x: None)
 
         dp_result = dp_engine.aggregate(pcol, params, data_extractors)
         # dp_result : (partition_key, [dp_privacy_id_count])
