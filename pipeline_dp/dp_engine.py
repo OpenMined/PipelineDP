@@ -22,7 +22,7 @@ from pipeline_dp.pipeline_backend import PipelineBackend
 from pipeline_dp.report_generator import ReportGenerator
 from pipeline_dp.accumulator import Accumulator
 from pipeline_dp.accumulator import CompoundAccumulatorFactory
-from pipeline_dp.combiners import create_compound_combiners, Combiner, CompoundCombiner
+from pipeline_dp.combiners import create_compound_combiner, Combiner, CompoundCombiner
 
 import pydp.algorithms.partition_selection as partition_selection
 
@@ -72,7 +72,7 @@ class DPEngine:
 
         self._report_generators.append(ReportGenerator(params))
 
-        combiner = create_compound_combiners(params, self._budget_accountant)
+        combiner = create_compound_combiner(params, self._budget_accountant)
 
         if params.public_partitions is not None:
             col = self._drop_not_public_partitions(col,
