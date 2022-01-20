@@ -135,9 +135,9 @@ class CompoundAccumulatorTest(parameterized.TestCase):
     )
     def test_create_accumulator(self, no_noise):
         combiner = self._create_combiner(no_noise)
-        self.assertEqual((1, [2, 2]), combiner.create_accumulator([1, 1]))
-        self.assertEqual((1, [2, 2]), combiner.create_accumulator([1, 1]))
-        self.assertEqual((1, [3, 2]), combiner.create_accumulator([0, 3, 4]))
+        self.assertEqual((1, (2, 2)), combiner.create_accumulator((1, 1)))
+        self.assertEqual((1, (2, 2)), combiner.create_accumulator((1, 1)))
+        self.assertEqual((1, (3, 2)), combiner.create_accumulator((0, 3, 4)))
 
     @parameterized.named_parameters(
         dict(testcase_name='no_noise', no_noise=True),
@@ -145,20 +145,20 @@ class CompoundAccumulatorTest(parameterized.TestCase):
     )
     def test_merge_accumulators(self, no_noise):
         combiner = self._create_combiner(no_noise)
-        self.assertEqual((2, [4, 4]),
-                         combiner.merge_accumulators([1, [2, 2]], [1, [2, 2]]))
-        self.assertEqual((3, [4, 5]),
-                         combiner.merge_accumulators([2, [2, 3]], [1, [2, 2]]))
+        self.assertEqual((2, (4, 4)),
+                         combiner.merge_accumulators((1, (2, 2)), (1, (2, 2))))
+        self.assertEqual((3, (4, 5)),
+                         combiner.merge_accumulators((2, (2, 3)), (1, (2, 2))))
 
     def test_compute_metrics_no_noise(self):
         combiner = self._create_combiner(no_noise=True)
         self.assertAlmostEqual((3, [2, 3]),
-                               combiner.compute_metrics([3, [2, 3]]),
+                               combiner.compute_metrics((3, [2, 3])),
                                delta=1e-5)
 
     def test_compute_metrics_with_noise(self):
         combiner = self._create_combiner(no_noise=False)
-        accumulator = (2, [2, 3])
+        accumulator = (2, (2, 3))
         noisified_values = [
             combiner.compute_metrics(accumulator) for _ in range(1000)
         ]

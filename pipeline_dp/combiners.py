@@ -1,11 +1,32 @@
 import abc
 import copy
-from typing import Iterable, Tuple, Any, List
+from typing import Iterable, Sized, Tuple, Any, List, Sequence
 
 import pipeline_dp
 import numpy as np
 from pipeline_dp import dp_computations
 from pipeline_dp import budget_accounting
+
+
+def create_compound_combiners(
+    aggregation_params: pipeline_dp.AggregateParams,
+    budget_accountant: budget_accounting.BudgetAccountant
+) -> 'CompoundCombiner':
+    combiners = []
+    mechanism_type = aggregation_params.noise_kind.convert_to_mechanism_type()
+    if pipeline_dp.Metrics.COUNT in aggregation_params.metrics:
+        budget = budget_accountant.request_budget(mechanism_type)
+        combiners.append(
+            CountCombiner(CombinerParams(budget, aggregation_params)))
+    if pipeline_dp.Metrics.SUM in aggregation_params.metrics:
+        budget = budget_accountant.request_budget(mechanism_type)
+        combiners.append(SumCombiner(CombinerParams(budget,
+                                                    aggregation_params)))
+    if pipeline_dp.Metrics.PRIVACY_ID_COUNT in aggregation_params.metrics:
+        budget = budget_accountant.request_budget(mechanism_type)
+        combiners.append(
+            PrivacyIdCountCombiner(CombinerParams(budget, aggregation_params)))
+    return CompoundCombiner(combiners)
 
 
 class Combiner(abc.ABC):
@@ -88,7 +109,7 @@ class CountCombiner(Combiner):
     def __init__(self, params: CombinerParams):
         self._params = params
 
-    def create_accumulator(self, values: Iterable[float]) -> 'AccumulatorType':
+    def create_accumulator(self, values: Sized) -> 'AccumulatorType':
         return len(values)
 
     def merge_accumulators(self, count1: AccumulatorType,
@@ -97,6 +118,29 @@ class CountCombiner(Combiner):
 
     def compute_metrics(self, count: AccumulatorType) -> float:
         return dp_computations.compute_dp_count(count,
+                                                self._params.mean_var_params)
+
+
+class PrivacyIdCountCombiner(Combiner):
+    """Combiner for computing DP privacy id count.
+
+    The type of the accumulator is int, which represents count of the elements
+    in the dataset for which this accumulator is computed.
+    """
+    AccumulatorType = int
+
+    def __init__(self, params: CombinerParams):
+        self._params = params
+
+    def create_accumulator(self, values: Sized) -> 'AccumulatorType':
+        return 1 if values else 0
+
+    def merge_accumulators(self, accumulator1: AccumulatorType,
+                           accumulator2: AccumulatorType):
+        return accumulator1 + accumulator2
+
+    def compute_metrics(self, accumulator: AccumulatorType) -> float:
+        return dp_computations.compute_dp_count(accumulator,
                                                 self._params.mean_var_params)
 
 
@@ -134,15 +178,16 @@ class CompoundCombiner(Combiner):
     contains accumulators from internal combiners.
     """
 
-    AccumulatorType = Tuple[int, list]
+    AccumulatorType = Tuple[int, Tuple]
 
     def __init__(self, combiners: Iterable['Combiner']):
         self._combiners = combiners
 
     def create_accumulator(self, values) -> 'AccumulatorType':
-        return (1, [
-            combiner.create_accumulator(values) for combiner in self._combiners
-        ])
+        return (1,
+                tuple(
+                    combiner.create_accumulator(values)
+                    for combiner in self._combiners))
 
     def merge_accumulators(
             self, compound_accumulator1: AccumulatorType,
@@ -153,7 +198,8 @@ class CompoundCombiner(Combiner):
         for combiner, acc1, acc2 in zip(self._combiners, accumulator1,
                                         accumulator2):
             merged_accumulators.append(combiner.merge_accumulators(acc1, acc2))
-        return (privacy_id_count1 + privacy_id_count2, merged_accumulators)
+        return (privacy_id_count1 + privacy_id_count2,
+                tuple(merged_accumulators))
 
     def compute_metrics(
             self, compound_accumulator: AccumulatorType) -> Tuple[int, list]:

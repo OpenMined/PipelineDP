@@ -9,6 +9,7 @@ import numpy as np
 import pydp.algorithms.partition_selection as partition_selection
 
 import pipeline_dp
+from pipeline_dp import combiners
 from pipeline_dp.aggregate_params import Metrics
 from pipeline_dp.accumulator import Accumulator
 from pipeline_dp.accumulator import AccumulatorFactory
@@ -21,6 +22,7 @@ from pipeline_dp.pipeline_backend import PipelineBackend
 from pipeline_dp.report_generator import ReportGenerator
 from pipeline_dp.accumulator import Accumulator
 from pipeline_dp.accumulator import CompoundAccumulatorFactory
+from pipeline_dp.combiners import create_compound_combiners, Combiner, CompoundCombiner
 
 import pydp.algorithms.partition_selection as partition_selection
 
@@ -70,9 +72,7 @@ class DPEngine:
 
         self._report_generators.append(ReportGenerator(params))
 
-        accumulator_factory = CompoundAccumulatorFactory(
-            params=params, budget_accountant=self._budget_accountant)
-        aggregator_fn = accumulator_factory.create
+        combiner = create_compound_combiners(params, self._budget_accountant)
 
         if params.public_partitions is not None:
             col = self._drop_not_public_partitions(col,
@@ -87,7 +87,7 @@ class DPEngine:
         # col : (privacy_id, partition_key, value)
         col = self._bound_contributions(col, params.max_partitions_contributed,
                                         params.max_contributions_per_partition,
-                                        aggregator_fn)
+                                        combiner.create_accumulator)
         # col : ((privacy_id, partition_key), accumulator)
 
         col = self._ops.map_tuple(col, lambda pid_pk, v: (pid_pk[1], v),
@@ -97,11 +97,11 @@ class DPEngine:
         if params.public_partitions:
             col = self._add_empty_public_partitions(col,
                                                     params.public_partitions,
-                                                    aggregator_fn)
+                                                    combiner.create_accumulator)
         # col : (partition_key, accumulator)
 
-        col = self._ops.reduce_accumulators_per_key(
-            col, "Reduce accumulators per partition key")
+        col = self._ops.combine_accumulators_per_key(
+            col, combiner, "Reduce accumulators per partition key")
         # col : (partition_key, accumulator)
 
         if params.public_partitions is None:
@@ -112,11 +112,14 @@ class DPEngine:
             pass
         # col : (partition_key, accumulator)
 
-        col = self._fix_budget_accounting_if_needed(col, accumulator_factory)
+        # col = self._fix_budget_accounting_if_needed(col, accumulator_factory)
 
         # Compute DP metrics.
-        col = self._ops.map_values(col, lambda acc: acc.compute_metrics(),
+        col = self._ops.map_values(col, combiner.compute_metrics,
                                    "Compute DP` metrics")
+
+        col = self._ops.map_values(col, lambda result: result[1],
+                                   "Extract results")
 
         return col
 
@@ -216,13 +219,14 @@ class DPEngine:
         # col : (privacy_id, partition_key)
 
         # A compound accumulator without any child accumulators is used to calculate the raw privacy ID count.
-        col = self._ops.map_tuple(col, lambda pid, pk:
-                                  (pk, CompoundAccumulator([])),
-                                  "Drop privacy id and add accumulator")
+        compound_combiner = CompoundCombiner([])
+        col = self._ops.map_tuple(
+            col, lambda pid, pk: (pk, compound_combiner.create_accumulator([])),
+            "Drop privacy id and add accumulator")
         # col : (partition_key, accumulator)
 
-        col = self._ops.reduce_accumulators_per_key(
-            col, "Reduce accumulators per partition key")
+        col = self._ops.combine_accumulators_per_key(
+            col, compound_combiner, "Reduce accumulators per partition key")
         # col : (partition_key, accumulator)
 
         col = self._select_private_partitions_internal(
@@ -274,7 +278,7 @@ class DPEngine:
             aggregator object which handles all aggregation logic.
 
         return: collection with elements ((privacy_id, partition_key),
-              aggregator).
+              accumulator).
         """
         # per partition-contribution bounding with bounding of each contribution
         col = self._ops.map_tuple(
@@ -329,15 +333,18 @@ class DPEngine:
         budget = self._budget_accountant.request_budget(
             mechanism_type=MechanismType.GENERIC)
 
-        def filter_fn(budget: MechanismSpec, max_partitions: int,
-                      row: Tuple[Any, Accumulator]) -> bool:
+        def filter_fn(
+            budget: MechanismSpec, max_partitions: int,
+            row: Tuple[Any,
+                       combiners.CompoundCombiner.AccumulatorType]) -> bool:
             """Lazily creates a partition selection strategy and uses it to determine which
             partitions to keep."""
-            accumulator = row[1]
-            partition_selection_strategy = partition_selection.create_truncated_geometric_partition_strategy(
-                budget.eps, budget.delta, max_partitions)
-            return partition_selection_strategy.should_keep(
-                accumulator.privacy_id_count)
+            pirvacy_id_count, _ = row[1]
+            partition_selection_strategy = (
+                partition_selection.
+                create_truncated_geometric_partition_strategy(
+                    budget.eps, budget.delta, max_partitions))
+            return partition_selection_strategy.should_keep(pirvacy_id_count)
 
         # make filter_fn serializable
         filter_fn = partial(filter_fn, budget, max_partitions_contributed)

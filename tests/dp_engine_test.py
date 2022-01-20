@@ -390,8 +390,6 @@ class DpEngineTest(unittest.TestCase):
             max_contributions_per_partition=3)
         budget_accountant = NaiveBudgetAccountant(total_epsilon=1,
                                                   total_delta=1e-10)
-        accumulator_factory = CompoundAccumulatorFactory(
-            params=aggregator_params, budget_accountant=budget_accountant)
 
         col = [[1], [2], [3], [3]]
         data_extractor = pipeline_dp.DataExtractors(
@@ -400,12 +398,9 @@ class DpEngineTest(unittest.TestCase):
             value_extractor=lambda x: x)
 
         mock_bound_contributions.return_value = [
-            [("pid1", "pk1"),
-             CountAccumulator(params=None, values=[1])],
-            [("pid2", "pk2"),
-             CountAccumulator(params=None, values=[1])],
-            [("pid3", "pk3"),
-             CountAccumulator(params=None, values=[2])],
+            [("pid1", "pk1"), (1, [1])],
+            [("pid2", "pk2"), (1, [1])],
+            [("pid3", "pk3"), (1, [2])],
         ]
 
         engine = pipeline_dp.DPEngine(budget_accountant=budget_accountant,
