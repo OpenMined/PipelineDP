@@ -1,6 +1,6 @@
 """Adapters for working with pipeline frameworks."""
 
-from functools import partial
+import functools
 import multiprocessing as mp
 import random
 import numpy as np
@@ -9,6 +9,7 @@ import abc
 import apache_beam as beam
 import apache_beam.transforms.combiners as combiners
 import pipeline_dp.accumulator as accumulator
+import pipeline_dp.combiners as dp_combiners
 import typing
 import collections
 import itertools
@@ -80,6 +81,23 @@ class PipelineBackend(abc.ABC):
         Args:
           col: input collection which contains tuples (key, accumulator)
           stage_name: name of the stage
+
+        Returns:
+          A collection of tuples (key, accumulator).
+
+        """
+        pass
+
+    @abc.abstractmethod
+    def combine_accumulators_per_key(self, col, combiner: dp_combiners.Combiner,
+                                     stage_name: str):
+        """Reduces the input collection so that all elements per each key are merged.
+
+        Args:
+          col: input collection which contains tuples (key, accumulator).
+          combiner: combiner which knows how to perform aggregation on
+           accumulators in col.
+          stage_name: name of the stage.
 
         Returns:
           A collection of tuples (key, accumulator).
@@ -229,6 +247,21 @@ class BeamBackend(PipelineBackend):
         return col | self._ulg.unique(stage_name) >> beam.CombinePerKey(
             merge_accumulators)
 
+    def combine_accumulators_per_key(self, col, combiner: dp_combiners.Combiner,
+                                     stage_name: str):
+
+        def merge_accumulators(accumulators):
+            res = None
+            for acc in accumulators:
+                if res:
+                    res = combiner.merge_accumulators(res, acc)
+                else:
+                    res = acc
+            return res
+
+        return col | self._ulg.unique(stage_name) >> beam.CombinePerKey(
+            merge_accumulators)
+
     def flatten(self, col1, col2, stage_name: str):
         return (col1, col2) | self._ulg.unique(stage_name) >> beam.Flatten()
 
@@ -308,6 +341,13 @@ class SparkRDDBackend(PipelineBackend):
     def reduce_accumulators_per_key(self, rdd, stage_name: str):
         return rdd.reduceByKey(lambda acc1, acc2: acc1.add_accumulator(acc2))
 
+    def combine_accumulators_per_key(self,
+                                     rdd,
+                                     combiner: dp_combiners.Combiner,
+                                     stage_name: str = None):
+        return rdd.reduceByKey(
+            lambda acc1, acc2: combiner.merge_accumulators(acc1, acc2))
+
     def is_serialization_immediate_on_reduce_by_key(self):
         return True
 
@@ -381,6 +421,18 @@ class LocalBackend(PipelineBackend):
 
     def reduce_accumulators_per_key(self, col, stage_name: str = None):
         return self.map_values(self.group_by_key(col), accumulator.merge)
+
+    def combine_accumulators_per_key(self,
+                                     col,
+                                     combiner: dp_combiners.Combiner,
+                                     stage_name: str = None):
+
+        def merge_accumulators(accumulators):
+            return functools.reduce(
+                lambda acc1, acc2: combiner.merge_accumulators(acc1, acc2),
+                accumulators)
+
+        return self.map_values(self.group_by_key(col), merge_accumulators)
 
     def flatten(self, col1, col2, stage_name: str = None):
         return itertools.chain(col1, col2)
@@ -463,7 +515,7 @@ class _LazyMultiProcGroupByIterator(_LazyMultiProcIterator):
             key, val = row
             results_dict_[key].append(val)
 
-        insert_row = partial(insert_row, (self.results_dict,))
+        insert_row = functools.partial(insert_row, (self.results_dict,))
 
         super().__init__(insert_row,
                          job_inputs,
@@ -496,7 +548,7 @@ class _LazyMultiProcCountIterator(_LazyMultiProcIterator):
             (results_dict_,) = captures
             results_dict_[key] += 1
 
-        insert_row = partial(insert_row, (self.results_dict,))
+        insert_row = functools.partial(insert_row, (self.results_dict,))
 
         super().__init__(insert_row,
                          job_inputs,
@@ -554,7 +606,7 @@ class MultiProcLocalBackend(PipelineBackend):
         def mapped_fn(keys_to_keep_, kv):
             return kv, (kv[0] in keys_to_keep_)
 
-        mapped_fn = partial(mapped_fn, keys_to_keep)
+        mapped_fn = functools.partial(mapped_fn, keys_to_keep)
         key_keep = self.map(col, mapped_fn, stage_name)
         return (row for row, keep in key_keep if keep)
 
@@ -579,7 +631,7 @@ class MultiProcLocalBackend(PipelineBackend):
                 samples = random.sample(samples, n_)
             return partition_key, samples
 
-        mapped_fn = partial(mapped_fn, (n,))
+        mapped_fn = functools.partial(mapped_fn, (n,))
         groups = self.group_by_key(col, stage_name)
         return self.map(groups, mapped_fn, stage_name)
 
@@ -591,6 +643,12 @@ class MultiProcLocalBackend(PipelineBackend):
                                     col,
                                     stage_name: typing.Optional[str] = None):
         return self.map_values(col, accumulator.merge)
+
+    def combine_accumulators_per_key(self, col, combiner: dp_combiners.Combiner,
+                                     stage_name: str):
+        raise NotImplementedError(
+            "combine_accumulators_per_key is not implmeneted for MultiProcLocalBackend"
+        )
 
     def flatten(self, col1, col2, stage_name: str = None):
         return itertools.chain(col1, col2)

@@ -354,9 +354,7 @@ def compute_dp_mean(count: int, sum: float, dp_params: MeanVarParams):
         dp_params.noise_kind,
     )
 
-    # Clamps dp_mean to be in the range [low, high].
-    return dp_count, dp_mean * dp_count, np.clip(dp_mean, dp_params.low,
-                                                 dp_params.high).item()
+    return dp_count, dp_mean * dp_count, dp_mean
 
 
 def compute_dp_var(count: int, sum: float, sum_squares: float,

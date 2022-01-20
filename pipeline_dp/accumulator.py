@@ -1,3 +1,5 @@
+# Deprecation warning: Accumulator Framework in this file is deprecated in
+#  favour of Combiner framework (combiner.py) and will be removed soon.
 import abc
 import copy
 import typing

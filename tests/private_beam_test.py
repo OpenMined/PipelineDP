@@ -4,6 +4,7 @@ from apache_beam.runners.portability import fn_api_runner
 from apache_beam import pvalue
 from unittest.mock import patch
 import apache_beam.testing.util as beam_util
+from apache_beam.testing.test_pipeline import TestPipeline
 
 import pipeline_dp
 from pipeline_dp import private_beam
@@ -21,6 +22,11 @@ class PrivateBeamTest(unittest.TestCase):
     @staticmethod
     def privacy_id_extractor(x):
         return f"pid:{x}"
+
+    @staticmethod
+    def value_per_key_within_tolerance(expected, actual, tolerance):
+        return actual[0] == expected[0] and abs(actual[1] -
+                                                expected[1]) <= tolerance
 
     def test_make_private_transform_succeeds(self):
         runner = fn_api_runner.FnApiRunner()
@@ -154,6 +160,86 @@ class PrivateBeamTest(unittest.TestCase):
                 public_partitions=sum_params.public_partitions)
             self.assertEqual(args[1], params)
 
+    def test_sum_returns_sensible_result(self):
+        with TestPipeline() as pipeline:
+            # Arrange
+            col = [(u, "pk1", 100) for u in range(30)]
+            col += [(u + 30, "pk1", -100) for u in range(30)]
+            pcol = pipeline | 'Create produce' >> beam.Create(col)
+            # Use very high epsilon and delta to minimize noise and test
+            # flakiness.
+            budget_accountant = budget_accounting.NaiveBudgetAccountant(
+                total_epsilon=800, total_delta=0.999)
+            private_collection = (
+                pcol | 'Create private collection' >> private_beam.MakePrivate(
+                    budget_accountant=budget_accountant,
+                    privacy_id_extractor=lambda x: x[0]))
+
+            sum_params = aggregate_params.SumParams(
+                noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+                max_partitions_contributed=2,
+                max_contributions_per_partition=3,
+                low=1,
+                high=2,
+                budget_weight=1,
+                partition_extractor=lambda x: x[1],
+                value_extractor=lambda x: x[2])
+
+            # Act
+            result = private_collection | private_beam.Sum(
+                sum_params=sum_params)
+            budget_accountant.compute_budgets()
+
+            # Assert
+            # This is a health check to validate that the result is sensible.
+            # Hence, we use a very large tolerance to reduce test flakiness.
+            beam_util.assert_that(
+                result,
+                beam_util.equal_to([("pk1", 90.0)],
+                                   equals_fn=lambda e, a: PrivateBeamTest.
+                                   value_per_key_within_tolerance(e, a, 10.0)))
+
+    def test_sum_with_public_partitions_returns_sensible_result(self):
+        with TestPipeline() as pipeline:
+            # Arrange
+            col = [(u, "pubK1", 100) for u in range(30)]
+            col += [(u + 30, "pubK1", -100) for u in range(30)]
+            col += [(u + 60, "privK1", 100) for u in range(30)]
+            pcol = pipeline | 'Create produce' >> beam.Create(col)
+            # Use very high epsilon and delta to minimize noise and test
+            # flakiness.
+            budget_accountant = budget_accounting.NaiveBudgetAccountant(
+                total_epsilon=800, total_delta=0.999)
+            private_collection = (
+                pcol | 'Create private collection' >> private_beam.MakePrivate(
+                    budget_accountant=budget_accountant,
+                    privacy_id_extractor=lambda x: x[0]))
+
+            sum_params = aggregate_params.SumParams(
+                noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+                max_partitions_contributed=2,
+                max_contributions_per_partition=3,
+                low=1,
+                high=2,
+                budget_weight=1,
+                partition_extractor=lambda x: x[1],
+                value_extractor=lambda x: x[2],
+                public_partitions=["pubK1", "pubK2"])
+
+            # Act
+            result = private_collection | private_beam.Sum(
+                sum_params=sum_params)
+            budget_accountant.compute_budgets()
+
+            # Assert
+            # This is a health check to validate that the result is sensible.
+            # Hence, we use a very large tolerance to reduce test flakiness.
+            beam_util.assert_that(
+                result,
+                beam_util.equal_to([("pubK1", 90.0), ("pubK2", 0.0)],
+                                   equals_fn=lambda e, a: PrivateBeamTest.
+                                   value_per_key_within_tolerance(e, a, 10.0)))
+
     @patch('pipeline_dp.dp_engine.DPEngine.aggregate')
     def test_count_calls_aggregate_with_params(self, mock_aggregate):
         runner = fn_api_runner.FnApiRunner()
@@ -173,9 +259,7 @@ class PrivateBeamTest(unittest.TestCase):
                 max_partitions_contributed=2,
                 max_contributions_per_partition=3,
                 budget_weight=1,
-                public_partitions=[],
-                partition_extractor=lambda x: f"pk:{x // 10}",
-                value_extractor=lambda x: x)
+                partition_extractor=lambda x: f"pk:{x // 10}")
 
             # Act
             transformer = private_beam.Count(count_params=count_params)
@@ -197,6 +281,78 @@ class PrivateBeamTest(unittest.TestCase):
                 public_partitions=count_params.public_partitions)
             self.assertEqual(args[1], params)
 
+    def test_count_returns_sensible_result(self):
+        with TestPipeline() as pipeline:
+            # Arrange
+            col = [(u, "pk1") for u in range(30)]
+            pcol = pipeline | 'Create produce' >> beam.Create(col)
+            # Use very high epsilon and delta to minimize noise and test
+            # flakiness.
+            budget_accountant = budget_accounting.NaiveBudgetAccountant(
+                total_epsilon=800, total_delta=0.999)
+            private_collection = (
+                pcol | 'Create private collection' >> private_beam.MakePrivate(
+                    budget_accountant=budget_accountant,
+                    privacy_id_extractor=lambda x: x[0]))
+
+            count_params = aggregate_params.CountParams(
+                noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+                max_partitions_contributed=2,
+                max_contributions_per_partition=3,
+                budget_weight=1,
+                partition_extractor=lambda x: x[1])
+
+            # Act
+            result = private_collection | private_beam.Count(
+                count_params=count_params)
+            budget_accountant.compute_budgets()
+
+            # Assert
+            # This is a health check to validate that the result is sensible.
+            # Hence, we use a very large tolerance to reduce test flakiness.
+            beam_util.assert_that(
+                result,
+                beam_util.equal_to([("pk1", 30.0)],
+                                   equals_fn=lambda e, a: PrivateBeamTest.
+                                   value_per_key_within_tolerance(e, a, 5.0)))
+
+    def test_count_with_public_partitions_returns_sensible_result(self):
+        with TestPipeline() as pipeline:
+            # Arrange
+            col = [(u, "pubK1") for u in range(30)]
+            col += [(u, "privK1") for u in range(30)]
+            pcol = pipeline | 'Create produce' >> beam.Create(col)
+            # Use very high epsilon and delta to minimize noise and test
+            # flakiness.
+            budget_accountant = budget_accounting.NaiveBudgetAccountant(
+                total_epsilon=800, total_delta=0.999)
+            private_collection = (
+                pcol | 'Create private collection' >> private_beam.MakePrivate(
+                    budget_accountant=budget_accountant,
+                    privacy_id_extractor=lambda x: x[0]))
+
+            count_params = aggregate_params.CountParams(
+                noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+                max_partitions_contributed=2,
+                max_contributions_per_partition=3,
+                budget_weight=1,
+                partition_extractor=lambda x: x[1],
+                public_partitions=["pubK1", "pubK2"])
+
+            # Act
+            result = private_collection | private_beam.Count(
+                count_params=count_params)
+            budget_accountant.compute_budgets()
+
+            # Assert
+            # This is a health check to validate that the result is sensible.
+            # Hence, we use a very large tolerance to reduce test flakiness.
+            beam_util.assert_that(
+                result,
+                beam_util.equal_to([("pubK1", 30.0), ("pubK2", 0.0)],
+                                   equals_fn=lambda e, a: PrivateBeamTest.
+                                   value_per_key_within_tolerance(e, a, 5.0)))
+
     @patch('pipeline_dp.dp_engine.DPEngine.aggregate')
     def test_privacy_id_count_calls_aggregate_with_params(self, mock_aggregate):
         runner = fn_api_runner.FnApiRunner()
@@ -215,9 +371,7 @@ class PrivateBeamTest(unittest.TestCase):
                 noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
                 max_partitions_contributed=2,
                 budget_weight=1,
-                public_partitions=[],
-                partition_extractor=lambda x: f"pk:{x // 10}",
-                value_extractor=lambda x: x)
+                partition_extractor=lambda x: f"pk:{x // 10}")
 
             # Act
             transformer = private_beam.PrivacyIdCount(
@@ -238,6 +392,77 @@ class PrivateBeamTest(unittest.TestCase):
                 max_contributions_per_partition=1,
                 public_partitions=privacy_id_count_params.public_partitions)
             self.assertEqual(args[1], params)
+
+    def test_privacy_id_count_returns_sensible_result(self):
+        with TestPipeline() as pipeline:
+            # Arrange
+            col = [(u, "pk1") for u in range(30)]
+            pcol = pipeline | 'Create produce' >> beam.Create(col)
+            # Use very high epsilon and delta to minimize noise and test
+            # flakiness.
+            budget_accountant = budget_accounting.NaiveBudgetAccountant(
+                total_epsilon=800, total_delta=0.999)
+            private_collection = (
+                pcol | 'Create private collection' >> private_beam.MakePrivate(
+                    budget_accountant=budget_accountant,
+                    privacy_id_extractor=lambda x: x[0]))
+
+            privacy_id_count_params = aggregate_params.PrivacyIdCountParams(
+                noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+                max_partitions_contributed=2,
+                budget_weight=1,
+                partition_extractor=lambda x: x[1])
+
+            # Act
+            result = private_collection | private_beam.PrivacyIdCount(
+                privacy_id_count_params=privacy_id_count_params)
+            budget_accountant.compute_budgets()
+
+            # Assert
+            # This is a health check to validate that the result is sensible.
+            # Hence, we use a very large tolerance to reduce test flakiness.
+            beam_util.assert_that(
+                result,
+                beam_util.equal_to([("pk1", 30)],
+                                   equals_fn=lambda e, a: PrivateBeamTest.
+                                   value_per_key_within_tolerance(e, a, 5)))
+
+    def test_privacy_id_count_with_public_partitions_returns_sensible_result(
+            self):
+        with TestPipeline() as pipeline:
+            # Arrange
+            col = [(u, "pubK1") for u in range(30)]
+            col += [(u, "privK1") for u in range(30)]
+            pcol = pipeline | 'Create produce' >> beam.Create(col)
+            # Use very high epsilon and delta to minimize noise and test
+            # flakiness.
+            budget_accountant = budget_accounting.NaiveBudgetAccountant(
+                total_epsilon=800, total_delta=0.999)
+            private_collection = (
+                pcol | 'Create private collection' >> private_beam.MakePrivate(
+                    budget_accountant=budget_accountant,
+                    privacy_id_extractor=lambda x: x[0]))
+
+            privacy_id_count_params = aggregate_params.PrivacyIdCountParams(
+                noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+                max_partitions_contributed=2,
+                budget_weight=1,
+                partition_extractor=lambda x: x[1],
+                public_partitions=["pubK1", "pubK2"])
+
+            # Act
+            result = private_collection | private_beam.PrivacyIdCount(
+                privacy_id_count_params=privacy_id_count_params)
+            budget_accountant.compute_budgets()
+
+            # Assert
+            # This is a health check to validate that the result is sensible.
+            # Hence, we use a very large tolerance to reduce test flakiness.
+            beam_util.assert_that(
+                result,
+                beam_util.equal_to([("pubK1", 30.0), ("pubK2", 0.0)],
+                                   equals_fn=lambda e, a: PrivateBeamTest.
+                                   value_per_key_within_tolerance(e, a, 5.0)))
 
     def test_map_returns_correct_results_and_accountant(self):
         runner = fn_api_runner.FnApiRunner()

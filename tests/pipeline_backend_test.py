@@ -11,6 +11,7 @@ from pipeline_dp import DataExtractors
 from pipeline_dp.pipeline_backend import MultiProcLocalBackend, SparkRDDBackend
 from pipeline_dp.pipeline_backend import LocalBackend
 from pipeline_dp.pipeline_backend import BeamBackend
+import pipeline_dp.combiners as dp_combiners
 
 
 class PipelineBackendTest(unittest.TestCase):
@@ -77,6 +78,23 @@ class BeamBackendTest(parameterized.TestCase):
                 col, "Reduce accumulators per key")
             result = col | "Get accumulated values" >> beam.Map(
                 lambda row: (row[0], row[1].get_metrics()))
+
+            beam_util.assert_that(result,
+                                  beam_util.equal_to([(6, 2), (7, 2), (8, 1)]))
+
+    def test_combine_accumulators_per_key(self):
+        with test_pipeline.TestPipeline() as p:
+            col = p | "Create PCollection" >> beam.Create([(6, 1), (7, 1),
+                                                           (6, 1), (7, 1),
+                                                           (8, 1)])
+            sum_combiner = SumCombiner()
+            col = self.ops.group_by_key(col, "group_by_key")
+            col = self.ops.map_values(col, sum_combiner.create_accumulator,
+                                      "Wrap into accumulators")
+            col = self.ops.combine_accumulators_per_key(
+                col, sum_combiner, "Reduce accumulators per key")
+            result = self.ops.map_values(col, sum_combiner.compute_metrics,
+                                         "Compute metrics")
 
             beam_util.assert_that(result,
                                   beam_util.equal_to([(6, 2), (7, 2), (8, 1)]))
@@ -277,6 +295,16 @@ class SparkRDDBackendTest(parameterized.TestCase):
         result = dict(result)
         self.assertDictEqual(result, {1: 41, 2: 47, 3: 33})
 
+    def test_combine_accumulators_per_key(self):
+        data = self.sc.parallelize([(1, 2), (2, 1), (1, 4), (3, 8), (2, 3)])
+        rdd = self.ops.group_by_key(data)
+        sum_combiner = SumCombiner()
+        rdd = self.ops.map_values(rdd, sum_combiner.create_accumulator)
+        rdd = self.ops.combine_accumulators_per_key(rdd, sum_combiner)
+        rdd = self.ops.map_values(rdd, sum_combiner.compute_metrics)
+        result = dict(rdd.collect())
+        self.assertDictEqual(result, {1: 6, 2: 4, 3: 8})
+
     def test_map_tuple(self):
         data = [(1, 2), (3, 4)]
         dist_data = self.sc.parallelize(data)
@@ -408,6 +436,16 @@ class LocalBackendTest(unittest.TestCase):
         col = self.ops.map_values(example_list, SumAccumulator)
         col = self.ops.reduce_accumulators_per_key(col)
         result = list(map(lambda row: (row[0], row[1].get_metrics()), col))
+        self.assertEqual(result, [(1, 6), (2, 4), (3, 8)])
+
+    def test_local_combine_accumulators_per_key(self):
+        data = [(1, 2), (2, 1), (1, 4), (3, 8), (2, 3)]
+        col = self.ops.group_by_key(data)
+        sum_combiner = SumCombiner()
+        col = self.ops.map_values(col, sum_combiner.create_accumulator)
+        col = self.ops.combine_accumulators_per_key(col, sum_combiner)
+        col = self.ops.map_values(col, sum_combiner.compute_metrics)
+        result = list(col)
         self.assertEqual(result, [(1, 6), (2, 4), (3, 8)])
 
     def test_laziness(self):
@@ -749,6 +787,18 @@ class SumAccumulator:
                         accumulator: 'SumAccumulator') -> 'SumAccumulator':
         self.sum += accumulator.sum
         return self
+
+
+class SumCombiner(dp_combiners.Combiner):
+
+    def create_accumulator(self, values) -> float:
+        return sum(values)
+
+    def merge_accumulators(self, sum1: float, sum2: float):
+        return sum1 + sum2
+
+    def compute_metrics(self, sum: float) -> float:
+        return sum
 
 
 if __name__ == '__main__':
