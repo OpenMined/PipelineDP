@@ -22,6 +22,27 @@ Take a look on examples of how to run PipelineDP Apache Spark or Beam:
 * [Apache Beam example](examples/movie_view_ratings_beam.py)
 * [Local execution example](examples/movie_view_ratings.py)
 
+Here's a code sample for introducing how the private processing code on Spark looks like. For a more complete guide,
+please take a look on the examples above, or on the API guide.
+```python
+# Define the privacy budget available for our computation.
+budget_accountant = pipeline_dp.NaiveBudgetAccountant(total_epsilon=1,
+                                                      total_delta=1e-6)
+
+# Wrap Spark's RDD into it's private version
+private_movie_views = \
+    make_private(movie_views, budget_accountant, lambda mv: mv.user_id)
+
+# Calculate the private sum
+dp_result = private_movie_views.sum(
+    SumParams(max_partitions_contributed=2,
+              max_contributions_per_partition=2,
+              low=1,
+              high=5,
+              partition_extractor=lambda mv: mv.movie_id,
+              value_extractor=lambda mv: mv.rating))
+```
+
 ## Development
 
 To install the requirements for local development, run `make dev`.
