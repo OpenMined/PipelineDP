@@ -35,14 +35,17 @@ budget_accountant = pipeline_dp.NaiveBudgetAccountant(total_epsilon=1,
 private_movie_views = \
     make_private(movie_views, budget_accountant, lambda mv: mv.user_id)
 
-# Calculate the private sum
+# Calculate the private sum of ratings per movie
 dp_result = private_movie_views.sum(
     SumParams(max_partitions_contributed=2,
               max_contributions_per_partition=2,
               low=1,
               high=5,
+              # Specifies the aggregation key
               partition_extractor=lambda mv: mv.movie_id,
-              value_extractor=lambda mv: mv.rating))
+              # Specifies the value we're aggregating
+              value_extractor=lambda mv: mv.rating)
+              )
 budget_accountant.compute_budgets()
 
 # Save the results
