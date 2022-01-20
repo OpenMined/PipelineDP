@@ -1,6 +1,16 @@
 # PipelineDP
 
-PipelineDP is project for performing Differentially Private (DP) aggregations in Python Data Pipelines.
+PipelineDP is a framework for applying differential privacy to large
+datasets using batch processing systems such as Apache Spark, Apache Beam,
+and more.
+
+To make differential privacy accessible to non-experts, PipelineDP:
+
+* provides a convenient API familiar to Spark or Beam developers
+* encapsulates the complexities of differential privacy, such as
+* protection of outliers and rare categories, generation of safe
+  noise and privacy budget accounting;
+* supports many standard computations, such as count, sum, average, and is easily extensible to support other aggregation types.
 
 The project is in the early development stage. More description will be added later.
 
