@@ -310,7 +310,7 @@ class DpEngineTest(parameterized.TestCase):
                                                           total_delta=1e-10)
                 engine = pipeline_dp.DPEngine(
                     budget_accountant=budget_accountant,
-                    backend=pipeline_dp.LocalPipelineOperations())
+                    backend=pipeline_dp.LocalPipelineBackend())
                 engine.aggregate(test_case["col"], test_case["params"],
                                  test_case["data_extractor"])
 
@@ -650,7 +650,7 @@ class DpEngineTest(parameterized.TestCase):
                                                           total_delta=1e-10)
                 engine = pipeline_dp.DPEngine(
                     budget_accountant=budget_accountant,
-                    backend=pipeline_dp.LocalPipelineOperations())
+                    backend=pipeline_dp.LocalPipelineBackend())
                 engine.select_private_partitions(test_case["col"],
                                                  test_case["params"],
                                                  test_case["data_extractor"])
