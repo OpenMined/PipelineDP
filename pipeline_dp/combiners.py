@@ -89,7 +89,7 @@ class CountCombiner(Combiner):
     def __init__(self, params: CombinerParams):
         self._params = params
 
-    def create_accumulator(self, values: Sized) -> 'AccumulatorType':
+    def create_accumulator(self, values: Sized) -> AccumulatorType:
         return len(values)
 
     def merge_accumulators(self, count1: AccumulatorType,
@@ -111,7 +111,7 @@ class PrivacyIdCountCombiner(Combiner):
     def __init__(self, params: CombinerParams):
         self._params = params
 
-    def create_accumulator(self, values: Sized) -> 'AccumulatorType':
+    def create_accumulator(self, values: Sized) -> AccumulatorType:
         return 1 if values else 0
 
     def merge_accumulators(self, accumulator1: AccumulatorType,
@@ -134,7 +134,7 @@ class SumCombiner(Combiner):
     def __init__(self, params: CombinerParams):
         self._params = params
 
-    def create_accumulator(self, values: Iterable[float]) -> 'AccumulatorType':
+    def create_accumulator(self, values: Iterable[float]) -> AccumulatorType:
         return np.clip(values, self._params.aggregate_params.low,
                        self._params.aggregate_params.high).sum()
 
@@ -160,7 +160,7 @@ class MeanCombiner(Combiner):
     def __init__(self, params: CombinerParams):
         self._params = params
 
-    def create_accumulator(self, values: Iterable[float]) -> 'AccumulatorType':
+    def create_accumulator(self, values: Iterable[float]) -> AccumulatorType:
         return len(values), np.clip(values, self._params.aggregate_params.low,
                                     self._params.aggregate_params.high).sum()
 
@@ -194,7 +194,7 @@ class CompoundCombiner(Combiner):
     def __init__(self, combiners: Iterable['Combiner']):
         self._combiners = combiners
 
-    def create_accumulator(self, values) -> 'AccumulatorType':
+    def create_accumulator(self, values) -> AccumulatorType:
         return (1,
                 tuple(
                     combiner.create_accumulator(values)
