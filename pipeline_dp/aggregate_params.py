@@ -68,11 +68,12 @@ class AggregateParams:
 
     def __post_init__(self):
         if self.low is not None:
-            raise ValueError("AggregateParams: please use min_value instead of low")
+            raise ValueError(
+                "AggregateParams: please use min_value instead of low")
 
         if self.high is not None:
-            raise ValueError("AggregateParams: please use max_value instead of high")
-
+            raise ValueError(
+                "AggregateParams: please use max_value instead of high")
 
     def __str__(self):
         return f"Metrics: {[m.value for m in self.metrics]}"
