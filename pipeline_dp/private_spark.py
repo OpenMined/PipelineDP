@@ -62,7 +62,7 @@ class PrivateRDD:
             max_contributions_per_partition=sum_params.
             max_contributions_per_partition,
             low=sum_params.low,
-            high=sum_params.high,
+            high=sum_params.max_value,
             public_partitions=sum_params.public_partitions,
             budget_weight=sum_params.budget_weight)
 

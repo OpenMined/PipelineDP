@@ -70,7 +70,7 @@ class CombinerParams:
     @property
     def mean_var_params(self):
         return dp_computations.MeanVarParams(
-            self.eps, self.delta, self.aggregate_params.low,
+            self.eps, self.delta, self.aggregate_params.min_value,
             self.aggregate_params.high,
             self.aggregate_params.max_partitions_contributed,
             self.aggregate_params.max_contributions_per_partition,
