@@ -78,6 +78,7 @@ class DPEngine:
             col = self._drop_not_public_partitions(col,
                                                    params.public_partitions,
                                                    data_extractors)
+
         # Extract the columns.
         col = self._ops.map(
             col, lambda row: (data_extractors.privacy_id_extractor(row),
@@ -207,14 +208,27 @@ class DPEngine:
         # to _way_ too many partitions.
         def sample_unique_elements_fn(pid_and_pks):
             pid, pks = pid_and_pks
-            unique_pks = set(pks)
+            unique_pks = list(set(pks))
+            if len(unique_pks) <= max_partitions_contributed:
+                sampled_elements = unique_pks
+            else:
+                # np.random.choice makes casting of elements to numpy types
+                # which is undesirable by 2 reasons:
+                # 1. Apache Beam can not serialize numpy types.
+                # 2. It might lead for losing precision (e.g. arbitrary
+                # precision int is converted to int64).
+                # So np.random.choice should not be applied directly to
+                # 'unique_pks'. It is better to apply it to indices.
+                sampled_indices = np.random.choice(np.arange(len(unique_pks)),
+                                                   max_partitions_contributed,
+                                                   replace=False)
 
-            sampled_elements = np.random.choice(np.array(list(unique_pks)),
-                                                max_partitions_contributed)
+                sampled_elements = [unique_pks[i] for i in sampled_indices]
 
             return ((pid, pk) for pk in sampled_elements)
 
-        col = self._ops.flat_map(col, sample_unique_elements_fn)
+        col = self._ops.flat_map(col, sample_unique_elements_fn,
+                                 "Sample cross-partition contributions")
         # col : (privacy_id, partition_key)
 
         # A compound accumulator without any child accumulators is used to calculate the raw privacy ID count.
@@ -225,7 +239,7 @@ class DPEngine:
         # col : (partition_key, accumulator)
 
         col = self._ops.combine_accumulators_per_key(
-            col, compound_combiner, "Reduce accumulators per partition key")
+            col, compound_combiner, "Combine accumulators per partition key")
         # col : (partition_key, accumulator)
 
         col = self._select_private_partitions_internal(
