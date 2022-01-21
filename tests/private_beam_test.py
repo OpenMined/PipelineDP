@@ -155,8 +155,8 @@ class PrivateBeamTest(unittest.TestCase):
                 max_partitions_contributed,
                 max_contributions_per_partition=sum_params.
                 max_contributions_per_partition,
-                low=sum_params.low,
-                high=sum_params.high,
+                low=sum_params.min_value,
+                high=sum_params.max_value,
                 public_partitions=sum_params.public_partitions)
             self.assertEqual(args[1], params)
 

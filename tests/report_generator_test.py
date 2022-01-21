@@ -34,7 +34,8 @@ class ReportGeneratorTest(unittest.TestCase):
 
 def aggregate_stub(params: AggregateParams) -> str:
     report_generator = ReportGenerator(params)
-    report_generator.add_stage(f"Eat between {params.low, params.high} snacks")
+    report_generator.add_stage(
+        f"Eat between {params.min_value, params.max_value} snacks")
     report_generator.add_stage(("Eat a maximum of snack varieties total: "
                                 f"{params.max_partitions_contributed}"))
     report_generator.add_stage(("Eat a maximum of a single snack variety: "

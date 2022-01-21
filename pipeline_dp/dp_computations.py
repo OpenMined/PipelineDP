@@ -26,9 +26,9 @@ class MeanVarParams:
 
     def squares_interval(self):
         """Returns the bounds of the interval [low^2, high^2]."""
-        if self.min_value < 0 and self.high > 0:
-            return 0, max(self.low**2, self.high**2)
-        return self.low**2, self.high**2
+        if self.min_value < 0 and self.max_value > 0:
+            return 0, max(self.min_value**2, self.max_value**2)
+        return self.min_value**2, self.max_value**2
 
 
 def compute_middle(low: float, high: float):
@@ -254,7 +254,7 @@ def compute_dp_sum(sum: float, dp_params: MeanVarParams):
     """
     l0_sensitivity = dp_params.l0_sensitivity()
     linf_sensitivity = dp_params.max_contributions_per_partition * max(
-        abs(dp_params.low), abs(dp_params.high))
+        abs(dp_params.min_value), abs(dp_params.max_value))
 
     return _add_random_noise(
         sum,
@@ -339,8 +339,8 @@ def compute_dp_mean(count: int, sum: float, dp_params: MeanVarParams):
         count,
         dp_count,
         sum,
-        dp_params.low,
-        dp_params.high,
+        dp_params.min_value,
+        dp_params.max_value,
         sum_eps,
         sum_delta,
         l0_sensitivity,
@@ -388,8 +388,8 @@ def compute_dp_var(count: int, sum: float, sum_squares: float,
         count,
         dp_count,
         sum,
-        dp_params.low,
-        dp_params.high,
+        dp_params.min_value,
+        dp_params.max_value,
         sum_eps,
         sum_delta,
         l0_sensitivity,

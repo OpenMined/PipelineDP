@@ -243,8 +243,8 @@ class AccumulatorClassParams:
     @property
     def mean_var_params(self):
         return dp_computations.MeanVarParams(
-            self.eps, self.delta, self.aggregate_params.low,
-            self.aggregate_params.high,
+            self.eps, self.delta, self.aggregate_params.min_value,
+            self.aggregate_params.min_value,
             self.aggregate_params.max_partitions_contributed,
             self.aggregate_params.max_contributions_per_partition,
             self.aggregate_params.noise_kind)
@@ -374,12 +374,12 @@ class SumAccumulator(Accumulator):
 
     def __init__(self, params: SumParams, values):
         self._params = params
-        self._sum = np.clip(values, self._params.aggregate_params.low,
-                            self._params.aggregate_params.high).sum()
+        self._sum = np.clip(values, self._params.aggregate_params.min_value,
+                            self._params.aggregate_params.mina_value).sum()
 
     def add_value(self, value):
-        self._sum += np.clip(value, self._params.aggregate_params.low,
-                             self._params.aggregate_params.high)
+        self._sum += np.clip(value, self._params.aggregate_params.min_value,
+                             self._params.aggregate_params.mina_value)
 
     def add_accumulator(self,
                         accumulator: 'SumAccumulator') -> 'SumAccumulator':

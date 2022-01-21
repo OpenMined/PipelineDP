@@ -141,15 +141,19 @@ class DPEngine:
                 "params.max_contributions_per_partition must be set "
                 "to a positive integer")
         needs_low_high = any(metric == Metrics.SUM for metric in params.metrics)
-        if needs_low_high and (params.low is None or params.high is None):
-            raise ValueError("params.low and params.high must be set")
-        if needs_low_high and (self._not_a_proper_number(params.low) or
-                               self._not_a_proper_number(params.high)):
+        if needs_low_high and (params.min_value is None or
+                               params.max_value is None):
             raise ValueError(
-                "params.low and params.high must be both finite numbers")
-        if needs_low_high and params.high < params.low:
+                "params.min_value and params.max_value must be set")
+        if needs_low_high and (self._not_a_proper_number(params.min_value) or
+                               self._not_a_proper_number(params.max_value)):
             raise ValueError(
-                "params.high must be equal to or greater than params.low")
+                "params.min_value and params.max_value must be both finite numbers"
+            )
+        if needs_low_high and params.max_value < params.min_value:
+            raise ValueError(
+                "params.max_value must be equal to or greater than params.min_value"
+            )
         if data_extractors is None:
             raise ValueError("data_extractors must be set to a DataExtractors")
         if not isinstance(data_extractors, pipeline_dp.DataExtractors):
