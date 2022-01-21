@@ -375,11 +375,11 @@ class SumAccumulator(Accumulator):
     def __init__(self, params: SumParams, values):
         self._params = params
         self._sum = np.clip(values, self._params.aggregate_params.min_value,
-                            self._params.aggregate_params.mina_value).sum()
+                            self._params.aggregate_params.max_value).sum()
 
     def add_value(self, value):
         self._sum += np.clip(value, self._params.aggregate_params.min_value,
-                             self._params.aggregate_params.mina_value)
+                             self._params.aggregate_params.max_value)
 
     def add_accumulator(self,
                         accumulator: 'SumAccumulator') -> 'SumAccumulator':
