@@ -44,9 +44,9 @@ class DPEngine:
     """Performs DP aggregations."""
 
     def __init__(self, budget_accountant: BudgetAccountant,
-                 ops: PipelineBackend):
+                 backend: PipelineBackend):
         self._budget_accountant = budget_accountant
-        self._ops = ops
+        self._backend = backend
         self._report_generators = []
 
     def _add_report_stage(self, text):
@@ -80,7 +80,7 @@ class DPEngine:
                                                    data_extractors)
 
         # Extract the columns.
-        col = self._ops.map(
+        col = self._backend.map(
             col, lambda row: (data_extractors.privacy_id_extractor(row),
                               data_extractors.partition_extractor(row),
                               data_extractors.value_extractor(row)),
@@ -91,8 +91,8 @@ class DPEngine:
                                         combiner.create_accumulator)
         # col : ((privacy_id, partition_key), accumulator)
 
-        col = self._ops.map_tuple(col, lambda pid_pk, v: (pid_pk[1], v),
-                                  "Drop privacy id")
+        col = self._backend.map_tuple(col, lambda pid_pk, v: (pid_pk[1], v),
+                                      "Drop privacy id")
         # col : (partition_key, accumulator)
 
         if params.public_partitions:
@@ -101,7 +101,7 @@ class DPEngine:
                                                     combiner.create_accumulator)
         # col : (partition_key, accumulator)
 
-        col = self._ops.combine_accumulators_per_key(
+        col = self._backend.combine_accumulators_per_key(
             col, combiner, "Reduce accumulators per partition key")
         # col : (partition_key, accumulator)
 
@@ -115,11 +115,11 @@ class DPEngine:
         # col = self._fix_budget_accounting_if_needed(col, accumulator_factory)
 
         # Compute DP metrics.
-        col = self._ops.map_values(col, combiner.compute_metrics,
-                                   "Compute DP` metrics")
+        col = self._backend.map_values(col, combiner.compute_metrics,
+                                       "Compute DP` metrics")
 
-        col = self._ops.map_values(col, lambda result: result[1],
-                                   "Extract results")
+        col = self._backend.map_values(col, lambda result: result[1],
+                                       "Extract results")
 
         return col
 
@@ -193,14 +193,14 @@ class DPEngine:
         max_partitions_contributed = params.max_partitions_contributed
 
         # Extract the columns.
-        col = self._ops.map(
+        col = self._backend.map(
             col, lambda row: (data_extractors.privacy_id_extractor(row),
                               data_extractors.partition_extractor(row)),
             "Extract (privacy_id, partition_key))")
         # col : (privacy_id, partition_key)
 
         # Apply cross-partition contribution bounding
-        col = self._ops.group_by_key(col, "Group by privacy_id")
+        col = self._backend.group_by_key(col, "Group by privacy_id")
 
         # col : (privacy_id, [partition_key])
 
@@ -227,38 +227,39 @@ class DPEngine:
 
             return ((pid, pk) for pk in sampled_elements)
 
-        col = self._ops.flat_map(col, sample_unique_elements_fn,
-                                 "Sample cross-partition contributions")
+        col = self._backend.flat_map(col, sample_unique_elements_fn,
+                                     "Sample cross-partition contributions")
         # col : (privacy_id, partition_key)
 
         # A compound accumulator without any child accumulators is used to calculate the raw privacy ID count.
         compound_combiner = CompoundCombiner([])
-        col = self._ops.map_tuple(
+        col = self._backend.map_tuple(
             col, lambda pid, pk: (pk, compound_combiner.create_accumulator([])),
             "Drop privacy id and add accumulator")
         # col : (partition_key, accumulator)
 
-        col = self._ops.combine_accumulators_per_key(
+        col = self._backend.combine_accumulators_per_key(
             col, compound_combiner, "Combine accumulators per partition key")
         # col : (partition_key, accumulator)
 
         col = self._select_private_partitions_internal(
             col, max_partitions_contributed)
-        col = self._ops.keys(col, "Drop accumulators, keep only partition keys")
+        col = self._backend.keys(col,
+                                 "Drop accumulators, keep only partition keys")
 
         return col
 
     def _drop_not_public_partitions(self, col, public_partitions,
                                     data_extractors: DataExtractors):
-        """Drops partitions in `col` which are not in `public_partitions`."""
-        col = self._ops.map(
+        """Drbackend partitions in `col` which are not in `public_partitions`."""
+        col = self._backend.map(
             col, lambda row: (data_extractors.partition_extractor(row), row),
             "Extract partition id")
-        col = self._ops.filter_by_key(col, public_partitions,
-                                      "Filtering out non-public partitions")
+        col = self._backend.filter_by_key(
+            col, public_partitions, "Filtering out non-public partitions")
         self._add_report_stage(
             f"Public partition selection: dropped non public partitions")
-        return self._ops.map_tuple(col, lambda k, v: v, "Drop key")
+        return self._backend.map_tuple(col, lambda k, v: v, "Drop key")
 
     def _add_empty_public_partitions(self, col, public_partitions,
                                      aggregator_fn):
@@ -267,11 +268,11 @@ class DPEngine:
         self._add_report_stage(
             "Adding empty partitions to public partitions that are missing in "
             "data")
-        empty_accumulators = self._ops.map(
+        empty_accumulators = self._backend.map(
             public_partitions, lambda partition_key:
             (partition_key, aggregator_fn([])), "Build empty accumulators")
 
-        return self._ops.flatten(
+        return self._backend.flatten(
             col, empty_accumulators,
             "Join public partitions with partitions from data")
 
@@ -294,28 +295,29 @@ class DPEngine:
               accumulator).
         """
         # per partition-contribution bounding with bounding of each contribution
-        col = self._ops.map_tuple(
+        col = self._backend.map_tuple(
             col, lambda pid, pk, v: ((pid, pk), v),
             "Rekey to ( (privacy_id, partition_key), value))")
-        col = self._ops.sample_fixed_per_key(
+        col = self._backend.sample_fixed_per_key(
             col, max_contributions_per_partition,
             "Sample per (privacy_id, partition_key)")
         self._add_report_stage(
             f"Per-partition contribution bounding: randomly selected not "
             f"more than {max_contributions_per_partition} contributions")
         # ((privacy_id, partition_key), [value])
-        col = self._ops.map_values(
+        col = self._backend.map_values(
             col, aggregator_fn,
             "Apply aggregate_fn after per partition bounding")
         # ((privacy_id, partition_key), accumulator)
 
         # Cross partition bounding
-        col = self._ops.map_tuple(
+        col = self._backend.map_tuple(
             col, lambda pid_pk, v: (pid_pk[0], (pid_pk[1], v)),
             "Rekey to (privacy_id, (partition_key, "
             "accumulator))")
-        col = self._ops.sample_fixed_per_key(col, max_partitions_contributed,
-                                             "Sample per privacy_id")
+        col = self._backend.sample_fixed_per_key(col,
+                                                 max_partitions_contributed,
+                                                 "Sample per privacy_id")
 
         self._add_report_stage(
             f"Cross-partition contribution bounding: randomly selected not more than "
@@ -326,9 +328,8 @@ class DPEngine:
             pid, pk_values = pid_pk_v
             return (((pid, pk), v) for (pk, v) in pk_values)
 
-        return self._ops.flat_map(col,
-                                  unnest_cross_partition_bound_sampled_per_key,
-                                  "Unnest")
+        return self._backend.flat_map(
+            col, unnest_cross_partition_bound_sampled_per_key, "Unnest")
 
     def _select_private_partitions_internal(self, col,
                                             max_partitions_contributed: int):
@@ -366,7 +367,7 @@ class DPEngine:
             f"Private Partition selection: using {budget.mechanism_type.value} "
             f"method with (eps= {budget.eps}, delta = {budget.delta})")
 
-        return self._ops.filter(col, filter_fn, "Filter private partitions")
+        return self._backend.filter(col, filter_fn, "Filter private partitions")
 
     def _fix_budget_accounting_if_needed(self, col, accumulator_factory):
         """Adds MechanismSpec to accumulators.
@@ -386,11 +387,11 @@ class DPEngine:
         Returns:
             col: collection with elements (key, accumulator).
         """
-        if not self._ops.is_serialization_immediate_on_reduce_by_key():
+        if not self._backend.is_serialization_immediate_on_reduce_by_key():
             # No need to fix, since accumulators contain correct MechanismSpec.
             return col
         mechanism_specs = accumulator_factory.get_mechanism_specs()
-        return self._ops.map_values(
+        return self._backend.map_values(
             col, lambda acc: acc.set_mechanism_specs(mechanism_specs))
 
     def _not_a_proper_number(self, num):

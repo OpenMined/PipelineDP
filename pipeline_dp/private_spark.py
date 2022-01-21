@@ -52,8 +52,8 @@ class PrivateRDD:
             sum_params: parameters for calculation
         """
 
-        ops = pipeline_dp.SparkRDDBackend()
-        dp_engine = pipeline_dp.DPEngine(self._budget_accountant, ops)
+        backend = pipeline_dp.SparkRDDBackend()
+        dp_engine = pipeline_dp.DPEngine(self._budget_accountant, backend)
 
         params = pipeline_dp.AggregateParams(
             noise_kind=sum_params.noise_kind,
@@ -76,7 +76,7 @@ class PrivateRDD:
 
         # aggregate() returns a list of metrics for each partition key.
         # Here is only one metric - sum. Remove list.
-        dp_result = ops.map_values(dp_result, lambda v: v[0], "Unnest list")
+        dp_result = backend.map_values(dp_result, lambda v: v[0], "Unnest list")
         # dp_result : (partition_key, dp_sum)
 
         return dp_result
@@ -88,8 +88,8 @@ class PrivateRDD:
             count_params: parameters for calculation
         """
 
-        ops = pipeline_dp.SparkRDDBackend()
-        dp_engine = pipeline_dp.DPEngine(self._budget_accountant, ops)
+        backend = pipeline_dp.SparkRDDBackend()
+        dp_engine = pipeline_dp.DPEngine(self._budget_accountant, backend)
 
         params = pipeline_dp.AggregateParams(
             noise_kind=count_params.noise_kind,
@@ -111,7 +111,7 @@ class PrivateRDD:
 
         # aggregate() returns a list of metrics for each partition key.
         # Here is only one metric - count. Remove list.
-        dp_result = ops.map_values(dp_result, lambda v: v[0], "Unnest list")
+        dp_result = backend.map_values(dp_result, lambda v: v[0], "Unnest list")
         # dp_result : (partition_key, dp_count)
 
         return dp_result
