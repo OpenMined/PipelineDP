@@ -131,8 +131,8 @@ class PrivateBeamTest(unittest.TestCase):
                 noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
                 max_partitions_contributed=2,
                 max_contributions_per_partition=3,
-                low=1,
-                high=5,
+                min_value=1,
+                max_value=5,
                 budget_weight=1,
                 public_partitions=[],
                 partition_extractor=lambda x: f"pk:{x // 10}",
@@ -155,8 +155,8 @@ class PrivateBeamTest(unittest.TestCase):
                 max_partitions_contributed,
                 max_contributions_per_partition=sum_params.
                 max_contributions_per_partition,
-                low=sum_params.min_value,
-                high=sum_params.max_value,
+                min_value=sum_params.min_value,
+                max_value=sum_params.max_value,
                 public_partitions=sum_params.public_partitions)
             self.assertEqual(args[1], params)
 
@@ -179,8 +179,8 @@ class PrivateBeamTest(unittest.TestCase):
                 noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
                 max_partitions_contributed=2,
                 max_contributions_per_partition=3,
-                low=1,
-                high=2,
+                min_value=1,
+                max_value=2,
                 budget_weight=1,
                 partition_extractor=lambda x: x[1],
                 value_extractor=lambda x: x[2])
@@ -219,8 +219,8 @@ class PrivateBeamTest(unittest.TestCase):
                 noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
                 max_partitions_contributed=2,
                 max_contributions_per_partition=3,
-                low=1,
-                high=2,
+                min_value=1,
+                max_value=2,
                 budget_weight=1,
                 partition_extractor=lambda x: x[1],
                 value_extractor=lambda x: x[2],

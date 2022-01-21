@@ -44,8 +44,8 @@ def main(unused_argv):
         dp_result = private_movie_views | private_beam.Sum(
             SumParams(max_partitions_contributed=2,
                       max_contributions_per_partition=2,
-                      low=1,
-                      high=5,
+                      min_value=1,
+                      max_value=5,
                       partition_extractor=lambda mv: mv.movie_id,
                       value_extractor=lambda mv: mv.rating))
         budget_accountant.compute_budgets()

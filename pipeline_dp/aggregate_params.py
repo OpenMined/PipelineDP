@@ -67,11 +67,11 @@ class AggregateParams:
     public_partitions: Any = None
 
     def __post_init__(self):
-        if self.min_value is not None:
+        if self.low is not None:
             raise ValueError(
                 "AggregateParams: please use min_value instead of low")
 
-        if self.max_value is not None:
+        if self.high is not None:
             raise ValueError(
                 "AggregateParams: please use max_value instead of high")
 

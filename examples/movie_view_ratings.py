@@ -65,8 +65,8 @@ def calc_dp_rating_metrics(movie_views, backend, public_partitions):
         ],
         max_partitions_contributed=2,
         max_contributions_per_partition=1,
-        low=1,
-        high=5,
+        min_value=1,
+        max_value=5,
         public_partitions=public_partitions)
 
     # Specify how to extract privacy_id, partition_key and value from an

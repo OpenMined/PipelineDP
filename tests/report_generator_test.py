@@ -22,8 +22,8 @@ class ReportGeneratorTest(unittest.TestCase):
         params = AggregateParams(noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
                                  max_partitions_contributed=2,
                                  max_contributions_per_partition=1,
-                                 low=1,
-                                 high=5,
+                                 min_value=1,
+                                 max_value=5,
                                  metrics=[
                                      Metrics.PRIVACY_ID_COUNT, Metrics.COUNT,
                                      Metrics.MEAN, Metrics.SUM, Metrics.VAR

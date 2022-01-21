@@ -39,8 +39,8 @@ private_movie_views = \
 dp_result = private_movie_views.sum(
     SumParams(max_partitions_contributed=2,
               max_contributions_per_partition=2,
-              low=1,
-              high=5,
+              min_value=1,
+              max_value=5,
               # Specifies the aggregation key
               partition_extractor=lambda mv: mv.movie_id,
               # Specifies the value we're aggregating

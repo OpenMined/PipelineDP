@@ -346,8 +346,8 @@ class PrivacyIdCountAccumulatorTest(unittest.TestCase):
             pipeline_dp.MechanismType.GAUSSIAN)
         budget_accountant.compute_budgets()
         no_noise = pipeline_dp.AggregateParams(
-            low=0,
-            high=1,
+            min_value=0,
+            max_value=1,
             max_partitions_contributed=1,
             max_contributions_per_partition=1,
             noise_kind=NoiseKind.GAUSSIAN,
@@ -377,8 +377,8 @@ class PrivacyIdCountAccumulatorTest(unittest.TestCase):
         budget_accountant.compute_budgets()
 
         params = pipeline_dp.AggregateParams(
-            low=0,
-            high=1,
+            min_value=0,
+            max_value=1,
             max_partitions_contributed=1,
             max_contributions_per_partition=3,
             noise_kind=NoiseKind.GAUSSIAN,
@@ -404,8 +404,8 @@ class CountAccumulatorTest(unittest.TestCase):
             pipeline_dp.MechanismType.GAUSSIAN)
         budget_accountant.compute_budgets()
         no_noise = pipeline_dp.AggregateParams(
-            low=0,
-            high=1,
+            min_value=0,
+            max_value=1,
             max_partitions_contributed=1,
             max_contributions_per_partition=1,
             noise_kind=NoiseKind.GAUSSIAN,
@@ -438,8 +438,8 @@ class CountAccumulatorTest(unittest.TestCase):
         budget_accountant.compute_budgets()
 
         params = pipeline_dp.AggregateParams(
-            low=0,
-            high=1,
+            min_value=0,
+            max_value=1,
             max_partitions_contributed=1,
             max_contributions_per_partition=1,
             noise_kind=NoiseKind.GAUSSIAN,
@@ -475,8 +475,8 @@ class SumAccumulatorTest(unittest.TestCase):
             pipeline_dp.MechanismType.GAUSSIAN)
         budget_accountant.compute_budgets()
         no_noise = pipeline_dp.AggregateParams(
-            low=0,
-            high=15,
+            min_value=0,
+            max_value=15,
             max_partitions_contributed=1,
             max_contributions_per_partition=1,
             noise_kind=NoiseKind.GAUSSIAN,
@@ -508,8 +508,8 @@ class SumAccumulatorTest(unittest.TestCase):
             pipeline_dp.MechanismType.GAUSSIAN)
         budget_accountant.compute_budgets()
 
-        params = pipeline_dp.AggregateParams(low=0,
-                                             high=3,
+        params = pipeline_dp.AggregateParams(min_value=0,
+                                             max_value=3,
                                              max_partitions_contributed=1,
                                              max_contributions_per_partition=1,
                                              noise_kind=NoiseKind.GAUSSIAN,
