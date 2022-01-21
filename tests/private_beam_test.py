@@ -158,7 +158,7 @@ class PrivateBeamTest(unittest.TestCase):
                 min_value=sum_params.min_value,
                 max_value=sum_params.max_value,
                 public_partitions=sum_params.public_partitions)
-            self.assertEqual(args[1], params)
+            self.assertEqual(params, args[1])
 
     def test_sum_returns_sensible_result(self):
         with TestPipeline() as pipeline:
