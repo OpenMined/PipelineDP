@@ -26,7 +26,7 @@ class MeanVarParams:
 
     def squares_interval(self):
         """Returns the bounds of the interval [low^2, high^2]."""
-        if self.low < 0 and self.high > 0:
+        if self.min_value < 0 and self.high > 0:
             return 0, max(self.low**2, self.high**2)
         return self.low**2, self.high**2
 

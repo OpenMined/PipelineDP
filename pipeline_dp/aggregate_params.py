@@ -48,8 +48,8 @@ class AggregateParams:
       unit of privacy (e.g., a user) can participate.
     max_contributions_per_partition: Bounds the number of times one unit of
       privacy (e.g. a user) can contribute to a partition.
-    low: Lower bound on a value contributed by a unit of privacy in a partition.
-    high: Upper bound on a value contributed by a unit of privacy in a
+    min_value: Lower bound on a value contributed by a unit of privacy in a partition.
+    max_value: Upper bound on a value contributed by a unit of privacy in a
       partition.
     public_partitions: a collection of partition keys that will be present in
       the result.
@@ -62,7 +62,17 @@ class AggregateParams:
     budget_weight: float = 1
     low: float = None
     high: float = None
+    min_value: float = None
+    max_value: float = None
     public_partitions: Any = None
+
+    def __post_init__(self):
+        if self.low is not None:
+            raise ValueError("AggregateParams: please use min_value instead of low")
+
+        if self.high is not None:
+            raise ValueError("AggregateParams: please use max_value instead of high")
+
 
     def __str__(self):
         return f"Metrics: {[m.value for m in self.metrics]}"
