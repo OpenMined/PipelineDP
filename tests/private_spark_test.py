@@ -118,8 +118,7 @@ class PrivateRDDTest(unittest.TestCase):
             max_contributions_per_partition=3,
             budget_weight=1,
             public_partitions=None,
-            partition_extractor=lambda x: "pk" + str(x // 10),
-            value_extractor=lambda x: x)
+            partition_extractor=lambda x: "pk" + str(x // 10))
         prdd.count(count_params)
 
         mock_aggregate.assert_called_once()
