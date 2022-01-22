@@ -71,8 +71,8 @@ class CombinerParams:
     @property
     def mean_var_params(self):
         return dp_computations.MeanVarParams(
-            self.eps, self.delta, self.aggregate_params.low,
-            self.aggregate_params.high,
+            self.eps, self.delta, self.aggregate_params.min_value,
+            self.aggregate_params.max_value,
             self.aggregate_params.max_partitions_contributed,
             self.aggregate_params.max_contributions_per_partition,
             self.aggregate_params.noise_kind)
@@ -134,9 +134,9 @@ class SumCombiner(Combiner):
     def __init__(self, params: CombinerParams):
         self._params = params
 
-    def create_accumulator(self, values: Iterable[float]) -> AccumulatorType:
-        return np.clip(values, self._params.aggregate_params.low,
-                       self._params.aggregate_params.high).sum()
+    def create_accumulator(self, values: Iterable[float]) -> 'AccumulatorType':
+        return np.clip(values, self._params.aggregate_params.min_value,
+                       self._params.aggregate_params.max_value).sum()
 
     def merge_accumulators(self, sum1: AccumulatorType, sum2: AccumulatorType):
         return sum1 + sum2
@@ -161,8 +161,8 @@ class MeanCombiner(Combiner):
         self._params = params
 
     def create_accumulator(self, values: Iterable[float]) -> AccumulatorType:
-        return len(values), np.clip(values, self._params.aggregate_params.low,
-                                    self._params.aggregate_params.high).sum()
+        return len(values), np.clip(values, self._params.aggregate_params.min_value,
+                                    self._params.aggregate_params.max_value).sum()
 
     def merge_accumulators(self, accum1: AccumulatorType,
                            accum2: AccumulatorType):

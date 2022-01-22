@@ -14,8 +14,8 @@ class MeanVarParams:
 
     eps: float
     delta: float
-    low: float
-    high: float
+    min_value: float
+    max_value: float
     max_partitions_contributed: int
     max_contributions_per_partition: int
     noise_kind: NoiseKind  # Laplace or Gaussian
@@ -25,19 +25,19 @@ class MeanVarParams:
         return self.max_partitions_contributed
 
     def squares_interval(self):
-        """Returns the bounds of the interval [low^2, high^2]."""
-        if self.low < 0 and self.high > 0:
-            return 0, max(self.low**2, self.high**2)
-        return self.low**2, self.high**2
+        """Returns the bounds of the interval [min_value^2, max_value^2]."""
+        if self.min_value < 0 and self.max_value > 0:
+            return 0, max(self.min_value**2, self.max_value**2)
+        return self.min_value**2, self.max_value**2
 
+      
+def compute_middle(min_value: float, max_value: float):
+    """"Returns the middle point of the interval [min_value, max_value]."""    
+    # (min_value + max_value) / 2 may cause an overflow or loss of precision if
+    # min_value and max_value are large.
+    return min_value + (max_value - min_value) / 2
 
-def compute_middle(low: float, high: float):
-    """"Returns the middle point of the interval [low, high]."""
-    # (low + high) / 2 may cause an overflow or loss of precision if low and
-    # high are large.
-    return low + (high - low) / 2
-
-
+  
 def compute_l1_sensitivity(l0_sensitivity: float, linf_sensitivity: float):
     """Calculates the L1 sensitivity based on the L0 and Linf sensitivities.
 
@@ -256,7 +256,7 @@ def compute_dp_sum(sum: float, dp_params: MeanVarParams):
     """
     l0_sensitivity = dp_params.l0_sensitivity()
     linf_sensitivity = dp_params.max_contributions_per_partition * max(
-        abs(dp_params.low), abs(dp_params.high))
+        abs(dp_params.min_value), abs(dp_params.max_value))
 
     return _add_random_noise(
         sum,
@@ -272,8 +272,8 @@ def _compute_mean(
     count: float,
     dp_count: float,
     sum: float,
-    low: float,
-    high: float,
+    min_value: float,
+    max_value: float,
     eps: float,
     delta: float,
     l0_sensitivity: float,
@@ -286,7 +286,7 @@ def _compute_mean(
         count: Non-DP count.
         dp_count: DP count.
         sum: Non-DP sum.
-        low, high: The lowest/highest contribution.
+        min_value, max_value: The lowest/highest contribution.
         eps, delta: The budget allocated.
         l0_sensitivity: The L0 sensitivity.
         max_contributions_per_partition: The maximum number of contributions
@@ -299,8 +299,8 @@ def _compute_mean(
     Returns:
         The anonymized mean.
     """
-    middle = compute_middle(low, high)
-    linf_sensitivity = max_contributions_per_partition * abs(middle - low)
+    middle = compute_middle(min_value, max_value)
+    linf_sensitivity = max_contributions_per_partition * abs(middle - min_value)
 
     normalized_sum = sum - count * middle
     dp_normalized_sum = _add_random_noise(normalized_sum, eps, delta,
@@ -345,8 +345,8 @@ def compute_dp_mean(count: int, sum: float, dp_params: MeanVarParams):
         count,
         dp_count,
         sum,
-        dp_params.low,
-        dp_params.high,
+        dp_params.min_value,
+        dp_params.max_value,
         sum_eps,
         sum_delta,
         l0_sensitivity,
@@ -395,8 +395,8 @@ def compute_dp_var(count: int, sum: float, sum_squares: float,
         count,
         dp_count,
         sum,
-        dp_params.low,
-        dp_params.high,
+        dp_params.min_value,
+        dp_params.max_value,
         sum_eps,
         sum_delta,
         l0_sensitivity,
@@ -404,12 +404,13 @@ def compute_dp_var(count: int, sum: float, sum_squares: float,
         dp_params.noise_kind,
     )
 
-    squares_low, squares_high = dp_params.squares_interval()
+    squares_min_value, squares_max_value = dp_params.squares_interval()
 
     # Computes and adds noise to the mean of squares.
-    dp_mean_squares = _compute_mean(count, dp_count, sum_squares, squares_low,
-                                    squares_high, sum_squares_eps,
-                                    sum_squares_delta, l0_sensitivity,
+    dp_mean_squares = _compute_mean(count, dp_count, sum_squares,
+                                    squares_min_value, squares_max_value,
+                                    sum_squares_eps, sum_squares_delta,
+                                    l0_sensitivity,
                                     dp_params.max_contributions_per_partition,
                                     dp_params.noise_kind)
 

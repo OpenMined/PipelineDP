@@ -18,10 +18,10 @@ def _create_mechanism_spec(no_noise):
     return ba.MechanismSpec(ba.MechanismType.GAUSSIAN, None, eps, delta)
 
 
-def _create_aggregate_params(high: float = 1):
+def _create_aggregate_params(max_value: float = 1):
     return pipeline_dp.AggregateParams(
-        low=0,
-        high=high,
+        min_value=0,
+        max_value=high,
         max_partitions_contributed=1,
         max_contributions_per_partition=3,
         noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
