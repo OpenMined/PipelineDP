@@ -256,7 +256,7 @@ class DPEngine:
 
     def _drop_not_public_partitions(self, col, public_partitions,
                                     data_extractors: DataExtractors):
-        """Drbackend partitions in `col` which are not in `public_partitions`."""
+        """Drops partitions in `col` which are not in `public_partitions`."""
         col = self._backend.map(
             col, lambda row: (data_extractors.partition_extractor(row), row),
             "Extract partition id")

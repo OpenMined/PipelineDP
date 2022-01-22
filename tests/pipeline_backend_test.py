@@ -35,7 +35,7 @@ class BeamBackendTest(parameterized.TestCase):
             key_to_keep = None
             with self.assertRaises(TypeError):
                 result = self.backend.filter_by_key(col, key_to_keep,
-                                                    "filte_by_key")
+                                                    "filter_by_key")
 
     @parameterized.parameters(
         {'in_memory': True},
@@ -50,7 +50,7 @@ class BeamBackendTest(parameterized.TestCase):
             if not in_memory:
                 keys_to_keep = p | "To PCollection" >> beam.Create(keys_to_keep)
             result = self.backend.filter_by_key(col, keys_to_keep,
-                                                "filte_by_key")
+                                                "filter_by_key")
             beam_util.assert_that(result, beam_util.equal_to(expected_result))
 
     @parameterized.parameters(
@@ -208,7 +208,7 @@ class BeamBackendStageNameTest(unittest.TestCase):
                 backend_2.map(col, lambda x: x, "SAME_MAP_NAME")
 
     def test_one_suffix_multiple_same_stage_name(self):
-        backend = BeamBackend("UNIQUE_backend_SUFFIX")
+        backend = BeamBackend("UNIQUE_BACKEND_SUFFIX")
         with test_pipeline.TestPipeline() as p:
             col = p | f"UNIQUE_BEAM_CREATE_NAME" >> beam.Create([(6, 1),
                                                                  (6, 2)])
@@ -216,13 +216,13 @@ class BeamBackendStageNameTest(unittest.TestCase):
             backend.map(col, lambda x: x, "SAME_MAP_NAME")
             backend.map(col, lambda x: x, "SAME_MAP_NAME")
 
-        self.assertEqual("UNIQUE_backend_SUFFIX", backend._ulg._suffix)
+        self.assertEqual("UNIQUE_BACKEND_SUFFIX", backend._ulg._suffix)
         self.assertEqual(3, len(backend._ulg._labels))
-        self.assertIn("SAME_MAP_NAME_UNIQUE_backend_SUFFIX",
+        self.assertIn("SAME_MAP_NAME_UNIQUE_BACKEND_SUFFIX",
                       backend._ulg._labels)
-        self.assertIn("SAME_MAP_NAME_1_UNIQUE_backend_SUFFIX",
+        self.assertIn("SAME_MAP_NAME_1_UNIQUE_BACKEND_SUFFIX",
                       backend._ulg._labels)
-        self.assertIn("SAME_MAP_NAME_2_UNIQUE_backend_SUFFIX",
+        self.assertIn("SAME_MAP_NAME_2_UNIQUE_BACKEND_SUFFIX",
                       backend._ulg._labels)
 
 
@@ -411,13 +411,13 @@ class LocalBackendTest(unittest.TestCase):
     def test_local_filter_by_key_empty_keys_to_keep(self):
         col = [(7, 1), (2, 1), (3, 9), (4, 1), (9, 10)]
         keys_to_keep = []
-        result = self.backend.filter_by_key(col, keys_to_keep, "filte_by_key")
+        result = self.backend.filter_by_key(col, keys_to_keep, "filter_by_key")
         self.assertEqual(result, [])
 
     def test_local_filter_by_key_remove(self):
         col = [(7, 1), (2, 1), (3, 9), (4, 1), (9, 10)]
         keys_to_keep = [7, 9]
-        result = self.backend.filter_by_key(col, keys_to_keep, "filte_by_key")
+        result = self.backend.filter_by_key(col, keys_to_keep, "filter_by_key")
         self.assertEqual(result, [(7, 1), (9, 10)])
 
     def test_local_keys(self):
