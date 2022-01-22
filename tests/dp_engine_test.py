@@ -284,8 +284,8 @@ class DpEngineTest(parameterized.TestCase):
                         noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
                         max_partitions_contributed=1,
                         max_contributions_per_partition=1,
-                        low=1,
-                        high=0,
+                        min_value=1,
+                        max_value=0,
                         metrics=[pipeline_dp.Metrics.SUM]),
                 "data_extractor":
                     default_extractors,
@@ -324,8 +324,8 @@ class DpEngineTest(parameterized.TestCase):
             noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
             max_partitions_contributed=3,
             max_contributions_per_partition=2,
-            low=1,
-            high=5,
+            min_value=1,
+            max_value=5,
             metrics=[
                 pipeline_dp.Metrics.PRIVACY_ID_COUNT, pipeline_dp.Metrics.COUNT,
                 pipeline_dp.Metrics.MEAN
@@ -335,8 +335,8 @@ class DpEngineTest(parameterized.TestCase):
             noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
             max_partitions_contributed=1,
             max_contributions_per_partition=3,
-            low=2,
-            high=10,
+            min_value=2,
+            max_value=10,
             metrics=[
                 pipeline_dp.Metrics.VAR, pipeline_dp.Metrics.SUM,
                 pipeline_dp.Metrics.MEAN
@@ -662,8 +662,8 @@ class DpEngineTest(parameterized.TestCase):
             metrics=[
                 agg.Metrics.COUNT, agg.Metrics.SUM, agg.Metrics.PRIVACY_ID_COUNT
             ],
-            low=0,
-            high=1,
+            min_value=0,
+            max_value=1,
             max_partitions_contributed=1,
             max_contributions_per_partition=1,
             public_partitions=["pk0", "pk1", "pk10"])
@@ -704,8 +704,8 @@ class DpEngineTest(parameterized.TestCase):
             metrics=[
                 agg.Metrics.COUNT, agg.Metrics.SUM, agg.Metrics.PRIVACY_ID_COUNT
             ],
-            low=0,
-            high=1,
+            min_value=0,
+            max_value=1,
             max_partitions_contributed=1,
             max_contributions_per_partition=1,
             public_partitions=["pk0", "pk10", "pk11"])
@@ -768,8 +768,8 @@ class DpEngineTest(parameterized.TestCase):
         aggregator_params = pipeline_dp.AggregateParams(
             noise_kind=pipeline_dp.NoiseKind.LAPLACE,
             metrics=[agg.Metrics.COUNT, agg.Metrics.SUM],
-            low=1,
-            high=10,
+            min_value=1,
+            max_value=10,
             max_partitions_contributed=1,
             max_contributions_per_partition=1)
 

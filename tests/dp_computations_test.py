@@ -17,8 +17,8 @@ class DPComputationsTest(unittest.TestCase):
         params = dp_computations.MeanVarParams(
             eps=1,
             delta=1e-10,
-            low=2,
-            high=3,
+            min_value=2,
+            max_value=3,
             max_partitions_contributed=4,
             max_contributions_per_partition=5,
             noise_kind=NoiseKind.LAPLACE)
@@ -124,8 +124,8 @@ class DPComputationsTest(unittest.TestCase):
         params = dp_computations.MeanVarParams(
             eps=0.5,
             delta=1e-10,
-            low=2,
-            high=3,
+            min_value=2,
+            max_value=3,
             max_partitions_contributed=1,
             max_contributions_per_partition=1,
             noise_kind=NoiseKind.LAPLACE)
@@ -156,14 +156,14 @@ class DPComputationsTest(unittest.TestCase):
         params = dp_computations.MeanVarParams(
             eps=0.5,
             delta=1e-10,
-            low=2,
-            high=3,
+            min_value=2,
+            max_value=3,
             max_partitions_contributed=1,
             max_contributions_per_partition=1,
             noise_kind=NoiseKind.LAPLACE)
         l0_sensitivity = params.l0_sensitivity()
         linf_sensitivity = params.max_contributions_per_partition * max(
-            params.low, params.high)
+            params.min_value, params.max_value)
 
         # Laplace Mechanism
         l1_sensitivity = dp_computations.compute_l1_sensitivity(
@@ -205,8 +205,8 @@ class DPComputationsTest(unittest.TestCase):
         params = dp_computations.MeanVarParams(
             eps=0.5,
             delta=1e-10,
-            low=1,
-            high=20,
+            min_value=1,
+            max_value=20,
             max_partitions_contributed=1,
             max_contributions_per_partition=1,
             noise_kind=NoiseKind.LAPLACE)
@@ -251,8 +251,8 @@ class DPComputationsTest(unittest.TestCase):
         params = dp_computations.MeanVarParams(
             eps=10,
             delta=1e-10,
-            low=1,
-            high=20,
+            min_value=1,
+            max_value=20,
             max_partitions_contributed=1,
             max_contributions_per_partition=1,
             noise_kind=NoiseKind.LAPLACE)

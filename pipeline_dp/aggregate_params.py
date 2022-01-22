@@ -48,8 +48,8 @@ class AggregateParams:
       unit of privacy (e.g., a user) can participate.
     max_contributions_per_partition: Bounds the number of times one unit of
       privacy (e.g. a user) can contribute to a partition.
-    low: Lower bound on a value contributed by a unit of privacy in a partition.
-    high: Upper bound on a value contributed by a unit of privacy in a
+    min_value: Lower bound on a value contributed by a unit of privacy in a partition.
+    max_value: Upper bound on a value contributed by a unit of privacy in a
       partition.
     public_partitions: a collection of partition keys that will be present in
       the result.
@@ -60,9 +60,20 @@ class AggregateParams:
     max_partitions_contributed: int
     max_contributions_per_partition: int
     budget_weight: float = 1
-    low: float = None
-    high: float = None
+    low: float = None  # deprecated
+    high: float = None  # deprecated
+    min_value: float = None
+    max_value: float = None
     public_partitions: Any = None
+
+    def __post_init__(self):
+        if self.low is not None:
+            raise ValueError(
+                "AggregateParams: please use min_value instead of low")
+
+        if self.high is not None:
+            raise ValueError(
+                "AggregateParams: please use max_value instead of high")
 
     def __str__(self):
         return f"Metrics: {[m.value for m in self.metrics]}"
@@ -110,13 +121,22 @@ class SumParams:
   """
     max_partitions_contributed: int
     max_contributions_per_partition: int
-    low: float
-    high: float
+    min_value: float
+    max_value: float
     partition_extractor: Callable
     value_extractor: Callable
+    low: float = None  # deprecated
+    high: float = None  # deprecated
     budget_weight: float = 1
     noise_kind: NoiseKind = NoiseKind.LAPLACE
     public_partitions: Union[Iterable, 'PCollection', 'RDD'] = None
+
+    def __post_init__(self):
+        if self.low is not None:
+            raise ValueError("SumParams: please use min_value instead of low")
+
+        if self.high is not None:
+            raise ValueError("SumParams: please use max_value instead of high")
 
 
 @dataclass
