@@ -21,7 +21,7 @@ def _create_mechanism_spec(no_noise):
 def _create_aggregate_params(max_value: float = 1):
     return pipeline_dp.AggregateParams(
         min_value=0,
-        max_value=high,
+        max_value=max_value,
         max_partitions_contributed=1,
         max_contributions_per_partition=3,
         noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
@@ -219,7 +219,7 @@ class MeanCombinerTest(parameterized.TestCase):
 
     def _create_combiner(self, no_noise):
         mechanism_spec = _create_mechanism_spec(no_noise)
-        aggregate_params = _create_aggregate_params(high=4)
+        aggregate_params = _create_aggregate_params(max_value=4)
         params = dp_combiners.CombinerParams(mechanism_spec, aggregate_params)
         return dp_combiners.MeanCombiner(params)
 

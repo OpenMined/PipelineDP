@@ -78,8 +78,8 @@ class Sum(PrivatePTransform):
         self._sum_params = sum_params
 
     def expand(self, pcol: pvalue.PCollection) -> pvalue.PCollection:
-        ops = pipeline_dp.BeamBackend()
-        dp_engine = pipeline_dp.DPEngine(self._budget_accountant, ops)
+        backend = pipeline_dp.BeamBackend()
+        dp_engine = pipeline_dp.DPEngine(self._budget_accountant, backend)
 
         params = pipeline_dp.AggregateParams(
             noise_kind=self._sum_params.noise_kind,
@@ -103,7 +103,7 @@ class Sum(PrivatePTransform):
 
         # aggregate() returns a list of metrics for each partition key.
         # Here is only one metric - sum. Remove list.
-        dp_result = ops.map_values(dp_result, lambda v: v[0], "Unnest list")
+        dp_result = backend.map_values(dp_result, lambda v: v[0], "Unnest list")
         # dp_result : (partition_key, dp_sum)
 
         return dp_result
@@ -119,8 +119,8 @@ class Count(PrivatePTransform):
         self._count_params = count_params
 
     def expand(self, pcol: pvalue.PCollection) -> pvalue.PCollection:
-        ops = pipeline_dp.BeamBackend()
-        dp_engine = pipeline_dp.DPEngine(self._budget_accountant, ops)
+        backend = pipeline_dp.BeamBackend()
+        dp_engine = pipeline_dp.DPEngine(self._budget_accountant, backend)
 
         params = pipeline_dp.AggregateParams(
             noise_kind=self._count_params.noise_kind,
@@ -144,7 +144,7 @@ class Count(PrivatePTransform):
 
         # aggregate() returns a list of metrics for each partition key.
         # Here is only one metric - count. Remove list.
-        dp_result = ops.map_values(dp_result, lambda v: v[0], "Unnest list")
+        dp_result = backend.map_values(dp_result, lambda v: v[0], "Unnest list")
         # dp_result : (partition_key, dp_count)
 
         return dp_result
@@ -160,8 +160,8 @@ class PrivacyIdCount(PrivatePTransform):
         self._privacy_id_count_params = privacy_id_count_params
 
     def expand(self, pcol: pvalue.PCollection) -> pvalue.PCollection:
-        ops = pipeline_dp.BeamBackend()
-        dp_engine = pipeline_dp.DPEngine(self._budget_accountant, ops)
+        backend = pipeline_dp.BeamBackend()
+        dp_engine = pipeline_dp.DPEngine(self._budget_accountant, backend)
 
         params = pipeline_dp.AggregateParams(
             noise_kind=self._privacy_id_count_params.noise_kind,
@@ -183,7 +183,7 @@ class PrivacyIdCount(PrivatePTransform):
 
         # aggregate() returns a list of metrics for each partition key.
         # Here is only one metric - privacy_id_count. Remove list.
-        dp_result = ops.map_values(dp_result, lambda v: v[0], "Unnest list")
+        dp_result = backend.map_values(dp_result, lambda v: v[0], "Unnest list")
         # dp_result : (partition_key, dp_privacy_id_count)
 
         return dp_result
