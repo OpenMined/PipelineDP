@@ -140,17 +140,18 @@ class DPEngine:
             raise ValueError(
                 "params.max_contributions_per_partition must be set "
                 "to a positive integer")
-        needs_low_high = any(metric == Metrics.SUM for metric in params.metrics)
-        if needs_low_high and (params.min_value is None or
-                               params.max_value is None):
+        needs_min_max_value = Metrics.SUM in params.metrics
+        if needs_min_max_value and (params.min_value is None or
+                                    params.max_value is None):
             raise ValueError(
                 "params.min_value and params.max_value must be set")
-        if needs_low_high and (self._not_a_proper_number(params.min_value) or
-                               self._not_a_proper_number(params.max_value)):
+        if needs_min_max_value and (
+                self._not_a_proper_number(params.min_value) or
+                self._not_a_proper_number(params.max_value)):
             raise ValueError(
                 "params.min_value and params.max_value must be both finite numbers"
             )
-        if needs_low_high and params.max_value < params.min_value:
+        if needs_min_max_value and params.max_value < params.min_value:
             raise ValueError(
                 "params.max_value must be equal to or greater than params.min_value"
             )
