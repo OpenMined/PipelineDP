@@ -30,12 +30,14 @@ class MeanVarParams:
             return 0, max(self.min_value**2, self.max_value**2)
         return self.min_value**2, self.max_value**2
 
-
+      
 def compute_middle(min_value: float, max_value: float):
-    """"Returns the middle point of the interval [min_value, max_value]."""
+    """"Returns the middle point of the interval [min_value, max_value]."""    
+    # (min_value + max_value) / 2 may cause an overflow or loss of precision if
+    # min_value and max_value are large.
     return min_value + (max_value - min_value) / 2
 
-
+  
 def compute_l1_sensitivity(l0_sensitivity: float, linf_sensitivity: float):
     """Calculates the L1 sensitivity based on the L0 and Linf sensitivities.
 
@@ -304,7 +306,11 @@ def _compute_mean(
     dp_normalized_sum = _add_random_noise(normalized_sum, eps, delta,
                                           l0_sensitivity, linf_sensitivity,
                                           noise_kind)
-    return dp_normalized_sum / dp_count + middle
+    # Clamps dp_count to 1.0. We know that actual count > 1 except when the
+    # input set is empty, in which case it shouldn't matter much what the
+    # denominator is.
+    dp_count_clamped = max(1.0, dp_count)
+    return dp_normalized_sum / dp_count_clamped + middle
 
 
 def compute_dp_mean(count: int, sum: float, dp_params: MeanVarParams):
@@ -347,6 +353,7 @@ def compute_dp_mean(count: int, sum: float, dp_params: MeanVarParams):
         dp_params.max_contributions_per_partition,
         dp_params.noise_kind,
     )
+
     return dp_count, dp_mean * dp_count, dp_mean
 
 

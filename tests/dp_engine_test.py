@@ -362,7 +362,7 @@ class DpEngineTest(parameterized.TestCase):
             "Differentially private: Computing <Metrics: ['privacy_id_count', 'count', 'mean']>"
             "\n1. Per-partition contribution bounding: randomly selected not more than 2 contributions"
             "\n2. Cross-partition contribution bounding: randomly selected not more than 3 partitions per user"
-            "\n3. Private Partition selection: using Truncated Geometric method with (eps= 0.1111111111111111, delta = 1.1111111111111111e-11)"
+            "\n3. Private Partition selection: using Truncated Geometric method with (eps= 0.08333333333333333, delta = 8.333333333333334e-12)"
         )
         self.assertEqual(
             engine._report_generators[1].report(),
