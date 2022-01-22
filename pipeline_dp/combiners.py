@@ -161,8 +161,9 @@ class MeanCombiner(Combiner):
         self._params = params
 
     def create_accumulator(self, values: Iterable[float]) -> AccumulatorType:
-        return len(values), np.clip(values, self._params.aggregate_params.min_value,
-                                    self._params.aggregate_params.max_value).sum()
+        return len(values), np.clip(
+            values, self._params.aggregate_params.min_value,
+            self._params.aggregate_params.max_value).sum()
 
     def merge_accumulators(self, accum1: AccumulatorType,
                            accum2: AccumulatorType):
