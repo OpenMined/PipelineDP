@@ -251,7 +251,7 @@ class DpEngineTest(parameterized.TestCase):
             },
             {
                 "desc":
-                    "unspecified low",
+                    "unspecified min_value",
                 "col": [0],
                 "params":
                     pipeline_dp.AggregateParams(
@@ -264,7 +264,7 @@ class DpEngineTest(parameterized.TestCase):
             },
             {
                 "desc":
-                    "unspecified high",
+                    "unspecified max_value",
                 "col": [0],
                 "params":
                     pipeline_dp.AggregateParams(
