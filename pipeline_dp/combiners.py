@@ -1,11 +1,12 @@
 import abc
 import copy
-from typing import Iterable, Sized, Tuple, Any, List, Sequence
+from typing import Iterable, Sized, Tuple
 
 import pipeline_dp
-import numpy as np
 from pipeline_dp import dp_computations
 from pipeline_dp import budget_accounting
+import numpy as np
+from collections import namedtuple
 
 
 class Combiner(abc.ABC):
@@ -88,7 +89,7 @@ class CountCombiner(Combiner):
     def __init__(self, params: CombinerParams):
         self._params = params
 
-    def create_accumulator(self, values: Sized) -> 'AccumulatorType':
+    def create_accumulator(self, values: Sized) -> AccumulatorType:
         return len(values)
 
     def merge_accumulators(self, count1: AccumulatorType,
@@ -102,7 +103,6 @@ class CountCombiner(Combiner):
 
 class PrivacyIdCountCombiner(Combiner):
     """Combiner for computing DP privacy id count.
-
     The type of the accumulator is int, which represents count of the elements
     in the dataset for which this accumulator is computed.
     """
@@ -111,7 +111,7 @@ class PrivacyIdCountCombiner(Combiner):
     def __init__(self, params: CombinerParams):
         self._params = params
 
-    def create_accumulator(self, values: Sized) -> 'AccumulatorType':
+    def create_accumulator(self, values: Sized) -> AccumulatorType:
         return 1 if values else 0
 
     def merge_accumulators(self, accumulator1: AccumulatorType,
@@ -145,6 +145,38 @@ class SumCombiner(Combiner):
         return dp_computations.compute_dp_sum(sum, self._params.mean_var_params)
 
 
+MeanTuple = namedtuple('MeanTuple', ['count', 'sum', 'mean'])
+
+
+class MeanCombiner(Combiner):
+    """Combiner for computing DP Mean. Also returns sum and count in addition to
+    the mean.
+    The type of the accumulator is a tuple(count: int, sum: float) that holds
+    the count and sum of elements in the dataset for which this accumulator is
+    computed.
+    """
+    AccumulatorType = Tuple[int, float]
+
+    def __init__(self, params: CombinerParams):
+        self._params = params
+
+    def create_accumulator(self, values: Iterable[float]) -> AccumulatorType:
+        return len(values), np.clip(values, self._params.aggregate_params.min_value,
+                                    self._params.aggregate_params.max_value).sum()
+
+    def merge_accumulators(self, accum1: AccumulatorType,
+                           accum2: AccumulatorType):
+        count1, sum1 = accum1
+        count2, sum2 = accum2
+        return count1 + count2, sum1 + sum2
+
+    def compute_metrics(self, accum: AccumulatorType) -> namedtuple:
+        total_count, total_sum = accum
+        noisy_count, noisy_sum, noisy_mean = dp_computations.compute_dp_mean(
+            total_count, total_sum, self._params.mean_var_params)
+        return MeanTuple(count=noisy_count, sum=noisy_sum, mean=noisy_mean)
+
+
 class CompoundCombiner(Combiner):
     """Combiner for computing a set of dp aggregations.
 
@@ -162,7 +194,7 @@ class CompoundCombiner(Combiner):
     def __init__(self, combiners: Iterable['Combiner']):
         self._combiners = combiners
 
-    def create_accumulator(self, values) -> 'AccumulatorType':
+    def create_accumulator(self, values) -> AccumulatorType:
         return (1,
                 tuple(
                     combiner.create_accumulator(values)
@@ -212,4 +244,9 @@ def create_compound_combiner(
         combiners.append(
             PrivacyIdCountCombiner(
                 CombinerParams(budget_privacy_id_count, aggregate_params)))
+    if pipeline_dp.Metrics.MEAN in aggregate_params.metrics:
+        budget_mean = budget_accountant.request_budget(
+            mechanism_type, weight=aggregate_params.budget_weight)
+        combiners.append(
+            MeanCombiner(CombinerParams(budget_mean, aggregate_params)))
     return CompoundCombiner(combiners)
