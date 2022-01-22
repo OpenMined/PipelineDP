@@ -143,6 +143,46 @@ class PrivateRDDTest(unittest.TestCase):
         result = prdd.count(count_params)
         self.assertEqual([(0, "count0"), (1, "count1")], result.collect())
 
+    @patch('pipeline_dp.dp_engine.DPEngine.aggregate')
+    def test_privacy_id_count(self, mock_aggregate):
+        dist_data = PrivateRDDTest.sc.parallelize([])
+        budget_accountant = budget_accounting.NaiveBudgetAccountant(1, 1e-10)
+
+        def privacy_id_extractor(x):
+            return f"pid{x%10}"
+
+        prdd = private_spark.make_private(dist_data, budget_accountant,
+                                          privacy_id_extractor)
+
+        privacy_id_count_params = agg.PrivacyIdCountParams(
+            noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+            max_partitions_contributed=2,
+            budget_weight=1,
+            partition_extractor=lambda x: f"pk:{x // 10}")
+        prdd.privacy_id_count(privacy_id_count_params)
+
+        mock_aggregate.assert_called_once()
+
+        args = mock_aggregate.call_args[0]
+
+        rdd = dist_data.map(lambda x: (privacy_id_extractor(x), x))
+        self.assertListEqual(args[0].collect(), rdd.collect())
+
+        params = pipeline_dp.AggregateParams(
+            noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+            metrics=[pipeline_dp.Metrics.PRIVACY_ID_COUNT],
+            max_partitions_contributed=privacy_id_count_params.
+            max_partitions_contributed,
+            max_contributions_per_partition=1,
+            public_partitions=privacy_id_count_params.public_partitions)
+        self.assertEqual(args[1], params)
+
+        mock_aggregate.return_value = PrivateRDDTest.sc.parallelize([
+            (0, ["count0"]), (1, ["count1"])
+        ])
+        result = prdd.privacy_id_count(privacy_id_count_params)
+        self.assertEqual([(0, "count0"), (1, "count1")], result.collect())
+
     @classmethod
     def tearDownClass(cls):
         cls.sc.stop()
