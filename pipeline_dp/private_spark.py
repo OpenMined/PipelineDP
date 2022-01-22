@@ -61,8 +61,8 @@ class PrivateRDD:
             max_partitions_contributed=sum_params.max_partitions_contributed,
             max_contributions_per_partition=sum_params.
             max_contributions_per_partition,
-            low=sum_params.low,
-            high=sum_params.high,
+            min_value=sum_params.min_value,
+            max_value=sum_params.max_value,
             public_partitions=sum_params.public_partitions,
             budget_weight=sum_params.budget_weight)
 
@@ -113,6 +113,43 @@ class PrivateRDD:
         # Here is only one metric - count. Remove list.
         dp_result = backend.map_values(dp_result, lambda v: v[0], "Unnest list")
         # dp_result : (partition_key, dp_count)
+
+        return dp_result
+
+    def privacy_id_count(
+            self, privacy_id_count_params: aggregate_params.PrivacyIdCountParams
+    ) -> RDD:
+        """Computes DP Privacy ID count.
+
+        Args:
+            privacy_id_count_params: parameters for calculation
+        """
+
+        ops = pipeline_dp.SparkRDDBackend()
+        dp_engine = pipeline_dp.DPEngine(self._budget_accountant, ops)
+
+        params = pipeline_dp.AggregateParams(
+            noise_kind=privacy_id_count_params.noise_kind,
+            metrics=[pipeline_dp.Metrics.PRIVACY_ID_COUNT],
+            max_partitions_contributed=privacy_id_count_params.
+            max_partitions_contributed,
+            max_contributions_per_partition=1,
+            public_partitions=privacy_id_count_params.public_partitions)
+
+        data_extractors = pipeline_dp.DataExtractors(
+            partition_extractor=lambda x: privacy_id_count_params.
+            partition_extractor(x[1]),
+            privacy_id_extractor=lambda x: x[0],
+            # PrivacyIdCount ignores values.
+            value_extractor=lambda x: None)
+
+        dp_result = dp_engine.aggregate(self._rdd, params, data_extractors)
+        # dp_result : (partition_key, [dp_privacy_id_count])
+
+        # aggregate() returns a list of metrics for each partition key.
+        # Here is only one metric - privacy_id_count. Remove list.
+        dp_result = ops.map_values(dp_result, lambda v: v[0], "Unnest list")
+        # dp_result : (partition_key, dp_privacy_id_count)
 
         return dp_result
 

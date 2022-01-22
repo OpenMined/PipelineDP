@@ -88,8 +88,8 @@ class Sum(PrivatePTransform):
             max_partitions_contributed,
             max_contributions_per_partition=self._sum_params.
             max_contributions_per_partition,
-            low=self._sum_params.low,
-            high=self._sum_params.high,
+            min_value=self._sum_params.min_value,
+            max_value=self._sum_params.max_value,
             public_partitions=self._sum_params.public_partitions)
 
         data_extractors = pipeline_dp.DataExtractors(

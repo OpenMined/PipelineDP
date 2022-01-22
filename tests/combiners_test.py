@@ -20,8 +20,8 @@ def _create_mechism_spec(no_noise):
 
 def _create_aggregate_params():
     return pipeline_dp.AggregateParams(
-        low=0,
-        high=1,
+        min_value=0,
+        max_value=1,
         max_partitions_contributed=1,
         max_contributions_per_partition=3,
         noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
