@@ -10,5 +10,6 @@ github_username: OpenMined
 
 # Build settings
 markdown: kramdown
+permalink: pretty
 sass:
   style: compressed
