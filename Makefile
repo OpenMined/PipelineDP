@@ -22,3 +22,7 @@ precommit: lint test format clean
 .PHONY: dev
 dev: 
 	pip install -r requirements.dev.txt
+
+.PHONY: dist
+dist: 
+	python setup.py bdist_wheel
