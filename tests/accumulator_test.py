@@ -159,7 +159,7 @@ class GenericAccumulatorTest(unittest.TestCase):
             max_norm=0,
             l0_sensitivity=0,
             linf_sensitivity=0,
-            norm_kind=NormKind.Linf,
+            norm_kind=aggregate_params.NormKind.Linf,
             noise_kind=NoiseKind.GAUSSIAN)
         vec_sum_accumulator1 = accumulator.VectorSummationAccumulator(
             params=vec_params, values=[(15, 2)])
@@ -182,7 +182,7 @@ class GenericAccumulatorTest(unittest.TestCase):
             max_norm=0,
             l0_sensitivity=0,
             linf_sensitivity=0,
-            norm_kind=NormKind.Linf,
+            norm_kind=aggregate_params.NormKind.Linf,
             noise_kind=NoiseKind.GAUSSIAN)
         vec_sum_accumulator = accumulator.VectorSummationAccumulator(
             params=vec_params, values=[(27, 40)])

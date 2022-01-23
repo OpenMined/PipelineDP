@@ -151,12 +151,12 @@ class AdditiveVectorNoiseParams:
     max_norm: float
     l0_sensitivity: float
     linf_sensitivity: float
-    norm_kind: pipeline_dp.NormKind
+    norm_kind: pipeline_dp.aggregate_params.NormKind
     noise_kind: NoiseKind
 
 
 def _clip_vector(vec: np.ndarray, max_norm: float,
-                 norm_kind: pipeline_dp.NormKind):
+                 norm_kind: pipeline_dp.aggregate_params.NormKind):
     norm_kind = norm_kind.value  # type: str
     if norm_kind == "linf":
         return np.clip(vec, -max_norm, max_norm)

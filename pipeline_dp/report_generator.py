@@ -1,7 +1,5 @@
 """Generator for explaining DP computation reports."""
 
-from pipeline_dp.aggregate_params import AggregateParams
-
 
 class ReportGenerator:
     """Generates a report based on the metrics and stages in the pipeline.

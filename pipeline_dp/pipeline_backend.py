@@ -6,13 +6,18 @@ import random
 import numpy as np
 
 import abc
-import apache_beam as beam
-import apache_beam.transforms.combiners as combiners
 import pipeline_dp.accumulator as accumulator
 import pipeline_dp.combiners as dp_combiners
 import typing
 import collections
 import itertools
+
+try:
+    import apache_beam as beam
+    import apache_beam.transforms.combiners as combiners
+except:
+    # It is fine if Apache Beam is not installed, other backends can be used.
+    pass
 
 
 class PipelineBackend(abc.ABC):
@@ -565,6 +570,7 @@ class _LazyMultiProcCountIterator(_LazyMultiProcIterator):
 
 
 class MultiProcLocalBackend(PipelineBackend):
+    """Warning: this class is experimental."""
 
     def __init__(self,
                  n_jobs: typing.Optional[int] = None,

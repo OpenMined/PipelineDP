@@ -1,33 +1,18 @@
 """DP aggregations."""
 import math
-from dataclasses import dataclass
-# TODO: import only modules https://google.github.io/styleguide/pyguide.html#22-imports
-from functools import partial
+import dataclasses
+import functools
 from typing import Any, Callable, Tuple
 import numpy as np
 
-import pydp.algorithms.partition_selection as partition_selection
-
 import pipeline_dp
 from pipeline_dp import combiners
-from pipeline_dp.aggregate_params import Metrics
-from pipeline_dp.accumulator import Accumulator
-from pipeline_dp.accumulator import AccumulatorFactory
-from pipeline_dp.accumulator import CompoundAccumulator
-from pipeline_dp.aggregate_params import AggregateParams
-from pipeline_dp.aggregate_params import SelectPrivatePartitionsParams
-from pipeline_dp.aggregate_params import MechanismType
-from pipeline_dp.budget_accounting import BudgetAccountant, MechanismSpec
-from pipeline_dp.pipeline_backend import PipelineBackend
-from pipeline_dp.report_generator import ReportGenerator
-from pipeline_dp.accumulator import Accumulator
-from pipeline_dp.accumulator import CompoundAccumulatorFactory
-from pipeline_dp.combiners import create_compound_combiner, Combiner, CompoundCombiner
+import pipeline_dp.report_generator as report_generator
 
 import pydp.algorithms.partition_selection as partition_selection
 
 
-@dataclass
+@dataclasses.dataclass
 class DataExtractors:
     """Data extractors.
 
@@ -43,8 +28,8 @@ class DataExtractors:
 class DPEngine:
     """Performs DP aggregations."""
 
-    def __init__(self, budget_accountant: BudgetAccountant,
-                 backend: PipelineBackend):
+    def __init__(self, budget_accountant: 'BudgetAccountant',
+                 backend: 'PipelineBackend'):
         self._budget_accountant = budget_accountant
         self._backend = backend
         self._report_generators = []
@@ -52,7 +37,7 @@ class DPEngine:
     def _add_report_stage(self, text):
         self._report_generators[-1].add_stage(text)
 
-    def aggregate(self, col, params: AggregateParams,
+    def aggregate(self, col, params: pipeline_dp.AggregateParams,
                   data_extractors: DataExtractors):
         """Computes DP aggregation metrics.
 
@@ -67,12 +52,13 @@ class DPEngine:
         with self._budget_accountant.scope(weight=params.budget_weight):
             return self._aggregate(col, params, data_extractors)
 
-    def _aggregate(self, col, params: AggregateParams,
+    def _aggregate(self, col, params: pipeline_dp.AggregateParams,
                    data_extractors: DataExtractors):
 
-        self._report_generators.append(ReportGenerator(params))
+        self._report_generators.append(report_generator.ReportGenerator(params))
 
-        combiner = create_compound_combiner(params, self._budget_accountant)
+        combiner = combiners.create_compound_combiner(params,
+                                                      self._budget_accountant)
 
         if params.public_partitions is not None:
             col = self._drop_not_public_partitions(col,
@@ -123,13 +109,13 @@ class DPEngine:
 
         return col
 
-    def _check_aggregate_params(self, col, params: AggregateParams,
+    def _check_aggregate_params(self, col, params: pipeline_dp.AggregateParams,
                                 data_extractors: DataExtractors):
         if col is None or not col:
             raise ValueError("col must be non-empty")
         if params is None:
             raise ValueError("params must be set to a valid AggregateParams")
-        if not isinstance(params, AggregateParams):
+        if not isinstance(params, pipeline_dp.AggregateParams):
             raise TypeError("params must be set to a valid AggregateParams")
         if not isinstance(params.max_partitions_contributed,
                           int) or params.max_partitions_contributed <= 0:
@@ -140,7 +126,7 @@ class DPEngine:
             raise ValueError(
                 "params.max_contributions_per_partition must be set "
                 "to a positive integer")
-        needs_min_max_value = Metrics.SUM in params.metrics
+        needs_min_max_value = pipeline_dp.Metrics.SUM in params.metrics
         if needs_min_max_value and (params.min_value is None or
                                     params.max_value is None):
             raise ValueError(
@@ -160,15 +146,15 @@ class DPEngine:
         if not isinstance(data_extractors, pipeline_dp.DataExtractors):
             raise TypeError("data_extractors must be set to a DataExtractors")
 
-    def _check_select_private_partitions(self, col,
-                                         params: SelectPrivatePartitionsParams,
-                                         data_extractors: DataExtractors):
+    def _check_select_private_partitions(
+            self, col, params: pipeline_dp.SelectPrivatePartitionsParams,
+            data_extractors: DataExtractors):
         if col is None or not col:
             raise ValueError("col must be non-empty")
         if params is None:
             raise ValueError(
                 "params must be set to a valid SelectPrivatePartitionsParams")
-        if not isinstance(params, SelectPrivatePartitionsParams):
+        if not isinstance(params, pipeline_dp.SelectPrivatePartitionsParams):
             raise TypeError(
                 "params must be set to a valid SelectPrivatePartitionsParams")
         if not isinstance(params.max_partitions_contributed,
@@ -180,9 +166,9 @@ class DPEngine:
         if not isinstance(data_extractors, pipeline_dp.DataExtractors):
             raise TypeError("data_extractors must be set to a DataExtractors")
 
-    def select_private_partitions(self, col,
-                                  params: SelectPrivatePartitionsParams,
-                                  data_extractors: DataExtractors):
+    def select_private_partitions(
+            self, col, params: pipeline_dp.SelectPrivatePartitionsParams,
+            data_extractors: DataExtractors):
         """Retrieves a collection of differentially-private partitions.
 
         Args:
@@ -194,7 +180,7 @@ class DPEngine:
         """
         self._check_select_private_partitions(col, params, data_extractors)
 
-        self._report_generators.append(ReportGenerator(params))
+        self._report_generators.append(report_generator.ReportGenerator(params))
         max_partitions_contributed = params.max_partitions_contributed
 
         # Extract the columns.
@@ -237,7 +223,7 @@ class DPEngine:
         # col : (privacy_id, partition_key)
 
         # A compound accumulator without any child accumulators is used to calculate the raw privacy ID count.
-        compound_combiner = CompoundCombiner([])
+        compound_combiner = combiners.CompoundCombiner([])
         col = self._backend.map_tuple(
             col, lambda pid, pk: (pk, compound_combiner.create_accumulator([])),
             "Drop privacy id and add accumulator")
@@ -350,10 +336,10 @@ class DPEngine:
             collection of elements (partition_key, accumulator)
         """
         budget = self._budget_accountant.request_budget(
-            mechanism_type=MechanismType.GENERIC)
+            mechanism_type=pipeline_dp.MechanismType.GENERIC)
 
         def filter_fn(
-            budget: MechanismSpec, max_partitions: int,
+            budget: 'MechanismSpec', max_partitions: int,
             row: Tuple[Any,
                        combiners.CompoundCombiner.AccumulatorType]) -> bool:
             """Lazily creates a partition selection strategy and uses it to determine which
@@ -366,7 +352,8 @@ class DPEngine:
             return partition_selection_strategy.should_keep(pirvacy_id_count)
 
         # make filter_fn serializable
-        filter_fn = partial(filter_fn, budget, max_partitions_contributed)
+        filter_fn = functools.partial(filter_fn, budget,
+                                      max_partitions_contributed)
         self._add_report_stage(
             lambda:
             f"Private Partition selection: using {budget.mechanism_type.value} "
