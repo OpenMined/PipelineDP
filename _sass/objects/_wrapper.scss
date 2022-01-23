@@ -1,0 +1,35 @@
+/* Wrapper */
+
+$wrapper-width-1: 576px;
+$wrapper-width-2: 720px;
+$wrapper-width-3: 940px;
+$wrapper-width-4: 1140px;
+
+.o-wrapper {
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 25px;
+  padding-right: 25px;
+
+  &::after {
+    clear: both;
+    content: "";
+    display: table;
+  }
+
+  @media (min-width: 34rem) {
+    max-width: $wrapper-width-1;
+  }
+
+  @media (min-width: 48rem) {
+    max-width: $wrapper-width-2;
+  }
+
+  @media (min-width: 62rem) {
+    max-width: $wrapper-width-3;
+  }
+
+  @media (min-width: 75rem) {
+    max-width: $wrapper-width-4;
+  }
+}
