@@ -1,0 +1,24 @@
+<header class="o-wrapper c-header">
+  <a class="c-header__logo" href="{{ "/" | relative_url }}">
+    {{ site.title | escape }}
+  </a>
+  <nav class="c-header__nav">
+    <ul class="c-header__list">
+      {%- for item in site.pages reversed -%}
+        {%- if item.title and page.url == item.url -%}
+          <li class="c-header__item">
+            <a class="c-header__link is-active" href="{{ item.url | relative_url }}">
+              {{ item.title | escape }}
+            </a>
+          </li>
+        {%- elsif item.title -%}
+          <li class="c-header__item">
+            <a class="c-header__link" href="{{ item.url | relative_url }}">
+              {{ item.title | escape }}
+            </a>
+          </li>
+        {%- endif -%}
+      {%- endfor -%}
+    </ul>
+  </nav>
+</header>
