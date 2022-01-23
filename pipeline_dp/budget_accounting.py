@@ -93,6 +93,7 @@ class BudgetAccountant(abc.ABC):
     def __init__(self):
         self._scopes_stack = []
         self._mechanisms = []
+        self._finalized = False
 
     @abc.abstractmethod
     def request_budget(
@@ -144,6 +145,11 @@ class BudgetAccountant(abc.ABC):
     def _exit_scope(self):
         self._scopes_stack.pop()
 
+    def _finalize(self):
+        if self._finalized:
+            raise Exception("compute_budgets can not be called twice.")
+        self._finalized = True
+
 
 @dataclass
 class BudgetAccountantScope:
@@ -191,6 +197,7 @@ class NaiveBudgetAccountant(BudgetAccountant):
 
         self._total_epsilon = total_epsilon
         self._total_delta = total_delta
+        self._finalized = False
 
     def request_budget(
             self,
@@ -215,12 +222,18 @@ class NaiveBudgetAccountant(BudgetAccountant):
             A "lazy" mechanism spec object that doesn't contain the noise
             standard deviation until compute_budgets is called.
         """
+        if self._finalized:
+            raise Exception(
+                "request_budget() is called after compute_budgets(). "
+                "Please ensure that compute_budgets() is called after DP "
+                "aggregations.")
+
         if noise_standard_deviation is not None:
             raise NotImplementedError(
                 "Count and noise standard deviation have not been implemented yet."
             )
         if mechanism_type == MechanismType.GAUSSIAN and self._total_delta == 0:
-            raise AssertionError(
+            raise ValueError(
                 "The Gaussian mechanism requires that the pipeline delta is greater than 0"
             )
         mechanism_spec = MechanismSpec(mechanism_type=mechanism_type,
@@ -235,6 +248,8 @@ class NaiveBudgetAccountant(BudgetAccountant):
 
     def compute_budgets(self):
         """Updates all previously requested MechanismSpec objects with corresponding budget values."""
+        self._finalize()
+
         if not self._mechanisms:
             logging.warning("No budgets were requested.")
             return
@@ -318,6 +333,12 @@ class PLDBudgetAccountant(BudgetAccountant):
             A "lazy" mechanism spec object that doesn't contain the noise
             standard deviation until compute_budgets is called.
         """
+        if self._finalized:
+            raise Exception(
+                "request_budget() is called after compute_budgets(). "
+                "Please ensure that compute_budgets() is called after DP "
+                "aggregations.")
+
         if count != 1 or noise_standard_deviation is not None:
             raise NotImplementedError(
                 "Count and noise standard deviation have not been implemented yet."
@@ -341,6 +362,8 @@ class PLDBudgetAccountant(BudgetAccountant):
         noise based on given epsilon. Sets the noise for the
         entire pipeline.
         """
+        self._finalize()
+
         if not self._mechanisms:
             logging.warning("No budgets were requested.")
             return
