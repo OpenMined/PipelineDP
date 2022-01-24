@@ -1,0 +1,35 @@
+/* Banner */
+
+.c-banner {
+  background-color: #e8f0fe;
+  text-align: center;
+
+  &__title {
+    color: #8ab4f8;
+    font-size: 0.875rem;
+    font-weight: 700;
+    margin: 0;
+    padding: 4rem 0 1rem;
+    text-transform: uppercase;
+  }
+
+  &__description {
+    color: #202124;
+    font-size: 1.5rem;
+    font-weight: 500;
+    margin: 0 auto;
+    max-width: 35ch;
+  }
+
+  &__list {
+    display: flex;
+    flex-flow: row wrap;
+    justify-content: center;
+    margin: 4rem 0 4rem -2rem;
+    padding: 0;
+  }
+
+  &__item {
+    margin: 0 0 2rem 2rem;
+  }
+}

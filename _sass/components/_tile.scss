@@ -1,0 +1,31 @@
+/* Tile */
+
+.c-tile {
+  align-items: center;
+  background-color: #fff;
+  display: flex;
+  flex-flow: row nowrap;
+  height: 114px;
+  padding: 1.5rem;
+  text-align: left;
+  width: 420px;
+
+  &__icon {
+    display: inline-block;
+    margin-right: 1.5rem;
+  }
+
+  &__title {
+    color: #1a73e8;
+    font-size: 1.125rem;
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+    margin-top: 0;
+  }
+
+  &__description {
+    color: #3c4043;
+    font-size: 0.875rem;
+    margin: 0;
+  }
+}
