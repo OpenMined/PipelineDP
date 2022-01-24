@@ -6,7 +6,7 @@ description: >-
 baseurl: ""
 url: ""
 twitter_username: openminedorg
-github_username: OpenMined
+github_repository: OpenMined/PipelineDP
 
 # Build settings
 markdown: kramdown

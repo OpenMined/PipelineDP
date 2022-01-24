@@ -1,0 +1,19 @@
+<footer class="c-footer">
+  <div class="o-wrapper c-footer__wrapper">
+    <a class="c-footer__logo" href="{{ "/" | relative_url }}">
+      {{ site.title | escape }}
+    </a>
+    <ul class="c-footer__list">
+      {%- if site.twitter_username -%}
+        <li class="c-footer__item">
+          <a class="c-footer__link" href="https://twitter.com/{{ site.twitter_username }}" target="_blank">Twitter</a>
+        </li>
+      {%- endif -%}
+      {%- if site.github_repository -%}
+        <li class="c-footer__item">
+          <a class="c-footer__link" href="https://github.com/{{ site.github_repository }}" target="_blank">GitHub</a>
+        </li>
+      {%- endif -%}
+    </ul>
+  </div>
+</footer>
