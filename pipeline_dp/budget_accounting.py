@@ -8,8 +8,14 @@ from typing import Optional
 from dataclasses import dataclass
 # TODO: import only modules https://google.github.io/styleguide/pyguide.html#22-imports
 from pipeline_dp.aggregate_params import MechanismType
-from dp_accounting import privacy_loss_distribution as pldlib
-from dp_accounting import common
+
+try:
+    from dp_accounting import privacy_loss_distribution as pldlib
+    from dp_accounting import common
+except:
+    # dp_accounting library is needed only for PLDBudgetAccountant which is
+    # currently in experimental mode.
+    pass
 
 
 @dataclass
@@ -267,6 +273,8 @@ class PLDBudgetAccountant(BudgetAccountant):
     It manages the privacy budget for the pipeline using the
     Privacy Loss Distribution (PLD) implementation from Google's
     dp_accounting library.
+
+    This class is experimental. It is not yet compatible with DPEngine.
     """
 
     def __init__(self,
@@ -401,8 +409,8 @@ class PLDBudgetAccountant(BudgetAccountant):
         return max_noise_std
 
     def _compose_distributions(
-            self,
-            noise_standard_deviation: float) -> pldlib.PrivacyLossDistribution:
+            self, noise_standard_deviation: float
+    ) -> 'pldlib.PrivacyLossDistribution':
         """Uses the Privacy Loss Distribution library to compose distributions.
 
         Args:

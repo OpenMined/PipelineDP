@@ -6,13 +6,18 @@ import random
 import numpy as np
 
 import abc
-import apache_beam as beam
-import apache_beam.transforms.combiners as combiners
 import pipeline_dp.accumulator as accumulator
 import pipeline_dp.combiners as dp_combiners
 import typing
 import collections
 import itertools
+
+try:
+    import apache_beam as beam
+    import apache_beam.transforms.combiners as combiners
+except:
+    # It is fine if Apache Beam is not installed, other backends can be used.
+    pass
 
 
 class PipelineBackend(abc.ABC):
@@ -112,9 +117,6 @@ class PipelineBackend(abc.ABC):
           A collection that contains all values from col1 and col2.
         """
         pass
-
-    def is_serialization_immediate_on_reduce_by_key(self):
-        return False
 
 
 class UniqueLabelsGenerator:
@@ -348,9 +350,6 @@ class SparkRDDBackend(PipelineBackend):
         return rdd.reduceByKey(
             lambda acc1, acc2: combiner.merge_accumulators(acc1, acc2))
 
-    def is_serialization_immediate_on_reduce_by_key(self):
-        return True
-
     def flatten(self, col1, col2, stage_name: str = None):
         raise NotImplementedError("Not yet implemented for Spark")
 
@@ -565,6 +564,7 @@ class _LazyMultiProcCountIterator(_LazyMultiProcIterator):
 
 
 class MultiProcLocalBackend(PipelineBackend):
+    """Warning: this class is experimental."""
 
     def __init__(self,
                  n_jobs: typing.Optional[int] = None,
