@@ -12,6 +12,5 @@ from pipeline_dp.dp_engine import DPEngine
 from pipeline_dp.pipeline_backend import LocalBackend
 from pipeline_dp.pipeline_backend import BeamBackend
 from pipeline_dp.pipeline_backend import SparkRDDBackend
-from pipeline_dp import accumulator
 
 __version__ = '0.0.1rc0'
