@@ -1,0 +1,20 @@
+/* Button */
+
+.c-button {
+  border-radius: 4px;
+  display: inline-block;
+  font-weight: 500;
+  padding: 0.5rem 1.7rem;
+  text-decoration: none;
+
+  &--primary {
+    background-color: #1a73e8;
+    color: #fff;
+  }
+
+  &--secondary {
+    background-color: #fff;
+    border: 1px solid #dadce0;
+    color: #1a73e8;
+  }
+}

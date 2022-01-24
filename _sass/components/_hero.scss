@@ -1,0 +1,32 @@
+/* Hero */
+
+.c-hero {
+  background-image: url(/assets/images/shapes.svg);
+  background-position: 140% -20%;
+  background-repeat: no-repeat;
+
+  &__title {
+    color: #202124;
+    font-size: 4rem;
+    font-weight: 500;
+    line-height: 1.2;
+    margin: 0;
+    max-width: 16ch;
+    padding: 8rem 0 3rem;
+  }
+
+  &__description {
+    color: #5f6368;
+    font-size: 1.5rem;
+    margin: 0;
+    max-width: 40ch;
+  }
+
+  &__button {
+    margin: 3rem 0 8rem 2.5rem;
+
+    &:first-of-type {
+      margin-left: 0;
+    }
+  }
+}
