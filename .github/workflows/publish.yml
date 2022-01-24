@@ -11,7 +11,7 @@ jobs:
       max-parallel: 3
       matrix:
         os: [ubuntu-latest]
-        python-version: [3.8]
+        python-version: [3.7]
     runs-on: ${{ matrix.os }}
 
     steps:
