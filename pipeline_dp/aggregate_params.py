@@ -140,6 +140,36 @@ class SumParams:
 
 
 @dataclass
+class MeanParams:
+    """Specifies parameters for differentially-private mean calculation.
+
+    Args:
+        noise_kind: Kind of noise to use for the DP calculations.
+        max_partitions_contributed: Bounds the number of partitions in which one
+            unit of privacy (e.g., a user) can participate.
+        max_contributions_per_partition: Bounds the number of times one unit of
+            privacy (e.g. a user) can contribute to a partition.
+        min_value: Lower bound on a value contributed by a unit of privacy in a partition.
+        max_value: Upper bound on a value contributed by a unit of privacy in a
+            partition.
+        public_partitions: A collection of partition keys that will be present in
+            the result.
+        partition_extractor: A function for partition id extraction from a collection record.
+        value_extractor: A function for extraction of value
+            for which the sum will be calculated.
+  """
+    max_partitions_contributed: int
+    max_contributions_per_partition: int
+    min_value: float
+    max_value: float
+    partition_extractor: Callable
+    value_extractor: Callable
+    budget_weight: float = 1
+    noise_kind: NoiseKind = NoiseKind.LAPLACE
+    public_partitions: Union[Iterable, 'PCollection', 'RDD'] = None
+
+
+@dataclass
 class CountParams:
     """Specifies parameters for differentially-private count calculation.
 

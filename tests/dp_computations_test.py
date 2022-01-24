@@ -12,7 +12,6 @@ N_ITERATIONS = 200000
 
 
 class DPComputationsTest(unittest.TestCase):
-
     def test_l0_sensitivity(self):
         params = dp_computations.MeanVarParams(
             eps=1,
@@ -211,8 +210,9 @@ class DPComputationsTest(unittest.TestCase):
             max_contributions_per_partition=1,
             noise_kind=NoiseKind.LAPLACE)
 
-        (count_eps, count_delta), (_, _) = dp_computations.equally_split_budget(
-            params.eps, params.delta, 2)
+        (count_eps, count_delta), (_,
+                                   _) = dp_computations.equally_split_budget(
+                                       params.eps, params.delta, 2)
         l0_sensitivity = params.l0_sensitivity()
         count_linf_sensitivity = params.max_contributions_per_partition
 
@@ -271,7 +271,8 @@ class DPComputationsTest(unittest.TestCase):
                                            dp_params=params)
             for _ in range(N_ITERATIONS)
         ]
-        count_values, sum_values, sum_squares_values, var_values = zip(*results)
+        count_values, sum_values, sum_squares_values, var_values = zip(
+            *results)
         self._test_laplace_noise(
             count_values, 100000, count_eps,
             dp_computations.compute_l1_sensitivity(l0_sensitivity,
@@ -289,7 +290,8 @@ class DPComputationsTest(unittest.TestCase):
                                            dp_params=params)
             for _ in range(N_ITERATIONS)
         ]
-        count_values, sum_values, sum_squares_values, var_values = zip(*results)
+        count_values, sum_values, sum_squares_values, var_values = zip(
+            *results)
         self._test_gaussian_noise(
             count_values, 100000, count_eps, count_delta,
             dp_computations.compute_l2_sensitivity(l0_sensitivity,

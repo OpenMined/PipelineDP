@@ -27,7 +27,6 @@ class DataExtractors:
 
 class DPEngine:
     """Performs DP aggregations."""
-
     def __init__(self, budget_accountant: 'BudgetAccountant',
                  backend: 'PipelineBackend'):
         self._budget_accountant = budget_accountant
@@ -55,7 +54,8 @@ class DPEngine:
     def _aggregate(self, col, params: pipeline_dp.AggregateParams,
                    data_extractors: DataExtractors):
 
-        self._report_generators.append(report_generator.ReportGenerator(params))
+        self._report_generators.append(
+            report_generator.ReportGenerator(params))
 
         combiner = combiners.create_compound_combiner(params,
                                                       self._budget_accountant)
@@ -82,9 +82,8 @@ class DPEngine:
         # col : (partition_key, accumulator)
 
         if params.public_partitions:
-            col = self._add_empty_public_partitions(col,
-                                                    params.public_partitions,
-                                                    combiner.create_accumulator)
+            col = self._add_empty_public_partitions(
+                col, params.public_partitions, combiner.create_accumulator)
         # col : (partition_key, accumulator)
 
         col = self._backend.combine_accumulators_per_key(
@@ -101,9 +100,6 @@ class DPEngine:
         # Compute DP metrics.
         col = self._backend.map_values(col, combiner.compute_metrics,
                                        "Compute DP` metrics")
-
-        col = self._backend.map_values(col, lambda result: result[1],
-                                       "Extract results")
 
         return col
 
@@ -125,13 +121,13 @@ class DPEngine:
                 "params.max_contributions_per_partition must be set "
                 "to a positive integer")
         needs_min_max_value = pipeline_dp.Metrics.SUM in params.metrics
-        if needs_min_max_value and (params.min_value is None or
-                                    params.max_value is None):
+        if needs_min_max_value and (params.min_value is None
+                                    or params.max_value is None):
             raise ValueError(
                 "params.min_value and params.max_value must be set")
-        if needs_min_max_value and (
-                self._not_a_proper_number(params.min_value) or
-                self._not_a_proper_number(params.max_value)):
+        if needs_min_max_value and (self._not_a_proper_number(params.min_value)
+                                    or self._not_a_proper_number(
+                                        params.max_value)):
             raise ValueError(
                 "params.min_value and params.max_value must be both finite numbers"
             )
@@ -178,7 +174,8 @@ class DPEngine:
         """
         self._check_select_private_partitions(col, params, data_extractors)
 
-        self._report_generators.append(report_generator.ReportGenerator(params))
+        self._report_generators.append(
+            report_generator.ReportGenerator(params))
         max_partitions_contributed = params.max_partitions_contributed
 
         # Extract the columns.
@@ -223,7 +220,8 @@ class DPEngine:
         # A compound accumulator without any child accumulators is used to calculate the raw privacy ID count.
         compound_combiner = combiners.CompoundCombiner([])
         col = self._backend.map_tuple(
-            col, lambda pid, pk: (pk, compound_combiner.create_accumulator([])),
+            col, lambda pid, pk:
+            (pk, compound_combiner.create_accumulator([])),
             "Drop privacy id and add accumulator")
         # col : (partition_key, accumulator)
 
@@ -233,8 +231,8 @@ class DPEngine:
 
         col = self._select_private_partitions_internal(
             col, max_partitions_contributed)
-        col = self._backend.keys(col,
-                                 "Drop accumulators, keep only partition keys")
+        col = self._backend.keys(
+            col, "Drop accumulators, keep only partition keys")
 
         return col
 
@@ -357,7 +355,8 @@ class DPEngine:
             f"Private Partition selection: using {budget.mechanism_type.value} "
             f"method with (eps= {budget.eps}, delta = {budget.delta})")
 
-        return self._backend.filter(col, filter_fn, "Filter private partitions")
+        return self._backend.filter(col, filter_fn,
+                                    "Filter private partitions")
 
     def _not_a_proper_number(self, num):
         """

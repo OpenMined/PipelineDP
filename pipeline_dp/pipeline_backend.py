@@ -23,7 +23,6 @@ except:
 class PipelineBackend(abc.ABC):
     """Interface implemented by the pipeline backends compatible with PipelineDP
     """
-
     @abc.abstractmethod
     def map(self, col, fn, stage_name: str):
         pass
@@ -94,7 +93,8 @@ class PipelineBackend(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def combine_accumulators_per_key(self, col, combiner: dp_combiners.Combiner,
+    def combine_accumulators_per_key(self, col,
+                                     combiner: dp_combiners.Combiner,
                                      stage_name: str):
         """Reduces the input collection so that all elements per each key are merged.
 
@@ -121,7 +121,6 @@ class PipelineBackend(abc.ABC):
 
 class UniqueLabelsGenerator:
     """Generate unique labels for each pipeline aggregation."""
-
     def __init__(self, suffix):
         self._labels = set()
         self._suffix = suffix
@@ -146,7 +145,6 @@ class UniqueLabelsGenerator:
 
 class BeamBackend(PipelineBackend):
     """Apache Beam adapter."""
-
     def __init__(self, suffix: str = ""):
         super().__init__()
         self._ulg = UniqueLabelsGenerator(suffix)
@@ -181,9 +179,7 @@ class BeamBackend(PipelineBackend):
         return col | self._ulg.unique(stage_name) >> beam.Filter(fn)
 
     def filter_by_key(self, col, keys_to_keep, stage_name: str):
-
         class PartitionsFilterJoin(beam.DoFn):
-
             def process(self, joined_data):
                 key, rest = joined_data
                 values, to_keep = rest.get(VALUES), rest.get(TO_KEEP)
@@ -218,8 +214,9 @@ class BeamBackend(PipelineBackend):
             VALUES: col,
             TO_KEEP: keys_to_keep
         } | "CoGroup by values and to_keep partition flag " >>
-                beam.CoGroupByKey() | self._ulg.unique("Partitions Filter Join")
-                >> beam.ParDo(PartitionsFilterJoin()))
+                beam.CoGroupByKey()
+                | self._ulg.unique("Partitions Filter Join") >> beam.ParDo(
+                    PartitionsFilterJoin()))
 
     def keys(self, col, stage_name: str):
         return col | self._ulg.unique(stage_name) >> beam.Keys()
@@ -249,9 +246,9 @@ class BeamBackend(PipelineBackend):
         return col | self._ulg.unique(stage_name) >> beam.CombinePerKey(
             merge_accumulators)
 
-    def combine_accumulators_per_key(self, col, combiner: dp_combiners.Combiner,
+    def combine_accumulators_per_key(self, col,
+                                     combiner: dp_combiners.Combiner,
                                      stage_name: str):
-
         def merge_accumulators(accumulators):
             res = None
             for acc in accumulators:
@@ -270,7 +267,6 @@ class BeamBackend(PipelineBackend):
 
 class SparkRDDBackend(PipelineBackend):
     """Apache Spark RDD adapter."""
-
     def map(self, rdd, fn, stage_name: str = None):
         return rdd.map(fn)
 
@@ -356,7 +352,6 @@ class SparkRDDBackend(PipelineBackend):
 
 class LocalBackend(PipelineBackend):
     """Local Pipeline adapter."""
-
     def map(self, col, fn, stage_name: typing.Optional[str] = None):
         return map(fn, col)
 
@@ -370,7 +365,6 @@ class LocalBackend(PipelineBackend):
         return ((k, fn(v)) for k, v in col)
 
     def group_by_key(self, col, stage_name: typing.Optional[str] = None):
-
         def group_by_key_generator():
             d = collections.defaultdict(list)
             for key, value in col:
@@ -401,7 +395,6 @@ class LocalBackend(PipelineBackend):
                              col,
                              n: int,
                              stage_name: typing.Optional[str] = None):
-
         def sample_fixed_per_key_generator():
             for item in self.group_by_key(col):
                 key = item[0]
@@ -425,7 +418,6 @@ class LocalBackend(PipelineBackend):
                                      col,
                                      combiner: dp_combiners.Combiner,
                                      stage_name: str = None):
-
         def merge_accumulators(accumulators):
             return functools.reduce(
                 lambda acc1, acc2: combiner.merge_accumulators(acc1, acc2),
@@ -452,7 +444,6 @@ def _pool_worker(row):
 
 
 class _LazyMultiProcIterator:
-
     def __init__(self, job: typing.Callable, job_inputs: typing.Iterable,
                  chunksize: int, n_jobs: typing.Optional[int], **pool_kwargs):
         """Utilizes the `multiprocessing.Pool.map` for distributed execution of 
@@ -479,14 +470,15 @@ class _LazyMultiProcIterator:
         """Creates the multiprocessing.Pool object that will manage the distributed computation."""
         self._pool = mp.Pool(self.n_jobs,
                              initializer=_pool_worker_init,
-                             initargs=(self.job,),
+                             initargs=(self.job, ),
                              **self.pool_kwargs)
         return self._pool
 
     def _trigger_iterations(self):
         """Trigger the Pool operation that iterates over inputs and produces outputs."""
         if self._outputs is None:
-            self._outputs = self._init_pool().map(_pool_worker, self.job_inputs,
+            self._outputs = self._init_pool().map(_pool_worker,
+                                                  self.job_inputs,
                                                   self.chunksize)
 
     def __iter__(self):
@@ -497,7 +489,6 @@ class _LazyMultiProcIterator:
 
 
 class _LazyMultiProcGroupByIterator(_LazyMultiProcIterator):
-
     def __init__(self, job_inputs: typing.Iterable, chunksize: int,
                  n_jobs: typing.Optional[int], **pool_kwargs):
         """Utilizes mp.Pool for distributed group by computation.
@@ -510,11 +501,11 @@ class _LazyMultiProcGroupByIterator(_LazyMultiProcIterator):
         self.results_dict = self.manager.dict()
 
         def insert_row(captures, row):
-            (results_dict_,) = captures
+            (results_dict_, ) = captures
             key, val = row
             results_dict_[key].append(val)
 
-        insert_row = functools.partial(insert_row, (self.results_dict,))
+        insert_row = functools.partial(insert_row, (self.results_dict, ))
 
         super().__init__(insert_row,
                          job_inputs,
@@ -526,12 +517,13 @@ class _LazyMultiProcGroupByIterator(_LazyMultiProcIterator):
         if self._outputs is None:
             keys = set(k for k, v in self.job_inputs)
             self.results_dict.update({k: self.manager.list() for k in keys})
-            self._init_pool().map(_pool_worker, self.job_inputs, self.chunksize)
-            self._outputs = ((k, list(v)) for k, v in self.results_dict.items())
+            self._init_pool().map(_pool_worker, self.job_inputs,
+                                  self.chunksize)
+            self._outputs = ((k, list(v))
+                             for k, v in self.results_dict.items())
 
 
 class _LazyMultiProcCountIterator(_LazyMultiProcIterator):
-
     def __init__(self, job_inputs: typing.Iterable, chunksize: int,
                  n_jobs: typing.Optional[int], **pool_kwargs):
         """Utilizes mp.Pool for distributed group by computation.
@@ -544,10 +536,10 @@ class _LazyMultiProcCountIterator(_LazyMultiProcIterator):
         self.results_dict = self.manager.dict()
 
         def insert_row(captures, key):
-            (results_dict_,) = captures
+            (results_dict_, ) = captures
             results_dict_[key] += 1
 
-        insert_row = functools.partial(insert_row, (self.results_dict,))
+        insert_row = functools.partial(insert_row, (self.results_dict, ))
 
         super().__init__(insert_row,
                          job_inputs,
@@ -559,13 +551,13 @@ class _LazyMultiProcCountIterator(_LazyMultiProcIterator):
         if self._outputs is None:
             keys = set(self.job_inputs)
             self.results_dict.update({k: 0 for k in keys})
-            self._init_pool().map(_pool_worker, self.job_inputs, self.chunksize)
+            self._init_pool().map(_pool_worker, self.job_inputs,
+                                  self.chunksize)
             self._outputs = self.results_dict.items()
 
 
 class MultiProcLocalBackend(PipelineBackend):
     """Warning: this class is experimental."""
-
     def __init__(self,
                  n_jobs: typing.Optional[int] = None,
                  chunksize: int = 1,
@@ -602,7 +594,6 @@ class MultiProcLocalBackend(PipelineBackend):
                       col,
                       keys_to_keep,
                       stage_name: typing.Optional[str] = None):
-
         def mapped_fn(keys_to_keep_, kv):
             return kv, (kv[0] in keys_to_keep_)
 
@@ -622,16 +613,15 @@ class MultiProcLocalBackend(PipelineBackend):
                              col,
                              n: int,
                              stage_name: typing.Optional[str] = None):
-
         def mapped_fn(captures, row):
-            (n_,) = captures
+            (n_, ) = captures
             partition_key, values = row
             samples = values
             if len(samples) > n_:
                 samples = random.sample(samples, n_)
             return partition_key, samples
 
-        mapped_fn = functools.partial(mapped_fn, (n,))
+        mapped_fn = functools.partial(mapped_fn, (n, ))
         groups = self.group_by_key(col, stage_name)
         return self.map(groups, mapped_fn, stage_name)
 
@@ -644,7 +634,8 @@ class MultiProcLocalBackend(PipelineBackend):
                                     stage_name: typing.Optional[str] = None):
         return self.map_values(col, accumulator.merge)
 
-    def combine_accumulators_per_key(self, col, combiner: dp_combiners.Combiner,
+    def combine_accumulators_per_key(self, col,
+                                     combiner: dp_combiners.Combiner,
                                      stage_name: str):
         raise NotImplementedError(
             "combine_accumulators_per_key is not implmeneted for MultiProcLocalBackend"

@@ -51,7 +51,6 @@ class Accumulator(abc.ABC):
     Accumulators are objects that encapsulate aggregations and computations of
     differential private metrics.
     """
-
     @abc.abstractmethod
     def add_value(self, value):
         """Adds 'value' to accumulate.
@@ -95,7 +94,8 @@ class Accumulator(abc.ABC):
     def deserialize(cls, serialized_obj: str):
         deserialized_obj = pickle.loads(serialized_obj)
         if not isinstance(deserialized_obj, cls):
-            raise TypeError("The deserialized object is not of the right type.")
+            raise TypeError(
+                "The deserialized object is not of the right type.")
         return deserialized_obj
 
 
@@ -107,7 +107,6 @@ class CompoundAccumulator(Accumulator):
     For example it can contain [CountAccumulator,  SumAccumulator].
     CompoundAccumulator delegates all operations to the internal accumulators.
     """
-
     def __init__(self, accumulators: typing.Iterable['Accumulator']):
         """Constructs CompoundAccumulator.
 
@@ -183,7 +182,6 @@ class AccumulatorFactory(abc.ABC):
     Each concrete implementation of AccumulatorFactory creates Accumulator of
     the specific type.
     """
-
     @abc.abstractmethod
     def create(self, values: typing.List) -> Accumulator:
         pass
@@ -196,7 +194,6 @@ class CompoundAccumulatorFactory(AccumulatorFactory):
     create accumulators for specific metrics. These AccumulatorFactories are
     created based on pipeline_dp.AggregateParams.
     """
-
     def __init__(self, params: pipeline_dp.AggregateParams,
                  budget_accountant: budget_accounting.BudgetAccountant):
         self._params = params
@@ -226,7 +223,6 @@ class AccumulatorClassParams:
     Wraps epsilon and delta from the MechanismSpec which are lazily loaded.
     AggregateParams are copied into a MeanVarParams instance.
     """
-
     def __init__(self, spec: budget_accounting.MechanismSpec,
                  aggregate_params: aggregate_params.AggregateParams):
         self._mechanism_spec = spec
@@ -251,7 +247,6 @@ class AccumulatorClassParams:
 
 
 class PrivacyIdCountParams(AccumulatorClassParams):
-
     def __init__(self, budget: pipeline_dp.budget_accounting.MechanismSpec,
                  aggregation_params: aggregate_params.AggregateParams):
         super().__init__(budget, aggregation_params)
@@ -259,7 +254,6 @@ class PrivacyIdCountParams(AccumulatorClassParams):
 
 
 class PrivacyIdCountAccumulator(Accumulator):
-
     def __init__(self, params: PrivacyIdCountParams, values):
         self._count = 1 if values else 0  # count is 0 for empty accumulators
         self._params = params
@@ -280,7 +274,6 @@ class PrivacyIdCountAccumulator(Accumulator):
 
 
 class PrivacyIdCountAccumulatorFactory(AccumulatorFactory):
-
     def __init__(self, params: PrivacyIdCountParams):
         self._params = params
 
@@ -293,7 +286,6 @@ class CountParams(AccumulatorClassParams):
 
 
 class CountAccumulator(Accumulator):
-
     def __init__(self, params: CountParams, values):
         self._count = len(values)
         self._params = params
@@ -313,7 +305,6 @@ class CountAccumulator(Accumulator):
 
 
 class CountAccumulatorFactory(AccumulatorFactory):
-
     def __init__(self, params: CountParams):
         self._params = params
 
@@ -371,7 +362,6 @@ class SumParams(AccumulatorClassParams):
 
 
 class SumAccumulator(Accumulator):
-
     def __init__(self, params: SumParams, values):
         self._params = params
         self._sum = np.clip(values, self._params.aggregate_params.min_value,
@@ -392,7 +382,6 @@ class SumAccumulator(Accumulator):
 
 
 class SumAccumulatorFactory(AccumulatorFactory):
-
     def __init__(self, params: SumParams):
         self._params = params
 

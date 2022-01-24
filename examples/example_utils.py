@@ -60,7 +60,6 @@ def delete_if_exists(filename):
 
 
 class ParseFile(beam.DoFn):
-
     def __init__(self):
         self.movie_id = -1
 

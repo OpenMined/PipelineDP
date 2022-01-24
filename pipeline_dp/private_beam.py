@@ -10,7 +10,6 @@ from pipeline_dp import aggregate_params, budget_accounting
 
 class PrivatePTransform(ptransform.PTransform):
     """Abstract class for PrivatePTransforms."""
-
     def __init__(self, return_anonymized: bool, label: Optional[str] = None):
         super().__init__(label)
         self._return_anonymized = return_anonymized
@@ -31,7 +30,6 @@ class PrivatePCollection:
 
     PrivatePCollection guarantees that only anonymized data within the specified
     privacy budget can be extracted from it through PrivatePTransforms."""
-
     def __init__(self, pcol: pvalue.PCollection,
                  budget_accountant: budget_accounting.BudgetAccountant):
         self._pcol = pcol
@@ -53,7 +51,6 @@ class PrivatePCollection:
 
 class MakePrivate(PrivatePTransform):
     """Transform class for creating a PrivatePCollection."""
-
     def __init__(self,
                  budget_accountant: budget_accounting.BudgetAccountant,
                  privacy_id_extractor: Callable,
@@ -68,9 +65,49 @@ class MakePrivate(PrivatePTransform):
         return PrivatePCollection(pcol, self._budget_accountant)
 
 
+class Mean(PrivatePTransform):
+    """Transform class for performing DP Mean on PrivatePCollection."""
+    def __init__(self,
+                 mean_params: aggregate_params.MeanParams,
+                 label: Optional[str] = None):
+        super().__init__(return_anonymized=True, label=label)
+        self._mean_params = mean_params
+
+    def expand(self, pcol: pvalue.PCollection) -> pvalue.PCollection:
+        backend = pipeline_dp.BeamBackend()
+        dp_engine = pipeline_dp.DPEngine(self._budget_accountant, backend)
+
+        params = pipeline_dp.AggregateParams(
+            noise_kind=self._mean_params.noise_kind,
+            metrics=[pipeline_dp.Metrics.MEAN],
+            max_partitions_contributed=self._mean_params.
+            max_partitions_contributed,
+            max_contributions_per_partition=self._mean_params.
+            max_contributions_per_partition,
+            min_value=self._mean_params.min_value,
+            max_value=self._mean_params.max_value,
+            public_partitions=self._mean_params.public_partitions)
+
+        data_extractors = pipeline_dp.DataExtractors(
+            partition_extractor=lambda x: self._mean_params.
+            partition_extractor(x[1]),
+            privacy_id_extractor=lambda x: x[0],
+            value_extractor=lambda x: self._mean_params.value_extractor(x[1]))
+
+        dp_result = dp_engine.aggregate(pcol, params, data_extractors)
+        # dp_result : (partition_key, [dp_sum])
+
+        # aggregate() returns a namedtuple of metrics for each partition key.
+        # Here is only one metric - mean. Extract it from the list.
+        dp_result = backend.map_values(dp_result, lambda v: v.mean,
+                                       "Extract mean")
+        # dp_result : (partition_key, dp_sum)
+
+        return dp_result
+
+
 class Sum(PrivatePTransform):
     """Transform class for performing DP Sum on PrivatePCollection."""
-
     def __init__(self,
                  sum_params: aggregate_params.SumParams,
                  label: Optional[str] = None):
@@ -101,9 +138,10 @@ class Sum(PrivatePTransform):
         dp_result = dp_engine.aggregate(pcol, params, data_extractors)
         # dp_result : (partition_key, [dp_sum])
 
-        # aggregate() returns a list of metrics for each partition key.
-        # Here is only one metric - sum. Remove list.
-        dp_result = backend.map_values(dp_result, lambda v: v[0], "Unnest list")
+        # aggregate() returns a namedtuple of metrics for each partition key.
+        # Here is only one metric - sum. Extract it from the list.
+        dp_result = backend.map_values(dp_result, lambda v: v.sum,
+                                       "Extract sum")
         # dp_result : (partition_key, dp_sum)
 
         return dp_result
@@ -111,7 +149,6 @@ class Sum(PrivatePTransform):
 
 class Count(PrivatePTransform):
     """Transform class for performing DP Count on PrivatePCollection."""
-
     def __init__(self,
                  count_params: aggregate_params.CountParams,
                  label: Optional[str] = None):
@@ -142,9 +179,10 @@ class Count(PrivatePTransform):
         dp_result = dp_engine.aggregate(pcol, params, data_extractors)
         # dp_result : (partition_key, [dp_count])
 
-        # aggregate() returns a list of metrics for each partition key.
-        # Here is only one metric - count. Remove list.
-        dp_result = backend.map_values(dp_result, lambda v: v[0], "Unnest list")
+        # aggregate() returns a namedtuple of metrics for each partition key.
+        # Here is only one metric - count. Extract it from the list.
+        dp_result = backend.map_values(dp_result, lambda v: v.count,
+                                       "Extract sum")
         # dp_result : (partition_key, dp_count)
 
         return dp_result
@@ -152,10 +190,10 @@ class Count(PrivatePTransform):
 
 class PrivacyIdCount(PrivatePTransform):
     """Transform class for performing DP Privacy ID Count on PrivatePCollection."""
-
-    def __init__(self,
-                 privacy_id_count_params: aggregate_params.PrivacyIdCountParams,
-                 label: Optional[str] = None):
+    def __init__(
+            self,
+            privacy_id_count_params: aggregate_params.PrivacyIdCountParams,
+            label: Optional[str] = None):
         super().__init__(return_anonymized=True, label=label)
         self._privacy_id_count_params = privacy_id_count_params
 
@@ -181,9 +219,10 @@ class PrivacyIdCount(PrivatePTransform):
         dp_result = dp_engine.aggregate(pcol, params, data_extractors)
         # dp_result : (partition_key, [dp_privacy_id_count])
 
-        # aggregate() returns a list of metrics for each partition key.
-        # Here is only one metric - privacy_id_count. Remove list.
-        dp_result = backend.map_values(dp_result, lambda v: v[0], "Unnest list")
+        # aggregate() returns a namedtuple of metrics for each partition key.
+        # Here is only one metric - privacy_id_count. Extract it from the list.
+        dp_result = backend.map_values(dp_result, lambda v: v.privacy_id_count,
+                                       "Extract privacy_id_count")
         # dp_result : (partition_key, dp_privacy_id_count)
 
         return dp_result
@@ -191,22 +230,20 @@ class PrivacyIdCount(PrivatePTransform):
 
 class Map(PrivatePTransform):
     """Transform class for performing Map on PrivatePCollection."""
-
     def __init__(self, fn: Callable, label: Optional[str] = None):
         super().__init__(return_anonymized=False, label=label)
         self._fn = fn
 
     def expand(self, pcol: pvalue.PCollection):
-        return pcol | "map values" >> beam.Map(lambda x: (x[0], self._fn(x[1])))
+        return pcol | "map values" >> beam.Map(lambda x:
+                                               (x[0], self._fn(x[1])))
 
 
 class FlatMap(PrivatePTransform):
     """Transform class for performing FlatMap on PrivatePCollection."""
-
     class _FlattenValues(beam.DoFn):
         """Inner class for flattening values of key value pair.
         Flattens (1, (2,3,4)) into ((1,2), (1,3), (1,4))"""
-
         def __init__(self, map_fn: Callable):
             self._map_fn = map_fn
 
