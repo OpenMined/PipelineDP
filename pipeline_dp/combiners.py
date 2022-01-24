@@ -213,13 +213,12 @@ class CompoundCombiner(Combiner):
         return (privacy_id_count1 + privacy_id_count2,
                 tuple(merged_accumulators))
 
-    def compute_metrics(
-            self, compound_accumulator: AccumulatorType) -> Tuple[int, list]:
+    def compute_metrics(self, compound_accumulator: AccumulatorType) -> list:
         privacy_id_count, accumulator = compound_accumulator
         metrics = []
         for combiner, acc in zip(self._combiners, accumulator):
             metrics.append(combiner.compute_metrics(acc))
-        return (privacy_id_count, metrics)
+        return metrics
 
 
 def create_compound_combiner(
