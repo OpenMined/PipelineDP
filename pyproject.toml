@@ -26,6 +26,10 @@ bumpversion = "==0.5.3"
 wheel = "^0.37.1"
 setuptools = "^60.5.0"
 
+[tool.yapf]
+based_on_style = "google"
+indent_width = 4
+
 [build-system]
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
