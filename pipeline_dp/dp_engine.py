@@ -101,10 +101,6 @@ class DPEngine:
         # Compute DP metrics.
         col = self._backend.map_values(col, combiner.compute_metrics,
                                        "Compute DP` metrics")
-
-        col = self._backend.map_values(col, lambda result: result[1],
-                                       "Extract results")
-
         return col
 
     def _check_aggregate_params(self, col, params: pipeline_dp.AggregateParams,
