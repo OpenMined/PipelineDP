@@ -118,9 +118,6 @@ class PipelineBackend(abc.ABC):
         """
         pass
 
-    def is_serialization_immediate_on_reduce_by_key(self):
-        return False
-
 
 class UniqueLabelsGenerator:
     """Generate unique labels for each pipeline aggregation."""
@@ -352,9 +349,6 @@ class SparkRDDBackend(PipelineBackend):
                                      stage_name: str = None):
         return rdd.reduceByKey(
             lambda acc1, acc2: combiner.merge_accumulators(acc1, acc2))
-
-    def is_serialization_immediate_on_reduce_by_key(self):
-        return True
 
     def flatten(self, col1, col2, stage_name: str = None):
         raise NotImplementedError("Not yet implemented for Spark")

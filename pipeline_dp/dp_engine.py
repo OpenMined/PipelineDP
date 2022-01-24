@@ -98,8 +98,6 @@ class DPEngine:
             pass
         # col : (partition_key, accumulator)
 
-        # col = self._fix_budget_accounting_if_needed(col, accumulator_factory)
-
         # Compute DP metrics.
         col = self._backend.map_values(col, combiner.compute_metrics,
                                        "Compute DP` metrics")
@@ -360,31 +358,6 @@ class DPEngine:
             f"method with (eps= {budget.eps}, delta = {budget.delta})")
 
         return self._backend.filter(col, filter_fn, "Filter private partitions")
-
-    def _fix_budget_accounting_if_needed(self, col, accumulator_factory):
-        """Adds MechanismSpec to accumulators.
-
-        This function is a workaround to fix the following problem in Spark:
-        1.When accumulators are created, they do not have full MechanismSpec.
-        2.ReduceByKey is called and Spark does serialization of accumulators.
-        3.BudgetAccountant computes budget and updates MechanismSpecs, but
-        accumulators are already serialized and they have incomplete
-        MechanismSpecs.
-
-        Args:
-            col: collection with elements (key, accumulator).
-            accumulator_factory: AccumulatorFactory that was used for creating
-             accumulators in 'col'.
-
-        Returns:
-            col: collection with elements (key, accumulator).
-        """
-        if not self._backend.is_serialization_immediate_on_reduce_by_key():
-            # No need to fix, since accumulators contain correct MechanismSpec.
-            return col
-        mechanism_specs = accumulator_factory.get_mechanism_specs()
-        return self._backend.map_values(
-            col, lambda acc: acc.set_mechanism_specs(mechanism_specs))
 
     def _not_a_proper_number(self, num):
         """
