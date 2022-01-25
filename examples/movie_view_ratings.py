@@ -6,14 +6,12 @@ movie_view_ratings_spark.py or movie_view_ratings_beam.py.
 
 In order to run an example:
 
-1.Install Python and run in command line pip install numpy apache-beam pyspark absl-py
-2.Download Netflix prize dataset from https://www.kaggle.com/netflix-inc/netflix-prize-data and unpack it.
-3.The dataset itself is pretty big, for speed-up the run it's better to use a
-part of it. You can generate a part of it by running in bash:
+1. Install Python and run on the command line `pip install numpy apache-beam pyspark absl-py`
+2. Download the Netflix prize dataset from https://www.kaggle.com/netflix-inc/netflix-prize-data and unpack it.
+3. The dataset itself is pretty big, to speed up the run it's better to use a
+part of it. You can get a part of it by running in bash:
 
    head -10000 combined_data_1.txt > data.txt
-
-   or by other way to get a subset of lines from the dataset.
 
 4. Run python movie_view_ratings.py --framework=<framework> --input_file=<path to data.txt from 3> --output_file=<...>
 """
@@ -84,10 +82,10 @@ def calc_dp_rating_metrics(movie_views, backend, public_partitions):
 
 
 def get_private_movies(movie_views, backend):
-    """Obtains the list of movies in a private manner.
+    """Obtains the list of movies in a differentially private manner.
 
-    This does not calculate any private metrics; it merely obtains the list of
-    movies but does so making sure the result is differentially private.
+    This does not calculate any metrics; it merely returns the list of
+    movies, making sure the result is differentially private.
     """
 
     # Set the total privacy budget.
