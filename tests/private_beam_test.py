@@ -525,7 +525,7 @@ class PrivateBeamTest(unittest.TestCase):
             self.assertEqual(transformed._budget_accountant, budget_accountant)
 
     @patch('pipeline_dp.dp_engine.DPEngine.select_partitions')
-    def test_select_partitions_calls_aggregate_with_params(
+    def test_select_partitions_calls_select_partitions_with_params(
             self, mock_select_partitions):
         runner = fn_api_runner.FnApiRunner()
         with beam.Pipeline(runner=runner) as pipeline:

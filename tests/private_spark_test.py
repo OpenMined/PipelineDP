@@ -183,6 +183,79 @@ class PrivateRDDTest(unittest.TestCase):
         result = prdd.privacy_id_count(privacy_id_count_params)
         self.assertEqual([(0, "count0"), (1, "count1")], result.collect())
 
+    @patch('pipeline_dp.dp_engine.DPEngine.select_partitions')
+    def test_select_partitions_calls_select_partitions_with_correct_params(
+            self, mock_aggregate):
+        # Arrange
+        dist_data = PrivateRDDTest.sc.parallelize([(1, "pk1"), (2, "pk2")])
+        expected_result_partitions = ["pk1", "pk2"]
+        mock_aggregate.return_value = PrivateRDDTest.sc.parallelize(
+            expected_result_partitions)
+        budget_accountant = budget_accounting.NaiveBudgetAccountant(
+            total_epsilon=1, total_delta=0.01)
+        max_partitions_contributed = 2
+
+        def privacy_id_extractor(x):
+            return x[0]
+
+        def partition_extractor(x):
+            return {x[1]}
+
+        # Act
+        prdd = private_spark.make_private(dist_data, budget_accountant,
+                                          privacy_id_extractor)
+
+        select_partitions_params = agg.SelectPartitionsParams(
+            max_partitions_contributed=max_partitions_contributed)
+        actual_result = prdd.select_partitions(select_partitions_params,
+                                               partition_extractor)
+
+        # Assert
+        mock_aggregate.assert_called_once()
+        actual_args = mock_aggregate.call_args[0]
+        actual_rdd = actual_args[0].collect()
+        actual_select_partition_params = actual_args[1]
+
+        self.assertListEqual(actual_rdd, [(1, (1, "pk1")), (2, (2, "pk2"))])
+
+        self.assertEqual(
+            actual_select_partition_params.max_partitions_contributed,
+            max_partitions_contributed)
+        self.assertEqual(actual_result.collect(), expected_result_partitions)
+
+    def test_select_partitions_returns_sensible_result(self):
+        # Arrange
+        col = [(u, "pk1") for u in range(50)]
+        col += [(50 + u, "pk2") for u in range(50)]
+        dist_data = PrivateRDDTest.sc.parallelize(col)
+
+        # Use very high epsilon and delta to minimize noise and test
+        # flakiness.
+        budget_accountant = budget_accounting.NaiveBudgetAccountant(
+            total_epsilon=800, total_delta=0.999)
+        max_partitions_contributed = 2
+
+        def privacy_id_extractor(x):
+            return x[0]
+
+        def partition_extractor(x):
+            return x[1]
+
+        # Act
+        prdd = private_spark.make_private(dist_data, budget_accountant,
+                                          privacy_id_extractor)
+
+        select_partitions_params = agg.SelectPartitionsParams(
+            max_partitions_contributed=max_partitions_contributed)
+        actual_result = prdd.select_partitions(select_partitions_params,
+                                               partition_extractor)
+        budget_accountant.compute_budgets()
+
+        # Assert
+        # This is a health check to validate that the result is sensible.
+        # Hence, we use a very large tolerance to reduce test flakiness.
+        self.assertEqual(sorted(actual_result.collect()), ["pk1", "pk2"])
+
     @classmethod
     def tearDownClass(cls):
         cls.sc.stop()
