@@ -18,7 +18,7 @@ from typing import Any, Sequence, Union, Optional, Tuple
 from apache_beam import pvalue
 import pipeline_dp
 
-from utility_analysis import combiners
+from utility_analysis import non_private_combiners
 from pyspark import RDD
 
 DataType = Union[Sequence[Any], pvalue.PCollection, RDD]
@@ -77,11 +77,15 @@ class DataPeeker:
         """
         if params.metrics is None:
             raise ValueError("Must provide aggregation metrics for sketch.")
-        if len(params.metrics) != 1:
+        if len(params.metrics) != 1 or params.metrics[0] not in [
+                pipeline_dp.aggregate_params.Metrics.SUM,
+                pipeline_dp.aggregate_params.Metrics.COUNT
+        ]:
             raise ValueError(
                 "Sketch only supports a single aggregation and it must be COUNT or SUM."
             )
-        combiner = combiners.create_compound_combiner(metrics=params.metrics)
+        combiner = non_private_combiners.create_compound_combiner(
+            metrics=params.metrics)
 
         # Extract the columns.
         col = self._be.map(input_data,
@@ -104,29 +108,29 @@ class DataPeeker:
         col = self._be.flat_map(col, lambda plst: plst[1], "Extract values")
 
         def flatten_sampled_results(
-            pkey_pid_pval_list: Tuple[Any, Sequence[Tuple[Any, Any]]]
+            pk_pid_pval_list: Tuple[Any, Sequence[Tuple[Any, Any]]]
         ) -> Sequence[Tuple[Any, Tuple[Any, Any]]]:
-            pkey, pid_pval_list = pkey_pid_pval_list
-            return [(pkey, pid_pval) for pid_pval in pid_pval_list]
+            pk, pid_pval_list = pk_pid_pval_list
+            return [(pk, pid_pval) for pid_pval in pid_pval_list]
 
         col = self._be.flat_map(col, flatten_sampled_results,
-                                "Flatten to (pkey, (pid, value))")
+                                "Flatten to (pk, (pid, value))")
 
         # col : (partition_key, (privacy_id, value))
         # calculates partition_count after sampling and per
         # (partition_key, privacy_id) pair aggregated value
         col = self._be.map_tuple(col, lambda pk, pid_v: (
-            (pk, pid_v[0]), pid_v[1]), "Transform to (pkey, pid), value))")
+            (pk, pid_v[0]), pid_v[1]), "Transform to (pk, pid), value))")
         # col : ((partition_key, privacy_id), value)
 
-        col = self._be.group_by_key(col, "Group by (pkey, pid)")
+        col = self._be.group_by_key(col, "Group by (pk, pid)")
         # col : ((partition_key, privacy_id), [value])
         col = self._be.map_values(col, combiner.create_accumulator,
-                                  "Aggregate by (pkey, pid)")
+                                  "Aggregate by (pk, pid)")
         # col : ((partition_key, privacy_id), accumulator)
         col = self._be.map_tuple(
             col, lambda pk_pid, p_value: (pk_pid[1], (pk_pid[0], p_value)),
-            "Transform to (pid, (pkey, accumulator))")
+            "Transform to (pid, (pk, accumulator))")
         # col : (privacy_id, (partition_key, accumulator))
         col = self._be.group_by_key(col, "Group by privacy_id")
 
@@ -136,7 +140,7 @@ class DataPeeker:
         def calculate_partition_count(
             key_accumulator_list: key_accumulator_sequence_type
         ) -> Tuple[int, key_accumulator_sequence_type]:
-            partition_count = len(set(pkey for pkey, _ in key_accumulator_list))
+            partition_count = len(set(pk for pk, _ in key_accumulator_list))
             return (partition_count, key_accumulator_list)
 
         col = self._be.map_values(col, calculate_partition_count,
@@ -147,13 +151,13 @@ class DataPeeker:
         def flatten_results(
             input_col: Tuple[Any, Tuple[int, key_accumulator_sequence_type]]
         ) -> Sequence[Tuple[Any, Any, int]]:
-            _, pcount_pkey_acc_list = input_col
-            pcount, pkey_acc_list = pcount_pkey_acc_list
-            return [(pkey, acc[0], pcount) for pkey, acc in pkey_acc_list]
+            _, pcount_pk_acc_list = input_col
+            pcount, pk_acc_list = pcount_pk_acc_list
+            return [(pk, acc[0], pcount) for pk, acc in pk_acc_list]
 
         return self._be.flat_map(
             col, flatten_results,
-            "Flatten to (pkey, aggregated_value, partition_count)")
+            "Flatten to (pk, aggregated_value, partition_count)")
         # (partition_key, aggregated_value, partition_count)
 
     def sample(self, input_data: DataType, params: SampleParams,
@@ -216,7 +220,8 @@ class DataPeeker:
         Returns:
           True aggregation results.
         """
-        combiner = combiners.create_compound_combiner(metrics=params.metrics)
+        combiner = non_private_combiners.create_compound_combiner(
+            metrics=params.metrics)
 
         col = self._be.map(
             col, lambda row: (data_extractors.privacy_id_extractor(row),
@@ -229,7 +234,7 @@ class DataPeeker:
             "Rekey to ( (privacy_id, partition_key), value))")
         col = self._be.group_by_key(col, "Group by pk")
         col = self._be.map_values(col, combiner.create_accumulator,
-                                  "Apply aggregate_fn")
+                                  "Aggregate by (pk, pid)")
         # ((privacy_id, partition_key), aggregator)
         col = self._be.map_tuple(col, lambda pid_pk, v: (pid_pk[1], v),
                                  "Drop privacy id")

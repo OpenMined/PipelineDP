@@ -27,16 +27,15 @@ class PeekerDpEngineTest(parameterized.TestCase):
              size_lower_bound=9,
              size_upper_bound=10),
     )
-    def test_aggregate_sketches(self, sketches, epsilon, delta,
-                                size_lower_bound, size_upper_bound):
-        # sketches =
+    def test_aggregate_sketches_sum(self, sketches, epsilon, delta,
+                                    size_lower_bound, size_upper_bound):
         params = pipeline_dp.AggregateParams(
             noise_kind=pipeline_dp.NoiseKind.LAPLACE,
             metrics=[pipeline_dp.Metrics.SUM],
             max_partitions_contributed=1,
             max_contributions_per_partition=10,
             min_value=0,
-            max_value=1)
+            max_value=10)
         budget_accountant = pipeline_dp.NaiveBudgetAccountant(
             total_epsilon=epsilon, total_delta=delta)
         dp_engine = peeker_engine.PeekerEngine(budget_accountant,

@@ -7,7 +7,6 @@ from apache_beam import pvalue
 import numpy as np
 import pydp
 import pipeline_dp
-from utility_analysis import combiners
 
 
 def aggregate_sketch_true(ops: pipeline_dp.pipeline_backend.PipelineBackend,
@@ -91,9 +90,17 @@ class PeekerEngine:
         Returns:
             Aggregation metrics.
         """
+        if len(params.metrics) != 1 or params.metrics[0] not in [
+                pipeline_dp.aggregate_params.Metrics.SUM,
+                pipeline_dp.aggregate_params.Metrics.COUNT
+        ]:
+            raise ValueError(
+                "Sketch only supports a single aggregation and it must be COUNT or SUM."
+            )
 
         # col: (partition_key, per_user_aggregated_value, partition_count)
-        combiner = combiners.create_compound_combiner(metrics=params.metrics)
+        combiner = pipeline_dp.combiners.create_compound_combiner(
+            params, self._budget_accountant)
 
         col = self._ops.filter(
             col,
@@ -107,8 +114,12 @@ class PeekerEngine:
                               params.max_contributions_per_partition),
             "Per partition bounding")
         # col: (partition_key, per_user_aggregated_value)
-        col = self._ops.group_by_key(col, "Group by partition key")
-        # col: (partition_key, [per_user_aggregated_value])
+        col = self._ops.map_values(col, lambda x: (1, (x,)),
+                                   "Convert to format of CompoundCombiner")
+        # col: (partition_key, compound_accumulator)
+        col = self._ops.combine_accumulators_per_key(
+            col, combiner, "Aggregate by partition key")
+        # col: (partition_key, aggregated_compound_accumulator)
         # Partition selection
         budget = self._budget_accountant.request_budget(
             mechanism_type=pipeline_dp.MechanismType.GENERIC)
@@ -119,10 +130,10 @@ class PeekerEngine:
 
         col = self._ops.filter(col, partition_selection_filter_fn,
                                "Filter private partitions")
-        col = self._ops.combine_accumulators_per_key(
-            col, combiner, "Aggregate by partition key")
+        # col: (partition_key, aggregated_compound_accumulator)
         col = self._ops.map_values(col, combiner.compute_metrics,
                                    "Compute DP metrics")
+        # col: (partition_key, metrics)
         return col
 
 
@@ -143,11 +154,14 @@ def _per_partition_bounding(max_contributions_per_partition: int, pk: Any,
 
 
 def _partition_selection_filter_fn(
-        budget: pipeline_dp.budget_accounting.MechanismSpec,
-        max_partitions: int, row: Tuple[Any, Sequence[int]]) -> bool:
-    values = row[1]
+    budget: pipeline_dp.budget_accounting.MechanismSpec, max_partitions: int,
+    row: Tuple[Any, pipeline_dp.combiners.CompoundCombiner.AccumulatorType]
+) -> bool:
+    """Lazily creates a partition selection strategy and uses it to determine which
+    partitions to keep."""
+    pirvacy_id_count, _ = row[1]
     partition_selection_strategy = (
         pydp.algorithms.partition_selection.
         create_truncated_geometric_partition_strategy(budget.eps, budget.delta,
                                                       max_partitions))
-    return partition_selection_strategy.should_keep(len(values))
+    return partition_selection_strategy.should_keep(pirvacy_id_count)
