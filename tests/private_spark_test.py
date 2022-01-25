@@ -184,11 +184,13 @@ class PrivateRDDTest(unittest.TestCase):
         self.assertEqual([(0, "count0"), (1, "count1")], result.collect())
 
     @patch('pipeline_dp.dp_engine.DPEngine.select_partitions')
-    def test_select_partitions_calls_select_partitions_with_correct_params(self, mock_aggregate):
+    def test_select_partitions_calls_select_partitions_with_correct_params(
+            self, mock_aggregate):
         # Arrange
         dist_data = PrivateRDDTest.sc.parallelize([(1, "pk1"), (2, "pk2")])
         expected_result_partitions = ["pk1", "pk2"]
-        mock_aggregate.return_value = PrivateRDDTest.sc.parallelize(expected_result_partitions)
+        mock_aggregate.return_value = PrivateRDDTest.sc.parallelize(
+            expected_result_partitions)
         budget_accountant = budget_accounting.NaiveBudgetAccountant(
             total_epsilon=1, total_delta=0.01)
         max_partitions_contributed = 2
@@ -205,7 +207,8 @@ class PrivateRDDTest(unittest.TestCase):
 
         select_partitions_params = agg.SelectPartitionsParams(
             max_partitions_contributed=max_partitions_contributed)
-        actual_result = prdd.select_partitions(select_partitions_params, partition_extractor)
+        actual_result = prdd.select_partitions(select_partitions_params,
+                                               partition_extractor)
 
         # Assert
         mock_aggregate.assert_called_once()
@@ -215,7 +218,9 @@ class PrivateRDDTest(unittest.TestCase):
 
         self.assertListEqual(actual_rdd, [(1, (1, "pk1")), (2, (2, "pk2"))])
 
-        self.assertEqual(actual_select_partition_params.max_partitions_contributed, max_partitions_contributed)
+        self.assertEqual(
+            actual_select_partition_params.max_partitions_contributed,
+            max_partitions_contributed)
         self.assertEqual(actual_result.collect(), expected_result_partitions)
 
     def test_select_partitions_returns_sensible_result(self):
@@ -242,7 +247,8 @@ class PrivateRDDTest(unittest.TestCase):
 
         select_partitions_params = agg.SelectPartitionsParams(
             max_partitions_contributed=max_partitions_contributed)
-        actual_result = prdd.select_partitions(select_partitions_params, partition_extractor)
+        actual_result = prdd.select_partitions(select_partitions_params,
+                                               partition_extractor)
         budget_accountant.compute_budgets()
 
         # Assert
