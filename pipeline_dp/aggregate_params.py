@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Iterable, Callable, Union
+import math
 
 
 class Metrics(Enum):
@@ -70,19 +71,39 @@ class AggregateParams:
         if self.low is not None:
             raise ValueError(
                 "AggregateParams: please use min_value instead of low")
-
         if self.high is not None:
             raise ValueError(
                 "AggregateParams: please use max_value instead of high")
+        needs_min_max_value = Metrics.SUM in self.metrics
+        if not isinstance(self.max_partitions_contributed,
+                          int) or self.max_partitions_contributed <= 0:
+            raise ValueError("params.max_partitions_contributed must be set "
+                             "to a positive integer")
+        if not isinstance(self.max_contributions_per_partition,
+                          int) or self.max_contributions_per_partition <= 0:
+            raise ValueError(
+                "params.max_contributions_per_partition must be set "
+                "to a positive integer")
+        if needs_min_max_value and (self.min_value is None or
+                                    self.max_value is None):
+            raise ValueError(
+                "params.min_value and params.max_value must be set")
+        if needs_min_max_value and (_not_a_proper_number(self.min_value) or
+                                    _not_a_proper_number(self.max_value)):
+            raise ValueError(
+                "params.min_value and params.max_value must be both finite numbers"
+            )
+        if needs_min_max_value and self.max_value < self.min_value:
+            raise ValueError(
+                "params.max_value must be equal to or greater than params.min_value"
+            )
 
     def __str__(self):
         return f"Metrics: {[m.value for m in self.metrics]}"
 
 
-# TODO: Think of whether this class should be used for both low-level API
-#       (dp_engine) and high-level API (private_spark, private_beam, etc.).
 @dataclass
-class SelectPrivatePartitionsParams:
+class SelectPartitionsParams:
     """Specifies parameters for differentially-private partition selection.
 
     Args:
@@ -215,3 +236,11 @@ class PrivacyIdCountParams:
     partition_extractor: Callable
     budget_weight: float = 1
     public_partitions: Union[Iterable, 'PCollection', 'RDD'] = None
+
+
+def _not_a_proper_number(num):
+    """
+    Returns:
+        true if num is inf or NaN, false otherwise.
+    """
+    return math.isnan(num) or math.isinf(num)

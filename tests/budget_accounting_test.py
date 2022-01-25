@@ -111,6 +111,25 @@ class NaiveBudgetAccountantTest(unittest.TestCase):
         self.assertEqual(budget2.eps, 0.3)
         self.assertEqual(budget2.delta, 5e-7)
 
+    def test_two_calls_compute_budgets_raise_exception(self):
+        budget_accountant = NaiveBudgetAccountant(total_epsilon=1,
+                                                  total_delta=1e-6)
+        budget_accountant.request_budget(mechanism_type=MechanismType.LAPLACE)
+        budget_accountant.compute_budgets()
+        with self.assertRaises(Exception):
+            # Budget can be computed only once.
+            budget_accountant.compute_budgets()
+
+    def test_request_after_compute_raise_exception(self):
+        budget_accountant = NaiveBudgetAccountant(total_epsilon=1,
+                                                  total_delta=1e-6)
+        budget_accountant.request_budget(mechanism_type=MechanismType.LAPLACE)
+        budget_accountant.compute_budgets()
+        with self.assertRaises(Exception):
+            # Budget can not be requested after it has been already computed.
+            budget_accountant.request_budget(
+                mechanism_type=MechanismType.LAPLACE)
+
 
 class PLDBudgetAccountantTest(unittest.TestCase):
 
@@ -136,6 +155,25 @@ class PLDBudgetAccountantTest(unittest.TestCase):
         accountant = PLDBudgetAccountant(total_epsilon=3, total_delta=1e-5)
         accountant.compute_budgets()
         self.assertEqual(None, accountant.minimum_noise_std)
+
+    def test_two_calls_compute_budgets_raise_exception(self):
+        budget_accountant = PLDBudgetAccountant(total_epsilon=1,
+                                                total_delta=1e-6)
+        budget_accountant.request_budget(mechanism_type=MechanismType.LAPLACE)
+        budget_accountant.compute_budgets()
+        with self.assertRaises(Exception):
+            # Budget can be computed only once.
+            budget_accountant.compute_budgets()
+
+    def test_request_after_compute_raise_exception(self):
+        budget_accountant = PLDBudgetAccountant(total_epsilon=1,
+                                                total_delta=1e-6)
+        budget_accountant.request_budget(mechanism_type=MechanismType.LAPLACE)
+        budget_accountant.compute_budgets()
+        with self.assertRaises(Exception):
+            # Budget can not be requested after it has been already computed.
+            budget_accountant.request_budget(
+                mechanism_type=MechanismType.LAPLACE)
 
     def test_compute_budgets(self):
 

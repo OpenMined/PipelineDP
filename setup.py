@@ -24,7 +24,7 @@ def read(fname):
 
 setup_kwargs = {
     'name': 'pipeline-dp',
-    'version': '0.0.1rc0',
+    'version': '0.0.1rc1',
     'description': 'Framework for applying differential privacy to large datasets using batch processing systems',
     'author': 'Chinmay Shah',
     'author_email': 'chinmayshah3899@gmail.com',
@@ -34,7 +34,7 @@ setup_kwargs = {
     'packages': packages,
     'package_data': package_data,
     'install_requires': install_requires,
-    'python_requires': '>=3.8,<3.11',
+    'python_requires': '>=3.7,<3.11',
     'long_description': read("README.md"),
     'long_description_content_type': 'text/markdown',
     'license': "Apache-2.0",

@@ -22,6 +22,8 @@ Take a look on examples of how to run PipelineDP Apache Spark or Beam:
 * [Apache Beam example](examples/movie_view_ratings_beam.py)
 * [Local execution example](examples/movie_view_ratings.py)
 
+Take a look at the [codelab](https://github.com/OpenMined/PipelineDP/blob/main/examples/restaurant_visits.ipynb).
+
 Here's a code sample for introducing how the private processing code on Spark looks like. For a more complete guide,
 please take a look on the examples above, or on the API guide.
 ```python
