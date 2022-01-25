@@ -145,7 +145,7 @@ def compute_on_spark():
     dp_result.saveAsTextFile(FLAGS.output_file)
 
 
-def compute_on_local():
+def compute_on_local_backend():
     movie_views = parse_file(FLAGS.input_file)
     pipeline_backend = pipeline_dp.LocalBackend()
     dp_result = list(calculate_private_result(movie_views, pipeline_backend))
@@ -158,7 +158,7 @@ def main(unused_argv):
     elif FLAGS.framework == 'spark':
         compute_on_spark()
     else:
-        compute_on_local()
+        compute_on_local_backend()
     return 0
 
 

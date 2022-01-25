@@ -16,13 +16,14 @@ The project is in the early development stage. More description will be added la
 
 ## Getting started
 
-Take a look on examples of how to run PipelineDP Apache Spark or Beam:
+Take a look on examples of how to run PipelineDP:
 
 * [Apache Spark example](examples/movie_view_ratings_spark.py)
 * [Apache Beam example](examples/movie_view_ratings_beam.py)
-* [Local execution example](examples/movie_view_ratings.py)
+* [W/o frameworks example](examples/movie_view_ratings_local.py)
+* [Example with all frameworks](examples/movie_view_ratings.py)
 
-Take a look at the [codelab](https://github.com/OpenMined/PipelineDP/blob/main/examples/restaurant_visits.ipynb).
+For a deep dive on API take a look at the [codelab](https://github.com/OpenMined/PipelineDP/blob/main/examples/restaurant_visits.ipynb).
 
 Here's a code sample for introducing how the private processing code on Spark looks like. For a more complete guide,
 please take a look on the examples above, or on the API guide.
@@ -54,6 +55,13 @@ budget_accountant.compute_budgets()
 dp_result.saveAsTextFile(FLAGS.output_file)
 ```
 
+For more documentation check [pipelinedp.io](https://pipelinedp.io).
+## Installation
+
+`pip install pipeline-dp`
+
+Supported Python version >= 3.7.
+
 ## Development
 
 To install the requirements for local development, run `make dev`.
@@ -65,24 +73,6 @@ Individual targets are `format`, `lint`, `test`, `clean`, `dev`.
 
 Google Python Style Guide https://google.github.io/styleguide/pyguide.html
 
-### Installation
-
-   This project depends on numpy apache-beam pyspark absl-py dataclasses
- 
-   For installing with poetry please run: 
-   
-   1. `git clone https://github.com/OpenMined/PipelineDP.git`
-   
-   2. `cd PipelineDP/`
-   
-   3. `poetry install `
-   
-
-   For installing with pip please run: 
-   
-   1. `pip install numpy apache-beam pyspark absl-py`
-   
-   2. (for python 3.6) `pip install dataclasses`
    
 ### Running end-to-end example
 For the development it is convenient to run an end-to-end example. 
