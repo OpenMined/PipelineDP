@@ -8,6 +8,7 @@ class ReportGenerator:
   ordered set of stages. It collects information about the DP aggregation
   and generates a report.
   """
+
     def __init__(self, params):
         """Initialize the ReportGenerator."""
         self._params_str = None

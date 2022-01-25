@@ -95,6 +95,7 @@ class MechanismSpecInternal:
 
 class BudgetAccountant(abc.ABC):
     """Base class for budget accountants."""
+
     def __init__(self):
         self._scopes_stack = []
         self._mechanisms = []
@@ -152,6 +153,7 @@ class BudgetAccountant(abc.ABC):
 
 @dataclass
 class BudgetAccountantScope:
+
     def __init__(self, accountant, weight):
         self.weight = weight
         self.accountant = accountant
@@ -178,6 +180,7 @@ class BudgetAccountantScope:
 
 class NaiveBudgetAccountant(BudgetAccountant):
     """Manages the privacy budget."""
+
     def __init__(self, total_epsilon: float, total_delta: float):
         """Constructs a NaiveBudgetAccountant.
 
@@ -273,6 +276,7 @@ class PLDBudgetAccountant(BudgetAccountant):
 
     This class is experimental. It is not yet compatible with DPEngine.
     """
+
     def __init__(self,
                  total_epsilon: float,
                  total_delta: float,
@@ -357,8 +361,7 @@ class PLDBudgetAccountant(BudgetAccountant):
             sum_weights = 0
             for mechanism in self._mechanisms:
                 sum_weights += mechanism.weight
-            minimum_noise_std = sum_weights / self._total_epsilon * math.sqrt(
-                2)
+            minimum_noise_std = sum_weights / self._total_epsilon * math.sqrt(2)
         else:
             minimum_noise_std = self._find_minimum_noise_std()
 

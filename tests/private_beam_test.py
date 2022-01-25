@@ -12,11 +12,13 @@ from pipeline_dp import aggregate_params, budget_accounting
 
 
 class SimplePrivatePTransform(private_beam.PrivatePTransform):
+
     def expand(self, pcol):
         return pcol | "Identity transform" >> beam.Map(lambda x: x)
 
 
 class PrivateBeamTest(unittest.TestCase):
+
     @staticmethod
     def privacy_id_extractor(x):
         return f"pid:{x}"
@@ -91,8 +93,7 @@ class PrivateBeamTest(unittest.TestCase):
             # Assert
             self.assertIsInstance(transformed, private_beam.PrivatePCollection)
 
-    def test_transform_with_return_anonymized_enabled_returns_pcollection(
-            self):
+    def test_transform_with_return_anonymized_enabled_returns_pcollection(self):
         runner = fn_api_runner.FnApiRunner()
         with beam.Pipeline(runner=runner) as pipeline:
             # Arrange
@@ -480,8 +481,7 @@ class PrivateBeamTest(unittest.TestCase):
                                    value_per_key_within_tolerance(e, a, 5.0)))
 
     @patch('pipeline_dp.dp_engine.DPEngine.aggregate')
-    def test_privacy_id_count_calls_aggregate_with_params(
-            self, mock_aggregate):
+    def test_privacy_id_count_calls_aggregate_with_params(self, mock_aggregate):
         runner = fn_api_runner.FnApiRunner()
         with beam.Pipeline(runner=runner) as pipeline:
             # Arrange
@@ -620,6 +620,7 @@ class PrivateBeamTest(unittest.TestCase):
             self.assertEqual(transformed._budget_accountant, budget_accountant)
 
     def test_flatmap_returns_correct_results_and_accountant(self):
+
         def flat_map_fn(x):
             return [(x[0], x[1] + i) for i in range(2)]
 
@@ -636,8 +637,7 @@ class PrivateBeamTest(unittest.TestCase):
                     privacy_id_extractor=PrivateBeamTest.privacy_id_extractor))
 
             # Act
-            transformed = private_collection | private_beam.FlatMap(
-                flat_map_fn)
+            transformed = private_collection | private_beam.FlatMap(flat_map_fn)
 
             # Assert
             self.assertIsInstance(transformed, private_beam.PrivatePCollection)

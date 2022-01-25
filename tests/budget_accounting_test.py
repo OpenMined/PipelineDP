@@ -11,6 +11,7 @@ from pipeline_dp.budget_accounting import PLDBudgetAccountant
 
 # pylint: disable=protected-access
 class NaiveBudgetAccountantTest(unittest.TestCase):
+
     def test_validation(self):
         NaiveBudgetAccountant(total_epsilon=1,
                               total_delta=1e-10)  # No exception.
@@ -18,8 +19,7 @@ class NaiveBudgetAccountantTest(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             NaiveBudgetAccountant(
-                total_epsilon=0,
-                total_delta=1e-10)  # Epsilon must be positive.
+                total_epsilon=0, total_delta=1e-10)  # Epsilon must be positive.
 
         with self.assertRaises(ValueError):
             NaiveBudgetAccountant(
@@ -113,6 +113,7 @@ class NaiveBudgetAccountantTest(unittest.TestCase):
 
 
 class PLDBudgetAccountantTest(unittest.TestCase):
+
     def test_noise_not_calculated(self):
         with self.assertRaises(AssertionError):
             mechanism = MechanismSpec(MechanismType.LAPLACE)
@@ -137,6 +138,7 @@ class PLDBudgetAccountantTest(unittest.TestCase):
         self.assertEqual(None, accountant.minimum_noise_std)
 
     def test_compute_budgets(self):
+
         @dataclass
         class ComputeBudgetMechanisms:
             count: int
@@ -237,19 +239,18 @@ class PLDBudgetAccountantTest(unittest.TestCase):
                                           sensitivity=1)
                                   ],
                                   expected_pipeline_noise_std=50),
-            ComputeBudgetTestCase(
-                name="gaussian_mechanisms",
-                epsilon=0.16421041618759222,
-                delta=1e-3,
-                mechanisms=[
-                    ComputeBudgetMechanisms(
-                        count=10,
-                        expected_noise_std=50,
-                        mechanism_type=MechanismType.GAUSSIAN,
-                        weight=1,
-                        sensitivity=1)
-                ],
-                expected_pipeline_noise_std=50),
+            ComputeBudgetTestCase(name="gaussian_mechanisms",
+                                  epsilon=0.16421041618759222,
+                                  delta=1e-3,
+                                  mechanisms=[
+                                      ComputeBudgetMechanisms(
+                                          count=10,
+                                          expected_noise_std=50,
+                                          mechanism_type=MechanismType.GAUSSIAN,
+                                          weight=1,
+                                          sensitivity=1)
+                                  ],
+                                  expected_pipeline_noise_std=50),
             ComputeBudgetTestCase(
                 name="multiple_noise_kinds",
                 epsilon=0.2719439419475211,
@@ -277,63 +278,60 @@ class PLDBudgetAccountantTest(unittest.TestCase):
                         expected_mechanism_delta=0.00010439193305478515)
                 ],
                 expected_pipeline_noise_std=49.81597900390625),
-            ComputeBudgetTestCase(
-                name="multiple_weights",
-                epsilon=1.924852037917208,
-                delta=1e-5,
-                mechanisms=[
-                    ComputeBudgetMechanisms(
-                        count=4,
-                        expected_noise_std=10,
-                        mechanism_type=MechanismType.LAPLACE,
-                        weight=2,
-                        sensitivity=1),
-                    ComputeBudgetMechanisms(
-                        count=4,
-                        expected_noise_std=5,
-                        mechanism_type=MechanismType.GAUSSIAN,
-                        weight=4,
-                        sensitivity=1)
-                ],
-                expected_pipeline_noise_std=20),
-            ComputeBudgetTestCase(
-                name="multiple_sensitivities",
-                epsilon=0.2764312848667339,
-                delta=1e-5,
-                mechanisms=[
-                    ComputeBudgetMechanisms(
-                        count=6,
-                        expected_noise_std=40,
-                        mechanism_type=MechanismType.LAPLACE,
-                        weight=1,
-                        sensitivity=2),
-                    ComputeBudgetMechanisms(
-                        count=2,
-                        expected_noise_std=80,
-                        mechanism_type=MechanismType.GAUSSIAN,
-                        weight=1,
-                        sensitivity=4)
-                ],
-                expected_pipeline_noise_std=20),
-            ComputeBudgetTestCase(
-                name="multiple_weights_and_sensitivities",
-                epsilon=0.780797891312483,
-                delta=1e-5,
-                mechanisms=[
-                    ComputeBudgetMechanisms(
-                        count=4,
-                        expected_noise_std=10,
-                        mechanism_type=MechanismType.LAPLACE,
-                        weight=4,
-                        sensitivity=2),
-                    ComputeBudgetMechanisms(
-                        count=6,
-                        expected_noise_std=40,
-                        mechanism_type=MechanismType.GAUSSIAN,
-                        weight=2,
-                        sensitivity=4)
-                ],
-                expected_pipeline_noise_std=20),
+            ComputeBudgetTestCase(name="multiple_weights",
+                                  epsilon=1.924852037917208,
+                                  delta=1e-5,
+                                  mechanisms=[
+                                      ComputeBudgetMechanisms(
+                                          count=4,
+                                          expected_noise_std=10,
+                                          mechanism_type=MechanismType.LAPLACE,
+                                          weight=2,
+                                          sensitivity=1),
+                                      ComputeBudgetMechanisms(
+                                          count=4,
+                                          expected_noise_std=5,
+                                          mechanism_type=MechanismType.GAUSSIAN,
+                                          weight=4,
+                                          sensitivity=1)
+                                  ],
+                                  expected_pipeline_noise_std=20),
+            ComputeBudgetTestCase(name="multiple_sensitivities",
+                                  epsilon=0.2764312848667339,
+                                  delta=1e-5,
+                                  mechanisms=[
+                                      ComputeBudgetMechanisms(
+                                          count=6,
+                                          expected_noise_std=40,
+                                          mechanism_type=MechanismType.LAPLACE,
+                                          weight=1,
+                                          sensitivity=2),
+                                      ComputeBudgetMechanisms(
+                                          count=2,
+                                          expected_noise_std=80,
+                                          mechanism_type=MechanismType.GAUSSIAN,
+                                          weight=1,
+                                          sensitivity=4)
+                                  ],
+                                  expected_pipeline_noise_std=20),
+            ComputeBudgetTestCase(name="multiple_weights_and_sensitivities",
+                                  epsilon=0.780797891312483,
+                                  delta=1e-5,
+                                  mechanisms=[
+                                      ComputeBudgetMechanisms(
+                                          count=4,
+                                          expected_noise_std=10,
+                                          mechanism_type=MechanismType.LAPLACE,
+                                          weight=4,
+                                          sensitivity=2),
+                                      ComputeBudgetMechanisms(
+                                          count=6,
+                                          expected_noise_std=40,
+                                          mechanism_type=MechanismType.GAUSSIAN,
+                                          weight=2,
+                                          sensitivity=4)
+                                  ],
+                                  expected_pipeline_noise_std=20),
             ComputeBudgetTestCase(
                 name="multiple_weights_and_sensitivities_variants",
                 epsilon=0.9165937807680077,

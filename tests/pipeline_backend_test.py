@@ -19,6 +19,7 @@ class PipelineBackendTest(unittest.TestCase):
 
 
 class BeamBackendTest(parameterized.TestCase):
+
     @classmethod
     def setUpClass(cls):
         cls.backend = BeamBackend()
@@ -47,8 +48,7 @@ class BeamBackendTest(parameterized.TestCase):
             keys_to_keep = [7, 9, 9]
             expected_result = [(7, 1), (9, 10)]
             if not in_memory:
-                keys_to_keep = p | "To PCollection" >> beam.Create(
-                    keys_to_keep)
+                keys_to_keep = p | "To PCollection" >> beam.Create(keys_to_keep)
             result = self.backend.filter_by_key(col, keys_to_keep,
                                                 "filter_by_key")
             beam_util.assert_that(result, beam_util.equal_to(expected_result))
@@ -64,8 +64,7 @@ class BeamBackendTest(parameterized.TestCase):
                                                            (9, 10)])
             keys_to_keep = []
             if not in_memory:
-                keys_to_keep = p | "To PCollection" >> beam.Create(
-                    keys_to_keep)
+                keys_to_keep = p | "To PCollection" >> beam.Create(keys_to_keep)
             result = self.backend.filter_by_key(col, keys_to_keep,
                                                 "filter_by_key")
             beam_util.assert_that(result, beam_util.equal_to([]))
@@ -104,7 +103,9 @@ class BeamBackendTest(parameterized.TestCase):
 
 
 class BeamBackendStageNameTest(unittest.TestCase):
+
     class MockUniqueLabelGenerators:
+
         def unique(self, stage_name: str = ""):
             return "unique_label"
 
@@ -200,11 +201,10 @@ class BeamBackendStageNameTest(unittest.TestCase):
             col = p | f"UNIQUE_BEAM_CREATE_NAME" >> beam.Create([(6, 1),
                                                                  (6, 2)])
             backend_1.map(col, lambda x: x, "SAME_MAP_NAME")
-            with self.assertRaisesRegex(
-                    RuntimeError,
-                    expected_regex="A transform with label "
-                    "\"SAME_MAP_NAME_SAME_backend_SUFFIX\" "
-                    "already exists in the pipeline"):
+            with self.assertRaisesRegex(RuntimeError,
+                                        expected_regex="A transform with label "
+                                        "\"SAME_MAP_NAME_SAME_backend_SUFFIX\" "
+                                        "already exists in the pipeline"):
                 backend_2.map(col, lambda x: x, "SAME_MAP_NAME")
 
     def test_one_suffix_multiple_same_stage_name(self):
@@ -229,8 +229,9 @@ class BeamBackendStageNameTest(unittest.TestCase):
 @unittest.skipIf(sys.platform == "win32" or sys.platform == 'darwin' or (
     sys.version_info.minor <= 7 and sys.version_info.major == 3
 ), "There are some problems with PySpark setup on older python and Windows and macOS"
-                 )
+                )
 class SparkRDDBackendTest(parameterized.TestCase):
+
     @classmethod
     def setUpClass(cls):
         import pyspark
@@ -312,8 +313,7 @@ class SparkRDDBackendTest(parameterized.TestCase):
     def test_map_tuple(self):
         data = [(1, 2), (3, 4)]
         dist_data = self.sc.parallelize(data)
-        result = self.backend.map_tuple(dist_data,
-                                        lambda a, b: a + b).collect()
+        result = self.backend.map_tuple(dist_data, lambda a, b: a + b).collect()
         self.assertEqual(result, [3, 7])
 
     def test_flat_map(self):
@@ -329,11 +329,16 @@ class SparkRDDBackendTest(parameterized.TestCase):
             self.backend.flat_map(dist_data, lambda x: x[1]).collect(),
             [1, 2, 3, 4, 5, 6, 7, 8])
         self.assertEqual(
-            self.backend.flat_map(dist_data,
-                                  lambda x: [(x[0], y)
-                                             for y in x[1]]).collect(),
-            [("a", 1), ("a", 2), ("a", 3), ("a", 4), ("b", 5), ("b", 6),
-             ("b", 7), ("b", 8)])
+            self.backend.flat_map(
+                dist_data,
+                lambda x: [(x[0], y) for y in x[1]]).collect(), [("a", 1),
+                                                                 ("a", 2),
+                                                                 ("a", 3),
+                                                                 ("a", 4),
+                                                                 ("b", 5),
+                                                                 ("b", 6),
+                                                                 ("b", 7),
+                                                                 ("b", 8)])
 
     @classmethod
     def tearDownClass(cls):
@@ -341,6 +346,7 @@ class SparkRDDBackendTest(parameterized.TestCase):
 
 
 class LocalBackendTest(unittest.TestCase):
+
     @classmethod
     def setUpClass(cls):
         cls.backend = LocalBackend()
@@ -372,8 +378,7 @@ class LocalBackendTest(unittest.TestCase):
                                                             ("3", "4")])
 
     def test_local_map_values(self):
-        self.assertEqual(list(self.backend.map_values([], lambda x: x / 0)),
-                         [])
+        self.assertEqual(list(self.backend.map_values([], lambda x: x / 0)), [])
 
         tuple_list = [(1, 2), (2, 3), (3, 4)]
 
@@ -398,8 +403,7 @@ class LocalBackendTest(unittest.TestCase):
         example_list = [1, 2, 2, 3, 3, 4, 2]
 
         self.assertEqual(
-            list(self.backend.filter(example_list, lambda x: x % 2)),
-            [1, 3, 3])
+            list(self.backend.filter(example_list, lambda x: x % 2)), [1, 3, 3])
         self.assertEqual(
             list(self.backend.filter(example_list, lambda x: x < 3)),
             [1, 2, 2, 2])
@@ -462,6 +466,7 @@ class LocalBackendTest(unittest.TestCase):
         self.assertEqual(result, [(1, 6), (2, 4), (3, 8)])
 
     def test_laziness(self):
+
         def exceptions_generator_function():
             yield 1 / 0
 
@@ -520,9 +525,8 @@ class LocalBackendTest(unittest.TestCase):
                          [1, 2, 3, 4, 5, 6, 7, 8])
 
         input_col = [("a", [1, 2, 3, 4]), ("b", [5, 6, 7, 8])]
-        self.assertEqual(
-            list(self.backend.flat_map(input_col, lambda x: x[1])),
-            [1, 2, 3, 4, 5, 6, 7, 8])
+        self.assertEqual(list(self.backend.flat_map(input_col, lambda x: x[1])),
+                         [1, 2, 3, 4, 5, 6, 7, 8])
         self.assertEqual(
             list(
                 self.backend.flat_map(input_col,
@@ -542,6 +546,7 @@ class LocalBackendTest(unittest.TestCase):
 @unittest.skipIf(sys.platform == 'win32' or sys.platform == 'darwin',
                  "Problems with serialisation on Windows and macOS")
 class MultiProcLocalBackendTest(unittest.TestCase):
+
     @staticmethod
     def partition_extract(x):
         return x[1]
@@ -632,9 +637,8 @@ class MultiProcLocalBackendTest(unittest.TestCase):
 
         tuple_list = [(1, 2), (2, 3), (3, 4)]
 
-        self.assertDatasetsEqual(
-            list(self.backend.map_values(tuple_list, str)),
-            [(1, "2"), (2, "3"), (3, "4")])
+        self.assertDatasetsEqual(list(self.backend.map_values(tuple_list, str)),
+                                 [(1, "2"), (2, "3"), (3, "4")])
         self.assertDatasetsEqual(
             list(self.backend.map_values(tuple_list, lambda x: x**2)),
             [(1, 4), (2, 9), (3, 16)])
@@ -652,14 +656,13 @@ class MultiProcLocalBackendTest(unittest.TestCase):
     def test_multiproc_filter(self):
         self.assertDatasetsEqual(list(self.backend.filter([], lambda x: True)),
                                  [])
-        self.assertDatasetsEqual(
-            list(self.backend.filter([], lambda x: False)), [])
+        self.assertDatasetsEqual(list(self.backend.filter([], lambda x: False)),
+                                 [])
 
         example_list = [1, 2, 2, 3, 3, 4, 2]
 
         self.assertDatasetsEqual(
-            list(self.backend.filter(example_list, lambda x: x % 2)),
-            [1, 3, 3])
+            list(self.backend.filter(example_list, lambda x: x % 2)), [1, 3, 3])
         self.assertDatasetsEqual(
             list(self.backend.filter(example_list, lambda x: x < 3)),
             [1, 2, 2, 2])
@@ -675,8 +678,7 @@ class MultiProcLocalBackendTest(unittest.TestCase):
     def test_multiproc_filter_by_key_remove(self):
         col = [(7, 1), (2, 1), (3, 9), (4, 1), (9, 10)]
         keys_to_keep = [7, 9]
-        result = self.backend.filter_by_key(col, keys_to_keep,
-                                            "filter_by_keys")
+        result = self.backend.filter_by_key(col, keys_to_keep, "filter_by_keys")
         self.assertDatasetsEqual(list(result), [(7, 1), (9, 10)])
 
     @pytest.mark.timeout(10)
@@ -702,15 +704,7 @@ class MultiProcLocalBackendTest(unittest.TestCase):
         example_list = [1, 2, 3, 4, 5, 6, 1, 4, 0, 1]
         result = dict(self.backend.count_per_element(example_list))
 
-        self.assertDictEqual(result, {
-            1: 3,
-            2: 1,
-            3: 1,
-            4: 2,
-            5: 1,
-            6: 1,
-            0: 1
-        })
+        self.assertDictEqual(result, {1: 3, 2: 1, 3: 1, 4: 2, 5: 1, 6: 1, 0: 1})
 
     @pytest.mark.timeout(10)
     def test_multiproc_sample_fixed_per_key_requires_no_discarding(self):
@@ -773,6 +767,7 @@ class MultiProcLocalBackendTest(unittest.TestCase):
         ])
 
     def test_laziness(self):
+
         def exceptions_generator_function():
             yield 1 / 0
 
@@ -801,6 +796,7 @@ class MultiProcLocalBackendTest(unittest.TestCase):
 # TODO: Extend the proper Accumulator class once it's available.
 class SumAccumulator:
     """A simple accumulator for testing purposes."""
+
     def __init__(self, v):
         self.sum = v
 
@@ -818,6 +814,7 @@ class SumAccumulator:
 
 
 class SumCombiner(dp_combiners.Combiner):
+
     def create_accumulator(self, values) -> float:
         return sum(values)
 

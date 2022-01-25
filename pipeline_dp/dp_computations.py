@@ -204,8 +204,7 @@ def equally_split_budget(eps: float, delta: float, no_mechanisms: int):
         An array with the split budgets.
     """
     if no_mechanisms <= 0:
-        raise ValueError(
-            "The number of mechanisms must be a positive integer.")
+        raise ValueError("The number of mechanisms must be a positive integer.")
 
     # These variables are used to keep track of the budget used.
     # In this way, we can improve accuracy of floating-point operations.
@@ -301,8 +300,7 @@ def _compute_mean(
         The anonymized mean.
     """
     middle = compute_middle(min_value, max_value)
-    linf_sensitivity = max_contributions_per_partition * abs(middle -
-                                                             min_value)
+    linf_sensitivity = max_contributions_per_partition * abs(middle - min_value)
 
     normalized_sum = sum - count * middle
     dp_normalized_sum = _add_random_noise(normalized_sum, eps, delta,

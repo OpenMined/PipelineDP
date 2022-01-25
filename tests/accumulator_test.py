@@ -13,6 +13,7 @@ import pipeline_dp.accumulator as accumulator
 
 
 class CompoundAccumulatorTest(unittest.TestCase):
+
     def test_with_mean_and_sum_squares(self):
         mean_acc = MeanAccumulator(values=[])
         sum_squares_acc = SumOfSquaresAccumulator(values=[])
@@ -103,8 +104,7 @@ class CompoundAccumulatorTest(unittest.TestCase):
         serialized_obj = compound_accumulator.serialize()
         deserialized_obj = accumulator.Accumulator.deserialize(serialized_obj)
 
-        self.assertIsInstance(deserialized_obj,
-                              accumulator.CompoundAccumulator)
+        self.assertIsInstance(deserialized_obj, accumulator.CompoundAccumulator)
 
         self.assertEqual(len(deserialized_obj._accumulators), 2)
         self.assertIsInstance(deserialized_obj._accumulators[0],
@@ -143,6 +143,7 @@ class CompoundAccumulatorTest(unittest.TestCase):
 
 
 class GenericAccumulatorTest(unittest.TestCase):
+
     def test_merge_accumulators(self):
         mean_accumulator1 = MeanAccumulator(values=[15])
         mean_accumulator2 = MeanAccumulator(values=[5])
@@ -280,6 +281,7 @@ class GenericAccumulatorTest(unittest.TestCase):
 
 
 class MeanAccumulator(accumulator.Accumulator):
+
     def __init__(self, values: typing.Iterable[float] = []):
         self.sum = sum(values)
         self.count = len(values)
@@ -303,12 +305,14 @@ class MeanAccumulator(accumulator.Accumulator):
 
 
 class MeanAccumulatorFactory(accumulator.AccumulatorFactory):
+
     def create(self, values):
         return MeanAccumulator(values)
 
 
 # Accumulator classes for testing
 class SumOfSquaresAccumulator(accumulator.Accumulator):
+
     def __init__(self, values: typing.Iterable[float] = []):
         self.sum_squares = sum([value * value for value in values])
 
@@ -328,11 +332,13 @@ class SumOfSquaresAccumulator(accumulator.Accumulator):
 
 
 class SumOfSquaresAccumulatorFactory(accumulator.AccumulatorFactory):
+
     def create(self, values):
         return SumOfSquaresAccumulator(values)
 
 
 class PrivacyIdCountAccumulatorTest(unittest.TestCase):
+
     def test_without_noise(self):
         budget_accountant = NaiveBudgetAccountant(total_epsilon=1000000,
                                                   total_delta=0.9999999)
@@ -357,8 +363,7 @@ class PrivacyIdCountAccumulatorTest(unittest.TestCase):
         self.assertEqual(id_count_accumulator.compute_metrics(), 1)
 
         id_count_accumulator_1 = accumulator.PrivacyIdCountAccumulator(
-            accumulator.PrivacyIdCountParams(budget, no_noise),
-            list(range(50)))
+            accumulator.PrivacyIdCountParams(budget, no_noise), list(range(50)))
         id_count_accumulator_2 = accumulator.PrivacyIdCountAccumulator(
             accumulator.PrivacyIdCountParams(budget, no_noise), 'a' * 50)
         id_count_accumulator_1.add_accumulator(id_count_accumulator_2)
@@ -391,6 +396,7 @@ class PrivacyIdCountAccumulatorTest(unittest.TestCase):
 
 
 class CountAccumulatorTest(unittest.TestCase):
+
     def test_without_noise(self):
         budget_accountant = NaiveBudgetAccountant(total_epsilon=1000000,
                                                   total_delta=0.9999999)
@@ -465,6 +471,7 @@ def mock_add_noise_vector(x, *args):
 
 
 class VectorSummuationAccumulatorTest(unittest.TestCase):
+
     def test_without_noise(self):
         with patch("pipeline_dp.dp_computations.add_noise_vector",
                    new=mock_add_noise_vector):

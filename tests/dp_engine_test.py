@@ -23,6 +23,7 @@ from pipeline_dp.pipeline_backend import PipelineBackend
 
 
 class _MockPartitionStrategy(partition_selection.PartitionSelectionStrategy):
+
     def __init__(self, eps, delta, max_partitions_contributed, min_users):
         self.eps = eps
         self.delta = delta
@@ -34,6 +35,7 @@ class _MockPartitionStrategy(partition_selection.PartitionSelectionStrategy):
 
 
 def _mock_partition_strategy_factory(min_users):
+
     def partition_strategy_factory(e, d, mpc):
         return _MockPartitionStrategy(e, d, mpc, min_users)
 
@@ -41,6 +43,7 @@ def _mock_partition_strategy_factory(min_users):
 
 
 class _MockAccumulator(pipeline_dp.accumulator.Accumulator):
+
     def __init__(self, values_list: list = None) -> None:
         self.values_list = values_list or []
 
@@ -68,8 +71,8 @@ class _MockAccumulator(pipeline_dp.accumulator.Accumulator):
 
 
 class DpEngineTest(parameterized.TestCase):
-    aggregator_fn = lambda input_values: (len(
-        input_values), np.sum(input_values), np.sum(np.square(input_values)))
+    aggregator_fn = lambda input_values: (len(input_values), np.sum(
+        input_values), np.sum(np.square(input_values)))
 
     def test_contribution_bounding_empty_col(self):
         input_col = []
@@ -87,8 +90,8 @@ class DpEngineTest(parameterized.TestCase):
         self.assertFalse(bound_result)
 
     def test_contribution_bounding_bound_input_nothing_dropped(self):
-        input_col = [("pid1", 'pk1', 1), ("pid1", 'pk1', 2),
-                     ("pid1", 'pk2', 3), ("pid1", 'pk2', 4)]
+        input_col = [("pid1", 'pk1', 1), ("pid1", 'pk1', 2), ("pid1", 'pk2', 3),
+                     ("pid1", 'pk2', 4)]
         max_partitions_contributed = 2
         max_contributions_per_partition = 2
 
@@ -105,9 +108,8 @@ class DpEngineTest(parameterized.TestCase):
         self.assertEqual(set(expected_result), set(bound_result))
 
     def test_contribution_bounding_per_partition_bounding_applied(self):
-        input_col = [("pid1", 'pk1', 1), ("pid1", 'pk1', 2),
-                     ("pid1", 'pk2', 3), ("pid1", 'pk2', 4),
-                     ("pid1", 'pk2', 5), ("pid2", 'pk2', 6)]
+        input_col = [("pid1", 'pk1', 1), ("pid1", 'pk1', 2), ("pid1", 'pk2', 3),
+                     ("pid1", 'pk2', 4), ("pid1", 'pk2', 5), ("pid2", 'pk2', 6)]
         max_partitions_contributed = 5
         max_contributions_per_partition = 2
 
@@ -128,11 +130,9 @@ class DpEngineTest(parameterized.TestCase):
                     max_contributions_per_partition, bound_result)))
 
     def test_contribution_bounding_cross_partition_bounding_applied(self):
-        input_col = [
-            ("pid1", 'pk1', 1), ("pid1", 'pk1', 2), ("pid1", 'pk2', 3),
-            ("pid1", 'pk2', 4), ("pid1", 'pk2', 5), ("pid1", 'pk3', 6),
-            ("pid1", 'pk4', 7), ("pid2", 'pk4', 8)
-        ]
+        input_col = [("pid1", 'pk1', 1), ("pid1", 'pk1', 2), ("pid1", 'pk2', 3),
+                     ("pid1", 'pk2', 4), ("pid1", 'pk2', 5), ("pid1", 'pk3', 6),
+                     ("pid1", 'pk4', 7), ("pid2", 'pk4', 8)]
         max_partitions_contributed = 3
         max_contributions_per_partition = 5
 
@@ -199,96 +199,96 @@ class DpEngineTest(parameterized.TestCase):
             },
             {
                 "desc":
-                "negative max_partitions_contributed",
+                    "negative max_partitions_contributed",
                 "col": [0],
                 "params":
-                pipeline_dp.AggregateParams(
-                    noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
-                    max_partitions_contributed=-1,
-                    max_contributions_per_partition=1,
-                    metrics=[pipeline_dp.Metrics.PRIVACY_ID_COUNT]),
+                    pipeline_dp.AggregateParams(
+                        noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+                        max_partitions_contributed=-1,
+                        max_contributions_per_partition=1,
+                        metrics=[pipeline_dp.Metrics.PRIVACY_ID_COUNT]),
                 "data_extractor":
-                default_extractors,
+                    default_extractors,
             },
             {
                 "desc":
-                "float max_partitions_contributed",
+                    "float max_partitions_contributed",
                 "col": [0],
                 "params":
-                pipeline_dp.AggregateParams(
-                    noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
-                    max_partitions_contributed=1.5,
-                    max_contributions_per_partition=1,
-                    metrics=[pipeline_dp.Metrics.PRIVACY_ID_COUNT]),
+                    pipeline_dp.AggregateParams(
+                        noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+                        max_partitions_contributed=1.5,
+                        max_contributions_per_partition=1,
+                        metrics=[pipeline_dp.Metrics.PRIVACY_ID_COUNT]),
                 "data_extractor":
-                default_extractors,
+                    default_extractors,
             },
             {
                 "desc":
-                "negative max_contributions_per_partition",
+                    "negative max_contributions_per_partition",
                 "col": [0],
                 "params":
-                pipeline_dp.AggregateParams(
-                    noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
-                    max_partitions_contributed=1,
-                    max_contributions_per_partition=-1,
-                    metrics=[pipeline_dp.Metrics.PRIVACY_ID_COUNT]),
+                    pipeline_dp.AggregateParams(
+                        noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+                        max_partitions_contributed=1,
+                        max_contributions_per_partition=-1,
+                        metrics=[pipeline_dp.Metrics.PRIVACY_ID_COUNT]),
                 "data_extractor":
-                default_extractors,
+                    default_extractors,
             },
             {
                 "desc":
-                "float max_contributions_per_partition",
+                    "float max_contributions_per_partition",
                 "col": [0],
                 "params":
-                pipeline_dp.AggregateParams(
-                    noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
-                    max_partitions_contributed=1,
-                    max_contributions_per_partition=1.5,
-                    metrics=[pipeline_dp.Metrics.PRIVACY_ID_COUNT]),
+                    pipeline_dp.AggregateParams(
+                        noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+                        max_partitions_contributed=1,
+                        max_contributions_per_partition=1.5,
+                        metrics=[pipeline_dp.Metrics.PRIVACY_ID_COUNT]),
                 "data_extractor":
-                default_extractors,
+                    default_extractors,
             },
             {
                 "desc":
-                "unspecified min_value",
+                    "unspecified min_value",
                 "col": [0],
                 "params":
-                pipeline_dp.AggregateParams(
-                    noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
-                    max_partitions_contributed=1,
-                    max_contributions_per_partition=1,
-                    metrics=[pipeline_dp.Metrics.SUM]),
+                    pipeline_dp.AggregateParams(
+                        noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+                        max_partitions_contributed=1,
+                        max_contributions_per_partition=1,
+                        metrics=[pipeline_dp.Metrics.SUM]),
                 "data_extractor":
-                default_extractors,
+                    default_extractors,
             },
             {
                 "desc":
-                "unspecified max_value",
+                    "unspecified max_value",
                 "col": [0],
                 "params":
-                pipeline_dp.AggregateParams(
-                    noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
-                    max_partitions_contributed=1,
-                    max_contributions_per_partition=1,
-                    metrics=[pipeline_dp.Metrics.SUM]),
+                    pipeline_dp.AggregateParams(
+                        noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+                        max_partitions_contributed=1,
+                        max_contributions_per_partition=1,
+                        metrics=[pipeline_dp.Metrics.SUM]),
                 "data_extractor":
-                default_extractors,
+                    default_extractors,
             },
             {
                 "desc":
-                "low > high",
+                    "low > high",
                 "col": [0],
                 "params":
-                pipeline_dp.AggregateParams(
-                    noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
-                    max_partitions_contributed=1,
-                    max_contributions_per_partition=1,
-                    min_value=1,
-                    max_value=0,
-                    metrics=[pipeline_dp.Metrics.SUM]),
+                    pipeline_dp.AggregateParams(
+                        noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+                        max_partitions_contributed=1,
+                        max_contributions_per_partition=1,
+                        min_value=1,
+                        max_value=0,
+                        metrics=[pipeline_dp.Metrics.SUM]),
                 "data_extractor":
-                default_extractors,
+                    default_extractors,
             },
             {
                 "desc": "None data_extractor",
@@ -327,8 +327,8 @@ class DpEngineTest(parameterized.TestCase):
             min_value=1,
             max_value=5,
             metrics=[
-                pipeline_dp.Metrics.PRIVACY_ID_COUNT,
-                pipeline_dp.Metrics.COUNT, pipeline_dp.Metrics.MEAN
+                pipeline_dp.Metrics.PRIVACY_ID_COUNT, pipeline_dp.Metrics.COUNT,
+                pipeline_dp.Metrics.MEAN
             ],
         )
         params2 = pipeline_dp.AggregateParams(
@@ -379,8 +379,8 @@ class DpEngineTest(parameterized.TestCase):
         )
 
     @patch('pipeline_dp.DPEngine._bound_contributions')
-    def test_aggregate_computation_graph_verification(
-            self, mock_bound_contributions):
+    def test_aggregate_computation_graph_verification(self,
+                                                      mock_bound_contributions):
         # Arrange
         aggregator_params = pipeline_dp.AggregateParams(
             noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
@@ -415,8 +415,7 @@ class DpEngineTest(parameterized.TestCase):
             unittest.mock.ANY)
 
     def _mock_and_assert_private_partitions(self, engine: pipeline_dp.DPEngine,
-                                            col, min_users,
-                                            expected_partitions,
+                                            col, min_users, expected_partitions,
                                             max_partitions_contributed):
         with patch(
                 "pydp.algorithms.partition_selection.create_truncated_geometric_partition_strategy",
@@ -535,8 +534,8 @@ class DpEngineTest(parameterized.TestCase):
         col = [(u, "pk-many-contribs") for u in range(25)]
 
         # A partition with many contributions, but only a few unique users.
-        col += [(100 + u // 10, "pk-many-contribs-few-users")
-                for u in range(30)]
+        col += [(100 + u // 10, "pk-many-contribs-few-users") for u in range(30)
+               ]
 
         # A partition with few contributions.
         col += [(200 + u, "pk-few-contribs") for u in range(3)]
@@ -545,8 +544,8 @@ class DpEngineTest(parameterized.TestCase):
         # 25 users is sufficient to keep the partition, but because of
         # contribution bounding, much less users per partition will be kept.
         for i in range(30):
-            col += [(500 + u, f"few-contribs-after-bound{i}")
-                    for u in range(25)]
+            col += [(500 + u, f"few-contribs-after-bound{i}") for u in range(25)
+                   ]
 
         col = list(col)
         data_extractor = pipeline_dp.DataExtractors(
@@ -579,24 +578,24 @@ class DpEngineTest(parameterized.TestCase):
         test_cases = [
             {
                 "desc":
-                "None col",
+                    "None col",
                 "col":
-                None,
+                    None,
                 "params":
-                pipeline_dp.SelectPrivatePartitionsParams(
-                    max_partitions_contributed=1, ),
+                    pipeline_dp.SelectPrivatePartitionsParams(
+                        max_partitions_contributed=1,),
                 "data_extractor":
-                default_extractor,
+                    default_extractor,
             },
             {
                 "desc":
-                "empty col",
+                    "empty col",
                 "col": [],
                 "params":
-                pipeline_dp.SelectPrivatePartitionsParams(
-                    max_partitions_contributed=1, ),
+                    pipeline_dp.SelectPrivatePartitionsParams(
+                        max_partitions_contributed=1,),
                 "data_extractor":
-                default_extractor,
+                    default_extractor,
             },
             {
                 "desc": "none params",
@@ -606,43 +605,43 @@ class DpEngineTest(parameterized.TestCase):
             },
             {
                 "desc":
-                "negative max_partitions_contributed",
+                    "negative max_partitions_contributed",
                 "col": [0],
                 "params":
-                pipeline_dp.SelectPrivatePartitionsParams(
-                    max_partitions_contributed=-1, ),
+                    pipeline_dp.SelectPrivatePartitionsParams(
+                        max_partitions_contributed=-1,),
                 "data_extractor":
-                default_extractor,
+                    default_extractor,
             },
             {
                 "desc":
-                "float max_partitions_contributed",
+                    "float max_partitions_contributed",
                 "col": [0],
                 "params":
-                pipeline_dp.SelectPrivatePartitionsParams(
-                    max_partitions_contributed=1.1, ),
+                    pipeline_dp.SelectPrivatePartitionsParams(
+                        max_partitions_contributed=1.1,),
                 "data_extractor":
-                default_extractor,
+                    default_extractor,
             },
             {
                 "desc":
-                "None data_extractor",
+                    "None data_extractor",
                 "col": [0],
                 "params":
-                pipeline_dp.SelectPrivatePartitionsParams(
-                    max_partitions_contributed=1, ),
+                    pipeline_dp.SelectPrivatePartitionsParams(
+                        max_partitions_contributed=1,),
                 "data_extractor":
-                None,
+                    None,
             },
             {
                 "desc":
-                "Not a function data_extractor",
+                    "Not a function data_extractor",
                 "col": [0],
                 "params":
-                pipeline_dp.SelectPrivatePartitionsParams(
-                    max_partitions_contributed=1, ),
+                    pipeline_dp.SelectPrivatePartitionsParams(
+                        max_partitions_contributed=1,),
                 "data_extractor":
-                1,
+                    1,
             },
         ]
 
@@ -662,8 +661,7 @@ class DpEngineTest(parameterized.TestCase):
         aggregator_params = pipeline_dp.AggregateParams(
             noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
             metrics=[
-                agg.Metrics.COUNT, agg.Metrics.SUM,
-                agg.Metrics.PRIVACY_ID_COUNT
+                agg.Metrics.COUNT, agg.Metrics.SUM, agg.Metrics.PRIVACY_ID_COUNT
             ],
             min_value=0,
             max_value=1,
@@ -705,8 +703,7 @@ class DpEngineTest(parameterized.TestCase):
         aggregator_params = pipeline_dp.AggregateParams(
             noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
             metrics=[
-                agg.Metrics.COUNT, agg.Metrics.SUM,
-                agg.Metrics.PRIVACY_ID_COUNT
+                agg.Metrics.COUNT, agg.Metrics.SUM, agg.Metrics.PRIVACY_ID_COUNT
             ],
             min_value=0,
             max_value=1,
@@ -804,10 +801,11 @@ class DpEngineTest(parameterized.TestCase):
 
         self.assertEqual(5, len(list(output)))
 
-    @unittest.skipIf(sys.platform == "win32" or (
-        sys.version_info.minor <= 7 and sys.version_info.major == 3
-    ), "There are some problems with PySpark setup on older python and Windows"
-                     )
+    @unittest.skipIf(
+        sys.platform == "win32" or
+        (sys.version_info.minor <= 7 and sys.version_info.major == 3),
+        "There are some problems with PySpark setup on older python and Windows"
+    )
     def test_run_e2e_spark(self):
         import pyspark
         conf = pyspark.SparkConf()

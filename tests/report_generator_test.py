@@ -8,6 +8,7 @@ from pipeline_dp.report_generator import ReportGenerator
 
 
 class ReportGeneratorTest(unittest.TestCase):
+
     def test_report_empty(self):
         self.assertEqual("", ReportGenerator(None).report())
 

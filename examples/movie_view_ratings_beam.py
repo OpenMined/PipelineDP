@@ -35,8 +35,8 @@ def main(unused_argv):
                            beam.ParDo(ParseFile())
 
         # Wrap Beam's PCollection into it's private version
-        private_movie_views = (movie_views_pcol
-                               | 'Create private collection' >> MakePrivate(
+        private_movie_views = (movie_views_pcol |
+                               'Create private collection' >> MakePrivate(
                                    budget_accountant=budget_accountant,
                                    privacy_id_extractor=lambda mv: mv.user_id))
 
