@@ -1,0 +1,27 @@
+/* Partners */
+
+.c-partners {
+  display: flex;
+  flex-flow: column nowrap;
+  padding-bottom: 6rem;
+  padding-top: 3rem;
+  text-align: center;
+
+  &__title {
+    color: #5f6368;
+    font-size: 0.875rem;
+    font-weight: 700;
+    margin: 0;
+    padding-bottom: 3rem;
+    text-transform: uppercase;
+  }
+
+  &__logo {
+    display: inline-block;
+    margin-left: 6rem;
+
+    &:first-of-type {
+      margin-left: 0;
+    }
+  }
+}
