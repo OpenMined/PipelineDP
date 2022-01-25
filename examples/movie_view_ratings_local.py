@@ -1,5 +1,4 @@
-""" Demo of PipelineDP with Apache Beam.
-"""
+""" Demo of running PipelineDP locally, without any external data processing framework"""
 
 from absl import app
 from absl import flags
@@ -15,9 +14,9 @@ flags.DEFINE_string('output_file', None, 'Output file')
 def main(unused_argv):
     # Here, we use a local backend for computations. Which does not depend on
     # any pipeline framework and it is implemented in pure Python in
-    # PipelineDP. It keeps all data in memory and not optimized for large data.
-    # For datasets till tens of megabytes it is faster than running Beam or Spark
-    # in local mode.
+    # PipelineDP. It keeps all data in memory and is not optimized for large data.
+    # For datasets smaller than ~tens of megabytes, local execution without any
+    # framework is faster than local mode with Beam or Spark.
     backend = pipeline_dp.LocalBackend()
 
     # Define the privacy budget available for our computation.
@@ -61,7 +60,8 @@ def main(unused_argv):
     # Make budget computations.
     budget_accountant.compute_budgets()
 
-    # Initiate computations.
+    # Here's where the lazy iterator initiates computations and gets transformed
+    # into actual results
     dp_result = list(dp_result)
 
     # Save the results

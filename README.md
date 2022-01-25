@@ -20,7 +20,7 @@ Take a look on examples of how to run PipelineDP:
 
 * [Apache Spark example](examples/movie_view_ratings_spark.py)
 * [Apache Beam example](examples/movie_view_ratings_beam.py)
-* [W/o frameworks example](examples/movie_view_ratings_local.py)
+* [Framework-free example](examples/movie_view_ratings_local.py)
 * [Example with all frameworks](examples/movie_view_ratings.py)
 
 For a deep dive on API take a look at the [codelab](https://github.com/OpenMined/PipelineDP/blob/main/examples/restaurant_visits.ipynb).
