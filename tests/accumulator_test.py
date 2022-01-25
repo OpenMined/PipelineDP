@@ -256,8 +256,8 @@ class GenericAccumulatorTest(unittest.TestCase):
             aggregation_params=pipeline_dp.AggregateParams(
                 noise_kind=NoiseKind.GAUSSIAN,
                 metrics=[pipeline_dp.Metrics.COUNT],
-                max_partitions_contributed=0,
-                max_contributions_per_partition=0,
+                max_partitions_contributed=1,
+                max_contributions_per_partition=1,
                 budget_weight=1),
             budget_accountant=NaiveBudgetAccountant(total_epsilon=1,
                                                     total_delta=0.01))
@@ -270,6 +270,8 @@ class GenericAccumulatorTest(unittest.TestCase):
             aggregation_params=pipeline_dp.AggregateParams(
                 noise_kind=NoiseKind.GAUSSIAN,
                 metrics=[pipeline_dp.Metrics.SUM],
+                min_value=0,
+                max_value=1,
                 max_partitions_contributed=4,
                 max_contributions_per_partition=5,
                 budget_weight=1),

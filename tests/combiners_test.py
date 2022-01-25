@@ -34,8 +34,10 @@ class CreateCompoundCombinersTest(parameterized.TestCase):
         return pipeline_dp.AggregateParams(
             noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
             metrics=metrics,
-            max_partitions_contributed=0,
-            max_contributions_per_partition=0,
+            min_value=0,
+            max_value=1,
+            max_partitions_contributed=1,
+            max_contributions_per_partition=1,
             budget_weight=10.0)
 
     @parameterized.named_parameters(
