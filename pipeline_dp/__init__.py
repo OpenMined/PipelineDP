@@ -4,7 +4,7 @@ from pipeline_dp.aggregate_params import MechanismType
 from pipeline_dp.aggregate_params import Metrics
 from pipeline_dp.aggregate_params import NoiseKind
 from pipeline_dp.aggregate_params import PrivacyIdCountParams
-from pipeline_dp.aggregate_params import SelectPrivatePartitionsParams
+from pipeline_dp.aggregate_params import SelectPartitionsParams
 from pipeline_dp.aggregate_params import SumParams
 from pipeline_dp.budget_accounting import NaiveBudgetAccountant
 from pipeline_dp.dp_engine import DataExtractors

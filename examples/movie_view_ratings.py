@@ -104,9 +104,9 @@ def get_private_movies(movie_views, backend):
         privacy_id_extractor=lambda mv: mv.user_id)
 
     # Run aggregation.
-    dp_result = dp_engine.select_private_partitions(
+    dp_result = dp_engine.select_partitions(
         movie_views,
-        pipeline_dp.SelectPrivatePartitionsParams(max_partitions_contributed=2),
+        pipeline_dp.SelectPartitionsParams(max_partitions_contributed=2),
         data_extractors=data_extractors)
 
     budget_accountant.compute_budgets()

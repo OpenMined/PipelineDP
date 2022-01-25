@@ -103,14 +103,14 @@ class DPEngine:
         return col
 
     def _check_select_private_partitions(
-            self, col, params: pipeline_dp.SelectPrivatePartitionsParams,
+            self, col, params: pipeline_dp.SelectPartitionsParams,
             data_extractors: DataExtractors):
         if col is None or not col:
             raise ValueError("col must be non-empty")
         if params is None:
             raise ValueError(
                 "params must be set to a valid SelectPrivatePartitionsParams")
-        if not isinstance(params, pipeline_dp.SelectPrivatePartitionsParams):
+        if not isinstance(params, pipeline_dp.SelectPartitionsParams):
             raise TypeError(
                 "params must be set to a valid SelectPrivatePartitionsParams")
         if not isinstance(params.max_partitions_contributed,
@@ -122,9 +122,8 @@ class DPEngine:
         if not isinstance(data_extractors, pipeline_dp.DataExtractors):
             raise TypeError("data_extractors must be set to a DataExtractors")
 
-    def select_private_partitions(
-            self, col, params: pipeline_dp.SelectPrivatePartitionsParams,
-            data_extractors: DataExtractors):
+    def select_partitions(self, col, params: pipeline_dp.SelectPartitionsParams,
+                          data_extractors: DataExtractors):
         """Retrieves a collection of differentially-private partitions.
 
         Args:
