@@ -153,6 +153,30 @@ class PrivateRDD:
 
         return dp_result
 
+    def select_partitions(self,
+                          select_partitions_params: aggregate_params.SelectPartitionsParams,
+                          partition_extractor: Callable
+                          ) -> RDD:
+        """Computes a collection of PrivatePCollection partition keys using DP.
+
+        Args:
+            select_partitions_params: parameters for calculation
+            partition_extractor: function for extracting partition key from the input collection
+        """
+
+        backend = pipeline_dp.SparkRDDBackend()
+        dp_engine = pipeline_dp.DPEngine(self._budget_accountant, backend)
+
+        params = pipeline_dp.SelectPartitionsParams(
+            max_partitions_contributed=select_partitions_params.max_partitions_contributed)
+
+        data_extractors = pipeline_dp.DataExtractors(
+            partition_extractor=lambda x: partition_extractor(x[1]),
+            privacy_id_extractor=lambda x: x[0]
+        )
+
+        return dp_engine.select_partitions(self._rdd, params,
+                                           data_extractors)
 
 def make_private(rdd: RDD,
                  budget_accountant: budget_accounting.BudgetAccountant,
