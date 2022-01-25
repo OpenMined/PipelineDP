@@ -119,7 +119,7 @@ class PrivateBeamTest(unittest.TestCase):
         with beam.Pipeline(runner=runner) as pipeline:
             # Arrange
             pcol = pipeline | 'Create produce' >> beam.Create(
-                [1, 2, 3, 4, 5, 6])
+                float(i) for i in range(1, 7))
             budget_accountant = budget_accounting.NaiveBudgetAccountant(
                 total_epsilon=1, total_delta=0.01)
             private_collection = (
@@ -163,8 +163,8 @@ class PrivateBeamTest(unittest.TestCase):
     def test_sum_returns_sensible_result(self):
         with TestPipeline() as pipeline:
             # Arrange
-            col = [(u, "pk1", 100) for u in range(30)]
-            col += [(u + 30, "pk1", -100) for u in range(30)]
+            col = [(f"{u}", "pk1", 100.0) for u in range(30)]
+            col += [(f"{u + 30}", "pk1", -100.0) for u in range(30)]
             pcol = pipeline | 'Create produce' >> beam.Create(col)
             # Use very high epsilon and delta to minimize noise and test
             # flakiness.
@@ -202,9 +202,9 @@ class PrivateBeamTest(unittest.TestCase):
     def test_sum_with_public_partitions_returns_sensible_result(self):
         with TestPipeline() as pipeline:
             # Arrange
-            col = [(u, "pubK1", 100) for u in range(30)]
-            col += [(u + 30, "pubK1", -100) for u in range(30)]
-            col += [(u + 60, "privK1", 100) for u in range(30)]
+            col = [(f"{u}", "pubK1", 100.0) for u in range(30)]
+            col += [(f"{u + 30}", "pubK1", -100.0) for u in range(30)]
+            col += [(f"{u + 60}", "privK1", 100.0) for u in range(30)]
             pcol = pipeline | 'Create produce' >> beam.Create(col)
             # Use very high epsilon and delta to minimize noise and test
             # flakiness.
