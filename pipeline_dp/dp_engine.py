@@ -1,5 +1,4 @@
 """DP aggregations."""
-import math
 import dataclasses
 import functools
 from typing import Any, Callable, Tuple
@@ -47,7 +46,7 @@ class DPEngine:
           data_extractors: functions that extract needed pieces of information
             from elements of 'col'.
         """
-        self._check_aggregate_params(col, params, data_extractors)
+        _check_aggregate_params(col, params, data_extractors)
 
         with self._budget_accountant.scope(weight=params.budget_weight):
             return self._aggregate(col, params, data_extractors)
@@ -102,43 +101,6 @@ class DPEngine:
         col = self._backend.map_values(col, combiner.compute_metrics,
                                        "Compute DP` metrics")
         return col
-
-    def _check_aggregate_params(self, col, params: pipeline_dp.AggregateParams,
-                                data_extractors: DataExtractors):
-        if col is None or not col:
-            raise ValueError("col must be non-empty")
-        if params is None:
-            raise ValueError("params must be set to a valid AggregateParams")
-        if not isinstance(params, pipeline_dp.AggregateParams):
-            raise TypeError("params must be set to a valid AggregateParams")
-        if not isinstance(params.max_partitions_contributed,
-                          int) or params.max_partitions_contributed <= 0:
-            raise ValueError("params.max_partitions_contributed must be set "
-                             "to a positive integer")
-        if not isinstance(params.max_contributions_per_partition,
-                          int) or params.max_contributions_per_partition <= 0:
-            raise ValueError(
-                "params.max_contributions_per_partition must be set "
-                "to a positive integer")
-        needs_min_max_value = pipeline_dp.Metrics.SUM in params.metrics
-        if needs_min_max_value and (params.min_value is None or
-                                    params.max_value is None):
-            raise ValueError(
-                "params.min_value and params.max_value must be set")
-        if needs_min_max_value and (
-                self._not_a_proper_number(params.min_value) or
-                self._not_a_proper_number(params.max_value)):
-            raise ValueError(
-                "params.min_value and params.max_value must be both finite numbers"
-            )
-        if needs_min_max_value and params.max_value < params.min_value:
-            raise ValueError(
-                "params.max_value must be equal to or greater than params.min_value"
-            )
-        if data_extractors is None:
-            raise ValueError("data_extractors must be set to a DataExtractors")
-        if not isinstance(data_extractors, pipeline_dp.DataExtractors):
-            raise TypeError("data_extractors must be set to a DataExtractors")
 
     def _check_select_private_partitions(
             self, col, params: pipeline_dp.SelectPrivatePartitionsParams,
@@ -355,9 +317,16 @@ class DPEngine:
 
         return self._backend.filter(col, filter_fn, "Filter private partitions")
 
-    def _not_a_proper_number(self, num):
-        """
-        Returns:
-            true if num is inf or NaN, false otherwise.
-        """
-        return math.isnan(num) or math.isinf(num)
+
+def _check_aggregate_params(col, params: pipeline_dp.AggregateParams,
+                            data_extractors: DataExtractors):
+    if col is None or not col:
+        raise ValueError("col must be non-empty")
+    if params is None:
+        raise ValueError("params must be set to a valid AggregateParams")
+    if not isinstance(params, pipeline_dp.AggregateParams):
+        raise TypeError("params must be set to a valid AggregateParams")
+    if data_extractors is None:
+        raise ValueError("data_extractors must be set to a DataExtractors")
+    if not isinstance(data_extractors, pipeline_dp.DataExtractors):
+        raise TypeError("data_extractors must be set to a DataExtractors")
