@@ -12,7 +12,7 @@ flags.DEFINE_string('output_file', None, 'Output file')
 
 
 def main(unused_argv):
-    # Here, we use a local backend for computations. Which does not depend on
+    # Here, we use a local backend for computations. This does not depend on
     # any pipeline framework and it is implemented in pure Python in
     # PipelineDP. It keeps all data in memory and is not optimized for large data.
     # For datasets smaller than ~tens of megabytes, local execution without any
@@ -52,12 +52,11 @@ def main(unused_argv):
 
     # Create a computational graph for the aggregation.
     # All computations are lazy. dp_result is iterable, but iterating it would
-    # fail until budget computed (below).
+    # fail until budget is computed (below).
     # It’s possible to call DPEngine.aggregate multiple times with different
     # metrics to compute.
     dp_result = dp_engine.aggregate(movie_views, params, data_extractors)
 
-    # Make budget computations.
     budget_accountant.compute_budgets()
 
     # Here's where the lazy iterator initiates computations and gets transformed
