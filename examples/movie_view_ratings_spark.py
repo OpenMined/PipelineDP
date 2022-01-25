@@ -34,7 +34,7 @@ def main(unused_argv):
     budget_accountant = pipeline_dp.NaiveBudgetAccountant(total_epsilon=1,
                                                           total_delta=1e-6)
 
-    # Wrap Spark's RDD into it's private version
+    # Wrap Spark's RDD into its private version
     private_movie_views = \
         make_private(movie_views, budget_accountant, lambda mv: mv.user_id)
 
