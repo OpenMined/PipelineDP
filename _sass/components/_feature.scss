@@ -1,0 +1,42 @@
+/* Feature */
+
+.c-feature {
+  align-items: flex-end;
+  display: flex;
+  flex-flow: row nowrap;
+  justify-content: space-between;
+  padding-bottom: 4rem;
+  padding-top: 4rem;
+  width: 100%;
+
+  &__image {
+    margin-right: 5rem;
+  }
+
+  &__title {
+    color: #202124;
+    font-size: 1.5rem;
+    font-weight: 500;
+  }
+
+  &__description {
+    color: #5f6368;
+  }
+
+  &__list {
+    margin: 2rem 0 3rem;
+    padding: 0;
+  }
+
+  &__item {
+    background-image: url(../images/checkmark.svg);
+    background-repeat: no-repeat;
+    color: #3c4043;
+    font-size: 0.875rem;
+    font-weight: 500;
+    line-height: 1.8;
+    list-style-type: none;
+    margin-bottom: 0.7rem;
+    padding-left: 2rem;
+  }
+}
