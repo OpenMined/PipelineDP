@@ -1,5 +1,6 @@
 from pyspark import RDD
 from typing import Callable
+from pyspark import SparkContext
 
 import pipeline_dp
 from pipeline_dp import aggregate_params, budget_accounting
@@ -82,7 +83,7 @@ class PrivateRDD:
 
         return dp_result
 
-    def count(self, count_params: aggregate_params.CountParams) -> RDD:
+    def count(self, public_partitions_rdd, count_params: aggregate_params.CountParams) -> RDD:
         """Computes a DP count.
 
         Args:
@@ -99,6 +100,7 @@ class PrivateRDD:
             max_contributions_per_partition=count_params.
             max_contributions_per_partition,
             public_partitions=count_params.public_partitions,
+            public_partitions_add_empty=public_partitions_rdd,
             budget_weight=count_params.budget_weight)
 
         data_extractors = pipeline_dp.DataExtractors(

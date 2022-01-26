@@ -68,6 +68,7 @@ class AggregateParams:
     min_value: float = None
     max_value: float = None
     public_partitions: Any = None
+    public_partitions_add_empty: Any = None
 
     def __post_init__(self):
         if self.low is not None:

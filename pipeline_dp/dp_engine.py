@@ -80,7 +80,11 @@ class DPEngine:
                                       "Drop privacy id")
         # col : (partition_key, accumulator)
 
-        if params.public_partitions:
+        if params.public_partitions_add_empty:
+            col = self._add_empty_public_partitions(col,
+                                                    params.public_partitions_add_empty,
+                                                    combiner.create_accumulator)
+        elif params.public_partitions:
             col = self._add_empty_public_partitions(col,
                                                     params.public_partitions,
                                                     combiner.create_accumulator)
