@@ -100,6 +100,7 @@ class DPEngine:
         # Compute DP metrics.
         col = self._backend.map_values(col, combiner.compute_metrics,
                                        "Compute DP` metrics")
+
         return col
 
     def _check_select_private_partitions(

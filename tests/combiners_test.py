@@ -116,13 +116,15 @@ class CountCombinerTest(parameterized.TestCase):
 
     def test_compute_metrics_no_noise(self):
         combiner = self._create_combiner(no_noise=True)
-        self.assertAlmostEqual(3, combiner.compute_metrics(3), delta=1e-5)
+        self.assertAlmostEqual(3,
+                               combiner.compute_metrics(3)['count'],
+                               delta=1e-5)
 
     def test_compute_metrics_with_noise(self):
         combiner = self._create_combiner(no_noise=False)
         accumulator = 5
         noisy_values = [
-            combiner.compute_metrics(accumulator) for _ in range(1000)
+            combiner.compute_metrics(accumulator)['count'] for _ in range(1000)
         ]
         # Standard deviation for the noise is about 1.37. So we set a large
         # delta here.
@@ -158,13 +160,16 @@ class PrivacyIdCountCombinerTest(parameterized.TestCase):
 
     def test_compute_metrics_no_noise(self):
         combiner = self._create_combiner(no_noise=True)
-        self.assertAlmostEqual(3, combiner.compute_metrics(3), delta=1e-5)
+        self.assertAlmostEqual(3,
+                               combiner.compute_metrics(3)['privacy_id_count'],
+                               delta=1e-5)
 
     def test_compute_metrics_with_noise(self):
         combiner = self._create_combiner(no_noise=False)
         accumulator = 5
         noisy_values = [
-            combiner.compute_metrics(accumulator) for _ in range(1000)
+            combiner.compute_metrics(accumulator)['privacy_id_count']
+            for _ in range(1000)
         ]
         # Standard deviation for the noise is about 1.37. So we set a large
         # delta here.
@@ -203,13 +208,15 @@ class SumCombinerTest(parameterized.TestCase):
 
     def test_compute_metrics_no_noise(self):
         combiner = self._create_combiner(no_noise=True)
-        self.assertAlmostEqual(3, combiner.compute_metrics(3), delta=1e-5)
+        self.assertAlmostEqual(3,
+                               combiner.compute_metrics(3)['sum'],
+                               delta=1e-5)
 
     def test_compute_metrics_with_noise(self):
         combiner = self._create_combiner(no_noise=False)
         accumulator = 5
         noisy_values = [
-            combiner.compute_metrics(accumulator) for _ in range(1000)
+            combiner.compute_metrics(accumulator)['sum'] for _ in range(1000)
         ]
         # Standard deviation for the noise is about 1.37. So we set a large
         # delta here.
@@ -222,8 +229,9 @@ class MeanCombinerTest(parameterized.TestCase):
     def _create_combiner(self, no_noise):
         mechanism_spec = _create_mechanism_spec(no_noise)
         aggregate_params = _create_aggregate_params(max_value=4)
+        metrics_to_compute = ['count', 'sum', 'mean']
         params = dp_combiners.CombinerParams(mechanism_spec, aggregate_params)
-        return dp_combiners.MeanCombiner(params)
+        return dp_combiners.MeanCombiner(params, metrics_to_compute)
 
     def test_create_accumulator(self):
         for no_noise in [False, True]:
@@ -242,9 +250,9 @@ class MeanCombinerTest(parameterized.TestCase):
     def test_compute_metrics_no_noise(self):
         combiner = self._create_combiner(no_noise=True)
         res = combiner.compute_metrics((3, 3))
-        self.assertAlmostEqual(3, res.count, delta=1e-5)
-        self.assertAlmostEqual(3, res.sum, delta=1e-5)
-        self.assertAlmostEqual(1, res.mean, delta=1e-5)
+        self.assertAlmostEqual(3, res['count'], delta=1e-5)
+        self.assertAlmostEqual(3, res['sum'], delta=1e-5)
+        self.assertAlmostEqual(1, res['mean'], delta=1e-5)
 
     def test_compute_metrics_with_noise(self):
         combiner = self._create_combiner(no_noise=False)
@@ -255,15 +263,15 @@ class MeanCombinerTest(parameterized.TestCase):
             combiner.compute_metrics((count, sum)) for _ in range(1000)
         ]
 
-        noisy_counts = [noisy_value.count for noisy_value in noisy_values]
+        noisy_counts = [noisy_value['count'] for noisy_value in noisy_values]
         self.assertAlmostEqual(count, np.mean(noisy_counts), delta=5e-1)
         self.assertTrue(np.var(noisy_counts) > 1)  # check that noise is added
 
-        noisy_sums = [noisy_value.sum for noisy_value in noisy_values]
+        noisy_sums = [noisy_value['sum'] for noisy_value in noisy_values]
         self.assertAlmostEqual(sum, np.mean(noisy_sums), delta=5e-1)
         self.assertTrue(np.var(noisy_sums) > 1)  # check that noise is added
 
-        noisy_means = [noisy_value.mean for noisy_value in noisy_values]
+        noisy_means = [noisy_value['mean'] for noisy_value in noisy_values]
         self.assertAlmostEqual(mean, np.mean(noisy_means), delta=5e-1)
         self.assertTrue(np.var(noisy_means) > 1)  # check that noise is added
 
@@ -302,9 +310,9 @@ class CompoundCombinerTest(parameterized.TestCase):
 
     def test_compute_metrics_no_noise(self):
         combiner = self._create_combiner(no_noise=True)
-        self.assertAlmostEqual([2, 3],
-                               combiner.compute_metrics((3, [2, 3])),
-                               delta=1e-5)
+        metrics_tuple = combiner.compute_metrics((3, [2, 3]))
+        self.assertAlmostEqual(2, metrics_tuple.count, delta=1e-5)
+        self.assertAlmostEqual(3, metrics_tuple.sum, delta=1e-5)
 
     def test_compute_metrics_with_noise(self):
         combiner = self._create_combiner(no_noise=False)
@@ -314,7 +322,11 @@ class CompoundCombinerTest(parameterized.TestCase):
         ]
         # Standard deviation for the noise is about 1.37. So we set a large
         # delta here.
-        noised_count, noised_sum = zip(*noisy_values)
+        noised_count = []
+        noised_sum = []
+        for metrics_tuple in noisy_values:
+            noised_count.append(metrics_tuple.count)
+            noised_sum.append(metrics_tuple.sum)
 
         self.assertAlmostEqual(accumulator[1][0],
                                np.mean(noised_count),

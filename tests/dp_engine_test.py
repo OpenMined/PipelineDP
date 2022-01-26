@@ -317,7 +317,7 @@ class DpEngineTest(parameterized.TestCase):
             "Differentially private: Computing <Metrics: ['privacy_id_count', 'count', 'mean']>"
             "\n1. Per-partition contribution bounding: randomly selected not more than 2 contributions"
             "\n2. Cross-partition contribution bounding: randomly selected not more than 3 partitions per user"
-            "\n3. Private Partition selection: using Truncated Geometric method with (eps= 0.08333333333333333, delta = 8.333333333333334e-12)"
+            "\n3. Private Partition selection: using Truncated Geometric method with (eps= 0.1111111111111111, delta = 1.1111111111111111e-11)"
         )
         self.assertEqual(
             engine._report_generators[1].report(),
@@ -429,9 +429,10 @@ class DpEngineTest(parameterized.TestCase):
         # Assert
         approximate_expected = {"pk0": 10, "pk1": 20}
         self.assertEqual(2, len(col))  # all partition keys are kept.
-        for pk, anonymized_count in col:
+        for pk, metrics_tuple in col:
+            dp_count = metrics_tuple.count
             self.assertAlmostEqual(approximate_expected[pk],
-                                   anonymized_count[0],
+                                   dp_count,
                                    delta=1e-3)
 
     def test_aggregate_private_partition_selection_drop_many(self):

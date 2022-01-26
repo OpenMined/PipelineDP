@@ -6,6 +6,7 @@ import apache_beam.testing.util as beam_util
 import pytest
 import sys
 from unittest.mock import Mock, MagicMock, patch
+from typing import List
 
 from pipeline_dp import DataExtractors
 from pipeline_dp.pipeline_backend import MultiProcLocalBackend, SparkRDDBackend
@@ -823,6 +824,9 @@ class SumCombiner(dp_combiners.Combiner):
 
     def compute_metrics(self, sum: float) -> float:
         return sum
+
+    def metrics_names(self) -> List[str]:
+        return ['sum']
 
 
 if __name__ == '__main__':
