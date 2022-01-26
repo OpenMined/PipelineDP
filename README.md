@@ -40,14 +40,24 @@ private_movie_views = \
 
 # Calculate the private sum of ratings per movie
 dp_result = private_movie_views.sum(
-    SumParams(max_partitions_contributed=2,
-              max_contributions_per_partition=2,
-              min_value=1,
-              max_value=5,
-              # Specifies the aggregation key
+    SumParams(
+              # The aggregation key: we're grouping data by movies
               partition_extractor=lambda mv: mv.movie_id,
-              # Specifies the value we're aggregating
-              value_extractor=lambda mv: mv.rating)
+              # The value we're aggregating: we're summing up ratings
+              value_extractor=lambda mv: mv.rating,
+
+              # Limits to how much one user can contribute:
+              # .. at most two movies rated per user
+              #    (if there's more, randomly choose two)
+              max_partitions_contributed=2,
+              # .. at most one ratings for each movie
+              max_contributions_per_partition=1,
+              # .. with minimal rating of "1"
+              #    (automatically clip the lesser values to "1")
+              min_value=1,
+              # .. and maximum rating of "5"
+              #    (automatically clip the greater values to "5")
+              max_value=5)
               )
 budget_accountant.compute_budgets()
 
