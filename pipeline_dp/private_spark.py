@@ -1,6 +1,5 @@
 from pyspark import RDD
 from typing import Callable
-from pyspark import SparkContext
 
 import pipeline_dp
 from pipeline_dp import aggregate_params, budget_accounting
