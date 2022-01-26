@@ -541,7 +541,8 @@ class PrivateBeamTest(unittest.TestCase):
 
             select_partitions_params = \
                 aggregate_params.SelectPartitionsParams(
-                    max_partitions_contributed=2)
+                    max_partitions_contributed=2,
+                    budget_weight=0.5,)
             partition_extractor = lambda x: f"pk:{x // 10}"
 
             # Act
@@ -575,7 +576,8 @@ class PrivateBeamTest(unittest.TestCase):
 
             select_partitions_params = \
                 aggregate_params.SelectPartitionsParams(
-                    max_partitions_contributed=2)
+                    max_partitions_contributed=2,
+                    budget_weight=0.9)
             partition_extractor = lambda x: x[1]
 
             # Act
