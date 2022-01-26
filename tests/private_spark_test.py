@@ -295,6 +295,9 @@ class PrivateRDDTest(unittest.TestCase):
         self.assertTrue(
             self.value_per_key_within_tolerance(actual_result.collect()[0],
                                                 ("pubK1", 30.0), 5.0))
+        self.assertTrue(
+            self.value_per_key_within_tolerance(actual_result.collect()[1],
+                                                ("pubK2", 0.0), 5.0))
 
     @patch('pipeline_dp.dp_engine.DPEngine.aggregate')
     def test_privacy_id_count_calls_aggregate_with_correct_params(
