@@ -1,6 +1,6 @@
 import abc
 import copy
-from typing import Iterable, Sized, Tuple
+from typing import Iterable, Sized, Tuple, List
 
 import pipeline_dp
 from pipeline_dp import dp_computations
@@ -46,7 +46,7 @@ class Combiner(abc.ABC):
         """Computes and returns the result of aggregation."""
 
     @abc.abstractmethod
-    def metrics_names(self) -> list[str]:
+    def metrics_names(self) -> List[str]:
         """Return the list of names of the metrics this combiner computes"""
 
 
@@ -107,7 +107,7 @@ class CountCombiner(Combiner):
                                                  self._params.mean_var_params)
         }
 
-    def metrics_names(self) -> list[str]:
+    def metrics_names(self) -> List[str]:
         return ['count']
 
 
@@ -135,7 +135,7 @@ class PrivacyIdCountCombiner(Combiner):
                                                  self._params.mean_var_params)
         }
 
-    def metrics_names(self) -> list[str]:
+    def metrics_names(self) -> List[str]:
         return ['privacy_id_count']
 
 
@@ -150,7 +150,7 @@ class SumCombiner(Combiner):
     def __init__(self, params: CombinerParams):
         self._params = params
 
-    def create_accumulator(self, values: Iterable[float]) -> 'AccumulatorType':
+    def create_accumulator(self, values: Iterable[float]) -> AccumulatorType:
         return np.clip(values, self._params.aggregate_params.min_value,
                        self._params.aggregate_params.max_value).sum()
 
@@ -164,7 +164,7 @@ class SumCombiner(Combiner):
                                                self._params.mean_var_params)
         }
 
-    def metrics_names(self) -> list[str]:
+    def metrics_names(self) -> List[str]:
         return ['sum']
 
 
@@ -186,6 +186,9 @@ class MeanCombiner(Combiner):
             mean_metrics = ['count', 'sum', 'mean']
             if metric not in mean_metrics:
                 raise ValueError(f"{metric} should be one of {mean_metrics}")
+        if 'mean' not in metrics_to_compute:
+            raise ValueError(
+                f"one of the {metrics_to_compute} should be 'mean'")
         self._metrics_to_compute = metrics_to_compute
 
     def create_accumulator(self, values: Iterable[float]) -> AccumulatorType:
@@ -203,17 +206,14 @@ class MeanCombiner(Combiner):
         total_count, total_sum = accum
         noisy_count, noisy_sum, noisy_mean = dp_computations.compute_dp_mean(
             total_count, total_sum, self._params.mean_var_params)
-        mean_dict = {}
-        for metric in self._metrics_to_compute:
-            if metric == 'count':
-                mean_dict[metric] = noisy_count
-            if metric == 'sum':
-                mean_dict[metric] = noisy_sum
-            if metric == 'mean':
-                mean_dict[metric] = noisy_mean
+        mean_dict = {'mean': noisy_mean}
+        if 'count' in self._metrics_to_compute:
+            mean_dict['count'] = noisy_count
+        if 'sum' in self._metrics_to_compute:
+            mean_dict['sum'] = noisy_sum
         return mean_dict
 
-    def metrics_names(self) -> list[str]:
+    def metrics_names(self) -> List[str]:
         return self._metrics_to_compute
 
 
@@ -253,7 +253,9 @@ class CompoundCombiner(Combiner):
             self._metrics_to_compute.extend(combiner.metrics_names())
         if len(self._metrics_to_compute) != len(set(self._metrics_to_compute)):
             raise ValueError(
-                f"two combiner in {combiners} cannot compute the same metrics")
+                f"two combiners in {combiners} cannot compute the same metrics")
+        self._MetricsTuple = namedtuple('MetricsTuple',
+                                        self._metrics_to_compute)
 
     def create_accumulator(self, values) -> AccumulatorType:
         return (1,
@@ -275,7 +277,8 @@ class CompoundCombiner(Combiner):
 
     def compute_metrics(self, compound_accumulator: AccumulatorType):
         privacy_id_count, accumulator = compound_accumulator
-        # Concatenates output of combiners, raises Exception if there are duplicates
+        # Concatenates output of combiners, raises Exception if there are any
+        # duplicates.
         combined_metrics = {}
         for combiner, acc in zip(self._combiners, accumulator):
             metrics_for_combiner = combiner.compute_metrics(acc)
@@ -285,10 +288,9 @@ class CompoundCombiner(Combiner):
                         f"{metric} computed by {combiner} was already computed by another combiner"
                     )
             combined_metrics.update(metrics_for_combiner)
-        MetricsTuple = namedtuple('MetricsTuple', combined_metrics.keys())
-        return MetricsTuple(**combined_metrics)
+        return self._MetricsTuple(**combined_metrics)
 
-    def metrics_names(self) -> list[str]:
+    def metrics_names(self) -> List[str]:
         return self._metrics_to_compute
 
 
