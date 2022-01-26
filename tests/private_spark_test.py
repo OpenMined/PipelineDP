@@ -22,8 +22,14 @@ class PrivateRDDTest(unittest.TestCase):
 
     @classmethod
     def value_per_key_within_tolerance(self, expected, actual, tolerance):
-        return actual[0] == expected[0] and abs(actual[1] -
-                                                expected[1]) <= tolerance
+        return abs(actual - expected) <= tolerance
+
+    @classmethod
+    def to_dict(self, tuples):
+        di = {}
+        for a, b in tuples:
+            di.setdefault(a, b)
+        return di
 
     def test_map(self):
         data = [(1, 11), (2, 12)]
@@ -139,9 +145,14 @@ class PrivateRDDTest(unittest.TestCase):
         # Assert
         # This is a health check to validate that the result is sensible.
         # Hence, we use a very large tolerance to reduce test flakiness.
-        self.assertTrue(
-            self.value_per_key_within_tolerance(actual_result.collect()[0],
-                                                ["pk1", 90.0], 5.0))
+        expected_result_dict = {"pk1": 90.0}
+        actual_result_dict = self.to_dict(actual_result.collect())
+
+        for pk, sum in actual_result_dict.items():
+            self.assertTrue(
+                self.value_per_key_within_tolerance(sum,
+                                                    expected_result_dict[pk],
+                                                    5.0))
 
     def test_sum_calls_with_public_partitions_returns_sensible_result(self):
         # Arrange
@@ -176,12 +187,14 @@ class PrivateRDDTest(unittest.TestCase):
         # Assert
         # This is a health check to validate that the result is sensible.
         # Hence, we use a very large tolerance to reduce test flakiness.
-        self.assertTrue(
-            self.value_per_key_within_tolerance(actual_result.collect()[0],
-                                                ("pubK1", 90.0), 5.0))
-        self.assertTrue(
-            self.value_per_key_within_tolerance(actual_result.collect()[1],
-                                                ("pubK2", 0.0), 5.0))
+        expected_result_dict = {"pubK2": 0.0, "pubK1": 90.0}
+        actual_result_dict = self.to_dict(actual_result.collect())
+
+        for pk, sum in actual_result_dict.items():
+            self.assertTrue(
+                self.value_per_key_within_tolerance(sum,
+                                                    expected_result_dict[pk],
+                                                    5.0))
 
     @patch('pipeline_dp.dp_engine.DPEngine.aggregate')
     def test_count_calls_aggregate_with_correct_params(self, mock_aggregate):
@@ -256,9 +269,14 @@ class PrivateRDDTest(unittest.TestCase):
         # Assert
         # This is a health check to validate that the result is sensible.
         # Hence, we use a very large tolerance to reduce test flakiness.
-        self.assertTrue(
-            self.value_per_key_within_tolerance(actual_result.collect()[0],
-                                                ("pk1", 30.0), 5.0))
+        expected_result_dict = {"pk1": 30.0}
+        actual_result_dict = self.to_dict(actual_result.collect())
+
+        for pk, count in actual_result_dict.items():
+            self.assertTrue(
+                self.value_per_key_within_tolerance(count,
+                                                    expected_result_dict[pk],
+                                                    5.0))
 
     def test_count_calls_with_public_partitions_returns_sensible_result(self):
         # Arrange
@@ -292,12 +310,14 @@ class PrivateRDDTest(unittest.TestCase):
         # Assert
         # This is a health check to validate that the result is sensible.
         # Hence, we use a very large tolerance to reduce test flakiness.
-        self.assertTrue(
-            self.value_per_key_within_tolerance(actual_result.collect()[0],
-                                                ("pubK1", 30.0), 5.0))
-        self.assertTrue(
-            self.value_per_key_within_tolerance(actual_result.collect()[1],
-                                                ("pubK2", 0.0), 5.0))
+        expected_result_dict = {"pubK2": 0.0, "pubK1": 30.0}
+        actual_result_dict = self.to_dict(actual_result.collect())
+
+        for pk, count in actual_result_dict.items():
+            self.assertTrue(
+                self.value_per_key_within_tolerance(count,
+                                                    expected_result_dict[pk],
+                                                    5.0))
 
     @patch('pipeline_dp.dp_engine.DPEngine.aggregate')
     def test_privacy_id_count_calls_aggregate_with_correct_params(
@@ -367,9 +387,14 @@ class PrivateRDDTest(unittest.TestCase):
         # Assert
         # This is a health check to validate that the result is sensible.
         # Hence, we use a very large tolerance to reduce test flakiness.
-        self.assertTrue(
-            self.value_per_key_within_tolerance(actual_result.collect()[0],
-                                                ("pk1", 30.0), 5.0))
+        expected_result_dict = {"pk1": 30.0}
+        actual_result_dict = self.to_dict(actual_result.collect())
+
+        for pk, count in actual_result_dict.items():
+            self.assertTrue(
+                self.value_per_key_within_tolerance(count,
+                                                    expected_result_dict[pk],
+                                                    5.0))
 
     def test_privacy_id_count_with_public_partitions_returns_sensible_result(
             self):
@@ -401,12 +426,14 @@ class PrivateRDDTest(unittest.TestCase):
         # Assert
         # This is a health check to validate that the result is sensible.
         # Hence, we use a very large tolerance to reduce test flakiness.
-        self.assertTrue(
-            self.value_per_key_within_tolerance(actual_result.collect()[0],
-                                                ("pubK1", 30.0), 5.0))
-        self.assertTrue(
-            self.value_per_key_within_tolerance(actual_result.collect()[1],
-                                                ("pubK2", 0.0), 5.0))
+        expected_result_dict = {"pubK2": 0.0, "pubK1": 30.0}
+        actual_result_dict = self.to_dict(actual_result.collect())
+
+        for pk, sum in actual_result_dict.items():
+            self.assertTrue(
+                self.value_per_key_within_tolerance(sum,
+                                                    expected_result_dict[pk],
+                                                    5.0))
 
     @patch('pipeline_dp.dp_engine.DPEngine.select_partitions')
     def test_select_partitions_calls_select_partitions_with_correct_params(
