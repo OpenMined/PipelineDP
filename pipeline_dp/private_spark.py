@@ -105,7 +105,7 @@ class PrivateRDD:
             partition_extractor=lambda x: count_params.partition_extractor(x[1]
                                                                           ),
             privacy_id_extractor=lambda x: x[0],
-            value_extractor=lambda x: count_params.value_extractor(x[1]))
+            value_extractor=lambda x: None)
 
         dp_result = dp_engine.aggregate(self._rdd, params, data_extractors)
         # dp_result : (partition_key, [dp_count])
