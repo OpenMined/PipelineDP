@@ -2,6 +2,8 @@ import collections
 from unittest.mock import patch
 import numpy as np
 import unittest
+from absl.testing import absltest
+from absl.testing import parameterized
 import sys
 
 import apache_beam as beam
@@ -13,10 +15,10 @@ from pipeline_dp.budget_accounting import NaiveBudgetAccountant
 import pydp.algorithms.partition_selection as partition_selection
 from pipeline_dp import aggregate_params as agg
 from pipeline_dp.accumulator import CompoundAccumulatorFactory
-from pipeline_dp.aggregate_params import SelectPrivatePartitionsParams
+from pipeline_dp.aggregate_params import SelectPartitionsParams
 from pipeline_dp.accumulator import CountAccumulator
 from pipeline_dp.report_generator import ReportGenerator
-from pipeline_dp.pipeline_operations import PipelineOperations
+from pipeline_dp.pipeline_backend import PipelineBackend
 """DPEngine Test"""
 
 
@@ -40,35 +42,7 @@ def _mock_partition_strategy_factory(min_users):
     return partition_strategy_factory
 
 
-class _MockAccumulator(pipeline_dp.accumulator.Accumulator):
-
-    def __init__(self, values_list: list = None) -> None:
-        self.values_list = values_list or []
-
-    @property
-    def privacy_id_count(self):
-        return len(self.values_list)
-
-    def add_value(self, value):
-        self.values_list.append(value)
-
-    def add_accumulator(self,
-                        accumulator: '_MockAccumulator') -> '_MockAccumulator':
-        self.values_list.extend(accumulator.values_list)
-        return self
-
-    def compute_metrics(self):
-        return self.values_list
-
-    def __eq__(self, other: '_MockAccumulator') -> bool:
-        return type(self) is type(other) and \
-            sorted(self.values_list) == sorted(other.values_list)
-
-    def __repr__(self) -> str:
-        return f"MockAccumulator({self.values_list})"
-
-
-class DpEngineTest(unittest.TestCase):
+class DpEngineTest(parameterized.TestCase):
     aggregator_fn = lambda input_values: (len(input_values), np.sum(
         input_values), np.sum(np.square(input_values)))
 
@@ -161,11 +135,142 @@ class DpEngineTest(unittest.TestCase):
                     max_partitions_contributed, dict_of_pid_to_pk)))
 
     def test_aggregate_none(self):
-        self.assertIsNone(
-            pipeline_dp.DPEngine(None, None).aggregate(None, None, None))
+        with self.assertRaises(Exception):
+            pipeline_dp.DPEngine(None, None).aggregate(None, None, None)
 
-    @patch('pipeline_dp.accumulator._create_accumulator_factories')
-    def test_aggregate_report(self, mock_create_accumulator_factories_function):
+    @parameterized.named_parameters(
+        dict(testcase_name='negative max_partitions_contributed',
+             error_msg='negative max_partitions_contributed',
+             min_value=None,
+             max_value=None,
+             max_partitions_contributed=-1,
+             max_contributions_per_partition=1,
+             metrics=[pipeline_dp.Metrics.PRIVACY_ID_COUNT]),
+        dict(testcase_name='negative max_contributions_per_partition',
+             error_msg='negative max_contributions_per_partition',
+             min_value=None,
+             max_value=None,
+             max_partitions_contributed=1,
+             max_contributions_per_partition=-1,
+             metrics=[pipeline_dp.Metrics.PRIVACY_ID_COUNT]),
+        dict(testcase_name='float max_partitions_contributed',
+             error_msg='float max_partitions_contributed',
+             min_value=None,
+             max_value=None,
+             max_partitions_contributed=1.5,
+             max_contributions_per_partition=1,
+             metrics=[pipeline_dp.Metrics.PRIVACY_ID_COUNT]),
+        dict(testcase_name='float max_contributions_per_partition',
+             error_msg='float max_contributions_per_partition',
+             min_value=None,
+             max_value=None,
+             max_partitions_contributed=1,
+             max_contributions_per_partition=1.5,
+             metrics=[pipeline_dp.Metrics.PRIVACY_ID_COUNT]),
+        dict(testcase_name='unspecified min_value',
+             error_msg='unspecified min_value',
+             min_value=None,
+             max_value=1,
+             max_partitions_contributed=1,
+             max_contributions_per_partition=1,
+             metrics=[pipeline_dp.Metrics.SUM]),
+        dict(testcase_name='unspecified max_value',
+             error_msg='unspecified max_value',
+             min_value=1,
+             max_value=None,
+             max_partitions_contributed=1,
+             max_contributions_per_partition=1,
+             metrics=[pipeline_dp.Metrics.SUM]),
+        dict(testcase_name='min_value > max_value',
+             error_msg='min_value > max_value',
+             min_value=2,
+             max_value=1,
+             max_partitions_contributed=1,
+             max_contributions_per_partition=1,
+             metrics=[pipeline_dp.Metrics.SUM]),
+    )
+    def test_check_invalid_bounding_params(self, error_msg, min_value,
+                                           max_value,
+                                           max_partitions_contributed,
+                                           max_contributions_per_partition,
+                                           metrics):
+        with self.assertRaises(Exception, msg=error_msg):
+            budget_accountant = NaiveBudgetAccountant(total_epsilon=1,
+                                                      total_delta=1e-10)
+            engine = pipeline_dp.DPEngine(budget_accountant=budget_accountant,
+                                          backend=pipeline_dp.LocalBackend())
+            engine.aggregate(
+                [0],
+                pipeline_dp.AggregateParams(
+                    noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+                    max_partitions_contributed=max_partitions_contributed,
+                    max_contributions_per_partition=
+                    max_contributions_per_partition,
+                    min_value=min_value,
+                    max_value=max_value,
+                    metrics=metrics),
+                pipeline_dp.DataExtractors(
+                    privacy_id_extractor=lambda x: x,
+                    partition_extractor=lambda x: x,
+                    value_extractor=lambda x: x,
+                ))
+
+    def test_check_aggregate_params(self):
+        default_extractors = pipeline_dp.DataExtractors(
+            privacy_id_extractor=lambda x: x,
+            partition_extractor=lambda x: x,
+            value_extractor=lambda x: x,
+        )
+        default_params = pipeline_dp.AggregateParams(
+            noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+            max_partitions_contributed=1,
+            max_contributions_per_partition=1,
+            metrics=[pipeline_dp.Metrics.PRIVACY_ID_COUNT])
+
+        test_cases = [
+            {
+                "desc": "None col",
+                "col": None,
+                "params": default_params,
+                "data_extractor": default_extractors,
+            },
+            {
+                "desc": "empty col",
+                "col": [],
+                "params": default_params,
+                "data_extractor": default_extractors
+            },
+            {
+                "desc": "none params",
+                "col": [0],
+                "params": None,
+                "data_extractor": default_extractors,
+            },
+            {
+                "desc": "None data_extractor",
+                "col": [0],
+                "params": default_params,
+                "data_extractor": None,
+            },
+            {
+                "desc": "data_extractor with an incorrect type",
+                "col": [0],
+                "params": default_params,
+                "data_extractor": 1,
+            },
+        ]
+
+        for test_case in test_cases:
+            with self.assertRaises(Exception, msg=test_case["desc"]):
+                budget_accountant = NaiveBudgetAccountant(total_epsilon=1,
+                                                          total_delta=1e-10)
+                engine = pipeline_dp.DPEngine(
+                    budget_accountant=budget_accountant,
+                    backend=pipeline_dp.LocalBackend())
+                engine.aggregate(test_case["col"], test_case["params"],
+                                 test_case["data_extractor"])
+
+    def test_aggregate_report(self):
         col = [[1], [2], [3], [3]]
         data_extractor = pipeline_dp.DataExtractors(
             privacy_id_extractor=lambda x: f"pid{x}",
@@ -175,8 +280,8 @@ class DpEngineTest(unittest.TestCase):
             noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
             max_partitions_contributed=3,
             max_contributions_per_partition=2,
-            low=1,
-            high=5,
+            min_value=1,
+            max_value=5,
             metrics=[
                 pipeline_dp.Metrics.PRIVACY_ID_COUNT, pipeline_dp.Metrics.COUNT,
                 pipeline_dp.Metrics.MEAN
@@ -186,8 +291,8 @@ class DpEngineTest(unittest.TestCase):
             noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
             max_partitions_contributed=1,
             max_contributions_per_partition=3,
-            low=2,
-            high=10,
+            min_value=2,
+            max_value=10,
             metrics=[
                 pipeline_dp.Metrics.VAR, pipeline_dp.Metrics.SUM,
                 pipeline_dp.Metrics.MEAN
@@ -195,19 +300,16 @@ class DpEngineTest(unittest.TestCase):
             public_partitions=list(range(1, 40)),
         )
 
-        select_partitions_params = SelectPrivatePartitionsParams(
+        select_partitions_params = SelectPartitionsParams(
             max_partitions_contributed=2)
-        mock_create_accumulator_factories_function.return_value = [
-            pipeline_dp.accumulator.CountAccumulatorFactory(None)
-        ]
+
         budget_accountant = NaiveBudgetAccountant(total_epsilon=1,
                                                   total_delta=1e-10)
         engine = pipeline_dp.DPEngine(budget_accountant=budget_accountant,
-                                      ops=pipeline_dp.LocalPipelineOperations())
+                                      backend=pipeline_dp.LocalBackend())
         engine.aggregate(col, params1, data_extractor)
         engine.aggregate(col, params2, data_extractor)
-        engine.select_private_partitions(col, select_partitions_params,
-                                         data_extractor)
+        engine.select_partitions(col, select_partitions_params, data_extractor)
         self.assertEqual(3, len(engine._report_generators))  # pylint: disable=protected-access
         budget_accountant.compute_budgets()
         self.assertEqual(
@@ -215,7 +317,7 @@ class DpEngineTest(unittest.TestCase):
             "Differentially private: Computing <Metrics: ['privacy_id_count', 'count', 'mean']>"
             "\n1. Per-partition contribution bounding: randomly selected not more than 2 contributions"
             "\n2. Cross-partition contribution bounding: randomly selected not more than 3 partitions per user"
-            "\n3. Private Partition selection: using Truncated Geometric method with (eps= 0.5, delta = 5e-11)"
+            "\n3. Private Partition selection: using Truncated Geometric method with (eps= 0.1111111111111111, delta = 1.1111111111111111e-11)"
         )
         self.assertEqual(
             engine._report_generators[1].report(),
@@ -228,7 +330,7 @@ class DpEngineTest(unittest.TestCase):
         self.assertEqual(
             engine._report_generators[2].report(),
             "Differentially private: Computing <Private Partitions>"
-            "\n1. Private Partition selection: using Truncated Geometric method with (eps= 0.5, delta = 5e-11)"
+            "\n1. Private Partition selection: using Truncated Geometric method with (eps= 0.3333333333333333, delta = 3.3333333333333335e-11)"
         )
 
     @patch('pipeline_dp.DPEngine._bound_contributions')
@@ -242,8 +344,6 @@ class DpEngineTest(unittest.TestCase):
             max_contributions_per_partition=3)
         budget_accountant = NaiveBudgetAccountant(total_epsilon=1,
                                                   total_delta=1e-10)
-        accumulator_factory = CompoundAccumulatorFactory(
-            params=aggregator_params, budget_accountant=budget_accountant)
 
         col = [[1], [2], [3], [3]]
         data_extractor = pipeline_dp.DataExtractors(
@@ -252,16 +352,13 @@ class DpEngineTest(unittest.TestCase):
             value_extractor=lambda x: x)
 
         mock_bound_contributions.return_value = [
-            [("pid1", "pk1"),
-             CountAccumulator(params=None, values=[1])],
-            [("pid2", "pk2"),
-             CountAccumulator(params=None, values=[1])],
-            [("pid3", "pk3"),
-             CountAccumulator(params=None, values=[2])],
+            [("pid1", "pk1"), (1, [1])],
+            [("pid2", "pk2"), (1, [1])],
+            [("pid3", "pk3"), (1, [2])],
         ]
 
         engine = pipeline_dp.DPEngine(budget_accountant=budget_accountant,
-                                      ops=pipeline_dp.LocalPipelineOperations())
+                                      backend=pipeline_dp.LocalBackend())
         col = engine.aggregate(col=col,
                                params=aggregator_params,
                                data_extractors=data_extractor)
@@ -273,62 +370,33 @@ class DpEngineTest(unittest.TestCase):
             unittest.mock.ANY)
 
     def _mock_and_assert_private_partitions(self, engine: pipeline_dp.DPEngine,
-                                            groups, min_users,
-                                            expected_partitions,
+                                            col, min_users, expected_partitions,
                                             max_partitions_contributed):
         with patch(
                 "pydp.algorithms.partition_selection.create_truncated_geometric_partition_strategy",
                 new=_mock_partition_strategy_factory(
                     min_users)) as mock_factory:
             data_filtered = engine._select_private_partitions_internal(
-                groups, max_partitions_contributed)
+                col, max_partitions_contributed)
             engine._budget_accountant.compute_budgets()
             self.assertListEqual(list(data_filtered), expected_partitions)
 
-    def test_select_private_partitions_internal(self):
-        input_col = [("pid1", ('pk1', 1)), ("pid1", ('pk1', 2)),
-                     ("pid1", ('pk2', 3)), ("pid1", ('pk2', 4)),
-                     ("pid1", ('pk2', 5)), ("pid1", ('pk3', 6)),
-                     ("pid1", ('pk4', 7)), ("pid2", ('pk4', 8))]
-        max_partitions_contributed = 3
+    @parameterized.named_parameters(
+        dict(testcase_name='all_data_kept', min_users=1),
+        dict(testcase_name='1 partition left', min_users=5),
+        dict(testcase_name='empty result', min_users=20),
+    )
+    def test_select_private_partitions_internal(self, min_users):
+        input_col = [("pk1", (3, None)), ("pk2", (10, None))]
+
         engine = self.create_dp_engine_default()
-        groups = engine._ops.group_by_key(input_col, None)
-        groups = engine._ops.map_values(groups,
-                                        lambda group: _MockAccumulator(group))
-        groups = list(groups)
-        expected_data_filtered = [("pid1",
-                                   _MockAccumulator([
-                                       ('pk1', 1),
-                                       ('pk1', 2),
-                                       ('pk2', 3),
-                                       ('pk2', 4),
-                                       ('pk2', 5),
-                                       ('pk3', 6),
-                                       ('pk4', 7),
-                                   ])),
-                                  ("pid2", _MockAccumulator([('pk4', 8)]))]
-        self._mock_and_assert_private_partitions(engine, groups, 0,
+        expected_data_filtered = [x for x in input_col if x[1][0] > min_users]
+
+        self._mock_and_assert_private_partitions(engine,
+                                                 input_col,
+                                                 min_users,
                                                  expected_data_filtered,
-                                                 max_partitions_contributed)
-        expected_data_filtered = [
-            ("pid1",
-             _MockAccumulator([
-                 ('pk1', 1),
-                 ('pk1', 2),
-                 ('pk2', 3),
-                 ('pk2', 4),
-                 ('pk2', 5),
-                 ('pk3', 6),
-                 ('pk4', 7),
-             ])),
-        ]
-        self._mock_and_assert_private_partitions(engine, groups, 3,
-                                                 expected_data_filtered,
-                                                 max_partitions_contributed)
-        expected_data_filtered = []
-        self._mock_and_assert_private_partitions(engine, groups, 100,
-                                                 expected_data_filtered,
-                                                 max_partitions_contributed)
+                                                 max_partitions_contributed=1)
 
     def test_aggregate_private_partition_selection_keep_everything(self):
         # Arrange
@@ -349,7 +417,7 @@ class DpEngineTest(unittest.TestCase):
             value_extractor=lambda x: None)
 
         engine = pipeline_dp.DPEngine(budget_accountant=budget_accountant,
-                                      ops=pipeline_dp.LocalPipelineOperations())
+                                      backend=pipeline_dp.LocalBackend())
 
         col = engine.aggregate(col=col,
                                params=aggregator_params,
@@ -361,9 +429,10 @@ class DpEngineTest(unittest.TestCase):
         # Assert
         approximate_expected = {"pk0": 10, "pk1": 20}
         self.assertEqual(2, len(col))  # all partition keys are kept.
-        for pk, anonymized_count in col:
+        for pk, metrics_tuple in col:
+            dp_count = metrics_tuple.count
             self.assertAlmostEqual(approximate_expected[pk],
-                                   anonymized_count[0],
+                                   dp_count,
                                    delta=1e-3)
 
     def test_aggregate_private_partition_selection_drop_many(self):
@@ -387,7 +456,7 @@ class DpEngineTest(unittest.TestCase):
             value_extractor=lambda x: None)
 
         engine = pipeline_dp.DPEngine(budget_accountant=budget_accountant,
-                                      ops=pipeline_dp.LocalPipelineOperations())
+                                      backend=pipeline_dp.LocalBackend())
 
         col = engine.aggregate(col=col,
                                params=aggregator_params,
@@ -403,12 +472,12 @@ class DpEngineTest(unittest.TestCase):
         # very close to 1.
         self.assertLess(len(col), 5)
 
-    def test_select_private_partitions(self):
+    def test_select_partitions(self):
         # This test is probabilistic, but the parameters were chosen to ensure
         # the test has passed at least 10000 runs.
 
         # Arrange
-        params = SelectPrivatePartitionsParams(max_partitions_contributed=1)
+        params = SelectPartitionsParams(max_partitions_contributed=1)
 
         budget_accountant = NaiveBudgetAccountant(total_epsilon=1,
                                                   total_delta=1e-5)
@@ -439,11 +508,11 @@ class DpEngineTest(unittest.TestCase):
             partition_extractor=lambda x: x[1])
 
         engine = pipeline_dp.DPEngine(budget_accountant=budget_accountant,
-                                      ops=pipeline_dp.LocalPipelineOperations())
+                                      backend=pipeline_dp.LocalBackend())
 
-        col = engine.select_private_partitions(col=col,
-                                               params=params,
-                                               data_extractors=data_extractor)
+        col = engine.select_partitions(col=col,
+                                       params=params,
+                                       data_extractors=data_extractor)
         budget_accountant.compute_budgets()
 
         col = list(col)
@@ -453,6 +522,94 @@ class DpEngineTest(unittest.TestCase):
         # applying the "max_partitions_contributed" bound is retained.
         self.assertEqual(["pk-many-contribs"], col)
 
+    def test_check_select_partitions(self):
+        """ Tests validation of parameters for select_partitions()"""
+        default_extractor = pipeline_dp.DataExtractors(
+            privacy_id_extractor=lambda x: x,
+            partition_extractor=lambda x: x,
+            value_extractor=lambda x: x,
+        )
+
+        test_cases = [
+            {
+                "desc":
+                    "None col",
+                "col":
+                    None,
+                "params":
+                    pipeline_dp.SelectPartitionsParams(
+                        max_partitions_contributed=1,),
+                "data_extractor":
+                    default_extractor,
+            },
+            {
+                "desc":
+                    "empty col",
+                "col": [],
+                "params":
+                    pipeline_dp.SelectPartitionsParams(
+                        max_partitions_contributed=1,),
+                "data_extractor":
+                    default_extractor,
+            },
+            {
+                "desc": "none params",
+                "col": [0],
+                "params": None,
+                "data_extractor": default_extractor,
+            },
+            {
+                "desc":
+                    "negative max_partitions_contributed",
+                "col": [0],
+                "params":
+                    pipeline_dp.SelectPartitionsParams(
+                        max_partitions_contributed=-1,),
+                "data_extractor":
+                    default_extractor,
+            },
+            {
+                "desc":
+                    "float max_partitions_contributed",
+                "col": [0],
+                "params":
+                    pipeline_dp.SelectPartitionsParams(
+                        max_partitions_contributed=1.1,),
+                "data_extractor":
+                    default_extractor,
+            },
+            {
+                "desc":
+                    "None data_extractor",
+                "col": [0],
+                "params":
+                    pipeline_dp.SelectPartitionsParams(
+                        max_partitions_contributed=1,),
+                "data_extractor":
+                    None,
+            },
+            {
+                "desc":
+                    "Not a function data_extractor",
+                "col": [0],
+                "params":
+                    pipeline_dp.SelectPartitionsParams(
+                        max_partitions_contributed=1,),
+                "data_extractor":
+                    1,
+            },
+        ]
+
+        for test_case in test_cases:
+            with self.assertRaises(Exception, msg=test_case["desc"]):
+                budget_accountant = NaiveBudgetAccountant(total_epsilon=1,
+                                                          total_delta=1e-10)
+                engine = pipeline_dp.DPEngine(
+                    budget_accountant=budget_accountant,
+                    backend=pipeline_dp.LocalBackend())
+                engine.select_partitions(test_case["col"], test_case["params"],
+                                         test_case["data_extractor"])
+
     def test_aggregate_public_partitions_drop_non_public(self):
         # Arrange
         aggregator_params = pipeline_dp.AggregateParams(
@@ -460,8 +617,8 @@ class DpEngineTest(unittest.TestCase):
             metrics=[
                 agg.Metrics.COUNT, agg.Metrics.SUM, agg.Metrics.PRIVACY_ID_COUNT
             ],
-            low=0,
-            high=1,
+            min_value=0,
+            max_value=1,
             max_partitions_contributed=1,
             max_contributions_per_partition=1,
             public_partitions=["pk0", "pk1", "pk10"])
@@ -480,7 +637,7 @@ class DpEngineTest(unittest.TestCase):
             value_extractor=lambda x: x)
 
         engine = pipeline_dp.DPEngine(budget_accountant=budget_accountant,
-                                      ops=pipeline_dp.LocalPipelineOperations())
+                                      backend=pipeline_dp.LocalBackend())
 
         col = engine.aggregate(col=col,
                                params=aggregator_params,
@@ -502,8 +659,8 @@ class DpEngineTest(unittest.TestCase):
             metrics=[
                 agg.Metrics.COUNT, agg.Metrics.SUM, agg.Metrics.PRIVACY_ID_COUNT
             ],
-            low=0,
-            high=1,
+            min_value=0,
+            max_value=1,
             max_partitions_contributed=1,
             max_contributions_per_partition=1,
             public_partitions=["pk0", "pk10", "pk11"])
@@ -521,7 +678,7 @@ class DpEngineTest(unittest.TestCase):
             value_extractor=lambda x: 1)
 
         engine = pipeline_dp.DPEngine(budget_accountant=budget_accountant,
-                                      ops=pipeline_dp.LocalPipelineOperations())
+                                      backend=pipeline_dp.LocalBackend())
 
         col = engine.aggregate(col=col,
                                params=aggregator_params,
@@ -544,13 +701,13 @@ class DpEngineTest(unittest.TestCase):
 
     @staticmethod
     def create_dp_engine_default(accountant: NaiveBudgetAccountant = None,
-                                 ops: PipelineOperations = None):
+                                 backend: PipelineBackend = None):
         if not accountant:
             accountant = NaiveBudgetAccountant(total_epsilon=1,
                                                total_delta=1e-10)
-        if not ops:
-            ops = pipeline_dp.LocalPipelineOperations()
-        dp_engine = pipeline_dp.DPEngine(accountant, ops)
+        if not backend:
+            backend = pipeline_dp.LocalBackend()
+        dp_engine = pipeline_dp.DPEngine(accountant, backend)
         aggregator_params = pipeline_dp.AggregateParams(
             noise_kind=pipeline_dp.NoiseKind.LAPLACE,
             metrics=[],
@@ -561,13 +718,13 @@ class DpEngineTest(unittest.TestCase):
         return dp_engine
 
     @staticmethod
-    def run_e2e_private_partition_selection_large_budget(col, ops):
+    def run_e2e_private_partition_selection_large_budget(col, backend):
         # Arrange
         aggregator_params = pipeline_dp.AggregateParams(
             noise_kind=pipeline_dp.NoiseKind.LAPLACE,
             metrics=[agg.Metrics.COUNT, agg.Metrics.SUM],
-            low=1,
-            high=10,
+            min_value=1,
+            max_value=10,
             max_partitions_contributed=1,
             max_contributions_per_partition=1)
 
@@ -581,7 +738,7 @@ class DpEngineTest(unittest.TestCase):
             partition_extractor=lambda x: f"pk{x//2}",
             value_extractor=lambda x: x)
 
-        engine = pipeline_dp.DPEngine(budget_accountant, ops)
+        engine = pipeline_dp.DPEngine(budget_accountant, backend)
 
         col = engine.aggregate(col=col,
                                params=aggregator_params,
@@ -594,7 +751,7 @@ class DpEngineTest(unittest.TestCase):
         input = list(range(10))
 
         output = self.run_e2e_private_partition_selection_large_budget(
-            input, pipeline_dp.LocalPipelineOperations())
+            input, pipeline_dp.LocalBackend())
 
         self.assertEqual(5, len(list(output)))
 
@@ -610,7 +767,7 @@ class DpEngineTest(unittest.TestCase):
         input = sc.parallelize(list(range(10)))
 
         output = self.run_e2e_private_partition_selection_large_budget(
-            input, pipeline_dp.SparkRDDOperations())
+            input, pipeline_dp.SparkRDDBackend())
 
         self.assertEqual(5, len(output.collect()))
 
@@ -619,10 +776,10 @@ class DpEngineTest(unittest.TestCase):
             input = p | "Create input" >> beam.Create(list(range(10)))
 
             output = self.run_e2e_private_partition_selection_large_budget(
-                input, pipeline_dp.BeamOperations())
+                input, pipeline_dp.BeamBackend())
 
             beam_util.assert_that(output, beam_util.is_not_empty())
 
 
 if __name__ == '__main__':
-    unittest.main()
+    absltest.main()

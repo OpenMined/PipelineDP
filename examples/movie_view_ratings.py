@@ -1,18 +1,17 @@
 """ The example of using DPEngine for performing DP aggregation.
 
 This is a quite elaborate example demonstrating many features. For a simpler
-example of how to use PipelineDP with spark, check movie_view_ratings_spark.py.
+example of how to use PipelineDP with spark, check
+movie_view_ratings_spark.py or movie_view_ratings_beam.py.
 
 In order to run an example:
 
-1.Install Python and run in command line pip install numpy apache-beam pyspark absl-py
-2.Download Netflix prize dataset from https://www.kaggle.com/netflix-inc/netflix-prize-data and unpack it.
-3.The dataset itself is pretty big, for speed-up the run it's better to use a
-part of it. You can generate a part of it by running in bash:
+1. Install Python and run on the command line `pip install numpy apache-beam pyspark absl-py`
+2. Download the Netflix prize dataset from https://www.kaggle.com/netflix-inc/netflix-prize-data and unpack it.
+3. The dataset itself is pretty big, to speed up the run it's better to use a
+part of it. You can get a part of it by running in bash:
 
    head -10000 combined_data_1.txt > data.txt
-
-   or by other way to get a subset of lines from the dataset.
 
 4. Run python movie_view_ratings.py --framework=<framework> --input_file=<path to data.txt from 3> --output_file=<...>
 """
@@ -37,15 +36,15 @@ flags.DEFINE_boolean(
     'Output private partitions (do not calculate any DP metrics)')
 
 
-def calculate_private_result(movie_views, pipeline_operations):
+def calculate_private_result(movie_views, pipeline_backend):
     if FLAGS.private_partitions:
-        return get_private_movies(movie_views, pipeline_operations)
+        return get_private_movies(movie_views, pipeline_backend)
     else:
-        return calc_dp_rating_metrics(movie_views, pipeline_operations,
+        return calc_dp_rating_metrics(movie_views, pipeline_backend,
                                       get_public_partitions())
 
 
-def calc_dp_rating_metrics(movie_views, ops, public_partitions):
+def calc_dp_rating_metrics(movie_views, backend, public_partitions):
     """Computes DP metrics."""
 
     # Set the total privacy budget.
@@ -53,7 +52,7 @@ def calc_dp_rating_metrics(movie_views, ops, public_partitions):
                                                           total_delta=1e-6)
 
     # Create a DPEngine instance.
-    dp_engine = pipeline_dp.DPEngine(budget_accountant, ops)
+    dp_engine = pipeline_dp.DPEngine(budget_accountant, backend)
 
     # Specify which DP aggregated metrics to compute.
     params = pipeline_dp.AggregateParams(
@@ -64,8 +63,8 @@ def calc_dp_rating_metrics(movie_views, ops, public_partitions):
         ],
         max_partitions_contributed=2,
         max_contributions_per_partition=1,
-        low=1,
-        high=5,
+        min_value=1,
+        max_value=5,
         public_partitions=public_partitions)
 
     # Specify how to extract privacy_id, partition_key and value from an
@@ -82,11 +81,11 @@ def calc_dp_rating_metrics(movie_views, ops, public_partitions):
     return dp_result
 
 
-def get_private_movies(movie_views, ops):
-    """Obtains the list of movies in a private manner.
+def get_private_movies(movie_views, backend):
+    """Obtains the list of movies in a differentially private manner.
 
-    This does not calculate any private metrics; it merely obtains the list of
-    movies but does so making sure the result is differentially private.
+    This does not calculate any metrics; it merely returns the list of
+    movies, making sure the result is differentially private.
     """
 
     # Set the total privacy budget.
@@ -94,7 +93,7 @@ def get_private_movies(movie_views, ops):
                                                           total_delta=1e-6)
 
     # Create a DPEngine instance.
-    dp_engine = pipeline_dp.DPEngine(budget_accountant, ops)
+    dp_engine = pipeline_dp.DPEngine(budget_accountant, backend)
 
     # Specify how to extract privacy_id, partition_key and value from an
     # element of movie view collection.
@@ -103,35 +102,13 @@ def get_private_movies(movie_views, ops):
         privacy_id_extractor=lambda mv: mv.user_id)
 
     # Run aggregation.
-    dp_result = dp_engine.select_private_partitions(
+    dp_result = dp_engine.select_partitions(
         movie_views,
-        pipeline_dp.SelectPrivatePartitionsParams(max_partitions_contributed=2),
+        pipeline_dp.SelectPartitionsParams(max_partitions_contributed=2),
         data_extractors=data_extractors)
 
     budget_accountant.compute_budgets()
     return dp_result
-
-
-def parse_line(line, movie_id):
-    # 'line' has format "user_id,rating,date"
-    split_parts = line.split(',')
-    user_id = int(split_parts[0])
-    rating = int(split_parts[1])
-    return MovieView(user_id, movie_id, rating)
-
-
-class ParseFile(beam.DoFn):
-
-    def __init__(self):
-        self.movie_id = -1
-
-    def process(self, line):
-        if line[-1] == ':':
-            # 'line' has a format "movie_id:'
-            self.movie_id = int(line[:-1])
-            return
-        # 'line' has a format "user_id,rating,date"
-        yield parse_line(line, self.movie_id)
 
 
 def get_public_partitions():
@@ -148,20 +125,9 @@ def compute_on_beam():
     with beam.Pipeline(runner=runner) as pipeline:
         movie_views = pipeline | beam.io.ReadFromText(
             FLAGS.input_file) | beam.ParDo(ParseFile())
-        pipeline_operations = pipeline_dp.BeamOperations()
-        dp_result = calculate_private_result(movie_views, pipeline_operations)
+        pipeline_backend = pipeline_dp.BeamBackend()
+        dp_result = calculate_private_result(movie_views, pipeline_backend)
         dp_result | beam.io.WriteToText(FLAGS.output_file)
-
-
-def parse_partition(iterator):
-    movie_id = None
-    for line in iterator:
-        if line[-1] == ':':
-            # 'line' has a format "movie_id:'
-            movie_id = int(line[:-1])
-        else:
-            # 'line' has a format "user_id,rating,date"
-            yield parse_line(line, movie_id)
 
 
 def compute_on_spark():
@@ -170,17 +136,17 @@ def compute_on_spark():
     sc = pyspark.SparkContext(conf=conf)
     movie_views = sc.textFile(FLAGS.input_file) \
         .mapPartitions(parse_partition)
-    pipeline_operations = pipeline_dp.SparkRDDOperations()
-    dp_result = calculate_private_result(movie_views, pipeline_operations)
+    pipeline_backend = pipeline_dp.SparkRDDBackend()
+    dp_result = calculate_private_result(movie_views, pipeline_backend)
 
     delete_if_exists(FLAGS.output_file)
     dp_result.saveAsTextFile(FLAGS.output_file)
 
 
-def compute_on_local():
+def compute_on_local_backend():
     movie_views = parse_file(FLAGS.input_file)
-    pipeline_operations = pipeline_dp.LocalPipelineOperations()
-    dp_result = list(calculate_private_result(movie_views, pipeline_operations))
+    pipeline_backend = pipeline_dp.LocalBackend()
+    dp_result = list(calculate_private_result(movie_views, pipeline_backend))
     write_to_file(dp_result, FLAGS.output_file)
 
 
@@ -190,7 +156,7 @@ def main(unused_argv):
     elif FLAGS.framework == 'spark':
         compute_on_spark()
     else:
-        compute_on_local()
+        compute_on_local_backend()
     return 0
 
 

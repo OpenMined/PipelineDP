@@ -6,22 +6,24 @@ import apache_beam.testing.util as beam_util
 import pytest
 import sys
 from unittest.mock import Mock, MagicMock, patch
+from typing import List
 
 from pipeline_dp import DataExtractors
-from pipeline_dp.pipeline_operations import MultiProcLocalPipelineOperations, SparkRDDOperations
-from pipeline_dp.pipeline_operations import LocalPipelineOperations
-from pipeline_dp.pipeline_operations import BeamOperations
+from pipeline_dp.pipeline_backend import MultiProcLocalBackend, SparkRDDBackend
+from pipeline_dp.pipeline_backend import LocalBackend
+from pipeline_dp.pipeline_backend import BeamBackend
+import pipeline_dp.combiners as dp_combiners
 
 
-class PipelineOperationsTest(unittest.TestCase):
+class PipelineBackendTest(unittest.TestCase):
     pass
 
 
-class BeamOperationsTest(parameterized.TestCase):
+class BeamBackendTest(parameterized.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.ops = BeamOperations()
+        cls.backend = BeamBackend()
         cls.data_extractors = DataExtractors(
             partition_extractor=lambda x: x[1],
             privacy_id_extractor=lambda x: x[0],
@@ -33,8 +35,8 @@ class BeamOperationsTest(parameterized.TestCase):
             col = p | "Create PCollection" >> beam.Create(data)
             key_to_keep = None
             with self.assertRaises(TypeError):
-                result = self.ops.filter_by_key(col, key_to_keep,
-                                                "filte_by_key")
+                result = self.backend.filter_by_key(col, key_to_keep,
+                                                    "filter_by_key")
 
     @parameterized.parameters(
         {'in_memory': True},
@@ -48,7 +50,8 @@ class BeamOperationsTest(parameterized.TestCase):
             expected_result = [(7, 1), (9, 10)]
             if not in_memory:
                 keys_to_keep = p | "To PCollection" >> beam.Create(keys_to_keep)
-            result = self.ops.filter_by_key(col, keys_to_keep, "filte_by_key")
+            result = self.backend.filter_by_key(col, keys_to_keep,
+                                                "filter_by_key")
             beam_util.assert_that(result, beam_util.equal_to(expected_result))
 
     @parameterized.parameters(
@@ -63,7 +66,8 @@ class BeamOperationsTest(parameterized.TestCase):
             keys_to_keep = []
             if not in_memory:
                 keys_to_keep = p | "To PCollection" >> beam.Create(keys_to_keep)
-            result = self.ops.filter_by_key(col, keys_to_keep, "filter_by_key")
+            result = self.backend.filter_by_key(col, keys_to_keep,
+                                                "filter_by_key")
             beam_util.assert_that(result, beam_util.equal_to([]))
 
     def test_reduce_accumulators_per_key(self):
@@ -71,9 +75,9 @@ class BeamOperationsTest(parameterized.TestCase):
             col = p | "Create PCollection" >> beam.Create([(6, 1), (7, 1),
                                                            (6, 1), (7, 1),
                                                            (8, 1)])
-            col = self.ops.map_values(col, SumAccumulator,
-                                      "Wrap into accumulators")
-            col = self.ops.reduce_accumulators_per_key(
+            col = self.backend.map_values(col, SumAccumulator,
+                                          "Wrap into accumulators")
+            col = self.backend.reduce_accumulators_per_key(
                 col, "Reduce accumulators per key")
             result = col | "Get accumulated values" >> beam.Map(
                 lambda row: (row[0], row[1].get_metrics()))
@@ -81,8 +85,25 @@ class BeamOperationsTest(parameterized.TestCase):
             beam_util.assert_that(result,
                                   beam_util.equal_to([(6, 2), (7, 2), (8, 1)]))
 
+    def test_combine_accumulators_per_key(self):
+        with test_pipeline.TestPipeline() as p:
+            col = p | "Create PCollection" >> beam.Create([(6, 1), (7, 1),
+                                                           (6, 1), (7, 1),
+                                                           (8, 1)])
+            sum_combiner = SumCombiner()
+            col = self.backend.group_by_key(col, "group_by_key")
+            col = self.backend.map_values(col, sum_combiner.create_accumulator,
+                                          "Wrap into accumulators")
+            col = self.backend.combine_accumulators_per_key(
+                col, sum_combiner, "Reduce accumulators per key")
+            result = self.backend.map_values(col, sum_combiner.compute_metrics,
+                                             "Compute metrics")
 
-class BeamOperationsStageNameTest(unittest.TestCase):
+            beam_util.assert_that(result,
+                                  beam_util.equal_to([(6, 2), (7, 2), (8, 1)]))
+
+
+class BeamBackendStageNameTest(unittest.TestCase):
 
     class MockUniqueLabelGenerators:
 
@@ -97,118 +118,120 @@ class BeamOperationsStageNameTest(unittest.TestCase):
 
     @staticmethod
     def _test_helper():
-        mock_pcollection = BeamOperationsStageNameTest._create_mock_pcollection(
-        )
-        ops = BeamOperations()
-        ops._ulg = BeamOperationsStageNameTest.MockUniqueLabelGenerators()
-        return mock_pcollection, ops
+        mock_pcollection = BeamBackendStageNameTest._create_mock_pcollection()
+        backend = BeamBackend()
+        backend._ulg = BeamBackendStageNameTest.MockUniqueLabelGenerators()
+        return mock_pcollection, backend
 
     @patch("apache_beam.transforms.ptransform.PTransform.__rrshift__")
     def test_map(self, mock_rrshift):
-        mock_pcollection, ops = self._test_helper()
-        ops.map(mock_pcollection, lambda x: x, "stage_name")
+        mock_pcollection, backend = self._test_helper()
+        backend.map(mock_pcollection, lambda x: x, "stage_name")
         mock_rrshift.assert_called_once_with("unique_label")
 
     @patch("apache_beam.transforms.ptransform.PTransform.__rrshift__")
     def test_map_values(self, mock_rrshift):
-        mock_pcollection, ops = self._test_helper()
-        ops.map_values(mock_pcollection, lambda x: x, "stage_name")
+        mock_pcollection, backend = self._test_helper()
+        backend.map_values(mock_pcollection, lambda x: x, "stage_name")
         mock_rrshift.assert_called_once_with("unique_label")
 
     @patch("apache_beam.transforms.ptransform.PTransform.__rrshift__")
     def test_flat_map(self, mock_rrshift):
-        mock_pcollection, ops = self._test_helper()
-        ops.flat_map(mock_pcollection, lambda x: x, "stage_name")
+        mock_pcollection, backend = self._test_helper()
+        backend.flat_map(mock_pcollection, lambda x: x, "stage_name")
         mock_rrshift.assert_called_once_with("unique_label")
 
     @patch("apache_beam.transforms.ptransform.PTransform.__rrshift__")
     def test_map_tuple(self, mock_rrshift):
-        mock_pcollection, ops = self._test_helper()
-        ops.map_tuple(mock_pcollection, lambda x: x, "stage_name")
+        mock_pcollection, backend = self._test_helper()
+        backend.map_tuple(mock_pcollection, lambda x: x, "stage_name")
         mock_rrshift.assert_called_once_with("unique_label")
 
     @patch("apache_beam.transforms.ptransform.PTransform.__rrshift__")
     def test_group_by_key(self, mock_rrshift):
-        mock_pcollection, ops = self._test_helper()
-        ops.group_by_key(mock_pcollection, "stage_name")
+        mock_pcollection, backend = self._test_helper()
+        backend.group_by_key(mock_pcollection, "stage_name")
         mock_rrshift.assert_called_once_with("unique_label")
 
     @patch("apache_beam.transforms.ptransform.PTransform.__rrshift__")
     def test_filter(self, mock_rrshift):
-        mock_pcollection, ops = self._test_helper()
-        ops.filter(mock_pcollection, lambda x: True, "stage_name")
+        mock_pcollection, backend = self._test_helper()
+        backend.filter(mock_pcollection, lambda x: True, "stage_name")
         mock_rrshift.assert_called_once_with("unique_label")
 
     @patch("apache_beam.transforms.ptransform.PTransform.__rrshift__")
     def test_filter_by_key(self, mock_rrshift):
-        mock_pcollection, ops = self._test_helper()
-        ops.filter_by_key(mock_pcollection, [1], "stage_name")
+        mock_pcollection, backend = self._test_helper()
+        backend.filter_by_key(mock_pcollection, [1], "stage_name")
         mock_rrshift.assert_called_once_with("unique_label")
 
     @patch("apache_beam.transforms.ptransform.PTransform.__rrshift__")
     def test_keys(self, mock_rrshift):
-        mock_pcollection, ops = self._test_helper()
-        ops.keys(mock_pcollection, "stage_name")
+        mock_pcollection, backend = self._test_helper()
+        backend.keys(mock_pcollection, "stage_name")
         mock_rrshift.assert_called_once_with("unique_label")
 
     @patch("apache_beam.transforms.ptransform.PTransform.__rrshift__")
     def test_values(self, mock_rrshift):
-        mock_pcollection, ops = self._test_helper()
-        ops.values(mock_pcollection, "stage_name")
+        mock_pcollection, backend = self._test_helper()
+        backend.values(mock_pcollection, "stage_name")
         mock_rrshift.assert_called_once_with("unique_label")
 
     @patch("apache_beam.transforms.ptransform.PTransform.__rrshift__")
     def test_sample_fixed_per_key(self, mock_rrshift):
-        mock_pcollection, ops = self._test_helper()
-        ops.sample_fixed_per_key(mock_pcollection, 1, "stage_name")
+        mock_pcollection, backend = self._test_helper()
+        backend.sample_fixed_per_key(mock_pcollection, 1, "stage_name")
         mock_rrshift.assert_called_once_with("unique_label")
 
     @patch("apache_beam.transforms.ptransform.PTransform.__rrshift__")
     def test_count_per_element(self, mock_rrshift):
-        mock_pcollection, ops = self._test_helper()
-        ops.count_per_element(mock_pcollection, "stage_name")
+        mock_pcollection, backend = self._test_helper()
+        backend.count_per_element(mock_pcollection, "stage_name")
         mock_rrshift.assert_called_once_with("unique_label")
 
     @patch("apache_beam.transforms.ptransform.PTransform.__rrshift__")
     def test_reduce_accumulators_per_key(self, mock_rrshift):
-        mock_pcollection, ops = self._test_helper()
-        ops.reduce_accumulators_per_key(mock_pcollection, "stage_name")
+        mock_pcollection, backend = self._test_helper()
+        backend.reduce_accumulators_per_key(mock_pcollection, "stage_name")
         mock_rrshift.assert_called_once_with("unique_label")
 
-    def test_ops_stage_name_must_be_unique(self):
-        ops_1 = BeamOperations("SAME_OPS_SUFFIX")
-        ops_2 = BeamOperations("SAME_OPS_SUFFIX")
+    def test_backend_stage_name_must_be_unique(self):
+        backend_1 = BeamBackend("SAME_backend_SUFFIX")
+        backend_2 = BeamBackend("SAME_backend_SUFFIX")
         with test_pipeline.TestPipeline() as p:
             col = p | f"UNIQUE_BEAM_CREATE_NAME" >> beam.Create([(6, 1),
                                                                  (6, 2)])
-            ops_1.map(col, lambda x: x, "SAME_MAP_NAME")
+            backend_1.map(col, lambda x: x, "SAME_MAP_NAME")
             with self.assertRaisesRegex(RuntimeError,
                                         expected_regex="A transform with label "
-                                        "\"SAME_MAP_NAME_SAME_OPS_SUFFIX\" "
+                                        "\"SAME_MAP_NAME_SAME_backend_SUFFIX\" "
                                         "already exists in the pipeline"):
-                ops_2.map(col, lambda x: x, "SAME_MAP_NAME")
+                backend_2.map(col, lambda x: x, "SAME_MAP_NAME")
 
     def test_one_suffix_multiple_same_stage_name(self):
-        ops = BeamOperations("UNIQUE_OPS_SUFFIX")
+        backend = BeamBackend("UNIQUE_BACKEND_SUFFIX")
         with test_pipeline.TestPipeline() as p:
             col = p | f"UNIQUE_BEAM_CREATE_NAME" >> beam.Create([(6, 1),
                                                                  (6, 2)])
-            ops.map(col, lambda x: x, "SAME_MAP_NAME")
-            ops.map(col, lambda x: x, "SAME_MAP_NAME")
-            ops.map(col, lambda x: x, "SAME_MAP_NAME")
+            backend.map(col, lambda x: x, "SAME_MAP_NAME")
+            backend.map(col, lambda x: x, "SAME_MAP_NAME")
+            backend.map(col, lambda x: x, "SAME_MAP_NAME")
 
-        self.assertEqual("UNIQUE_OPS_SUFFIX", ops._ulg._suffix)
-        self.assertEqual(3, len(ops._ulg._labels))
-        self.assertIn("SAME_MAP_NAME_UNIQUE_OPS_SUFFIX", ops._ulg._labels)
-        self.assertIn("SAME_MAP_NAME_1_UNIQUE_OPS_SUFFIX", ops._ulg._labels)
-        self.assertIn("SAME_MAP_NAME_2_UNIQUE_OPS_SUFFIX", ops._ulg._labels)
+        self.assertEqual("UNIQUE_BACKEND_SUFFIX", backend._ulg._suffix)
+        self.assertEqual(3, len(backend._ulg._labels))
+        self.assertIn("SAME_MAP_NAME_UNIQUE_BACKEND_SUFFIX",
+                      backend._ulg._labels)
+        self.assertIn("SAME_MAP_NAME_1_UNIQUE_BACKEND_SUFFIX",
+                      backend._ulg._labels)
+        self.assertIn("SAME_MAP_NAME_2_UNIQUE_BACKEND_SUFFIX",
+                      backend._ulg._labels)
 
 
 @unittest.skipIf(sys.platform == "win32" or sys.platform == 'darwin' or (
     sys.version_info.minor <= 7 and sys.version_info.major == 3
 ), "There are some problems with PySpark setup on older python and Windows and macOS"
                 )
-class SparkRDDOperationsTest(parameterized.TestCase):
+class SparkRDDBackendTest(parameterized.TestCase):
 
     @classmethod
     def setUpClass(cls):
@@ -219,14 +242,14 @@ class SparkRDDOperationsTest(parameterized.TestCase):
             partition_extractor=lambda x: x[1],
             privacy_id_extractor=lambda x: x[0],
             value_extractor=lambda x: x[2])
-        cls.ops = SparkRDDOperations()
+        cls.backend = SparkRDDBackend()
 
     def test_filter_by_key_none_keys_to_keep(self):
         data = [(1, 11), (2, 22)]
         dist_data = self.sc.parallelize(data)
         key_to_keep = None
         with self.assertRaises(TypeError):
-            self.ops.filter_by_key(dist_data, key_to_keep)
+            self.backend.filter_by_key(dist_data, key_to_keep)
 
     @parameterized.parameters({'distributed': False}, {'distributed': True})
     def test_filter_by_key_empty_keys_to_keep(self, distributed):
@@ -235,7 +258,7 @@ class SparkRDDOperationsTest(parameterized.TestCase):
         keys_to_keep = []
         if distributed:
             keys_to_keep = self.sc.parallelize(keys_to_keep)
-        result = self.ops.filter_by_key(dist_data, keys_to_keep).collect()
+        result = self.backend.filter_by_key(dist_data, keys_to_keep).collect()
         self.assertListEqual(result, [])
 
     @parameterized.parameters({'distributed': False}, {'distributed': True})
@@ -245,13 +268,13 @@ class SparkRDDOperationsTest(parameterized.TestCase):
         keys_to_keep = [1, 3, 3]
         if distributed:
             keys_to_keep = self.sc.parallelize(keys_to_keep)
-        result = self.ops.filter_by_key(dist_data, keys_to_keep).collect()
+        result = self.backend.filter_by_key(dist_data, keys_to_keep).collect()
         self.assertListEqual(result, [(1, 11)])
 
     def test_sample_fixed_per_key(self):
         data = [(1, 11), (2, 22), (3, 33), (1, 14), (2, 25), (1, 16)]
         dist_data = self.sc.parallelize(data)
-        rdd = self.ops.sample_fixed_per_key(dist_data, 2)
+        rdd = self.backend.sample_fixed_per_key(dist_data, 2)
         result = dict(rdd.collect())
         self.assertEqual(len(result[1]), 2)
         self.assertTrue(set(result[1]).issubset({11, 14, 16}))
@@ -261,7 +284,7 @@ class SparkRDDOperationsTest(parameterized.TestCase):
     def test_count_per_element(self):
         data = ['a', 'b', 'a']
         dist_data = self.sc.parallelize(data)
-        rdd = self.ops.count_per_element(dist_data)
+        rdd = self.backend.count_per_element(dist_data)
         result = rdd.collect()
         result = dict(result)
         self.assertDictEqual(result, {'a': 2, 'b': 1})
@@ -269,130 +292,152 @@ class SparkRDDOperationsTest(parameterized.TestCase):
     def test_reduce_accumulators_per_key(self):
         data = [(1, 11), (2, 22), (3, 33), (1, 14), (2, 25), (1, 16)]
         dist_data = self.sc.parallelize(data)
-        rdd = self.ops.map_values(dist_data, SumAccumulator,
-                                  "Wrap into accumulators")
-        result = self.ops\
+        rdd = self.backend.map_values(dist_data, SumAccumulator,
+                                      "Wrap into accumulators")
+        result = self.backend\
             .reduce_accumulators_per_key(rdd, "Reduce accumulator per key")\
             .map(lambda row: (row[0], row[1].get_metrics()))\
             .collect()
         result = dict(result)
         self.assertDictEqual(result, {1: 41, 2: 47, 3: 33})
 
+    def test_combine_accumulators_per_key(self):
+        data = self.sc.parallelize([(1, 2), (2, 1), (1, 4), (3, 8), (2, 3)])
+        rdd = self.backend.group_by_key(data)
+        sum_combiner = SumCombiner()
+        rdd = self.backend.map_values(rdd, sum_combiner.create_accumulator)
+        rdd = self.backend.combine_accumulators_per_key(rdd, sum_combiner)
+        rdd = self.backend.map_values(rdd, sum_combiner.compute_metrics)
+        result = dict(rdd.collect())
+        self.assertDictEqual(result, {1: 6, 2: 4, 3: 8})
+
     def test_map_tuple(self):
         data = [(1, 2), (3, 4)]
         dist_data = self.sc.parallelize(data)
-        result = self.ops.map_tuple(dist_data, lambda a, b: a + b).collect()
+        result = self.backend.map_tuple(dist_data, lambda a, b: a + b).collect()
         self.assertEqual(result, [3, 7])
 
     def test_flat_map(self):
         data = [[1, 2, 3, 4], [5, 6, 7, 8]]
         dist_data = self.sc.parallelize(data)
         self.assertEqual(
-            self.ops.flat_map(dist_data, lambda x: x).collect(),
+            self.backend.flat_map(dist_data, lambda x: x).collect(),
             [1, 2, 3, 4, 5, 6, 7, 8])
 
         data = [("a", [1, 2, 3, 4]), ("b", [5, 6, 7, 8])]
         dist_data = self.sc.parallelize(data)
         self.assertEqual(
-            self.ops.flat_map(dist_data, lambda x: x[1]).collect(),
+            self.backend.flat_map(dist_data, lambda x: x[1]).collect(),
             [1, 2, 3, 4, 5, 6, 7, 8])
         self.assertEqual(
-            self.ops.flat_map(dist_data,
-                              lambda x: [(x[0], y) for y in x[1]]).collect(),
-            [("a", 1), ("a", 2), ("a", 3), ("a", 4), ("b", 5), ("b", 6),
-             ("b", 7), ("b", 8)])
+            self.backend.flat_map(
+                dist_data,
+                lambda x: [(x[0], y) for y in x[1]]).collect(), [("a", 1),
+                                                                 ("a", 2),
+                                                                 ("a", 3),
+                                                                 ("a", 4),
+                                                                 ("b", 5),
+                                                                 ("b", 6),
+                                                                 ("b", 7),
+                                                                 ("b", 8)])
 
     @classmethod
     def tearDownClass(cls):
         cls.sc.stop()
 
 
-class LocalPipelineOperationsTest(unittest.TestCase):
+class LocalBackendTest(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.ops = LocalPipelineOperations()
+        cls.backend = LocalBackend()
         cls.data_extractors = DataExtractors(
             partition_extractor=lambda x: x[1],
             privacy_id_extractor=lambda x: x[0],
             value_extractor=lambda x: x[2])
 
     def test_local_map(self):
-        self.assertEqual(list(self.ops.map([], lambda x: x / 0)), [])
+        self.assertEqual(list(self.backend.map([], lambda x: x / 0)), [])
 
-        self.assertEqual(list(self.ops.map([1, 2, 3], str)), ["1", "2", "3"])
-        self.assertEqual(list(self.ops.map(range(5), lambda x: x**2)),
+        self.assertEqual(list(self.backend.map([1, 2, 3], str)),
+                         ["1", "2", "3"])
+        self.assertEqual(list(self.backend.map(range(5), lambda x: x**2)),
                          [0, 1, 4, 9, 16])
 
     def test_local_map_tuple(self):
         tuple_list = [(1, 2), (2, 3), (3, 4)]
 
         self.assertEqual(
-            list(self.ops.map_tuple(tuple_list, lambda k, v: k + v)), [3, 5, 7])
+            list(self.backend.map_tuple(tuple_list, lambda k, v: k + v)),
+            [3, 5, 7])
 
         self.assertEqual(
-            list(self.ops.map_tuple(tuple_list, lambda k, v: (str(k), str(v)))),
-            [("1", "2"), ("2", "3"), ("3", "4")])
+            list(
+                self.backend.map_tuple(tuple_list, lambda k, v:
+                                       (str(k), str(v)))), [("1", "2"),
+                                                            ("2", "3"),
+                                                            ("3", "4")])
 
     def test_local_map_values(self):
-        self.assertEqual(list(self.ops.map_values([], lambda x: x / 0)), [])
+        self.assertEqual(list(self.backend.map_values([], lambda x: x / 0)), [])
 
         tuple_list = [(1, 2), (2, 3), (3, 4)]
 
-        self.assertEqual(list(self.ops.map_values(tuple_list, str)), [(1, "2"),
-                                                                      (2, "3"),
-                                                                      (3, "4")])
-        self.assertEqual(list(self.ops.map_values(tuple_list, lambda x: x**2)),
-                         [(1, 4), (2, 9), (3, 16)])
+        self.assertEqual(list(self.backend.map_values(tuple_list, str)),
+                         [(1, "2"), (2, "3"), (3, "4")])
+        self.assertEqual(
+            list(self.backend.map_values(tuple_list, lambda x: x**2)),
+            [(1, 4), (2, 9), (3, 16)])
 
     def test_local_group_by_key(self):
         some_dict = [("cheese", "brie"), ("bread", "sourdough"),
                      ("cheese", "swiss")]
 
-        self.assertEqual(list(self.ops.group_by_key(some_dict)),
+        self.assertEqual(list(self.backend.group_by_key(some_dict)),
                          [("cheese", ["brie", "swiss"]),
                           ("bread", ["sourdough"])])
 
     def test_local_filter(self):
-        self.assertEqual(list(self.ops.filter([], lambda x: True)), [])
-        self.assertEqual(list(self.ops.filter([], lambda x: False)), [])
+        self.assertEqual(list(self.backend.filter([], lambda x: True)), [])
+        self.assertEqual(list(self.backend.filter([], lambda x: False)), [])
 
         example_list = [1, 2, 2, 3, 3, 4, 2]
 
-        self.assertEqual(list(self.ops.filter(example_list, lambda x: x % 2)),
-                         [1, 3, 3])
-        self.assertEqual(list(self.ops.filter(example_list, lambda x: x < 3)),
-                         [1, 2, 2, 2])
+        self.assertEqual(
+            list(self.backend.filter(example_list, lambda x: x % 2)), [1, 3, 3])
+        self.assertEqual(
+            list(self.backend.filter(example_list, lambda x: x < 3)),
+            [1, 2, 2, 2])
 
     def test_local_filter_by_key_empty_keys_to_keep(self):
         col = [(7, 1), (2, 1), (3, 9), (4, 1), (9, 10)]
         keys_to_keep = []
-        result = self.ops.filter_by_key(col, keys_to_keep, "filte_by_key")
+        result = self.backend.filter_by_key(col, keys_to_keep, "filter_by_key")
         self.assertEqual(result, [])
 
     def test_local_filter_by_key_remove(self):
         col = [(7, 1), (2, 1), (3, 9), (4, 1), (9, 10)]
         keys_to_keep = [7, 9]
-        result = self.ops.filter_by_key(col, keys_to_keep, "filte_by_key")
+        result = self.backend.filter_by_key(col, keys_to_keep, "filter_by_key")
         self.assertEqual(result, [(7, 1), (9, 10)])
 
     def test_local_keys(self):
-        self.assertEqual(list(self.ops.keys([])), [])
+        self.assertEqual(list(self.backend.keys([])), [])
 
         example_list = [(1, 2), (2, 3), (3, 4), (4, 8)]
 
-        self.assertEqual(list(self.ops.keys(example_list)), [1, 2, 3, 4])
+        self.assertEqual(list(self.backend.keys(example_list)), [1, 2, 3, 4])
 
     def test_local_values(self):
-        self.assertEqual(list(self.ops.values([])), [])
+        self.assertEqual(list(self.backend.values([])), [])
 
         example_list = [(1, 2), (2, 3), (3, 4), (4, 8)]
 
-        self.assertEqual(list(self.ops.values(example_list)), [2, 3, 4, 8])
+        self.assertEqual(list(self.backend.values(example_list)), [2, 3, 4, 8])
 
     def test_local_count_per_element(self):
         example_list = [1, 2, 3, 4, 5, 6, 1, 4, 0, 1]
-        result = self.ops.count_per_element(example_list)
+        result = self.backend.count_per_element(example_list)
 
         self.assertEqual(dict(result), {
             1: 3,
@@ -406,9 +451,19 @@ class LocalPipelineOperationsTest(unittest.TestCase):
 
     def test_local_reduce_accumulators_per_key(self):
         example_list = [(1, 2), (2, 1), (1, 4), (3, 8), (2, 3)]
-        col = self.ops.map_values(example_list, SumAccumulator)
-        col = self.ops.reduce_accumulators_per_key(col)
+        col = self.backend.map_values(example_list, SumAccumulator)
+        col = self.backend.reduce_accumulators_per_key(col)
         result = list(map(lambda row: (row[0], row[1].get_metrics()), col))
+        self.assertEqual(result, [(1, 6), (2, 4), (3, 8)])
+
+    def test_local_combine_accumulators_per_key(self):
+        data = [(1, 2), (2, 1), (1, 4), (3, 8), (2, 3)]
+        col = self.backend.group_by_key(data)
+        sum_combiner = SumCombiner()
+        col = self.backend.map_values(col, sum_combiner.create_accumulator)
+        col = self.backend.combine_accumulators_per_key(col, sum_combiner)
+        col = self.backend.map_values(col, sum_combiner.compute_metrics)
+        result = list(col)
         self.assertEqual(result, [(1, 6), (2, 4), (3, 8)])
 
     def test_laziness(self):
@@ -428,15 +483,15 @@ class LocalPipelineOperationsTest(unittest.TestCase):
 
         # lazy operators accept exceptions_generator_function()
         # as argument without raising errors:
-        assert_laziness(self.ops.map, str)
-        assert_laziness(self.ops.map_values, str)
-        assert_laziness(self.ops.filter, bool)
-        assert_laziness(self.ops.values)
-        assert_laziness(self.ops.keys)
-        assert_laziness(self.ops.count_per_element)
-        assert_laziness(self.ops.flat_map, str)
-        assert_laziness(self.ops.sample_fixed_per_key, int)
-        assert_laziness(self.ops.reduce_accumulators_per_key)
+        assert_laziness(self.backend.map, str)
+        assert_laziness(self.backend.map_values, str)
+        assert_laziness(self.backend.filter, bool)
+        assert_laziness(self.backend.values)
+        assert_laziness(self.backend.keys)
+        assert_laziness(self.backend.count_per_element)
+        assert_laziness(self.backend.flat_map, str)
+        assert_laziness(self.backend.sample_fixed_per_key, int)
+        assert_laziness(self.backend.reduce_accumulators_per_key)
 
     def test_local_sample_fixed_per_key_requires_no_discarding(self):
         input_col = [("pid1", ('pk1', 1)), ("pid1", ('pk2', 1)),
@@ -444,7 +499,7 @@ class LocalPipelineOperationsTest(unittest.TestCase):
         n = 3
 
         sample_fixed_per_key_result = list(
-            self.ops.sample_fixed_per_key(input_col, n))
+            self.backend.sample_fixed_per_key(input_col, n))
 
         expected_result = [("pid1", [('pk1', 1), ('pk2', 1), ('pk3', 1)]),
                            ("pid2", [('pk4', 1)])]
@@ -458,7 +513,7 @@ class LocalPipelineOperationsTest(unittest.TestCase):
         n = 3
 
         sample_fixed_per_key_result = list(
-            self.ops.sample_fixed_per_key(input_col, n))
+            self.backend.sample_fixed_per_key(input_col, n))
 
         self.assertTrue(
             all(
@@ -467,16 +522,16 @@ class LocalPipelineOperationsTest(unittest.TestCase):
 
     def test_local_flat_map(self):
         input_col = [[1, 2, 3, 4], [5, 6, 7, 8]]
-        self.assertEqual(list(self.ops.flat_map(input_col, lambda x: x)),
+        self.assertEqual(list(self.backend.flat_map(input_col, lambda x: x)),
                          [1, 2, 3, 4, 5, 6, 7, 8])
 
         input_col = [("a", [1, 2, 3, 4]), ("b", [5, 6, 7, 8])]
-        self.assertEqual(list(self.ops.flat_map(input_col, lambda x: x[1])),
+        self.assertEqual(list(self.backend.flat_map(input_col, lambda x: x[1])),
                          [1, 2, 3, 4, 5, 6, 7, 8])
         self.assertEqual(
             list(
-                self.ops.flat_map(input_col,
-                                  lambda x: [(x[0], y) for y in x[1]])),
+                self.backend.flat_map(input_col,
+                                      lambda x: [(x[0], y) for y in x[1]])),
             [("a", 1), ("a", 2), ("a", 3), ("a", 4), ("b", 5), ("b", 6),
              ("b", 7), ("b", 8)])
 
@@ -484,14 +539,14 @@ class LocalPipelineOperationsTest(unittest.TestCase):
         some_dict = [("cheese", "brie"), ("bread", "sourdough"),
                      ("cheese", "swiss")]
 
-        self.assertEqual(list(self.ops.group_by_key(some_dict)),
+        self.assertEqual(list(self.backend.group_by_key(some_dict)),
                          [("cheese", ["brie", "swiss"]),
                           ("bread", ["sourdough"])])
 
 
 @unittest.skipIf(sys.platform == 'win32' or sys.platform == 'darwin',
                  "Problems with serialisation on Windows and macOS")
-class MultiProcLocalPipelineOperationsTest(unittest.TestCase):
+class MultiProcLocalBackendTest(unittest.TestCase):
 
     @staticmethod
     def partition_extract(x):
@@ -507,7 +562,7 @@ class MultiProcLocalPipelineOperationsTest(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.ops = MultiProcLocalPipelineOperations(n_jobs=1)
+        cls.backend = MultiProcLocalBackend(n_jobs=1)
         cls.data_extractors = DataExtractors(
             partition_extractor=cls.partition_extract,
             privacy_id_extractor=cls.privacy_id_extract,
@@ -554,94 +609,101 @@ class MultiProcLocalPipelineOperationsTest(unittest.TestCase):
 
     @pytest.mark.timeout(10)
     def test_multiproc_map(self):
-        self.assertDatasetsEqual(list(self.ops.map([], lambda x: x / 0)), [])
-        self.assertDatasetsEqual(list(self.ops.map([1, 2, 3], str)),
+        self.assertDatasetsEqual(list(self.backend.map([], lambda x: x / 0)),
+                                 [])
+        self.assertDatasetsEqual(list(self.backend.map([1, 2, 3], str)),
                                  ["1", "2", "3"])
-        self.assertDatasetsEqual(list(self.ops.map(range(5), lambda x: x**2)),
-                                 [0, 1, 4, 9, 16])
+        self.assertDatasetsEqual(
+            list(self.backend.map(range(5), lambda x: x**2)), [0, 1, 4, 9, 16])
 
     @pytest.mark.timeout(10)
     def test_multiproc_map_tuple(self):
         tuple_list = [(1, 2), (2, 3), (3, 4)]
 
         self.assertDatasetsEqual(
-            list(self.ops.map_tuple(tuple_list, lambda k, v: k + v)), [3, 5, 7])
+            list(self.backend.map_tuple(tuple_list, lambda k, v: k + v)),
+            [3, 5, 7])
 
         self.assertDatasetsEqual(
-            list(self.ops.map_tuple(tuple_list, lambda k, v: (str(k), str(v)))),
-            [("1", "2"), ("2", "3"), ("3", "4")])
+            list(
+                self.backend.map_tuple(tuple_list, lambda k, v:
+                                       (str(k), str(v)))), [("1", "2"),
+                                                            ("2", "3"),
+                                                            ("3", "4")])
 
     @pytest.mark.timeout(10)
     def test_multiproc_map_values(self):
-        self.assertDatasetsEqual(list(self.ops.map_values([], lambda x: x / 0)),
-                                 [])
+        self.assertDatasetsEqual(
+            list(self.backend.map_values([], lambda x: x / 0)), [])
 
         tuple_list = [(1, 2), (2, 3), (3, 4)]
 
-        self.assertDatasetsEqual(list(self.ops.map_values(tuple_list, str)),
+        self.assertDatasetsEqual(list(self.backend.map_values(tuple_list, str)),
                                  [(1, "2"), (2, "3"), (3, "4")])
         self.assertDatasetsEqual(
-            list(self.ops.map_values(tuple_list, lambda x: x**2)), [(1, 4),
-                                                                    (2, 9),
-                                                                    (3, 16)])
+            list(self.backend.map_values(tuple_list, lambda x: x**2)),
+            [(1, 4), (2, 9), (3, 16)])
 
     @pytest.mark.timeout(10)
     def test_multiproc_group_by_key(self):
         some_dict = [("cheese", "brie"), ("bread", "sourdough"),
                      ("cheese", "swiss")]
 
-        self.assertDatasetsEqual(list(self.ops.group_by_key(some_dict)),
+        self.assertDatasetsEqual(list(self.backend.group_by_key(some_dict)),
                                  [("cheese", ["brie", "swiss"]),
                                   ("bread", ["sourdough"])])
 
     @pytest.mark.timeout(10)
     def test_multiproc_filter(self):
-        self.assertDatasetsEqual(list(self.ops.filter([], lambda x: True)), [])
-        self.assertDatasetsEqual(list(self.ops.filter([], lambda x: False)), [])
+        self.assertDatasetsEqual(list(self.backend.filter([], lambda x: True)),
+                                 [])
+        self.assertDatasetsEqual(list(self.backend.filter([], lambda x: False)),
+                                 [])
 
         example_list = [1, 2, 2, 3, 3, 4, 2]
 
         self.assertDatasetsEqual(
-            list(self.ops.filter(example_list, lambda x: x % 2)), [1, 3, 3])
+            list(self.backend.filter(example_list, lambda x: x % 2)), [1, 3, 3])
         self.assertDatasetsEqual(
-            list(self.ops.filter(example_list, lambda x: x < 3)), [1, 2, 2, 2])
+            list(self.backend.filter(example_list, lambda x: x < 3)),
+            [1, 2, 2, 2])
 
     @pytest.mark.timeout(10)
     def test_multiproc_filter_by_key_empty_keys_to_keep(self):
         col = [(7, 1), (2, 1), (3, 9), (4, 1), (9, 10)]
         keys_to_keep = []
-        result = self.ops.filter_by_key(col, keys_to_keep, "filter_by_key")
+        result = self.backend.filter_by_key(col, keys_to_keep, "filter_by_key")
         self.assertEqual(list(result), [])
 
     @pytest.mark.timeout(10)
     def test_multiproc_filter_by_key_remove(self):
         col = [(7, 1), (2, 1), (3, 9), (4, 1), (9, 10)]
         keys_to_keep = [7, 9]
-        result = self.ops.filter_by_key(col, keys_to_keep, "filter_by_keys")
+        result = self.backend.filter_by_key(col, keys_to_keep, "filter_by_keys")
         self.assertDatasetsEqual(list(result), [(7, 1), (9, 10)])
 
     @pytest.mark.timeout(10)
     def test_multiproc_keys(self):
-        self.assertEqual(list(self.ops.keys([])), [])
+        self.assertEqual(list(self.backend.keys([])), [])
 
         example_list = [(1, 2), (2, 3), (3, 4), (4, 8)]
 
-        self.assertDatasetsEqual(list(self.ops.keys(example_list)),
+        self.assertDatasetsEqual(list(self.backend.keys(example_list)),
                                  [1, 2, 3, 4])
 
     @pytest.mark.timeout(10)
     def test_multiproc_values(self):
-        self.assertEqual(list(self.ops.values([])), [])
+        self.assertEqual(list(self.backend.values([])), [])
 
         example_list = [(1, 2), (2, 3), (3, 4), (4, 8)]
 
-        self.assertDatasetsEqual(list(self.ops.values(example_list)),
+        self.assertDatasetsEqual(list(self.backend.values(example_list)),
                                  [2, 3, 4, 8])
 
     @pytest.mark.timeout(10)
     def test_multiproc_count_per_element(self):
         example_list = [1, 2, 3, 4, 5, 6, 1, 4, 0, 1]
-        result = dict(self.ops.count_per_element(example_list))
+        result = dict(self.backend.count_per_element(example_list))
 
         self.assertDictEqual(result, {1: 3, 2: 1, 3: 1, 4: 2, 5: 1, 6: 1, 0: 1})
 
@@ -652,7 +714,7 @@ class MultiProcLocalPipelineOperationsTest(unittest.TestCase):
         n = 3
 
         sample_fixed_per_key_result = list(
-            self.ops.sample_fixed_per_key(input_col, n))
+            self.backend.sample_fixed_per_key(input_col, n))
 
         expected_result = [("pid1", [('pk1', 1), ('pk2', 1), ('pk3', 1)]),
                            ("pid2", [('pk4', 1)])]
@@ -667,7 +729,7 @@ class MultiProcLocalPipelineOperationsTest(unittest.TestCase):
         n = 3
 
         sample_fixed_per_key_result = list(
-            self.ops.sample_fixed_per_key(input_col, n))
+            self.backend.sample_fixed_per_key(input_col, n))
 
         self.assertTrue(
             all(
@@ -678,17 +740,17 @@ class MultiProcLocalPipelineOperationsTest(unittest.TestCase):
     def test_multiproc_flat_map(self):
         input_col = [[1, 2, 3, 4], [5, 6, 7, 8]]
         self.assertDatasetsEqual(
-            list(self.ops.flat_map(input_col, lambda x: x)),
+            list(self.backend.flat_map(input_col, lambda x: x)),
             [1, 2, 3, 4, 5, 6, 7, 8])
 
         input_col = [("a", [1, 2, 3, 4]), ("b", [5, 6, 7, 8])]
         self.assertDatasetsEqual(
-            list(self.ops.flat_map(input_col, lambda x: x[1])),
+            list(self.backend.flat_map(input_col, lambda x: x[1])),
             [1, 2, 3, 4, 5, 6, 7, 8])
         self.assertDatasetsEqual(
             list(
-                self.ops.flat_map(input_col,
-                                  lambda x: [(x[0], y) for y in x[1]])),
+                self.backend.flat_map(input_col,
+                                      lambda x: [(x[0], y) for y in x[1]])),
             [("a", 1), ("a", 2), ("a", 3), ("a", 4), ("b", 5), ("b", 6),
              ("b", 7), ("b", 8)])
 
@@ -697,7 +759,7 @@ class MultiProcLocalPipelineOperationsTest(unittest.TestCase):
         some_dict = [("cheese", "brie"), ("bread", "sourdough"),
                      ("cheese", "swiss")]
 
-        result = sorted(self.ops.group_by_key(some_dict))
+        result = sorted(self.backend.group_by_key(some_dict))
         result = [(k, sorted(v)) for k, v in result]
 
         self.assertEqual(result, [
@@ -722,14 +784,14 @@ class MultiProcLocalPipelineOperationsTest(unittest.TestCase):
 
         # lazy operators accept exceptions_generator_function()
         # as argument without raising errors:
-        assert_laziness(self.ops.map, str)
-        assert_laziness(self.ops.map_values, str)
-        assert_laziness(self.ops.filter, bool)
-        assert_laziness(self.ops.values)
-        assert_laziness(self.ops.keys)
-        assert_laziness(self.ops.count_per_element)
-        assert_laziness(self.ops.flat_map, str)
-        assert_laziness(self.ops.sample_fixed_per_key, int)
+        assert_laziness(self.backend.map, str)
+        assert_laziness(self.backend.map_values, str)
+        assert_laziness(self.backend.filter, bool)
+        assert_laziness(self.backend.values)
+        assert_laziness(self.backend.keys)
+        assert_laziness(self.backend.count_per_element)
+        assert_laziness(self.backend.flat_map, str)
+        assert_laziness(self.backend.sample_fixed_per_key, int)
 
 
 # TODO: Extend the proper Accumulator class once it's available.
@@ -750,6 +812,21 @@ class SumAccumulator:
                         accumulator: 'SumAccumulator') -> 'SumAccumulator':
         self.sum += accumulator.sum
         return self
+
+
+class SumCombiner(dp_combiners.Combiner):
+
+    def create_accumulator(self, values) -> float:
+        return sum(values)
+
+    def merge_accumulators(self, sum1: float, sum2: float):
+        return sum1 + sum2
+
+    def compute_metrics(self, sum: float) -> float:
+        return sum
+
+    def metrics_names(self) -> List[str]:
+        return ['sum']
 
 
 if __name__ == '__main__':

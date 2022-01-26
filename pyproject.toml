@@ -1,21 +1,30 @@
 [tool.poetry]
-name = "pipelinedp"
-version = "0.1.0"
+name = "pipeline-dp"
+version = "0.0.1rc1"
 description = ""
 authors = ["Chinmay Shah <chinmayshah3899@gmail.com>", "Vadym Doroshenko <dvadym@google.com>"]
 license = "Apache-2.0"
 
 [tool.poetry.dependencies]
-python = "^3.6"
-apache-beam = "^2.29.0"
-pyspark = "^3.1.1"
-absl-py = "^0.12.0"
-dataclasses = {version = "^0.8", python = "~3.6"}
-numpy = "<1.21"
-scipy = "^1.5"
-yapf = "^0.31.0"
+python = "^3.7, < 3.11"
+python-dp = "^1.1.1"
+pyspark = "^3.2.0"
+absl-py = "^1.0.0"
+numpy = "^1.20.1"
+apache-beam = "^2.35.0"
+scipy = "^1.7.3"
+dp-accounting = "^0.0.2"
+
 
 [tool.poetry.dev-dependencies]
+yapf = "^0.32.0"
+twine = "^3.7.1"
+pytest = "^6.2.5"
+pytest-timeout = "^2.1.0"
+pylint = "2.12.0"
+bumpversion = "==0.5.3"
+wheel = "^0.37.1"
+setuptools = "^60.5.0"
 
 [tool.yapf]
 based_on_style = "google"
