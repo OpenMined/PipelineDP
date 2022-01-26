@@ -49,6 +49,8 @@ class AggregateParams:
       unit of privacy (e.g., a user) can contribute.
     max_contributions_per_partition: A bound on the number of times one unit of
       privacy (e.g. a user) can contribute to a partition.
+    budget_weight: Relative weight of the privacy budget allocated to this
+      aggregation.
     min_value: Lower bound on each value.
     max_value: Upper bound on each value.
     public_partitions: A collection of partition keys that will be present in
@@ -112,9 +114,12 @@ class SelectPartitionsParams:
             data, this should be a good estimate of the realistic upper bound.
             Significantly over- or under-estimating this may increase the number
             of dropped partitions.
+        budget_weight: Relative weight of the privacy budget allocated to
+            partition selection.
 
     """
     max_partitions_contributed: int
+    budget_weight: float = 1
 
     def __str__(self):
         return "Private Partitions"

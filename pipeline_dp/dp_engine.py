@@ -135,6 +135,12 @@ class DPEngine:
         """
         self._check_select_private_partitions(col, params, data_extractors)
 
+        with self._budget_accountant.scope(weight=params.budget_weight):
+            return self._select_partitions(col, params, data_extractors)
+
+    def _select_partitions(self, col,
+                           params: pipeline_dp.SelectPartitionsParams,
+                           data_extractors: DataExtractors):
         self._report_generators.append(report_generator.ReportGenerator(params))
         max_partitions_contributed = params.max_partitions_contributed
 
