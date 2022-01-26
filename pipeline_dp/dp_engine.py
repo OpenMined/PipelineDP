@@ -15,8 +15,8 @@ import pydp.algorithms.partition_selection as partition_selection
 class DataExtractors:
     """Data extractors.
 
-    A set of functions that, given an input, return the privacy id, partition key,
-    and value.
+    A set of functions that, given a piece of input, return the privacy id, 
+    partition key, and value respectively.
     """
 
     privacy_id_extractor: Callable = None
@@ -38,10 +38,10 @@ class DPEngine:
 
     def aggregate(self, col, params: pipeline_dp.AggregateParams,
                   data_extractors: DataExtractors):
-        """Computes DP aggregation metrics.
+        """Computes DP aggregate metrics.
 
         Args:
-          col: collection with elements of the same type.
+          col: collection where all elements are of the same type.
           params: specifies which metrics to compute and computation parameters.
           data_extractors: functions that extract needed pieces of information
             from elements of 'col'.
@@ -127,7 +127,7 @@ class DPEngine:
         """Retrieves a collection of differentially-private partitions.
 
         Args:
-          col: collection with elements of the same type.
+          col: collection where all elements are of the same type.
           params: parameters, see doc for SelectPrivatePartitionsParams.
           data_extractors: functions that extract needed pieces of information
             from elements of 'col'. Only privacy_id_extractor and partition_extractor are required.
