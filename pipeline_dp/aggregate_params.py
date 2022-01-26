@@ -43,17 +43,17 @@ class AggregateParams:
     """Specifies parameters for function DPEngine.aggregate()
 
   Args:
-    noise_kind: Kind of noise to use for the DP calculations.
-    metrics: Metrics to compute.
-    max_partitions_contributed: Bounds the number of partitions in which one
-      unit of privacy (e.g., a user) can participate.
-    max_contributions_per_partition: Bounds the number of times one unit of
+    noise_kind: The type of noise to use for the DP calculations.
+    metrics: A list of metrics to compute.
+    max_partitions_contributed: A bound on the number of partitions to which one
+      unit of privacy (e.g., a user) can contribute.
+    max_contributions_per_partition: A bound on the number of times one unit of
       privacy (e.g. a user) can contribute to a partition.
-    min_value: Lower bound on a value contributed by a unit of privacy in a partition.
-    max_value: Upper bound on a value contributed by a unit of privacy in a
-      partition.
-    public_partitions: a collection of partition keys that will be present in
-      the result.
+    min_value: Lower bound on each value.
+    max_value: Upper bound on each value.
+    public_partitions: A collection of partition keys that will be present in
+      the result. Optional. If not provided, partitions will be selected in a DP
+      manner.
   """
 
     noise_kind: NoiseKind
@@ -110,9 +110,8 @@ class SelectPartitionsParams:
         max_partitions_contributed: Maximum number of partitions per privacy ID.
             The algorithm will drop contributions over this limit. To keep more
             data, this should be a good estimate of the realistic upper bound.
-            Significantly over- or under-estimating this may increase the amount
-            of dropped partitions. You can experiment with different values to
-            select which one retains more partitions.
+            Significantly over- or under-estimating this may increase the number
+            of dropped partitions.
 
     """
     max_partitions_contributed: int
@@ -126,19 +125,17 @@ class SumParams:
     """Specifies parameters for differentially-private sum calculation.
 
     Args:
-        noise_kind: Kind of noise to use for the DP calculations.
-        max_partitions_contributed: Bounds the number of partitions in which one
-            unit of privacy (e.g., a user) can participate.
-        max_contributions_per_partition: Bounds the number of times one unit of
+        noise_kind: The type of noise to use for the DP calculations.
+        max_partitions_contributed: A bounds on the number of partitions to which one
+            unit of privacy (e.g., a user) can contribute.
+        max_contributions_per_partition: A bound on the number of times one unit of
             privacy (e.g. a user) can contribute to a partition.
-        low: Lower bound on a value contributed by a unit of privacy in a partition.
-        high: Upper bound on a value contributed by a unit of privacy in a
-            partition.
+        low: Lower bound on each value.
+        high: Upper bound on each value.
         public_partitions: A collection of partition keys that will be present in
-            the result.
-        partition_extractor: A function for partition id extraction from a collection record.
-        value_extractor: A function for extraction of value
-            for which the sum will be calculated.
+            the result. Optioanl.
+        partition_extractor: A function which, given an input element, will return its partition id.
+        value_extractor: A function which, given an input element, will return its value.
   """
     max_partitions_contributed: int
     max_contributions_per_partition: int
@@ -165,16 +162,16 @@ class CountParams:
     """Specifies parameters for differentially-private count calculation.
 
     Args:
-        noise_kind: Kind of noise to use for the DP calculations.
-        max_partitions_contributed: Bounds the number of partitions in which one
-            unit of privacy (e.g., a user) can participate.
-        max_contributions_per_partition: Bounds the number of times one unit of
+        noise_kind: The type of noise to use for the DP calculations.
+        max_partitions_contributed: A bound on the number of partitions to which one
+            unit of privacy (e.g., a user) can contribute.
+        max_contributions_per_partition: A bound on the number of times one unit of
             privacy (e.g. a user) can contribute to a partition.
-        partition_extractor: A function for partition id extraction from a collection record.
+        partition_extractor: A function which, given an input element, will return its partition id.
         budget_weight: Relative weight of the privacy budget allocated for this
             operation.
         public_partitions: A collection of partition keys that will be present in
-            the result.
+            the result. Optional.
 
     """
 
@@ -191,14 +188,14 @@ class PrivacyIdCountParams:
     """Specifies parameters for differentially-private privacy id count calculation.
 
     Args:
-        noise_kind: Kind of noise to use for the DP calculations.
-        max_partitions_contributed: Bounds the number of partitions in which one
-            unit of privacy (e.g., a user) can participate.
+        noise_kind: The type of noise to use for the DP calculations.
+        max_partitions_contributed: A bound on the number of partitions to which one
+            unit of privacy (e.g., a user) can contribute.
         budget_weight: Relative weight of the privacy budget allocated for this
             operation.
-        partition_extractor: A function for partition id extraction from a collection record.
+        partition_extractor: A function which, given an input element, will return its partition id.
         public_partitions: A collection of partition keys that will be present in
-            the result.
+            the result. Optional.
     """
 
     noise_kind: NoiseKind
