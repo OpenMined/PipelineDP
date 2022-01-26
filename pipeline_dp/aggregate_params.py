@@ -58,7 +58,6 @@ class AggregateParams:
       manner.
   """
 
-    noise_kind: NoiseKind
     metrics: Iterable[Metrics]
     max_partitions_contributed: int
     max_contributions_per_partition: int
@@ -68,6 +67,7 @@ class AggregateParams:
     min_value: float = None
     max_value: float = None
     public_partitions: Any = None
+    noise_kind: NoiseKind = NoiseKind.LAPLACE
 
     def __post_init__(self):
         if self.low is not None:

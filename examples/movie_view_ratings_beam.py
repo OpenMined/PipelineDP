@@ -42,12 +42,20 @@ def main(unused_argv):
 
         # Calculate the private sum
         dp_result = private_movie_views | private_beam.Sum(
-            SumParams(max_partitions_contributed=2,
-                      max_contributions_per_partition=2,
-                      min_value=1,
-                      max_value=5,
-                      partition_extractor=lambda mv: mv.movie_id,
-                      value_extractor=lambda mv: mv.rating))
+            SumParams(
+                # Limits to how much one user can contribute:
+                # .. at most two movies rated per user
+                max_partitions_contributed=2,
+                # .. at most one rating for each movie
+                max_contributions_per_partition=1,
+                # .. with minimal rating of "1"
+                min_value=1,
+                # .. and maximum rating of "5"
+                max_value=5,
+                # The aggregation key: we're grouping by movies
+                partition_extractor=lambda mv: mv.movie_id,
+                # The value we're aggregating: we're summing up ratings
+                value_extractor=lambda mv: mv.rating))
         budget_accountant.compute_budgets()
 
         # Save the results

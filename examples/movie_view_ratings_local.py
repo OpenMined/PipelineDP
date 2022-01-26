@@ -30,17 +30,20 @@ def main(unused_argv):
     dp_engine = pipeline_dp.DPEngine(budget_accountant, backend)
 
     params = pipeline_dp.AggregateParams(
-        noise_kind=pipeline_dp.NoiseKind.LAPLACE,
         metrics=[
             # we can compute multiple metrics at once.
             pipeline_dp.Metrics.COUNT,
             pipeline_dp.Metrics.SUM,
             pipeline_dp.Metrics.PRIVACY_ID_COUNT
         ],
-        # Limit contributions of each user.
+        # Limits to how much one user can contribute:
+        # .. at most two movies rated per user
         max_partitions_contributed=2,
+        # .. at most one rating for each movie
         max_contributions_per_partition=1,
+        # .. with minimal rating of "1"
         min_value=1,
+        # .. and maximum rating of "5"
         max_value=5)
 
     # Specify how to extract privacy_id, partition_key and value from an
