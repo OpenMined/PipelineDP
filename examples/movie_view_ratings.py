@@ -136,7 +136,7 @@ def compute_on_spark():
     sc = pyspark.SparkContext(conf=conf)
     movie_views = sc.textFile(FLAGS.input_file) \
         .mapPartitions(parse_partition)
-    pipeline_backend = pipeline_dp.SparkRDDBackend()
+    pipeline_backend = pipeline_dp.SparkRDDBackend(sc)
     dp_result = calculate_private_result(movie_views, pipeline_backend)
 
     delete_if_exists(FLAGS.output_file)

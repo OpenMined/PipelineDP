@@ -767,7 +767,7 @@ class DpEngineTest(parameterized.TestCase):
         input = sc.parallelize(list(range(10)))
 
         output = self.run_e2e_private_partition_selection_large_budget(
-            input, pipeline_dp.SparkRDDBackend())
+            input, pipeline_dp.SparkRDDBackend(sc))
 
         self.assertEqual(5, len(output.collect()))
 
