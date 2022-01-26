@@ -8,11 +8,12 @@ from pipeline_dp import aggregate_params, budget_accounting
 class PrivateRDD:
     """A Spark RDD counterpart.
 
-    PrivateRDD guarantees that only anonymized data
-    within the specified privacy budget can be extracted from it through its API.
+    PrivateRDD guarantees that only data that has been aggregated 
+    in a DP manner, using no more than the specified privacy 
+    budget, can be extracted from it through its API.
 
-    PrivateRDD keeps `privacy_id` for each element
-    in order to guarantees correct DP computations.
+    PrivateRDD keeps a `privacy_id` for each element
+    in order to guarantee correct DP computations.
     """
 
     def __init__(self, rdd, budget_accountant, privacy_id_extractor=None):
@@ -27,7 +28,7 @@ class PrivateRDD:
         """A Spark map equivalent.
 
         Keeps track of privacy_id for each element.
-        The output PrivateRDD has the same BudgetAccountant as self.
+        The output PrivateRDD has the same BudgetAccountant as this one.
         """
         # Assumes that `self._rdd` consists of tuples `(privacy_id, element)`
         # and transforms each `element` according to the supplied function `fn`.
@@ -38,7 +39,7 @@ class PrivateRDD:
         """A Spark flatMap equivalent.
 
         Keeps track of privacy_id for each element.
-        The output PrivateRDD has the same BudgetAccountant as self.
+        The output PrivateRDD has the same BudgetAccountant as this one.
         """
         # Assumes that `self._rdd` consists of tuples `(privacy_id, element)`
         # and transforms each `element` according to the supplied function `fn`.
@@ -46,7 +47,7 @@ class PrivateRDD:
         return make_private(rdd, self._budget_accountant, None)
 
     def sum(self, sum_params: aggregate_params.SumParams) -> RDD:
-        """Computes DP sum.
+        """Computes a DP sum.
 
         Args:
             sum_params: parameters for calculation
@@ -82,7 +83,7 @@ class PrivateRDD:
         return dp_result
 
     def count(self, count_params: aggregate_params.CountParams) -> RDD:
-        """Computes DP count.
+        """Computes a DP count.
 
         Args:
             count_params: parameters for calculation
@@ -119,7 +120,7 @@ class PrivateRDD:
     def privacy_id_count(
             self, privacy_id_count_params: aggregate_params.PrivacyIdCountParams
     ) -> RDD:
-        """Computes DP Privacy ID count.
+        """Computes a DP Privacy ID count.
 
         Args:
             privacy_id_count_params: parameters for calculation
@@ -157,11 +158,11 @@ class PrivateRDD:
             self,
             select_partitions_params: aggregate_params.SelectPartitionsParams,
             partition_extractor: Callable) -> RDD:
-        """Computes a collection of PrivatePCollection partition keys using DP.
+        """Computes a collection of partition keys in a DP manner.
 
         Args:
             select_partitions_params: parameters for calculation
-            partition_extractor: function for extracting partition key from the input collection
+            partition_extractor: function for extracting partition key from each input element
         """
 
         backend = pipeline_dp.SparkRDDBackend()
@@ -181,6 +182,6 @@ class PrivateRDD:
 def make_private(rdd: RDD,
                  budget_accountant: budget_accounting.BudgetAccountant,
                  privacy_id_extractor: Callable) -> PrivateRDD:
-    """A factory method for PrivateRDD instance creation."""
+    """A factory method for creating PrivateRDDs."""
     prdd = PrivateRDD(rdd, budget_accountant, privacy_id_extractor)
     return prdd
