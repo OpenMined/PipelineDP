@@ -242,7 +242,7 @@ class SparkRDDBackendTest(parameterized.TestCase):
             partition_extractor=lambda x: x[1],
             privacy_id_extractor=lambda x: x[0],
             value_extractor=lambda x: x[2])
-        cls.backend = SparkRDDBackend()
+        cls.backend = SparkRDDBackend(cls.sc)
 
     def test_filter_by_key_none_keys_to_keep(self):
         data = [(1, 11), (2, 22)]
@@ -340,6 +340,16 @@ class SparkRDDBackendTest(parameterized.TestCase):
                                                                  ("b", 6),
                                                                  ("b", 7),
                                                                  ("b", 8)])
+
+    def test_flatten(self):
+        data1 = [1, 2, 3, 4]
+        dist_data1 = self.sc.parallelize(data1)
+        data2 = [5, 6, 7, 8]
+        dist_data2 = self.sc.parallelize(data2)
+
+        self.assertEqual(
+            self.backend.flatten(dist_data1, dist_data2).collect(),
+            [1, 2, 3, 4, 5, 6, 7, 8])
 
     @classmethod
     def tearDownClass(cls):
