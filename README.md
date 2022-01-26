@@ -50,7 +50,7 @@ dp_result = private_movie_views.sum(
               min_value=1,
               # .. and maximum rating of "5"
               max_value=5,
-              # The aggregation key: we're grouping by movies
+              # The aggregation key: we're grouping data by movies
               partition_extractor=lambda mv: mv.movie_id,
               # The value we're aggregating: we're summing up ratings
               value_extractor=lambda mv: mv.rating)
