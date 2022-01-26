@@ -29,8 +29,9 @@ class PrivatePTransform(ptransform.PTransform):
 class PrivatePCollection:
     """Private counterpart for PCollection.
 
-    PrivatePCollection guarantees that only anonymized data within the specified
-    privacy budget can be extracted from it through PrivatePTransforms."""
+    PrivatePCollection guarantees that only data that has been aggregated 
+    in a DP manner, using no more than the specified
+    privacy budget, can be extracted from it using PrivatePTransforms."""
 
     def __init__(self, pcol: pvalue.PCollection,
                  budget_accountant: budget_accounting.BudgetAccountant):
@@ -69,7 +70,7 @@ class MakePrivate(PrivatePTransform):
 
 
 class Sum(PrivatePTransform):
-    """Transform class for performing DP Sum on PrivatePCollection."""
+    """Transform class for performing DP Sum on a PrivatePCollection."""
 
     def __init__(self,
                  sum_params: aggregate_params.SumParams,
@@ -110,7 +111,7 @@ class Sum(PrivatePTransform):
 
 
 class Count(PrivatePTransform):
-    """Transform class for performing DP Count on PrivatePCollection."""
+    """Transform class for performing DP Count on a PrivatePCollection."""
 
     def __init__(self,
                  count_params: aggregate_params.CountParams,
@@ -151,7 +152,7 @@ class Count(PrivatePTransform):
 
 
 class PrivacyIdCount(PrivatePTransform):
-    """Transform class for performing DP Privacy ID Count on PrivatePCollection."""
+    """Transform class for performing a DP Privacy ID Count on a PrivatePCollection."""
 
     def __init__(self,
                  privacy_id_count_params: aggregate_params.PrivacyIdCountParams,
@@ -190,7 +191,7 @@ class PrivacyIdCount(PrivatePTransform):
 
 
 class SelectPartitions(PrivatePTransform):
-    """Transform class for computing a collection of PrivatePCollection partition keys using DP."""
+    """Transform class for computing a collection of partition keys using DP."""
 
     def __init__(
             self,
@@ -216,7 +217,7 @@ class SelectPartitions(PrivatePTransform):
 
 
 class Map(PrivatePTransform):
-    """Transform class for performing Map on PrivatePCollection."""
+    """Transform class for performing a Map on a PrivatePCollection."""
 
     def __init__(self, fn: Callable, label: Optional[str] = None):
         super().__init__(return_anonymized=False, label=label)
@@ -227,7 +228,7 @@ class Map(PrivatePTransform):
 
 
 class FlatMap(PrivatePTransform):
-    """Transform class for performing FlatMap on PrivatePCollection."""
+    """Transform class for performing a FlatMap on a PrivatePCollection."""
 
     class _FlattenValues(beam.DoFn):
         """Inner class for flattening values of key value pair.
