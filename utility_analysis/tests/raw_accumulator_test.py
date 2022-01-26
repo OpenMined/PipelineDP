@@ -4,7 +4,7 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import pipeline_dp
 
-from utility_analysis import accumulator
+from utility_analysis import raw_accumulator as accumulator
 
 
 class AccumulatorTest(parameterized.TestCase):
