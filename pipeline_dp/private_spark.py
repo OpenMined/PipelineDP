@@ -47,14 +47,15 @@ class PrivateRDD:
         rdd = self._rdd.flatMapValues(fn)
         return make_private(rdd, self._budget_accountant, None)
 
-    def sum(self, sum_params: aggregate_params.SumParams) -> RDD:
+    def sum(self, sc: SparkContext,
+            sum_params: aggregate_params.SumParams) -> RDD:
         """Computes a DP sum.
 
         Args:
             sum_params: parameters for calculation
         """
 
-        backend = pipeline_dp.SparkRDDBackend()
+        backend = pipeline_dp.SparkRDDBackend(sc)
         dp_engine = pipeline_dp.DPEngine(self._budget_accountant, backend)
 
         params = pipeline_dp.AggregateParams(
@@ -83,14 +84,15 @@ class PrivateRDD:
 
         return dp_result
 
-    def count(self, public_partitions_rdd, count_params: aggregate_params.CountParams) -> RDD:
+    def count(self, sc: SparkContext,
+              count_params: aggregate_params.CountParams) -> RDD:
         """Computes a DP count.
 
         Args:
             count_params: parameters for calculation
         """
 
-        backend = pipeline_dp.SparkRDDBackend()
+        backend = pipeline_dp.SparkRDDBackend(sc)
         dp_engine = pipeline_dp.DPEngine(self._budget_accountant, backend)
 
         params = pipeline_dp.AggregateParams(
@@ -100,7 +102,6 @@ class PrivateRDD:
             max_contributions_per_partition=count_params.
             max_contributions_per_partition,
             public_partitions=count_params.public_partitions,
-            public_partitions_add_empty=public_partitions_rdd,
             budget_weight=count_params.budget_weight)
 
         data_extractors = pipeline_dp.DataExtractors(
@@ -120,7 +121,8 @@ class PrivateRDD:
         return dp_result
 
     def privacy_id_count(
-            self, privacy_id_count_params: aggregate_params.PrivacyIdCountParams
+            self, sc: SparkContext,
+            privacy_id_count_params: aggregate_params.PrivacyIdCountParams
     ) -> RDD:
         """Computes a DP Privacy ID count.
 
@@ -128,7 +130,7 @@ class PrivateRDD:
             privacy_id_count_params: parameters for calculation
         """
 
-        backend = pipeline_dp.SparkRDDBackend()
+        backend = pipeline_dp.SparkRDDBackend(sc)
         dp_engine = pipeline_dp.DPEngine(self._budget_accountant, backend)
 
         params = pipeline_dp.AggregateParams(
@@ -157,7 +159,7 @@ class PrivateRDD:
         return dp_result
 
     def select_partitions(
-            self,
+            self, sc: SparkContext,
             select_partitions_params: aggregate_params.SelectPartitionsParams,
             partition_extractor: Callable) -> RDD:
         """Computes a collection of partition keys in a DP manner.
@@ -167,7 +169,7 @@ class PrivateRDD:
             partition_extractor: function for extracting partition key from each input element
         """
 
-        backend = pipeline_dp.SparkRDDBackend()
+        backend = pipeline_dp.SparkRDDBackend(sc)
         dp_engine = pipeline_dp.DPEngine(self._budget_accountant, backend)
 
         params = pipeline_dp.SelectPartitionsParams(

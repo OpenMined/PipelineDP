@@ -4,6 +4,8 @@ import functools
 import multiprocessing as mp
 import random
 import numpy as np
+from pyspark import SparkContext
+from collections.abc import Iterable
 
 import abc
 import pipeline_dp.accumulator as accumulator
@@ -271,7 +273,16 @@ class BeamBackend(PipelineBackend):
 class SparkRDDBackend(PipelineBackend):
     """Apache Spark RDD adapter."""
 
+    def __init__(self, sc: SparkContext):
+        self._sc = sc
+
     def map(self, rdd, fn, stage_name: str = None):
+        # TODO(make more elegant solution): workaround for public_partitions
+        # It's more convenient to accept them as a list: filtering data based
+        # on that list is much faster with Iterable.
+        # But for other operations we need RDD, since it requoieres to have map().
+        if isinstance(rdd, Iterable):
+            return self._sc.parallelize(rdd).map(fn)
         return rdd.map(fn)
 
     def flat_map(self, rdd, fn, stage_name: str = None):
@@ -351,7 +362,7 @@ class SparkRDDBackend(PipelineBackend):
             lambda acc1, acc2: combiner.merge_accumulators(acc1, acc2))
 
     def flatten(self, col1, col2, stage_name: str = None):
-        raise NotImplementedError("Not yet implemented for Spark")
+        return col1.union(col2)
 
 
 class LocalBackend(PipelineBackend):

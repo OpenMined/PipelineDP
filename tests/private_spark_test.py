@@ -84,7 +84,7 @@ class PrivateRDDTest(unittest.TestCase):
                                    value_extractor=lambda x: x)
 
         # Act
-        actual_result = prdd.sum(sum_params)
+        actual_result = prdd.sum(PrivateRDDTest.sc, sum_params)
 
         # Assert
         mock_aggregate.assert_called_once()
@@ -133,7 +133,7 @@ class PrivateRDDTest(unittest.TestCase):
                                    value_extractor=lambda x: x[2])
 
         # Act
-        actual_result = prdd.sum(sum_params)
+        actual_result = prdd.sum(PrivateRDDTest.sc, sum_params)
         budget_accountant.compute_budgets()
 
         # Assert
@@ -143,42 +143,45 @@ class PrivateRDDTest(unittest.TestCase):
             self.value_per_key_within_tolerance(actual_result.collect()[0],
                                                 ["pk1", 90.0], 5.0))
 
-    # def test_sum_calls_with_public_partitions_returns_sensible_result(self):
-    #     # Arrange
-    #     col = [(f"{u}", "pubK1", 100.0) for u in range(30)]
-    #     col += [(f"{u + 30}", "pubK1", -100.0) for u in range(30)]
-    #     col += [(f"{u + 60}", "privK1", 100.0) for u in range(30)]
-    #     dist_data = PrivateRDDTest.sc.parallelize(col)
-    #     # Use very high epsilon and delta to minimize noise and test
-    #     # flakiness.
-    #     budget_accountant = budget_accounting.NaiveBudgetAccountant(
-    #         total_epsilon=800, total_delta=0.999)
-    #
-    #     def privacy_id_extractor(x):
-    #         return x[0]
-    #
-    #     prdd = private_spark.make_private(dist_data, budget_accountant,
-    #                                       privacy_id_extractor)
-    #     sum_params = agg.SumParams(noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
-    #                                max_partitions_contributed=2,
-    #                                max_contributions_per_partition=3,
-    #                                min_value=1,
-    #                                max_value=2,
-    #                                budget_weight=1,
-    #                                partition_extractor=lambda x: x[1],
-    #                                value_extractor=lambda x: x[2],
-    #                                public_partitions=["pubK1", "pubK2"])
-    #
-    #     # Act
-    #     actual_result = prdd.sum(sum_params)
-    #     budget_accountant.compute_budgets()
-    #
-    #     # Assert
-    #     # This is a health check to validate that the result is sensible.
-    #     # Hence, we use a very large tolerance to reduce test flakiness.
-    #     self.assertTrue(
-    #         self.value_per_key_within_tolerance(actual_result.collect()[0],
-    #                                             ["pk1", 90.0], 5.0))
+    def test_sum_calls_with_public_partitions_returns_sensible_result(self):
+        # Arrange
+        col = [(f"{u}", "pubK1", 100.0) for u in range(30)]
+        col += [(f"{u + 30}", "pubK1", -100.0) for u in range(30)]
+        col += [(f"{u + 60}", "privK1", 100.0) for u in range(30)]
+        dist_data = PrivateRDDTest.sc.parallelize(col)
+        # Use very high epsilon and delta to minimize noise and test
+        # flakiness.
+        budget_accountant = budget_accounting.NaiveBudgetAccountant(
+            total_epsilon=800, total_delta=0.999)
+
+        def privacy_id_extractor(x):
+            return x[0]
+
+        prdd = private_spark.make_private(dist_data, budget_accountant,
+                                          privacy_id_extractor)
+        sum_params = agg.SumParams(noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+                                   max_partitions_contributed=2,
+                                   max_contributions_per_partition=3,
+                                   min_value=1,
+                                   max_value=2,
+                                   budget_weight=1,
+                                   partition_extractor=lambda x: x[1],
+                                   value_extractor=lambda x: x[2],
+                                   public_partitions=["pubK1", "pubK2"])
+
+        # Act
+        actual_result = prdd.sum(PrivateRDDTest.sc, sum_params)
+        budget_accountant.compute_budgets()
+
+        # Assert
+        # This is a health check to validate that the result is sensible.
+        # Hence, we use a very large tolerance to reduce test flakiness.
+        self.assertTrue(
+            self.value_per_key_within_tolerance(actual_result.collect()[0],
+                                                ("pubK1", 90.0), 5.0))
+        self.assertTrue(
+            self.value_per_key_within_tolerance(actual_result.collect()[1],
+                                                ("pubK2", 0.0), 5.0))
 
     @patch('pipeline_dp.dp_engine.DPEngine.aggregate')
     def test_count_calls_aggregate_with_correct_params(self, mock_aggregate):
@@ -203,7 +206,7 @@ class PrivateRDDTest(unittest.TestCase):
             partition_extractor=lambda x: x[1])
 
         # Act
-        actual_result = prdd.count(None, count_params)
+        actual_result = prdd.count(PrivateRDDTest.sc, count_params)
 
         # Assert
         mock_aggregate.assert_called_once()
@@ -247,7 +250,7 @@ class PrivateRDDTest(unittest.TestCase):
             partition_extractor=lambda x: x[1])
 
         # Act
-        actual_result = prdd.count(None, count_params)
+        actual_result = prdd.count(PrivateRDDTest.sc, count_params)
         budget_accountant.compute_budgets()
 
         # Assert
@@ -259,7 +262,6 @@ class PrivateRDDTest(unittest.TestCase):
 
     def test_count_calls_with_public_partitions_returns_sensible_result(self):
         # Arrange
-        public_partitions_rdd = PrivateRDDTest.sc.parallelize(["pubK1", "pubK2"])
         col = [(u, "pubK1") for u in range(30)]
         col += [(u, "privK1") for u in range(30)]
         dist_data = PrivateRDDTest.sc.parallelize(col)
@@ -280,12 +282,11 @@ class PrivateRDDTest(unittest.TestCase):
             max_partitions_contributed=2,
             max_contributions_per_partition=3,
             budget_weight=1,
-            public_partitions= ["pubK1", "pubK2"],
-            partition_extractor=lambda x: x[1]
-        )
+            public_partitions=["pubK1", "pubK2"],
+            partition_extractor=lambda x: x[1])
 
         # Act
-        actual_result = prdd.count(public_partitions_rdd, count_params)
+        actual_result = prdd.count(PrivateRDDTest.sc, count_params)
         budget_accountant.compute_budgets()
 
         # Assert
@@ -316,7 +317,8 @@ class PrivateRDDTest(unittest.TestCase):
             partition_extractor=lambda x: x[1])
 
         # Act
-        actual_result = prdd.privacy_id_count(privacy_id_count_params)
+        actual_result = prdd.privacy_id_count(PrivateRDDTest.sc,
+                                              privacy_id_count_params)
 
         # Assert
         mock_aggregate.assert_called_once()
@@ -355,7 +357,8 @@ class PrivateRDDTest(unittest.TestCase):
             partition_extractor=lambda x: x[1])
 
         # Act
-        actual_result = prdd.privacy_id_count(privacy_id_count_params)
+        actual_result = prdd.privacy_id_count(PrivateRDDTest.sc,
+                                              privacy_id_count_params)
         budget_accountant.compute_budgets()
 
         # Assert
@@ -365,38 +368,42 @@ class PrivateRDDTest(unittest.TestCase):
             self.value_per_key_within_tolerance(actual_result.collect()[0],
                                                 ("pk1", 30.0), 5.0))
 
-    # def test_privacy_id_count_with_public_partitions_returns_sensible_result(self):
-    #     # Arrange
-    #     col = [(u, "pubK1") for u in range(30)]
-    #     col += [(u, "pubK2") for u in range(30)]
-    #     dist_data = PrivateRDDTest.sc.parallelize(col)
-    #
-    #     budget_accountant = budget_accounting.NaiveBudgetAccountant(
-    #         total_epsilon=800, total_delta=0.999)
-    #
-    #     def privacy_id_extractor(x):
-    #         return x[0]
-    #
-    #     prdd = private_spark.make_private(dist_data, budget_accountant,
-    #                                       privacy_id_extractor)
-    #     privacy_id_count_params = agg.PrivacyIdCountParams(
-    #         noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
-    #         max_partitions_contributed=2,
-    #         budget_weight=1,
-    #         partition_extractor=lambda x: x[1],
-    #         public_partitions= ["pubK1", "pubK2"])
-    #
-    #     # Act
-    #     actual_result = prdd.privacy_id_count(privacy_id_count_params)
-    #     budget_accountant.compute_budgets()
-    #
-    #     # Assert
-    #     # This is a health check to validate that the result is sensible.
-    #     # Hence, we use a very large tolerance to reduce test flakiness.
-    #     self.assertTrue(
-    #         self.value_per_key_within_tolerance(actual_result.collect()[1],
-    #                                             ("pubK1", 30.0), 5.0))
+    def test_privacy_id_count_with_public_partitions_returns_sensible_result(
+            self):
+        # Arrange
+        col = [(u, "pubK1") for u in range(30)]
+        col += [(u, "privK1") for u in range(30)]
+        dist_data = PrivateRDDTest.sc.parallelize(col)
 
+        budget_accountant = budget_accounting.NaiveBudgetAccountant(
+            total_epsilon=800, total_delta=0.999)
+
+        def privacy_id_extractor(x):
+            return x[0]
+
+        prdd = private_spark.make_private(dist_data, budget_accountant,
+                                          privacy_id_extractor)
+        privacy_id_count_params = agg.PrivacyIdCountParams(
+            noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+            max_partitions_contributed=2,
+            budget_weight=1,
+            partition_extractor=lambda x: x[1],
+            public_partitions=["pubK1", "pubK2"])
+
+        # Act
+        actual_result = prdd.privacy_id_count(PrivateRDDTest.sc,
+                                              privacy_id_count_params)
+        budget_accountant.compute_budgets()
+
+        # Assert
+        # This is a health check to validate that the result is sensible.
+        # Hence, we use a very large tolerance to reduce test flakiness.
+        self.assertTrue(
+            self.value_per_key_within_tolerance(actual_result.collect()[0],
+                                                ("pubK1", 30.0), 5.0))
+        self.assertTrue(
+            self.value_per_key_within_tolerance(actual_result.collect()[1],
+                                                ("pubK2", 0.0), 5.0))
 
     @patch('pipeline_dp.dp_engine.DPEngine.select_partitions')
     def test_select_partitions_calls_select_partitions_with_correct_params(
@@ -422,7 +429,8 @@ class PrivateRDDTest(unittest.TestCase):
 
         select_partitions_params = agg.SelectPartitionsParams(
             max_partitions_contributed=max_partitions_contributed)
-        actual_result = prdd.select_partitions(select_partitions_params,
+        actual_result = prdd.select_partitions(PrivateRDDTest.sc,
+                                               select_partitions_params,
                                                partition_extractor)
 
         # Assert
@@ -462,7 +470,8 @@ class PrivateRDDTest(unittest.TestCase):
 
         select_partitions_params = agg.SelectPartitionsParams(
             max_partitions_contributed=max_partitions_contributed)
-        actual_result = prdd.select_partitions(select_partitions_params,
+        actual_result = prdd.select_partitions(PrivateRDDTest.sc,
+                                               select_partitions_params,
                                                partition_extractor)
         budget_accountant.compute_budgets()
 
