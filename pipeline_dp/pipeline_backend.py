@@ -278,9 +278,8 @@ class SparkRDDBackend(PipelineBackend):
 
     def map(self, rdd, fn, stage_name: str = None):
         # TODO(make more elegant solution): workaround for public_partitions
-        # It's more convenient to accept them as a list: filtering data based
-        # on that list is much faster with Iterable.
-        # But for other operations we need RDD, since it requoieres to have map().
+        # It is beneficial to accept them as in-memory collection for improving
+        # performance of filtering. But for applying map, RDD is required.
         if isinstance(rdd, Iterable):
             return self._sc.parallelize(rdd).map(fn)
         return rdd.map(fn)

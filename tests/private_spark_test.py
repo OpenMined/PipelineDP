@@ -90,7 +90,7 @@ class PrivateRDDTest(unittest.TestCase):
                                    value_extractor=lambda x: x)
 
         # Act
-        actual_result = prdd.sum(PrivateRDDTest.sc, sum_params)
+        actual_result = prdd.sum(sum_params)
 
         # Assert
         mock_aggregate.assert_called_once()
@@ -139,7 +139,7 @@ class PrivateRDDTest(unittest.TestCase):
                                    value_extractor=lambda x: x[2])
 
         # Act
-        actual_result = prdd.sum(PrivateRDDTest.sc, sum_params)
+        actual_result = prdd.sum(sum_params)
         budget_accountant.compute_budgets()
 
         # Assert
@@ -181,7 +181,7 @@ class PrivateRDDTest(unittest.TestCase):
                                    public_partitions=["pubK1", "pubK2"])
 
         # Act
-        actual_result = prdd.sum(PrivateRDDTest.sc, sum_params)
+        actual_result = prdd.sum(sum_params)
         budget_accountant.compute_budgets()
 
         # Assert
@@ -219,7 +219,7 @@ class PrivateRDDTest(unittest.TestCase):
             partition_extractor=lambda x: x[1])
 
         # Act
-        actual_result = prdd.count(PrivateRDDTest.sc, count_params)
+        actual_result = prdd.count(count_params)
 
         # Assert
         mock_aggregate.assert_called_once()
@@ -263,7 +263,7 @@ class PrivateRDDTest(unittest.TestCase):
             partition_extractor=lambda x: x[1])
 
         # Act
-        actual_result = prdd.count(PrivateRDDTest.sc, count_params)
+        actual_result = prdd.count(count_params)
         budget_accountant.compute_budgets()
 
         # Assert
@@ -304,7 +304,7 @@ class PrivateRDDTest(unittest.TestCase):
             partition_extractor=lambda x: x[1])
 
         # Act
-        actual_result = prdd.count(PrivateRDDTest.sc, count_params)
+        actual_result = prdd.count(count_params)
         budget_accountant.compute_budgets()
 
         # Assert
@@ -340,8 +340,7 @@ class PrivateRDDTest(unittest.TestCase):
             partition_extractor=lambda x: x[1])
 
         # Act
-        actual_result = prdd.privacy_id_count(PrivateRDDTest.sc,
-                                              privacy_id_count_params)
+        actual_result = prdd.privacy_id_count(privacy_id_count_params)
 
         # Assert
         mock_aggregate.assert_called_once()
@@ -380,8 +379,7 @@ class PrivateRDDTest(unittest.TestCase):
             partition_extractor=lambda x: x[1])
 
         # Act
-        actual_result = prdd.privacy_id_count(PrivateRDDTest.sc,
-                                              privacy_id_count_params)
+        actual_result = prdd.privacy_id_count(privacy_id_count_params)
         budget_accountant.compute_budgets()
 
         # Assert
@@ -419,8 +417,7 @@ class PrivateRDDTest(unittest.TestCase):
             public_partitions=["pubK1", "pubK2"])
 
         # Act
-        actual_result = prdd.privacy_id_count(PrivateRDDTest.sc,
-                                              privacy_id_count_params)
+        actual_result = prdd.privacy_id_count(privacy_id_count_params)
         budget_accountant.compute_budgets()
 
         # Assert
@@ -459,8 +456,7 @@ class PrivateRDDTest(unittest.TestCase):
 
         select_partitions_params = agg.SelectPartitionsParams(
             max_partitions_contributed=max_partitions_contributed)
-        actual_result = prdd.select_partitions(PrivateRDDTest.sc,
-                                               select_partitions_params,
+        actual_result = prdd.select_partitions(select_partitions_params,
                                                partition_extractor)
 
         # Assert
@@ -500,8 +496,7 @@ class PrivateRDDTest(unittest.TestCase):
 
         select_partitions_params = agg.SelectPartitionsParams(
             max_partitions_contributed=max_partitions_contributed)
-        actual_result = prdd.select_partitions(PrivateRDDTest.sc,
-                                               select_partitions_params,
+        actual_result = prdd.select_partitions(select_partitions_params,
                                                partition_extractor)
         budget_accountant.compute_budgets()
 
