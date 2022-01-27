@@ -226,7 +226,7 @@ def _get_or_create_named_tuple(type_name: str,
                                field_names: tuple) -> 'MetricsTuple':
     """Creates namedtuple type with a custom serializer."""
 
-    # The custom serializer is required for supporting searialization of
+    # The custom serializer is required for supporting serialization of
     # namedtuples in Apache Beam.
     cache_key = (type_name, field_names)
     named_tuple = _named_tuple_cache.get(cache_key)
