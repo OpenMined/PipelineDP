@@ -19,10 +19,10 @@ Additional information can be found at [pipelinedp.io](https://pipelinedp.io). P
 
 Here are some examples of how to use PipelineDP:
 
-* [Apache Spark example](examples/movie_view_ratings_spark.py)
-* [Apache Beam example](examples/movie_view_ratings_beam.py)
-* [Framework-free example](examples/movie_view_ratings_local.py)
-* [Example with all frameworks](examples/movie_view_ratings.py)
+* [Apache Spark example](examples/movie_view_ratings/run_on_spark.py)
+* [Apache Beam example](examples/movie_view_ratings/run_on_beam.py)
+* [Framework-free example](examples/movie_view_ratings/run_without_frameworks.py)
+* [Example with all frameworks](examples/movie_view_ratings/run_all_frameworks.py)
 
 Please check out the [codelab](https://github.com/OpenMined/PipelineDP/blob/main/examples/restaurant_visits.ipynb) for a more detailed demonstration of the API functionality and usage.
 

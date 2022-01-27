@@ -2,7 +2,7 @@
 
 This is a quite elaborate example demonstrating many features. For a simpler
 example of how to use PipelineDP with spark, check
-movie_view_ratings_spark.py or movie_view_ratings_beam.py.
+run_on_spark.py or run_on_beam.py.
 
 In order to run an example:
 
@@ -13,15 +13,14 @@ part of it. You can get a part of it by running in bash:
 
    head -10000 combined_data_1.txt > data.txt
 
-4. Run python movie_view_ratings.py --framework=<framework> --input_file=<path to data.txt from 3> --output_file=<...>
+4. Run python run_all_frameworks.py --framework=<framework> --input_file=<path to data.txt from 3> --output_file=<...>
 """
 
 from absl import app
 from absl import flags
-import apache_beam as beam
 from apache_beam.runners.portability import fn_api_runner
 import pyspark
-from examples.example_utils import *
+from examples.movie_view_ratings.common_utils import *
 import pipeline_dp
 
 FLAGS = flags.FLAGS

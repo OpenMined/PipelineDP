@@ -9,7 +9,7 @@ import pipeline_dp
 from pipeline_dp import private_beam
 from pipeline_dp import SumParams
 from pipeline_dp.private_beam import MakePrivate
-from examples.example_utils import ParseFile
+from common_utils import ParseFile
 
 FLAGS = flags.FLAGS
 flags.DEFINE_string('input_file', None, 'The file with the movie view data')

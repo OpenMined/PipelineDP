@@ -7,8 +7,8 @@ import pyspark
 import pipeline_dp
 from pipeline_dp.private_spark import make_private
 from pipeline_dp import SumParams
-from examples.example_utils import parse_partition
-from examples.example_utils import delete_if_exists
+from common_utils import parse_partition
+from common_utils import delete_if_exists
 
 FLAGS = flags.FLAGS
 flags.DEFINE_string('input_file', None, 'The file with the movie view data')
