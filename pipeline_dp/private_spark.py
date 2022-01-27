@@ -53,7 +53,7 @@ class PrivateRDD:
             sum_params: parameters for calculation
         """
 
-        backend = pipeline_dp.SparkRDDBackend()
+        backend = pipeline_dp.SparkRDDBackend(self._rdd.context)
         dp_engine = pipeline_dp.DPEngine(self._budget_accountant, backend)
 
         params = pipeline_dp.AggregateParams(
@@ -89,7 +89,7 @@ class PrivateRDD:
             count_params: parameters for calculation
         """
 
-        backend = pipeline_dp.SparkRDDBackend()
+        backend = pipeline_dp.SparkRDDBackend(self._rdd.context)
         dp_engine = pipeline_dp.DPEngine(self._budget_accountant, backend)
 
         params = pipeline_dp.AggregateParams(
@@ -126,7 +126,7 @@ class PrivateRDD:
             privacy_id_count_params: parameters for calculation
         """
 
-        backend = pipeline_dp.SparkRDDBackend()
+        backend = pipeline_dp.SparkRDDBackend(self._rdd.context)
         dp_engine = pipeline_dp.DPEngine(self._budget_accountant, backend)
 
         params = pipeline_dp.AggregateParams(
@@ -165,7 +165,7 @@ class PrivateRDD:
             partition_extractor: function for extracting partition key from each input element
         """
 
-        backend = pipeline_dp.SparkRDDBackend()
+        backend = pipeline_dp.SparkRDDBackend(self._rdd.context)
         dp_engine = pipeline_dp.DPEngine(self._budget_accountant, backend)
 
         params = pipeline_dp.SelectPartitionsParams(
