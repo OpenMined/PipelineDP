@@ -9,8 +9,8 @@ import pipeline_dp.dp_computations as dp_computations
 from pipeline_dp.aggregate_params import NoiseKind
 
 N_ITERATIONS = 200000
-DUMMY_MIN_VALUE = 0.0
-DUMMY_MAX_VALUE = 0.0
+DUMMY_MIN_VALUE = 2.0
+DUMMY_MAX_VALUE = 3.0
 
 
 class DPComputationsTest(unittest.TestCase):
@@ -131,8 +131,8 @@ class DPComputationsTest(unittest.TestCase):
         params = dp_computations.MeanVarParams(
             eps=0.5,
             delta=1e-10,
-            min_value=DUMMY_MIN_VALUE,
-            max_value=DUMMY_MAX_VALUE,
+            min_value=0,
+            max_value=0,
             max_partitions_contributed=1,
             max_contributions_per_partition=1,
             noise_kind=NoiseKind.LAPLACE)
@@ -163,8 +163,8 @@ class DPComputationsTest(unittest.TestCase):
         params = dp_computations.MeanVarParams(
             eps=0.5,
             delta=1e-10,
-            min_value=DUMMY_MIN_VALUE,
-            max_value=DUMMY_MAX_VALUE,
+            min_value=2.5,
+            max_value=3.12,
             max_partitions_contributed=1,
             max_contributions_per_partition=1,
             noise_kind=NoiseKind.LAPLACE)
