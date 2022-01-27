@@ -46,6 +46,42 @@ class PrivateRDD:
         rdd = self._rdd.flatMapValues(fn)
         return make_private(rdd, self._budget_accountant, None)
 
+    def mean(self, mean_params: aggregate_params.MeanParams) -> RDD:
+        """Computes a DP mean.
+
+        Args:
+            mean_params: parameters for calculation
+        """
+
+        backend = pipeline_dp.SparkRDDBackend(self._rdd.context)
+        dp_engine = pipeline_dp.DPEngine(self._budget_accountant, backend)
+
+        params = pipeline_dp.AggregateParams(
+            noise_kind=mean_params.noise_kind,
+            metrics=[pipeline_dp.Metrics.MEAN],
+            max_partitions_contributed=mean_params.max_partitions_contributed,
+            max_contributions_per_partition=mean_params.
+            max_contributions_per_partition,
+            min_value=mean_params.min_value,
+            max_value=mean_params.max_value,
+            public_partitions=mean_params.public_partitions,
+            budget_weight=mean_params.budget_weight)
+
+        data_extractors = pipeline_dp.DataExtractors(
+            partition_extractor=lambda x: mean_params.partition_extractor(x[1]),
+            privacy_id_extractor=lambda x: x[0],
+            value_extractor=lambda x: mean_params.value_extractor(x[1]))
+
+        dp_result = dp_engine.aggregate(self._rdd, params, data_extractors)
+        # dp_result : (partition_key, [dp_mean])
+
+        # aggregate() returns a list of metrics for each partition key.
+        # Here is only one metric - sum. Remove list.
+        dp_result = backend.map_values(dp_result, lambda v: v[0], "Unnest list")
+        # dp_result : (partition_key, dp_mean)
+
+        return dp_result
+
     def sum(self, sum_params: aggregate_params.SumParams) -> RDD:
         """Computes a DP sum.
 
