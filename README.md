@@ -71,7 +71,7 @@ dp_result.saveAsTextFile(FLAGS.output_file)
 
 Supported Python version >= 3.7.
 
-**Note for Apple Silicon users:** PipelineDP pip package is currently only available only 
+**Note for Apple Silicon users:** PipelineDP pip package is currently available only 
 for x86 architecture. The reason is that [PyDP](https://github.com/OpenMined/PyDP) does not
 have pip pacakge. It might be possible to compile it from sources for Apple Silicon.
  
