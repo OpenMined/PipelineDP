@@ -13,12 +13,11 @@ class ReportGeneratorTest(unittest.TestCase):
         self.assertEqual("", ReportGenerator(None).report())
 
     def test_report_params(self):
-        test_report = (
-            "Differentially private: Computing <Metrics: "
-            "['privacy_id_count', 'count', 'mean', 'sum', 'variance']>"
-            "\n1. Eat between (1, 5) snacks"
-            "\n2. Eat a maximum of snack varieties total: 2"
-            "\n3. Eat a maximum of a single snack variety: 1")
+        test_report = ("Differentially private: Computing <Metrics: "
+                       "['privacy_id_count', 'count', 'mean', 'sum']>"
+                       "\n1. Eat between (1, 5) snacks"
+                       "\n2. Eat a maximum of snack varieties total: 2"
+                       "\n3. Eat a maximum of a single snack variety: 1")
         params = AggregateParams(noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
                                  max_partitions_contributed=2,
                                  max_contributions_per_partition=1,
@@ -26,7 +25,7 @@ class ReportGeneratorTest(unittest.TestCase):
                                  max_value=5,
                                  metrics=[
                                      Metrics.PRIVACY_ID_COUNT, Metrics.COUNT,
-                                     Metrics.MEAN, Metrics.SUM, Metrics.VAR
+                                     Metrics.MEAN, Metrics.SUM
                                  ])
         generated_report = aggregate_stub(params)
         self.assertIn(test_report, generated_report)

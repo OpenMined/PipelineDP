@@ -231,7 +231,7 @@ class GenericAccumulatorTest(unittest.TestCase):
             self, mock_create_accumulator_factories):
         aggregate_params = pipeline_dp.AggregateParams(
             noise_kind=NoiseKind.GAUSSIAN,
-            metrics=[agg.Metrics.MEAN, agg.Metrics.VAR],
+            metrics=[agg.Metrics.MEAN],
             max_partitions_contributed=5,
             max_contributions_per_partition=3,
             min_value=0,
