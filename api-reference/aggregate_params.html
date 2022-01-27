@@ -1,0 +1,956 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
+<meta name="generator" content="pdoc 0.10.0" />
+<title>pipeline_dp.aggregate_params API documentation</title>
+<meta name="description" content="Contains utility classes used for specifying DP aggregation parameters, noise types, and norms." />
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/sanitize.min.css" integrity="sha256-PK9q560IAAa6WVRRh76LtCaI8pjTJ2z11v0miyNNjrs=" crossorigin>
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/typography.min.css" integrity="sha256-7l/o7C8jubJiy74VsKTidCy1yBkRtiUGbVkYBylBqUg=" crossorigin>
+<link rel="stylesheet preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/styles/github.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:30px;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:1em 0 .50em 0}h3{font-size:1.4em;margin:25px 0 10px 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .3s ease-in-out}a:hover{color:#e82}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900}pre code{background:#f8f8f8;font-size:.8em;line-height:1.4em}code{background:#f2f2f1;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{background:#f8f8f8;border:0;border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0;padding:1ex}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-weight:bold;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em .5em;margin-bottom:1em}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.item .name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul{padding-left:1.5em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/highlight.min.js" integrity="sha256-Uv3H6lx7dJmRfRvH8TH6kJD1TSK1aFcwgx+mdg3epi8=" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => hljs.initHighlighting())</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>pipeline_dp.aggregate_params</code></h1>
+</header>
+<section id="section-intro">
+<p>Contains utility classes used for specifying DP aggregation parameters, noise types, and norms.</p>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">&#34;&#34;&#34;Contains utility classes used for specifying DP aggregation parameters, noise types, and norms.&#34;&#34;&#34;
+
+from dataclasses import dataclass
+from enum import Enum
+from typing import Any, Iterable, Callable, Union
+
+
+class Metrics(Enum):
+    COUNT = &#39;count&#39;
+    PRIVACY_ID_COUNT = &#39;privacy_id_count&#39;
+    SUM = &#39;sum&#39;
+    MEAN = &#39;mean&#39;
+    VAR = &#39;variance&#39;
+
+
+class NoiseKind(Enum):
+    LAPLACE = &#39;laplace&#39;
+    GAUSSIAN = &#39;gaussian&#39;
+
+    def convert_to_mechanism_type(self):
+        if self.value == NoiseKind.LAPLACE.value:
+            return MechanismType.LAPLACE
+        elif self.value == NoiseKind.GAUSSIAN.value:
+            return MechanismType.GAUSSIAN
+
+
+class MechanismType(Enum):
+    LAPLACE = &#39;Laplace&#39;
+    GAUSSIAN = &#39;Gaussian&#39;
+    GENERIC = &#39;Truncated Geometric&#39;
+
+
+class NormKind(Enum):
+    Linf = &#34;linf&#34;
+    L0 = &#34;l0&#34;
+    L1 = &#34;l1&#34;
+    L2 = &#34;l2&#34;
+
+
+@dataclass
+class AggregateParams:
+    &#34;&#34;&#34;Specifies parameters for function DPEngine.aggregate()
+
+  Args:
+    noise_kind: Kind of noise to use for the DP calculations.
+    metrics: Metrics to compute.
+    max_partitions_contributed: Bounds the number of partitions in which one
+      unit of privacy (e.g., a user) can participate.
+    max_contributions_per_partition: Bounds the number of times one unit of
+      privacy (e.g. a user) can contribute to a partition.
+    min_value: Lower bound on a value contributed by a unit of privacy in a partition.
+    max_value: Upper bound on a value contributed by a unit of privacy in a
+      partition.
+    public_partitions: a collection of partition keys that will be present in
+      the result.
+  &#34;&#34;&#34;
+
+    noise_kind: NoiseKind
+    metrics: Iterable[Metrics]
+    max_partitions_contributed: int
+    max_contributions_per_partition: int
+    budget_weight: float = 1
+    low: float = None  # deprecated
+    high: float = None  # deprecated
+    min_value: float = None
+    max_value: float = None
+    public_partitions: Any = None
+
+    def __post_init__(self):
+        if self.low is not None:
+            raise ValueError(
+                &#34;AggregateParams: please use min_value instead of low&#34;)
+
+        if self.high is not None:
+            raise ValueError(
+                &#34;AggregateParams: please use max_value instead of high&#34;)
+
+    def __str__(self):
+        return f&#34;Metrics: {[m.value for m in self.metrics]}&#34;
+
+
+# TODO: Think of whether this class should be used for both low-level API
+#       (dp_engine) and high-level API (private_spark, private_beam, etc.).
+@dataclass
+class SelectPrivatePartitionsParams:
+    &#34;&#34;&#34;Specifies parameters for differentially-private partition selection.
+
+    Args:
+        max_partitions_contributed: Maximum number of partitions per privacy ID.
+            The algorithm will drop contributions over this limit. To keep more
+            data, this should be a good estimate of the realistic upper bound.
+            Significantly over- or under-estimating this may increase the amount
+            of dropped partitions. You can experiment with different values to
+            select which one retains more partitions.
+
+    &#34;&#34;&#34;
+    max_partitions_contributed: int
+
+    def __str__(self):
+        return &#34;Private Partitions&#34;
+
+
+@dataclass
+class SumParams:
+    &#34;&#34;&#34;Specifies parameters for differentially-private sum calculation.
+
+    Args:
+        noise_kind: Kind of noise to use for the DP calculations.
+        max_partitions_contributed: Bounds the number of partitions in which one
+            unit of privacy (e.g., a user) can participate.
+        max_contributions_per_partition: Bounds the number of times one unit of
+            privacy (e.g. a user) can contribute to a partition.
+        low: Lower bound on a value contributed by a unit of privacy in a partition.
+        high: Upper bound on a value contributed by a unit of privacy in a
+            partition.
+        public_partitions: A collection of partition keys that will be present in
+            the result.
+        partition_extractor: A function for partition id extraction from a collection record.
+        value_extractor: A function for extraction of value
+            for which the sum will be calculated.
+  &#34;&#34;&#34;
+    max_partitions_contributed: int
+    max_contributions_per_partition: int
+    min_value: float
+    max_value: float
+    partition_extractor: Callable
+    value_extractor: Callable
+    low: float = None  # deprecated
+    high: float = None  # deprecated
+    budget_weight: float = 1
+    noise_kind: NoiseKind = NoiseKind.LAPLACE
+    public_partitions: Union[Iterable, &#39;PCollection&#39;, &#39;RDD&#39;] = None
+
+    def __post_init__(self):
+        if self.low is not None:
+            raise ValueError(&#34;SumParams: please use min_value instead of low&#34;)
+
+        if self.high is not None:
+            raise ValueError(&#34;SumParams: please use max_value instead of high&#34;)
+
+
+@dataclass
+class CountParams:
+    &#34;&#34;&#34;Specifies parameters for differentially-private count calculation.
+
+    Args:
+        noise_kind: Kind of noise to use for the DP calculations.
+        max_partitions_contributed: Bounds the number of partitions in which one
+            unit of privacy (e.g., a user) can participate.
+        max_contributions_per_partition: Bounds the number of times one unit of
+            privacy (e.g. a user) can contribute to a partition.
+        partition_extractor: A function for partition id extraction from a collection record.
+        budget_weight: Relative weight of the privacy budget allocated for this
+            operation.
+        public_partitions: A collection of partition keys that will be present in
+            the result.
+
+    &#34;&#34;&#34;
+
+    noise_kind: NoiseKind
+    max_partitions_contributed: int
+    max_contributions_per_partition: int
+    partition_extractor: Callable
+    budget_weight: float = 1
+    public_partitions: Union[Iterable, &#39;PCollection&#39;, &#39;RDD&#39;] = None
+
+
+@dataclass
+class PrivacyIdCountParams:
+    &#34;&#34;&#34;Specifies parameters for differentially-private privacy id count calculation.
+
+    Args:
+        noise_kind: Kind of noise to use for the DP calculations.
+        max_partitions_contributed: Bounds the number of partitions in which one
+            unit of privacy (e.g., a user) can participate.
+        budget_weight: Relative weight of the privacy budget allocated for this
+            operation.
+        partition_extractor: A function for partition id extraction from a collection record.
+        public_partitions: A collection of partition keys that will be present in
+            the result.
+    &#34;&#34;&#34;
+
+    noise_kind: NoiseKind
+    max_partitions_contributed: int
+    partition_extractor: Callable
+    budget_weight: float = 1
+    public_partitions: Union[Iterable, &#39;PCollection&#39;, &#39;RDD&#39;] = None</code></pre>
+</details>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="pipeline_dp.aggregate_params.AggregateParams"><code class="flex name class">
+<span>class <span class="ident">AggregateParams</span></span>
+<span>(</span><span>noise_kind: <a title="pipeline_dp.aggregate_params.NoiseKind" href="#pipeline_dp.aggregate_params.NoiseKind">NoiseKind</a>, metrics: Iterable[<a title="pipeline_dp.aggregate_params.Metrics" href="#pipeline_dp.aggregate_params.Metrics">Metrics</a>], max_partitions_contributed: int, max_contributions_per_partition: int, budget_weight: float = 1, low: float = None, high: float = None, min_value: float = None, max_value: float = None, public_partitions: Any = None)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Specifies parameters for function DPEngine.aggregate()</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>noise_kind</code></strong></dt>
+<dd>Kind of noise to use for the DP calculations.</dd>
+<dt><strong><code>metrics</code></strong></dt>
+<dd>Metrics to compute.</dd>
+<dt><strong><code>max_partitions_contributed</code></strong></dt>
+<dd>Bounds the number of partitions in which one
+unit of privacy (e.g., a user) can participate.</dd>
+<dt><strong><code>max_contributions_per_partition</code></strong></dt>
+<dd>Bounds the number of times one unit of
+privacy (e.g. a user) can contribute to a partition.</dd>
+<dt><strong><code>min_value</code></strong></dt>
+<dd>Lower bound on a value contributed by a unit of privacy in a partition.</dd>
+<dt><strong><code>max_value</code></strong></dt>
+<dd>Upper bound on a value contributed by a unit of privacy in a
+partition.</dd>
+<dt><strong><code>public_partitions</code></strong></dt>
+<dd>a collection of partition keys that will be present in
+the result.</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@dataclass
+class AggregateParams:
+    &#34;&#34;&#34;Specifies parameters for function DPEngine.aggregate()
+
+  Args:
+    noise_kind: Kind of noise to use for the DP calculations.
+    metrics: Metrics to compute.
+    max_partitions_contributed: Bounds the number of partitions in which one
+      unit of privacy (e.g., a user) can participate.
+    max_contributions_per_partition: Bounds the number of times one unit of
+      privacy (e.g. a user) can contribute to a partition.
+    min_value: Lower bound on a value contributed by a unit of privacy in a partition.
+    max_value: Upper bound on a value contributed by a unit of privacy in a
+      partition.
+    public_partitions: a collection of partition keys that will be present in
+      the result.
+  &#34;&#34;&#34;
+
+    noise_kind: NoiseKind
+    metrics: Iterable[Metrics]
+    max_partitions_contributed: int
+    max_contributions_per_partition: int
+    budget_weight: float = 1
+    low: float = None  # deprecated
+    high: float = None  # deprecated
+    min_value: float = None
+    max_value: float = None
+    public_partitions: Any = None
+
+    def __post_init__(self):
+        if self.low is not None:
+            raise ValueError(
+                &#34;AggregateParams: please use min_value instead of low&#34;)
+
+        if self.high is not None:
+            raise ValueError(
+                &#34;AggregateParams: please use max_value instead of high&#34;)
+
+    def __str__(self):
+        return f&#34;Metrics: {[m.value for m in self.metrics]}&#34;</code></pre>
+</details>
+<h3>Class variables</h3>
+<dl>
+<dt id="pipeline_dp.aggregate_params.AggregateParams.budget_weight"><code class="name">var <span class="ident">budget_weight</span> : float</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="pipeline_dp.aggregate_params.AggregateParams.high"><code class="name">var <span class="ident">high</span> : float</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="pipeline_dp.aggregate_params.AggregateParams.low"><code class="name">var <span class="ident">low</span> : float</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="pipeline_dp.aggregate_params.AggregateParams.max_contributions_per_partition"><code class="name">var <span class="ident">max_contributions_per_partition</span> : int</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="pipeline_dp.aggregate_params.AggregateParams.max_partitions_contributed"><code class="name">var <span class="ident">max_partitions_contributed</span> : int</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="pipeline_dp.aggregate_params.AggregateParams.max_value"><code class="name">var <span class="ident">max_value</span> : float</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="pipeline_dp.aggregate_params.AggregateParams.metrics"><code class="name">var <span class="ident">metrics</span> : Iterable[<a title="pipeline_dp.aggregate_params.Metrics" href="#pipeline_dp.aggregate_params.Metrics">Metrics</a>]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="pipeline_dp.aggregate_params.AggregateParams.min_value"><code class="name">var <span class="ident">min_value</span> : float</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="pipeline_dp.aggregate_params.AggregateParams.noise_kind"><code class="name">var <span class="ident">noise_kind</span> : <a title="pipeline_dp.aggregate_params.NoiseKind" href="#pipeline_dp.aggregate_params.NoiseKind">NoiseKind</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="pipeline_dp.aggregate_params.AggregateParams.public_partitions"><code class="name">var <span class="ident">public_partitions</span> : Any</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="pipeline_dp.aggregate_params.CountParams"><code class="flex name class">
+<span>class <span class="ident">CountParams</span></span>
+<span>(</span><span>noise_kind: <a title="pipeline_dp.aggregate_params.NoiseKind" href="#pipeline_dp.aggregate_params.NoiseKind">NoiseKind</a>, max_partitions_contributed: int, max_contributions_per_partition: int, partition_extractor: Callable, budget_weight: float = 1, public_partitions: Union[Iterable, ForwardRef('PCollection'), ForwardRef('RDD')] = None)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Specifies parameters for differentially-private count calculation.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>noise_kind</code></strong></dt>
+<dd>Kind of noise to use for the DP calculations.</dd>
+<dt><strong><code>max_partitions_contributed</code></strong></dt>
+<dd>Bounds the number of partitions in which one
+unit of privacy (e.g., a user) can participate.</dd>
+<dt><strong><code>max_contributions_per_partition</code></strong></dt>
+<dd>Bounds the number of times one unit of
+privacy (e.g. a user) can contribute to a partition.</dd>
+<dt><strong><code>partition_extractor</code></strong></dt>
+<dd>A function for partition id extraction from a collection record.</dd>
+<dt><strong><code>budget_weight</code></strong></dt>
+<dd>Relative weight of the privacy budget allocated for this
+operation.</dd>
+<dt><strong><code>public_partitions</code></strong></dt>
+<dd>A collection of partition keys that will be present in
+the result.</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@dataclass
+class CountParams:
+    &#34;&#34;&#34;Specifies parameters for differentially-private count calculation.
+
+    Args:
+        noise_kind: Kind of noise to use for the DP calculations.
+        max_partitions_contributed: Bounds the number of partitions in which one
+            unit of privacy (e.g., a user) can participate.
+        max_contributions_per_partition: Bounds the number of times one unit of
+            privacy (e.g. a user) can contribute to a partition.
+        partition_extractor: A function for partition id extraction from a collection record.
+        budget_weight: Relative weight of the privacy budget allocated for this
+            operation.
+        public_partitions: A collection of partition keys that will be present in
+            the result.
+
+    &#34;&#34;&#34;
+
+    noise_kind: NoiseKind
+    max_partitions_contributed: int
+    max_contributions_per_partition: int
+    partition_extractor: Callable
+    budget_weight: float = 1
+    public_partitions: Union[Iterable, &#39;PCollection&#39;, &#39;RDD&#39;] = None</code></pre>
+</details>
+<h3>Class variables</h3>
+<dl>
+<dt id="pipeline_dp.aggregate_params.CountParams.budget_weight"><code class="name">var <span class="ident">budget_weight</span> : float</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="pipeline_dp.aggregate_params.CountParams.max_contributions_per_partition"><code class="name">var <span class="ident">max_contributions_per_partition</span> : int</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="pipeline_dp.aggregate_params.CountParams.max_partitions_contributed"><code class="name">var <span class="ident">max_partitions_contributed</span> : int</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="pipeline_dp.aggregate_params.CountParams.noise_kind"><code class="name">var <span class="ident">noise_kind</span> : <a title="pipeline_dp.aggregate_params.NoiseKind" href="#pipeline_dp.aggregate_params.NoiseKind">NoiseKind</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="pipeline_dp.aggregate_params.CountParams.partition_extractor"><code class="name">var <span class="ident">partition_extractor</span> : Callable</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="pipeline_dp.aggregate_params.CountParams.public_partitions"><code class="name">var <span class="ident">public_partitions</span> : Union[Iterable, PCollection, RDD]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="pipeline_dp.aggregate_params.MechanismType"><code class="flex name class">
+<span>class <span class="ident">MechanismType</span></span>
+<span>(</span><span>value, names=None, *, module=None, qualname=None, type=None, start=1)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>An enumeration.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class MechanismType(Enum):
+    LAPLACE = &#39;Laplace&#39;
+    GAUSSIAN = &#39;Gaussian&#39;
+    GENERIC = &#39;Truncated Geometric&#39;</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="pipeline_dp.aggregate_params.MechanismType.GAUSSIAN"><code class="name">var <span class="ident">GAUSSIAN</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="pipeline_dp.aggregate_params.MechanismType.GENERIC"><code class="name">var <span class="ident">GENERIC</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="pipeline_dp.aggregate_params.MechanismType.LAPLACE"><code class="name">var <span class="ident">LAPLACE</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="pipeline_dp.aggregate_params.Metrics"><code class="flex name class">
+<span>class <span class="ident">Metrics</span></span>
+<span>(</span><span>value, names=None, *, module=None, qualname=None, type=None, start=1)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>An enumeration.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Metrics(Enum):
+    COUNT = &#39;count&#39;
+    PRIVACY_ID_COUNT = &#39;privacy_id_count&#39;
+    SUM = &#39;sum&#39;
+    MEAN = &#39;mean&#39;
+    VAR = &#39;variance&#39;</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="pipeline_dp.aggregate_params.Metrics.COUNT"><code class="name">var <span class="ident">COUNT</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="pipeline_dp.aggregate_params.Metrics.MEAN"><code class="name">var <span class="ident">MEAN</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="pipeline_dp.aggregate_params.Metrics.PRIVACY_ID_COUNT"><code class="name">var <span class="ident">PRIVACY_ID_COUNT</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="pipeline_dp.aggregate_params.Metrics.SUM"><code class="name">var <span class="ident">SUM</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="pipeline_dp.aggregate_params.Metrics.VAR"><code class="name">var <span class="ident">VAR</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="pipeline_dp.aggregate_params.NoiseKind"><code class="flex name class">
+<span>class <span class="ident">NoiseKind</span></span>
+<span>(</span><span>value, names=None, *, module=None, qualname=None, type=None, start=1)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>An enumeration.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class NoiseKind(Enum):
+    LAPLACE = &#39;laplace&#39;
+    GAUSSIAN = &#39;gaussian&#39;
+
+    def convert_to_mechanism_type(self):
+        if self.value == NoiseKind.LAPLACE.value:
+            return MechanismType.LAPLACE
+        elif self.value == NoiseKind.GAUSSIAN.value:
+            return MechanismType.GAUSSIAN</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="pipeline_dp.aggregate_params.NoiseKind.GAUSSIAN"><code class="name">var <span class="ident">GAUSSIAN</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="pipeline_dp.aggregate_params.NoiseKind.LAPLACE"><code class="name">var <span class="ident">LAPLACE</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="pipeline_dp.aggregate_params.NoiseKind.convert_to_mechanism_type"><code class="name flex">
+<span>def <span class="ident">convert_to_mechanism_type</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def convert_to_mechanism_type(self):
+    if self.value == NoiseKind.LAPLACE.value:
+        return MechanismType.LAPLACE
+    elif self.value == NoiseKind.GAUSSIAN.value:
+        return MechanismType.GAUSSIAN</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+<dt id="pipeline_dp.aggregate_params.NormKind"><code class="flex name class">
+<span>class <span class="ident">NormKind</span></span>
+<span>(</span><span>value, names=None, *, module=None, qualname=None, type=None, start=1)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>An enumeration.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class NormKind(Enum):
+    Linf = &#34;linf&#34;
+    L0 = &#34;l0&#34;
+    L1 = &#34;l1&#34;
+    L2 = &#34;l2&#34;</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="pipeline_dp.aggregate_params.NormKind.L0"><code class="name">var <span class="ident">L0</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="pipeline_dp.aggregate_params.NormKind.L1"><code class="name">var <span class="ident">L1</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="pipeline_dp.aggregate_params.NormKind.L2"><code class="name">var <span class="ident">L2</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="pipeline_dp.aggregate_params.NormKind.Linf"><code class="name">var <span class="ident">Linf</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="pipeline_dp.aggregate_params.PrivacyIdCountParams"><code class="flex name class">
+<span>class <span class="ident">PrivacyIdCountParams</span></span>
+<span>(</span><span>noise_kind: <a title="pipeline_dp.aggregate_params.NoiseKind" href="#pipeline_dp.aggregate_params.NoiseKind">NoiseKind</a>, max_partitions_contributed: int, partition_extractor: Callable, budget_weight: float = 1, public_partitions: Union[Iterable, ForwardRef('PCollection'), ForwardRef('RDD')] = None)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Specifies parameters for differentially-private privacy id count calculation.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>noise_kind</code></strong></dt>
+<dd>Kind of noise to use for the DP calculations.</dd>
+<dt><strong><code>max_partitions_contributed</code></strong></dt>
+<dd>Bounds the number of partitions in which one
+unit of privacy (e.g., a user) can participate.</dd>
+<dt><strong><code>budget_weight</code></strong></dt>
+<dd>Relative weight of the privacy budget allocated for this
+operation.</dd>
+<dt><strong><code>partition_extractor</code></strong></dt>
+<dd>A function for partition id extraction from a collection record.</dd>
+<dt><strong><code>public_partitions</code></strong></dt>
+<dd>A collection of partition keys that will be present in
+the result.</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@dataclass
+class PrivacyIdCountParams:
+    &#34;&#34;&#34;Specifies parameters for differentially-private privacy id count calculation.
+
+    Args:
+        noise_kind: Kind of noise to use for the DP calculations.
+        max_partitions_contributed: Bounds the number of partitions in which one
+            unit of privacy (e.g., a user) can participate.
+        budget_weight: Relative weight of the privacy budget allocated for this
+            operation.
+        partition_extractor: A function for partition id extraction from a collection record.
+        public_partitions: A collection of partition keys that will be present in
+            the result.
+    &#34;&#34;&#34;
+
+    noise_kind: NoiseKind
+    max_partitions_contributed: int
+    partition_extractor: Callable
+    budget_weight: float = 1
+    public_partitions: Union[Iterable, &#39;PCollection&#39;, &#39;RDD&#39;] = None</code></pre>
+</details>
+<h3>Class variables</h3>
+<dl>
+<dt id="pipeline_dp.aggregate_params.PrivacyIdCountParams.budget_weight"><code class="name">var <span class="ident">budget_weight</span> : float</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="pipeline_dp.aggregate_params.PrivacyIdCountParams.max_partitions_contributed"><code class="name">var <span class="ident">max_partitions_contributed</span> : int</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="pipeline_dp.aggregate_params.PrivacyIdCountParams.noise_kind"><code class="name">var <span class="ident">noise_kind</span> : <a title="pipeline_dp.aggregate_params.NoiseKind" href="#pipeline_dp.aggregate_params.NoiseKind">NoiseKind</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="pipeline_dp.aggregate_params.PrivacyIdCountParams.partition_extractor"><code class="name">var <span class="ident">partition_extractor</span> : Callable</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="pipeline_dp.aggregate_params.PrivacyIdCountParams.public_partitions"><code class="name">var <span class="ident">public_partitions</span> : Union[Iterable, PCollection, RDD]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="pipeline_dp.aggregate_params.SelectPrivatePartitionsParams"><code class="flex name class">
+<span>class <span class="ident">SelectPrivatePartitionsParams</span></span>
+<span>(</span><span>max_partitions_contributed: int)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Specifies parameters for differentially-private partition selection.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>max_partitions_contributed</code></strong></dt>
+<dd>Maximum number of partitions per privacy ID.
+The algorithm will drop contributions over this limit. To keep more
+data, this should be a good estimate of the realistic upper bound.
+Significantly over- or under-estimating this may increase the amount
+of dropped partitions. You can experiment with different values to
+select which one retains more partitions.</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@dataclass
+class SelectPrivatePartitionsParams:
+    &#34;&#34;&#34;Specifies parameters for differentially-private partition selection.
+
+    Args:
+        max_partitions_contributed: Maximum number of partitions per privacy ID.
+            The algorithm will drop contributions over this limit. To keep more
+            data, this should be a good estimate of the realistic upper bound.
+            Significantly over- or under-estimating this may increase the amount
+            of dropped partitions. You can experiment with different values to
+            select which one retains more partitions.
+
+    &#34;&#34;&#34;
+    max_partitions_contributed: int
+
+    def __str__(self):
+        return &#34;Private Partitions&#34;</code></pre>
+</details>
+<h3>Class variables</h3>
+<dl>
+<dt id="pipeline_dp.aggregate_params.SelectPrivatePartitionsParams.max_partitions_contributed"><code class="name">var <span class="ident">max_partitions_contributed</span> : int</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="pipeline_dp.aggregate_params.SumParams"><code class="flex name class">
+<span>class <span class="ident">SumParams</span></span>
+<span>(</span><span>max_partitions_contributed: int, max_contributions_per_partition: int, min_value: float, max_value: float, partition_extractor: Callable, value_extractor: Callable, low: float = None, high: float = None, budget_weight: float = 1, noise_kind: <a title="pipeline_dp.aggregate_params.NoiseKind" href="#pipeline_dp.aggregate_params.NoiseKind">NoiseKind</a> = NoiseKind.LAPLACE, public_partitions: Union[Iterable, ForwardRef('PCollection'), ForwardRef('RDD')] = None)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Specifies parameters for differentially-private sum calculation.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>noise_kind</code></strong></dt>
+<dd>Kind of noise to use for the DP calculations.</dd>
+<dt><strong><code>max_partitions_contributed</code></strong></dt>
+<dd>Bounds the number of partitions in which one
+unit of privacy (e.g., a user) can participate.</dd>
+<dt><strong><code>max_contributions_per_partition</code></strong></dt>
+<dd>Bounds the number of times one unit of
+privacy (e.g. a user) can contribute to a partition.</dd>
+<dt><strong><code>low</code></strong></dt>
+<dd>Lower bound on a value contributed by a unit of privacy in a partition.</dd>
+<dt><strong><code>high</code></strong></dt>
+<dd>Upper bound on a value contributed by a unit of privacy in a
+partition.</dd>
+<dt><strong><code>public_partitions</code></strong></dt>
+<dd>A collection of partition keys that will be present in
+the result.</dd>
+<dt><strong><code>partition_extractor</code></strong></dt>
+<dd>A function for partition id extraction from a collection record.</dd>
+<dt><strong><code>value_extractor</code></strong></dt>
+<dd>A function for extraction of value
+for which the sum will be calculated.</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@dataclass
+class SumParams:
+    &#34;&#34;&#34;Specifies parameters for differentially-private sum calculation.
+
+    Args:
+        noise_kind: Kind of noise to use for the DP calculations.
+        max_partitions_contributed: Bounds the number of partitions in which one
+            unit of privacy (e.g., a user) can participate.
+        max_contributions_per_partition: Bounds the number of times one unit of
+            privacy (e.g. a user) can contribute to a partition.
+        low: Lower bound on a value contributed by a unit of privacy in a partition.
+        high: Upper bound on a value contributed by a unit of privacy in a
+            partition.
+        public_partitions: A collection of partition keys that will be present in
+            the result.
+        partition_extractor: A function for partition id extraction from a collection record.
+        value_extractor: A function for extraction of value
+            for which the sum will be calculated.
+  &#34;&#34;&#34;
+    max_partitions_contributed: int
+    max_contributions_per_partition: int
+    min_value: float
+    max_value: float
+    partition_extractor: Callable
+    value_extractor: Callable
+    low: float = None  # deprecated
+    high: float = None  # deprecated
+    budget_weight: float = 1
+    noise_kind: NoiseKind = NoiseKind.LAPLACE
+    public_partitions: Union[Iterable, &#39;PCollection&#39;, &#39;RDD&#39;] = None
+
+    def __post_init__(self):
+        if self.low is not None:
+            raise ValueError(&#34;SumParams: please use min_value instead of low&#34;)
+
+        if self.high is not None:
+            raise ValueError(&#34;SumParams: please use max_value instead of high&#34;)</code></pre>
+</details>
+<h3>Class variables</h3>
+<dl>
+<dt id="pipeline_dp.aggregate_params.SumParams.budget_weight"><code class="name">var <span class="ident">budget_weight</span> : float</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="pipeline_dp.aggregate_params.SumParams.high"><code class="name">var <span class="ident">high</span> : float</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="pipeline_dp.aggregate_params.SumParams.low"><code class="name">var <span class="ident">low</span> : float</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="pipeline_dp.aggregate_params.SumParams.max_contributions_per_partition"><code class="name">var <span class="ident">max_contributions_per_partition</span> : int</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="pipeline_dp.aggregate_params.SumParams.max_partitions_contributed"><code class="name">var <span class="ident">max_partitions_contributed</span> : int</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="pipeline_dp.aggregate_params.SumParams.max_value"><code class="name">var <span class="ident">max_value</span> : float</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="pipeline_dp.aggregate_params.SumParams.min_value"><code class="name">var <span class="ident">min_value</span> : float</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="pipeline_dp.aggregate_params.SumParams.noise_kind"><code class="name">var <span class="ident">noise_kind</span> : <a title="pipeline_dp.aggregate_params.NoiseKind" href="#pipeline_dp.aggregate_params.NoiseKind">NoiseKind</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="pipeline_dp.aggregate_params.SumParams.partition_extractor"><code class="name">var <span class="ident">partition_extractor</span> : Callable</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="pipeline_dp.aggregate_params.SumParams.public_partitions"><code class="name">var <span class="ident">public_partitions</span> : Union[Iterable, PCollection, RDD]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="pipeline_dp.aggregate_params.SumParams.value_extractor"><code class="name">var <span class="ident">value_extractor</span> : Callable</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<h1>Index</h1>
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="pipeline_dp" href="index.html">pipeline_dp</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="pipeline_dp.aggregate_params.AggregateParams" href="#pipeline_dp.aggregate_params.AggregateParams">AggregateParams</a></code></h4>
+<ul class="">
+<li><code><a title="pipeline_dp.aggregate_params.AggregateParams.budget_weight" href="#pipeline_dp.aggregate_params.AggregateParams.budget_weight">budget_weight</a></code></li>
+<li><code><a title="pipeline_dp.aggregate_params.AggregateParams.high" href="#pipeline_dp.aggregate_params.AggregateParams.high">high</a></code></li>
+<li><code><a title="pipeline_dp.aggregate_params.AggregateParams.low" href="#pipeline_dp.aggregate_params.AggregateParams.low">low</a></code></li>
+<li><code><a title="pipeline_dp.aggregate_params.AggregateParams.max_contributions_per_partition" href="#pipeline_dp.aggregate_params.AggregateParams.max_contributions_per_partition">max_contributions_per_partition</a></code></li>
+<li><code><a title="pipeline_dp.aggregate_params.AggregateParams.max_partitions_contributed" href="#pipeline_dp.aggregate_params.AggregateParams.max_partitions_contributed">max_partitions_contributed</a></code></li>
+<li><code><a title="pipeline_dp.aggregate_params.AggregateParams.max_value" href="#pipeline_dp.aggregate_params.AggregateParams.max_value">max_value</a></code></li>
+<li><code><a title="pipeline_dp.aggregate_params.AggregateParams.metrics" href="#pipeline_dp.aggregate_params.AggregateParams.metrics">metrics</a></code></li>
+<li><code><a title="pipeline_dp.aggregate_params.AggregateParams.min_value" href="#pipeline_dp.aggregate_params.AggregateParams.min_value">min_value</a></code></li>
+<li><code><a title="pipeline_dp.aggregate_params.AggregateParams.noise_kind" href="#pipeline_dp.aggregate_params.AggregateParams.noise_kind">noise_kind</a></code></li>
+<li><code><a title="pipeline_dp.aggregate_params.AggregateParams.public_partitions" href="#pipeline_dp.aggregate_params.AggregateParams.public_partitions">public_partitions</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="pipeline_dp.aggregate_params.CountParams" href="#pipeline_dp.aggregate_params.CountParams">CountParams</a></code></h4>
+<ul class="">
+<li><code><a title="pipeline_dp.aggregate_params.CountParams.budget_weight" href="#pipeline_dp.aggregate_params.CountParams.budget_weight">budget_weight</a></code></li>
+<li><code><a title="pipeline_dp.aggregate_params.CountParams.max_contributions_per_partition" href="#pipeline_dp.aggregate_params.CountParams.max_contributions_per_partition">max_contributions_per_partition</a></code></li>
+<li><code><a title="pipeline_dp.aggregate_params.CountParams.max_partitions_contributed" href="#pipeline_dp.aggregate_params.CountParams.max_partitions_contributed">max_partitions_contributed</a></code></li>
+<li><code><a title="pipeline_dp.aggregate_params.CountParams.noise_kind" href="#pipeline_dp.aggregate_params.CountParams.noise_kind">noise_kind</a></code></li>
+<li><code><a title="pipeline_dp.aggregate_params.CountParams.partition_extractor" href="#pipeline_dp.aggregate_params.CountParams.partition_extractor">partition_extractor</a></code></li>
+<li><code><a title="pipeline_dp.aggregate_params.CountParams.public_partitions" href="#pipeline_dp.aggregate_params.CountParams.public_partitions">public_partitions</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="pipeline_dp.aggregate_params.MechanismType" href="#pipeline_dp.aggregate_params.MechanismType">MechanismType</a></code></h4>
+<ul class="">
+<li><code><a title="pipeline_dp.aggregate_params.MechanismType.GAUSSIAN" href="#pipeline_dp.aggregate_params.MechanismType.GAUSSIAN">GAUSSIAN</a></code></li>
+<li><code><a title="pipeline_dp.aggregate_params.MechanismType.GENERIC" href="#pipeline_dp.aggregate_params.MechanismType.GENERIC">GENERIC</a></code></li>
+<li><code><a title="pipeline_dp.aggregate_params.MechanismType.LAPLACE" href="#pipeline_dp.aggregate_params.MechanismType.LAPLACE">LAPLACE</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="pipeline_dp.aggregate_params.Metrics" href="#pipeline_dp.aggregate_params.Metrics">Metrics</a></code></h4>
+<ul class="">
+<li><code><a title="pipeline_dp.aggregate_params.Metrics.COUNT" href="#pipeline_dp.aggregate_params.Metrics.COUNT">COUNT</a></code></li>
+<li><code><a title="pipeline_dp.aggregate_params.Metrics.MEAN" href="#pipeline_dp.aggregate_params.Metrics.MEAN">MEAN</a></code></li>
+<li><code><a title="pipeline_dp.aggregate_params.Metrics.PRIVACY_ID_COUNT" href="#pipeline_dp.aggregate_params.Metrics.PRIVACY_ID_COUNT">PRIVACY_ID_COUNT</a></code></li>
+<li><code><a title="pipeline_dp.aggregate_params.Metrics.SUM" href="#pipeline_dp.aggregate_params.Metrics.SUM">SUM</a></code></li>
+<li><code><a title="pipeline_dp.aggregate_params.Metrics.VAR" href="#pipeline_dp.aggregate_params.Metrics.VAR">VAR</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="pipeline_dp.aggregate_params.NoiseKind" href="#pipeline_dp.aggregate_params.NoiseKind">NoiseKind</a></code></h4>
+<ul class="">
+<li><code><a title="pipeline_dp.aggregate_params.NoiseKind.GAUSSIAN" href="#pipeline_dp.aggregate_params.NoiseKind.GAUSSIAN">GAUSSIAN</a></code></li>
+<li><code><a title="pipeline_dp.aggregate_params.NoiseKind.LAPLACE" href="#pipeline_dp.aggregate_params.NoiseKind.LAPLACE">LAPLACE</a></code></li>
+<li><code><a title="pipeline_dp.aggregate_params.NoiseKind.convert_to_mechanism_type" href="#pipeline_dp.aggregate_params.NoiseKind.convert_to_mechanism_type">convert_to_mechanism_type</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="pipeline_dp.aggregate_params.NormKind" href="#pipeline_dp.aggregate_params.NormKind">NormKind</a></code></h4>
+<ul class="">
+<li><code><a title="pipeline_dp.aggregate_params.NormKind.L0" href="#pipeline_dp.aggregate_params.NormKind.L0">L0</a></code></li>
+<li><code><a title="pipeline_dp.aggregate_params.NormKind.L1" href="#pipeline_dp.aggregate_params.NormKind.L1">L1</a></code></li>
+<li><code><a title="pipeline_dp.aggregate_params.NormKind.L2" href="#pipeline_dp.aggregate_params.NormKind.L2">L2</a></code></li>
+<li><code><a title="pipeline_dp.aggregate_params.NormKind.Linf" href="#pipeline_dp.aggregate_params.NormKind.Linf">Linf</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="pipeline_dp.aggregate_params.PrivacyIdCountParams" href="#pipeline_dp.aggregate_params.PrivacyIdCountParams">PrivacyIdCountParams</a></code></h4>
+<ul class="">
+<li><code><a title="pipeline_dp.aggregate_params.PrivacyIdCountParams.budget_weight" href="#pipeline_dp.aggregate_params.PrivacyIdCountParams.budget_weight">budget_weight</a></code></li>
+<li><code><a title="pipeline_dp.aggregate_params.PrivacyIdCountParams.max_partitions_contributed" href="#pipeline_dp.aggregate_params.PrivacyIdCountParams.max_partitions_contributed">max_partitions_contributed</a></code></li>
+<li><code><a title="pipeline_dp.aggregate_params.PrivacyIdCountParams.noise_kind" href="#pipeline_dp.aggregate_params.PrivacyIdCountParams.noise_kind">noise_kind</a></code></li>
+<li><code><a title="pipeline_dp.aggregate_params.PrivacyIdCountParams.partition_extractor" href="#pipeline_dp.aggregate_params.PrivacyIdCountParams.partition_extractor">partition_extractor</a></code></li>
+<li><code><a title="pipeline_dp.aggregate_params.PrivacyIdCountParams.public_partitions" href="#pipeline_dp.aggregate_params.PrivacyIdCountParams.public_partitions">public_partitions</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="pipeline_dp.aggregate_params.SelectPrivatePartitionsParams" href="#pipeline_dp.aggregate_params.SelectPrivatePartitionsParams">SelectPrivatePartitionsParams</a></code></h4>
+<ul class="">
+<li><code><a title="pipeline_dp.aggregate_params.SelectPrivatePartitionsParams.max_partitions_contributed" href="#pipeline_dp.aggregate_params.SelectPrivatePartitionsParams.max_partitions_contributed">max_partitions_contributed</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="pipeline_dp.aggregate_params.SumParams" href="#pipeline_dp.aggregate_params.SumParams">SumParams</a></code></h4>
+<ul class="">
+<li><code><a title="pipeline_dp.aggregate_params.SumParams.budget_weight" href="#pipeline_dp.aggregate_params.SumParams.budget_weight">budget_weight</a></code></li>
+<li><code><a title="pipeline_dp.aggregate_params.SumParams.high" href="#pipeline_dp.aggregate_params.SumParams.high">high</a></code></li>
+<li><code><a title="pipeline_dp.aggregate_params.SumParams.low" href="#pipeline_dp.aggregate_params.SumParams.low">low</a></code></li>
+<li><code><a title="pipeline_dp.aggregate_params.SumParams.max_contributions_per_partition" href="#pipeline_dp.aggregate_params.SumParams.max_contributions_per_partition">max_contributions_per_partition</a></code></li>
+<li><code><a title="pipeline_dp.aggregate_params.SumParams.max_partitions_contributed" href="#pipeline_dp.aggregate_params.SumParams.max_partitions_contributed">max_partitions_contributed</a></code></li>
+<li><code><a title="pipeline_dp.aggregate_params.SumParams.max_value" href="#pipeline_dp.aggregate_params.SumParams.max_value">max_value</a></code></li>
+<li><code><a title="pipeline_dp.aggregate_params.SumParams.min_value" href="#pipeline_dp.aggregate_params.SumParams.min_value">min_value</a></code></li>
+<li><code><a title="pipeline_dp.aggregate_params.SumParams.noise_kind" href="#pipeline_dp.aggregate_params.SumParams.noise_kind">noise_kind</a></code></li>
+<li><code><a title="pipeline_dp.aggregate_params.SumParams.partition_extractor" href="#pipeline_dp.aggregate_params.SumParams.partition_extractor">partition_extractor</a></code></li>
+<li><code><a title="pipeline_dp.aggregate_params.SumParams.public_partitions" href="#pipeline_dp.aggregate_params.SumParams.public_partitions">public_partitions</a></code></li>
+<li><code><a title="pipeline_dp.aggregate_params.SumParams.value_extractor" href="#pipeline_dp.aggregate_params.SumParams.value_extractor">value_extractor</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.10.0</a>.</p>
+</footer>
+</body>
+</html>
