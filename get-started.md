@@ -2,8 +2,8 @@
 layout: page
 title: Get started
 description: >-
-  Gain a high-level understanding of how PipelineDP works as well as some of the
-  foundational design decisions behind the project.
+  Get up and running with PipelineDP by learning how to set up your environment
+  and start running examples locally.
 ---
 
 # PipelineDP overview
