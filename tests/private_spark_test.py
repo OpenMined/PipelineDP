@@ -96,7 +96,7 @@ class PrivateRDDTest(unittest.TestCase):
                                      max_partitions_contributed=2,
                                      max_contributions_per_partition=3,
                                      min_value=1.5,
-                                     max_value=5.78,
+                                     max_value=5.5,
                                      budget_weight=1.1,
                                      public_partitions=None,
                                      partition_extractor=lambda x: x[0],
@@ -159,14 +159,18 @@ class PrivateRDDTest(unittest.TestCase):
         # Assert
         # This is a health check to validate that the result is sensible.
         # Hence, we use a very large tolerance to reduce test flakiness.
+<<<<<<< HEAD
         expected_result_dict = {"pk1": 1.859}
+=======
+        expected_result_dict = {"pk1": 1.859725}
+>>>>>>> baef603 (float in tests)
         actual_result_dict = self.to_dict(actual_result.collect())
 
         for pk, mean in actual_result_dict.items():
             self.assertTrue(
                 self.value_per_key_within_tolerance(mean,
                                                     expected_result_dict[pk],
-                                                    5.0))
+                                                    0.1))
 
     def test_mean_with_public_partitions_returns_sensible_result(self):
         # Arrange
