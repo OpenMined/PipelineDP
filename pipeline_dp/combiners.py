@@ -217,19 +217,26 @@ class MeanCombiner(Combiner):
         return self._metrics_to_compute
 
 
-_named_tuple_type_cache = {}
+# Cache for namedtuple types. It is should be used only in
+# '_get_or_create_named_tuple()' function.
+_named_tuple_cache = {}
 
 
-def _dynamic_named_tuple(type_name: str, key_values: dict) -> 'MetricsTuple':
-    field_names = tuple(key_values.keys())
+def _get_or_create_named_tuple(type_name: str,
+                               field_names: tuple) -> 'MetricsTuple':
+    """Creates namedtuple type with a custom serializer."""
+
+    # The custom serializer is required for supporting searialization of
+    # namedtuples in Apache Beam.
     cache_key = (type_name, field_names)
-    named_tuple_type = _named_tuple_type_cache.get(cache_key)
-    if named_tuple_type is None:
-        named_tuple_type = collections.namedtuple(type_name, field_names)
-        named_tuple_type.__reduce__ = lambda self: (_dynamic_named_tuple, (
-            type_name, dict(zip(field_names, tuple(self)))))
-        _named_tuple_type_cache[cache_key] = named_tuple_type
-    return named_tuple_type(**key_values)
+    named_tuple = _named_tuple_cache.get(cache_key)
+    if named_tuple is None:
+        named_tuple = collections.namedtuple(type_name, field_names)
+        named_tuple.__reduce__ = lambda self: (_get_or_create_named_tuple,
+                                               (type_name, field_names),
+                                               tuple(self))
+        _named_tuple_cache[cache_key] = named_tuple
+    return named_tuple
 
 
 class CompoundCombiner(Combiner):
@@ -269,8 +276,9 @@ class CompoundCombiner(Combiner):
         if len(self._metrics_to_compute) != len(set(self._metrics_to_compute)):
             raise ValueError(
                 f"two combiners in {combiners} cannot compute the same metrics")
-        self._MetricsTuple = collections.namedtuple('MetricsTuple',
-                                                    self._metrics_to_compute)
+        self._metrics_to_compute = tuple(self._metrics_to_compute)
+        self._MetricsTuple = _get_or_create_named_tuple(
+            "MetricsTuple", self._metrics_to_compute)
 
     def create_accumulator(self, values) -> AccumulatorType:
         return (1,
@@ -303,9 +311,7 @@ class CompoundCombiner(Combiner):
                         f"{metric} computed by {combiner} was already computed by another combiner"
                     )
             combined_metrics.update(metrics_for_combiner)
-        return _dynamic_named_tuple(
-            "MetricsTuple", combined_metrics
-        )  # tuple(combined_metrics.keys()), tuple(combined_metrics.values()))
+        return self._MetricsTuple(**combined_metrics)
 
     def metrics_names(self) -> List[str]:
         return self._metrics_to_compute
