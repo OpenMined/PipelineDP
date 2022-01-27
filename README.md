@@ -97,3 +97,9 @@ sample of it. Here's how to take a subset of the data in bash:
    `head -10000 combined_data_1.txt > data.txt`
 
 3. Run `python movie_view_ratings.py --input_file=<path to data.txt from 2> --output_file=<...>`
+
+## Support and Community on Slack
+
+If you have questions about the PipelineDP, join
+[OpenMined's Slack](https://slack.openmined.org) and check the
+**#differential-privacy** channel.
