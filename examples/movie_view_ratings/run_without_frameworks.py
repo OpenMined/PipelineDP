@@ -4,7 +4,7 @@ from absl import app
 from absl import flags
 import pipeline_dp
 
-from examples.example_utils import parse_file, write_to_file
+from common_utils import parse_file, write_to_file
 
 FLAGS = flags.FLAGS
 flags.DEFINE_string('input_file', None, 'The file with the movie view data')
