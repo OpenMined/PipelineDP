@@ -1,24 +1,22 @@
 import collections
-from unittest.mock import patch
-import numpy as np
-import unittest
-from absl.testing import absltest
-from absl.testing import parameterized
 import sys
+import unittest
+from unittest.mock import patch
 
 import apache_beam as beam
 import apache_beam.testing.test_pipeline as test_pipeline
 import apache_beam.testing.util as beam_util
+import numpy as np
+import pydp.algorithms.partition_selection as partition_selection
+from absl.testing import absltest
+from absl.testing import parameterized
 
 import pipeline_dp
-from pipeline_dp.budget_accounting import NaiveBudgetAccountant
-import pydp.algorithms.partition_selection as partition_selection
 from pipeline_dp import aggregate_params as agg
-from pipeline_dp.accumulator import CompoundAccumulatorFactory
 from pipeline_dp.aggregate_params import SelectPartitionsParams
-from pipeline_dp.accumulator import CountAccumulator
-from pipeline_dp.report_generator import ReportGenerator
+from pipeline_dp.budget_accounting import NaiveBudgetAccountant
 from pipeline_dp.pipeline_backend import PipelineBackend
+from pipeline_dp.report_generator import ReportGenerator
 """DPEngine Test"""
 
 

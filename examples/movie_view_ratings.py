@@ -16,13 +16,13 @@ part of it. You can get a part of it by running in bash:
 4. Run python movie_view_ratings.py --framework=<framework> --input_file=<path to data.txt from 3> --output_file=<...>
 """
 
+import pyspark
 from absl import app
 from absl import flags
-import apache_beam as beam
 from apache_beam.runners.portability import fn_api_runner
-import pyspark
-from examples.example_utils import *
+
 import pipeline_dp
+from examples.example_utils import *
 
 FLAGS = flags.FLAGS
 flags.DEFINE_string('input_file', None, 'The file with the movie view data')

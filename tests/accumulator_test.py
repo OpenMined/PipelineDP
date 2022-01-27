@@ -1,15 +1,15 @@
-from pipeline_dp import dp_computations
-import unittest
 import typing
+import unittest
 from unittest.mock import patch
 
 import numpy as np
+
 import pipeline_dp
-from pipeline_dp import aggregate_params as agg
-from pipeline_dp.budget_accounting import NaiveBudgetAccountant
-from pipeline_dp.aggregate_params import NoiseKind
-from pipeline_dp.aggregate_params import NormKind
 import pipeline_dp.accumulator as accumulator
+from pipeline_dp import aggregate_params as agg
+from pipeline_dp import dp_computations
+from pipeline_dp.aggregate_params import NoiseKind
+from pipeline_dp.budget_accounting import NaiveBudgetAccountant
 
 
 class CompoundAccumulatorTest(unittest.TestCase):
