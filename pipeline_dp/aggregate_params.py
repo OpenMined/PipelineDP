@@ -76,7 +76,8 @@ class AggregateParams:
         if self.high is not None:
             raise ValueError(
                 "AggregateParams: please use max_value instead of high")
-        needs_min_max_value = Metrics.SUM in self.metrics
+        needs_min_max_value = Metrics.SUM in self.metrics \
+                              or Metrics.MEAN in self.metrics
         if not isinstance(self.max_partitions_contributed,
                           int) or self.max_partitions_contributed <= 0:
             raise ValueError("params.max_partitions_contributed must be set "

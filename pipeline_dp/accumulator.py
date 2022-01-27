@@ -2,17 +2,19 @@
 #  favour of Combiner framework (combiner.py) and will be removed soon.
 import abc
 import copy
-import typing
 import pickle
-from dataclasses import dataclass
+import typing
 from functools import reduce
+from typing import Iterable
+from typing import Tuple
+from typing import Union
 
-from typing import Iterable, Optional, Tuple, Union
+import numpy as np
+
 import pipeline_dp
 from pipeline_dp import aggregate_params
-from pipeline_dp import dp_computations
 from pipeline_dp import budget_accounting
-import numpy as np
+from pipeline_dp import dp_computations
 
 
 def merge(accumulators: typing.Iterable['Accumulator']) -> 'Accumulator':

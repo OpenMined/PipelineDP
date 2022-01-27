@@ -1,24 +1,22 @@
 import collections
-from unittest.mock import patch
-import numpy as np
-import unittest
-from absl.testing import absltest
-from absl.testing import parameterized
 import sys
+import unittest
+from unittest.mock import patch
 
 import apache_beam as beam
 import apache_beam.testing.test_pipeline as test_pipeline
 import apache_beam.testing.util as beam_util
+import numpy as np
+import pydp.algorithms.partition_selection as partition_selection
+from absl.testing import absltest
+from absl.testing import parameterized
 
 import pipeline_dp
-from pipeline_dp.budget_accounting import NaiveBudgetAccountant
-import pydp.algorithms.partition_selection as partition_selection
 from pipeline_dp import aggregate_params as agg
-from pipeline_dp.accumulator import CompoundAccumulatorFactory
 from pipeline_dp.aggregate_params import SelectPartitionsParams
-from pipeline_dp.accumulator import CountAccumulator
-from pipeline_dp.report_generator import ReportGenerator
+from pipeline_dp.budget_accounting import NaiveBudgetAccountant
 from pipeline_dp.pipeline_backend import PipelineBackend
+from pipeline_dp.report_generator import ReportGenerator
 """DPEngine Test"""
 
 
@@ -167,20 +165,34 @@ class DpEngineTest(parameterized.TestCase):
              max_partitions_contributed=1,
              max_contributions_per_partition=1.5,
              metrics=[pipeline_dp.Metrics.PRIVACY_ID_COUNT]),
-        dict(testcase_name='unspecified min_value',
+        dict(testcase_name='unspecified min_value SUM',
              error_msg='unspecified min_value',
              min_value=None,
              max_value=1,
              max_partitions_contributed=1,
              max_contributions_per_partition=1,
              metrics=[pipeline_dp.Metrics.SUM]),
-        dict(testcase_name='unspecified max_value',
+        dict(testcase_name='unspecified max_value SUM',
              error_msg='unspecified max_value',
              min_value=1,
              max_value=None,
              max_partitions_contributed=1,
              max_contributions_per_partition=1,
              metrics=[pipeline_dp.Metrics.SUM]),
+        dict(testcase_name='unspecified min_value MEAN',
+             error_msg='unspecified min_value',
+             min_value=None,
+             max_value=1,
+             max_partitions_contributed=1,
+             max_contributions_per_partition=1,
+             metrics=[pipeline_dp.Metrics.MEAN]),
+        dict(testcase_name='unspecified max_value MEAN',
+             error_msg='unspecified max_value',
+             min_value=1,
+             max_value=None,
+             max_partitions_contributed=1,
+             max_contributions_per_partition=1,
+             metrics=[pipeline_dp.Metrics.MEAN]),
         dict(testcase_name='min_value > max_value',
              error_msg='min_value > max_value',
              min_value=2,
