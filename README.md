@@ -11,9 +11,9 @@ To make differential privacy accessible to non-experts, PipelineDP:
   * protecting outliers and rare categories,
   * generating safe noise,
   * privacy budget accounting.
-* Supports many standard computations, such as count, sum, and average, and is easily extensible to support other aggregation types.
+* Supports many standard computations, such as count, sum, and average. 
 
-Additional information can be found at [pipelinedp.io](https://pipelinedp.io). Please note that the project is in an early development stage, more detailed descriptions and examples will be added over time.
+Additional information can be found at [pipelinedp.io](https://pipelinedp.io).
 
 ## Getting started
 
@@ -71,6 +71,10 @@ dp_result.saveAsTextFile(FLAGS.output_file)
 
 Supported Python version >= 3.7.
 
+**Note for Apple Silicon users:** PipelineDP pip package is currently available only 
+for x86 architecture. The reason is that [PyDP](https://github.com/OpenMined/PyDP) does not
+have pip pacakge. It might be possible to compile it from sources for Apple Silicon.
+ 
 ## Development
 
 To install the requirements for local development, run `make dev`.
