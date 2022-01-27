@@ -28,8 +28,8 @@ Here’s how you set up PipelineDP on your computer:
 # Check that your Python version is 3.7 or greater
 python --version
 
+# Create and activate a Python virtual environment
 python -m venv demo-pipelinedp
-
 . /demo-pipelinedp/bin/activate
 
 # Install PipelineDP
@@ -54,8 +54,7 @@ A deeper walk-through: learn the key concepts of differential privacy and Pipeli
 If you’d like to plan to run an example on your computer instead of Jupiter notebook, please go through the “Setting up the environment” section below and run:
 
 ```python
-# 1. Follow the “set up the environment” section to install PipelineDP
-# ...
+# 1. Follow the “set up the environment” section above to install PipelineDP
 
 # 2. Download and execute example code from git
 git clone https://github.com/OpenMined/PipelineDP.git
