@@ -6,7 +6,7 @@ import pipeline_dp
 from pipeline_dp import dp_computations
 from pipeline_dp import budget_accounting
 import numpy as np
-from collections import namedtuple
+import collections
 
 
 class Combiner(abc.ABC):
@@ -217,6 +217,28 @@ class MeanCombiner(Combiner):
         return self._metrics_to_compute
 
 
+# Cache for namedtuple types. It is should be used only in
+# '_get_or_create_named_tuple()' function.
+_named_tuple_cache = {}
+
+
+def _get_or_create_named_tuple(type_name: str,
+                               field_names: tuple) -> 'MetricsTuple':
+    """Creates namedtuple type with a custom serializer."""
+
+    # The custom serializer is required for supporting serialization of
+    # namedtuples in Apache Beam.
+    cache_key = (type_name, field_names)
+    named_tuple = _named_tuple_cache.get(cache_key)
+    if named_tuple is None:
+        named_tuple = collections.namedtuple(type_name, field_names)
+        named_tuple.__reduce__ = lambda self: (_get_or_create_named_tuple,
+                                               (type_name, field_names),
+                                               tuple(self))
+        _named_tuple_cache[cache_key] = named_tuple
+    return named_tuple
+
+
 class CompoundCombiner(Combiner):
     """Combiner for computing a set of dp aggregations.
 
@@ -254,8 +276,9 @@ class CompoundCombiner(Combiner):
         if len(self._metrics_to_compute) != len(set(self._metrics_to_compute)):
             raise ValueError(
                 f"two combiners in {combiners} cannot compute the same metrics")
-        self._MetricsTuple = namedtuple('MetricsTuple',
-                                        self._metrics_to_compute)
+        self._metrics_to_compute = tuple(self._metrics_to_compute)
+        self._MetricsTuple = _get_or_create_named_tuple(
+            "MetricsTuple", self._metrics_to_compute)
 
     def create_accumulator(self, values) -> AccumulatorType:
         return (1,

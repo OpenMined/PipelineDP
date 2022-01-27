@@ -3,7 +3,7 @@ from setuptools import setup
 import os
 
 packages = \
-['pipeline_dp']
+['pipeline_dp', 'utility_analysis']
 
 package_data = \
 {'': ['*']}
