@@ -95,9 +95,15 @@ class PrivateRDDTest(unittest.TestCase):
         mean_params = agg.MeanParams(noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
                                      max_partitions_contributed=2,
                                      max_contributions_per_partition=3,
+<<<<<<< HEAD
                                      min_value=1.5,
                                      max_value=5.78,
                                      budget_weight=1.1,
+=======
+                                     min_value=1,
+                                     max_value=5,
+                                     budget_weight=1,
+>>>>>>> ebd689a (float in tests)
                                      public_partitions=None,
                                      partition_extractor=lambda x: x[0],
                                      value_extractor=lambda x: x)
@@ -120,7 +126,6 @@ class PrivateRDDTest(unittest.TestCase):
             max_contributions_per_partition,
             min_value=mean_params.min_value,
             max_value=mean_params.max_value,
-            budget_weight=mean_params.budget_weight,
             public_partitions=mean_params.public_partitions)
         self.assertEqual(args[1], params)
 
@@ -145,8 +150,8 @@ class PrivateRDDTest(unittest.TestCase):
         mean_params = agg.MeanParams(noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
                                      max_partitions_contributed=2,
                                      max_contributions_per_partition=3,
-                                     min_value=1.55,
-                                     max_value=2.7889,
+                                     min_value=1,
+                                     max_value=2,
                                      budget_weight=1,
                                      public_partitions=None,
                                      partition_extractor=lambda x: x[1],
@@ -159,7 +164,11 @@ class PrivateRDDTest(unittest.TestCase):
         # Assert
         # This is a health check to validate that the result is sensible.
         # Hence, we use a very large tolerance to reduce test flakiness.
+<<<<<<< HEAD
         expected_result_dict = {"pk1": 1.859}
+=======
+        expected_result_dict = {"pk1": 1.25}
+>>>>>>> ebd689a (float in tests)
         actual_result_dict = self.to_dict(actual_result.collect())
 
         for pk, mean in actual_result_dict.items():
