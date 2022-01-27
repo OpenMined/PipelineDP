@@ -24,17 +24,17 @@ To make differential privacy accessible to non-experts, PipelineDP:
 # Setting up your environment
 Here’s how you set up PipelineDP on your computer:
 
-```python
+{% highlight shell_session %}
 # Check that your Python version is 3.7 or greater
-python --version
+$ python --version
 
 # Create and activate a Python virtual environment
-python -m venv demo-pipelinedp
-. /demo-pipelinedp/bin/activate
+$ python -m venv demo-pipelinedp
+$ . /demo-pipelinedp/bin/activate
 
 # Install PipelineDP
-pip install pipeline-dp
-```
+$ pip install pipeline-dp
+{% endhighlight %}
 
 # Trying it out
 ### Quick tour (5 min, no setup needed)
@@ -53,19 +53,17 @@ A deeper walk-through: learn the key concepts of differential privacy and Pipeli
 ### Run an example locally (15 min, requires setting up Python environment)
 If you’d like to plan to run an example on your computer instead of Jupiter notebook, please go through the “Setting up the environment” section below and run:
 
-```python
+{% highlight shell_session %}
 # 1. Follow the “set up the environment” section above to install PipelineDP
 
 # 2. Download and execute example code from git
-git clone https://github.com/OpenMined/PipelineDP.git
-cd PipelineDP/examples/restaraunt_visits/
-pip install pandas absl-py
-python run_without_frameworks.py --output_file=output.txt
+$ git clone https://github.com/OpenMined/PipelineDP.git
+$ cd PipelineDP/examples/restaraunt_visits/
+$ pip install pandas absl-py
+$ python run_without_frameworks.py --output_file=output.txt
 
 # 3. Check the results 
-cat output.txt
+$ cat output.txt
 
 # 4. Look inside run_without_frameworks.py file, play with parameters and metrics
-```
-
-
+{% endhighlight %}

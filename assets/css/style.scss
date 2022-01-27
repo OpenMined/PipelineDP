@@ -2,7 +2,9 @@
 ---
 @charset "utf-8";
 
-@import "base";
+// Core
+@import "core/base";
+@import "core/syntax-highlighting";
 
 // Objects
 @import "objects/wrapper";
@@ -17,5 +19,3 @@
 @import "components/hero";
 @import "components/partners";
 @import "components/tile";
-@import "components/code";
-
