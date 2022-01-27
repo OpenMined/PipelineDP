@@ -45,6 +45,7 @@ If you’d like to plan to run an example on your computer instead of Jupiter no
 # 2. Download and execute example code from git
 git clone https://github.com/OpenMined/PipelineDP.git
 cd PipelineDP/examples/restaraunt_visits/
+pip install pandas absl-py
 python run_without_frameworks.py --output_file=output.txt
 
 # 3. Check the results 
