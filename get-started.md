@@ -25,16 +25,20 @@ pip install pipeline-dp
 ```
 
 # Trying it out
-*Quick tour (5 min, no setup needed)*
+#### Quick tour (5 min, no setup needed)
 
 A simple example that shows how to calculate restaurant visits with differential privacy. 
-To try it out, go through a Jupiter notebook or run it in Google Colab (no setup needed).
 
-*Advanced tour (1 hour, no setup needed)*
-Learn the key concepts of differential privacy and PipelineDP API. 
-To try it out, go through a Jupiter notebook or run it in Google Colab (no setup needed).
+<a class="c-hero__button c-button c-button--primary" style="margin: 0px;" href="https://github.com/OpenMined/PipelineDP/blob/main/examples/restaurant_visits.ipynb">View as Jupiter Notebook</a>
+<a class="c-hero__button c-button c-button--secondary" style="margin: 0px;" href="https://colab.sandbox.google.com/github/OpenMined/PipelineDP/blob/main/examples/restaurant_visits.ipynb">Run in Google Colab</a>
 
-Run an example locally (15 min, requires setting up Python environment)
+### Advanced tour (1 hour, no setup needed)
+A deeper walk-through: learn the key concepts of differential privacy and PipelineDP API. 
+
+<a class="c-hero__button c-button c-button--primary" style="margin: 0px;" href="https://github.com/OpenMined/PipelineDP/blob/main/examples/restaurant_visits.ipynb">View as Jupiter Notebook</a>
+<a class="c-hero__button c-button c-button--secondary" style="margin: 0px;" href="https://colab.sandbox.google.com/github/OpenMined/PipelineDP/blob/main/examples/restaurant_visits.ipynb">Run in Google Colab</a>
+
+### Run an example locally (15 min, requires setting up Python environment)
 If you’d like to plan to run an example on your computer instead of Jupiter notebook, please go through the “Setting up the environment” section below and run:
 
 ```python
