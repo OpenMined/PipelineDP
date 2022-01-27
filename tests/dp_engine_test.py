@@ -305,10 +305,7 @@ class DpEngineTest(parameterized.TestCase):
             max_contributions_per_partition=3,
             min_value=2,
             max_value=10,
-            metrics=[
-                pipeline_dp.Metrics.VAR, pipeline_dp.Metrics.SUM,
-                pipeline_dp.Metrics.MEAN
-            ],
+            metrics=[pipeline_dp.Metrics.SUM, pipeline_dp.Metrics.MEAN],
             public_partitions=list(range(1, 40)),
         )
 
@@ -333,7 +330,7 @@ class DpEngineTest(parameterized.TestCase):
         )
         self.assertEqual(
             engine._report_generators[1].report(),
-            "Differentially private: Computing <Metrics: ['variance', 'sum', 'mean']>"
+            "Differentially private: Computing <Metrics: ['sum', 'mean']>"
             "\n1. Public partition selection: dropped non public partitions"
             "\n2. Per-partition contribution bounding: randomly selected not more than 3 contributions"
             "\n3. Cross-partition contribution bounding: randomly selected not more than 1 partitions per user"

@@ -11,7 +11,6 @@ class Metrics(Enum):
     PRIVACY_ID_COUNT = 'privacy_id_count'
     SUM = 'sum'
     MEAN = 'mean'
-    VAR = 'variance'
 
 
 class NoiseKind(Enum):

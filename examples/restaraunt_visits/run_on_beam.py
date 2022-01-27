@@ -12,7 +12,8 @@ from pipeline_dp.private_beam import MakePrivate
 import pandas as pd
 
 FLAGS = flags.FLAGS
-flags.DEFINE_string('input_file', 'restaraunts_week_data.csv', 'The CSV file with restaraunt visits data')
+flags.DEFINE_string('input_file', 'restaraunts_week_data.csv',
+                    'The CSV file with restaraunt visits data')
 flags.DEFINE_string('output_file', None, 'Output file')
 
 
@@ -49,16 +50,15 @@ def main(unused_argv):
 
         # Calculate the private sum
         dp_result = private_restaraunt_visits | private_beam.Sum(
-            SumParams(
-                noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
-                max_partitions_contributed=7,
-                max_contributions_per_partition=2,
-                min_value=1,
-                max_value=100,
-                budget_weight=1,
-                public_partitions=None,
-                partition_extractor=lambda row: row.day,
-                value_extractor=lambda row: row.spent_money))
+            SumParams(noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+                      max_partitions_contributed=7,
+                      max_contributions_per_partition=2,
+                      min_value=1,
+                      max_value=100,
+                      budget_weight=1,
+                      public_partitions=None,
+                      partition_extractor=lambda row: row.day,
+                      value_extractor=lambda row: row.spent_money))
         budget_accountant.compute_budgets()
 
         # Save the results

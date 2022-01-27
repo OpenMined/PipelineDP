@@ -4,7 +4,6 @@ import functools
 import multiprocessing as mp
 import random
 import numpy as np
-from pyspark import SparkContext
 from collections.abc import Iterable
 
 import abc
@@ -273,7 +272,7 @@ class BeamBackend(PipelineBackend):
 class SparkRDDBackend(PipelineBackend):
     """Apache Spark RDD adapter."""
 
-    def __init__(self, sc: SparkContext):
+    def __init__(self, sc: 'SparkContext'):
         self._sc = sc
 
     def map(self, rdd, fn, stage_name: str = None):
