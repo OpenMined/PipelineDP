@@ -306,12 +306,12 @@ class DPEngine:
                        combiners.CompoundCombiner.AccumulatorType]) -> bool:
             """Lazily creates a partition selection strategy and uses it to determine which
             partitions to keep."""
-            pirvacy_id_count, _ = row[1]
+            privacy_id_count, _ = row[1]
             partition_selection_strategy = (
                 partition_selection.
                 create_truncated_geometric_partition_strategy(
                     budget.eps, budget.delta, max_partitions))
-            return partition_selection_strategy.should_keep(pirvacy_id_count)
+            return partition_selection_strategy.should_keep(privacy_id_count)
 
         # make filter_fn serializable
         filter_fn = functools.partial(filter_fn, budget,
