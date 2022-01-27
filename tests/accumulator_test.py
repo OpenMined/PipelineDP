@@ -205,7 +205,9 @@ class GenericAccumulatorTest(unittest.TestCase):
             noise_kind=NoiseKind.GAUSSIAN,
             metrics=[agg.Metrics.MEAN],
             max_partitions_contributed=5,
-            max_contributions_per_partition=3)
+            max_contributions_per_partition=3,
+            min_value=0,
+            max_value=1)
         budget_accountant = NaiveBudgetAccountant(total_epsilon=1,
                                                   total_delta=0.01)
 
@@ -231,7 +233,9 @@ class GenericAccumulatorTest(unittest.TestCase):
             noise_kind=NoiseKind.GAUSSIAN,
             metrics=[agg.Metrics.MEAN, agg.Metrics.VAR],
             max_partitions_contributed=5,
-            max_contributions_per_partition=3)
+            max_contributions_per_partition=3,
+            min_value=0,
+            max_value=1)
         budget_accountant = NaiveBudgetAccountant(total_epsilon=1,
                                                   total_delta=0.01)
         values = [10]

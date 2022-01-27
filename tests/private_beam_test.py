@@ -163,8 +163,8 @@ class PrivateBeamTest(unittest.TestCase):
     def test_mean_returns_sensible_result(self):
         with TestPipeline() as pipeline:
             # Arrange
-            col = [(u, "pk1", -100) for u in range(30)]
-            col += [(u + 30, "pk1", 100) for u in range(10)]
+            col = [(f"{u}", "pk1", -100.0) for u in range(30)]
+            col += [(f"{u + 30}", "pk1", 100.0) for u in range(10)]
             pcol = pipeline | 'Create produce' >> beam.Create(col)
             # Use very high epsilon and delta to minimize noise and test
             # flakiness.
@@ -202,9 +202,9 @@ class PrivateBeamTest(unittest.TestCase):
     def test_mean_with_public_partitions_returns_sensible_result(self):
         with TestPipeline() as pipeline:
             # Arrange
-            col = [(u, "pubK1", -100) for u in range(30)]
-            col += [(u + 30, "pubK1", 100) for u in range(10)]
-            col += [(u + 40, "privK1", 100) for u in range(30)]
+            col = [(f"{u}", "pubK1", -100.0) for u in range(30)]
+            col += [(f"{u + 30}", "pubK1", 100.0) for u in range(10)]
+            col += [(f"{u + 40}", "privK1", 100.0) for u in range(30)]
             pcol = pipeline | 'Create produce' >> beam.Create(col)
             # Use very high epsilon and delta to minimize noise and test
             # flakiness.
