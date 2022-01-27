@@ -66,6 +66,138 @@ class PrivateRDDTest(unittest.TestCase):
         self.assertEqual(result._budget_accountant, prdd._budget_accountant)
 
     @patch('pipeline_dp.dp_engine.DPEngine.aggregate')
+    def test_mean_calls_aggregate_with_correct_params(self, mock_aggregate):
+        # Arrange
+        dist_data = PrivateRDDTest.sc.parallelize([(1, 2.0, "pk1"),
+                                                   (2, 2.0, "pk1")])
+        mock_aggregate.return_value = PrivateRDDTest.sc.parallelize([(2.0,
+                                                                      ["pk1"])])
+        budget_accountant = budget_accounting.NaiveBudgetAccountant(1, 1e-10)
+
+        def privacy_id_extractor(x):
+            return x[1]
+
+        prdd = private_spark.make_private(dist_data, budget_accountant,
+                                          privacy_id_extractor)
+        mean_params = agg.MeanParams(noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+                                     max_partitions_contributed=2,
+                                     max_contributions_per_partition=3,
+                                     min_value=1,
+                                     max_value=5,
+                                     budget_weight=1,
+                                     public_partitions=None,
+                                     partition_extractor=lambda x: x[0],
+                                     value_extractor=lambda x: x)
+
+        # Act
+        actual_result = prdd.mean(mean_params)
+
+        # Assert
+        mock_aggregate.assert_called_once()
+        args = mock_aggregate.call_args[0]
+
+        rdd = dist_data.map(lambda x: (privacy_id_extractor(x), x))
+        self.assertListEqual(args[0].collect(), rdd.collect())
+
+        params = pipeline_dp.AggregateParams(
+            noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+            metrics=[pipeline_dp.Metrics.MEAN],
+            max_partitions_contributed=mean_params.max_partitions_contributed,
+            max_contributions_per_partition=mean_params.
+                max_contributions_per_partition,
+            min_value=mean_params.min_value,
+            max_value=mean_params.max_value,
+            public_partitions=mean_params.public_partitions)
+        self.assertEqual(args[1], params)
+
+        self.assertEqual(actual_result.collect(), [(2.0, "pk1")])
+
+    def test_mean_returns_sensible_result(self):
+        # Arrange
+        col = [(u, "pk1", -100) for u in range(30)]
+        col += [(u + 30, "pk1", 100) for u in range(10)]
+
+        dist_data = PrivateRDDTest.sc.parallelize(col)
+        # Use very high epsilon and delta to minimize noise and test
+        # flakiness.
+        budget_accountant = budget_accounting.NaiveBudgetAccountant(
+            total_epsilon=800, total_delta=0.999)
+
+        def privacy_id_extractor(x):
+            return x[0]
+
+        prdd = private_spark.make_private(dist_data, budget_accountant,
+                                          privacy_id_extractor)
+        mean_params = agg.MeanParams(noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+                                     max_partitions_contributed=2,
+                                     max_contributions_per_partition=3,
+                                     min_value=1,
+                                     max_value=2,
+                                     budget_weight=1,
+                                     public_partitions=None,
+                                     partition_extractor=lambda x: x[1],
+                                     value_extractor=lambda x: x[2])
+
+        # Act
+        actual_result = prdd.mean(mean_params)
+        budget_accountant.compute_budgets()
+
+        # Assert
+        # This is a health check to validate that the result is sensible.
+        # Hence, we use a very large tolerance to reduce test flakiness.
+        expected_result_dict = {"pk1": 1.25}
+        actual_result_dict = self.to_dict(actual_result.collect())
+
+        for pk, mean in actual_result_dict.items():
+            self.assertTrue(
+                self.value_per_key_within_tolerance(mean,
+                                                    expected_result_dict[pk],
+                                                    5.0))
+
+    def test_mean_with_public_partitions_returns_sensible_result(self):
+        # Arrange
+        col = [(u, "pubK1", -100) for u in range(30)]
+        col += [(u + 30, "pubK1", 100) for u in range(10)]
+        col += [(u + 40, "privK1", 100) for u in range(30)]
+
+        dist_data = PrivateRDDTest.sc.parallelize(col)
+        # Use very high epsilon and delta to minimize noise and test
+        # flakiness.
+        budget_accountant = budget_accounting.NaiveBudgetAccountant(
+            total_epsilon=800, total_delta=0.999)
+
+        def privacy_id_extractor(x):
+            return x[0]
+
+        prdd = private_spark.make_private(dist_data, budget_accountant,
+                                          privacy_id_extractor)
+        mean_params = agg.MeanParams(noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+                                     max_partitions_contributed=2,
+                                     max_contributions_per_partition=3,
+                                     min_value=1,
+                                     max_value=2,
+                                     budget_weight=1,
+                                     partition_extractor=lambda x: x[1],
+                                     value_extractor=lambda x: x[2],
+                                     public_partitions=["pubK1", "pubK2"])
+
+        # Act
+        actual_result = prdd.mean(mean_params)
+        budget_accountant.compute_budgets()
+
+        # Assert
+        # This is a health check to validate that the result is sensible.
+        # Hence, we use a very large tolerance to reduce test flakiness.
+        expected_result_dict = {"pubK1": 1.25, "pubK2" : 1.5}
+        actual_result_dict = self.to_dict(actual_result.collect())
+
+        for pk, mean in actual_result_dict.items():
+            self.assertTrue(
+                self.value_per_key_within_tolerance(mean,
+                                                    expected_result_dict[pk],
+                                                    5.0))
+
+    @patch('pipeline_dp.dp_engine.DPEngine.aggregate')
     def test_sum_calls_aggregate_with_correct_params(self, mock_aggregate):
         # Arrange
         dist_data = PrivateRDDTest.sc.parallelize([(1, 1.0, "pk1"),
@@ -104,7 +236,7 @@ class PrivateRDDTest(unittest.TestCase):
             metrics=[pipeline_dp.Metrics.SUM],
             max_partitions_contributed=sum_params.max_partitions_contributed,
             max_contributions_per_partition=sum_params.
-            max_contributions_per_partition,
+                max_contributions_per_partition,
             min_value=sum_params.min_value,
             max_value=sum_params.max_value,
             public_partitions=sum_params.public_partitions)
@@ -112,7 +244,7 @@ class PrivateRDDTest(unittest.TestCase):
 
         self.assertEqual(actual_result.collect(), [(3.0, "pk1")])
 
-    def test_sum_calls_returns_sensible_result(self):
+    def test_sum_returns_sensible_result(self):
         # Arrange
         col = [(f"{u}", "pk1", 100.0) for u in range(30)]
         col += [(f"{u + 30}", "pk1", -100.0) for u in range(30)]
@@ -232,13 +364,13 @@ class PrivateRDDTest(unittest.TestCase):
             metrics=[pipeline_dp.Metrics.COUNT],
             max_partitions_contributed=count_params.max_partitions_contributed,
             max_contributions_per_partition=count_params.
-            max_contributions_per_partition,
+                max_contributions_per_partition,
             public_partitions=count_params.public_partitions)
         self.assertEqual(args[1], params)
 
         self.assertEqual(actual_result.collect(), [(2, "pk1")])
 
-    def test_count_calls_returns_sensible_result(self):
+    def test_count_returns_sensible_result(self):
         # Arrange
         col = [(u, "pk1") for u in range(30)]
         dist_data = PrivateRDDTest.sc.parallelize(col)
@@ -321,7 +453,7 @@ class PrivateRDDTest(unittest.TestCase):
 
     @patch('pipeline_dp.dp_engine.DPEngine.aggregate')
     def test_privacy_id_count_calls_aggregate_with_correct_params(
-            self, mock_aggregate):
+        self, mock_aggregate):
         # Arrange
         dist_data = PrivateRDDTest.sc.parallelize([(1, "pk1"), (2, "pk1")])
         mock_aggregate.return_value = PrivateRDDTest.sc.parallelize([(2,
@@ -353,7 +485,7 @@ class PrivateRDDTest(unittest.TestCase):
             noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
             metrics=[pipeline_dp.Metrics.PRIVACY_ID_COUNT],
             max_partitions_contributed=privacy_id_count_params.
-            max_partitions_contributed,
+                max_partitions_contributed,
             max_contributions_per_partition=1,
             public_partitions=privacy_id_count_params.public_partitions)
         self.assertEqual(args[1], params)
@@ -395,7 +527,7 @@ class PrivateRDDTest(unittest.TestCase):
                                                     5.0))
 
     def test_privacy_id_count_with_public_partitions_returns_sensible_result(
-            self):
+        self):
         # Arrange
         col = [(u, "pubK1") for u in range(30)]
         col += [(u, "privK1") for u in range(30)]
@@ -434,7 +566,7 @@ class PrivateRDDTest(unittest.TestCase):
 
     @patch('pipeline_dp.dp_engine.DPEngine.select_partitions')
     def test_select_partitions_calls_select_partitions_with_correct_params(
-            self, mock_aggregate):
+        self, mock_aggregate):
         # Arrange
         dist_data = PrivateRDDTest.sc.parallelize([(1, "pk1"), (2, "pk2")])
         expected_result_partitions = ["pk1", "pk2"]
