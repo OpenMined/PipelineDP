@@ -4,21 +4,15 @@
   </a>
   <nav class="c-header__nav">
     <ul class="c-header__list">
-      {%- for item in site.pages reversed -%}
-        {%- if item.title and page.url == item.url -%}
-          <li class="c-header__item">
-            <a class="c-header__link is-active" href="{{ item.url | relative_url }}">
-              {{ item.title | escape }}
-            </a>
-          </li>
-        {%- elsif item.title -%}
-          <li class="c-header__item">
-            <a class="c-header__link" href="{{ item.url | relative_url }}">
-              {{ item.title | escape }}
-            </a>
-          </li>
-        {%- endif -%}
-      {%- endfor -%}
+      <li class="c-header__item">
+        <a class="c-header__link {% if page.url == "/get-started/" %}is-active{% endif %}" href="{%- link get-started.md -%}">Get started</a>
+      </li>
+      <li class="c-header__item">
+        <a class="c-header__link {% if page.url == "/overview/" %}is-active{% endif %}" href="{%- link overview.md -%}">Overview</a>
+      </li>
+      <li class="c-header__item">
+        <a class="c-header__link {% if page.url == "/api-documentation/" %}is-active{% endif %}" href="{%- link api-documentation.md -%}">API documentation</a>
+      </li>
     </ul>
   </nav>
 </header>
