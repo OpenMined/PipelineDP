@@ -179,8 +179,8 @@ class PrivateBeamTest(unittest.TestCase):
                 noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
                 max_partitions_contributed=1,
                 max_contributions_per_partition=1,
-                min_value=1,
-                max_value=2,
+                min_value=1.55,
+                max_value=2.7889,
                 budget_weight=1,
                 partition_extractor=lambda x: x[1],
                 value_extractor=lambda x: x[2])
@@ -195,7 +195,7 @@ class PrivateBeamTest(unittest.TestCase):
             # Hence, we use a very large tolerance to reduce test flakiness.
             beam_util.assert_that(
                 result,
-                beam_util.equal_to([("pk1", 1.25)],
+                beam_util.equal_to([("pk1", 1.859)],
                                    equals_fn=lambda e, a: PrivateBeamTest.
                                    value_per_key_within_tolerance(e, a, 0.1)))
 
@@ -219,8 +219,8 @@ class PrivateBeamTest(unittest.TestCase):
                 noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
                 max_partitions_contributed=1,
                 max_contributions_per_partition=1,
-                min_value=1,
-                max_value=2,
+                min_value=1.55,
+                max_value=2.7889,
                 budget_weight=1,
                 partition_extractor=lambda x: x[1],
                 value_extractor=lambda x: x[2],
@@ -236,7 +236,7 @@ class PrivateBeamTest(unittest.TestCase):
             # Hence, we use a very large tolerance to reduce test flakiness.
             beam_util.assert_that(
                 result,
-                beam_util.equal_to([("pubK1", 1.25), ("pubK2", 1.5)],
+                beam_util.equal_to([("pubK1", 1.859), ("pubK2", 2.1695)],
                                    equals_fn=lambda e, a: PrivateBeamTest.
                                    value_per_key_within_tolerance(e, a, 0.1)))
 
@@ -306,8 +306,8 @@ class PrivateBeamTest(unittest.TestCase):
                 noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
                 max_partitions_contributed=2,
                 max_contributions_per_partition=3,
-                min_value=1,
-                max_value=2,
+                min_value=1.55,
+                max_value=2.7889,
                 budget_weight=1,
                 partition_extractor=lambda x: x[1],
                 value_extractor=lambda x: x[2])
@@ -322,7 +322,7 @@ class PrivateBeamTest(unittest.TestCase):
             # Hence, we use a very large tolerance to reduce test flakiness.
             beam_util.assert_that(
                 result,
-                beam_util.equal_to([("pk1", 90.0)],
+                beam_util.equal_to([("pk1", 130.167)],
                                    equals_fn=lambda e, a: PrivateBeamTest.
                                    value_per_key_within_tolerance(e, a, 10.0)))
 
@@ -346,8 +346,8 @@ class PrivateBeamTest(unittest.TestCase):
                 noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
                 max_partitions_contributed=2,
                 max_contributions_per_partition=3,
-                min_value=1,
-                max_value=2,
+                min_value=1.55,
+                max_value=2.7889,
                 budget_weight=1,
                 partition_extractor=lambda x: x[1],
                 value_extractor=lambda x: x[2],
@@ -363,7 +363,7 @@ class PrivateBeamTest(unittest.TestCase):
             # Hence, we use a very large tolerance to reduce test flakiness.
             beam_util.assert_that(
                 result,
-                beam_util.equal_to([("pubK1", 90.0), ("pubK2", 0.0)],
+                beam_util.equal_to([("pubK1", 130.167), ("pubK2", 0.0)],
                                    equals_fn=lambda e, a: PrivateBeamTest.
                                    value_per_key_within_tolerance(e, a, 10.0)))
 
