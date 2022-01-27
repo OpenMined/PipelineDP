@@ -61,7 +61,7 @@ class PrivateRDD:
             metrics=[pipeline_dp.Metrics.MEAN],
             max_partitions_contributed=mean_params.max_partitions_contributed,
             max_contributions_per_partition=mean_params.
-                max_contributions_per_partition,
+            max_contributions_per_partition,
             min_value=mean_params.min_value,
             max_value=mean_params.max_value,
             public_partitions=mean_params.public_partitions,
@@ -97,7 +97,7 @@ class PrivateRDD:
             metrics=[pipeline_dp.Metrics.SUM],
             max_partitions_contributed=sum_params.max_partitions_contributed,
             max_contributions_per_partition=sum_params.
-                max_contributions_per_partition,
+            max_contributions_per_partition,
             min_value=sum_params.min_value,
             max_value=sum_params.max_value,
             public_partitions=sum_params.public_partitions,
@@ -133,13 +133,13 @@ class PrivateRDD:
             metrics=[pipeline_dp.Metrics.COUNT],
             max_partitions_contributed=count_params.max_partitions_contributed,
             max_contributions_per_partition=count_params.
-                max_contributions_per_partition,
+            max_contributions_per_partition,
             public_partitions=count_params.public_partitions,
             budget_weight=count_params.budget_weight)
 
         data_extractors = pipeline_dp.DataExtractors(
             partition_extractor=lambda x: count_params.partition_extractor(x[1]
-                                                                           ),
+                                                                          ),
             privacy_id_extractor=lambda x: x[0],
             value_extractor=lambda x: None)
 
@@ -154,7 +154,7 @@ class PrivateRDD:
         return dp_result
 
     def privacy_id_count(
-        self, privacy_id_count_params: aggregate_params.PrivacyIdCountParams
+            self, privacy_id_count_params: aggregate_params.PrivacyIdCountParams
     ) -> RDD:
         """Computes a DP Privacy ID count.
 
@@ -169,13 +169,13 @@ class PrivateRDD:
             noise_kind=privacy_id_count_params.noise_kind,
             metrics=[pipeline_dp.Metrics.PRIVACY_ID_COUNT],
             max_partitions_contributed=privacy_id_count_params.
-                max_partitions_contributed,
+            max_partitions_contributed,
             max_contributions_per_partition=1,
             public_partitions=privacy_id_count_params.public_partitions)
 
         data_extractors = pipeline_dp.DataExtractors(
             partition_extractor=lambda x: privacy_id_count_params.
-                partition_extractor(x[1]),
+            partition_extractor(x[1]),
             privacy_id_extractor=lambda x: x[0],
             # PrivacyIdCount ignores values.
             value_extractor=lambda x: None)
@@ -191,9 +191,9 @@ class PrivateRDD:
         return dp_result
 
     def select_partitions(
-        self,
-        select_partitions_params: aggregate_params.SelectPartitionsParams,
-        partition_extractor: Callable) -> RDD:
+            self,
+            select_partitions_params: aggregate_params.SelectPartitionsParams,
+            partition_extractor: Callable) -> RDD:
         """Computes a collection of partition keys in a DP manner.
 
         Args:
@@ -206,7 +206,7 @@ class PrivateRDD:
 
         params = pipeline_dp.SelectPartitionsParams(
             max_partitions_contributed=select_partitions_params.
-                max_partitions_contributed)
+            max_partitions_contributed)
 
         data_extractors = pipeline_dp.DataExtractors(
             partition_extractor=lambda x: partition_extractor(x[1]),
@@ -216,8 +216,8 @@ class PrivateRDD:
 
 
 def make_private(rdd: RDD,
-    budget_accountant: budget_accounting.BudgetAccountant,
-    privacy_id_extractor: Callable) -> PrivateRDD:
+                 budget_accountant: budget_accounting.BudgetAccountant,
+                 privacy_id_extractor: Callable) -> PrivateRDD:
     """A factory method for creating PrivateRDDs."""
     prdd = PrivateRDD(rdd, budget_accountant, privacy_id_extractor)
     return prdd
