@@ -2,8 +2,8 @@
 layout: page
 title: Key definitions
 description: >-
-Below we summarize the key concepts that are used in the code and in the
-documentation.
+  Below we summarize the key concepts that are used in the code and in the
+  documentation.
 ---
 
 A *partition* is a subset of the data corresponding to a given value of the
