@@ -1,9 +1,12 @@
 /* Hero */
 
 .c-hero {
-  background-image: url(../images/shapes.svg);
   background-position: 140% -20%;
   background-repeat: no-repeat;
+
+  @media (min-width: 62rem) {
+    background-image: url(../images/shapes.svg);
+  }
 
   &__title {
     color: #202124;
