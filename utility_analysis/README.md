@@ -6,7 +6,7 @@ To make differential privacy easy to use for all the users in a scalable way. Ut
 
 When applying differential privacy, the quality of your data might deteriorate due to many factors. And multiple parameters can influence the data deterioration.
 
-The utility analysis tool has designed a process that simulates the behavior of DP on a sample of your data and shows how different parameter settings affect the quality of your aggregation metrics. This exploration might help you have a data-driven decision on usages of DP.
+The utility analysis tool has designed a tool that performs a process that simulates the behavior of DP on a sample of your data and shows how different parameter settings affect the quality of your aggregation metrics. This exploration might help you have a data-driven decision on usages of DP.
 
 ## Getting started
 
