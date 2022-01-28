@@ -21,6 +21,9 @@ To make differential privacy accessible to non-experts, PipelineDP:
 * Supports standard computations: count, sum, and average (and soon more).
 
 *Note* that this project is still experimental and is subject to change.
+At the moment we don't recommend its usage in production systems as it's not
+thoroughly tested yet. You can learn more in the
+[Roadmap section](https://pipelinedp.io/overview/#roadmap).
 
 # Setting up your environment
 Here’s how you set up PipelineDP on your computer:
