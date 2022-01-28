@@ -14,8 +14,8 @@
 import unittest
 import numpy as np
 import typing
+from scipy import stats
 import math
-from scipy.stats import skew, kurtosis
 from unittest.mock import patch
 from unittest.mock import MagicMock
 
@@ -61,6 +61,22 @@ class DPComputationsTest(unittest.TestCase):
             dp_computations.compute_sigma(eps=0.5,
                                           delta=1e-10,
                                           l2_sensitivity=10))
+
+    def _test_laplace_kolmogorov_smirnov(self, num_trials: int, results,
+                                         expected_mean: float,
+                                         expected_beta: float):
+        laplace_sample = np.random.laplace(expected_mean, expected_beta,
+                                           num_trials)
+        (statistic, pvalue) = stats.ks_2samp(results, laplace_sample)
+        self.assertGreaterEqual(pvalue, 0.001)
+
+    def _test_gaussian_kolmogorov_smirnov(self, num_trials: int, results,
+                                          expected_mean: float,
+                                          expected_sigma: float):
+        guassian_sample = np.random.normal(expected_mean, expected_sigma,
+                                           num_trials)
+        (statistic, pvalue) = stats.ks_2samp(results, guassian_sample)
+        self.assertGreaterEqual(pvalue, 0.001)
 
     def _laplace_prob_mass_within_one_std(self):
         return 1.0 - math.exp(-math.sqrt(2.0))
@@ -111,26 +127,32 @@ class DPComputationsTest(unittest.TestCase):
     def _test_laplace_noise(self, num_trials: int, results,
                             expected_mean: float, l1_sensitivity: float,
                             eps: float):
+        expected_beta = (l1_sensitivity / eps)
         self._test_samples_from_distribution(
             values=results,
             num_trials=num_trials,
             expected_mean=expected_mean,
-            expected_sigma=math.sqrt(2) * (l1_sensitivity / eps),
+            expected_sigma=math.sqrt(2) * expected_beta,
             prob_mass_within_one_std=self._laplace_prob_mass_within_one_std(),
             prob_mass_one_to_two_stds=self._laplace_prob_mass_one_to_two_stds())
+        self._test_laplace_kolmogorov_smirnov(num_trials, results,
+                                              expected_mean, expected_beta)
 
     def _test_gaussian_noise(self, num_trials: int, results,
                              expected_mean: float, l2_sensitivity: float,
                              eps: float, delta: float):
+        expected_sigma = dp_computations.compute_sigma(eps, delta,
+                                                       l2_sensitivity)
         self._test_samples_from_distribution(
             values=results,
             num_trials=num_trials,
             expected_mean=expected_mean,
-            expected_sigma=dp_computations.compute_sigma(
-                eps, delta, l2_sensitivity),
+            expected_sigma=expected_sigma,
             prob_mass_within_one_std=self._gaussian_prob_mass_within_one_std(),
             prob_mass_one_to_two_stds=self._gaussian_prob_mass_one_to_two_stds(
             ))
+        self._test_gaussian_kolmogorov_smirnov(num_trials, results,
+                                               expected_mean, expected_sigma)
 
     def _not_all_integers(self, results: typing.Iterable[float]):
         return any(map(lambda x: not x.is_integer(), results))
@@ -342,12 +364,12 @@ class DPComputationsTest(unittest.TestCase):
             dp_computations.compute_dp_mean(count=expected_count,
                                             sum=expected_sum,
                                             dp_params=params)
-            for _ in range(N_ITERATIONS)
+            for _ in range(1500000)
         ]
 
         count_values, sum_values, mean_values = zip(*results)
         self._test_gaussian_noise(results=count_values,
-                                  num_trials=N_ITERATIONS,
+                                  num_trials=1500000,
                                   expected_mean=expected_count,
                                   eps=count_eps,
                                   delta=count_delta,
