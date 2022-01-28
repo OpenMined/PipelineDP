@@ -6,8 +6,8 @@ description: >-
   foundational design decisions behind the project.
 ---
 *Note* that this project is still experimental and is subject to change.
-We discourage its usage in production systems as it's not
-tested thoroughly yet and might potentially break. You can learn more in the
+At the moment we don't recommend its usage in production systems as it's not
+thoroughly tested yet. You can learn more in the
 [Roadmap section](https://pipelinedp.io/overview/#roadmap).
 
 ## Key concepts
