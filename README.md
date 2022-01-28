@@ -20,6 +20,9 @@ At the moment we don't recommend its usage in production systems as it's not
 thoroughly tested yet. You can learn more in the
 [Roadmap section](https://pipelinedp.io/overview/#roadmap).
 
+The project is started as a collaboration between OpenMined and Google in an effort 
+to bring Differential Privacy to production.
+
 ## Getting started
 
 Here are some examples of how to use PipelineDP:
