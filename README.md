@@ -15,6 +15,11 @@ To make differential privacy accessible to non-experts, PipelineDP:
 
 Additional information can be found at [pipelinedp.io](https://pipelinedp.io).
 
+*Note* that this project is still experimental and is subject to change.
+At the moment we don't recommend its usage in production systems as it's not
+thoroughly tested yet. You can learn more in the
+[Roadmap section](https://pipelinedp.io/overview/#roadmap).
+
 ## Getting started
 
 Here are some examples of how to use PipelineDP:
