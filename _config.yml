@@ -1,7 +1,7 @@
 # Site settings
 title: PipelineDP
 description: >-
-  Write fast, flexible pipelines that use the latest anonymization techniques to
+  Write fast, flexible pipelines that use modern techniques to
   aggregate user data in a privacy-preserving manner.
 baseurl: ""
 url: "https://pipelinedp.io"
