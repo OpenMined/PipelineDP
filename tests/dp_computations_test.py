@@ -163,8 +163,8 @@ class DPComputationsTest(unittest.TestCase):
         params = dp_computations.MeanVarParams(
             eps=0.5,
             delta=1e-10,
-            min_value=2.5,
-            max_value=3.12,
+            min_value=2,
+            max_value=3,
             max_partitions_contributed=1,
             max_contributions_per_partition=1,
             noise_kind=NoiseKind.LAPLACE)
