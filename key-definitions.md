@@ -6,6 +6,10 @@ description: >-
   documentation.
 ---
 
+![image](terminology.png)
+
+A *record* is an element in the input dataset.
+
 A *partition* is a subset of the data corresponding to a given value of the
 aggregation criterion. Usually we want to aggregate each partition separately.
 For example, if we count visits to restaurants, the visits for one particular
@@ -44,3 +48,5 @@ leak any user information. An example of public partitions could be week days.
 The total privacy cost of a pipeline is the sum of the costs of its releases.
 You want this to be below a certain total cost. That's your budget. Typically,
 the greek letters 'epsilon' and 'delta' (ϵ and δ) are used to define the budget.
+
+<a class="c-hero__button c-button c-button--primary" style="margin: 0px;" href="https://pipelinedp.io/overview/" target="_blank">Overview</a>
