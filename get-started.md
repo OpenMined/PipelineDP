@@ -20,6 +20,7 @@ To make differential privacy accessible to non-experts, PipelineDP:
   * privacy budget accounting.
 * Supports standard computations: count, sum, and average (and soon more).
 
+*Note* that this project is still experimental and is subject to change.
 
 # Setting up your environment
 Here’s how you set up PipelineDP on your computer:
