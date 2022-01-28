@@ -6,6 +6,9 @@ description: >-
   foundational design decisions behind the project.
 ---
 *Note* that this project is still experimental and is subject to change.
+We discourage its usage in production systems as it's not
+tested thoroughly yet and might potentially break. You can learn more in the
+[Roadmap section](https://pipelinedp.io/overview/#roadmap).
 
 ## Key concepts
 The key definitions used in the documentation, code and examples are explained
@@ -40,7 +43,7 @@ A few high-level things we’re planning for future:
   * Better integration with the Python ecosystem (e.g. dataframes).
 * Utility:
   * Using advanced composition methods (such as privacy loss distribution).
-Reliability:
+* Reliability:
   * Rigorous statistical testing of differential privacy properties.
 
 
