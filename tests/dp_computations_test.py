@@ -353,7 +353,7 @@ class DPComputationsTest(unittest.TestCase):
                                        l0_sensitivity, count_linf_sensitivity)),
                                delta=0.5)
         self.assertAlmostEqual(skew(count_values), 0, delta=0.5)
-        self.assertAlmostEqual(kurtosis(results), 0, delta=0.5)
+        self.assertAlmostEqual(kurtosis(count_values), 0, delta=0.5)
 
         self.assertAlmostEqual(np.mean(sum_values), 10000, delta=1)
         self.assertAlmostEqual(np.mean(mean_values), 10, delta=0.1)
