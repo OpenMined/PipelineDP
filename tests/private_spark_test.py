@@ -159,7 +159,7 @@ class PrivateRDDTest(unittest.TestCase):
         # Assert
         # This is a health check to validate that the result is sensible.
         # Hence, we use a very large tolerance to reduce test flakiness.
-        expected_result_dict = {"pk1": 1.859725}
+        expected_result_dict = {"pk1": 1.859}
         actual_result_dict = self.to_dict(actual_result.collect())
 
         for pk, mean in actual_result_dict.items():
