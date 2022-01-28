@@ -30,7 +30,7 @@ $ python --version
 
 # Create and activate a Python virtual environment
 $ python -m venv demo-pipelinedp
-$ . /demo-pipelinedp/bin/activate
+$ source demo-pipelinedp/bin/activate
 
 # Install PipelineDP
 $ pip install pipeline-dp
