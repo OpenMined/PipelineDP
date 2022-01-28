@@ -95,9 +95,9 @@ class PrivateRDDTest(unittest.TestCase):
         mean_params = agg.MeanParams(noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
                                      max_partitions_contributed=2,
                                      max_contributions_per_partition=3,
-                                     min_value=1,
-                                     max_value=5,
-                                     budget_weight=1,
+                                     min_value=1.5,
+                                     max_value=5.78,
+                                     budget_weight=1.1,
                                      public_partitions=None,
                                      partition_extractor=lambda x: x[0],
                                      value_extractor=lambda x: x)
@@ -120,6 +120,7 @@ class PrivateRDDTest(unittest.TestCase):
             max_contributions_per_partition,
             min_value=mean_params.min_value,
             max_value=mean_params.max_value,
+            budget_weight=mean_params.budget_weight,
             public_partitions=mean_params.public_partitions)
         self.assertEqual(args[1], params)
 
@@ -144,8 +145,8 @@ class PrivateRDDTest(unittest.TestCase):
         mean_params = agg.MeanParams(noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
                                      max_partitions_contributed=2,
                                      max_contributions_per_partition=3,
-                                     min_value=1,
-                                     max_value=2,
+                                     min_value=1.55,
+                                     max_value=2.7889,
                                      budget_weight=1,
                                      public_partitions=None,
                                      partition_extractor=lambda x: x[1],
