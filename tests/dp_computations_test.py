@@ -364,12 +364,12 @@ class DPComputationsTest(unittest.TestCase):
             dp_computations.compute_dp_mean(count=expected_count,
                                             sum=expected_sum,
                                             dp_params=params)
-            for _ in range(N_ITERATIONS)
+            for _ in range(1500000)
         ]
 
         count_values, sum_values, mean_values = zip(*results)
         self._test_gaussian_noise(results=count_values,
-                                  num_trials=N_ITERATIONS,
+                                  num_trials=1500000,
                                   expected_mean=expected_count,
                                   eps=count_eps,
                                   delta=count_delta,
