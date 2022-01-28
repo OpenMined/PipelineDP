@@ -16,12 +16,23 @@
     text-transform: uppercase;
   }
 
+  &__wrapper {
+    align-items: center;
+    display: flex;
+    flex-flow: column nowrap;
+    justify-content: center;
+
+    @media (min-width: 34rem) {
+      flex-flow: row nowrap;
+    }
+  }
+
   &__logo {
     display: inline-block;
-    margin-left: 6rem;
+    margin: 1rem 0;
 
-    &:first-of-type {
-      margin-left: 0;
+    @media (min-width: 34rem) {
+      margin: 0 3rem;
     }
   }
 }
