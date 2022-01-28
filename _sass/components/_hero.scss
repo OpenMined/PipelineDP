@@ -10,23 +10,52 @@
 
   &__title {
     color: #202124;
-    font-size: 4rem;
+    font-size: 3rem;
     font-weight: 500;
     line-height: 1.2;
     margin: 0;
     max-width: 16ch;
-    padding: 8rem 0 3rem;
+    padding: 4rem 0 2rem;
+
+    @media (min-width: 34rem) {
+      padding: 5rem 0 2rem;
+    }
+
+    @media (min-width: 48rem) {
+      padding: 7rem 0 2rem;
+    }
+
+    @media (min-width: 75rem) {
+      font-size: 4rem;
+      padding: 8rem 0 3rem;
+    }
   }
 
   &__description {
     color: #5f6368;
-    font-size: 1.5rem;
+    font-size: 1.2rem;
     margin: 0;
     max-width: 40ch;
+
+    @media (min-width: 75rem) {
+      font-size: 1.5rem;
+    }
   }
 
   &__button {
-    margin: 3rem 0 8rem 2.5rem;
+    margin: 3rem 0 5rem 2rem;
+
+    @media (min-width: 34rem) {
+      margin: 3rem 0 5rem 2.5rem;
+    }
+
+    @media (min-width: 48rem) {
+      margin: 3rem 0 7rem 2.5rem;
+    }
+
+    @media (min-width: 75rem) {
+      margin: 3rem 0 8rem 2.5rem;
+    }
 
     &:first-of-type {
       margin-left: 0;
