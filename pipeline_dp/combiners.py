@@ -245,11 +245,15 @@ def _get_or_create_named_tuple(type_name: str,
     named_tuple = _named_tuple_cache.get(cache_key)
     if named_tuple is None:
         named_tuple = collections.namedtuple(type_name, field_names)
-        named_tuple.__reduce__ = lambda self: (_get_or_create_named_tuple,
-                                               (type_name, field_names),
-                                               tuple(self))
+        named_tuple.__reduce__ = lambda self: (_create_named_tuple_instance,
+                                               (type_name, field_names,
+                                                tuple(self)))
         _named_tuple_cache[cache_key] = named_tuple
     return named_tuple
+
+
+def _create_named_tuple_instance(type_name: str, field_names: tuple, values):
+    return _get_or_create_named_tuple(type_name, field_names)(*values)
 
 
 class CompoundCombiner(Combiner):
@@ -324,7 +328,9 @@ class CompoundCombiner(Combiner):
                         f"{metric} computed by {combiner} was already computed by another combiner"
                     )
             combined_metrics.update(metrics_for_combiner)
-        return self._MetricsTuple(**combined_metrics)
+        return _create_named_tuple_instance("MetricsTuple",
+                                            tuple(combined_metrics.keys()),
+                                            tuple(combined_metrics.values()))
 
     def metrics_names(self) -> List[str]:
         return self._metrics_to_compute
