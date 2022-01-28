@@ -308,55 +308,54 @@ class DPComputationsTest(unittest.TestCase):
 
         (count_eps, count_delta), (_, _) = dp_computations.equally_split_budget(
             params.eps, params.delta, 2)
-        l0_sensitivity = params.l0_sensitivity()
+        count_l0_sensitivity = params.l0_sensitivity()
         count_linf_sensitivity = params.max_contributions_per_partition
+        count_l1_sensitivity = dp_computations.compute_l1_sensitivity(
+            count_l0_sensitivity, count_linf_sensitivity)
 
         # Laplace Mechanism
+        expected_sum = 10000
+        expected_count = 1000
         results = [
-            dp_computations.compute_dp_mean(count=1000,
-                                            sum=10000,
+            dp_computations.compute_dp_mean(count=expected_count,
+                                            sum=expected_sum,
                                             dp_params=params)
             for _ in range(N_ITERATIONS)
         ]
         count_values, sum_values, mean_values = zip(*results)
-        # test laplace noise
-        # TODO: replace with statistical tests like in other aggregations
-        self.assertAlmostEqual(np.mean(count_values), 1000, delta=0.5)
-        self.assertAlmostEqual(
-            np.std(count_values),
-            np.sqrt(2) * dp_computations.compute_l1_sensitivity(
-                l0_sensitivity, count_linf_sensitivity) / count_eps,
-            delta=0.5)
-        self.assertAlmostEqual(skew(count_values), 0, delta=0.5)
-        self.assertAlmostEqual(kurtosis(count_values), 3, delta=2)
 
-        self.assertAlmostEqual(np.mean(sum_values), 10000, delta=0.5)
-        self.assertAlmostEqual(np.mean(mean_values), 10, delta=0.5)
+        self._test_laplace_noise(results=count_values,
+                                 num_trials=N_ITERATIONS,
+                                 expected_mean=expected_count,
+                                 eps=count_eps,
+                                 l1_sensitivity=count_l1_sensitivity)
+        self.assertAlmostEqual(np.mean(sum_values), expected_sum, delta=0.5)
+        self.assertAlmostEqual(np.mean(mean_values),
+                               expected_sum / expected_count,
+                               delta=0.5)
 
         # Gaussian Mechanism
         params.noise_kind = NoiseKind.GAUSSIAN
+        count_l2_sensitivity = dp_computations.compute_l2_sensitivity(
+            count_l0_sensitivity, count_linf_sensitivity)
         results = [
-            dp_computations.compute_dp_mean(count=1000,
-                                            sum=10000,
+            dp_computations.compute_dp_mean(count=expected_count,
+                                            sum=expected_sum,
                                             dp_params=params)
-            for _ in range(1500000)
+            for _ in range(N_ITERATIONS)
         ]
+
         count_values, sum_values, mean_values = zip(*results)
-
-        # test gaussian noise
-        # TODO: replace with statistical tests like in other aggregations
-        self.assertAlmostEqual(np.mean(count_values), 1000, delta=0.5)
-        self.assertAlmostEqual(np.std(count_values),
-                               dp_computations.compute_sigma(
-                                   count_eps, count_delta,
-                                   dp_computations.compute_l2_sensitivity(
-                                       l0_sensitivity, count_linf_sensitivity)),
-                               delta=0.5)
-        self.assertAlmostEqual(skew(count_values), 0, delta=0.5)
-        self.assertAlmostEqual(kurtosis(count_values), 0, delta=0.5)
-
-        self.assertAlmostEqual(np.mean(sum_values), 10000, delta=1)
-        self.assertAlmostEqual(np.mean(mean_values), 10, delta=0.1)
+        self._test_gaussian_noise(results=count_values,
+                                  num_trials=N_ITERATIONS,
+                                  expected_mean=expected_count,
+                                  eps=count_eps,
+                                  delta=count_delta,
+                                  l2_sensitivity=count_l2_sensitivity)
+        self.assertAlmostEqual(np.mean(sum_values), expected_sum, delta=1)
+        self.assertAlmostEqual(np.mean(mean_values),
+                               expected_sum / expected_count,
+                               delta=0.1)
 
     def test_compute_dp_var(self):
         params = dp_computations.MeanVarParams(
