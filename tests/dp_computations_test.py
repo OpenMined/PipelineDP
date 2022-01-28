@@ -22,9 +22,14 @@ import pipeline_dp.dp_computations as dp_computations
 from pipeline_dp.aggregate_params import NoiseKind
 
 N_ITERATIONS = 200000
+DUMMY_MIN_VALUE = 2.0
+DUMMY_MAX_VALUE = 3.0
 
 
 class DPComputationsTest(unittest.TestCase):
+
+    def almost_equal(self, actual, expected, tolerance):
+        return abs(expected - actual) <= tolerance
 
     def test_l0_sensitivity(self):
         params = dp_computations.MeanVarParams(
@@ -38,14 +43,16 @@ class DPComputationsTest(unittest.TestCase):
         self.assertEqual(params.l0_sensitivity(), 4)
 
     def test_l1_sensitivity(self):
-        self.assertEqual(
-            dp_computations.compute_l1_sensitivity(l0_sensitivity=4,
-                                                   linf_sensitivity=12), 48)
+        self.assertAlmostEqual(dp_computations.compute_l1_sensitivity(
+            l0_sensitivity=4.5, linf_sensitivity=12.123),
+                               54.5535,
+                               delta=0.1)
 
     def test_l2_sensitivity(self):
-        self.assertEqual(
-            dp_computations.compute_l2_sensitivity(l0_sensitivity=4,
-                                                   linf_sensitivity=12), 24)
+        self.assertAlmostEqual(dp_computations.compute_l2_sensitivity(
+            l0_sensitivity=4.5, linf_sensitivity=12.123),
+                               25.716766525,
+                               delta=0.1)
 
     def test_compute_sigma(self):
         self.assertEqual(
@@ -137,8 +144,8 @@ class DPComputationsTest(unittest.TestCase):
         params = dp_computations.MeanVarParams(
             eps=0.5,
             delta=1e-10,
-            min_value=2,
-            max_value=3,
+            min_value=0,
+            max_value=0,
             max_partitions_contributed=1,
             max_contributions_per_partition=1,
             noise_kind=NoiseKind.LAPLACE)
