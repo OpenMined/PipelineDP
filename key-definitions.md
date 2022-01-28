@@ -6,6 +6,8 @@ description: >-
   documentation.
 ---
 
+A simplified visual summary of some key concepts we use in PipelineDP:
+
 ![image](terminology.png)
 
 A *record* is an element in the input dataset.
