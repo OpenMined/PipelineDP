@@ -10,7 +10,12 @@
   width: 100%;
 
   &__image {
+    display: none;
     margin-right: 5rem;
+
+    @media (min-width: 75rem) {
+      display: block;
+    }
   }
 
   &__title {
@@ -21,6 +26,7 @@
 
   &__description {
     color: #5f6368;
+    max-width: 60ch;
   }
 
   &__list {
