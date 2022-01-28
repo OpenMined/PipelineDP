@@ -35,6 +35,8 @@ Apache Beam, Apache Spark or even locally.
 
 ![image info](architecture.png)
 
+For more information about DP computation please check [DP computations in pipelines reference doc](https://github.com/google/differential-privacy/blob/main/common_docs/Differential_Privacy_Computations_In_Data_Pipelines.pdf).
+
 ## Roadmap
 A few high-level things we’re planning for future:
 
