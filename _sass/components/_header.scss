@@ -3,17 +3,26 @@
 .c-header {
   align-items: center;
   display: flex;
-  flex-flow: row nowrap;
+  flex-flow: column nowrap;
   justify-content: space-between;
   padding-top: 2rem;
   width: 100%;
+
+  @media (min-width: 48rem) {
+    flex-flow: row nowrap;
+  }
 
   &__logo {
     display: block;
   }
 
   &__nav {
-    margin-left: auto;
+    margin-top: 1.5rem;
+
+    @media (min-width: 48rem) {
+      margin-left: auto;
+      margin-top: 0;
+    }
   }
 
   &__list {
@@ -22,9 +31,17 @@
   }
 
   &__item {
-    display: inline-block;
+    display: block;
     list-style-type: none;
-    margin-left: 3.5rem;
+    margin-bottom: 1rem;
+    text-align: center;
+
+    @media (min-width: 34rem) {
+      display: inline-block;
+      margin-bottom: 0;
+      margin-left: 3.5rem;
+      text-align: left;
+    }
 
     &:first-of-type {
       margin-left: 0;
