@@ -26,8 +26,17 @@ DataType = Union[Sequence[Any], pvalue.PCollection, RDD]
 
 @dataclasses.dataclass(frozen=True)
 class SampleParams:
+    # Number of partitions to sample from the original data.
     number_of_sampled_partitions: int
     metrics: Optional[Sequence[pipeline_dp.Metrics]] = None
+    # The following two parameters should only be set for SUM and when you
+    # don't want to use min_sum_per_partition and max_sum_per_partition
+    # Lower bound on each value. This is mapped to min_value in
+    # pipeline_dp.aggregate_params.AggregateParams
+    min_value: float = None
+    # Upper bound on each value. This is mapped to max_value in
+    # pipeline_dp.aggregate_params.AggregateParams
+    max_value: float = None
 
 
 def _extract_fn(data_extractors: pipeline_dp.DataExtractors,
@@ -85,7 +94,9 @@ class DataPeeker:
                 "Sketch only supports a single aggregation and it must be COUNT or SUM."
             )
         combiner = non_private_combiners.create_compound_combiner(
-            metrics=params.metrics)
+            metrics=params.metrics,
+            min_value=params.min_value,
+            max_value=params.max_value)
 
         # Extract the columns.
         col = self._be.map(input_data,

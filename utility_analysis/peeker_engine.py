@@ -107,11 +107,12 @@ class PeekerEngine:
             functools.partial(_cross_partition_filter_fn,
                               params.max_partitions_contributed),
             "Cross partition bounding")
-        # TODO: use max_contributions_per_partition for COUNT and max_sum_per_partition for SUM.
         col = self._ops.map_tuple(
             col,
             functools.partial(_per_partition_bounding,
-                              params.max_contributions_per_partition),
+                              params.max_contributions_per_partition,
+                              params.min_sum_per_partition,
+                              params.max_sum_per_partition),
             "Per partition bounding")
         # col: (partition_key, per_user_aggregated_value)
         col = self._ops.map_values(col, lambda x: (1, (x,)),
@@ -146,10 +147,16 @@ def _cross_partition_filter_fn(max_partitions: int, col: Tuple[Any, int,
     return np.random.rand() < max_partitions / partition_count
 
 
-def _per_partition_bounding(max_contributions_per_partition: int, pk: Any,
-                            pval: int, pcount: int) -> Tuple[Any, int]:
+def _per_partition_bounding(max_contributions_per_partition: int,
+                            min_sum_per_partition: float,
+                            max_sum_per_partition: float, pk: Any, pval: int,
+                            pcount: int) -> Tuple[Any, int]:
     del pcount  # unused
-    bounded_value = min(pval, max_contributions_per_partition)
+    if min_sum_per_partition is not None and max_sum_per_partition is not None:
+        bounded_value = np.clip(pval, min_sum_per_partition,
+                                max_sum_per_partition)
+    else:
+        bounded_value = min(pval, max_contributions_per_partition)
     return pk, bounded_value
 
 

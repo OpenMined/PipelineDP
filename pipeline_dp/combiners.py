@@ -79,7 +79,9 @@ class CombinerParams:
             self.aggregate_params.max_value,
             self.aggregate_params.max_partitions_contributed,
             self.aggregate_params.max_contributions_per_partition,
-            self.aggregate_params.noise_kind)
+            self.aggregate_params.noise_kind,
+            self.aggregate_params.min_sum_per_partition,
+            self.aggregate_params.max_sum_per_partition)
 
 
 class CountCombiner(Combiner):
@@ -151,6 +153,13 @@ class SumCombiner(Combiner):
         self._params = params
 
     def create_accumulator(self, values: Iterable[float]) -> AccumulatorType:
+        if self._params.aggregate_params.max_sum_per_partition is not None and (
+                self._params.aggregate_params.min_sum_per_partition
+                is not None):
+            return np.clip(sum(values),
+                           self._params.aggregate_params.min_sum_per_partition,
+                           self._params.aggregate_params.max_sum_per_partition)
+
         return np.clip(values, self._params.aggregate_params.min_value,
                        self._params.aggregate_params.max_value).sum()
 

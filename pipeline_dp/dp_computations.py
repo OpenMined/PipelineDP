@@ -19,6 +19,9 @@ class MeanVarParams:
     max_partitions_contributed: int
     max_contributions_per_partition: int
     noise_kind: NoiseKind  # Laplace or Gaussian
+    # The following two parameters should only be used on SUM
+    min_sum_per_partition: float = None
+    max_sum_per_partition: float = None
 
     def l0_sensitivity(self):
         """"Returns the L0 sensitivity of the parameters."""
@@ -255,8 +258,12 @@ def compute_dp_sum(sum: float, dp_params: MeanVarParams):
         ValueError: The noise kind is invalid.
     """
     l0_sensitivity = dp_params.l0_sensitivity()
-    linf_sensitivity = dp_params.max_contributions_per_partition * max(
-        abs(dp_params.min_value), abs(dp_params.max_value))
+    if dp_params.max_sum_per_partition is not None and dp_params.min_sum_per_partition is not None:
+        linf_sensitivity = max(
+            abs(dp_params.max_sum_per_partition), abs(dp_params.min_sum_per_partition))
+    else:
+        linf_sensitivity = dp_params.max_contributions_per_partition * max(
+            abs(dp_params.min_value), abs(dp_params.max_value))
 
     return _add_random_noise(
         sum,

@@ -63,7 +63,13 @@ class RawSumCombiner(pipeline_dp.combiners.Combiner):
     """
     AccumulatorType = float
 
+    def __init__(self, min_value: float, max_value: float):
+        self._min_value = min_value
+        self._max_value = max_value
+
     def create_accumulator(self, values: Iterable[float]) -> 'AccumulatorType':
+        if self._min_value is not None and self._max_value is not None:
+            return np.clip(values, self._min_value, self._max_value).sum()
         return sum(values)
 
     def merge_accumulators(self, sum1: AccumulatorType, sum2: AccumulatorType):
@@ -88,8 +94,16 @@ class RawMeanCombiner(pipeline_dp.combiners.Combiner):
     """
     AccumulatorType = Tuple[int, float]
 
+    def __init__(self, min_value: float, max_value: float):
+        self._min_value = min_value
+        self._max_value = max_value
+
     def create_accumulator(self, values: Iterable[float]) -> AccumulatorType:
-        return len(values), sum(values)
+        if self._min_value is not None and self._max_value is not None:
+            summary = np.clip(values, self._min_value, self._max_value).sum()
+        else:
+            summary = sum(values)
+        return len(values), summary
 
     def merge_accumulators(self, accum1: AccumulatorType,
                            accum2: AccumulatorType):
@@ -152,15 +166,16 @@ class CompoundCombiner(pipeline_dp.combiners.Combiner):
         return self._metrics_to_compute
 
 
-def create_compound_combiner(
-    metrics: pipeline_dp.aggregate_params.Metrics,) -> CompoundCombiner:
+def create_compound_combiner(metrics: pipeline_dp.aggregate_params.Metrics,
+                             min_value: float = None,
+                             max_value: float = None) -> CompoundCombiner:
     combiners = []
     if pipeline_dp.Metrics.COUNT in metrics:
         combiners.append(RawCountCombiner())
     if pipeline_dp.Metrics.SUM in metrics:
-        combiners.append(RawSumCombiner())
+        combiners.append(RawSumCombiner(min_value, max_value))
     if pipeline_dp.Metrics.PRIVACY_ID_COUNT in metrics:
         combiners.append(RawPrivacyIdCountCombiner())
     if pipeline_dp.Metrics.MEAN in metrics:
-        combiners.append(RawMeanCombiner())
+        combiners.append(RawMeanCombiner(min_value, max_value))
     return CompoundCombiner(combiners)
