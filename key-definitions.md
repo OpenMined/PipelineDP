@@ -8,7 +8,7 @@ description: >-
 
 A simplified visual summary of some key concepts we use in PipelineDP:
 
-![image](terminology.png)
+![PipelineDP terminology]({{ "/assets/images/terminology.png" | relative_url }})
 
 A *record* is an element in the input dataset.
 

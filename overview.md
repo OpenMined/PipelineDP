@@ -5,6 +5,7 @@ description: >-
   Gain a high-level understanding of how PipelineDP works as well as some of the
   foundational design decisions behind the project.
 ---
+
 *Note* that this project is still experimental and is subject to change.
 At the moment we don't recommend its usage in production systems as it's not
 thoroughly tested yet. You can learn more in the
@@ -12,7 +13,7 @@ thoroughly tested yet. You can learn more in the
 
 ## Key concepts
 The key definitions used in the documentation, code and examples are explained
-[on this page](https://pipelinedp.io/key-definitions/)
+[on this page](https://pipelinedp.io/key-definitions/).
 
 ## Design overview
 PipelineDP design enables execution on several data processing frameworks
@@ -33,7 +34,7 @@ frameworks.
 framework-specific implementations that enable execution of PipelineDP on
 Apache Beam, Apache Spark or even locally.
 
-![image info](architecture.png)
+![PipelineDP architecture]({{ "/assets/images/architecture.png" | relative_url }})
 
 For more information about DP computation please check [DP computations in pipelines reference doc](https://github.com/google/differential-privacy/blob/main/common_docs/Differential_Privacy_Computations_In_Data_Pipelines.pdf).
 
@@ -47,5 +48,3 @@ A few high-level things we’re planning for future:
   * Using advanced composition methods (such as privacy loss distribution).
 * Reliability:
   * Rigorous statistical testing of differential privacy properties.
-
-
