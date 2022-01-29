@@ -80,6 +80,7 @@ class AggregateParams:
     max_value: float = None
     public_partitions: Any = None
     noise_kind: NoiseKind = NoiseKind.LAPLACE
+    custom_combiners: Iterable['Combiner'] = None
 
     def __post_init__(self):
         if self.low is not None:
@@ -88,33 +89,38 @@ class AggregateParams:
         if self.high is not None:
             raise ValueError(
                 "AggregateParams: please use max_value instead of high")
-        needs_min_max_value = Metrics.SUM in self.metrics \
-                              or Metrics.MEAN in self.metrics
-        if not isinstance(self.max_partitions_contributed,
-                          int) or self.max_partitions_contributed <= 0:
-            raise ValueError("params.max_partitions_contributed must be set "
-                             "to a positive integer")
-        if not isinstance(self.max_contributions_per_partition,
-                          int) or self.max_contributions_per_partition <= 0:
+        if self.metrics:
+            needs_min_max_value = Metrics.SUM in self.metrics \
+                                  or Metrics.MEAN in self.metrics
+            if not isinstance(self.max_partitions_contributed,
+                              int) or self.max_partitions_contributed <= 0:
+                raise ValueError(
+                    "params.max_partitions_contributed must be set "
+                    "to a positive integer")
+            if not isinstance(self.max_contributions_per_partition,
+                              int) or self.max_contributions_per_partition <= 0:
+                raise ValueError(
+                    "params.max_contributions_per_partition must be set "
+                    "to a positive integer")
+            if needs_min_max_value and (self.min_value is None or
+                                        self.max_value is None):
+                raise ValueError(
+                    "params.min_value and params.max_value must be set")
+            if needs_min_max_value and (_not_a_proper_number(self.min_value) or
+                                        _not_a_proper_number(self.max_value)):
+                raise ValueError(
+                    "params.min_value and params.max_value must be both finite numbers"
+                )
+            if needs_min_max_value and self.max_value < self.min_value:
+                raise ValueError(
+                    "params.max_value must be equal to or greater than params.min_value"
+                )
+        if self.metrics and self.custom_combiners:
             raise ValueError(
-                "params.max_contributions_per_partition must be set "
-                "to a positive integer")
-        if needs_min_max_value and (self.min_value is None or
-                                    self.max_value is None):
-            raise ValueError(
-                "params.min_value and params.max_value must be set")
-        if needs_min_max_value and (_not_a_proper_number(self.min_value) or
-                                    _not_a_proper_number(self.max_value)):
-            raise ValueError(
-                "params.min_value and params.max_value must be both finite numbers"
-            )
-        if needs_min_max_value and self.max_value < self.min_value:
-            raise ValueError(
-                "params.max_value must be equal to or greater than params.min_value"
-            )
+                "Custom combiners can not be used with standard metrics")
 
     def __str__(self):
-        return f"Metrics: {[m.value for m in self.metrics]}"
+        return f"Metrics: "  #{[m.value for m in self.metrics]}" todo
 
 
 @dataclass

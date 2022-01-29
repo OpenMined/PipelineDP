@@ -69,8 +69,12 @@ class DPEngine:
 
         self._report_generators.append(report_generator.ReportGenerator(params))
 
-        combiner = combiners.create_compound_combiner(params,
-                                                      self._budget_accountant)
+        if params.custom_combiners:  # maybe to extract it in a separate method
+            combiner = combiners.create_compound_combiner_with_custom_combiners(
+                self._budget_accountant, params.custom_combiners)
+        else:
+            combiner = combiners.create_compound_combiner(
+                params, self._budget_accountant)
 
         if params.public_partitions is not None:
             col = self._drop_not_public_partitions(col,

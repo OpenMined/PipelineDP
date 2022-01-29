@@ -35,6 +35,7 @@ from apache_beam.runners.portability import fn_api_runner
 import pyspark
 from examples.movie_view_ratings.common_utils import *
 import pipeline_dp
+import typing
 
 FLAGS = flags.FLAGS
 flags.DEFINE_string('input_file', None, 'The file with the movie view data')
@@ -56,6 +57,29 @@ def calculate_private_result(movie_views, pipeline_backend):
                                       get_public_partitions())
 
 
+class SumCombiner(pipeline_dp.Combiner):
+
+    def create_accumulator(self, values):
+        """Creates accumulator from 'values'."""
+        return len(values)
+
+    def merge_accumulators(self, accumulator1, accumulator2):
+        """Merges the accumulators and returns accumulator."""
+        return accumulator1 + accumulator2
+
+    def compute_metrics(self, accumulator):
+        """Computes and returns the result of aggregation."""
+        return {"non_private_sum": accumulator}
+
+    def metrics_names(self) -> typing.List[str]:
+        """Return the list of names of the metrics this combiner computes"""
+        return ["non_private_sum"]
+
+    def set_budget_accountant(self, budget_accountant):
+        # not used
+        pass
+
+
 def calc_dp_rating_metrics(movie_views, backend, public_partitions):
     """Computes DP metrics."""
 
@@ -69,15 +93,13 @@ def calc_dp_rating_metrics(movie_views, backend, public_partitions):
     # Specify which DP aggregated metrics to compute.
     params = pipeline_dp.AggregateParams(
         noise_kind=pipeline_dp.NoiseKind.LAPLACE,
-        metrics=[
-            pipeline_dp.Metrics.COUNT, pipeline_dp.Metrics.SUM,
-            pipeline_dp.Metrics.PRIVACY_ID_COUNT, pipeline_dp.Metrics.MEAN
-        ],
+        metrics=None,
         max_partitions_contributed=2,
         max_contributions_per_partition=1,
         min_value=1,
         max_value=5,
-        public_partitions=public_partitions)
+        public_partitions=public_partitions,
+        custom_combiners=[SumCombiner()])
 
     # Specify how to extract privacy_id, partition_key and value from an
     # element of movie view collection.

@@ -62,6 +62,9 @@ class Combiner(abc.ABC):
     def metrics_names(self) -> List[str]:
         """Return the list of names of the metrics this combiner computes"""
 
+    def set_budget_accountant(self, budget_accountant):
+        pass
+
 
 class CombinerParams:
     """Parameters for a combiner.
@@ -373,3 +376,16 @@ def create_compound_combiner(
                 CombinerParams(budget_privacy_id_count, aggregate_params)))
 
     return CompoundCombiner(combiners)
+
+
+def create_compound_combiner_with_custom_combiners(
+        # aggregate_params: pipeline_dp.AggregateParams,
+        budget_accountant: budget_accounting.BudgetAccountant,
+        custom_combiners: Iterable['combiner']) -> CompoundCombiner:
+    # todo: add budget_weight
+    for combiner in custom_combiners:
+        # or request budget here
+        # Maybe class CustomCombiner ?
+        combiner.set_budget_accountant(budget_accountant)
+
+    return CompoundCombiner(custom_combiners)
