@@ -51,4 +51,4 @@ The total privacy cost of a pipeline is the sum of the costs of its releases.
 You want this to be below a certain total cost. That's your budget. Typically,
 the greek letters 'epsilon' and 'delta' (ϵ and δ) are used to define the budget.
 
-<a class="c-hero__button c-button c-button--primary" style="margin: 0px;" href="https://pipelinedp.io/overview/" target="_blank">Overview</a>
+<a class="c-button c-button--primary" href="https://pipelinedp.io/overview/" target="_blank">Overview</a>

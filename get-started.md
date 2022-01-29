@@ -45,14 +45,14 @@ $ pip install pipeline-dp
 
 A simple example that shows how to calculate restaurant visits with differential privacy. 
 
-<a class="c-hero__button c-button c-button--secondary" style="margin: 0px;" href="https://github.com/{{ site.github_repository }}/blob/main/examples/quickstart.ipynb" target="_blank">View as Jupiter Notebook</a>
-<a class="c-hero__button c-button c-button--primary" style="margin: 0px;" href="https://colab.research.google.com/github/{{ site.github_repository }}/blob/main/examples/quickstart.ipynb" target="_blank">Run in Google Colab</a>
+<a class="c-button c-button--secondary" href="https://github.com/{{ site.github_repository }}/blob/main/examples/quickstart.ipynb" target="_blank">View as Jupiter Notebook</a>
+<a class="c-button c-button--primary" href="https://colab.research.google.com/github/{{ site.github_repository }}/blob/main/examples/quickstart.ipynb" target="_blank">Run in Google Colab</a>
 
 ### Advanced tour (1 hour, no setup needed)
 A deeper walk-through: learn the key concepts of differential privacy and PipelineDP API. 
 
-<a class="c-hero__button c-button c-button--secondary" style="margin: 0px;" href="https://github.com/{{ site.github_repository }}/blob/main/examples/restaurant_visits.ipynb" target="_blank">View as Jupiter Notebook</a>
-<a class="c-hero__button c-button c-button--primary" style="margin: 0px;" href="https://colab.research.google.com/github/{{ site.github_repository }}/blob/main/examples/restaurant_visits.ipynb" target="_blank">Run in Google Colab</a>
+<a class="c-button c-button--secondary" href="https://github.com/{{ site.github_repository }}/blob/main/examples/restaurant_visits.ipynb" target="_blank">View as Jupiter Notebook</a>
+<a class="c-button c-button--primary" href="https://colab.research.google.com/github/{{ site.github_repository }}/blob/main/examples/restaurant_visits.ipynb" target="_blank">Run in Google Colab</a>
 
 ### Run an example locally (15 min, requires setting up Python environment)
 If you’d like to plan to run an example on your computer instead of Jupiter notebook, please go through the “Setting up the environment” section below and run:
