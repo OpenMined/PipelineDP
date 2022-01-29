@@ -9,11 +9,11 @@ description: >-
 *Note* that this project is still experimental and is subject to change.
 At the moment we don't recommend its usage in production systems as it's not
 thoroughly tested yet. You can learn more in the
-[Roadmap section](https://pipelinedp.io/overview/#roadmap).
+[Roadmap section](/overview/#roadmap).
 
 ## Key concepts
 The key definitions used in the documentation, code and examples are explained
-[on this page](https://pipelinedp.io/key-definitions/).
+[on this page]({%- link key-definitions.md -%}).
 
 ## Design overview
 PipelineDP design enables execution on several data processing frameworks
