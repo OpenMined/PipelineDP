@@ -19,7 +19,7 @@ run_on_spark.py or run_on_beam.py.
 
 In order to run an example:
 
-1. Install Python and run on the command line `pip install numpy apache-beam pyspark absl-py`
+1. Install Python and run on the command line `pip install pipeline-dp apache-beam pyspark absl-py`
 2. Download the Netflix prize dataset from https://www.kaggle.com/netflix-inc/netflix-prize-data and unpack it.
 3. The dataset itself is pretty big, to speed up the run it's better to use a
 part of it. You can get a part of it by running in bash:
