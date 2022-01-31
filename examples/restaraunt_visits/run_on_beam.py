@@ -12,6 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """ Demo of PipelineDP with Apache Beam.
+
+For running:
+1. Install Python and run on the command line `pip install pipeline-dp apache-beam absl-py`
+2. Run python python run_on_beam.py --input_file=<path to data.txt from 3> --output_file=<...>
 """
 
 from absl import app
@@ -21,7 +25,6 @@ from apache_beam.runners.portability import fn_api_runner
 import pipeline_dp
 from pipeline_dp import private_beam
 from pipeline_dp import SumParams
-from pipeline_dp.private_beam import MakePrivate
 import pandas as pd
 
 FLAGS = flags.FLAGS

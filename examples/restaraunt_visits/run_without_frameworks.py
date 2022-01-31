@@ -11,7 +11,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-""" Demo of running PipelineDP locally, without any external data processing framework"""
+""" Demo of running PipelineDP locally, without any external data processing framework
+
+1. Install Python and run on the command line `pip install pipeline-dp absl-py`
+2. Run python python run_without_frameworks.py --input_file=<path to data.txt from 3> --output_file=<...>
+"""
 
 from absl import app
 from absl import flags
