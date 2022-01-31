@@ -49,6 +49,12 @@ class DPEngine:
     def _add_report_stage(self, text):
         self._report_generators[-1].add_stage(text)
 
+    def _add_report_stages(self, lines):
+        self._report_generators[-1].add_stages(lines)
+
+    def explain_computations_report(self):
+        return [report_generator.report() for report_generator in self._report_generators]
+
     def aggregate(self, col, params: pipeline_dp.AggregateParams,
                   data_extractors: DataExtractors):
         """Computes DP aggregate metrics.
@@ -111,8 +117,10 @@ class DPEngine:
         # col : (partition_key, accumulator)
 
         # Compute DP metrics.
+        self._add_report_stages(combiner.explain_computation())
         col = self._backend.map_values(col, combiner.compute_metrics,
                                        "Compute DP` metrics")
+
 
         return col
 

@@ -62,6 +62,10 @@ class Combiner(abc.ABC):
     def metrics_names(self) -> List[str]:
         """Return the list of names of the metrics this combiner computes"""
 
+    @abc.abstractmethod
+    def explain_computation(self) -> str:
+        pass
+
 
 class CombinerParams:
     """Parameters for a combiner.
@@ -123,6 +127,9 @@ class CountCombiner(Combiner):
     def metrics_names(self) -> List[str]:
         return ['count']
 
+    def explain_computation(self):
+        return lambda: f"Computed count with (eps={self._params.eps} delta={self._params.delta})"
+
 
 class PrivacyIdCountCombiner(Combiner):
     """Combiner for computing DP privacy id count.
@@ -150,6 +157,10 @@ class PrivacyIdCountCombiner(Combiner):
 
     def metrics_names(self) -> List[str]:
         return ['privacy_id_count']
+
+    def explain_computation(self):
+        return lambda: f"Computed privacy id count with (eps={self._params.eps} delta={self._params.delta})"
+
 
 
 class SumCombiner(Combiner):
@@ -179,6 +190,10 @@ class SumCombiner(Combiner):
 
     def metrics_names(self) -> List[str]:
         return ['sum']
+
+    def explain_computation(self):
+        return lambda: f"Computed sum with (eps={self._params.eps} delta={self._params.delta})"
+
 
 
 class MeanCombiner(Combiner):
@@ -228,6 +243,10 @@ class MeanCombiner(Combiner):
 
     def metrics_names(self) -> List[str]:
         return self._metrics_to_compute
+
+    def explain_computation(self):
+        return lambda: f"Computed mean with (eps={self._params.eps} delta={self._params.delta})"
+
 
 
 # Cache for namedtuple types. It is should be used only in
@@ -334,6 +353,10 @@ class CompoundCombiner(Combiner):
 
     def metrics_names(self) -> List[str]:
         return self._metrics_to_compute
+
+    def explain_computation(self):
+        return [combiner.explain_computation() for combiner in self._combiners]
+
 
 
 def create_compound_combiner(

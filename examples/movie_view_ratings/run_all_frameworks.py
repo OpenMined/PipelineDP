@@ -90,6 +90,12 @@ def calc_dp_rating_metrics(movie_views, backend, public_partitions):
     dp_result = dp_engine.aggregate(movie_views, params, data_extractors)
 
     budget_accountant.compute_budgets()
+
+    reports = dp_engine.explain_computations_report()
+    for report in reports:
+        lines = report.split("\n")
+        for line in lines:
+            print(line)
     return dp_result
 
 

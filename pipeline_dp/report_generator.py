@@ -29,9 +29,13 @@ class ReportGenerator:
             self._params_str = str(params)
         self._stages = []
 
-    def add_stage(self, text: str):
+    def add_stage(self, text: str): #not text
         """Add a stage description to the report."""
         self._stages.append(text)
+
+    def add_stages(self, lines):
+        """Add a stage description to the report."""
+        self._stages.extend(lines)
 
     def report(self) -> str:
         """Constructs a report based on stages and metrics."""
