@@ -27,10 +27,10 @@ to bring Differential Privacy to production.
 
 Here are some examples of how to use PipelineDP:
 
-* [Apache Spark example](examples/movie_view_ratings/run_on_spark.py)
-* [Apache Beam example](examples/movie_view_ratings/run_on_beam.py)
-* [Framework-free example](examples/movie_view_ratings/run_without_frameworks.py)
-* [Example with all frameworks](examples/movie_view_ratings/run_all_frameworks.py)
+* [Apache Spark example](https://github.com/OpenMined/PipelineDP/blob/main/examples/movie_view_ratings/run_on_spark.py)
+* [Apache Beam example](https://github.com/OpenMined/PipelineDP/blob/main/examples/movie_view_ratings/run_on_beam.py)
+* [Framework-free example](https://github.com/OpenMined/PipelineDP/blob/main/examples/movie_view_ratings/run_without_frameworks.py)
+* [Example with all frameworks](https://github.com/OpenMined/PipelineDP/blob/main/examples/movie_view_ratings/run_all_frameworks.py)
 
 Please check out the [codelab](https://github.com/OpenMined/PipelineDP/blob/main/examples/restaurant_visits.ipynb) for a more detailed demonstration of the API functionality and usage.
 
@@ -75,7 +75,17 @@ dp_result.saveAsTextFile(FLAGS.output_file)
 
 ## Installation
 
+PipelineDP without any frameworks:
+
 `pip install pipeline-dp`
+
+If you like to run PipelineDP on Apache Spark:
+
+`pip install pipeline-dp pyspark`
+
+on Apache Beam:
+
+`pip install pipeline-dp apache-beam`.
 
 Supported Python version >= 3.7.
 
