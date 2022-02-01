@@ -11,6 +11,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import abc
+import dataclasses
+import typing
 from apache_beam.transforms import ptransform
 from abc import abstractmethod
 from typing import Callable, Optional
@@ -308,3 +311,79 @@ class FlatMap(PrivatePTransform):
     def expand(self, pcol: pvalue.PCollection):
         return pcol | "flatten values" >> beam.ParDo(
             FlatMap._FlattenValues(map_fn=self._fn))
+
+
+class PrivateCombineFn(beam.CombineFn):
+    @abc.abstractmethod
+    def request_budget(self,
+        budget_accountant: budget_accounting.BudgetAccountant):
+
+    @abc.abstractmethod
+    def add_private_input(self, accumulator, input):
+        pass
+
+    @abc.abstractmethod
+    def extract_private_output(self, accumulator):
+        pass
+
+    @abc.abstractmethod
+    def metric_names(self):
+        pass
+
+
+class CombineFnCombiner(pipeline_dp.CustomCombiner):
+    def __init__(self, private_combine_fn:PrivateCombineFn):
+        self._private_combine_fn = private_combine_fn
+
+    def create_accumulator(self, values):
+        """Creates accumulator from 'values'."""
+        accumulator = self._private_combine_fn.create_accumulator()
+        for v in values:
+            self._private_combine_fn.add_private_input(accumulator, input)
+
+    def merge_accumulators(self, accumulator1, accumulator2):
+        """Merges the accumulators and returns accumulator."""
+        return self._private_combine_fn.merge_accumulators(accumulator1, accumulator2)
+
+    def compute_metrics(self, accumulator):
+        """Computes and returns the result of aggregation."""
+        return self._private_combine_fn.extract_private_output(accumulator)
+
+    def metrics_names(self) -> typing.List[str]:
+        """Return the list of names of the metrics this combiner computes"""
+        return self._private_combine_fn.metric_names()
+
+    def request_budget(self,
+                       budget_accountant: budget_accounting.BudgetAccountant):
+        return self._private_combine_fn.request_budget(budget_accountant)
+
+
+@dataclasses.dataclass
+class CombinePerKeyParams:
+    max_partitions_contributed: int
+    max_contributions_per_partition: int
+    budget_weight: float = 1
+    min_value: float = None  # ?
+    max_value: float = None  # ?
+    public_partitions: typing.Any = None
+
+
+class CombinePerKey(PrivatePTransform):
+    """Transform class for performing a FlatMap on a PrivatePCollection."""
+
+    def __init__(self,
+                 combine_fn: PrivateCombineFn,
+                 params:CombinePerKeyParams,
+                 label: Optional[str] = None):
+        super().__init__(return_anonymized=True, label=label)
+        self._combine_fn = combine_fn
+        self._params = params
+
+    def expand(self, pcol: pvalue.PCollection):
+        combiner = CombineFnCombiner(self._combine_fn)
+        aggregate_params = None # todo
+        dp_engine = None # todo
+        data_extractors = None # todo
+
+        return dp_engine.aggregate(pcol, aggregate_params, data_extractors)
+
