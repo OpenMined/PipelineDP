@@ -17,6 +17,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Iterable, Callable, Union
 import math
+import logging
 
 
 class Metrics(Enum):

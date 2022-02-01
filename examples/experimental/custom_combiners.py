@@ -118,9 +118,9 @@ def calc_dp_rating_metrics(movie_views, backend, public_partitions):
 def get_private_movies(movie_views, backend):
     """Obtains the list of movies in a differentially private manner.
 
-    This does not calculate any metrics; it merely returns the list of
-    movies, making sure the result is differentially private.
-    """
+  This does not calculate any metrics; it merely returns the list of
+  movies, making sure the result is differentially private.
+  """
 
     # Set the total privacy budget.
     budget_accountant = pipeline_dp.NaiveBudgetAccountant(total_epsilon=0.1,
@@ -169,7 +169,7 @@ def compute_on_spark():
     conf = pyspark.SparkConf().setMaster(master)
     sc = pyspark.SparkContext(conf=conf)
     movie_views = sc.textFile(FLAGS.input_file) \
-        .mapPartitions(parse_partition)
+      .mapPartitions(parse_partition)
     pipeline_backend = pipeline_dp.SparkRDDBackend(sc)
     dp_result = calculate_private_result(movie_views, pipeline_backend)
 

@@ -62,7 +62,40 @@ class Combiner(abc.ABC):
     def metrics_names(self) -> List[str]:
         """Return the list of names of the metrics this combiner computes"""
 
-    def set_budget_accountant(self, budget_accountant):
+
+class CustomCombiner(Combiner):
+    """Base class for custom combiners.
+
+    Warning: this is an experimental API. It might not work properly and it
+    might be changed/removed without any notifications.
+    
+    Custom combiners are combiners provided by PipelineDP users and they allow
+    to extend the PipelineDP functionality.
+    """
+
+    @abc.abstractmethod
+    def request_budget(self,
+                       budget_accountant: budget_accounting.BudgetAccountant):
+        """Requests the budget.
+        
+        It is called by PipelineDP during the construction of the computations.
+        The custom combiner can request a DP budget by calling 
+        'budget_accountant.request_budget()'. The budget object needs to be
+        stored in a field of 'self'. It will be serialized and distributed
+        to the workers together with 'self'.  
+        
+        Warning: do not store 'budget_accountant' in 'self'. It is assumed to
+        live in the driver process.
+        """
+        pass
+
+    def set_aggregate_params(self,
+                             aggregate_params: pipeline_dp.AggregateParams):
+        """Sets aggregate parameters
+        
+        The custom combiner can optionally use it for own DP parameter
+        computations.
+        """
         pass
 
 
@@ -379,13 +412,11 @@ def create_compound_combiner(
 
 
 def create_compound_combiner_with_custom_combiners(
-        # aggregate_params: pipeline_dp.AggregateParams,
+        aggregate_params: pipeline_dp.AggregateParams,
         budget_accountant: budget_accounting.BudgetAccountant,
-        custom_combiners: Iterable['combiner']) -> CompoundCombiner:
-    # todo: add budget_weight
+        custom_combiners: Iterable[CustomCombiner]) -> CompoundCombiner:
     for combiner in custom_combiners:
-        # or request budget here
-        # Maybe class CustomCombiner ?
-        combiner.set_budget_accountant(budget_accountant)
+        combiner.request_budget(budget_accountant)
+        combiner.set_aggregate_params(aggregate_params)
 
     return CompoundCombiner(custom_combiners)
