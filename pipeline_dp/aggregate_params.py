@@ -69,6 +69,8 @@ class AggregateParams:
     public_partitions: A collection of partition keys that will be present in
       the result. Optional. If not provided, partitions will be selected in a DP
       manner.
+    custom_combiners: Warning: experimental@ Combiners for computing custom
+      metrics.
   """
 
     metrics: Iterable[Metrics]
@@ -81,7 +83,7 @@ class AggregateParams:
     max_value: float = None
     public_partitions: Any = None
     noise_kind: NoiseKind = NoiseKind.LAPLACE
-    custom_combiners: Iterable['Combiner'] = None
+    custom_combiners: Iterable['CustomCombiner'] = None
 
     def __post_init__(self):
         if self.low is not None:
@@ -116,12 +118,19 @@ class AggregateParams:
                 raise ValueError(
                     "params.max_value must be equal to or greater than params.min_value"
                 )
+        if self.custom_combiners:
+            logging.warning("Warning: custom combiners are used. This is an "
+                            "experimental feature. It might not work properly "
+                            "and it might be changed orremoved without any "
+                            "notifications.")
         if self.metrics and self.custom_combiners:
             raise ValueError(
                 "Custom combiners can not be used with standard metrics")
 
     def __str__(self):
-        return f"Metrics: "  #{[m.value for m in self.metrics]}" todo
+        if self.metrics:
+            return f"Metrics: {[m.value for m in self.metrics]}"
+        return "Custom metrics."
 
 
 @dataclass

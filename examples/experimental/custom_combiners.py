@@ -44,20 +44,18 @@ flags.DEFINE_enum('framework', None, ['beam', 'spark', 'local'],
                   'Pipeline framework to use.')
 flags.DEFINE_list('public_partitions', None,
                   'List of comma-separated public partition keys')
-flags.DEFINE_boolean(
-    'private_partitions', False,
-    'Output private partitions (do not calculate any DP metrics)')
 
 
 def calculate_private_result(movie_views, pipeline_backend):
-    if FLAGS.private_partitions:
-        return get_private_movies(movie_views, pipeline_backend)
-    else:
-        return calc_dp_rating_metrics(movie_views, pipeline_backend,
-                                      get_public_partitions())
+    return calc_dp_rating_metrics(movie_views, pipeline_backend,
+                                  get_public_partitions())
 
 
-class SumCombiner(pipeline_dp.CustomCombiner):
+class CountCombiner(pipeline_dp.CustomCombiner):
+    """Non-DP sum combiner.
+
+    It is just for demonstration how custom combiners API work.
+    """
 
     def create_accumulator(self, values):
         """Creates accumulator from 'values'."""
@@ -69,14 +67,14 @@ class SumCombiner(pipeline_dp.CustomCombiner):
 
     def compute_metrics(self, accumulator):
         """Computes and returns the result of aggregation."""
-        return {"non_private_sum": accumulator}
+        return {"non_private_count": accumulator}
 
     def metrics_names(self) -> typing.List[str]:
         """Return the list of names of the metrics this combiner computes"""
-        return ["non_private_sum"]
+        return ["non_private_count"]
 
     def request_budget(self, budget_accountant):
-        # not used
+        # Not used in this example.
         pass
 
 
@@ -99,7 +97,7 @@ def calc_dp_rating_metrics(movie_views, backend, public_partitions):
         min_value=1,
         max_value=5,
         public_partitions=public_partitions,
-        custom_combiners=[SumCombiner()])
+        custom_combiners=[CountCombiner()])
 
     # Specify how to extract privacy_id, partition_key and value from an
     # element of movie view collection.
@@ -110,36 +108,6 @@ def calc_dp_rating_metrics(movie_views, backend, public_partitions):
 
     # Run aggregation.
     dp_result = dp_engine.aggregate(movie_views, params, data_extractors)
-
-    budget_accountant.compute_budgets()
-    return dp_result
-
-
-def get_private_movies(movie_views, backend):
-    """Obtains the list of movies in a differentially private manner.
-
-  This does not calculate any metrics; it merely returns the list of
-  movies, making sure the result is differentially private.
-  """
-
-    # Set the total privacy budget.
-    budget_accountant = pipeline_dp.NaiveBudgetAccountant(total_epsilon=0.1,
-                                                          total_delta=1e-6)
-
-    # Create a DPEngine instance.
-    dp_engine = pipeline_dp.DPEngine(budget_accountant, backend)
-
-    # Specify how to extract privacy_id, partition_key and value from an
-    # element of movie view collection.
-    data_extractors = pipeline_dp.DataExtractors(
-        partition_extractor=lambda mv: mv.movie_id,
-        privacy_id_extractor=lambda mv: mv.user_id)
-
-    # Run aggregation.
-    dp_result = dp_engine.select_partitions(
-        movie_views,
-        pipeline_dp.SelectPartitionsParams(max_partitions_contributed=2),
-        data_extractors=data_extractors)
 
     budget_accountant.compute_budgets()
     return dp_result
