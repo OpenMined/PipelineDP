@@ -202,7 +202,7 @@ class Count(PrivatePTransform):
         # aggregate() returns a namedtuple of metrics for each partition key.
         # Here is only one metric - count. Extract it from the list.
         dp_result = backend.map_values(dp_result, lambda v: v.count,
-                                       "Extract sum")
+                                       "Extract count")
         # dp_result : (partition_key, dp_count)
 
         return dp_result
