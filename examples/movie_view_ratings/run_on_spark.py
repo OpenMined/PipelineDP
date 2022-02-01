@@ -12,6 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """ Demo of PipelineDP with Spark.
+
+For running:
+1. Install Python and run on the command line `pip install pipeline-dp pyspark absl-py`
+2. Run python python run_on_beam.py --input_file=<path to data.txt from 3> --output_file=<...>
 """
 
 from absl import app

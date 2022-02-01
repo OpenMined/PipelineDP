@@ -27,4 +27,4 @@ from pipeline_dp.pipeline_backend import BeamBackend
 from pipeline_dp.pipeline_backend import LocalBackend
 from pipeline_dp.pipeline_backend import SparkRDDBackend
 
-__version__ = '0.1.0'
+__version__ = '0.1.1'
