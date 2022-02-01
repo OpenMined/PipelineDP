@@ -121,9 +121,11 @@ class CreateCompoundCombinersTest(parameterized.TestCase):
 
         budget_accountant = pipeline_dp.NaiveBudgetAccountant(1, 1e-10)
 
+        # Act
         compound_combiner = dp_combiners.create_compound_combiner_with_custom_combiners(
             aggregate_params, budget_accountant, custom_combiners)
 
+        # Assert
         self.assertEqual(("metric0", "metric1"),
                          compound_combiner._metrics_to_compute)
         for combiner in custom_combiners:
