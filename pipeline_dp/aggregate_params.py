@@ -124,6 +124,8 @@ class AggregateParams:
                             "and it might be changed orremoved without any "
                             "notifications.")
         if self.metrics and self.custom_combiners:
+            # TODO(dvadym): after implementation of custom combiners to verify
+            # whether this check is required?
             raise ValueError(
                 "Custom combiners can not be used with standard metrics")
 
