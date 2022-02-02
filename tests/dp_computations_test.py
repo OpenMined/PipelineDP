@@ -379,6 +379,23 @@ class DPComputationsTest(unittest.TestCase):
                                expected_sum / expected_count,
                                delta=0.1)
 
+    def test_compute_dp_mean_equal_min_max(self):
+        params = dp_computations.MeanVarParams(
+            eps=0.5,
+            delta=1e-10,
+            min_value=42.0,
+            max_value=42.0, # = min_value
+            max_partitions_contributed=1,
+            max_contributions_per_partition=1,
+            noise_kind=NoiseKind.LAPLACE)
+
+
+        count, sum, mean = dp_computations.compute_dp_mean(count=10,
+                                        sum=400,
+                                        dp_params=params)
+        self.assertEqual(mean, 42.0)
+
+
     def test_compute_dp_var(self):
         params = dp_computations.MeanVarParams(
             eps=10,

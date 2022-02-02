@@ -271,6 +271,9 @@ def compute_dp_sum(sum: float, dp_params: MeanVarParams):
     linf_sensitivity = dp_params.max_contributions_per_partition * max(
         abs(dp_params.min_value), abs(dp_params.max_value))
 
+    if linf_sensitivity == 0:
+        return 0
+
     return _add_random_noise(
         sum,
         dp_params.eps,
@@ -312,6 +315,8 @@ def _compute_mean(
     Returns:
         The anonymized mean.
     """
+    if min_value == max_value:
+        return min_value
     middle = compute_middle(min_value, max_value)
     linf_sensitivity = max_contributions_per_partition * abs(middle - min_value)
 
