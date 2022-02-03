@@ -314,9 +314,11 @@ class FlatMap(PrivatePTransform):
 
 
 class PrivateCombineFn(beam.CombineFn):
+
     @abc.abstractmethod
     def request_budget(self,
-        budget_accountant: budget_accounting.BudgetAccountant):
+                       budget_accountant: budget_accounting.BudgetAccountant):
+        pass
 
     @abc.abstractmethod
     def add_private_input(self, accumulator, input):
@@ -332,7 +334,8 @@ class PrivateCombineFn(beam.CombineFn):
 
 
 class CombineFnCombiner(pipeline_dp.CustomCombiner):
-    def __init__(self, private_combine_fn:PrivateCombineFn):
+
+    def __init__(self, private_combine_fn: PrivateCombineFn):
         self._private_combine_fn = private_combine_fn
 
     def create_accumulator(self, values):
@@ -343,7 +346,8 @@ class CombineFnCombiner(pipeline_dp.CustomCombiner):
 
     def merge_accumulators(self, accumulator1, accumulator2):
         """Merges the accumulators and returns accumulator."""
-        return self._private_combine_fn.merge_accumulators(accumulator1, accumulator2)
+        return self._private_combine_fn.merge_accumulators(
+            accumulator1, accumulator2)
 
     def compute_metrics(self, accumulator):
         """Computes and returns the result of aggregation."""
@@ -373,7 +377,7 @@ class CombinePerKey(PrivatePTransform):
 
     def __init__(self,
                  combine_fn: PrivateCombineFn,
-                 params:CombinePerKeyParams,
+                 params: CombinePerKeyParams,
                  label: Optional[str] = None):
         super().__init__(return_anonymized=True, label=label)
         self._combine_fn = combine_fn
@@ -381,9 +385,8 @@ class CombinePerKey(PrivatePTransform):
 
     def expand(self, pcol: pvalue.PCollection):
         combiner = CombineFnCombiner(self._combine_fn)
-        aggregate_params = None # todo
-        dp_engine = None # todo
-        data_extractors = None # todo
+        aggregate_params = None  # todo
+        dp_engine = None  # todo
+        data_extractors = None  # todo
 
         return dp_engine.aggregate(pcol, aggregate_params, data_extractors)
-
