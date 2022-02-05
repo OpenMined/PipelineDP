@@ -202,7 +202,8 @@ class DPEngine:
         # col : (privacy_id, partition_key)
 
         # A compound accumulator without any child accumulators is used to calculate the raw privacy ID count.
-        compound_combiner = combiners.CompoundCombiner([])
+        compound_combiner = combiners.CompoundCombiner([],
+                                                       return_named_tuple=False)
         col = self._backend.map_tuple(
             col, lambda pid, pk: (pk, compound_combiner.create_accumulator([])),
             "Drop privacy id and add accumulator")

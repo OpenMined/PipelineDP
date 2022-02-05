@@ -115,7 +115,6 @@ class CreateCompoundCombinersTest(parameterized.TestCase):
         # Mock request budget and metrics names functions.
         for i, combiner in enumerate(custom_combiners):
             combiner.request_budget = mock.Mock()
-            combiner.metrics_names = mock.Mock(return_value=[f"metric{i}"])
 
         aggregate_params = self._create_aggregate_params(None)
 
@@ -126,8 +125,7 @@ class CreateCompoundCombinersTest(parameterized.TestCase):
             aggregate_params, budget_accountant, custom_combiners)
 
         # Assert
-        self.assertEqual(("metric0", "metric1"),
-                         compound_combiner._metrics_to_compute)
+        self.assertFalse(compound_combiner._return_named_tuple)
         for combiner in custom_combiners:
             combiner.request_budget.assert_called_once()
 
@@ -329,7 +327,8 @@ class CompoundCombinerTest(parameterized.TestCase):
         return dp_combiners.CompoundCombiner([
             dp_combiners.CountCombiner(params),
             dp_combiners.SumCombiner(params)
-        ])
+        ],
+                                             return_named_tuple=True)
 
     @parameterized.named_parameters(
         dict(testcase_name='no_noise', no_noise=True),
