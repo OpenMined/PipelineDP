@@ -16,7 +16,7 @@ from pyspark import SparkContext
 from unittest.mock import patch
 import unittest
 import sys
-
+import collections
 import pipeline_dp
 from pipeline_dp import aggregate_params as agg
 from pipeline_dp import budget_accounting, private_spark
@@ -83,8 +83,10 @@ class PrivateRDDTest(unittest.TestCase):
         # Arrange
         dist_data = PrivateRDDTest.sc.parallelize([(1, 2.0, "pk1"),
                                                    (2, 2.0, "pk1")])
-        mock_aggregate.return_value = PrivateRDDTest.sc.parallelize([(2.0,
-                                                                      ["pk1"])])
+        MetricsTuple = collections.namedtuple('MetricsTuple', ['mean'])
+        mock_aggregate.return_value = PrivateRDDTest.sc.parallelize([
+            ("pk1", MetricsTuple(mean=2.0))
+        ])
         budget_accountant = budget_accounting.NaiveBudgetAccountant(1, 1e-10)
 
         def privacy_id_extractor(x):
@@ -124,7 +126,7 @@ class PrivateRDDTest(unittest.TestCase):
             public_partitions=mean_params.public_partitions)
         self.assertEqual(args[1], params)
 
-        self.assertEqual(actual_result.collect(), [(2.0, "pk1")])
+        self.assertEqual(actual_result.collect(), [("pk1", 2.0)])
 
     def test_mean_returns_sensible_result(self):
         # Arrange
@@ -216,8 +218,10 @@ class PrivateRDDTest(unittest.TestCase):
         # Arrange
         dist_data = PrivateRDDTest.sc.parallelize([(1, 1.0, "pk1"),
                                                    (2, 2.0, "pk1")])
-        mock_aggregate.return_value = PrivateRDDTest.sc.parallelize([(3.0,
-                                                                      ["pk1"])])
+        MetricsTuple = collections.namedtuple('MetricsTuple', ['sum'])
+        mock_aggregate.return_value = PrivateRDDTest.sc.parallelize([
+            ("pk1", MetricsTuple(sum=3.0))
+        ])
         budget_accountant = budget_accounting.NaiveBudgetAccountant(1, 1e-10)
 
         def privacy_id_extractor(x):
@@ -257,7 +261,7 @@ class PrivateRDDTest(unittest.TestCase):
             public_partitions=sum_params.public_partitions)
         self.assertEqual(args[1], params)
 
-        self.assertEqual(actual_result.collect(), [(3.0, "pk1")])
+        self.assertEqual(actual_result.collect(), [("pk1", 3.0)])
 
     def test_sum_returns_sensible_result(self):
         # Arrange
@@ -347,8 +351,10 @@ class PrivateRDDTest(unittest.TestCase):
     def test_count_calls_aggregate_with_correct_params(self, mock_aggregate):
         # Arrange
         dist_data = PrivateRDDTest.sc.parallelize([(1, "pk1"), (2, "pk1")])
-        mock_aggregate.return_value = PrivateRDDTest.sc.parallelize([(2,
-                                                                      ["pk1"])])
+        MetricsTuple = collections.namedtuple('MetricsTuple', ['count'])
+        mock_aggregate.return_value = PrivateRDDTest.sc.parallelize([
+            ("pk1", MetricsTuple(count=2))
+        ])
         budget_accountant = budget_accounting.NaiveBudgetAccountant(1, 1e-10)
 
         def privacy_id_extractor(x):
@@ -383,7 +389,7 @@ class PrivateRDDTest(unittest.TestCase):
             public_partitions=count_params.public_partitions)
         self.assertEqual(args[1], params)
 
-        self.assertEqual(actual_result.collect(), [(2, "pk1")])
+        self.assertEqual(actual_result.collect(), [("pk1", 2)])
 
     def test_count_returns_sensible_result(self):
         # Arrange
@@ -471,8 +477,11 @@ class PrivateRDDTest(unittest.TestCase):
             self, mock_aggregate):
         # Arrange
         dist_data = PrivateRDDTest.sc.parallelize([(1, "pk1"), (2, "pk1")])
-        mock_aggregate.return_value = PrivateRDDTest.sc.parallelize([(2,
-                                                                      ["pk1"])])
+        MetricsTuple = collections.namedtuple('MetricsTuple',
+                                              ['privacy_id_count'])
+        mock_aggregate.return_value = PrivateRDDTest.sc.parallelize([
+            ("pk1", MetricsTuple(privacy_id_count=2))
+        ])
         budget_accountant = budget_accounting.NaiveBudgetAccountant(1, 1e-10)
 
         def privacy_id_extractor(x):
@@ -505,7 +514,7 @@ class PrivateRDDTest(unittest.TestCase):
             public_partitions=privacy_id_count_params.public_partitions)
         self.assertEqual(args[1], params)
 
-        self.assertEqual([(2, "pk1")], actual_result.collect())
+        self.assertEqual([("pk1", 2)], actual_result.collect())
 
     def test_privacy_id_count_returns_sensible_result(self):
         # Arrange
