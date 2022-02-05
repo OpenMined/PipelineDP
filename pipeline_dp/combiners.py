@@ -98,6 +98,9 @@ class CustomCombiner(Combiner):
         """
         pass
 
+    def metrics_names(self) -> List[str]:
+        return ""  # not used by custom combiners.
+
 
 class CombinerParams:
     """Parameters for a combiner.
@@ -308,22 +311,29 @@ class CompoundCombiner(Combiner):
     contains accumulators from internal combiners.
 
     Returns:
-        namedtuple (MetricsTuple) whose fields are one or more of
-        pipeline_dp.Metrics, depending on what the combiners compute. E.g., if
-        CompoundCombiner has a PrivacyIdCountCombiner that computes
-        'privacy_id_count' and a MeanCombiner that computes 'mean' and 'sum',
-        CompoundCombiner will return a MetricsTuple(
-            privacy_id_count=dp_privacy_id_count,
-            sum=dp_sum,
-            count=dp_mean,
-        )
+        if return_named_tuple == False tuple with elements returned from the
+            internal combiners in order in which internal combiners are specified.
+        else returns namedtuple (MetricsTuple) whose fields are one or more of
+            pipeline_dp.Metrics, depending on what the combiners compute.
+            E.g., if CompoundCombiner has a PrivacyIdCountCombiner that computes
+            'privacy_id_count' and a MeanCombiner that computes 'mean' and 'sum',
+            CompoundCombiner will return a MetricsTuple(
+                privacy_id_count=dp_privacy_id_count,
+                sum=dp_sum,
+                count=dp_mean,
+            )
     """
 
     AccumulatorType = Tuple[int, Tuple]
 
-    def __init__(self, combiners: Iterable['Combiner']):
+    def __init__(self, combiners: Iterable['Combiner'],
+                 return_named_tuple: bool):
         self._combiners = combiners
         self._metrics_to_compute = []
+        self._return_named_tuple = return_named_tuple
+        if not self._return_named_tuple:
+            return
+        # Creates namedtuple type based on what the internal combiners return.
         for combiner in self._combiners:
             self._metrics_to_compute.extend(combiner.metrics_names())
         if len(self._metrics_to_compute) != len(set(self._metrics_to_compute)):
@@ -353,8 +363,15 @@ class CompoundCombiner(Combiner):
 
     def compute_metrics(self, compound_accumulator: AccumulatorType):
         privacy_id_count, accumulator = compound_accumulator
-        # Concatenates output of combiners, raises Exception if there are any
-        # duplicates.
+
+        if not self._return_named_tuple:
+            # returns tuple of what the internal combiners return.
+            return tuple(
+                combiner.compute_metrics(acc)
+                for combiner, acc in zip(self._combiners, accumulator))
+
+        # Concatenates output of the internal combiners into Namedtype, raises
+        # Exception if there are any duplicates.
         combined_metrics = {}
         for combiner, acc in zip(self._combiners, accumulator):
             metrics_for_combiner = combiner.compute_metrics(acc)
@@ -408,7 +425,7 @@ def create_compound_combiner(
             PrivacyIdCountCombiner(
                 CombinerParams(budget_privacy_id_count, aggregate_params)))
 
-    return CompoundCombiner(combiners)
+    return CompoundCombiner(combiners, return_named_tuple=True)
 
 
 def create_compound_combiner_with_custom_combiners(
@@ -419,4 +436,4 @@ def create_compound_combiner_with_custom_combiners(
         combiner.request_budget(budget_accountant)
         combiner.set_aggregate_params(aggregate_params)
 
-    return CompoundCombiner(custom_combiners)
+    return CompoundCombiner(custom_combiners, return_named_tuple=False)

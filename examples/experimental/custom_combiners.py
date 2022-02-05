@@ -26,7 +26,7 @@ part of it. You can get a part of it by running in bash:
 
    head -10000 combined_data_1.txt > data.txt
 
-4. Run python run_all_frameworks.py --framework=<framework> --input_file=<path to data.txt from 3> --output_file=<...>
+4. Run python custom_combiners.py --framework=<framework> --input_file=<path to data.txt from 3> --output_file=<...>
 """
 
 from absl import app
@@ -61,17 +61,13 @@ class CountCombiner(pipeline_dp.CustomCombiner):
         """Creates accumulator from 'values'."""
         return len(values)
 
-    def merge_accumulators(self, accumulator1, accumulator2):
+    def merge_accumulators(self, count1, count2):
         """Merges the accumulators and returns accumulator."""
-        return accumulator1 + accumulator2
+        return count1 + count2
 
-    def compute_metrics(self, accumulator):
+    def compute_metrics(self, count):
         """Computes and returns the result of aggregation."""
-        return {"non_private_count": accumulator}
-
-    def metrics_names(self) -> typing.List[str]:
-        """Return the list of names of the metrics this combiner computes"""
-        return ["non_private_count"]
+        return count
 
     def request_budget(self, budget_accountant):
         # Not used in this example.
