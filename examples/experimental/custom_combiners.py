@@ -35,7 +35,7 @@ from apache_beam.runners.portability import fn_api_runner
 import pyspark
 from examples.movie_view_ratings.common_utils import *
 import pipeline_dp
-import typing
+import numpy as np
 
 FLAGS = flags.FLAGS
 flags.DEFINE_string('input_file', None, 'The file with the movie view data')
@@ -52,7 +52,7 @@ def calculate_private_result(movie_views, pipeline_backend):
 
 
 class CountCombiner(pipeline_dp.CustomCombiner):
-    """Non-DP sum combiner.
+    """DP sum combiner.
 
     It is just for demonstration how custom combiners API work.
     """
@@ -67,11 +67,24 @@ class CountCombiner(pipeline_dp.CustomCombiner):
 
     def compute_metrics(self, count):
         """Computes and returns the result of aggregation."""
-        return count
+        # Simple implementation of Laplace mechanism.
+        sensitivity = self._aggregate_params.max_contributions_per_partition * self._aggregate_params.max_partitions_contributed
+        eps = self._budget.eps
+        laplace_b = sensitivity / eps
+
+        # Warning: using a standard laplace noise is done only for simplicity, don't use it in production. Better it's to use a standard PipelineDP metric Count.
+        return np.random.laplace(count, laplace_b)
 
     def request_budget(self, budget_accountant):
-        # Not used in this example.
-        pass
+        self._budget = budget_accountant.request_budget(
+            pipeline_dp.MechanismType.LAPLACE)
+        # _budget object is not initialized yet. It will be initialized with
+        # eps/delta only during budget_accountant.compute_budgets() call.
+        # Warning: do not access eps/delta or make deep copy of _budget object
+        # in this function.
+
+    def set_aggregate_params(self, aggregate_params):
+        self._aggregate_params = aggregate_params
 
 
 def calc_dp_rating_metrics(movie_views, backend, public_partitions):
@@ -106,6 +119,7 @@ def calc_dp_rating_metrics(movie_views, backend, public_partitions):
     dp_result = dp_engine.aggregate(movie_views, params, data_extractors)
 
     budget_accountant.compute_budgets()
+
     return dp_result
 
 

@@ -132,7 +132,7 @@ class AggregateParams:
     def __str__(self):
         if self.metrics:
             return f"Metrics: {[m.value for m in self.metrics]}"
-        return "Custom metrics."
+        return f"Custom combiners: {[c.metrics_names() for c in self.custom_combiners]}"
 
 
 @dataclass

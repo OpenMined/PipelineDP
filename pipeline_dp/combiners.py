@@ -70,7 +70,10 @@ class CustomCombiner(Combiner):
     might be changed/removed without any notifications.
     
     Custom combiners are combiners provided by PipelineDP users and they allow
-    to extend the PipelineDP functionality.
+    to add custom DP aggregations for extending the PipelineDP functionality.
+
+    TODO(dvadym): after full implementation of Custom combiners to figure out
+    whether CustomCombiner class is needed or Combiner can be used.
     """
 
     @abc.abstractmethod
@@ -89,6 +92,7 @@ class CustomCombiner(Combiner):
         """
         pass
 
+    @abc.abstractmethod
     def set_aggregate_params(self,
                              aggregate_params: pipeline_dp.AggregateParams):
         """Sets aggregate parameters
@@ -99,7 +103,11 @@ class CustomCombiner(Combiner):
         pass
 
     def metrics_names(self) -> List[str]:
-        return ""  # not used by custom combiners.
+        """Metrics that self computes.
+
+        By default returns class name.
+        """
+        return self.__class__.__name__
 
 
 class CombinerParams:

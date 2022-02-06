@@ -69,7 +69,11 @@ class DPEngine:
 
         self._report_generators.append(report_generator.ReportGenerator(params))
 
-        if params.custom_combiners:  # maybe to extract it in a separate method
+        if params.custom_combiners:
+            # TODO(dvadym): after finishing implementation of custom combiners
+            # to figure out whether it makes sense to encapsulate creation of
+            # combiners in one function instead of considering 2 cases -
+            # standard combiners and custom combiners.
             combiner = combiners.create_compound_combiner_with_custom_combiners(
                 params, self._budget_accountant, params.custom_combiners)
         else:
@@ -110,8 +114,6 @@ class DPEngine:
         if params.public_partitions is None:
             col = self._select_private_partitions_internal(
                 col, params.max_partitions_contributed)
-        else:
-            pass
         # col : (partition_key, accumulator)
 
         # Compute DP metrics.
@@ -148,8 +150,9 @@ class DPEngine:
           col: collection where all elements are of the same type.
           params: parameters, see doc for SelectPrivatePartitionsParams.
           data_extractors: functions that extract needed pieces of information
-            from elements of 'col'. Only privacy_id_extractor and partition_extractor are required.
-            value_extractor is not required.
+            from elements of 'col'. Only `privacy_id_extractor` and
+            `partition_extractor` are required.
+            `value_extractor` is not required.
         """
         self._check_select_private_partitions(col, params, data_extractors)
 
