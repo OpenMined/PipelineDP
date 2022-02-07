@@ -37,6 +37,10 @@ class PrivatePTransform(ptransform.PTransform):
         """Sets the additional parameters needed for the private transform."""
         self._budget_accountant = budget_accountant
 
+    def _create_dp_engine(self):
+        backend = pipeline_dp.BeamBackend()
+        return backend, pipeline_dp.DPEngine(self._budget_accountant, backend)
+
     @abstractmethod
     def expand(self, pcol: pvalue.PCollection) -> pvalue.PCollection:
         pass
@@ -316,11 +320,6 @@ class FlatMap(PrivatePTransform):
 class PrivateCombineFn(beam.CombineFn):
 
     @abc.abstractmethod
-    def request_budget(self,
-                       budget_accountant: budget_accounting.BudgetAccountant):
-        pass
-
-    @abc.abstractmethod
     def add_private_input(self, accumulator, input):
         pass
 
@@ -329,11 +328,33 @@ class PrivateCombineFn(beam.CombineFn):
         pass
 
     @abc.abstractmethod
-    def metric_names(self):
+    def request_budget(self,
+                       budget_accountant: budget_accounting.BudgetAccountant):
+        """Requests the budget.
+
+        It is called by PipelineDP during the construction of the computations.
+        The custom combiner can request a DP budget by calling
+        'budget_accountant.request_budget()'. The budget object needs to be
+        stored in a field of 'self'. It will be serialized and distributed
+        to the workers together with 'self'.
+
+        Warning: do not store 'budget_accountant' in 'self'. It is assumed to
+        live in the driver process.
+        """
+        pass
+
+    @abc.abstractmethod
+    def set_aggregate_params(self,
+                             aggregate_params: pipeline_dp.AggregateParams):
+        """Sets aggregate parameters
+
+        The custom combiner can optionally use it for own DP parameter
+        computations.
+        """
         pass
 
 
-class CombineFnCombiner(pipeline_dp.CustomCombiner):
+class _CombineFnCombiner(pipeline_dp.CustomCombiner):
 
     def __init__(self, private_combine_fn: PrivateCombineFn):
         self._private_combine_fn = private_combine_fn
@@ -342,24 +363,25 @@ class CombineFnCombiner(pipeline_dp.CustomCombiner):
         """Creates accumulator from 'values'."""
         accumulator = self._private_combine_fn.create_accumulator()
         for v in values:
-            self._private_combine_fn.add_private_input(accumulator, input)
+            accumulator = self._private_combine_fn.add_private_input(
+                accumulator, v)
+        return accumulator
 
     def merge_accumulators(self, accumulator1, accumulator2):
         """Merges the accumulators and returns accumulator."""
         return self._private_combine_fn.merge_accumulators(
-            accumulator1, accumulator2)
+            [accumulator1, accumulator2])
 
     def compute_metrics(self, accumulator):
         """Computes and returns the result of aggregation."""
         return self._private_combine_fn.extract_private_output(accumulator)
 
-    def metrics_names(self) -> typing.List[str]:
-        """Return the list of names of the metrics this combiner computes"""
-        return self._private_combine_fn.metric_names()
-
     def request_budget(self,
                        budget_accountant: budget_accounting.BudgetAccountant):
-        return self._private_combine_fn.request_budget(budget_accountant)
+        self._private_combine_fn.request_budget(budget_accountant)
+
+    def set_aggregate_params(self, aggregate_params):
+        self._private_combine_fn.set_aggregate_params(aggregate_params)
 
 
 @dataclasses.dataclass
@@ -367,8 +389,6 @@ class CombinePerKeyParams:
     max_partitions_contributed: int
     max_contributions_per_partition: int
     budget_weight: float = 1
-    min_value: float = None  # ?
-    max_value: float = None  # ?
     public_partitions: typing.Any = None
 
 
@@ -384,9 +404,28 @@ class CombinePerKey(PrivatePTransform):
         self._params = params
 
     def expand(self, pcol: pvalue.PCollection):
-        combiner = CombineFnCombiner(self._combine_fn)
-        aggregate_params = None  # todo
-        dp_engine = None  # todo
-        data_extractors = None  # todo
+        combiner = _CombineFnCombiner(self._combine_fn)
+        aggregate_params = pipeline_dp.AggregateParams(
+            metrics=None,
+            max_partitions_contributed=self._params.max_partitions_contributed,
+            max_contributions_per_partition=self._params.
+            max_contributions_per_partition,
+            custom_combiners=[combiner])
 
-        return dp_engine.aggregate(pcol, aggregate_params, data_extractors)
+        backend, dp_engine = self._create_dp_engine()
+        # Assumed elements format: (privacy_id, (partition_key, value))
+        data_extractors = pipeline_dp.DataExtractors(
+            privacy_id_extractor=lambda x: x[0],
+            partition_extractor=lambda x: x[1][0],
+            value_extractor=lambda x: x[1][1])
+
+        dp_result = dp_engine.aggregate(pcol, aggregate_params, data_extractors)
+        # dp_result : (partition_key, [combiner_result])
+
+        # aggregate() returns a tuple with on 1 element per combiner.
+        # Here is only one combiner. Extract it from the tuple.
+        dp_result = backend.map_values(dp_result, lambda v: v[0],
+                                       "Unnest tuple")
+        # dp_result : (partition_key, result)
+
+        return dp_result

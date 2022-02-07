@@ -68,11 +68,13 @@ class CountCombiner(pipeline_dp.CustomCombiner):
     def compute_metrics(self, count):
         """Computes and returns the result of aggregation."""
         # Simple implementation of Laplace mechanism.
-        sensitivity = self._aggregate_params.max_contributions_per_partition * self._aggregate_params.max_partitions_contributed
+        sensitivity = self._aggregate_params.max_contributions_per_partition * \
+                      self._aggregate_params.max_partitions_contributed
         eps = self._budget.eps
         laplace_b = sensitivity / eps
 
-        # Warning: using a standard laplace noise is done only for simplicity, don't use it in production. Better it's to use a standard PipelineDP metric Count.
+        # Warning: using a standard laplace noise is done only for simplicity, don't use it in production.
+        # Better it's to use a standard PipelineDP metric Count.
         return np.random.laplace(count, laplace_b)
 
     def request_budget(self, budget_accountant):
