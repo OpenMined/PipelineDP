@@ -302,6 +302,18 @@ class DPComputationsTest(unittest.TestCase):
                                   delta=params.delta,
                                   l2_sensitivity=l2_sensitivity)
 
+    def test_compute_dp_sum_min_max_zero(self):
+        params = dp_computations.MeanVarParams(
+            eps=0.5,
+            delta=1e-10,
+            min_value=0,
+            max_value=0,
+            max_partitions_contributed=1,
+            max_contributions_per_partition=1,
+            noise_kind=NoiseKind.LAPLACE)
+
+        self.assertEqual(0, dp_computations.compute_dp_sum(10, params))
+
     def test_equally_split_budget(self):
         # The number of mechanisms must be bigger than 0.
         with self.assertRaises(ValueError):
@@ -378,6 +390,21 @@ class DPComputationsTest(unittest.TestCase):
         self.assertAlmostEqual(np.mean(mean_values),
                                expected_sum / expected_count,
                                delta=0.1)
+
+    def test_compute_dp_mean_equal_min_max(self):
+        params = dp_computations.MeanVarParams(
+            eps=0.5,
+            delta=1e-10,
+            min_value=42.0,
+            max_value=42.0,  # = min_value
+            max_partitions_contributed=1,
+            max_contributions_per_partition=1,
+            noise_kind=NoiseKind.LAPLACE)
+
+        count, sum, mean = dp_computations.compute_dp_mean(count=10,
+                                                           sum=400,
+                                                           dp_params=params)
+        self.assertEqual(mean, 42.0)
 
     def test_compute_dp_var(self):
         params = dp_computations.MeanVarParams(

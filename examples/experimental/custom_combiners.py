@@ -26,7 +26,7 @@ part of it. You can get a part of it by running in bash:
 
    head -10000 combined_data_1.txt > data.txt
 
-4. Run python run_all_frameworks.py --framework=<framework> --input_file=<path to data.txt from 3> --output_file=<...>
+4. Run python custom_combiners.py --framework=<framework> --input_file=<path to data.txt from 3> --output_file=<...>
 """
 
 from absl import app
@@ -35,7 +35,7 @@ from apache_beam.runners.portability import fn_api_runner
 import pyspark
 from examples.movie_view_ratings.common_utils import *
 import pipeline_dp
-import typing
+import numpy as np
 
 FLAGS = flags.FLAGS
 flags.DEFINE_string('input_file', None, 'The file with the movie view data')
@@ -52,7 +52,7 @@ def calculate_private_result(movie_views, pipeline_backend):
 
 
 class CountCombiner(pipeline_dp.CustomCombiner):
-    """Non-DP sum combiner.
+    """DP sum combiner.
 
     It is just for demonstration how custom combiners API work.
     """
@@ -61,22 +61,30 @@ class CountCombiner(pipeline_dp.CustomCombiner):
         """Creates accumulator from 'values'."""
         return len(values)
 
-    def merge_accumulators(self, accumulator1, accumulator2):
+    def merge_accumulators(self, count1, count2):
         """Merges the accumulators and returns accumulator."""
-        return accumulator1 + accumulator2
+        return count1 + count2
 
-    def compute_metrics(self, accumulator):
+    def compute_metrics(self, count):
         """Computes and returns the result of aggregation."""
-        return {"non_private_count": accumulator}
+        # Simple implementation of Laplace mechanism.
+        sensitivity = self._aggregate_params.max_contributions_per_partition * self._aggregate_params.max_partitions_contributed
+        eps = self._budget.eps
+        laplace_b = sensitivity / eps
 
-    def metrics_names(self) -> typing.List[str]:
-        """Return the list of names of the metrics this combiner computes"""
-        return ["non_private_count"]
+        # Warning: using a standard laplace noise is done only for simplicity, don't use it in production. Better it's to use a standard PipelineDP metric Count.
+        return np.random.laplace(count, laplace_b)
 
     def request_budget(self, budget_accountant):
-        # Not used in this example.
-        pass
+        self._budget = budget_accountant.request_budget(
+            pipeline_dp.MechanismType.LAPLACE)
+        # _budget object is not initialized yet. It will be initialized with
+        # eps/delta only during budget_accountant.compute_budgets() call.
+        # Warning: do not access eps/delta or make deep copy of _budget object
+        # in this function.
 
+    def set_aggregate_params(self, aggregate_params):
+        self._aggregate_params = aggregate_params
 
 def calc_dp_rating_metrics(movie_views, backend, public_partitions):
     """Computes DP metrics."""
@@ -110,6 +118,7 @@ def calc_dp_rating_metrics(movie_views, backend, public_partitions):
     dp_result = dp_engine.aggregate(movie_views, params, data_extractors)
 
     budget_accountant.compute_budgets()
+
     return dp_result
 
 
