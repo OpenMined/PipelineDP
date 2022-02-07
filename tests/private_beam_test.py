@@ -732,6 +732,57 @@ class PrivateBeamTest(unittest.TestCase):
             # Hence, we use a very large tolerance to reduce test flakiness.
             beam_util.assert_that(result, beam_util.equal_to(["pk1", "pk2"]))
 
+    def test_combine_per_returns_sensible_result(self):
+        with TestPipeline() as pipeline:
+            # Arrange
+            col = [(f"{u}", "pk1", 100.0) for u in range(30)]
+            col += [(f"{u + 30}", "pk1", -100.0) for u in range(30)]
+            pcol = pipeline | 'Create produce' >> beam.Create(col)
+            # Use very high epsilon and delta to minimize noise and test
+            # flakiness.
+            budget_accountant = budget_accounting.NaiveBudgetAccountant(
+                total_epsilon=800, total_delta=0.999)
+            private_collection = (
+                pcol | 'Create private collection' >> private_beam.MakePrivate(
+                    budget_accountant=budget_accountant,
+                    privacy_id_extractor=lambda x: x[0]))
+
+            private_collection = private_collection | private_beam.Map(
+                lambda x: (x[1], x[2]))
+
+            # Act
+            result = private_collection | private_beam.CombinePerKey(
+                SumCombineFn(),
+                private_beam.CombinePerKeyParams(
+                    max_partitions_contributed=2,
+                    max_contributions_per_partition=1))
+            budget_accountant.compute_budgets()
+
+            # Assert
+            # This is a health check to validate that the result is sensible.
+            # Hence, we use a very large tolerance to reduce test flakiness.
+            beam_util.assert_that(
+                result,
+                beam_util.equal_to([("pk1", 0.0)],
+                                   equals_fn=lambda e, a: PrivateBeamTest.
+                                   value_per_key_within_tolerance(e, a, 10.0)))
+
+
+class SumCombineFn(private_beam.PrivateCombineFn):
+    """Test-only, not private combine_fn."""
+
+    def create_accumulator(self):
+        return 0
+
+    def add_private_input(self, accumulator, input):
+        return accumulator + input
+
+    def merge_accumulators(self, accumulators):
+        return sum(accumulators)
+
+    def extract_private_output(self, accumulator):
+        return accumulator
+
 
 if __name__ == '__main__':
     unittest.main()
