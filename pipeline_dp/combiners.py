@@ -72,6 +72,14 @@ class CustomCombiner(Combiner):
     Custom combiners are combiners provided by PipelineDP users and they allow
     to add custom DP aggregations for extending the PipelineDP functionality.
 
+    The responsibility of PrivateCombineFn:
+      1.Implement DP mechanism in `compute_metrics()`.
+      2.If needed implement contribution bounding in
+    `create_accumulator()`.
+
+    Warning: this is an advanced feature that can break differential privacy
+    guarantees if not implemented correctly.
+
     TODO(dvadym): after full implementation of Custom combiners to figure out
     whether CustomCombiner class is needed or Combiner can be used.
     """
@@ -92,7 +100,6 @@ class CustomCombiner(Combiner):
         """
         pass
 
-    @abc.abstractmethod
     def set_aggregate_params(self,
                              aggregate_params: pipeline_dp.AggregateParams):
         """Sets aggregate parameters
@@ -100,7 +107,7 @@ class CustomCombiner(Combiner):
         The custom combiner can optionally use it for own DP parameter
         computations.
         """
-        pass
+        self._aggregate_params = aggregate_params
 
     def metrics_names(self) -> List[str]:
         """Metrics that self computes.

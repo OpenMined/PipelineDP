@@ -318,13 +318,43 @@ class FlatMap(PrivatePTransform):
 
 
 class PrivateCombineFn(beam.CombineFn):
+    """Base class for custom private CombinerFns.
+
+    Warning: this is an experimental API. It might not work properly and it
+    might be changed/removed without any notifications.
+
+    Custom private CombinerFns are implemented by PipelineDP users and they
+    allow to add custom DP aggregations for extending the PipelineDP
+    functionality.
+
+    The responsibility of PrivateCombineFn:
+      1.Implement DP mechanism in `extract_private_output()`.
+      2.If needed implement contribution bounding in
+    `add_input_for_private_output()`.
+
+    Warning: this is an advanced feature that can break differential privacy
+    guarantees if not implemented correctly.
+    """
 
     @abc.abstractmethod
-    def add_private_input(self, accumulator, input):
+    def add_input_for_private_output(self, accumulator, input):
+        """Add input, which contributes to private output.
+
+         This is a DP counterpart of `add_input()`. The same CombinerFn can
+         have both in order to be able to compute both DP and not-DP
+         aggregations.
+
+         Typically, in this function clipping is performed.
+         """
         pass
 
     @abc.abstractmethod
     def extract_private_output(self, accumulator):
+        """Computes private output.
+
+        A DP mechanism with the budget requested in `request_budget()` should
+        be applied here.
+        """
         pass
 
     @abc.abstractmethod
@@ -343,7 +373,6 @@ class PrivateCombineFn(beam.CombineFn):
         """
         pass
 
-    @abc.abstractmethod
     def set_aggregate_params(self,
                              aggregate_params: pipeline_dp.AggregateParams):
         """Sets aggregate parameters
@@ -351,7 +380,7 @@ class PrivateCombineFn(beam.CombineFn):
         The custom combiner can optionally use it for own DP parameter
         computations.
         """
-        pass
+        self._aggregate_params = aggregate_params
 
 
 class _CombineFnCombiner(pipeline_dp.CustomCombiner):

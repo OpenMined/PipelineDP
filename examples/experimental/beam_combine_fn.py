@@ -69,9 +69,6 @@ class DPSumCombineFn(pbeam.PrivateCombineFn):
         # Warning: do not access eps/delta or make deep copy of _budget object
         # in this function.
 
-    def set_aggregate_params(self, aggregate_params):
-        self._aggregate_params = aggregate_params
-
 
 def main(unused_argv):
     # Setup Beam
