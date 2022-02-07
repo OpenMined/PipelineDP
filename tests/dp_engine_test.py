@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import collections
-import sys
 import unittest
 from unittest.mock import patch
 
@@ -799,6 +798,35 @@ class DpEngineTest(parameterized.TestCase):
                 input, pipeline_dp.BeamBackend())
 
             beam_util.assert_that(output, beam_util.is_not_empty())
+
+    @patch(
+        'pipeline_dp.combiners.create_compound_combiner_with_custom_combiners')
+    @patch('pipeline_dp.combiners.create_compound_combiner')
+    @patch.multiple("pipeline_dp.combiners.CustomCombiner",
+                    __abstractmethods__=set())  # Mock CustomCombiner
+    def test_custom_e2e_combiners(self, mock_create_standard_combiners,
+                                  mock_create_custom_combiners):
+        engine = self.create_dp_engine_default()
+
+        custom_combiner = pipeline_dp.combiners.CustomCombiner()
+
+        col = [1, 2, 3]
+        params = pipeline_dp.AggregateParams(max_partitions_contributed=1,
+                                             max_contributions_per_partition=1,
+                                             min_value=0,
+                                             max_value=1,
+                                             metrics=None,
+                                             custom_combiners=[custom_combiner])
+
+        data_extractors = pipeline_dp.DataExtractors(
+            privacy_id_extractor=lambda x: x,
+            partition_extractor=lambda x: x,
+            value_extractor=lambda x: x,
+        )
+
+        engine.aggregate(col, params, data_extractors)
+        mock_create_custom_combiners.assert_called_once()
+        mock_create_standard_combiners.assert_not_called()
 
 
 if __name__ == '__main__':

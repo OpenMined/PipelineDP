@@ -69,8 +69,16 @@ class DPEngine:
 
         self._report_generators.append(report_generator.ReportGenerator(params))
 
-        combiner = combiners.create_compound_combiner(params,
-                                                      self._budget_accountant)
+        if params.custom_combiners:
+            # TODO(dvadym): after finishing implementation of custom combiners
+            # to figure out whether it makes sense to encapsulate creation of
+            # combiners in one function instead of considering 2 cases -
+            # standard combiners and custom combiners.
+            combiner = combiners.create_compound_combiner_with_custom_combiners(
+                params, self._budget_accountant, params.custom_combiners)
+        else:
+            combiner = combiners.create_compound_combiner(
+                params, self._budget_accountant)
 
         if params.public_partitions is not None:
             col = self._drop_not_public_partitions(col,
@@ -106,8 +114,6 @@ class DPEngine:
         if params.public_partitions is None:
             col = self._select_private_partitions_internal(
                 col, params.max_partitions_contributed)
-        else:
-            pass
         # col : (partition_key, accumulator)
 
         # Compute DP metrics.
@@ -144,8 +150,9 @@ class DPEngine:
           col: collection where all elements are of the same type.
           params: parameters, see doc for SelectPrivatePartitionsParams.
           data_extractors: functions that extract needed pieces of information
-            from elements of 'col'. Only privacy_id_extractor and partition_extractor are required.
-            value_extractor is not required.
+            from elements of 'col'. Only `privacy_id_extractor` and
+            `partition_extractor` are required.
+            `value_extractor` is not required.
         """
         self._check_select_private_partitions(col, params, data_extractors)
 
@@ -198,7 +205,8 @@ class DPEngine:
         # col : (privacy_id, partition_key)
 
         # A compound accumulator without any child accumulators is used to calculate the raw privacy ID count.
-        compound_combiner = combiners.CompoundCombiner([])
+        compound_combiner = combiners.CompoundCombiner([],
+                                                       return_named_tuple=False)
         col = self._backend.map_tuple(
             col, lambda pid, pk: (pk, compound_combiner.create_accumulator([])),
             "Drop privacy id and add accumulator")

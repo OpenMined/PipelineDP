@@ -20,6 +20,8 @@ from pipeline_dp.aggregate_params import PrivacyIdCountParams
 from pipeline_dp.aggregate_params import SelectPartitionsParams
 from pipeline_dp.aggregate_params import SumParams
 from pipeline_dp.budget_accounting import NaiveBudgetAccountant
+from pipeline_dp.combiners import Combiner
+from pipeline_dp.combiners import CustomCombiner
 from pipeline_dp.dp_engine import DataExtractors
 from pipeline_dp.dp_engine import DPEngine
 from pipeline_dp.pipeline_backend import BeamBackend
