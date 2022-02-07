@@ -130,9 +130,9 @@ class AggregateParams:
                 "Custom combiners can not be used with standard metrics")
 
     def __str__(self):
-        if self.metrics:
-            return f"Metrics: {[m.value for m in self.metrics]}"
-        return f"Custom combiners: {[c.metrics_names() for c in self.custom_combiners]}"
+        if self.custom_combiners:
+            return f"Custom combiners: {[c.metrics_names() for c in self.custom_combiners]}"
+        return f"Metrics: {[m.value for m in self.metrics]}"
 
 
 @dataclass
