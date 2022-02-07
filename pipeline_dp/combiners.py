@@ -109,6 +109,7 @@ class CustomCombiner(Combiner):
         """
         return self.__class__.__name__
 
+
 class CombinerParams:
     """Parameters for a combiner.
 

@@ -86,6 +86,7 @@ class CountCombiner(pipeline_dp.CustomCombiner):
     def set_aggregate_params(self, aggregate_params):
         self._aggregate_params = aggregate_params
 
+
 def calc_dp_rating_metrics(movie_views, backend, public_partitions):
     """Computes DP metrics."""
 
