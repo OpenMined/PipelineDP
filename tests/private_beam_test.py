@@ -774,7 +774,7 @@ class SumCombineFn(private_beam.PrivateCombineFn):
     def create_accumulator(self):
         return 0
 
-    def add_private_input(self, accumulator, input):
+    def add_input_for_private_output(self, accumulator, input):
         return accumulator + input
 
     def merge_accumulators(self, accumulators):
@@ -782,6 +782,9 @@ class SumCombineFn(private_beam.PrivateCombineFn):
 
     def extract_private_output(self, accumulator):
         return accumulator
+
+    def request_budget(self, budget_accountant):
+        pass
 
 
 if __name__ == '__main__':

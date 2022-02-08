@@ -27,6 +27,7 @@ import pipeline_dp
 from pipeline_dp import private_beam as pbeam
 from examples.movie_view_ratings.common_utils import ParseFile
 import numpy as np
+from pydp.algorithms import numerical_mechanisms as dp_mechanisms
 
 FLAGS = flags.FLAGS
 flags.DEFINE_string('input_file', None, 'The file with the movie view data')
@@ -42,7 +43,7 @@ class DPSumCombineFn(pbeam.PrivateCombineFn):
     def create_accumulator(self):
         return 0
 
-    def add_private_input(self, accumulator, input):
+    def add_input_for_private_output(self, accumulator, input):
         return accumulator + np.clip(input, self._min_value, self._max_value)
 
     def merge_accumulators(self, accumulators):
@@ -52,14 +53,16 @@ class DPSumCombineFn(pbeam.PrivateCombineFn):
         # Simple implementation of Laplace mechanism.
         max_abs_value = np.maximum(np.abs(self._min_value),
                                    np.abs(self._max_value))
-        sensitivity = self._aggregate_params.max_contributions_per_partition * \
+        l1_sensitivity = self._aggregate_params.max_contributions_per_partition * \
                       self._aggregate_params.max_partitions_contributed * max_abs_value
         eps = self._budget.eps
-        laplace_b = sensitivity / eps
 
-        # Warning: using a standard laplace noise is done only for simplicity, don't use it in production.
-        # Better it's to use a standard PipelineDP metric Sum.
-        return np.random.laplace(accumulator, laplace_b)
+        # Here is an example of using noise hardened against the floating point attacks.
+        # Warning: Do not use in production unsafe noise, i.e. which isn't hardened against the
+        # floating point attacks.
+        mechanism = dp_mechanisms.LaplaceMechanism(epsilon=eps,
+                                                   sensitivity=l1_sensitivity)
+        return mechanism.add_noise(1.0 * accumulator)
 
     def request_budget(self, budget_accountant):
         self._budget = budget_accountant.request_budget(

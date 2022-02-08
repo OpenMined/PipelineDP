@@ -63,7 +63,7 @@ class Combiner(abc.ABC):
         """Return the list of names of the metrics this combiner computes"""
 
 
-class CustomCombiner(Combiner):
+class CustomCombiner(Combiner, abc.ABC):
     """Base class for custom combiners.
 
     Warning: this is an experimental API. It might not work properly and it
@@ -72,7 +72,7 @@ class CustomCombiner(Combiner):
     Custom combiners are combiners provided by PipelineDP users and they allow
     to add custom DP aggregations for extending the PipelineDP functionality.
 
-    The responsibility of PrivateCombineFn:
+    The responsibility of CustomCombiner:
       1.Implement DP mechanism in `compute_metrics()`.
       2.If needed implement contribution bounding in
     `create_accumulator()`.

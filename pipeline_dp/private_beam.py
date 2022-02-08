@@ -344,7 +344,8 @@ class PrivateCombineFn(beam.CombineFn):
          have both in order to be able to compute both DP and not-DP
          aggregations.
 
-         Typically, in this function clipping is performed.
+         Typically, this function should perform input clipping to ensure
+         differential privacy.
          """
         pass
 
@@ -392,7 +393,7 @@ class _CombineFnCombiner(pipeline_dp.CustomCombiner):
         """Creates accumulator from 'values'."""
         accumulator = self._private_combine_fn.create_accumulator()
         for v in values:
-            accumulator = self._private_combine_fn.add_private_input(
+            accumulator = self._private_combine_fn.add_input_for_private_output(
                 accumulator, v)
         return accumulator
 
@@ -415,6 +416,19 @@ class _CombineFnCombiner(pipeline_dp.CustomCombiner):
 
 @dataclasses.dataclass
 class CombinePerKeyParams:
+    """Specifies parameters for private PTransform CombinePerKey.
+
+     Args:
+       max_partitions_contributed: A bound on the number of partitions to which one
+         unit of privacy (e.g., a user) can contribute.
+       max_contributions_per_partition: A bound on the number of times one unit of
+         privacy (e.g. a user) can contribute to a partition.
+       budget_weight: Relative weight of the privacy budget allocated to this
+         aggregation.
+       public_partitions: A collection of partition keys that will be present in
+         the result. Optional. If not provided, partitions will be selected in a DP
+         manner.
+ """
     max_partitions_contributed: int
     max_contributions_per_partition: int
     budget_weight: float = 1
@@ -422,7 +436,12 @@ class CombinePerKeyParams:
 
 
 class CombinePerKey(PrivatePTransform):
-    """Transform class for performing a FlatMap on a PrivatePCollection."""
+    """Transform class for performing a CombinePerKey on a PrivatePCollection.
+
+    The assumption is that an input PrivatePCollection has elements of form
+    (key, value). The elements of PrivatePCollection can be transformed with
+    Map private transform.
+    """
 
     def __init__(self,
                  combine_fn: PrivateCombineFn,
