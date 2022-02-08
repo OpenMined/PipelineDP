@@ -347,32 +347,30 @@ class PrivateCombineFn(beam.CombineFn):
          Typically, this function should perform input clipping to ensure
          differential privacy.
          """
-        pass
 
     @abc.abstractmethod
-    def extract_private_output(self, accumulator):
+    def extract_private_output(self, accumulator,
+                               budget: budget_accounting.MechanismSpec):
         """Computes private output.
 
-        A DP mechanism with the budget requested in `request_budget()` should
-        be applied here.
+        'budget' is the object which returned from 'request_budget()'.
         """
-        pass
 
     @abc.abstractmethod
-    def request_budget(self,
-                       budget_accountant: budget_accounting.BudgetAccountant):
+    def request_budget(
+        self, budget_accountant: budget_accounting.BudgetAccountant
+    ) -> budget_accounting.MechanismSpec:
         """Requests the budget.
 
         It is called by PipelineDP during the construction of the computations.
         The custom combiner can request a DP budget by calling
         'budget_accountant.request_budget()'. The budget object needs to be
-        stored in a field of 'self'. It will be serialized and distributed
-        to the workers together with 'self'.
+        returned. It will be serialized and distributed to the workers together
+        with 'self'.
 
         Warning: do not store 'budget_accountant' in 'self'. It is assumed to
         live in the driver process.
         """
-        pass
 
     def set_aggregate_params(self,
                              aggregate_params: pipeline_dp.AggregateParams):
@@ -404,11 +402,13 @@ class _CombineFnCombiner(pipeline_dp.CustomCombiner):
 
     def compute_metrics(self, accumulator):
         """Computes and returns the result of aggregation."""
-        return self._private_combine_fn.extract_private_output(accumulator)
+        return self._private_combine_fn.extract_private_output(
+            accumulator, self._budget)
 
     def request_budget(self,
                        budget_accountant: budget_accounting.BudgetAccountant):
-        self._private_combine_fn.request_budget(budget_accountant)
+        self._budget = self._private_combine_fn.request_budget(
+            budget_accountant)
 
     def set_aggregate_params(self, aggregate_params):
         self._private_combine_fn.set_aggregate_params(aggregate_params)

@@ -49,28 +49,28 @@ class DPSumCombineFn(pbeam.PrivateCombineFn):
     def merge_accumulators(self, accumulators):
         return sum(accumulators)
 
-    def extract_private_output(self, accumulator):
+    def extract_private_output(self, accumulator, budget):
         # Simple implementation of Laplace mechanism.
         max_abs_value = np.maximum(np.abs(self._min_value),
                                    np.abs(self._max_value))
         l1_sensitivity = self._aggregate_params.max_contributions_per_partition * \
                       self._aggregate_params.max_partitions_contributed * max_abs_value
-        eps = self._budget.eps
 
         # Here is an example of using noise hardened against the floating point attacks.
         # Warning: Do not use in production unsafe noise, i.e. which isn't hardened against the
         # floating point attacks.
-        mechanism = dp_mechanisms.LaplaceMechanism(epsilon=eps,
+        mechanism = dp_mechanisms.LaplaceMechanism(epsilon=budget.eps,
                                                    sensitivity=l1_sensitivity)
         return mechanism.add_noise(1.0 * accumulator)
 
     def request_budget(self, budget_accountant):
-        self._budget = budget_accountant.request_budget(
+        return budget_accountant.request_budget(
             pipeline_dp.MechanismType.LAPLACE)
-        # _budget object is not initialized yet. It will be initialized with
-        # eps/delta only during budget_accountant.compute_budgets() call.
-        # Warning: do not access eps/delta or make deep copy of _budget object
-        # in this function.
+        # The output of budget_accountant.request_budget() is not initialized yet.
+        # It will be initialized with eps/delta only during
+        # budget_accountant.compute_budgets().
+        # Warning: do not access eps/delta or make deep copy of _budget object in
+        # this function.
 
 
 def main(unused_argv):
