@@ -231,7 +231,7 @@ class BeamBackend(PipelineBackend):
         return ({
             VALUES: col,
             TO_KEEP: keys_to_keep
-        } | "CoGroup by values and to_keep partition flag " >>
+        } | self._ulg.unique("CoGroup by values and to_keep partition flag") >>
                 beam.CoGroupByKey() | self._ulg.unique("Partitions Filter Join")
                 >> beam.ParDo(PartitionsFilterJoin()))
 
