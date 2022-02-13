@@ -116,6 +116,22 @@ sample of it. Here's how to take a subset of the data in bash:
 
 3. Run `python movie_view_ratings.py --input_file=<path to data.txt from 2> --output_file=<...>`
 
+## Dockerfile to tryout 
+To build and test a Dockerfile, please:
+```
+cd ./Dockerfile
+
+docker build $test_case
+```
+where the `$test_case` could be examples you would like to try out, such as "restaraunt_visits_without_frameworks".
+
+```
+cd ./Dockerfile
+
+docker build restaraunt_visits_without_frameworks
+```
+
+
 ## Support and Community on Slack
 
 If you have questions about the PipelineDP, join
