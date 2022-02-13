@@ -123,14 +123,16 @@ cd ./Dockerfile
 
 docker image build -t $test_case:$version
 ```
+
 where the `$test_case` could be examples you would like to try out, such as "restaraunt_visits_without_frameworks".
 
 The `$version` is a tag for image, it could be version number you would like to assign to this image, the default tag is `latest`
 
+
 ```
 cd ./Dockerfile
 
-docker build -t restaraunt_visits_without_frameworks:latest
+docker build -t restaraunt_visits_without_frameworks/
 ```
 
 Then use `docker container run` to run the image.
