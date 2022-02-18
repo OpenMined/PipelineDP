@@ -100,10 +100,12 @@ class PrivateBeamTest(unittest.TestCase):
                     privacy_id_extractor=PrivateBeamTest.privacy_id_extractor))
 
             # Act
-            transformed = private_collection | SimplePrivatePTransform(
+            transformer = "Simple transform" >> SimplePrivatePTransform(
                 return_anonymized=False)
+            transformed = private_collection | transformer
 
             # Assert
+            self.assertEqual("Simple transform", transformer.label)
             self.assertIsInstance(transformed, private_beam.PrivatePCollection)
 
     def test_transform_with_return_anonymized_enabled_returns_pcollection(self):
