@@ -59,7 +59,7 @@ def main(unused_argv):
                                    privacy_id_extractor=lambda mv: mv.user_id))
 
         # Calculate the private sum
-        dp_result = private_movie_views | private_beam.Sum(
+        dp_result = private_movie_views | "Private Sum" >> private_beam.Sum(
             SumParams(
                 # Limits to how much one user can contribute:
                 # .. at most two movies rated per user

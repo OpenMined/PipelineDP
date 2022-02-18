@@ -41,6 +41,10 @@ class PrivatePTransform(ptransform.PTransform):
         backend = pipeline_dp.BeamBackend()
         return backend, pipeline_dp.DPEngine(self._budget_accountant, backend)
 
+    def __rrshift__(self, label):
+        self.label = label
+        return self
+
     @abstractmethod
     def expand(self, pcol: pvalue.PCollection) -> pvalue.PCollection:
         pass
