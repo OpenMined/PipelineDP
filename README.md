@@ -40,7 +40,7 @@ Code sample showing private processing on Spark:
 budget_accountant = pipeline_dp.NaiveBudgetAccountant(total_epsilon=1,
                                                       total_delta=1e-6)
 
-# Wrap Spark's RDD into it's private version. You will use this private wrapper
+# Wrap Spark's RDD into its private version. You will use this private wrapper
 # for all further processing instead of the Spark's RDD. Using the wrapper ensures
 # that only private statistics can be released.
 private_movie_views = \
