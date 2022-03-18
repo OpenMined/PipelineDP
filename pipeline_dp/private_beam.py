@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import abc
+import collections
 import dataclasses
 import typing
 from apache_beam.transforms import ptransform
@@ -482,6 +483,32 @@ class CombinePerKey(PrivatePTransform):
 
         return dp_result
 
+# Cache for namedtuple types. It is should be used only in
+# '_get_or_create_named_tuple()' function.
+_named_tuple_cache = {}
+
+
+def _get_or_create_named_tuple(type_name: str,
+                               field_names: tuple) -> 'MetricsTuple':
+    """Creates namedtuple type with a custom serializer."""
+
+    # The custom serializer is required for supporting serialization of
+    # namedtuples in Apache Beam.
+    cache_key = (type_name, field_names)
+    named_tuple = _named_tuple_cache.get(cache_key)
+    if named_tuple is None:
+        named_tuple = collections.namedtuple(type_name, field_names)
+        named_tuple.__reduce__ = lambda self: (_create_named_tuple_instance,
+                                               (type_name, field_names,
+                                                tuple(self)))
+        _named_tuple_cache[cache_key] = named_tuple
+    return named_tuple
+
+
+def _create_named_tuple_instance(type_name: str, field_names: tuple, values):
+    return _get_or_create_named_tuple(type_name, field_names)(*values)
+
+
 class Aggregate(PrivatePTransform):
 
     def __init__(self, label=None):
@@ -509,9 +536,9 @@ class _Aggregate(PrivatePTransform):
             self.col_name[i]: pcol | "agg " + str(i) >> self._getTransform(
                 self.agg_type[i], *self.args[0][i]) for i in
             range(len(self.col_name))}
-        return columns | 'LeftJoiner: Combine' >> beam.CoGroupByKey() | beam.Map(
-            lambda x: (x[0],
-                       {k: x[1][k][0] for k in x[1]}))
+        return columns | 'LeftJoiner: Combine' >> beam.CoGroupByKey() | beam.Map(lambda x: 
+                                                  _create_named_tuple_instance('MetricsTuple', tuple(["pid"] + [k for k in x[1]]), 
+                                                                               tuple([x[0]]+ [x[1][k][0] for k in x[1]])))
 
     def _getTransform(self, agg_type: pipeline_dp.Metrics, *args):
         transform = None

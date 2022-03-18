@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import collections
 import unittest
 import apache_beam as beam
 from apache_beam.runners.portability import fn_api_runner
@@ -43,9 +44,10 @@ class PrivateBeamTest(unittest.TestCase):
     
     @staticmethod
     def value_per_key_within_tolerance_dict(expected, actual, tolerance):
-        return (actual[0] == expected[0] and (actual[1].keys() == expected[1].keys())
-                and all([abs(actual[1][k] - expected[1][k]) <= tolerance for k in\
-          actual[1]]))
+        expected_dict = expected._asdict()
+        actual_dict = actual._asdict()
+        return all([(actual_dict[k] == expected_dict[k]) or (abs(actual_dict[k] - expected_dict[k]) <= tolerance) for k in\
+          actual_dict])
 
     def test_make_private_transform_succeeds(self):
         runner = fn_api_runner.FnApiRunner()
@@ -807,7 +809,7 @@ class PrivateBeamTest(unittest.TestCase):
             # Hence, we use a very large tolerance to reduce test flakiness.
             beam_util.assert_that(
                 result,
-                beam_util.equal_to([("pk1", {'privacy_id_count':30})],
+                beam_util.equal_to([collections.namedtuple("MetricsTuple", ['pid', 'privacy_id_count'])('pk1', 30)],
                                    equals_fn=lambda e, a: PrivateBeamTest.
                                    value_per_key_within_tolerance_dict(e, a, 5)))
 
