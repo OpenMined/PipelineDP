@@ -781,6 +781,7 @@ class PrivateBeamTest(unittest.TestCase):
         with TestPipeline() as pipeline:
             # Arrange
             col = [(u, "pk1", 100) for u in range(30)]
+            col += [(f"{u + 20}", "pk2", 100) for u in range(30)]
             col += [(f"{u + 30}", "pk1", -100.0) for u in range(30)]
             pcol = pipeline | 'Create produce' >> beam.Create(col)
             # Use very high epsilon and delta to minimize noise and test
@@ -827,7 +828,10 @@ class PrivateBeamTest(unittest.TestCase):
                     [
                         collections.namedtuple(
                             "AggregatesTuple",
-                            ['pid', 'privacy_id_count', 'sum'])('pk1', 60, 130)
+                            ['pid', 'privacy_id_count', 'sum'])('pk1', 60, 130),
+                        collections.namedtuple(
+                            "AggregatesTuple",
+                            ['pid', 'privacy_id_count', 'sum'])('pk2', 30, 83)
                     ],
                     equals_fn=lambda e, a: PrivateBeamTest.
                     value_per_key_within_tolerance_dict(e, a, 10)))
