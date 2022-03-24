@@ -483,6 +483,7 @@ class CombinePerKey(PrivatePTransform):
 
         return dp_result
 
+
 # Cache for namedtuple types. It is should be used only in
 # '_get_or_create_named_tuple()' function.
 _named_tuple_cache = {}
@@ -511,22 +512,29 @@ def _create_named_tuple_instance(type_name: str, field_names: tuple, values):
 
 class Aggregate(PrivatePTransform):
 
+    """Transform class for performing multiple aggreagates."""
+
     def __init__(self, label=None):
         super().__init__(return_anonymized=True, label=label)
 
     def aggregate_value(self, *args, col_name, agg_type):
         return _Aggregate([args], col_name=[col_name], agg_type=[agg_type])
 
+
 class _Aggregate(PrivatePTransform):
 
-    def __init__(self, *args, col_name: str, agg_type: pipeline_dp.Metrics,
+    def __init__(self,
+                 *args,
+                 col_name: str,
+                 agg_type: pipeline_dp.Metrics,
                  label: Optional[str] = None):
         super().__init__(return_anonymized=True, label=label)
         self.args = args
         self.col_name = col_name
         self.agg_type = agg_type
 
-    def aggregate_value(self, *args, col_name: str, agg_type: pipeline_dp.Metrics):
+    def aggregate_value(self, *args, col_name: str,
+                        agg_type: pipeline_dp.Metrics):
         return _Aggregate(list(*self.args) + [args],
                           col_name=list(self.col_name) + [col_name],
                           agg_type=list(self.agg_type) + [agg_type])
@@ -534,11 +542,13 @@ class _Aggregate(PrivatePTransform):
     def expand(self, pcol):
         columns = {
             self.col_name[i]: pcol | "agg " + str(i) >> self._getTransform(
-                self.agg_type[i], *self.args[0][i]) for i in
-            range(len(self.col_name))}
-        return columns | 'LeftJoiner: Combine' >> beam.CoGroupByKey() | beam.Map(lambda x: 
-                                                  _create_named_tuple_instance('MetricsTuple', tuple(["pid"] + [k for k in x[1]]), 
-                                                                               tuple([x[0]]+ [x[1][k][0] for k in x[1]])))
+                self.agg_type[i], *self.args[0][i])
+            for i in range(len(self.col_name))
+        }
+        return columns | 'LeftJoiner: Combine' >> beam.CoGroupByKey(
+        ) | beam.Map(lambda x: _create_named_tuple_instance(
+            'MetricsTuple', tuple(["pid"] + [k for k in x[1]]),
+            tuple([x[0]] + [x[1][k][0] for k in x[1]])))
 
     def _getTransform(self, agg_type: pipeline_dp.Metrics, *args):
         transform = None
@@ -551,8 +561,9 @@ class _Aggregate(PrivatePTransform):
         elif agg_type == pipeline_dp.Metrics.PRIVACY_ID_COUNT:
             transform = PrivacyIdCount(*args)
         else:
-            raise NotImplementedError("Transform for agg_type: %s is not "
-                                      "implemented.", agg_type)
+            raise NotImplementedError(
+                "Transform for agg_type: %s is not "
+                "implemented.", agg_type)
         transform.set_additional_parameters(
             budget_accountant=self._budget_accountant)
         return transform

@@ -41,7 +41,7 @@ class PrivateBeamTest(unittest.TestCase):
     def value_per_key_within_tolerance(expected, actual, tolerance):
         return actual[0] == expected[0] and abs(actual[1] -
                                                 expected[1]) <= tolerance
-    
+
     @staticmethod
     def value_per_key_within_tolerance_dict(expected, actual, tolerance):
         expected_dict = expected._asdict()
@@ -780,28 +780,42 @@ class PrivateBeamTest(unittest.TestCase):
     def test_multiple_aggregates(self):
         with TestPipeline() as pipeline:
             # Arrange
-            col = [(u, "pk1") for u in range(30)]
+            col = [(u, "pk1", 100) for u in range(30)]
+            col += [(f"{u + 30}", "pk1", -100.0) for u in range(30)]
             pcol = pipeline | 'Create produce' >> beam.Create(col)
             # Use very high epsilon and delta to minimize noise and test
             # flakiness.
             budget_accountant = budget_accounting.NaiveBudgetAccountant(
                 total_epsilon=800, total_delta=0.999)
             private_collection = (
-              pcol | 'Create private collection' >> private_beam.MakePrivate(
-                budget_accountant=budget_accountant,
-                privacy_id_extractor=lambda x: x[0]))
+                pcol | 'Create private collection' >> private_beam.MakePrivate(
+                    budget_accountant=budget_accountant,
+                    privacy_id_extractor=lambda x: x[0]))
 
             privacy_id_count_params = aggregate_params.PrivacyIdCountParams(
                 noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
                 max_partitions_contributed=2,
                 budget_weight=1,
                 partition_extractor=lambda x: x[1])
+            sum_params = aggregate_params.SumParams(
+                noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+                max_partitions_contributed=2,
+                max_contributions_per_partition=3,
+                min_value=1.55,
+                max_value=2.7889,
+                budget_weight=1,
+                partition_extractor=lambda x: x[1],
+                value_extractor=lambda x: x[2])
 
             # Act
-            result = private_collection | private_beam.Aggregate().aggregate_value(
+            result = private_collection | private_beam.Aggregate(
+            ).aggregate_value(
                 privacy_id_count_params,
                 col_name='privacy_id_count',
-                agg_type=pipeline_dp.Metrics.PRIVACY_ID_COUNT)
+                agg_type=pipeline_dp.Metrics.PRIVACY_ID_COUNT).aggregate_value(
+                    sum_params,
+                    col_name='sum',
+                    agg_type=pipeline_dp.Metrics.SUM)
             budget_accountant.compute_budgets()
 
             # Assert
@@ -809,9 +823,15 @@ class PrivateBeamTest(unittest.TestCase):
             # Hence, we use a very large tolerance to reduce test flakiness.
             beam_util.assert_that(
                 result,
-                beam_util.equal_to([collections.namedtuple("MetricsTuple", ['pid', 'privacy_id_count'])('pk1', 30)],
-                                   equals_fn=lambda e, a: PrivateBeamTest.
-                                   value_per_key_within_tolerance_dict(e, a, 5)))
+                beam_util.equal_to(
+                    [
+                        collections.namedtuple(
+                            "MetricsTuple", ['pid', 'privacy_id_count', 'sum'])(
+                                'pk1', 60, 130)
+                    ],
+                    equals_fn=lambda e, a: PrivateBeamTest.
+                    value_per_key_within_tolerance_dict(e, a, 10)))
+
 
 class SumCombineFn(private_beam.PrivateCombineFn):
     """Test-only, not private combine_fn."""
