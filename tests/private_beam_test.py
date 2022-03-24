@@ -826,8 +826,8 @@ class PrivateBeamTest(unittest.TestCase):
                 beam_util.equal_to(
                     [
                         collections.namedtuple(
-                            "MetricsTuple", ['pid', 'privacy_id_count', 'sum'])(
-                                'pk1', 60, 130)
+                            "AggregatesTuple",
+                            ['pid', 'privacy_id_count', 'sum'])('pk1', 60, 130)
                     ],
                     equals_fn=lambda e, a: PrivateBeamTest.
                     value_per_key_within_tolerance_dict(e, a, 10)))

@@ -486,7 +486,7 @@ class CombinePerKey(PrivatePTransform):
 
 # Cache for namedtuple types. It is should be used only in
 # '_get_or_create_named_tuple()' function.
-_named_tuple_cache = {}
+_agg_named_tuple_cache = {}
 
 
 def _get_or_create_named_tuple(type_name: str,
@@ -496,13 +496,13 @@ def _get_or_create_named_tuple(type_name: str,
     # The custom serializer is required for supporting serialization of
     # namedtuples in Apache Beam.
     cache_key = (type_name, field_names)
-    named_tuple = _named_tuple_cache.get(cache_key)
+    named_tuple = _agg_named_tuple_cache.get(cache_key)
     if named_tuple is None:
         named_tuple = collections.namedtuple(type_name, field_names)
         named_tuple.__reduce__ = lambda self: (_create_named_tuple_instance,
                                                (type_name, field_names,
                                                 tuple(self)))
-        _named_tuple_cache[cache_key] = named_tuple
+        _agg_named_tuple_cache[cache_key] = named_tuple
     return named_tuple
 
 
@@ -512,7 +512,7 @@ def _create_named_tuple_instance(type_name: str, field_names: tuple, values):
 
 class Aggregate(PrivatePTransform):
 
-    """Transform class for performing multiple aggreagates."""
+    """Transform class for performing multiple aggregations."""
 
     def __init__(self, label=None):
         super().__init__(return_anonymized=True, label=label)
@@ -547,7 +547,7 @@ class _Aggregate(PrivatePTransform):
         }
         return columns | 'LeftJoiner: Combine' >> beam.CoGroupByKey(
         ) | beam.Map(lambda x: _create_named_tuple_instance(
-            'MetricsTuple', tuple(["pid"] + [k for k in x[1]]),
+            'AggregatesTuple', tuple(["pid"] + [k for k in x[1]]),
             tuple([x[0]] + [x[1][k][0] for k in x[1]])))
 
     def _getTransform(self, agg_type: pipeline_dp.Metrics, *args):
