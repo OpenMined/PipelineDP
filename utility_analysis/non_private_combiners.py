@@ -1,3 +1,16 @@
+# Copyright 2022 OpenMined.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 """Combiners for DP utility analysis.
 
 These combiners are in the same format of pipeline.combiners but without DP
@@ -5,7 +18,7 @@ noises and computation.
 """
 import abc
 import copy
-from typing import Iterable, Sized, Tuple
+from typing import Iterable, Sized, Tuple, List
 
 import pipeline_dp
 import numpy as np
@@ -30,6 +43,9 @@ class RawCountCombiner(pipeline_dp.combiners.Combiner):
     def compute_metrics(self, count: AccumulatorType) -> float:
         return count
 
+    def metrics_names(self) -> List[str]:
+        return ['non_private_count']
+
 
 class RawPrivacyIdCountCombiner(pipeline_dp.combiners.Combiner):
     """Combiner for computing DP privacy id count.
@@ -48,6 +64,9 @@ class RawPrivacyIdCountCombiner(pipeline_dp.combiners.Combiner):
     def compute_metrics(self, accumulator: AccumulatorType) -> float:
         return accumulator
 
+    def metrics_names(self) -> List[str]:
+        return ['non_private_privacy_id_count']
+
 
 class RawSumCombiner(pipeline_dp.combiners.Combiner):
     """Combiner for computing dp sum.
@@ -65,6 +84,9 @@ class RawSumCombiner(pipeline_dp.combiners.Combiner):
 
     def compute_metrics(self, accumulator: AccumulatorType) -> float:
         return accumulator
+
+    def metrics_names(self) -> List[str]:
+        return ['non_private_sum']
 
 
 MeanTuple = namedtuple('MeanTuple', ['count', 'sum', 'mean'])
@@ -94,6 +116,9 @@ class RawMeanCombiner(pipeline_dp.combiners.Combiner):
                          sum=summary,
                          mean=summary / count if count else None)
 
+    def metrics_names(self) -> List[str]:
+        return ['non_private_mean']
+
 
 class CompoundCombiner(pipeline_dp.combiners.Combiner):
     """Combiner for computing a set of dp aggregations.
@@ -109,6 +134,14 @@ class CompoundCombiner(pipeline_dp.combiners.Combiner):
 
     def __init__(self, combiners: Iterable['Combiner']):
         self._combiners = combiners
+        self._metrics_to_compute = []
+        for combiner in self._combiners:
+            self._metrics_to_compute.extend(combiner.metrics_names())
+        if len(self._metrics_to_compute) != len(set(self._metrics_to_compute)):
+            raise ValueError(
+                f"two combiners in {combiners} cannot compute the same metrics")
+        self._MetricsTuple = namedtuple('MetricsTuple',
+                                        self._metrics_to_compute)
 
     def create_accumulator(self, values) -> AccumulatorType:
         return tuple(
@@ -127,6 +160,9 @@ class CompoundCombiner(pipeline_dp.combiners.Combiner):
         for combiner, acc in zip(self._combiners, accumulator):
             metrics.append(combiner.compute_metrics(acc))
         return metrics
+
+    def metrics_names(self) -> List[str]:
+        return self._metrics_to_compute
 
 
 def create_compound_combiner(

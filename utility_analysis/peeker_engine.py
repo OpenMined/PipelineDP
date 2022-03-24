@@ -1,3 +1,16 @@
+# Copyright 2022 OpenMined.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 """DP engine to compute aggregations for sketches."""
 
 import functools
@@ -159,9 +172,9 @@ def _partition_selection_filter_fn(
 ) -> bool:
     """Lazily creates a partition selection strategy and uses it to determine which
     partitions to keep."""
-    pirvacy_id_count, _ = row[1]
+    privacy_id_count, _ = row[1]
     partition_selection_strategy = (
         pydp.algorithms.partition_selection.
         create_truncated_geometric_partition_strategy(budget.eps, budget.delta,
                                                       max_partitions))
-    return partition_selection_strategy.should_keep(pirvacy_id_count)
+    return partition_selection_strategy.should_keep(privacy_id_count)

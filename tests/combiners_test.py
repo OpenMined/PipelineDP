@@ -1,7 +1,22 @@
+# Copyright 2022 OpenMined.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 import unittest.mock as mock
+from unittest.mock import patch
 
 from absl.testing import absltest
 from absl.testing import parameterized
+import typing
 import pipeline_dp
 import pipeline_dp.combiners as dp_combiners
 import pipeline_dp.budget_accounting as ba
@@ -30,7 +45,7 @@ def _create_aggregate_params(max_value: float = 1):
 
 class CreateCompoundCombinersTest(parameterized.TestCase):
 
-    def _create_aggregate_params(self, metrics: list):
+    def _create_aggregate_params(self, metrics: typing.Optional[typing.List]):
         return pipeline_dp.AggregateParams(
             noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
             metrics=metrics,
@@ -86,6 +101,33 @@ class CreateCompoundCombinersTest(parameterized.TestCase):
                 combiners, expected_combiner_types, mock_budgets):
             self.assertIsInstance(combiner, expect_type)
             self.assertEqual(combiner._params._mechanism_spec, expected_budget)
+
+    @patch.multiple("pipeline_dp.combiners.CustomCombiner",
+                    __abstractmethods__=set())  # Mock CustomCombiner
+    def test_create_compound_combiner_with_custom_combiners(self):
+        # Arrange.
+        # Create Mock CustomCombiners.
+        custom_combiners = [
+            dp_combiners.CustomCombiner(),
+            dp_combiners.CustomCombiner()
+        ]
+
+        # Mock request budget and metrics names functions.
+        for i, combiner in enumerate(custom_combiners):
+            combiner.request_budget = mock.Mock()
+
+        aggregate_params = self._create_aggregate_params(None)
+
+        budget_accountant = pipeline_dp.NaiveBudgetAccountant(1, 1e-10)
+
+        # Act
+        compound_combiner = dp_combiners.create_compound_combiner_with_custom_combiners(
+            aggregate_params, budget_accountant, custom_combiners)
+
+        # Assert
+        self.assertFalse(compound_combiner._return_named_tuple)
+        for combiner in custom_combiners:
+            combiner.request_budget.assert_called_once()
 
 
 class CountCombinerTest(parameterized.TestCase):
@@ -285,7 +327,8 @@ class CompoundCombinerTest(parameterized.TestCase):
         return dp_combiners.CompoundCombiner([
             dp_combiners.CountCombiner(params),
             dp_combiners.SumCombiner(params)
-        ])
+        ],
+                                             return_named_tuple=True)
 
     @parameterized.named_parameters(
         dict(testcase_name='no_noise', no_noise=True),

@@ -1,15 +1,28 @@
-from pipeline_dp import dp_computations
-import unittest
+# Copyright 2022 OpenMined.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 import typing
+import unittest
 from unittest.mock import patch
 
 import numpy as np
+
 import pipeline_dp
-from pipeline_dp import aggregate_params as agg
-from pipeline_dp.budget_accounting import NaiveBudgetAccountant
-from pipeline_dp.aggregate_params import NoiseKind
-from pipeline_dp.aggregate_params import NormKind
 import pipeline_dp.accumulator as accumulator
+from pipeline_dp import aggregate_params as agg
+from pipeline_dp import dp_computations
+from pipeline_dp.aggregate_params import NoiseKind
+from pipeline_dp.budget_accounting import NaiveBudgetAccountant
 
 
 class CompoundAccumulatorTest(unittest.TestCase):
@@ -205,7 +218,9 @@ class GenericAccumulatorTest(unittest.TestCase):
             noise_kind=NoiseKind.GAUSSIAN,
             metrics=[agg.Metrics.MEAN],
             max_partitions_contributed=5,
-            max_contributions_per_partition=3)
+            max_contributions_per_partition=3,
+            min_value=0,
+            max_value=1)
         budget_accountant = NaiveBudgetAccountant(total_epsilon=1,
                                                   total_delta=0.01)
 
@@ -229,9 +244,11 @@ class GenericAccumulatorTest(unittest.TestCase):
             self, mock_create_accumulator_factories):
         aggregate_params = pipeline_dp.AggregateParams(
             noise_kind=NoiseKind.GAUSSIAN,
-            metrics=[agg.Metrics.MEAN, agg.Metrics.VAR],
+            metrics=[agg.Metrics.MEAN],
             max_partitions_contributed=5,
-            max_contributions_per_partition=3)
+            max_contributions_per_partition=3,
+            min_value=0,
+            max_value=1)
         budget_accountant = NaiveBudgetAccountant(total_epsilon=1,
                                                   total_delta=0.01)
         values = [10]

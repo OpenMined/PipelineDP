@@ -1,3 +1,16 @@
+# Copyright 2022 OpenMined.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 import abc
 import copy
 from typing import Iterable, Sized, Tuple, List
@@ -6,7 +19,7 @@ import pipeline_dp
 from pipeline_dp import dp_computations
 from pipeline_dp import budget_accounting
 import numpy as np
-from collections import namedtuple
+import collections
 
 
 class Combiner(abc.ABC):
@@ -48,6 +61,60 @@ class Combiner(abc.ABC):
     @abc.abstractmethod
     def metrics_names(self) -> List[str]:
         """Return the list of names of the metrics this combiner computes"""
+
+
+class CustomCombiner(Combiner, abc.ABC):
+    """Base class for custom combiners.
+
+    Warning: this is an experimental API. It might not work properly and it
+    might be changed/removed without any notifications.
+    
+    Custom combiners are combiners provided by PipelineDP users and they allow
+    to add custom DP aggregations for extending the PipelineDP functionality.
+
+    The responsibility of CustomCombiner:
+      1.Implement DP mechanism in `compute_metrics()`.
+      2.If needed implement contribution bounding in
+    `create_accumulator()`.
+
+    Warning: this is an advanced feature that can break differential privacy
+    guarantees if not implemented correctly.
+
+    TODO(dvadym): after full implementation of Custom combiners to figure out
+    whether CustomCombiner class is needed or Combiner can be used.
+    """
+
+    @abc.abstractmethod
+    def request_budget(self,
+                       budget_accountant: budget_accounting.BudgetAccountant):
+        """Requests the budget.
+        
+        It is called by PipelineDP during the construction of the computations.
+        The custom combiner can request a DP budget by calling 
+        'budget_accountant.request_budget()'. The budget object needs to be
+        stored in a field of 'self'. It will be serialized and distributed
+        to the workers together with 'self'.  
+        
+        Warning: do not store 'budget_accountant' in 'self'. It is assumed to
+        live in the driver process.
+        """
+        pass
+
+    def set_aggregate_params(self,
+                             aggregate_params: pipeline_dp.AggregateParams):
+        """Sets aggregate parameters
+        
+        The custom combiner can optionally use it for own DP parameter
+        computations.
+        """
+        self._aggregate_params = aggregate_params
+
+    def metrics_names(self) -> List[str]:
+        """Metrics that self computes.
+
+        By default returns class name.
+        """
+        return self.__class__.__name__
 
 
 class CombinerParams:
@@ -217,6 +284,32 @@ class MeanCombiner(Combiner):
         return self._metrics_to_compute
 
 
+# Cache for namedtuple types. It is should be used only in
+# '_get_or_create_named_tuple()' function.
+_named_tuple_cache = {}
+
+
+def _get_or_create_named_tuple(type_name: str,
+                               field_names: tuple) -> 'MetricsTuple':
+    """Creates namedtuple type with a custom serializer."""
+
+    # The custom serializer is required for supporting serialization of
+    # namedtuples in Apache Beam.
+    cache_key = (type_name, field_names)
+    named_tuple = _named_tuple_cache.get(cache_key)
+    if named_tuple is None:
+        named_tuple = collections.namedtuple(type_name, field_names)
+        named_tuple.__reduce__ = lambda self: (_create_named_tuple_instance,
+                                               (type_name, field_names,
+                                                tuple(self)))
+        _named_tuple_cache[cache_key] = named_tuple
+    return named_tuple
+
+
+def _create_named_tuple_instance(type_name: str, field_names: tuple, values):
+    return _get_or_create_named_tuple(type_name, field_names)(*values)
+
+
 class CompoundCombiner(Combiner):
     """Combiner for computing a set of dp aggregations.
 
@@ -233,29 +326,37 @@ class CompoundCombiner(Combiner):
     contains accumulators from internal combiners.
 
     Returns:
-        namedtuple (MetricsTuple) whose fields are one or more of
-        pipeline_dp.Metrics, depending on what the combiners compute. E.g., if
-        CompoundCombiner has a PrivacyIdCountCombiner that computes
-        'privacy_id_count' and a MeanCombiner that computes 'mean' and 'sum',
-        CompoundCombiner will return a MetricsTuple(
-            privacy_id_count=dp_privacy_id_count,
-            sum=dp_sum,
-            count=dp_mean,
-        )
+        if return_named_tuple == False tuple with elements returned from the
+            internal combiners in order in which internal combiners are specified.
+        else returns namedtuple (MetricsTuple) whose fields are one or more of
+            pipeline_dp.Metrics, depending on what the combiners compute.
+            E.g., if CompoundCombiner has a PrivacyIdCountCombiner that computes
+            'privacy_id_count' and a MeanCombiner that computes 'mean' and 'sum',
+            CompoundCombiner will return a MetricsTuple(
+                privacy_id_count=dp_privacy_id_count,
+                sum=dp_sum,
+                count=dp_mean,
+            )
     """
 
     AccumulatorType = Tuple[int, Tuple]
 
-    def __init__(self, combiners: Iterable['Combiner']):
+    def __init__(self, combiners: Iterable['Combiner'],
+                 return_named_tuple: bool):
         self._combiners = combiners
         self._metrics_to_compute = []
+        self._return_named_tuple = return_named_tuple
+        if not self._return_named_tuple:
+            return
+        # Creates namedtuple type based on what the internal combiners return.
         for combiner in self._combiners:
             self._metrics_to_compute.extend(combiner.metrics_names())
         if len(self._metrics_to_compute) != len(set(self._metrics_to_compute)):
             raise ValueError(
                 f"two combiners in {combiners} cannot compute the same metrics")
-        self._MetricsTuple = namedtuple('MetricsTuple',
-                                        self._metrics_to_compute)
+        self._metrics_to_compute = tuple(self._metrics_to_compute)
+        self._MetricsTuple = _get_or_create_named_tuple(
+            "MetricsTuple", self._metrics_to_compute)
 
     def create_accumulator(self, values) -> AccumulatorType:
         return (1,
@@ -277,8 +378,15 @@ class CompoundCombiner(Combiner):
 
     def compute_metrics(self, compound_accumulator: AccumulatorType):
         privacy_id_count, accumulator = compound_accumulator
-        # Concatenates output of combiners, raises Exception if there are any
-        # duplicates.
+
+        if not self._return_named_tuple:
+            # returns tuple of what the internal combiners return.
+            return tuple(
+                combiner.compute_metrics(acc)
+                for combiner, acc in zip(self._combiners, accumulator))
+
+        # Concatenates output of the internal combiners into Namedtype, raises
+        # Exception if there are any duplicates.
         combined_metrics = {}
         for combiner, acc in zip(self._combiners, accumulator):
             metrics_for_combiner = combiner.compute_metrics(acc)
@@ -288,7 +396,9 @@ class CompoundCombiner(Combiner):
                         f"{metric} computed by {combiner} was already computed by another combiner"
                     )
             combined_metrics.update(metrics_for_combiner)
-        return self._MetricsTuple(**combined_metrics)
+        return _create_named_tuple_instance("MetricsTuple",
+                                            tuple(combined_metrics.keys()),
+                                            tuple(combined_metrics.values()))
 
     def metrics_names(self) -> List[str]:
         return self._metrics_to_compute
@@ -330,4 +440,15 @@ def create_compound_combiner(
             PrivacyIdCountCombiner(
                 CombinerParams(budget_privacy_id_count, aggregate_params)))
 
-    return CompoundCombiner(combiners)
+    return CompoundCombiner(combiners, return_named_tuple=True)
+
+
+def create_compound_combiner_with_custom_combiners(
+        aggregate_params: pipeline_dp.AggregateParams,
+        budget_accountant: budget_accounting.BudgetAccountant,
+        custom_combiners: Iterable[CustomCombiner]) -> CompoundCombiner:
+    for combiner in custom_combiners:
+        combiner.request_budget(budget_accountant)
+        combiner.set_aggregate_params(aggregate_params)
+
+    return CompoundCombiner(custom_combiners, return_named_tuple=False)

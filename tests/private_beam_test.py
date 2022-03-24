@@ -1,3 +1,16 @@
+# Copyright 2022 OpenMined.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 import unittest
 import apache_beam as beam
 from apache_beam.runners.portability import fn_api_runner
@@ -87,10 +100,12 @@ class PrivateBeamTest(unittest.TestCase):
                     privacy_id_extractor=PrivateBeamTest.privacy_id_extractor))
 
             # Act
-            transformed = private_collection | SimplePrivatePTransform(
+            transformer = "Simple transform" >> SimplePrivatePTransform(
                 return_anonymized=False)
+            transformed = private_collection | transformer
 
             # Assert
+            self.assertEqual("Simple transform", transformer.label)
             self.assertIsInstance(transformed, private_beam.PrivatePCollection)
 
     def test_transform_with_return_anonymized_enabled_returns_pcollection(self):
@@ -163,8 +178,8 @@ class PrivateBeamTest(unittest.TestCase):
     def test_mean_returns_sensible_result(self):
         with TestPipeline() as pipeline:
             # Arrange
-            col = [(u, "pk1", -100) for u in range(30)]
-            col += [(u + 30, "pk1", 100) for u in range(10)]
+            col = [(f"{u}", "pk1", -100.0) for u in range(30)]
+            col += [(f"{u + 30}", "pk1", 100.0) for u in range(10)]
             pcol = pipeline | 'Create produce' >> beam.Create(col)
             # Use very high epsilon and delta to minimize noise and test
             # flakiness.
@@ -179,8 +194,8 @@ class PrivateBeamTest(unittest.TestCase):
                 noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
                 max_partitions_contributed=1,
                 max_contributions_per_partition=1,
-                min_value=1,
-                max_value=2,
+                min_value=1.55,
+                max_value=2.7889,
                 budget_weight=1,
                 partition_extractor=lambda x: x[1],
                 value_extractor=lambda x: x[2])
@@ -195,16 +210,16 @@ class PrivateBeamTest(unittest.TestCase):
             # Hence, we use a very large tolerance to reduce test flakiness.
             beam_util.assert_that(
                 result,
-                beam_util.equal_to([("pk1", 1.25)],
+                beam_util.equal_to([("pk1", 1.859)],
                                    equals_fn=lambda e, a: PrivateBeamTest.
                                    value_per_key_within_tolerance(e, a, 0.1)))
 
     def test_mean_with_public_partitions_returns_sensible_result(self):
         with TestPipeline() as pipeline:
             # Arrange
-            col = [(u, "pubK1", -100) for u in range(30)]
-            col += [(u + 30, "pubK1", 100) for u in range(10)]
-            col += [(u + 40, "privK1", 100) for u in range(30)]
+            col = [(f"{u}", "pubK1", -100.0) for u in range(30)]
+            col += [(f"{u + 30}", "pubK1", 100.0) for u in range(10)]
+            col += [(f"{u + 40}", "privK1", 100.0) for u in range(30)]
             pcol = pipeline | 'Create produce' >> beam.Create(col)
             # Use very high epsilon and delta to minimize noise and test
             # flakiness.
@@ -219,8 +234,8 @@ class PrivateBeamTest(unittest.TestCase):
                 noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
                 max_partitions_contributed=1,
                 max_contributions_per_partition=1,
-                min_value=1,
-                max_value=2,
+                min_value=1.55,
+                max_value=2.7889,
                 budget_weight=1,
                 partition_extractor=lambda x: x[1],
                 value_extractor=lambda x: x[2],
@@ -236,7 +251,7 @@ class PrivateBeamTest(unittest.TestCase):
             # Hence, we use a very large tolerance to reduce test flakiness.
             beam_util.assert_that(
                 result,
-                beam_util.equal_to([("pubK1", 1.25), ("pubK2", 1.5)],
+                beam_util.equal_to([("pubK1", 1.859), ("pubK2", 2.1695)],
                                    equals_fn=lambda e, a: PrivateBeamTest.
                                    value_per_key_within_tolerance(e, a, 0.1)))
 
@@ -306,8 +321,8 @@ class PrivateBeamTest(unittest.TestCase):
                 noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
                 max_partitions_contributed=2,
                 max_contributions_per_partition=3,
-                min_value=1,
-                max_value=2,
+                min_value=1.55,
+                max_value=2.7889,
                 budget_weight=1,
                 partition_extractor=lambda x: x[1],
                 value_extractor=lambda x: x[2])
@@ -322,7 +337,7 @@ class PrivateBeamTest(unittest.TestCase):
             # Hence, we use a very large tolerance to reduce test flakiness.
             beam_util.assert_that(
                 result,
-                beam_util.equal_to([("pk1", 90.0)],
+                beam_util.equal_to([("pk1", 130.167)],
                                    equals_fn=lambda e, a: PrivateBeamTest.
                                    value_per_key_within_tolerance(e, a, 10.0)))
 
@@ -346,8 +361,8 @@ class PrivateBeamTest(unittest.TestCase):
                 noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
                 max_partitions_contributed=2,
                 max_contributions_per_partition=3,
-                min_value=1,
-                max_value=2,
+                min_value=1.55,
+                max_value=2.7889,
                 budget_weight=1,
                 partition_extractor=lambda x: x[1],
                 value_extractor=lambda x: x[2],
@@ -363,7 +378,7 @@ class PrivateBeamTest(unittest.TestCase):
             # Hence, we use a very large tolerance to reduce test flakiness.
             beam_util.assert_that(
                 result,
-                beam_util.equal_to([("pubK1", 90.0), ("pubK2", 0.0)],
+                beam_util.equal_to([("pubK1", 130.167), ("pubK2", 0.0)],
                                    equals_fn=lambda e, a: PrivateBeamTest.
                                    value_per_key_within_tolerance(e, a, 10.0)))
 
@@ -718,6 +733,60 @@ class PrivateBeamTest(unittest.TestCase):
             # This is a health check to validate that the result is sensible.
             # Hence, we use a very large tolerance to reduce test flakiness.
             beam_util.assert_that(result, beam_util.equal_to(["pk1", "pk2"]))
+
+    def test_combine_per_returns_sensible_result(self):
+        with TestPipeline() as pipeline:
+            # Arrange
+            col = [(f"{u}", "pk1", 100.0) for u in range(30)]
+            col += [(f"{u + 30}", "pk1", -100.0) for u in range(30)]
+            pcol = pipeline | 'Create produce' >> beam.Create(col)
+            # Use very high epsilon and delta to minimize noise and test
+            # flakiness.
+            budget_accountant = budget_accounting.NaiveBudgetAccountant(
+                total_epsilon=800, total_delta=0.999)
+            private_collection = (
+                pcol | 'Create private collection' >> private_beam.MakePrivate(
+                    budget_accountant=budget_accountant,
+                    privacy_id_extractor=lambda x: x[0]))
+
+            private_collection = private_collection | private_beam.Map(
+                lambda x: (x[1], x[2]))
+
+            # Act
+            result = private_collection | private_beam.CombinePerKey(
+                SumCombineFn(),
+                private_beam.CombinePerKeyParams(
+                    max_partitions_contributed=2,
+                    max_contributions_per_partition=1))
+            budget_accountant.compute_budgets()
+
+            # Assert
+            # This is a health check to validate that the result is sensible.
+            # Hence, we use a very large tolerance to reduce test flakiness.
+            beam_util.assert_that(
+                result,
+                beam_util.equal_to([("pk1", 0.0)],
+                                   equals_fn=lambda e, a: PrivateBeamTest.
+                                   value_per_key_within_tolerance(e, a, 10.0)))
+
+
+class SumCombineFn(private_beam.PrivateCombineFn):
+    """Test-only, not private combine_fn."""
+
+    def create_accumulator(self):
+        return 0
+
+    def add_input_for_private_output(self, accumulator, input):
+        return accumulator + input
+
+    def merge_accumulators(self, accumulators):
+        return sum(accumulators)
+
+    def extract_private_output(self, accumulator, budget):
+        return accumulator
+
+    def request_budget(self, budget_accountant):
+        return None
 
 
 if __name__ == '__main__':

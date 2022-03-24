@@ -1,4 +1,21 @@
+# Copyright 2022 OpenMined.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 """ Demo of PipelineDP with Spark.
+
+For running:
+1. Install Python and run on the command line `pip install pipeline-dp pyspark absl-py`
+2. Run python python run_on_beam.py --input_file=<path to data.txt from 3> --output_file=<...>
 """
 
 from absl import app
@@ -7,8 +24,8 @@ import pyspark
 import pipeline_dp
 from pipeline_dp.private_spark import make_private
 from pipeline_dp import SumParams
-from examples.example_utils import parse_partition
-from examples.example_utils import delete_if_exists
+from common_utils import parse_partition
+from common_utils import delete_if_exists
 
 FLAGS = flags.FLAGS
 flags.DEFINE_string('input_file', None, 'The file with the movie view data')
@@ -40,12 +57,20 @@ def main(unused_argv):
 
     # Calculate the private sum
     dp_result = private_movie_views.sum(
-        SumParams(max_partitions_contributed=2,
-                  max_contributions_per_partition=2,
-                  min_value=1,
-                  max_value=5,
-                  partition_extractor=lambda mv: mv.movie_id,
-                  value_extractor=lambda mv: mv.rating))
+        SumParams(
+            # Limits to how much one user can contribute:
+            # .. at most two movies rated per user
+            max_partitions_contributed=2,
+            # .. at most one rating for each movie
+            max_contributions_per_partition=1,
+            # .. with minimal rating of "1"
+            min_value=1,
+            # .. and maximum rating of "5"
+            max_value=5,
+            # The aggregation key: we're grouping by movies
+            partition_extractor=lambda mv: mv.movie_id,
+            # The value we're aggregating: we're summing up ratings
+            value_extractor=lambda mv: mv.rating))
 
     budget_accountant.compute_budgets()
 

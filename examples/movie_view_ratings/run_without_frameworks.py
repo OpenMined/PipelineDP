@@ -1,10 +1,23 @@
+# Copyright 2022 OpenMined.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 """ Demo of running PipelineDP locally, without any external data processing framework"""
 
 from absl import app
 from absl import flags
 import pipeline_dp
 
-from examples.example_utils import parse_file, write_to_file
+from common_utils import parse_file, write_to_file
 
 FLAGS = flags.FLAGS
 flags.DEFINE_string('input_file', None, 'The file with the movie view data')
@@ -30,17 +43,20 @@ def main(unused_argv):
     dp_engine = pipeline_dp.DPEngine(budget_accountant, backend)
 
     params = pipeline_dp.AggregateParams(
-        noise_kind=pipeline_dp.NoiseKind.LAPLACE,
         metrics=[
             # we can compute multiple metrics at once.
             pipeline_dp.Metrics.COUNT,
             pipeline_dp.Metrics.SUM,
             pipeline_dp.Metrics.PRIVACY_ID_COUNT
         ],
-        # Limit contributions of each user.
+        # Limits to how much one user can contribute:
+        # .. at most two movies rated per user
         max_partitions_contributed=2,
+        # .. at most one rating for each movie
         max_contributions_per_partition=1,
+        # .. with minimal rating of "1"
         min_value=1,
+        # .. and maximum rating of "5"
         max_value=5)
 
     # Specify how to extract privacy_id, partition_key and value from an

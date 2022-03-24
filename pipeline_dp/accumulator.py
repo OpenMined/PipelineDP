@@ -1,18 +1,33 @@
+# Copyright 2022 OpenMined.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 # Deprecation warning: Accumulator Framework in this file is deprecated in
 #  favour of Combiner framework (combiner.py) and will be removed soon.
 import abc
 import copy
-import typing
 import pickle
-from dataclasses import dataclass
+import typing
 from functools import reduce
+from typing import Iterable
+from typing import Tuple
+from typing import Union
 
-from typing import Iterable, Optional, Tuple, Union
+import numpy as np
+
 import pipeline_dp
 from pipeline_dp import aggregate_params
-from pipeline_dp import dp_computations
 from pipeline_dp import budget_accounting
-import numpy as np
+from pipeline_dp import dp_computations
 
 
 def merge(accumulators: typing.Iterable['Accumulator']) -> 'Accumulator':

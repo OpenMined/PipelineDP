@@ -1,9 +1,23 @@
+# Copyright 2022 OpenMined.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 """Adapters for working with pipeline frameworks."""
 
 import functools
 import multiprocessing as mp
 import random
 import numpy as np
+from collections.abc import Iterable
 
 import abc
 import pipeline_dp.accumulator as accumulator
@@ -217,7 +231,7 @@ class BeamBackend(PipelineBackend):
         return ({
             VALUES: col,
             TO_KEEP: keys_to_keep
-        } | "CoGroup by values and to_keep partition flag " >>
+        } | self._ulg.unique("CoGroup by values and to_keep partition flag") >>
                 beam.CoGroupByKey() | self._ulg.unique("Partitions Filter Join")
                 >> beam.ParDo(PartitionsFilterJoin()))
 
@@ -271,7 +285,15 @@ class BeamBackend(PipelineBackend):
 class SparkRDDBackend(PipelineBackend):
     """Apache Spark RDD adapter."""
 
+    def __init__(self, sc: 'SparkContext'):
+        self._sc = sc
+
     def map(self, rdd, fn, stage_name: str = None):
+        # TODO(make more elegant solution): workaround for public_partitions
+        # It is beneficial to accept them as in-memory collection for improving
+        # performance of filtering. But for applying map, RDD is required.
+        if isinstance(rdd, Iterable):
+            return self._sc.parallelize(rdd).map(fn)
         return rdd.map(fn)
 
     def flat_map(self, rdd, fn, stage_name: str = None):
@@ -351,7 +373,7 @@ class SparkRDDBackend(PipelineBackend):
             lambda acc1, acc2: combiner.merge_accumulators(acc1, acc2))
 
     def flatten(self, col1, col2, stage_name: str = None):
-        raise NotImplementedError("Not yet implemented for Spark")
+        return col1.union(col2)
 
 
 class LocalBackend(PipelineBackend):

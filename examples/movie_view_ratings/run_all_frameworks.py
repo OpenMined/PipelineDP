@@ -1,27 +1,39 @@
+# Copyright 2022 OpenMined.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 """ The example of using DPEngine for performing DP aggregation.
 
 This is a quite elaborate example demonstrating many features. For a simpler
 example of how to use PipelineDP with spark, check
-movie_view_ratings_spark.py or movie_view_ratings_beam.py.
+run_on_spark.py or run_on_beam.py.
 
 In order to run an example:
 
-1. Install Python and run on the command line `pip install numpy apache-beam pyspark absl-py`
+1. Install Python and run on the command line `pip install pipeline-dp apache-beam pyspark absl-py`
 2. Download the Netflix prize dataset from https://www.kaggle.com/netflix-inc/netflix-prize-data and unpack it.
 3. The dataset itself is pretty big, to speed up the run it's better to use a
 part of it. You can get a part of it by running in bash:
 
    head -10000 combined_data_1.txt > data.txt
 
-4. Run python movie_view_ratings.py --framework=<framework> --input_file=<path to data.txt from 3> --output_file=<...>
+4. Run python run_all_frameworks.py --framework=<framework> --input_file=<path to data.txt from 3> --output_file=<...>
 """
 
 from absl import app
 from absl import flags
-import apache_beam as beam
 from apache_beam.runners.portability import fn_api_runner
 import pyspark
-from examples.example_utils import *
+from examples.movie_view_ratings.common_utils import *
 import pipeline_dp
 
 FLAGS = flags.FLAGS
@@ -59,7 +71,7 @@ def calc_dp_rating_metrics(movie_views, backend, public_partitions):
         noise_kind=pipeline_dp.NoiseKind.LAPLACE,
         metrics=[
             pipeline_dp.Metrics.COUNT, pipeline_dp.Metrics.SUM,
-            pipeline_dp.Metrics.PRIVACY_ID_COUNT
+            pipeline_dp.Metrics.PRIVACY_ID_COUNT, pipeline_dp.Metrics.MEAN
         ],
         max_partitions_contributed=2,
         max_contributions_per_partition=1,
@@ -136,7 +148,7 @@ def compute_on_spark():
     sc = pyspark.SparkContext(conf=conf)
     movie_views = sc.textFile(FLAGS.input_file) \
         .mapPartitions(parse_partition)
-    pipeline_backend = pipeline_dp.SparkRDDBackend()
+    pipeline_backend = pipeline_dp.SparkRDDBackend(sc)
     dp_result = calculate_private_result(movie_views, pipeline_backend)
 
     delete_if_exists(FLAGS.output_file)
