@@ -511,13 +511,19 @@ def _create_named_tuple_instance(type_name: str, field_names: tuple, values):
 
 
 class Aggregate(PrivatePTransform):
-
-    """Transform class for performing multiple aggregations."""
+    """Transform class for performing multiple aggregations on a PrivatePCollection."""
 
     def __init__(self, label=None):
         super().__init__(return_anonymized=True, label=label)
 
-    def aggregate_value(self, *args, col_name, agg_type):
+    def aggregate_value(self, *args, col_name: str, agg_type: pipeline_dp.Metrics):
+        """Returns _Aggregate transform corresponding to the agg_type
+
+        Args:
+            args: args for Aggregate Transforms like SumParams.)
+            col_name: name of the column for the resulting aggregate value.
+            agg_type: type of pipeline_dp.Metrics identifying the aggregate
+            to calculate."""
         return _Aggregate([args], col_name=[col_name], agg_type=[agg_type])
 
 
@@ -539,7 +545,7 @@ class _Aggregate(PrivatePTransform):
                           col_name=list(self.col_name) + [col_name],
                           agg_type=list(self.agg_type) + [agg_type])
 
-    def expand(self, pcol):
+    def expand(self, pcol: pvalue.PCollection):
         columns = {
             self.col_name[i]: pcol | "agg " + str(i) >> self._getTransform(
                 self.agg_type[i], *self.args[0][i])
@@ -551,6 +557,7 @@ class _Aggregate(PrivatePTransform):
             tuple([x[0]] + [x[1][k][0] for k in x[1]])))
 
     def _getTransform(self, agg_type: pipeline_dp.Metrics, *args):
+        """Gets the correct transform corresponding to agg_type."""
         transform = None
         if agg_type == pipeline_dp.Metrics.MEAN:
             transform = Mean(*args)

@@ -43,11 +43,12 @@ class PrivateBeamTest(unittest.TestCase):
                                                 expected[1]) <= tolerance
 
     @staticmethod
-    def value_per_key_within_tolerance_dict(expected, actual, tolerance):
+    def value_per_key_within_tolerance_named_tuple(expected, actual, tolerance):
         expected_dict = expected._asdict()
         actual_dict = actual._asdict()
-        return all([(actual_dict[k] == expected_dict[k]) or (abs(actual_dict[k] - expected_dict[k]) <= tolerance) for k in\
-          actual_dict])
+        return all([(actual_dict[k] == expected_dict[k]) or
+                    (abs(actual_dict[k] - expected_dict[k]) <= tolerance)
+                    for k in actual_dict])
 
     def test_make_private_transform_succeeds(self):
         runner = fn_api_runner.FnApiRunner()
@@ -834,7 +835,7 @@ class PrivateBeamTest(unittest.TestCase):
                             ['pid', 'privacy_id_count', 'sum'])('pk2', 30, 83)
                     ],
                     equals_fn=lambda e, a: PrivateBeamTest.
-                    value_per_key_within_tolerance_dict(e, a, 10)))
+                    value_per_key_within_tolerance_named_tuple(e, a, 10)))
 
 
 class SumCombineFn(private_beam.PrivateCombineFn):
