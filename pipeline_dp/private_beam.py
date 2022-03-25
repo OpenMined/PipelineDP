@@ -516,7 +516,8 @@ class Aggregate(PrivatePTransform):
     def __init__(self, label=None):
         super().__init__(return_anonymized=True, label=label)
 
-    def aggregate_value(self, *args, col_name: str, agg_type: pipeline_dp.Metrics):
+    def aggregate_value(self, *args, col_name: str,
+                        agg_type: pipeline_dp.Metrics):
         """Returns _Aggregate transform corresponding to the agg_type
 
         Args:
