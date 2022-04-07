@@ -284,7 +284,7 @@ class MeanCombiner(Combiner):
         return self._metrics_to_compute
 
 
-# Cache for namedtuple types. It is should be used only in
+# Cache for namedtuple types. It should be used only in
 # '_get_or_create_named_tuple()' function.
 _named_tuple_cache = {}
 
