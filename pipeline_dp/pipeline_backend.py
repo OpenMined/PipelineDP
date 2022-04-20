@@ -132,6 +132,10 @@ class PipelineBackend(abc.ABC):
         """
         pass
 
+    def annotate(self, col, **kwargs):
+        for annotator in annotators:
+            annotator.annotate(self, col, kwargs)
+
 
 class UniqueLabelsGenerator:
     """Generate unique labels for each pipeline aggregation."""
@@ -674,3 +678,19 @@ class MultiProcLocalBackend(PipelineBackend):
 
     def flatten(self, col1, col2, stage_name: str = None):
         return itertools.chain(col1, col2)
+
+
+class Annotator(abc.ABC):
+    """Interface to annotate a PipelineDP pipeline. Call register_annotator()
+    with your custom Annotator to annotate your pipeline."""
+
+    @abc.abstractmethod
+    def annotate(self, col, **kwargs):
+        pass
+
+
+annotators = []
+
+
+def register_annotator(annotator):
+    annotators.append(annotator)
