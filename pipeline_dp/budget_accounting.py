@@ -128,23 +128,32 @@ class BudgetAccountant(abc.ABC):
     def compute_budgets(self):
         pass
 
-    def scope(self, weight: float):
-        """Defines a scope for DP operations that should consume no more than "weight" proportion of the budget
-        of the parent scope.
+    def scope(self,
+              weight: float,
+              aggregation_scope=False) -> 'BudgetAccountantScope':
+        """Returns a scope for DP operations
 
-        The accountant will automatically scale the budgets of all sub-operations accordingly.
+        The returned scope should consume no more than "weight" proportion of
+        the budget of the parent scope.
+
+        The accountant will automatically scale the budgets of all
+        sub-operations accordingly.
 
         Example usage:
           with accountant.scope(weight = 0.5):
              ... some code that consumes DP budget ...
 
         Args:
-            weight: budget weight of all operations made within this scope as compared to.
+            weight: budget weight of all operations made within this scope as
+             compared to.
+            aggregation_scope: if True, this is a high-level scope which
+             corresponds to one aggregation.
 
         Returns:
-            the scope that should be used in a "with" block enclosing the operations consuming the budget.
+            the scope that should be used in a "with" block enclosing the
+            operations consuming the budget.
         """
-        return BudgetAccountantScope(self, weight)
+        return BudgetAccountantScope(self, weight, aggregation_scope)
 
     def _register_mechanism(self, mechanism: MechanismSpecInternal):
         """Registers this mechanism for the future normalisation."""
@@ -172,11 +181,39 @@ class BudgetAccountant(abc.ABC):
 
 @dataclass
 class BudgetAccountantScope:
+    """The """
 
-    def __init__(self, accountant, weight):
+    def __init__(self,
+                 accountant: BudgetAccountant,
+                 weight: float,
+                 index_aggregation_scope: Optional[int] = None):
         self.weight = weight
         self.accountant = accountant
+        self._index_aggregation_scope = index_aggregation_scope
+        self._eps = None
+        self._delta = None
+        if index_aggregation_scope is not None:
+            self._compute_budget_for_aggregation_scope()
         self.mechanisms = []
+
+    @property
+    def eps(self):
+        self._validate_eps_delta()
+        return self._eps
+
+    @property
+    def delta(self):
+        self._validate_eps_delta()
+        return self._delta
+
+    def _validate_eps_delta(self):
+        if self._index_aggregation_scope is None:
+            raise ValueError("Only aggregation scopes have computed budget.")
+        if self._eps is None:
+            raise ValueError("The budget per aggregation was not computed. "
+                             "Please specify 'n_aggregations' or "
+                             "'aggregationweights' in Budget Accountant "
+                             "constructor.")
 
     def __enter__(self):
         self.accountant._enter_scope(self)
@@ -186,7 +223,7 @@ class BudgetAccountantScope:
         self._normalise_mechanism_weights()
 
     def _normalise_mechanism_weights(self):
-        """Normalise all mechanism weights so that they sum up to the weight of the current scope."""
+        """Normalises all mechanism weights so that they sum up to the weight of the current scope."""
 
         if not self.mechanisms:
             return
@@ -196,11 +233,29 @@ class BudgetAccountantScope:
         for mechanism in self.mechanisms:
             mechanism.weight *= normalisation_factor
 
+    def _compute_budget_for_aggregation_scope(self):
+        n_aggregations = self.accountant._n_aggregations
+        weights = self.accountant._weights
+        if n_aggregations is not None:
+            budget_ratio = 1 / n_aggregations
+        elif weights is not None:
+            sum_weights = sum(weights)
+            budget_ratio = weights[self._index_aggregation_scope] / sum_weights
+        else:
+            # Restrictions on aggregations are not specified, do nothing.
+            return
+        self._eps = self.accountant._total_eps * budget_ratio
+        self._delta = self.accountant._total_delta * budget_ratio
+
 
 class NaiveBudgetAccountant(BudgetAccountant):
     """Manages the privacy budget."""
 
-    def __init__(self, total_epsilon: float, total_delta: float):
+    def __init__(self,
+                 total_epsilon: float,
+                 total_delta: float,
+                 n_aggregations: Optional[int] = None,
+                 aggregation_weights: Optional[list] = None):
         """Constructs a NaiveBudgetAccountant.
 
         Args:
@@ -217,6 +272,10 @@ class NaiveBudgetAccountant(BudgetAccountant):
         self._total_epsilon = total_epsilon
         self._total_delta = total_delta
         self._finalized = False
+        if self._n_aggregations is not None and self._weights is not None:
+            raise ValueError("todo")
+        self._n_aggregations = n_aggregations
+        self._weights = aggregation_weights
 
     def request_budget(
             self,
