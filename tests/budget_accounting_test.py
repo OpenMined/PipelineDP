@@ -143,6 +143,9 @@ class NaiveBudgetAccountantTest(unittest.TestCase):
             budget_accountant.request_budget(
                 mechanism_type=MechanismType.LAPLACE)
 
+    def test_n_aggregations(self):
+        pass
+
 
 class PLDBudgetAccountantTest(unittest.TestCase):
 
