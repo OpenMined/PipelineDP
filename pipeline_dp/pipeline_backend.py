@@ -133,7 +133,7 @@ class PipelineBackend(abc.ABC):
         pass
 
     def annotate(self, col, **kwargs):
-        for annotator in annotators:
+        for annotator in _annotators:
             annotator.annotate(self, col, kwargs)
 
 
@@ -681,16 +681,18 @@ class MultiProcLocalBackend(PipelineBackend):
 
 
 class Annotator(abc.ABC):
-    """Interface to annotate a PipelineDP pipeline. Call register_annotator()
-    with your custom Annotator to annotate your pipeline."""
+    """Interface to annotate a PipelineDP pipeline.
+
+    Call register_annotator() with your custom Annotator to annotate your
+    pipeline."""
 
     @abc.abstractmethod
     def annotate(self, col, **kwargs):
         pass
 
 
-annotators = []
+_annotators = []
 
 
-def register_annotator(annotator):
-    annotators.append(annotator)
+def register_annotator(annotator: Annotator):
+    _annotators.append(annotator)

@@ -62,7 +62,9 @@ class DPEngine:
         _check_aggregate_params(col, params, data_extractors)
 
         with self._budget_accountant.scope(weight=params.budget_weight):
-            return self._aggregate(col, params, data_extractors)
+            result = self._aggregate(col, params, data_extractors)
+            self._backend.annotate()
+            return result
 
     def _aggregate(self, col, params: pipeline_dp.AggregateParams,
                    data_extractors: DataExtractors):
@@ -119,8 +121,6 @@ class DPEngine:
         # Compute DP metrics.
         col = self._backend.map_values(col, combiner.compute_metrics,
                                        "Compute DP` metrics")
-
-        self._backend.annotate()
 
         return col
 
