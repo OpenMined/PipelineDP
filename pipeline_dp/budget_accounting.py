@@ -194,7 +194,6 @@ class BudgetAccountant(abc.ABC):
 
 
 class BudgetAccountantScope:
-    """TODO"""
 
     def __init__(self,
                  accountant: BudgetAccountant,
@@ -210,7 +209,7 @@ class BudgetAccountantScope:
         self.mechanisms = []
 
     @property
-    def eps(self):
+    def epsilon(self):
         self._validate_epsilon_delta()
         return self._epsilon
 
@@ -377,7 +376,9 @@ class PLDBudgetAccountant(BudgetAccountant):
     def __init__(self,
                  total_epsilon: float,
                  total_delta: float,
-                 pld_discretization: float = 1e-4):
+                 pld_discretization: float = 1e-4,
+                 n_aggregations: Optional[int] = None,
+                 aggregations_weights: Optional[list] = None):
         """Constructs a PLDBudgetAccountant.
 
         Args:
@@ -390,7 +391,7 @@ class PLDBudgetAccountant(BudgetAccountant):
             ValueError: Arguments are missing or out of range.
         """
 
-        super().__init__()
+        super().__init__(n_aggregations, aggregations_weights)
 
         _validate_epsilon_delta(total_epsilon, total_delta)
 

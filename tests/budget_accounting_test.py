@@ -20,10 +20,11 @@ from pipeline_dp.budget_accounting import MechanismSpec
 from pipeline_dp.aggregate_params import MechanismType
 from pipeline_dp.budget_accounting import NaiveBudgetAccountant
 from pipeline_dp.budget_accounting import PLDBudgetAccountant
+from absl.testing import parameterized
 
 
 # pylint: disable=protected-access
-class NaiveBudgetAccountantTest(unittest.TestCase):
+class NaiveBudgetAccountantTest(parameterized.TestCase):
 
     def test_validation(self):
         NaiveBudgetAccountant(total_epsilon=1,
@@ -143,8 +144,21 @@ class NaiveBudgetAccountantTest(unittest.TestCase):
             budget_accountant.request_budget(
                 mechanism_type=MechanismType.LAPLACE)
 
-    def test_n_aggregations(self):
-        pass
+    @parameterized.parameters(1, 2, 10)
+    def test_n_aggregations(self, n_aggregations):
+        total_epsilon, total_delta = 1, 1e-6
+        budget_accountant = NaiveBudgetAccountant(total_epsilon=total_epsilon,
+                                                  total_delta=total_delta,
+                                                  n_aggregations=n_aggregations)
+        for _ in range(n_aggregations):
+            with budget_accountant.scope(weight=1,
+                                         aggregation_scope=True) as scope:
+                expected_epsilon = total_epsilon / n_aggregations
+                expected_delta = total_delta / n_aggregations
+                self.assertAlmostEqual(expected_epsilon, scope.epsilon)
+                self.assertAlmostEqual(expected_delta, scope.delta)
+
+        budget_accountant.compute_budgets()
 
 
 class PLDBudgetAccountantTest(unittest.TestCase):
