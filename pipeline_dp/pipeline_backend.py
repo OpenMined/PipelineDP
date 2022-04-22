@@ -132,9 +132,13 @@ class PipelineBackend(abc.ABC):
         """
         pass
 
-    def annotate(self, col, **kwargs):
-        for annotator in _annotators:
-            annotator.annotate(self, col, kwargs)
+    @abc.abstractmethod
+    def annotate(self, col, stage_name: str, **kwargs):
+        """
+        Returns:
+          The input collection after applying all the annotations in _annotators.
+        """
+        pass
 
 
 class UniqueLabelsGenerator:
@@ -285,6 +289,13 @@ class BeamBackend(PipelineBackend):
     def flatten(self, col1, col2, stage_name: str):
         return (col1, col2) | self._ulg.unique(stage_name) >> beam.Flatten()
 
+    def annotate(self, col, stage_name: str, **kwargs):
+        if not _annotators:
+            return col
+        for annotator in _annotators:
+            col = annotator.annotate(col, self._ulg.unique(stage_name))
+        return col
+
 
 class SparkRDDBackend(PipelineBackend):
     """Apache Spark RDD adapter."""
@@ -379,6 +390,9 @@ class SparkRDDBackend(PipelineBackend):
     def flatten(self, col1, col2, stage_name: str = None):
         return col1.union(col2)
 
+    def annotate(self, col, stage_name: str, **kwargs):
+        return col  # not implemented yet
+
 
 class LocalBackend(PipelineBackend):
     """Local Pipeline adapter."""
@@ -461,6 +475,9 @@ class LocalBackend(PipelineBackend):
 
     def flatten(self, col1, col2, stage_name: str = None):
         return itertools.chain(col1, col2)
+
+    def annotate(self, col, stage_name: str, **kwargs):
+        return col  # not implemented yet
 
 
 # workaround for passing lambda functions to multiprocessing
@@ -687,7 +704,15 @@ class Annotator(abc.ABC):
     pipeline."""
 
     @abc.abstractmethod
-    def annotate(self, col, **kwargs):
+    def annotate(self, col, stage_name: str, **kwargs):
+        """
+        Args:
+          stage_name: annotation stage_name, it needs to be correctly propagated
+          kwargs: key-value pair arguments supported by DPEngine.aggregate()
+
+        Returns:
+            The input collection after applying an annotation.
+        """
         pass
 
 
