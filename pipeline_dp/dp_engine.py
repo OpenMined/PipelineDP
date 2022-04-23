@@ -124,8 +124,17 @@ class DPEngine:
         # col : (partition_key, accumulator)
 
         if params.public_partitions is None:
+            max_privacy_ids_per_row = 1
+
+            if params.contribution_bounds_already_enforced:
+                # This regime assumes the input data doesn't have privacy IDs, and therefore
+                # we didn't group by them and cannot guarantee one row corresponds to exactly
+                # one privacy ID.
+                max_privacy_ids_per_row = params.max_contributions_per_partition
+
             col = self._select_private_partitions_internal(
-                col, params.max_partitions_contributed)
+                col, params.max_partitions_contributed,
+                max_privacy_ids_per_row)
         # col : (partition_key, accumulator)
 
         # Compute DP metrics.
@@ -229,7 +238,7 @@ class DPEngine:
         # col : (partition_key, accumulator)
 
         col = self._select_private_partitions_internal(
-            col, max_partitions_contributed)
+            col, max_partitions_contributed, max_privacy_ids_per_row=1)
         col = self._backend.keys(col,
                                  "Drop accumulators, keep only partition keys")
 
@@ -317,7 +326,8 @@ class DPEngine:
             col, unnest_cross_partition_bound_sampled_per_key, "Unnest")
 
     def _select_private_partitions_internal(self, col,
-                                            max_partitions_contributed: int):
+                                            max_partitions_contributed: int,
+                                            max_privacy_ids_per_row: int):
         """Selects and publishes private partitions.
 
         Args:
@@ -333,12 +343,18 @@ class DPEngine:
             mechanism_type=pipeline_dp.MechanismType.GENERIC)
 
         def filter_fn(
-            budget: 'MechanismSpec', max_partitions: int,
+            budget: 'MechanismSpec', max_partitions: int, max_privacy_ids_per_row: int,
             row: Tuple[Any,
                        combiners.CompoundCombiner.AccumulatorType]) -> bool:
             """Lazily creates a partition selection strategy and uses it to determine which
             partitions to keep."""
-            privacy_id_count, _ = row[1]
+            row_count, _ = row[1]
+
+            # A conservative (lower) estimate of how many privacy IDs contributed to
+            # this partition. This estimate is only needed when privacy IDs are not available
+            # in the original dataset.
+            privacy_id_count = row_count // max_privacy_ids_per_row
+
             partition_selection_strategy = (
                 partition_selection.
                 create_truncated_geometric_partition_strategy(
@@ -347,7 +363,8 @@ class DPEngine:
 
         # make filter_fn serializable
         filter_fn = functools.partial(filter_fn, budget,
-                                      max_partitions_contributed)
+                                      max_partitions_contributed,
+                                      max_privacy_ids_per_row)
         self._add_report_stage(
             lambda:
             f"Private Partition selection: using {budget.mechanism_type.value} "
@@ -368,3 +385,7 @@ def _check_aggregate_params(col, params: pipeline_dp.AggregateParams,
         raise ValueError("data_extractors must be set to a DataExtractors")
     if not isinstance(data_extractors, pipeline_dp.DataExtractors):
         raise TypeError("data_extractors must be set to a DataExtractors")
+    if params.contribution_bounds_already_enforced == \
+            (data_extractors.privacy_id_extractor is not None):
+        raise ValueError("privacy_id_extractor should be set iff "\
+                         "contribution_bounds_already_enforced is False")
