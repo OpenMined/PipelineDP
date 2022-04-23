@@ -2,6 +2,7 @@ numpy
 apache-beam
 absl-py
 pyspark
+toml
 
 # pytest stuff
 pytest
