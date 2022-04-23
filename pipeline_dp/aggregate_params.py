@@ -71,6 +71,11 @@ class AggregateParams:
       manner.
     custom_combiners: Warning: experimental@ Combiners for computing custom
       metrics.
+    contribution_bounds_already_enforced: assume that the input dataset complies
+      with the bounds provided in max_partitions_contributed and
+      max_contributions_per_partition. This option can be used if the dataset
+      does not contain any identifiers that can be used to enforce contribution
+      bounds automatically.
   """
 
     metrics: Iterable[Metrics]
@@ -84,6 +89,7 @@ class AggregateParams:
     public_partitions: Any = None
     noise_kind: NoiseKind = NoiseKind.LAPLACE
     custom_combiners: Iterable['CustomCombiner'] = None
+    contribution_bounds_already_enforced: bool = False
 
     def __post_init__(self):
         if self.low is not None:
@@ -151,6 +157,8 @@ class SelectPartitionsParams:
     """
     max_partitions_contributed: int
     budget_weight: float = 1
+
+    # TODO: Add support for contribution_bounds_already_enforced
 
     def __str__(self):
         return "Private Partitions"

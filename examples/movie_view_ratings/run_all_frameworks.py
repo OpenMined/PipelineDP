@@ -46,6 +46,10 @@ flags.DEFINE_list('public_partitions', None,
 flags.DEFINE_boolean(
     'private_partitions', False,
     'Output private partitions (do not calculate any DP metrics)')
+flags.DEFINE_boolean(
+    'contribution_bounds_already_enforced', False,
+    'Assume the input dataset already enforces the hard-coded contribution'
+    'bounds. Ignore the user identifiers.')
 
 
 def calculate_private_result(movie_views, pipeline_backend):
@@ -77,13 +81,14 @@ def calc_dp_rating_metrics(movie_views, backend, public_partitions):
         max_contributions_per_partition=1,
         min_value=1,
         max_value=5,
-        public_partitions=public_partitions)
+        public_partitions=public_partitions,
+        contribution_bounds_already_enforced=FLAGS.contribution_bounds_already_enforced)
 
     # Specify how to extract privacy_id, partition_key and value from an
     # element of movie view collection.
     data_extractors = pipeline_dp.DataExtractors(
         partition_extractor=lambda mv: mv.movie_id,
-        privacy_id_extractor=lambda mv: mv.user_id,
+        privacy_id_extractor=(lambda mv: mv.user_id) if not FLAGS.contribution_bounds_already_enforced else None,
         value_extractor=lambda mv: mv.rating)
 
     # Run aggregation.

@@ -84,22 +84,34 @@ class DPEngine:
             col = self._drop_not_public_partitions(col,
                                                    params.public_partitions,
                                                    data_extractors)
+        if not params.contribution_bounds_already_enforced:
+            # Extract the columns.
+            col = self._backend.map(
+                col, lambda row: (data_extractors.privacy_id_extractor(row),
+                                  data_extractors.partition_extractor(row),
+                                  data_extractors.value_extractor(row)),
+                "Extract (privacy_id, partition_key, value))")
+            # col : (privacy_id, partition_key, value)
+            col = self._bound_contributions(col, params.max_partitions_contributed,
+                                            params.max_contributions_per_partition,
+                                            combiner.create_accumulator)
+            # col : ((privacy_id, partition_key), accumulator)
 
-        # Extract the columns.
-        col = self._backend.map(
-            col, lambda row: (data_extractors.privacy_id_extractor(row),
-                              data_extractors.partition_extractor(row),
-                              data_extractors.value_extractor(row)),
-            "Extract (privacy_id, partition_key, value))")
-        # col : (privacy_id, partition_key, value)
-        col = self._bound_contributions(col, params.max_partitions_contributed,
-                                        params.max_contributions_per_partition,
-                                        combiner.create_accumulator)
-        # col : ((privacy_id, partition_key), accumulator)
+            col = self._backend.map_tuple(col, lambda pid_pk, v: (pid_pk[1], v),
+                                          "Drop privacy id")
+            # col : (partition_key, accumulator)
+        else:
+            # Extract the columns.
+            col = self._backend.map(
+                col, lambda row: (data_extractors.partition_extractor(row),
+                                  data_extractors.value_extractor(row)),
+                "Extract (partition_key, value))")
+            # col : (partition_key, value)
 
-        col = self._backend.map_tuple(col, lambda pid_pk, v: (pid_pk[1], v),
-                                      "Drop privacy id")
-        # col : (partition_key, accumulator)
+            col = self._backend.map_values(
+                col, lambda value: combiner.create_accumulator([value]),
+                "Wrap values into accumulators")
+            # col : (partition_key, accumulator)
 
         if params.public_partitions:
             col = self._add_empty_public_partitions(col,
