@@ -132,13 +132,19 @@ class PipelineBackend(abc.ABC):
         """
         pass
 
-    @abc.abstractmethod
     def annotate(self, col, stage_name: str, **kwargs):
-        """
+        """Annotates collection with registered annotators.
+
+        Args:
+          col: input collection which contains tuples (key, accumulator).
+          stage_name: name of the stage.
+          kwargs: additional key-value pair arguments supported by
+          DPEngine.aggregate()
+
         Returns:
           The input collection after applying all the annotations in _annotators.
         """
-        pass
+        return col  # if not implemented for a Backend
 
 
 class UniqueLabelsGenerator:
@@ -390,9 +396,6 @@ class SparkRDDBackend(PipelineBackend):
     def flatten(self, col1, col2, stage_name: str = None):
         return col1.union(col2)
 
-    def annotate(self, col, stage_name: str, **kwargs):
-        return col  # not implemented yet
-
 
 class LocalBackend(PipelineBackend):
     """Local Pipeline adapter."""
@@ -475,9 +478,6 @@ class LocalBackend(PipelineBackend):
 
     def flatten(self, col1, col2, stage_name: str = None):
         return itertools.chain(col1, col2)
-
-    def annotate(self, col, stage_name: str, **kwargs):
-        return col  # not implemented yet
 
 
 # workaround for passing lambda functions to multiprocessing
@@ -705,10 +705,12 @@ class Annotator(abc.ABC):
 
     @abc.abstractmethod
     def annotate(self, col, stage_name: str, **kwargs):
-        """
+        """Annotates a collection.
+
         Args:
           stage_name: annotation stage_name, it needs to be correctly propagated
-          kwargs: key-value pair arguments supported by DPEngine.aggregate()
+          kwargs: additional key-value pair arguments supported by
+          DPEngine.aggregate()
 
         Returns:
             The input collection after applying an annotation.
