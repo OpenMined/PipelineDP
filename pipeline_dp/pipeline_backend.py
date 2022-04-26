@@ -136,15 +136,15 @@ class PipelineBackend(abc.ABC):
         """Annotates collection with registered annotators.
 
         Args:
-          col: input collection which contains tuples (key, accumulator).
+          col: input collection of elements of any type.
           stage_name: name of the stage.
-          kwargs: additional key-value pair arguments supported by
-          DPEngine.aggregate()
+          kwargs: additional arguments about the current aggregation.
 
         Returns:
-          The input collection after applying all the annotations in _annotators.
+          The input collection after applying annotations from all registered
+          annotators.
         """
-        return col  # if not implemented for a Backend
+        return col  # no-op if not implemented for a Backend
 
 
 class UniqueLabelsGenerator:
@@ -299,7 +299,8 @@ class BeamBackend(PipelineBackend):
         if not _annotators:
             return col
         for annotator in _annotators:
-            col = annotator.annotate(col, self._ulg.unique(stage_name))
+            col = annotator.annotate(col, self._ulg.unique(stage_name),
+                                     **kwargs)
         return col
 
 
@@ -709,8 +710,7 @@ class Annotator(abc.ABC):
 
         Args:
           stage_name: annotation stage_name, it needs to be correctly propagated
-          kwargs: additional key-value pair arguments supported by
-          DPEngine.aggregate()
+          kwargs: additional arguments about the current aggregation.
 
         Returns:
             The input collection after applying an annotation.
