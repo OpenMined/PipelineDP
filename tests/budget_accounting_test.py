@@ -160,6 +160,33 @@ class NaiveBudgetAccountantTest(parameterized.TestCase):
 
         budget_accountant.compute_budgets()
 
+    def test_aggregation_weights(self):
+        total_epsilon, total_delta = 1, 1e-6
+        weights = [1, 2, 5]
+        budget_accountant = NaiveBudgetAccountant(total_epsilon=total_epsilon,
+                                                  total_delta=total_delta,
+                                                  aggregation_weights=weights)
+        for weight in weights:
+            with budget_accountant.scope(weight=weight,
+                                         aggregation_scope=True) as scope:
+                expected_epsilon = total_epsilon * weight / sum(weights)
+                expected_delta = total_delta * weight / sum(weights)
+                self.assertAlmostEqual(expected_epsilon, scope.epsilon)
+                self.assertAlmostEqual(expected_delta, scope.delta)
+
+        budget_accountant.compute_budgets()
+
+    def test_nested_aggregation_scopes(self):
+        total_epsilon, total_delta = 1, 1e-6
+        budget_accountant = NaiveBudgetAccountant(total_epsilon=total_epsilon,
+                                                  total_delta=total_delta,
+                                                  n_aggregations=1)
+        with self.assertRaises(ValueError):
+            # Nested aggregation scopes are not allowed.
+            with budget_accountant.scope(weight=1, aggregation_scope=True):
+                with budget_accountant.scope(weight=1, aggregation_scope=True):
+                    pass
+
 
 class PLDBudgetAccountantTest(unittest.TestCase):
 

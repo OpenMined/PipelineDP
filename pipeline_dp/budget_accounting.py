@@ -115,10 +115,17 @@ class BudgetAccountant(abc.ABC):
         self._mechanisms = []
         self._finalized = False
         if n_aggregations is not None and aggregation_weights is not None:
-            raise ValueError("todo")
+            raise ValueError(
+                "'n_aggregations' and 'aggregation_weights' can not be set simultaneously."
+            )
+        if n_aggregations is not None and n_aggregations <= 0:
+            raise ValueError(
+                f"'n_aggregations'={n_aggregations}, but it has to be positive."
+            )
         self._n_aggregations = n_aggregations
         self._aggregation_weights = aggregation_weights
         self._next_aggregation_index = 0
+        self._inside_aggregation_scope = False
 
     @abc.abstractmethod
     def request_budget(
@@ -151,19 +158,49 @@ class BudgetAccountant(abc.ABC):
 
         Args:
             weight: budget weight of all operations made within this scope as
-             compared to.
-            aggregation_scope: if True, this is a high-level scope which
-             corresponds to one aggregation.
+             compared to other scopes with the same parent scope.
+            aggregation_scope: if True, this is an aggregation scope.
+            Aggregation scopes are high-level scopes which corresponds to the
+             whole aggregation computation graph (e.g. the call of
+             DPEngine.aggregate()). Aggregation scopes can not include each
+             other.
 
         Returns:
             the scope that should be used in a "with" block enclosing the
             operations consuming the budget.
         """
         aggregation_index = None
-        if aggregation_scope:
+        if aggregation_scope and (self._n_aggregations or
+                                  self._aggregation_weights):
+            if self._inside_aggregation_scope:
+                raise ValueError("Aggregation scopes can not be nested.")
             aggregation_index = self._get_next_aggregation_index()
-            # if weight != 1:
-            #     if
+            if self._n_aggregations:
+                if aggregation_index >= self._n_aggregations:
+                    raise ValueError("Exceeded the number of allowed "
+                                     "aggregations. If you need more update "
+                                     "'n_aggregations' in the constructor of "
+                                     "BudgetAccountant")
+                if weight != 1:
+                    raise ValueError(f"When 'n_aggregations' is set in the "
+                                     f"constructor of BudgetAccountant, all "
+                                     f"aggregation weights have to be 1, but "
+                                     f"weight={weight}.")
+            elif self._aggregation_weights != None:
+                if aggregation_index >= len(self._aggregation_weights):
+                    raise ValueError("Exceeded the number of allowed "
+                                     "aggregations. If you need more update "
+                                     "'aggregation_weights' in the constructor "
+                                     "of BudgetAccountant")
+                expected_weight = self._aggregation_weights[aggregation_index]
+                if weight != expected_weight:
+                    raise ValueError(
+                        f"The provided weight for the aggregation "
+                        f"with index={aggregation_index} is {weight}, "
+                        f"but 'aggregation_weights' in the constructor "
+                        "of BudgetAccountant contains {expected_weight}")
+            else:
+                assert False, "It should not happen."
         return BudgetAccountantScope(self, weight, aggregation_index)
 
     def _register_mechanism(self, mechanism: MechanismSpecInternal):
@@ -179,10 +216,14 @@ class BudgetAccountant(abc.ABC):
         return mechanism
 
     def _enter_scope(self, scope):
+        if scope.is_aggregation_scope:
+            self._inside_aggregation_scope = True
         self._scopes_stack.append(scope)
 
     def _exit_scope(self):
-        self._scopes_stack.pop()
+        scope = self._scopes_stack.pop()
+        if scope.is_aggregation_scope:
+            self._inside_aggregation_scope = False
 
     def _finalize(self):
         if self._finalized:
@@ -190,7 +231,6 @@ class BudgetAccountant(abc.ABC):
         self._finalized = True
 
     def _get_next_aggregation_index(self) -> int:
-        # todo: checks
         self._next_aggregation_index += 1
         return self._next_aggregation_index - 1
 
@@ -219,6 +259,10 @@ class BudgetAccountantScope:
     def delta(self):
         self._validate_epsilon_delta()
         return self._delta
+
+    @property
+    def is_aggregation_scope(self):
+        return self._index_aggregation_scope is not None
 
     def _validate_epsilon_delta(self):
         if self._index_aggregation_scope is None:
