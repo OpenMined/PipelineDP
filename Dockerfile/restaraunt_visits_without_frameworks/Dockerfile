@@ -17,14 +17,14 @@
 FROM ubuntu:20.04
 
 # maintainer
-MAINTAINER wenhui zhang<wenhuizhang.psu@gmail.com> <wenhui.zhang@bytedance.com> <wenhui@gwmail.gwu.edu>
+MAINTAINER wenhui zhang<wenhuizhang.psu@gmail.com> 
 
 # commands executed in terminal
 RUN set -x
 
 # build deps
 RUN apt-get update
-RUN apt-get -y install git vim  
+RUN apt-get -y install git 
 RUN apt-get -y install libssl-dev 
 RUN apt-get -y install ca-certificates
 RUN apt-get -y install curl
@@ -33,7 +33,8 @@ RUN apt-get -y install lsb-release
 #RUN apt-get -y install default-jre
 RUN apt-get -y install python3 python3-pip
 
-RUN pip3 install pandas pipeline-dp apache-beam absl-py
+RUN pip3 install pandas pipeline-dp absl-py
+#apache-beam absl-py
 
 
 # download source 
