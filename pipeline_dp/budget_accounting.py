@@ -226,6 +226,7 @@ class BudgetAccountant(abc.ABC):
             self._inside_aggregation_scope = False
 
     def _finalize(self):
+        self._check_number_aggregation_scopes()
         if self._finalized:
             raise Exception("compute_budgets can not be called twice.")
         self._finalized = True
@@ -233,6 +234,22 @@ class BudgetAccountant(abc.ABC):
     def _get_next_aggregation_index(self) -> int:
         self._next_aggregation_index += 1
         return self._next_aggregation_index - 1
+
+    def _check_number_aggregation_scopes(self):
+        # Check that number of created aggregation scopes is equal to the
+        # expected numbers.
+        aggregation_scopes = self._next_aggregation_index
+        if self._n_aggregations and self._n_aggregations != aggregation_scopes:
+            raise ValueError(f"In the constructor of BudgetAccountant "
+                             f"'n_aggregations'={self._n_aggregations}, but "
+                             f"actual = {aggregation_scopes}.")
+        if self._aggregation_weights is not None:
+            len_weights = len(self._aggregation_weights)
+            if aggregation_scopes != len_weights:
+                raise ValueError(
+                    f"In the constructor of BudgetAccountant "
+                    f"'len(aggregation_weights )'={len_weights}, but actual"
+                    f"number of aggregations = {aggregation_scopes}.")
 
 
 class BudgetAccountantScope:

@@ -187,6 +187,24 @@ class NaiveBudgetAccountantTest(parameterized.TestCase):
                 with budget_accountant.scope(weight=1, aggregation_scope=True):
                     pass
 
+    @parameterized.parameters(True, False)
+    def test_not_enough_aggregations(self, use_n_aggregations):
+        weights = n_aggregations = None
+        if use_n_aggregations:
+            n_aggregations = 2
+        else:
+            weights = [1, 1]  # 2 aggregations
+        budget_accountant = NaiveBudgetAccountant(total_epsilon=1,
+                                                  total_delta=1e-6,
+                                                  n_aggregations=n_aggregations,
+                                                  aggregation_weights=weights)
+
+        with budget_accountant.scope(weight=1, aggregation_scope=True):
+            pass
+        with self.assertRaises(ValueError):
+            # n_aggregations = 2, but only 1 aggregation_scope was created
+            budget_accountant.compute_budgets()
+
 
 class PLDBudgetAccountantTest(unittest.TestCase):
 
