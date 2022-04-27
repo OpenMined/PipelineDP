@@ -28,14 +28,22 @@ import dataclasses
 import functools
 from typing import Any, Sequence, Union, Optional, Tuple
 
-from apache_beam import pvalue
 import pipeline_dp
 
 from utility_analysis import non_private_combiners
-from pyspark import RDD
 
-DataType = Union[Sequence[Any], pvalue.PCollection, RDD]
+DataType = Union[Sequence[Any]]
+try:
+    from pyspark import RDD
+    DataType = Union[DataType, RDD]
+except ImportError:
+    pass
 
+try:
+    from apache_beam import pvalue
+    DataType = Union[DataType, pvalue.PCollection]
+except ImportError:
+    pass
 
 @dataclasses.dataclass(frozen=True)
 class SampleParams:
