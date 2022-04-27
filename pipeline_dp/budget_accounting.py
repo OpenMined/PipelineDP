@@ -110,14 +110,14 @@ class BudgetAccountant(abc.ABC):
     """Base class for budget accountants."""
 
     def __init__(self, n_aggregations: Optional[int],
-                 aggregations_weights: Optional[list]):
+                 aggregation_weights: Optional[list]):
         self._scopes_stack = []
         self._mechanisms = []
         self._finalized = False
-        if n_aggregations is not None and aggregations_weights is not None:
+        if n_aggregations is not None and aggregation_weights is not None:
             raise ValueError("todo")
         self._n_aggregations = n_aggregations
-        self._aggregations_weights = aggregations_weights
+        self._aggregation_weights = aggregation_weights
         self._next_aggregation_index = 0
 
     @abc.abstractmethod
@@ -136,7 +136,7 @@ class BudgetAccountant(abc.ABC):
 
     def scope(self,
               weight: float,
-              aggregation_scope=False) -> 'BudgetAccountantScope':
+              aggregation_scope: bool = False) -> 'BudgetAccountantScope':
         """Returns a scope for DP operations
 
         The returned scope should consume no more than "weight" proportion of
@@ -162,6 +162,8 @@ class BudgetAccountant(abc.ABC):
         aggregation_index = None
         if aggregation_scope:
             aggregation_index = self._get_next_aggregation_index()
+            # if weight != 1:
+            #     if
         return BudgetAccountantScope(self, weight, aggregation_index)
 
     def _register_mechanism(self, mechanism: MechanismSpecInternal):
@@ -222,9 +224,9 @@ class BudgetAccountantScope:
         if self._index_aggregation_scope is None:
             raise ValueError("Only aggregation scopes have computed budget.")
         if self._epsilon is None:
-            raise ValueError("The budget per aggregation was not computed. "
-                             "Please specify 'n_aggregations' or "
-                             "'aggregationweights' in Budget Accountant "
+            raise ValueError("The budget per aggregation could not be computed."
+                             " Please specify 'n_aggregations' or "
+                             "'aggregation_weights' in Budget Accountant "
                              "constructor.")
 
     def __enter__(self):
@@ -248,7 +250,7 @@ class BudgetAccountantScope:
 
     def _compute_budget_for_aggregation_scope(self):
         n_aggregations = self.accountant._n_aggregations
-        weights = self.accountant._aggregations_weights
+        weights = self.accountant._aggregation_weights
         if n_aggregations is not None:
             budget_ratio = 1 / n_aggregations
         elif weights is not None:
@@ -268,7 +270,7 @@ class NaiveBudgetAccountant(BudgetAccountant):
                  total_epsilon: float,
                  total_delta: float,
                  n_aggregations: Optional[int] = None,
-                 aggregations_weights: Optional[list] = None):
+                 aggregation_weights: Optional[list] = None):
         """Constructs a NaiveBudgetAccountant.
 
         Args:
@@ -277,15 +279,15 @@ class NaiveBudgetAccountant(BudgetAccountant):
             n_aggregations: number of aggregations for which 'self' manages
               the budget. All aggregations should have budget_weight = 1.
               If None, any number of aggregations is allowed.
-            aggregations_weights: weights of aggregations for which 'self'
+            aggregation_weights: weights of aggregations for which 'self'
               manages the budget. If None, any number of aggregations and
               weights are allowed.
 
         Raises:
             A ValueError if epsilon or delta are out of range.
-            A ValueError if n_aggregations and aggregations_weights are both set.
+            A ValueError if n_aggregations and aggregation_weights are both set.
         """
-        super().__init__(n_aggregations, aggregations_weights)
+        super().__init__(n_aggregations, aggregation_weights)
 
         _validate_epsilon_delta(total_epsilon, total_delta)
 
@@ -385,7 +387,7 @@ class PLDBudgetAccountant(BudgetAccountant):
                  total_delta: float,
                  pld_discretization: float = 1e-4,
                  n_aggregations: Optional[int] = None,
-                 aggregations_weights: Optional[list] = None):
+                 aggregation_weights: Optional[list] = None):
         """Constructs a PLDBudgetAccountant.
 
         Args:
@@ -398,7 +400,7 @@ class PLDBudgetAccountant(BudgetAccountant):
             ValueError: Arguments are missing or out of range.
         """
 
-        super().__init__(n_aggregations, aggregations_weights)
+        super().__init__(n_aggregations, aggregation_weights)
 
         _validate_epsilon_delta(total_epsilon, total_delta)
 
