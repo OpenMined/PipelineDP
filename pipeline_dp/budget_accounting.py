@@ -178,7 +178,7 @@ class BudgetAccountant(abc.ABC):
             if self._n_aggregations:
                 if aggregation_index >= self._n_aggregations:
                     raise ValueError("Exceeded the number of allowed "
-                                     "aggregations. If you need more update "
+                                     "aggregations. If you need more, update "
                                      "'n_aggregations' in the constructor of "
                                      "BudgetAccountant")
                 if weight != 1:
@@ -189,7 +189,7 @@ class BudgetAccountant(abc.ABC):
             elif self._aggregation_weights != None:
                 if aggregation_index >= len(self._aggregation_weights):
                     raise ValueError("Exceeded the number of allowed "
-                                     "aggregations. If you need more update "
+                                     "aggregations. If you need more, update "
                                      "'aggregation_weights' in the constructor "
                                      "of BudgetAccountant")
                 expected_weight = self._aggregation_weights[aggregation_index]
@@ -253,6 +253,10 @@ class BudgetAccountant(abc.ABC):
 
 
 class BudgetAccountantScope:
+    """The scope for the budget split.
+
+    See the docstring to BudgetAccountant.scope() for more details.
+    """
 
     def __init__(self,
                  accountant: BudgetAccountant,
