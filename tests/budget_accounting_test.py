@@ -145,15 +145,16 @@ class NaiveBudgetAccountantTest(parameterized.TestCase):
                 mechanism_type=MechanismType.LAPLACE)
 
     @parameterized.parameters(1, 2, 10)
-    def test_n_aggregations(self, n_aggregations):
+    def test_num_aggregations(self, num_aggregations):
         total_epsilon, total_delta = 1, 1e-6
-        budget_accountant = NaiveBudgetAccountant(total_epsilon=total_epsilon,
-                                                  total_delta=total_delta,
-                                                  n_aggregations=n_aggregations)
-        for _ in range(n_aggregations):
+        budget_accountant = NaiveBudgetAccountant(
+            total_epsilon=total_epsilon,
+            total_delta=total_delta,
+            num_aggregations=num_aggregations)
+        for _ in range(num_aggregations):
             budget = budget_accountant._compute_budget_for_aggregation(1)
-            expected_epsilon = total_epsilon / n_aggregations
-            expected_delta = total_delta / n_aggregations
+            expected_epsilon = total_epsilon / num_aggregations
+            expected_delta = total_delta / num_aggregations
             self.assertAlmostEqual(expected_epsilon, budget.epsilon)
             self.assertAlmostEqual(expected_delta, budget.delta)
 
@@ -176,20 +177,21 @@ class NaiveBudgetAccountantTest(parameterized.TestCase):
         budget_accountant.compute_budgets()
 
     @parameterized.parameters(True, False)
-    def test_not_enough_aggregations(self, use_n_aggregations):
-        weights = n_aggregations = None
-        if use_n_aggregations:
-            n_aggregations = 2
+    def test_not_enough_aggregations(self, use_num_aggregations):
+        weights = num_aggregations = None
+        if use_num_aggregations:
+            num_aggregations = 2
         else:
             weights = [1, 1]  # 2 aggregations
-        budget_accountant = NaiveBudgetAccountant(total_epsilon=1,
-                                                  total_delta=1e-6,
-                                                  n_aggregations=n_aggregations,
-                                                  aggregation_weights=weights)
+        budget_accountant = NaiveBudgetAccountant(
+            total_epsilon=1,
+            total_delta=1e-6,
+            num_aggregations=num_aggregations,
+            aggregation_weights=weights)
 
         budget_accountant._compute_budget_for_aggregation(1)
         with self.assertRaises(ValueError):
-            # n_aggregations = 2, but only 1 aggregation_scope was created
+            # num_aggregations = 2, but only 1 aggregation_scope was created
             budget_accountant.compute_budgets()
 
 

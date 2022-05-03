@@ -114,7 +114,7 @@ class BudgetAccountant(abc.ABC):
     """Base class for budget accountants."""
 
     def __init__(self, total_epsilon: float, total_delta: float,
-                 n_aggregations: Optional[int],
+                 num_aggregations: Optional[int],
                  aggregation_weights: Optional[list]):
 
         _validate_epsilon_delta(total_epsilon, total_delta)
@@ -124,15 +124,19 @@ class BudgetAccountant(abc.ABC):
         self._scopes_stack = []
         self._mechanisms = []
         self._finalized = False
-        if n_aggregations is not None and aggregation_weights is not None:
+        if num_aggregations is not None and aggregation_weights is not None:
             raise ValueError(
-                "'n_aggregations' and 'aggregation_weights' can not be set simultaneously."
+                "'num_aggregations' and 'aggregation_weights' can not be set "
+                "simultaneously.\nIf you wish all aggregations in the pipeline "
+                "to have equal budgets, specify the total number of aggregations"
+                "with 'n_aggregations'.\nIf you wish to have different budgets "
+                "for different aggregations, specify them with 'aggregation_weights'"
             )
-        if n_aggregations is not None and n_aggregations <= 0:
+        if num_aggregations is not None and num_aggregations <= 0:
             raise ValueError(
-                f"'n_aggregations'={n_aggregations}, but it has to be positive."
+                f"'num_aggregations'={num_aggregations}, but it has to be positive."
             )
-        self._expected_n_aggregations = n_aggregations
+        self._expected_num_aggregations = num_aggregations
         self._expected_aggregation_weights = aggregation_weights
         self._reqested_aggregations = 0
         self._actual_aggregation_weights = []
@@ -185,9 +189,9 @@ class BudgetAccountant(abc.ABC):
             the budget.
         """
         self._actual_aggregation_weights.append(weight)
-        if self._expected_n_aggregations:
-            return Budget(self._total_epsilon / self._expected_n_aggregations,
-                          self._total_delta / self._expected_n_aggregations)
+        if self._expected_num_aggregations:
+            return Budget(self._total_epsilon / self._expected_num_aggregations,
+                          self._total_delta / self._expected_num_aggregations)
         if self._expected_aggregation_weights:
             budget_ratio = weight / sum(self._expected_aggregation_weights)
             return Budget(self._total_epsilon * budget_ratio,
@@ -196,20 +200,23 @@ class BudgetAccountant(abc.ABC):
         return None
 
     def _check_aggregation_restrictions(self):
-        if self._expected_n_aggregations:
-            actual_n_aggregations = len(self._actual_aggregation_weights)
-            if actual_n_aggregations != self._expected_n_aggregations:
+        if self._expected_num_aggregations:
+            actual_num_aggregations = len(self._actual_aggregation_weights)
+            if actual_num_aggregations != self._expected_num_aggregations:
                 raise ValueError(
-                    f"'n_aggregations' in the constructor of BudgetAccountant is "
-                    f"{self._expected_n_aggregations} != {actual_n_aggregations}"
-                    f" actual number of aggregations. If 'n_aggregations' is "
-                    f"given, these numbers must be the same.")
+                    f"'num_aggregations'({self._expected_n_aggregations}) in "
+                    f"the constructor of BudgetAccountant is different from the"
+                    f" actual number of aggregations in the pipeline"
+                    f"({actual_num_aggregations}). If 'n_aggregations' is "
+                    f"specified, you must have that many aggregations in the "
+                    f"pipeline.")
             weights = self._actual_aggregation_weights
             if not all([w == 1 for w in weights]):
-                raise ValueError(f"When 'n_aggregations' is set in the "
-                                 f"constructor of BudgetAccountant, all "
-                                 f"aggregation weights have to be 1, but "
-                                 f"weights={weights}.")
+                raise ValueError(
+                    f"Aggregation weights = {weights}. If 'num_aggregations' is"
+                    f" set in the constructor of BudgetAccountant, all "
+                    f"aggregation weights have to be 1. If you like to have "
+                    f"different weights use 'aggregation_weights'.")
         if self._expected_aggregation_weights:
             actual_weights = self._actual_aggregation_weights
             expected_weights = self._expected_aggregation_weights
@@ -221,11 +228,10 @@ class BudgetAccountant(abc.ABC):
             if not all(
                 [w1 == w2 for w1, w2 in zip(actual_weights, expected_weights)]):
                 raise ValueError(
-                    f"The weights provided for aggregations are "
-                    f"{actual_weights} != 'aggregation_weights' in the "
-                    f"constructor BudgetAccountant which are {expected_weights}"
-                    f".If 'aggregation_weights' is given, they must be the "
-                    f"same.")
+                    f"'aggregation_weights' in the constructor of is "
+                    f"({expected_weights}) is different from actual aggregation"
+                    f" weights ({actual_weights}).If 'aggregation_weights' is "
+                    f"specified, they must be the same.")
 
     def _register_mechanism(self, mechanism: MechanismSpecInternal):
         """Registers this mechanism for the future normalisation."""
@@ -285,28 +291,31 @@ class NaiveBudgetAccountant(BudgetAccountant):
     def __init__(self,
                  total_epsilon: float,
                  total_delta: float,
-                 n_aggregations: Optional[int] = None,
+                 num_aggregations: Optional[int] = None,
                  aggregation_weights: Optional[list] = None):
         """Constructs a NaiveBudgetAccountant.
 
         Args:
             total_epsilon: epsilon for the entire pipeline.
             total_delta: delta for the entire pipeline.
-            n_aggregations: number of aggregations for which 'self' manages
-              the budget. All aggregations should have budget_weight = 1.
-              If None, any number of aggregations is allowed.
-            aggregation_weights: weights of aggregations for which 'self'
-              manages the budget. If None, any number of aggregations and
-              weights are allowed.
+            num_aggregations: number of DP aggregations in the pipeline for
+             which  'self' manages the budget. All aggregations should have
+             'budget_weight' = 1. When specified all aggregations will have
+             equal budget. It is useful to ensure that the pipeline has fixed
+             number of DP aggregations.
+            aggregation_weights: 'budget_weight' of aggregations for which
+             'self' manages the budget. It is useful to ensure that the pipeline
+              has a fixed number of DP aggregations with fixed weights.
+
+        if num_aggregations and aggregation_weights are not set, there are no
+        restrictions on number of aggregations nor their budget_weights
 
         Raises:
             A ValueError if either argument is out of range.
-            A ValueError if n_aggregations and aggregation_weights are both set.
+            A ValueError if num_aggregations and aggregation_weights are both set.
         """
-        super().__init__(total_epsilon, total_delta, n_aggregations,
+        super().__init__(total_epsilon, total_delta, num_aggregations,
                          aggregation_weights)
-
-        self._finalized = False
 
     def request_budget(
             self,
@@ -400,7 +409,7 @@ class PLDBudgetAccountant(BudgetAccountant):
                  total_epsilon: float,
                  total_delta: float,
                  pld_discretization: float = 1e-4,
-                 n_aggregations: Optional[int] = None,
+                 num_aggregations: Optional[int] = None,
                  aggregation_weights: Optional[list] = None):
         """Constructs a PLDBudgetAccountant.
 
@@ -409,12 +418,24 @@ class PLDBudgetAccountant(BudgetAccountant):
             total_delta: delta for the entire pipeline.
             pld_discretization: `value_discretization_interval` in PLD library.
                 Smaller interval results in better accuracy, but increases running time.
+              num_aggregations: number of DP aggregations in the pipeline for
+             which  'self' manages the budget. All aggregations should have
+             'budget_weight' = 1. When specified all aggregations will have
+             equal budget. It is useful to ensure that the pipeline has fixed
+             number of DP aggregations.
+            aggregation_weights: 'budget_weight' of aggregations for which
+             'self' manages the budget. It is useful to ensure that the pipeline
+              has a fixed number of DP aggregations with fixed weights.
+
+        if num_aggregations and aggregation_weights are not set, there are no
+        restrictions on number of aggregations nor their budget_weights
+
 
         Raises:
             ValueError: Arguments are missing or out of range.
         """
 
-        super().__init__(total_epsilon, total_delta, n_aggregations,
+        super().__init__(total_epsilon, total_delta, num_aggregations,
                          aggregation_weights)
 
         self.minimum_noise_std = None

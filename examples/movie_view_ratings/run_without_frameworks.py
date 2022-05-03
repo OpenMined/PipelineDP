@@ -33,11 +33,8 @@ def main(unused_argv):
     backend = pipeline_dp.LocalBackend()
 
     # Define the privacy budget available for our computation.
-    budget_accountant = pipeline_dp.NaiveBudgetAccountant(
-        total_epsilon=1,
-        total_delta=1e-6,
-        n_aggregations=1,
-    )
+    budget_accountant = pipeline_dp.NaiveBudgetAccountant(total_epsilon=1,
+                                                          total_delta=1e-6)
     # aggregation_weights=[2])
 
     # Load and parse input data
