@@ -442,7 +442,7 @@ class LocalBackendTest(unittest.TestCase):
         col = [(7, 1), (2, 1), (3, 9), (4, 1), (9, 10)]
         keys_to_keep = [7, 9]
         result = self.backend.filter_by_key(col, keys_to_keep, "filter_by_key")
-        self.assertEqual(result, [(7, 1), (9, 10)])
+        self.assertEqual(list(result), [(7, 1), (9, 10)])
 
     def test_local_keys(self):
         self.assertEqual(list(self.backend.keys([])), [])
