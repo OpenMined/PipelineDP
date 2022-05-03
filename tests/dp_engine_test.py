@@ -845,7 +845,7 @@ class DpEngineTest(parameterized.TestCase):
         total_epsilon, total_delta = 3, 0.0001
         budget_accountant = NaiveBudgetAccountant(total_epsilon,
                                                   total_delta,
-                                                  n_aggregations=3)
+                                                  num_aggregations=3)
         dp_engine = self.create_dp_engine_default(budget_accountant)
         aggregate_params = self.create_params_default()
         select_partition_params = SelectPartitionsParams(2)

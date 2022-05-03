@@ -204,7 +204,7 @@ class BudgetAccountant(abc.ABC):
             actual_num_aggregations = len(self._actual_aggregation_weights)
             if actual_num_aggregations != self._expected_num_aggregations:
                 raise ValueError(
-                    f"'num_aggregations'({self._expected_n_aggregations}) in "
+                    f"'num_aggregations'({self._expected_num_aggregations}) in "
                     f"the constructor of BudgetAccountant is different from the"
                     f" actual number of aggregations in the pipeline"
                     f"({actual_num_aggregations}). If 'n_aggregations' is "
