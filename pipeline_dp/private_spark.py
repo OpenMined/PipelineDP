@@ -84,7 +84,7 @@ class PrivateRDD:
             privacy_id_extractor=lambda x: x[0],
             value_extractor=lambda x: mean_params.value_extractor(x[1]))
 
-        dp_result = dp_engine.aggregate(self._rdd, mean_params.public_partitions, params, data_extractors)
+        dp_result = dp_engine.aggregate(self._rdd, params, data_extractors, mean_params.public_partitions)
         # dp_result : (partition_key, (mean=dp_mean))
 
         # aggregate() returns a namedtuple of metrics for each partition key.
@@ -120,7 +120,7 @@ class PrivateRDD:
             privacy_id_extractor=lambda x: x[0],
             value_extractor=lambda x: sum_params.value_extractor(x[1]))
 
-        dp_result = dp_engine.aggregate(self._rdd, sum_params.public_partitions, params, data_extractors)
+        dp_result = dp_engine.aggregate(self._rdd, params, data_extractors, sum_params.public_partitions)
         # dp_result : (partition_key, (sum=dp_sum))
 
         # aggregate() returns a namedtuple of metrics for each partition key.
@@ -155,7 +155,7 @@ class PrivateRDD:
             privacy_id_extractor=lambda x: x[0],
             value_extractor=lambda x: None)
 
-        dp_result = dp_engine.aggregate(self._rdd, count_params.public_partitions, params, data_extractors)
+        dp_result = dp_engine.aggregate(self._rdd, params, data_extractors, count_params.public_partitions)
         # dp_result : (partition_key, (count=dp_count))
 
         # aggregate() returns a namedtuple of metrics for each partition key.
@@ -192,7 +192,7 @@ class PrivateRDD:
             # PrivacyIdCount ignores values.
             value_extractor=lambda x: None)
 
-        dp_result = dp_engine.aggregate(self._rdd, privacy_id_count_params.public_partitions, params, data_extractors)
+        dp_result = dp_engine.aggregate(self._rdd, params, data_extractors, privacy_id_count_params.public_partitions)
         # dp_result : (partition_key, (privacy_id_count=dp_privacy_id_count))
 
         # aggregate() returns a namedtuple of metrics for each partition key.

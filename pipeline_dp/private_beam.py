@@ -122,7 +122,7 @@ class Mean(PrivatePTransform):
             privacy_id_extractor=lambda x: x[0],
             value_extractor=lambda x: self._mean_params.value_extractor(x[1]))
 
-        dp_result = dp_engine.aggregate(pcol, self._mean_params.public_partitions, params, data_extractors)
+        dp_result = dp_engine.aggregate(pcol, params, data_extractors, self._mean_params.public_partitions)
         # dp_result : (partition_key, [dp_sum])
 
         # aggregate() returns a namedtuple of metrics for each partition key.
@@ -163,7 +163,7 @@ class Sum(PrivatePTransform):
             privacy_id_extractor=lambda x: x[0],
             value_extractor=lambda x: self._sum_params.value_extractor(x[1]))
 
-        dp_result = dp_engine.aggregate(pcol, self._sum_params.public_partitions, params, data_extractors)
+        dp_result = dp_engine.aggregate(pcol, params, data_extractors, self._sum_params.public_partitions)
         # dp_result : (partition_key, [dp_sum])
 
         # aggregate() returns a namedtuple of metrics for each partition key.
@@ -204,7 +204,7 @@ class Count(PrivatePTransform):
             # doesn't use value extractor.
             value_extractor=lambda x: None)
 
-        dp_result = dp_engine.aggregate(pcol, self._count_params.public_partitions, params, data_extractors)
+        dp_result = dp_engine.aggregate(pcol, params, data_extractors, self._count_params.public_partitions)
         # dp_result : (partition_key, [dp_count])
 
         # aggregate() returns a namedtuple of metrics for each partition key.
@@ -243,7 +243,7 @@ class PrivacyIdCount(PrivatePTransform):
             # PrivacyIdCount ignores values.
             value_extractor=lambda x: None)
 
-        dp_result = dp_engine.aggregate(pcol, self._privacy_id_count_params.public_partitions, params, data_extractors)
+        dp_result = dp_engine.aggregate(pcol, params, data_extractors, self._privacy_id_count_params.public_partitions)
         # dp_result : (partition_key, [dp_privacy_id_count])
 
         # aggregate() returns a namedtuple of metrics for each partition key.
@@ -467,7 +467,7 @@ class CombinePerKey(PrivatePTransform):
             partition_extractor=lambda x: x[1][0],
             value_extractor=lambda x: x[1][1])
 
-        dp_result = dp_engine.aggregate(pcol, None, aggregate_params, data_extractors)
+        dp_result = dp_engine.aggregate(pcol, aggregate_params, data_extractors)
         # dp_result : (partition_key, [combiner_result])
 
         # aggregate() returns a tuple with on 1 element per combiner.

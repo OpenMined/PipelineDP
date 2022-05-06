@@ -172,7 +172,7 @@ class PrivateBeamTest(unittest.TestCase):
                 max_contributions_per_partition,
                 min_value=mean_params.min_value,
                 max_value=mean_params.max_value)
-            self.assertEqual(params, args[2])
+            self.assertEqual(params, args[1])
 
     def test_mean_returns_sensible_result(self):
         with TestPipeline() as pipeline:
@@ -298,7 +298,7 @@ class PrivateBeamTest(unittest.TestCase):
                 max_contributions_per_partition,
                 min_value=sum_params.min_value,
                 max_value=sum_params.max_value)
-            self.assertEqual(params, args[2])
+            self.assertEqual(params, args[1])
 
     def test_sum_returns_sensible_result(self):
         with TestPipeline() as pipeline:
@@ -418,7 +418,7 @@ class PrivateBeamTest(unittest.TestCase):
                 max_partitions_contributed,
                 max_contributions_per_partition=count_params.
                 max_contributions_per_partition)
-            self.assertEqual(args[2], params)
+            self.assertEqual(args[1], params)
 
     def test_count_returns_sensible_result(self):
         with TestPipeline() as pipeline:
@@ -529,7 +529,7 @@ class PrivateBeamTest(unittest.TestCase):
                 max_partitions_contributed=privacy_id_count_params.
                 max_partitions_contributed,
                 max_contributions_per_partition=1)
-            self.assertEqual(args[2], params)
+            self.assertEqual(args[1], params)
 
     def test_privacy_id_count_returns_sensible_result(self):
         with TestPipeline() as pipeline:

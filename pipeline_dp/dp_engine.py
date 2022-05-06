@@ -49,29 +49,31 @@ class DPEngine:
     def _add_report_stage(self, text):
         self._report_generators[-1].add_stage(text)
 
-    def aggregate(self, col, public_partitions, params: pipeline_dp.AggregateParams,
-                  data_extractors: DataExtractors):
+    def aggregate(self, col, params: pipeline_dp.AggregateParams,
+                  data_extractors: DataExtractors, public_partitions = None):
         """Computes DP aggregate metrics.
 
         Args:
           col: collection where all elements are of the same type.
-          public_partitions: A collection of partition keys that will be present in the result.
           params: specifies which metrics to compute and computation parameters.
           data_extractors: functions that extract needed pieces of information
             from elements of 'col'.
+          public_partitions: A collection of partition keys that will be present in
+          the result. Optional. If not provided, partitions will be selected in a DP
+          manner.
         """
         _check_aggregate_params(col, params, data_extractors)
 
         with self._budget_accountant.scope(
                 weight=params.budget_weight) as scope:
-            col = self._aggregate(col, public_partitions, params, data_extractors)
+            col = self._aggregate(col, params, data_extractors, public_partitions)
             return self._backend.annotate(col,
                                           "annotation",
                                           params=params,
                                           budget=scope)
 
-    def _aggregate(self, col, public_partitions, params: pipeline_dp.AggregateParams,
-                   data_extractors: DataExtractors):
+    def _aggregate(self, col, params: pipeline_dp.AggregateParams,
+                   data_extractors: DataExtractors, public_partitions):
 
         self._report_generators.append(report_generator.ReportGenerator(params))
 
