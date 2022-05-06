@@ -78,6 +78,7 @@ class AggregateParams:
     high: float = None  # deprecated
     min_value: float = None
     max_value: float = None
+    public_partitions: Any = None  # deprecated
     noise_kind: NoiseKind = NoiseKind.LAPLACE
     custom_combiners: Iterable['CustomCombiner'] = None
 
