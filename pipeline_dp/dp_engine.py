@@ -55,6 +55,7 @@ class DPEngine:
 
         Args:
           col: collection where all elements are of the same type.
+          public_partitions: A collection of partition keys that will be present in the result.
           params: specifies which metrics to compute and computation parameters.
           data_extractors: functions that extract needed pieces of information
             from elements of 'col'.
