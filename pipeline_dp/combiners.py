@@ -68,7 +68,7 @@ class CustomCombiner(Combiner, abc.ABC):
 
     Warning: this is an experimental API. It might not work properly and it
     might be changed/removed without any notifications.
-    
+
     Custom combiners are combiners provided by PipelineDP users and they allow
     to add custom DP aggregations for extending the PipelineDP functionality.
 
@@ -88,13 +88,13 @@ class CustomCombiner(Combiner, abc.ABC):
     def request_budget(self,
                        budget_accountant: budget_accounting.BudgetAccountant):
         """Requests the budget.
-        
+
         It is called by PipelineDP during the construction of the computations.
-        The custom combiner can request a DP budget by calling 
+        The custom combiner can request a DP budget by calling
         'budget_accountant.request_budget()'. The budget object needs to be
         stored in a field of 'self'. It will be serialized and distributed
-        to the workers together with 'self'.  
-        
+        to the workers together with 'self'.
+
         Warning: do not store 'budget_accountant' in 'self'. It is assumed to
         live in the driver process.
         """
@@ -103,7 +103,7 @@ class CustomCombiner(Combiner, abc.ABC):
     def set_aggregate_params(self,
                              aggregate_params: pipeline_dp.AggregateParams):
         """Sets aggregate parameters
-        
+
         The custom combiner can optionally use it for own DP parameter
         computations.
         """
@@ -279,6 +279,60 @@ class MeanCombiner(Combiner):
         if 'sum' in self._metrics_to_compute:
             mean_dict['sum'] = noisy_sum
         return mean_dict
+
+    def metrics_names(self) -> List[str]:
+        return self._metrics_to_compute
+
+
+class VarianceCombiner(Combiner):
+    """Combiner for computing DP Variance. Also returns mean, sum and count in addition to
+    the variance.
+    The type of the accumulator is a tuple(count: int, sum: float, sum_of_squares: float) that holds
+    the count, sum and sum of squares of elements in the dataset for which this accumulator is
+    computed.
+    """
+    AccumulatorType = Tuple[int, float, float]
+
+    def __init__(self, params: CombinerParams,
+                 metrics_to_compute: Iterable[str]):
+        self._params = params
+        if len(metrics_to_compute) != len(set(metrics_to_compute)):
+            raise ValueError(f"{metrics_to_compute} cannot contain duplicates")
+        for metric in metrics_to_compute:
+            variance_metrics = ['count', 'sum', 'mean', 'variance']
+            if metric not in variance_metrics:
+                raise ValueError(
+                    f"{metric} should be one of {variance_metrics}")
+        if 'variance' not in metrics_to_compute:
+            raise ValueError(
+                f"one of the {metrics_to_compute} should be 'variance'")
+        self._metrics_to_compute = metrics_to_compute
+
+    def create_accumulator(self, values: Iterable[float]) -> AccumulatorType:
+        clipped_values = np.clip(values,
+                                 self._params.aggregate_params.min_value,
+                                 self._params.aggregate_params.max_value)
+        return len(values), clipped_values.sum(), (clipped_values**2).sum()
+
+    def merge_accumulators(self, accum1: AccumulatorType,
+                           accum2: AccumulatorType):
+        count1, sum1, sum_of_squares1 = accum1
+        count2, sum2, sum_of_squares2 = accum2
+        return count1 + count2, sum1 + sum2, sum_of_squares1 + sum_of_squares2
+
+    def compute_metrics(self, accum: AccumulatorType) -> dict:
+        total_count, total_sum, total_sum_of_squares = accum
+        noisy_count, noisy_sum, noisy_mean, noisy_variance = dp_computations.compute_dp_var(
+            total_count, total_sum, total_sum_of_squares,
+            self._params.mean_var_params)
+        variance_dict = {'variance': noisy_variance}
+        if 'count' in self._metrics_to_compute:
+            variance_dict['count'] = noisy_count
+        if 'sum' in self._metrics_to_compute:
+            variance_dict['sum'] = noisy_sum
+        if 'mean' in self._metrics_to_compute:
+            variance_dict['mean'] = noisy_mean
+        return variance_dict
 
     def metrics_names(self) -> List[str]:
         return self._metrics_to_compute
