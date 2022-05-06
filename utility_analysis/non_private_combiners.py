@@ -198,7 +198,7 @@ class CompoundCombiner(pipeline_dp.combiners.Combiner):
 
 
 def create_compound_combiner(
-        metrics: pipeline_dp.aggregate_params.Metrics, ) -> CompoundCombiner:
+        metrics: pipeline_dp.aggregate_params.Metrics) -> CompoundCombiner:
     combiners = []
     if pipeline_dp.Metrics.COUNT in metrics:
         combiners.append(RawCountCombiner())

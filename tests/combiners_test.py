@@ -74,6 +74,18 @@ class CreateCompoundCombinersTest(parameterized.TestCase):
                  dp_combiners.CountCombiner, dp_combiners.SumCombiner,
                  dp_combiners.PrivacyIdCountCombiner
              ]),
+        dict(testcase_name='mean',
+             metrics=[
+                 pipeline_dp.Metrics.COUNT, pipeline_dp.Metrics.SUM,
+                 pipeline_dp.Metrics.MEAN
+             ],
+             expected_combiner_types=[dp_combiners.MeanCombiner]),
+        dict(testcase_name='variance',
+             metrics=[
+                 pipeline_dp.Metrics.COUNT, pipeline_dp.Metrics.SUM,
+                 pipeline_dp.Metrics.MEAN, pipeline_dp.Metrics.VARIANCE
+             ],
+             expected_combiner_types=[dp_combiners.VarianceCombiner]),
     )
     def test_create_compound_combiner(self, metrics, expected_combiner_types):
         # Arrange.

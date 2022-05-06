@@ -373,7 +373,8 @@ class CompoundCombiner(Combiner):
 
     In case one the of combiners is MeanCombiner, which computes count and sum
     in addition to mean, output_count and output_sum should be set to True if
-    they are to be outputted from MeanCombiner. For VarianceCombiner you can additionally set output_mean to True.
+    they are to be outputted from MeanCombiner. For VarianceCombiner you can
+    additionally set output_mean to True.
 
     The type of the accumulator is a tuple of int and an iterable.
     The first int represents the privacy id count. The second iterable
