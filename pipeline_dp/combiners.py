@@ -68,7 +68,7 @@ class CustomCombiner(Combiner, abc.ABC):
 
     Warning: this is an experimental API. It might not work properly and it
     might be changed/removed without any notifications.
-    
+
     Custom combiners are combiners provided by PipelineDP users and they allow
     to add custom DP aggregations for extending the PipelineDP functionality.
 
@@ -88,13 +88,13 @@ class CustomCombiner(Combiner, abc.ABC):
     def request_budget(self,
                        budget_accountant: budget_accounting.BudgetAccountant):
         """Requests the budget.
-        
+
         It is called by PipelineDP during the construction of the computations.
-        The custom combiner can request a DP budget by calling 
+        The custom combiner can request a DP budget by calling
         'budget_accountant.request_budget()'. The budget object needs to be
         stored in a field of 'self'. It will be serialized and distributed
-        to the workers together with 'self'.  
-        
+        to the workers together with 'self'.
+
         Warning: do not store 'budget_accountant' in 'self'. It is assumed to
         live in the driver process.
         """
@@ -103,7 +103,7 @@ class CustomCombiner(Combiner, abc.ABC):
     def set_aggregate_params(self,
                              aggregate_params: pipeline_dp.AggregateParams):
         """Sets aggregate parameters
-        
+
         The custom combiner can optionally use it for own DP parameter
         computations.
         """
@@ -284,7 +284,61 @@ class MeanCombiner(Combiner):
         return self._metrics_to_compute
 
 
-# Cache for namedtuple types. It is should be used only in
+class VarianceCombiner(Combiner):
+    """Combiner for computing DP Variance. Also returns mean, sum and count in addition to
+    the variance.
+    The type of the accumulator is a tuple(count: int, sum: float, sum_of_squares: float) that holds
+    the count, sum and sum of squares of elements in the dataset for which this accumulator is
+    computed.
+    """
+    AccumulatorType = Tuple[int, float, float]
+
+    def __init__(self, params: CombinerParams,
+                 metrics_to_compute: Iterable[str]):
+        self._params = params
+        if len(metrics_to_compute) != len(set(metrics_to_compute)):
+            raise ValueError(f"{metrics_to_compute} cannot contain duplicates")
+        for metric in metrics_to_compute:
+            variance_metrics = ['count', 'sum', 'mean', 'variance']
+            if metric not in variance_metrics:
+                raise ValueError(
+                    f"{metric} should be one of {variance_metrics}")
+        if 'variance' not in metrics_to_compute:
+            raise ValueError(
+                f"one of the {metrics_to_compute} should be 'variance'")
+        self._metrics_to_compute = metrics_to_compute
+
+    def create_accumulator(self, values: Iterable[float]) -> AccumulatorType:
+        clipped_values = np.clip(values,
+                                 self._params.aggregate_params.min_value,
+                                 self._params.aggregate_params.max_value)
+        return len(values), clipped_values.sum(), (clipped_values**2).sum()
+
+    def merge_accumulators(self, accum1: AccumulatorType,
+                           accum2: AccumulatorType):
+        count1, sum1, sum_of_squares1 = accum1
+        count2, sum2, sum_of_squares2 = accum2
+        return count1 + count2, sum1 + sum2, sum_of_squares1 + sum_of_squares2
+
+    def compute_metrics(self, accum: AccumulatorType) -> dict:
+        total_count, total_sum, total_sum_of_squares = accum
+        noisy_count, noisy_sum, noisy_mean, noisy_variance = dp_computations.compute_dp_var(
+            total_count, total_sum, total_sum_of_squares,
+            self._params.mean_var_params)
+        variance_dict = {'variance': noisy_variance}
+        if 'count' in self._metrics_to_compute:
+            variance_dict['count'] = noisy_count
+        if 'sum' in self._metrics_to_compute:
+            variance_dict['sum'] = noisy_sum
+        if 'mean' in self._metrics_to_compute:
+            variance_dict['mean'] = noisy_mean
+        return variance_dict
+
+    def metrics_names(self) -> List[str]:
+        return self._metrics_to_compute
+
+
+# Cache for namedtuple types. It should be used only in
 # '_get_or_create_named_tuple()' function.
 _named_tuple_cache = {}
 
@@ -314,14 +368,15 @@ class CompoundCombiner(Combiner):
     """Combiner for computing a set of dp aggregations.
 
     CompoundCombiner contains one or more combiners of other types for computing
-    multiple metrics. For example it can contain [CountCombiner, SumCombiner].
+    multiple metrics. For example, it can contain [CountCombiner, SumCombiner].
     CompoundCombiner delegates all operations to the internal combiners.
 
     In case one the of combiners is MeanCombiner, which computes count and sum
     in addition to mean, output_count and output_sum should be set to True if
-    they are to be outputted from MeanCombiner.
+    they are to be outputted from MeanCombiner. For VarianceCombiner you can
+    additionally set output_mean to True.
 
-    The type of the accumulator is a a tuple of int and an iterable.
+    The type of the accumulator is a tuple of int and an iterable.
     The first int represents the privacy id count. The second iterable
     contains accumulators from internal combiners.
 
@@ -335,7 +390,7 @@ class CompoundCombiner(Combiner):
             CompoundCombiner will return a MetricsTuple(
                 privacy_id_count=dp_privacy_id_count,
                 sum=dp_sum,
-                count=dp_mean,
+                mean=dp_mean,
             )
     """
 
@@ -411,7 +466,20 @@ def create_compound_combiner(
     combiners = []
     mechanism_type = aggregate_params.noise_kind.convert_to_mechanism_type()
 
-    if pipeline_dp.Metrics.MEAN in aggregate_params.metrics:
+    if pipeline_dp.Metrics.VARIANCE in aggregate_params.metrics:
+        budget_variance = budget_accountant.request_budget(
+            mechanism_type, weight=aggregate_params.budget_weight)
+        metrics_to_compute = ['variance']
+        if pipeline_dp.Metrics.MEAN in aggregate_params.metrics:
+            metrics_to_compute.append('mean')
+        if pipeline_dp.Metrics.COUNT in aggregate_params.metrics:
+            metrics_to_compute.append('count')
+        if pipeline_dp.Metrics.SUM in aggregate_params.metrics:
+            metrics_to_compute.append('sum')
+        combiners.append(
+            VarianceCombiner(CombinerParams(budget_variance, aggregate_params),
+                             metrics_to_compute))
+    elif pipeline_dp.Metrics.MEAN in aggregate_params.metrics:
         budget_mean = budget_accountant.request_budget(
             mechanism_type, weight=aggregate_params.budget_weight)
         metrics_to_compute = ['mean']
