@@ -61,13 +61,14 @@ class DPEngine:
         """
         _check_aggregate_params(col, params, data_extractors)
 
-        with self._budget_accountant.scope(
-                weight=params.budget_weight) as scope:
+        with self._budget_accountant.scope(weight=params.budget_weight):
             col = self._aggregate(col, params, data_extractors)
+            budget = self._budget_accountant._compute_budget_for_aggregation(
+                params.budget_weight)
             return self._backend.annotate(col,
                                           "annotation",
                                           params=params,
-                                          budget=scope)
+                                          budget=budget)
 
     def _aggregate(self, col, params: pipeline_dp.AggregateParams,
                    data_extractors: DataExtractors):
@@ -162,7 +163,13 @@ class DPEngine:
         self._check_select_private_partitions(col, params, data_extractors)
 
         with self._budget_accountant.scope(weight=params.budget_weight):
-            return self._select_partitions(col, params, data_extractors)
+            col = self._select_partitions(col, params, data_extractors)
+            budget = self._budget_accountant._compute_budget_for_aggregation(
+                params.budget_weight)
+            return self._backend.annotate(col,
+                                          "annotation",
+                                          params=params,
+                                          budget=budget)
 
     def _select_partitions(self, col,
                            params: pipeline_dp.SelectPartitionsParams,

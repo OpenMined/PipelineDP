@@ -433,7 +433,7 @@ class LocalBackend(PipelineBackend):
         keys_to_keep,
         stage_name: typing.Optional[str] = None,
     ):
-        return [kv for kv in col if kv[0] in keys_to_keep]
+        return (kv for kv in col if kv[0] in keys_to_keep)
 
     def keys(self, col, stage_name: typing.Optional[str] = None):
         return (k for k, v in col)
