@@ -25,6 +25,7 @@ class Metrics(Enum):
     PRIVACY_ID_COUNT = 'privacy_id_count'
     SUM = 'sum'
     MEAN = 'mean'
+    VARIANCE = 'variance'
 
 
 class NoiseKind(Enum):
@@ -94,7 +95,8 @@ class AggregateParams:
                 "AggregateParams: please use max_value instead of high")
         if self.metrics:
             needs_min_max_value = Metrics.SUM in self.metrics \
-                                  or Metrics.MEAN in self.metrics
+                                  or Metrics.MEAN in self.metrics \
+                                  or Metrics.VARIANCE in self.metrics
             if not isinstance(self.max_partitions_contributed,
                               int) or self.max_partitions_contributed <= 0:
                 raise ValueError(
@@ -191,6 +193,36 @@ class SumParams:
 
         if self.high is not None:
             raise ValueError("SumParams: please use max_value instead of high")
+
+
+@dataclass
+class VarianceParams:
+    """Specifies parameters for differentially-private variance calculation.
+
+    Args:
+        noise_kind: Kind of noise to use for the DP calculations.
+        max_partitions_contributed: Bounds the number of partitions in which one
+            unit of privacy (e.g., a user) can participate.
+        max_contributions_per_partition: Bounds the number of times one unit of
+            privacy (e.g. a user) can contribute to a partition.
+        min_value: Lower bound on a value contributed by a unit of privacy in a partition.
+        max_value: Upper bound on a value contributed by a unit of privacy in a
+            partition.
+        public_partitions: A collection of partition keys that will be present in
+            the result.
+        partition_extractor: A function for partition id extraction from a collection record.
+        value_extractor: A function for extraction of value
+            for which the sum will be calculated.
+  """
+    max_partitions_contributed: int
+    max_contributions_per_partition: int
+    min_value: float
+    max_value: float
+    partition_extractor: Callable
+    value_extractor: Callable
+    budget_weight: float = 1
+    noise_kind: NoiseKind = NoiseKind.LAPLACE
+    public_partitions: Union[Iterable, 'PCollection', 'RDD'] = None
 
 
 @dataclass
