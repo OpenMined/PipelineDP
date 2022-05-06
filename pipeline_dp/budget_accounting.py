@@ -215,7 +215,7 @@ class BudgetAccountant(abc.ABC):
                 raise ValueError(
                     f"Aggregation weights = {weights}. If 'num_aggregations' is"
                     f" set in the constructor of BudgetAccountant, all "
-                    f"aggregation weights have to be 1. If you like to have "
+                    f"aggregation weights have to be 1. If you'd like to have "
                     f"different weights use 'aggregation_weights'.")
         if self._expected_aggregation_weights:
             actual_weights = self._actual_aggregation_weights
@@ -300,7 +300,7 @@ class NaiveBudgetAccountant(BudgetAccountant):
             total_delta: delta for the entire pipeline.
             num_aggregations: number of DP aggregations in the pipeline for
              which  'self' manages the budget. All aggregations should have
-             'budget_weight' = 1. When specified all aggregations will have
+             'budget_weight' = 1. When specified, all aggregations will have
              equal budget. It is useful to ensure that the pipeline has fixed
              number of DP aggregations.
             aggregation_weights: 'budget_weight' of aggregations for which
@@ -308,7 +308,7 @@ class NaiveBudgetAccountant(BudgetAccountant):
               has a fixed number of DP aggregations with fixed weights.
 
         if num_aggregations and aggregation_weights are not set, there are no
-        restrictions on number of aggregations nor their budget_weights
+        restrictions on the number of aggregations nor their budget weights
 
         Raises:
             A ValueError if either argument is out of range.
