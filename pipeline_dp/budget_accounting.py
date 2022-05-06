@@ -307,8 +307,8 @@ class NaiveBudgetAccountant(BudgetAccountant):
              'self' manages the budget. It is useful to ensure that the pipeline
               has a fixed number of DP aggregations with fixed weights.
 
-        if num_aggregations and aggregation_weights are not set, there are no
-        restrictions on the number of aggregations nor their budget weights
+        If num_aggregations and aggregation_weights are not set, there are no
+        restrictions on the number of aggregations nor their budget weights.
 
         Raises:
             A ValueError if either argument is out of range.
@@ -427,8 +427,8 @@ class PLDBudgetAccountant(BudgetAccountant):
              'self' manages the budget. It is useful to ensure that the pipeline
               has a fixed number of DP aggregations with fixed weights.
 
-        if num_aggregations and aggregation_weights are not set, there are no
-        restrictions on number of aggregations nor their budget_weights
+        If num_aggregations and aggregation_weights are not set, there are no
+        restrictions on the number of aggregations nor their budget weights.
 
 
         Raises:
