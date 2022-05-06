@@ -61,8 +61,13 @@ class DPEngine:
         """
         _check_aggregate_params(col, params, data_extractors)
 
-        with self._budget_accountant.scope(weight=params.budget_weight):
-            return self._aggregate(col, params, data_extractors)
+        with self._budget_accountant.scope(
+                weight=params.budget_weight) as scope:
+            col = self._aggregate(col, params, data_extractors)
+            return self._backend.annotate(col,
+                                          "annotation",
+                                          params=params,
+                                          budget=scope)
 
     def _aggregate(self, col, params: pipeline_dp.AggregateParams,
                    data_extractors: DataExtractors):

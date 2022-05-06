@@ -180,6 +180,7 @@ class BudgetAccountantScope:
 
     def __enter__(self):
         self.accountant._enter_scope(self)
+        return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.accountant._exit_scope()
