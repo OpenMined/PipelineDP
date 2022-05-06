@@ -368,14 +368,14 @@ class CompoundCombiner(Combiner):
     """Combiner for computing a set of dp aggregations.
 
     CompoundCombiner contains one or more combiners of other types for computing
-    multiple metrics. For example it can contain [CountCombiner, SumCombiner].
+    multiple metrics. For example, it can contain [CountCombiner, SumCombiner].
     CompoundCombiner delegates all operations to the internal combiners.
 
     In case one the of combiners is MeanCombiner, which computes count and sum
     in addition to mean, output_count and output_sum should be set to True if
-    they are to be outputted from MeanCombiner.
+    they are to be outputted from MeanCombiner. For VarianceCombiner you can additionally set output_mean to True.
 
-    The type of the accumulator is a a tuple of int and an iterable.
+    The type of the accumulator is a tuple of int and an iterable.
     The first int represents the privacy id count. The second iterable
     contains accumulators from internal combiners.
 
@@ -389,7 +389,7 @@ class CompoundCombiner(Combiner):
             CompoundCombiner will return a MetricsTuple(
                 privacy_id_count=dp_privacy_id_count,
                 sum=dp_sum,
-                count=dp_mean,
+                mean=dp_mean,
             )
     """
 
@@ -465,7 +465,20 @@ def create_compound_combiner(
     combiners = []
     mechanism_type = aggregate_params.noise_kind.convert_to_mechanism_type()
 
-    if pipeline_dp.Metrics.MEAN in aggregate_params.metrics:
+    if pipeline_dp.Metrics.VARIANCE in aggregate_params.metrics:
+        budget_variance = budget_accountant.request_budget(
+            mechanism_type, weight=aggregate_params.budget_weight)
+        metrics_to_compute = ['variance']
+        if pipeline_dp.Metrics.MEAN in aggregate_params.metrics:
+            metrics_to_compute.append('mean')
+        if pipeline_dp.Metrics.COUNT in aggregate_params.metrics:
+            metrics_to_compute.append('count')
+        if pipeline_dp.Metrics.SUM in aggregate_params.metrics:
+            metrics_to_compute.append('sum')
+        combiners.append(
+            VarianceCombiner(CombinerParams(budget_variance, aggregate_params),
+                             metrics_to_compute))
+    elif pipeline_dp.Metrics.MEAN in aggregate_params.metrics:
         budget_mean = budget_accountant.request_budget(
             mechanism_type, weight=aggregate_params.budget_weight)
         metrics_to_compute = ['mean']
