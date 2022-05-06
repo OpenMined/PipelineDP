@@ -122,9 +122,8 @@ class PrivateRDDTest(unittest.TestCase):
             max_contributions_per_partition,
             min_value=mean_params.min_value,
             max_value=mean_params.max_value,
-            budget_weight=mean_params.budget_weight,
-            public_partitions=mean_params.public_partitions)
-        self.assertEqual(args[1], params)
+            budget_weight=mean_params.budget_weight)
+        self.assertEqual(args[2], params)
 
         self.assertEqual(actual_result.collect(), [("pk1", 2.0)])
 
@@ -257,9 +256,8 @@ class PrivateRDDTest(unittest.TestCase):
             max_contributions_per_partition,
             min_value=sum_params.min_value,
             max_value=sum_params.max_value,
-            budget_weight=sum_params.budget_weight,
-            public_partitions=sum_params.public_partitions)
-        self.assertEqual(args[1], params)
+            budget_weight=sum_params.budget_weight)
+        self.assertEqual(args[2], params)
 
         self.assertEqual(actual_result.collect(), [("pk1", 3.0)])
 
@@ -385,9 +383,8 @@ class PrivateRDDTest(unittest.TestCase):
             metrics=[pipeline_dp.Metrics.COUNT],
             max_partitions_contributed=count_params.max_partitions_contributed,
             max_contributions_per_partition=count_params.
-            max_contributions_per_partition,
-            public_partitions=count_params.public_partitions)
-        self.assertEqual(args[1], params)
+            max_contributions_per_partition)
+        self.assertEqual(args[2], params)
 
         self.assertEqual(actual_result.collect(), [("pk1", 2)])
 
@@ -510,9 +507,8 @@ class PrivateRDDTest(unittest.TestCase):
             metrics=[pipeline_dp.Metrics.PRIVACY_ID_COUNT],
             max_partitions_contributed=privacy_id_count_params.
             max_partitions_contributed,
-            max_contributions_per_partition=1,
-            public_partitions=privacy_id_count_params.public_partitions)
-        self.assertEqual(args[1], params)
+            max_contributions_per_partition=1)
+        self.assertEqual(args[2], params)
 
         self.assertEqual([("pk1", 2)], actual_result.collect())
 

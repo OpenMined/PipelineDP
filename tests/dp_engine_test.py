@@ -146,7 +146,7 @@ class DpEngineTest(parameterized.TestCase):
 
     def test_aggregate_none(self):
         with self.assertRaises(Exception):
-            pipeline_dp.DPEngine(None, None).aggregate(None, None, None)
+            pipeline_dp.DPEngine(None, None).aggregate(None, None, None, None)
 
     @parameterized.named_parameters(
         dict(testcase_name='negative max_partitions_contributed',
@@ -225,6 +225,7 @@ class DpEngineTest(parameterized.TestCase):
                                           backend=pipeline_dp.LocalBackend())
             engine.aggregate(
                 [0],
+                None,
                 pipeline_dp.AggregateParams(
                     noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
                     max_partitions_contributed=max_partitions_contributed,
@@ -291,7 +292,7 @@ class DpEngineTest(parameterized.TestCase):
                 engine = pipeline_dp.DPEngine(
                     budget_accountant=budget_accountant,
                     backend=pipeline_dp.LocalBackend())
-                engine.aggregate(test_case["col"], test_case["params"],
+                engine.aggregate(test_case["col"], None, test_case["params"],
                                  test_case["data_extractor"])
 
     def test_aggregate_report(self):
@@ -318,7 +319,6 @@ class DpEngineTest(parameterized.TestCase):
             min_value=2,
             max_value=10,
             metrics=[pipeline_dp.Metrics.SUM, pipeline_dp.Metrics.MEAN],
-            public_partitions=list(range(1, 40)),
         )
 
         select_partitions_params = SelectPartitionsParams(
@@ -328,8 +328,8 @@ class DpEngineTest(parameterized.TestCase):
                                                   total_delta=1e-10)
         engine = pipeline_dp.DPEngine(budget_accountant=budget_accountant,
                                       backend=pipeline_dp.LocalBackend())
-        engine.aggregate(col, params1, data_extractor)
-        engine.aggregate(col, params2, data_extractor)
+        engine.aggregate(col, None, params1, data_extractor)
+        engine.aggregate(col, list(range(1, 40)), params2, data_extractor)
         engine.select_partitions(col, select_partitions_params, data_extractor)
         self.assertEqual(3, len(engine._report_generators))  # pylint: disable=protected-access
         budget_accountant.compute_budgets()
@@ -381,6 +381,7 @@ class DpEngineTest(parameterized.TestCase):
         engine = pipeline_dp.DPEngine(budget_accountant=budget_accountant,
                                       backend=pipeline_dp.LocalBackend())
         col = engine.aggregate(col=col,
+                               public_partitions=None,
                                params=aggregator_params,
                                data_extractors=data_extractor)
 
@@ -441,6 +442,7 @@ class DpEngineTest(parameterized.TestCase):
                                       backend=pipeline_dp.LocalBackend())
 
         col = engine.aggregate(col=col,
+                               public_partitions=None,
                                params=aggregator_params,
                                data_extractors=data_extractor)
         budget_accountant.compute_budgets()
@@ -480,6 +482,7 @@ class DpEngineTest(parameterized.TestCase):
                                       backend=pipeline_dp.LocalBackend())
 
         col = engine.aggregate(col=col,
+                               public_partitions=None,
                                params=aggregator_params,
                                data_extractors=data_extractor)
         budget_accountant.compute_budgets()
@@ -641,8 +644,7 @@ class DpEngineTest(parameterized.TestCase):
             min_value=0,
             max_value=1,
             max_partitions_contributed=1,
-            max_contributions_per_partition=1,
-            public_partitions=["pk0", "pk1", "pk10"])
+            max_contributions_per_partition=1)
 
         # Set an arbitrary budget, we are not interested in the DP outputs, only
         # the partition keys.
@@ -661,6 +663,7 @@ class DpEngineTest(parameterized.TestCase):
                                       backend=pipeline_dp.LocalBackend())
 
         col = engine.aggregate(col=col,
+                               public_partitions=["pk0", "pk1", "pk10"],
                                params=aggregator_params,
                                data_extractors=data_extractor)
         budget_accountant.compute_budgets()
@@ -683,8 +686,7 @@ class DpEngineTest(parameterized.TestCase):
             min_value=0,
             max_value=1,
             max_partitions_contributed=1,
-            max_contributions_per_partition=1,
-            public_partitions=["pk0", "pk10", "pk11"])
+            max_contributions_per_partition=1)
 
         # Set a high budget to add close to 0 noise.
         budget_accountant = NaiveBudgetAccountant(total_epsilon=100000,
@@ -702,6 +704,7 @@ class DpEngineTest(parameterized.TestCase):
                                       backend=pipeline_dp.LocalBackend())
 
         col = engine.aggregate(col=col,
+                               public_partitions=["pk0", "pk10", "pk11"],
                                params=aggregator_params,
                                data_extractors=data_extractor)
         budget_accountant.compute_budgets()
@@ -762,6 +765,7 @@ class DpEngineTest(parameterized.TestCase):
         engine = pipeline_dp.DPEngine(budget_accountant, backend)
 
         col = engine.aggregate(col=col,
+                               public_partitions=None,
                                params=aggregator_params,
                                data_extractors=data_extractor)
         budget_accountant.compute_budgets()
@@ -824,7 +828,7 @@ class DpEngineTest(parameterized.TestCase):
             value_extractor=lambda x: x,
         )
 
-        engine.aggregate(col, params, data_extractors)
+        engine.aggregate(col, None, params, data_extractors)
         mock_create_custom_combiners.assert_called_once()
         mock_create_standard_combiners.assert_not_called()
 

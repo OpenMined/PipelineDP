@@ -66,9 +66,6 @@ class AggregateParams:
       aggregation.
     min_value: Lower bound on each value.
     max_value: Upper bound on each value.
-    public_partitions: A collection of partition keys that will be present in
-      the result. Optional. If not provided, partitions will be selected in a DP
-      manner.
     custom_combiners: Warning: experimental@ Combiners for computing custom
       metrics.
   """
@@ -81,7 +78,6 @@ class AggregateParams:
     high: float = None  # deprecated
     min_value: float = None
     max_value: float = None
-    public_partitions: Any = None
     noise_kind: NoiseKind = NoiseKind.LAPLACE
     custom_combiners: Iterable['CustomCombiner'] = None
 
