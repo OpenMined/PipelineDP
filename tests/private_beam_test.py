@@ -129,6 +129,134 @@ class PrivateBeamTest(unittest.TestCase):
             self.assertIsInstance(transformed, pvalue.PCollection)
 
     @patch('pipeline_dp.dp_engine.DPEngine.aggregate')
+    def test_variance_calls_aggregate_with_params(self, mock_aggregate):
+        runner = fn_api_runner.FnApiRunner()
+        with beam.Pipeline(runner=runner) as pipeline:
+            # Arrange
+            pcol = pipeline | 'Create produce' >> beam.Create(
+                [1, 2, 3, 4, 5, 6])
+            budget_accountant = budget_accounting.NaiveBudgetAccountant(
+                total_epsilon=1, total_delta=0.01)
+            private_collection = (
+                pcol | 'Create private collection' >> private_beam.MakePrivate(
+                    budget_accountant=budget_accountant,
+                    privacy_id_extractor=PrivateBeamTest.privacy_id_extractor))
+
+            variance_params = aggregate_params.VarianceParams(
+                noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+                max_partitions_contributed=2,
+                max_contributions_per_partition=3,
+                min_value=1,
+                max_value=5,
+                budget_weight=1,
+                public_partitions=[],
+                partition_extractor=lambda x: f"pk:{x // 10}",
+                value_extractor=lambda x: x)
+
+            # Act
+            transformer = private_beam.Variance(variance_params=variance_params)
+            private_collection | transformer
+
+            # Assert
+            self.assertEqual(transformer._budget_accountant, budget_accountant)
+            mock_aggregate.assert_called_once()
+
+            args = mock_aggregate.call_args[0]
+
+            params = pipeline_dp.AggregateParams(
+                noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+                metrics=[pipeline_dp.Metrics.VARIANCE],
+                max_partitions_contributed=variance_params.
+                max_partitions_contributed,
+                max_contributions_per_partition=variance_params.
+                max_contributions_per_partition,
+                min_value=variance_params.min_value,
+                max_value=variance_params.max_value,
+                public_partitions=variance_params.public_partitions)
+            self.assertEqual(params, args[1])
+
+    def test_variance_returns_sensible_result(self):
+        with TestPipeline() as pipeline:
+            # Arrange
+            col = [(f"{u}", "pk1", -100.0) for u in range(30)]
+            col += [(f"{u + 30}", "pk1", 100.0) for u in range(10)]
+            pcol = pipeline | 'Create produce' >> beam.Create(col)
+            # Use very high epsilon and delta to minimize noise and test
+            # flakiness.
+            budget_accountant = budget_accounting.NaiveBudgetAccountant(
+                total_epsilon=800, total_delta=0.999)
+            private_collection = (
+                pcol | 'Create private collection' >> private_beam.MakePrivate(
+                    budget_accountant=budget_accountant,
+                    privacy_id_extractor=lambda x: x[0]))
+
+            variance_params = aggregate_params.VarianceParams(
+                noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+                max_partitions_contributed=1,
+                max_contributions_per_partition=1,
+                min_value=1.55,  # -100 should be clipped to this value
+                max_value=2.7889,  # 100 should be clipped to this value
+                budget_weight=1,
+                partition_extractor=lambda x: x[1],
+                value_extractor=lambda x: x[2])
+
+            # Act
+            result = private_collection | private_beam.Variance(
+                variance_params=variance_params)
+            budget_accountant.compute_budgets()
+
+            # Assert
+            # This is a health check to validate that the result is sensible.
+            # Hence, we use a very large tolerance to reduce test flakiness.
+            beam_util.assert_that(
+                result,
+                beam_util.equal_to([("pk1", 0.288)],
+                                   equals_fn=lambda e, a: PrivateBeamTest.
+                                   value_per_key_within_tolerance(e, a, 0.1)))
+
+    def test_variance_with_public_partitions_returns_sensible_result(self):
+        with TestPipeline() as pipeline:
+            # Arrange
+            col = [(f"{u}", "pubK1", -100.0) for u in range(30)]
+            col += [(f"{u + 30}", "pubK1", 100.0) for u in range(10)]
+            col += [(f"{u + 40}", "privK1", 100.0) for u in range(30)]
+            pcol = pipeline | 'Create produce' >> beam.Create(col)
+            # Use very high epsilon and delta to minimize noise and test
+            # flakiness.
+            budget_accountant = budget_accounting.NaiveBudgetAccountant(
+                total_epsilon=8000, total_delta=0.9999999)
+            private_collection = (
+                pcol | 'Create private collection' >> private_beam.MakePrivate(
+                    budget_accountant=budget_accountant,
+                    privacy_id_extractor=lambda x: x[0]))
+
+            variance_params = aggregate_params.VarianceParams(
+                noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+                max_partitions_contributed=1,
+                max_contributions_per_partition=1,
+                min_value=1.55,  # -100 should be clipped to this value
+                max_value=2.7889,  # 100 should be clipped to this value
+                budget_weight=1,
+                partition_extractor=lambda x: x[1],
+                value_extractor=lambda x: x[2],
+                public_partitions=["pubK1", "pubK2"])
+
+            # Act
+            result = private_collection | private_beam.Variance(
+                variance_params=variance_params)
+            budget_accountant.compute_budgets()
+
+            # Assert
+            # This is a health check to validate that the result is sensible.
+            # Hence, we use a very large tolerance to reduce test flakiness.
+            beam_util.assert_that(
+                result,
+                # pubK2 has no data points therefore the dataset is assumed to be {min_value, max_value}
+                beam_util.equal_to([("pubK1", 0.288), ("pubK2", 0.384)],
+                                   equals_fn=lambda e, a: PrivateBeamTest.
+                                   value_per_key_within_tolerance(e, a, 0.1)))
+
+    @patch('pipeline_dp.dp_engine.DPEngine.aggregate')
     def test_mean_calls_aggregate_with_params(self, mock_aggregate):
         runner = fn_api_runner.FnApiRunner()
         with beam.Pipeline(runner=runner) as pipeline:
@@ -194,8 +322,8 @@ class PrivateBeamTest(unittest.TestCase):
                 noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
                 max_partitions_contributed=1,
                 max_contributions_per_partition=1,
-                min_value=1.55,
-                max_value=2.7889,
+                min_value=1.55,  # -100 should be clipped to this value
+                max_value=2.7889,  # 100 should be clipped to this value
                 budget_weight=1,
                 partition_extractor=lambda x: x[1],
                 value_extractor=lambda x: x[2])
@@ -234,8 +362,8 @@ class PrivateBeamTest(unittest.TestCase):
                 noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
                 max_partitions_contributed=1,
                 max_contributions_per_partition=1,
-                min_value=1.55,
-                max_value=2.7889,
+                min_value=1.55,  # -100 should be clipped to this value
+                max_value=2.7889,  # 100 should be clipped to this value
                 budget_weight=1,
                 partition_extractor=lambda x: x[1],
                 value_extractor=lambda x: x[2],
@@ -251,6 +379,7 @@ class PrivateBeamTest(unittest.TestCase):
             # Hence, we use a very large tolerance to reduce test flakiness.
             beam_util.assert_that(
                 result,
+                # pubK2 has no data points therefore the dataset is assumed to be {min_value, max_value}
                 beam_util.equal_to([("pubK1", 1.859), ("pubK2", 2.1695)],
                                    equals_fn=lambda e, a: PrivateBeamTest.
                                    value_per_key_within_tolerance(e, a, 0.1)))
@@ -684,7 +813,7 @@ class PrivateBeamTest(unittest.TestCase):
             select_partitions_params = \
                 aggregate_params.SelectPartitionsParams(
                     max_partitions_contributed=2,
-                    budget_weight=0.5,)
+                    budget_weight=0.5, )
             partition_extractor = lambda x: f"pk:{x // 10}"
 
             # Act
