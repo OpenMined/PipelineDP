@@ -318,6 +318,71 @@ class MeanCombinerTest(parameterized.TestCase):
         self.assertTrue(np.var(noisy_means) > 1)  # check that noise is added
 
 
+class VarianceCombinerTest(parameterized.TestCase):
+
+    def _create_combiner(self, no_noise):
+        mechanism_spec = _create_mechanism_spec(no_noise)
+        aggregate_params = _create_aggregate_params(max_value=4)
+        metrics_to_compute = ['count', 'sum', 'mean', 'variance']
+        params = dp_combiners.CombinerParams(mechanism_spec, aggregate_params)
+        return dp_combiners.VarianceCombiner(params, metrics_to_compute)
+
+    def test_create_accumulator(self):
+        for no_noise in [False, True]:
+            combiner = self._create_combiner(no_noise)
+            self.assertEqual((0, 0, 0), combiner.create_accumulator([]))
+            self.assertEqual((2, 3, 5), combiner.create_accumulator([1, 2]))
+
+    def test_merge_accumulators(self):
+        for no_noise in [False, True]:
+            combiner = self._create_combiner(no_noise)
+            self.assertEqual((0, 0, 0),
+                             combiner.merge_accumulators((0, 0, 0), (0, 0, 0)))
+            self.assertEqual((5, 2, 2),
+                             combiner.merge_accumulators((1, 0, 0), (4, 2, 2)))
+
+    def test_compute_metrics_no_noise(self):
+        combiner = self._create_combiner(no_noise=True)
+        # potential values: 1, 2, 2, 3
+        res = combiner.compute_metrics((4, 8, 18))
+        self.assertAlmostEqual(4, res['count'], delta=1e-5)
+        self.assertAlmostEqual(8, res['sum'], delta=1e-5)
+        self.assertAlmostEqual(2, res['mean'], delta=1e-5)
+        self.assertAlmostEqual(0.5, res['variance'], delta=1e-5)
+
+    def test_compute_metrics_with_noise(self):
+        combiner = self._create_combiner(no_noise=False)
+        # potential values: 1, 1, 2, 3, 3
+        count = 5
+        sum = 10
+        sum_of_squares = 24
+        mean = 2
+        variance = 0.8
+        noisy_values = [
+            combiner.compute_metrics((count, sum, sum_of_squares))
+            for _ in range(1000)
+        ]
+
+        noisy_counts = [noisy_value['count'] for noisy_value in noisy_values]
+        self.assertAlmostEqual(count, np.mean(noisy_counts), delta=5e-1)
+        self.assertTrue(np.var(noisy_counts) > 1)  # check that noise is added
+
+        noisy_sums = [noisy_value['sum'] for noisy_value in noisy_values]
+        self.assertAlmostEqual(sum, np.mean(noisy_sums), delta=1)
+        self.assertTrue(np.var(noisy_sums) > 1)  # check that noise is added
+
+        noisy_means = [noisy_value['mean'] for noisy_value in noisy_values]
+        self.assertAlmostEqual(mean, np.mean(noisy_means), delta=5e-1)
+        self.assertTrue(np.var(noisy_means) > 1)  # check that noise is added
+
+        noisy_variances = [
+            noisy_value['variance'] for noisy_value in noisy_values
+        ]
+        self.assertAlmostEqual(variance, np.mean(noisy_variances), delta=20)
+        self.assertTrue(
+            np.var(noisy_variances) > 1)  # check that noise is added
+
+
 class CompoundCombinerTest(parameterized.TestCase):
 
     def _create_combiner(self, no_noise):
