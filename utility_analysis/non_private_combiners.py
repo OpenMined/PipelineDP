@@ -120,6 +120,38 @@ class RawMeanCombiner(pipeline_dp.combiners.Combiner):
         return ['non_private_mean']
 
 
+VarianceTuple = namedtuple('VarianceTuple', ['count', 'sum', 'mean', 'variance'])
+
+
+class RawVarianceCombiner(pipeline_dp.combiners.Combiner):
+    """Combiner for computing DP Variance. Also returns sum, count and mean in addition to
+    the variance.
+    The type of the accumulator is a tuple(count: int, sum: float) that holds
+    the count and sum of elements in the dataset for which this accumulator is
+    computed.
+    """
+    AccumulatorType = Tuple[int, float, float]
+
+    def create_accumulator(self, values: Iterable[float]) -> AccumulatorType:
+        return len(values), sum(values), sum(value ** 2 for value in values)
+
+    def merge_accumulators(self, accum1: AccumulatorType,
+                           accum2: AccumulatorType):
+        count1, sum1, sum_of_squares1 = accum1
+        count2, sum2, sum_of_squares2 = accum2
+        return count1 + count2, sum1 + sum2, sum_of_squares1 + sum_of_squares2
+
+    def compute_metrics(self, accum: AccumulatorType) -> namedtuple:
+        count, sum, sum_of_squares = accum
+        return VarianceTuple(count=count,
+                             sum=sum,
+                             mean=sum / count if count else None,
+                             variance=sum_of_squares / count - sum / count if count else None)
+
+    def metrics_names(self) -> List[str]:
+        return ['non_private_mean']
+
+
 class CompoundCombiner(pipeline_dp.combiners.Combiner):
     """Combiner for computing a set of dp aggregations.
 
@@ -166,7 +198,7 @@ class CompoundCombiner(pipeline_dp.combiners.Combiner):
 
 
 def create_compound_combiner(
-    metrics: pipeline_dp.aggregate_params.Metrics,) -> CompoundCombiner:
+        metrics: pipeline_dp.aggregate_params.Metrics) -> CompoundCombiner:
     combiners = []
     if pipeline_dp.Metrics.COUNT in metrics:
         combiners.append(RawCountCombiner())
@@ -176,4 +208,6 @@ def create_compound_combiner(
         combiners.append(RawPrivacyIdCountCombiner())
     if pipeline_dp.Metrics.MEAN in metrics:
         combiners.append(RawMeanCombiner())
+    if pipeline_dp.Metrics.VARIANCE in metrics:
+        combiners.append(RawVarianceCombiner())
     return CompoundCombiner(combiners)
