@@ -171,8 +171,7 @@ class PrivateBeamTest(unittest.TestCase):
                 max_contributions_per_partition=variance_params.
                 max_contributions_per_partition,
                 min_value=variance_params.min_value,
-                max_value=variance_params.max_value,
-                public_partitions=variance_params.public_partitions)
+                max_value=variance_params.max_value)
             self.assertEqual(params, args[1])
 
     def test_variance_returns_sensible_result(self):

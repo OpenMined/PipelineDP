@@ -114,8 +114,7 @@ class Variance(PrivatePTransform):
             max_contributions_per_partition=self._variance_params.
             max_contributions_per_partition,
             min_value=self._variance_params.min_value,
-            max_value=self._variance_params.max_value,
-            public_partitions=self._variance_params.public_partitions)
+            max_value=self._variance_params.max_value)
 
         data_extractors = pipeline_dp.DataExtractors(
             partition_extractor=lambda x: self._variance_params.
@@ -124,7 +123,7 @@ class Variance(PrivatePTransform):
             value_extractor=lambda x: self._variance_params.value_extractor(x[1]
                                                                            ))
 
-        dp_result = dp_engine.aggregate(pcol, params, data_extractors)
+        dp_result = dp_engine.aggregate(pcol, params, data_extractors, self._variance_params.public_partitions)
         # dp_result : (partition_key, [dp_variance])
 
         # aggregate() returns a namedtuple of metrics for each partition key.

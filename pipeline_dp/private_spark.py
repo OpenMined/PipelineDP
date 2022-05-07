@@ -78,7 +78,6 @@ class PrivateRDD:
             max_contributions_per_partition,
             min_value=variance_params.min_value,
             max_value=variance_params.max_value,
-            public_partitions=variance_params.public_partitions,
             budget_weight=variance_params.budget_weight)
 
         data_extractors = pipeline_dp.DataExtractors(
@@ -87,7 +86,7 @@ class PrivateRDD:
             privacy_id_extractor=lambda x: x[0],
             value_extractor=lambda x: variance_params.value_extractor(x[1]))
 
-        dp_result = dp_engine.aggregate(self._rdd, params, data_extractors)
+        dp_result = dp_engine.aggregate(self._rdd, params, data_extractors, variance_params.public_partitions)
         # dp_result : (partition_key, (variance=dp_variance))
 
         # aggregate() returns a namedtuple of metrics for each partition key.
