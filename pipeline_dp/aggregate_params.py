@@ -127,6 +127,10 @@ class AggregateParams:
             # whether this check is required?
             raise ValueError(
                 "Custom combiners can not be used with standard metrics")
+        if self.public_partitions:
+            raise ValueError(
+                " AggregateParams.public_partitions is deprecated. Please use public_partitions argument in DPEngine.aggregate insead."
+            )
 
     def __str__(self):
         if self.custom_combiners:

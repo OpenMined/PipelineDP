@@ -738,7 +738,7 @@ class DpEngineTest(parameterized.TestCase):
         return dp_engine
 
     def create_params_default(self):
-        return pipeline_dp.AggregateParams(
+        return (pipeline_dp.AggregateParams(
             noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
             metrics=[
                 agg.Metrics.COUNT, agg.Metrics.SUM, agg.Metrics.PRIVACY_ID_COUNT
@@ -746,8 +746,7 @@ class DpEngineTest(parameterized.TestCase):
             min_value=0,
             max_value=1,
             max_partitions_contributed=1,
-            max_contributions_per_partition=1,
-            public_partitions=["pk0", "pk10", "pk11"])
+            max_contributions_per_partition=1), ["pk0", "pk10", "pk11"])
 
     def run_e2e_private_partition_selection_large_budget(self, col, backend):
         # Arrange
@@ -846,15 +845,17 @@ class DpEngineTest(parameterized.TestCase):
                                                   total_delta,
                                                   num_aggregations=3)
         dp_engine = self.create_dp_engine_default(budget_accountant)
-        aggregate_params = self.create_params_default()
+        aggregate_params, public_partitions = self.create_params_default()
         select_partition_params = SelectPartitionsParams(2)
         extractors = pipeline_dp.DataExtractors(None, None, None)
         input = [1, 2, 3]
 
         # Act and assert
         dp_engine.select_partitions(input, select_partition_params, extractors)
-        dp_engine.aggregate(input, aggregate_params, extractors)
-        dp_engine.aggregate(input, aggregate_params, extractors)
+        dp_engine.aggregate(input, aggregate_params, extractors,
+                            public_partitions)
+        dp_engine.aggregate(input, aggregate_params, extractors,
+                            public_partitions)
         budget_accountant.compute_budgets()
 
         # Assert
