@@ -135,7 +135,9 @@ class PrivateRDD:
 
         return dp_result
 
-    def sum(self, sum_params: aggregate_params.SumParams) -> RDD:
+    def sum(self,
+            sum_params: aggregate_params.SumParams,
+            public_partitions=None) -> RDD:
         """Computes a DP sum.
 
         Args:
@@ -161,7 +163,7 @@ class PrivateRDD:
             value_extractor=lambda x: sum_params.value_extractor(x[1]))
 
         dp_result = dp_engine.aggregate(self._rdd, params, data_extractors,
-                                        sum_params.public_partitions)
+                                        public_partitions)
         # dp_result : (partition_key, (sum=dp_sum))
 
         # aggregate() returns a namedtuple of metrics for each partition key.

@@ -186,7 +186,8 @@ class SumParams:
     high: float = None  # deprecated
     budget_weight: float = 1
     noise_kind: NoiseKind = NoiseKind.LAPLACE
-    public_partitions: Union[Iterable, 'PCollection', 'RDD'] = None
+    public_partitions: Union[Iterable, 'PCollection',
+                             'RDD'] = None  # deprecated
 
     def __post_init__(self):
         if self.low is not None:
@@ -194,6 +195,11 @@ class SumParams:
 
         if self.high is not None:
             raise ValueError("SumParams: please use max_value instead of high")
+
+        if self.public_partitions:
+            raise ValueError(
+                " AggregateParams.public_partitions is deprecated. Please use public_partitions argument in DPEngine.aggregate insead."
+            )
 
 
 @dataclass
