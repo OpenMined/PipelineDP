@@ -49,8 +49,11 @@ class DPEngine:
     def _add_report_stage(self, text):
         self._report_generators[-1].add_stage(text)
 
-    def aggregate(self, col, params: pipeline_dp.AggregateParams,
-                  data_extractors: DataExtractors, public_partitions = None):
+    def aggregate(self,
+                  col,
+                  params: pipeline_dp.AggregateParams,
+                  data_extractors: DataExtractors,
+                  public_partitions=None):
         """Computes DP aggregate metrics.
 
         Args:
@@ -65,7 +68,8 @@ class DPEngine:
         _check_aggregate_params(col, params, data_extractors)
 
         with self._budget_accountant.scope(weight=params.budget_weight):
-            col = self._aggregate(col, params, data_extractors, public_partitions)
+            col = self._aggregate(col, params, data_extractors,
+                                  public_partitions)
             budget = self._budget_accountant._compute_budget_for_aggregation(
                 params.budget_weight)
             return self._backend.annotate(col,
@@ -90,8 +94,7 @@ class DPEngine:
                 params, self._budget_accountant)
 
         if public_partitions is not None:
-            col = self._drop_not_public_partitions(col,
-                                                   public_partitions,
+            col = self._drop_not_public_partitions(col, public_partitions,
                                                    data_extractors)
 
         # Extract the columns.
@@ -111,8 +114,7 @@ class DPEngine:
         # col : (partition_key, accumulator)
 
         if public_partitions:
-            col = self._add_empty_public_partitions(col,
-                                                    public_partitions,
+            col = self._add_empty_public_partitions(col, public_partitions,
                                                     combiner.create_accumulator)
         # col : (partition_key, accumulator)
 

@@ -87,7 +87,8 @@ def calc_dp_rating_metrics(movie_views, backend, public_partitions):
         value_extractor=lambda mv: mv.rating)
 
     # Run aggregation.
-    dp_result = dp_engine.aggregate(movie_views, params, data_extractors, public_partitions)
+    dp_result = dp_engine.aggregate(movie_views, params, data_extractors,
+                                    public_partitions)
 
     budget_accountant.compute_budgets()
     return dp_result

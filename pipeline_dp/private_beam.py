@@ -123,7 +123,8 @@ class Variance(PrivatePTransform):
             value_extractor=lambda x: self._variance_params.value_extractor(x[1]
                                                                            ))
 
-        dp_result = dp_engine.aggregate(pcol, params, data_extractors, self._variance_params.public_partitions)
+        dp_result = dp_engine.aggregate(pcol, params, data_extractors,
+                                        self._variance_params.public_partitions)
         # dp_result : (partition_key, [dp_variance])
 
         # aggregate() returns a namedtuple of metrics for each partition key.
@@ -164,7 +165,8 @@ class Mean(PrivatePTransform):
             privacy_id_extractor=lambda x: x[0],
             value_extractor=lambda x: self._mean_params.value_extractor(x[1]))
 
-        dp_result = dp_engine.aggregate(pcol, params, data_extractors, self._mean_params.public_partitions)
+        dp_result = dp_engine.aggregate(pcol, params, data_extractors,
+                                        self._mean_params.public_partitions)
         # dp_result : (partition_key, [dp_mean])
 
         # aggregate() returns a namedtuple of metrics for each partition key.
@@ -205,7 +207,8 @@ class Sum(PrivatePTransform):
             privacy_id_extractor=lambda x: x[0],
             value_extractor=lambda x: self._sum_params.value_extractor(x[1]))
 
-        dp_result = dp_engine.aggregate(pcol, params, data_extractors, self._sum_params.public_partitions)
+        dp_result = dp_engine.aggregate(pcol, params, data_extractors,
+                                        self._sum_params.public_partitions)
         # dp_result : (partition_key, [dp_sum])
 
         # aggregate() returns a namedtuple of metrics for each partition key.
@@ -246,7 +249,8 @@ class Count(PrivatePTransform):
             # doesn't use value extractor.
             value_extractor=lambda x: None)
 
-        dp_result = dp_engine.aggregate(pcol, params, data_extractors, self._count_params.public_partitions)
+        dp_result = dp_engine.aggregate(pcol, params, data_extractors,
+                                        self._count_params.public_partitions)
         # dp_result : (partition_key, [dp_count])
 
         # aggregate() returns a namedtuple of metrics for each partition key.
@@ -285,7 +289,9 @@ class PrivacyIdCount(PrivatePTransform):
             # PrivacyIdCount ignores values.
             value_extractor=lambda x: None)
 
-        dp_result = dp_engine.aggregate(pcol, params, data_extractors, self._privacy_id_count_params.public_partitions)
+        dp_result = dp_engine.aggregate(
+            pcol, params, data_extractors,
+            self._privacy_id_count_params.public_partitions)
         # dp_result : (partition_key, [dp_privacy_id_count])
 
         # aggregate() returns a namedtuple of metrics for each partition key.
