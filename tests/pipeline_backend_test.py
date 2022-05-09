@@ -436,13 +436,13 @@ class LocalBackendTest(unittest.TestCase):
         col = [(7, 1), (2, 1), (3, 9), (4, 1), (9, 10)]
         keys_to_keep = []
         result = self.backend.filter_by_key(col, keys_to_keep, "filter_by_key")
-        self.assertEqual(result, [])
+        self.assertEqual(list(result), [])
 
     def test_local_filter_by_key_remove(self):
         col = [(7, 1), (2, 1), (3, 9), (4, 1), (9, 10)]
         keys_to_keep = [7, 9]
         result = self.backend.filter_by_key(col, keys_to_keep, "filter_by_key")
-        self.assertEqual(result, [(7, 1), (9, 10)])
+        self.assertEqual(list(result), [(7, 1), (9, 10)])
 
     def test_local_keys(self):
         self.assertEqual(list(self.backend.keys([])), [])
@@ -515,6 +515,7 @@ class LocalBackendTest(unittest.TestCase):
         assert_laziness(self.backend.flat_map, str)
         assert_laziness(self.backend.sample_fixed_per_key, int)
         assert_laziness(self.backend.reduce_accumulators_per_key)
+        assert_laziness(self.backend.filter_by_key, list)
 
     def test_local_sample_fixed_per_key_requires_no_discarding(self):
         input_col = [("pid1", ('pk1', 1)), ("pid1", ('pk2', 1)),

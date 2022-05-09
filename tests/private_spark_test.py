@@ -79,6 +79,145 @@ class PrivateRDDTest(unittest.TestCase):
         self.assertEqual(result._budget_accountant, prdd._budget_accountant)
 
     @patch('pipeline_dp.dp_engine.DPEngine.aggregate')
+    def test_variance_calls_aggregate_with_correct_params(self, mock_aggregate):
+        # Arrange
+        dist_data = PrivateRDDTest.sc.parallelize([(1, 0.0, "pk1"),
+                                                   (2, 10.0, "pk1")])
+        MetricsTuple = collections.namedtuple('MetricsTuple', ['variance'])
+        mock_aggregate.return_value = PrivateRDDTest.sc.parallelize([
+            ("pk1", MetricsTuple(variance=25.0))
+        ])
+        budget_accountant = budget_accounting.NaiveBudgetAccountant(1, 1e-10)
+
+        def privacy_id_extractor(x):
+            return x[1]
+
+        prdd = private_spark.make_private(dist_data, budget_accountant,
+                                          privacy_id_extractor)
+        variance_params = agg.VarianceParams(
+            noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+            max_partitions_contributed=2,
+            max_contributions_per_partition=3,
+            min_value=1.5,
+            max_value=5.78,
+            budget_weight=1.1,
+            public_partitions=None,
+            partition_extractor=lambda x: x[0],
+            value_extractor=lambda x: x)
+
+        # Act
+        actual_result = prdd.variance(variance_params)
+
+        # Assert
+        mock_aggregate.assert_called_once()
+        args = mock_aggregate.call_args[0]
+
+        rdd = dist_data.map(lambda x: (privacy_id_extractor(x), x))
+        self.assertListEqual(args[0].collect(), rdd.collect())
+
+        params = pipeline_dp.AggregateParams(
+            noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+            metrics=[pipeline_dp.Metrics.VARIANCE],
+            max_partitions_contributed=variance_params.
+            max_partitions_contributed,
+            max_contributions_per_partition=variance_params.
+            max_contributions_per_partition,
+            min_value=variance_params.min_value,
+            max_value=variance_params.max_value,
+            budget_weight=variance_params.budget_weight,
+            public_partitions=variance_params.public_partitions)
+        self.assertEqual(args[1], params)
+
+        self.assertEqual(actual_result.collect(), [("pk1", 25.0)])
+
+    def test_variance_returns_sensible_result(self):
+        # Arrange
+        col = [(u, "pk1", -100) for u in range(30)]
+        col += [(u + 30, "pk1", 100) for u in range(10)]
+
+        dist_data = PrivateRDDTest.sc.parallelize(col)
+        # Use very high epsilon and delta to minimize noise and test
+        # flakiness.
+        budget_accountant = budget_accounting.NaiveBudgetAccountant(
+            total_epsilon=800, total_delta=0.999)
+
+        def privacy_id_extractor(x):
+            return x[0]
+
+        prdd = private_spark.make_private(dist_data, budget_accountant,
+                                          privacy_id_extractor)
+        variance_params = agg.VarianceParams(
+            noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+            max_partitions_contributed=2,
+            max_contributions_per_partition=3,
+            min_value=1.55,  # -100 should be clipped to this value
+            max_value=2.7889,  # 100 should be clipped to this value
+            budget_weight=1,
+            public_partitions=None,
+            partition_extractor=lambda x: x[1],
+            value_extractor=lambda x: x[2])
+
+        # Act
+        actual_result = prdd.variance(variance_params)
+        budget_accountant.compute_budgets()
+
+        # Assert
+        # This is a health check to validate that the result is sensible.
+        # Hence, we use a very large tolerance to reduce test flakiness.
+        expected_result_dict = {"pk1": 0.288}
+        actual_result_dict = self.to_dict(actual_result.collect())
+
+        for pk, variance in actual_result_dict.items():
+            self.assertTrue(
+                self.value_per_key_within_tolerance(variance,
+                                                    expected_result_dict[pk],
+                                                    0.1))
+
+    def test_variance_with_public_partitions_returns_sensible_result(self):
+        # Arrange
+        col = [(u, "pubK1", -100) for u in range(30)]
+        col += [(u + 30, "pubK1", 100) for u in range(10)]
+        col += [(u + 40, "privK1", 100) for u in range(30)]
+
+        dist_data = PrivateRDDTest.sc.parallelize(col)
+        # Use very high epsilon and delta to minimize noise and test
+        # flakiness.
+        budget_accountant = budget_accounting.NaiveBudgetAccountant(
+            total_epsilon=8000, total_delta=0.9999999)
+
+        def privacy_id_extractor(x):
+            return x[0]
+
+        prdd = private_spark.make_private(dist_data, budget_accountant,
+                                          privacy_id_extractor)
+        variance_params = agg.VarianceParams(
+            noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+            max_partitions_contributed=2,
+            max_contributions_per_partition=3,
+            min_value=1.55,  # -100 should be clipped to this value
+            max_value=2.7889,  # 100 should be clipped to this value
+            budget_weight=1,
+            partition_extractor=lambda x: x[1],
+            value_extractor=lambda x: x[2],
+            public_partitions=["pubK1", "pubK2"])
+
+        # Act
+        actual_result = prdd.variance(variance_params)
+        budget_accountant.compute_budgets()
+
+        # Assert
+        # This is a health check to validate that the result is sensible.
+        # Hence, we use a very large tolerance to reduce test flakiness.
+        expected_result_dict = {"pubK1": 0.288, "pubK2": 0.384}
+        actual_result_dict = self.to_dict(actual_result.collect())
+
+        for pk, variance in actual_result_dict.items():
+            self.assertTrue(
+                self.value_per_key_within_tolerance(variance,
+                                                    expected_result_dict[pk],
+                                                    0.1))
+
+    @patch('pipeline_dp.dp_engine.DPEngine.aggregate')
     def test_mean_calls_aggregate_with_correct_params(self, mock_aggregate):
         # Arrange
         dist_data = PrivateRDDTest.sc.parallelize([(1, 2.0, "pk1"),
@@ -168,7 +307,7 @@ class PrivateRDDTest(unittest.TestCase):
             self.assertTrue(
                 self.value_per_key_within_tolerance(mean,
                                                     expected_result_dict[pk],
-                                                    5.0))
+                                                    0.1))
 
     def test_mean_with_public_partitions_returns_sensible_result(self):
         # Arrange
@@ -180,7 +319,7 @@ class PrivateRDDTest(unittest.TestCase):
         # Use very high epsilon and delta to minimize noise and test
         # flakiness.
         budget_accountant = budget_accounting.NaiveBudgetAccountant(
-            total_epsilon=800, total_delta=0.999)
+            total_epsilon=8000, total_delta=0.999999)
 
         def privacy_id_extractor(x):
             return x[0]
@@ -211,7 +350,7 @@ class PrivateRDDTest(unittest.TestCase):
             self.assertTrue(
                 self.value_per_key_within_tolerance(mean,
                                                     expected_result_dict[pk],
-                                                    5.0))
+                                                    0.1))
 
     @patch('pipeline_dp.dp_engine.DPEngine.aggregate')
     def test_sum_calls_aggregate_with_correct_params(self, mock_aggregate):

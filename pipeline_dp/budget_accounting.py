@@ -14,6 +14,7 @@
 """Privacy budget accounting for DP pipelines."""
 
 import abc
+import collections
 import logging
 import math
 from typing import Optional
@@ -106,13 +107,39 @@ class MechanismSpecInternal:
     mechanism_spec: MechanismSpec
 
 
+Budget = collections.namedtuple("Budget", ["epsilon", "delta"])
+
+
 class BudgetAccountant(abc.ABC):
     """Base class for budget accountants."""
 
-    def __init__(self):
+    def __init__(self, total_epsilon: float, total_delta: float,
+                 num_aggregations: Optional[int],
+                 aggregation_weights: Optional[list]):
+
+        _validate_epsilon_delta(total_epsilon, total_delta)
+        self._total_epsilon = total_epsilon
+        self._total_delta = total_delta
+
         self._scopes_stack = []
         self._mechanisms = []
         self._finalized = False
+        if num_aggregations is not None and aggregation_weights is not None:
+            raise ValueError(
+                "'num_aggregations' and 'aggregation_weights' can not be set "
+                "simultaneously.\nIf you wish all aggregations in the pipeline "
+                "to have equal budgets, specify the total number of aggregations"
+                "with 'n_aggregations'.\nIf you wish to have different budgets "
+                "for different aggregations, specify them with 'aggregation_weights'"
+            )
+        if num_aggregations is not None and num_aggregations <= 0:
+            raise ValueError(
+                f"'num_aggregations'={num_aggregations}, but it has to be positive."
+            )
+        self._expected_num_aggregations = num_aggregations
+        self._expected_aggregation_weights = aggregation_weights
+        self._reqested_aggregations = 0
+        self._actual_aggregation_weights = []
 
     @abc.abstractmethod
     def request_budget(
@@ -145,6 +172,66 @@ class BudgetAccountant(abc.ABC):
             the scope that should be used in a "with" block enclosing the operations consuming the budget.
         """
         return BudgetAccountantScope(self, weight)
+
+    def _compute_budget_for_aggregation(self, weight: float) -> Budget:
+        """Computes budget per aggregation.
+
+        It splits the budget using the naive composition.
+
+        Warning: This function changes the 'self' internal state. It can be
+        called only from the API function of DPEngine, like aggregate() or
+        select_partitions().
+
+        Args:
+            weight: the budget weight of the aggregation.
+
+        Returns:
+            the budget.
+        """
+        self._actual_aggregation_weights.append(weight)
+        if self._expected_num_aggregations:
+            return Budget(self._total_epsilon / self._expected_num_aggregations,
+                          self._total_delta / self._expected_num_aggregations)
+        if self._expected_aggregation_weights:
+            budget_ratio = weight / sum(self._expected_aggregation_weights)
+            return Budget(self._total_epsilon * budget_ratio,
+                          self._total_delta * budget_ratio)
+        # No expectations on aggregations, no way to compute budget.
+        return None
+
+    def _check_aggregation_restrictions(self):
+        if self._expected_num_aggregations:
+            actual_num_aggregations = len(self._actual_aggregation_weights)
+            if actual_num_aggregations != self._expected_num_aggregations:
+                raise ValueError(
+                    f"'num_aggregations'({self._expected_num_aggregations}) in "
+                    f"the constructor of BudgetAccountant is different from the"
+                    f" actual number of aggregations in the pipeline"
+                    f"({actual_num_aggregations}). If 'n_aggregations' is "
+                    f"specified, you must have that many aggregations in the "
+                    f"pipeline.")
+            weights = self._actual_aggregation_weights
+            if not all([w == 1 for w in weights]):
+                raise ValueError(
+                    f"Aggregation weights = {weights}. If 'num_aggregations' is"
+                    f" set in the constructor of BudgetAccountant, all "
+                    f"aggregation weights have to be 1. If you'd like to have "
+                    f"different weights use 'aggregation_weights'.")
+        if self._expected_aggregation_weights:
+            actual_weights = self._actual_aggregation_weights
+            expected_weights = self._expected_aggregation_weights
+            if len(actual_weights) != len(expected_weights):
+                raise ValueError(
+                    f"Length of 'aggregation_weights' in the constructor of "
+                    f"BudgetAccountant is {len(expected_weights)} != "
+                    f"{len(actual_weights)} the actual number of aggregations.")
+            if not all(
+                [w1 == w2 for w1, w2 in zip(actual_weights, expected_weights)]):
+                raise ValueError(
+                    f"'aggregation_weights' in the constructor of is "
+                    f"({expected_weights}) is different from actual aggregation"
+                    f" weights ({actual_weights}).If 'aggregation_weights' is "
+                    f"specified, they must be the same.")
 
     def _register_mechanism(self, mechanism: MechanismSpecInternal):
         """Registers this mechanism for the future normalisation."""
@@ -201,23 +288,34 @@ class BudgetAccountantScope:
 class NaiveBudgetAccountant(BudgetAccountant):
     """Manages the privacy budget."""
 
-    def __init__(self, total_epsilon: float, total_delta: float):
+    def __init__(self,
+                 total_epsilon: float,
+                 total_delta: float,
+                 num_aggregations: Optional[int] = None,
+                 aggregation_weights: Optional[list] = None):
         """Constructs a NaiveBudgetAccountant.
 
         Args:
             total_epsilon: epsilon for the entire pipeline.
             total_delta: delta for the entire pipeline.
+            num_aggregations: number of DP aggregations in the pipeline for
+             which  'self' manages the budget. All aggregations should have
+             'budget_weight' = 1. When specified, all aggregations will have
+             equal budget. It is useful to ensure that the pipeline has fixed
+             number of DP aggregations.
+            aggregation_weights: 'budget_weight' of aggregations for which
+             'self' manages the budget. It is useful to ensure that the pipeline
+              has a fixed number of DP aggregations with fixed weights.
+
+        If num_aggregations and aggregation_weights are not set, there are no
+        restrictions on the number of aggregations nor their budget weights.
 
         Raises:
             A ValueError if either argument is out of range.
+            A ValueError if num_aggregations and aggregation_weights are both set.
         """
-        super().__init__()
-
-        _validate_epsilon_delta(total_epsilon, total_delta)
-
-        self._total_epsilon = total_epsilon
-        self._total_delta = total_delta
-        self._finalized = False
+        super().__init__(total_epsilon, total_delta, num_aggregations,
+                         aggregation_weights)
 
     def request_budget(
             self,
@@ -268,6 +366,7 @@ class NaiveBudgetAccountant(BudgetAccountant):
 
     def compute_budgets(self):
         """Updates all previously requested MechanismSpec objects with corresponding budget values."""
+        self._check_aggregation_restrictions()
         self._finalize()
 
         if not self._mechanisms:
@@ -309,7 +408,9 @@ class PLDBudgetAccountant(BudgetAccountant):
     def __init__(self,
                  total_epsilon: float,
                  total_delta: float,
-                 pld_discretization: float = 1e-4):
+                 pld_discretization: float = 1e-4,
+                 num_aggregations: Optional[int] = None,
+                 aggregation_weights: Optional[list] = None):
         """Constructs a PLDBudgetAccountant.
 
         Args:
@@ -317,17 +418,26 @@ class PLDBudgetAccountant(BudgetAccountant):
             total_delta: delta for the entire pipeline.
             pld_discretization: `value_discretization_interval` in PLD library.
                 Smaller interval results in better accuracy, but increases running time.
+              num_aggregations: number of DP aggregations in the pipeline for
+             which  'self' manages the budget. All aggregations should have
+             'budget_weight' = 1. When specified all aggregations will have
+             equal budget. It is useful to ensure that the pipeline has fixed
+             number of DP aggregations.
+            aggregation_weights: 'budget_weight' of aggregations for which
+             'self' manages the budget. It is useful to ensure that the pipeline
+              has a fixed number of DP aggregations with fixed weights.
+
+        If num_aggregations and aggregation_weights are not set, there are no
+        restrictions on the number of aggregations nor their budget weights.
+
 
         Raises:
             ValueError: Arguments are missing or out of range.
         """
 
-        super().__init__()
+        super().__init__(total_epsilon, total_delta, num_aggregations,
+                         aggregation_weights)
 
-        _validate_epsilon_delta(total_epsilon, total_delta)
-
-        self._total_epsilon = total_epsilon
-        self._total_delta = total_delta
         self.minimum_noise_std = None
         self._pld_discretization = pld_discretization
 
@@ -384,6 +494,7 @@ class PLDBudgetAccountant(BudgetAccountant):
         noise based on given epsilon. Sets the noise for the
         entire pipeline.
         """
+        self._check_aggregation_restrictions()
         self._finalize()
 
         if not self._mechanisms:
