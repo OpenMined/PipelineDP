@@ -377,22 +377,22 @@ class VarianceCombinerTest(parameterized.TestCase):
 
         noisy_counts = [noisy_value['count'] for noisy_value in noisy_values]
         self.assertAlmostEqual(count, np.mean(noisy_counts), delta=5e-1)
-        self.assertTrue(np.var(noisy_counts) > 1)  # check that noise is added
+        self.assertGreater(np.var(noisy_counts), 1)  # check that noise is added
 
         noisy_sums = [noisy_value['sum'] for noisy_value in noisy_values]
         self.assertAlmostEqual(sum, np.mean(noisy_sums), delta=1)
-        self.assertTrue(np.var(noisy_sums) > 1)  # check that noise is added
+        self.assertGreater(np.var(noisy_sums), 1)  # check that noise is added
 
         noisy_means = [noisy_value['mean'] for noisy_value in noisy_values]
         self.assertAlmostEqual(mean, np.mean(noisy_means), delta=5e-1)
-        self.assertTrue(np.var(noisy_means) > 1)  # check that noise is added
+        self.assertGreater(np.var(noisy_means), 1)  # check that noise is added
 
         noisy_variances = [
             noisy_value['variance'] for noisy_value in noisy_values
         ]
         self.assertAlmostEqual(variance, np.mean(noisy_variances), delta=20)
-        self.assertTrue(
-            np.var(noisy_variances) > 1)  # check that noise is added
+        self.assertGreater(np.var(noisy_variances),
+                           1)  # check that noise is added
 
 
 class CompoundCombinerTest(parameterized.TestCase):
