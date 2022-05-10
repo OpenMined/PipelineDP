@@ -231,9 +231,11 @@ class Count(PrivatePTransform):
 
     def __init__(self,
                  count_params: aggregate_params.CountParams,
-                 label: Optional[str] = None):
+                 label: Optional[str] = None,
+                 public_partitions=None):
         super().__init__(return_anonymized=True, label=label)
         self._count_params = count_params
+        self._public_partitions = public_partitions
 
     def expand(self, pcol: pvalue.PCollection) -> pvalue.PCollection:
         backend = pipeline_dp.BeamBackend()
@@ -256,7 +258,7 @@ class Count(PrivatePTransform):
             value_extractor=lambda x: None)
 
         dp_result = dp_engine.aggregate(pcol, params, data_extractors,
-                                        self._count_params.public_partitions)
+                                        self._public_partitions)
         # dp_result : (partition_key, [dp_count])
 
         # aggregate() returns a namedtuple of metrics for each partition key.

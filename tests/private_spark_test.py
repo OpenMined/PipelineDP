@@ -499,7 +499,6 @@ class PrivateRDDTest(unittest.TestCase):
             max_partitions_contributed=2,
             max_contributions_per_partition=3,
             budget_weight=1,
-            public_partitions=None,
             partition_extractor=lambda x: x[1])
 
         # Act
@@ -542,7 +541,6 @@ class PrivateRDDTest(unittest.TestCase):
             max_partitions_contributed=2,
             max_contributions_per_partition=3,
             budget_weight=1,
-            public_partitions=None,
             partition_extractor=lambda x: x[1])
 
         # Act
@@ -583,11 +581,11 @@ class PrivateRDDTest(unittest.TestCase):
             max_partitions_contributed=2,
             max_contributions_per_partition=3,
             budget_weight=1,
-            public_partitions=["pubK1", "pubK2"],
             partition_extractor=lambda x: x[1])
 
         # Act
-        actual_result = prdd.count(count_params)
+        actual_result = prdd.count(count_params,
+                                   public_partitions=["pubK1", "pubK2"])
         budget_accountant.compute_budgets()
 
         # Assert
