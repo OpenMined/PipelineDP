@@ -171,8 +171,7 @@ class PrivateBeamTest(unittest.TestCase):
                 max_contributions_per_partition=variance_params.
                 max_contributions_per_partition,
                 min_value=variance_params.min_value,
-                max_value=variance_params.max_value,
-                public_partitions=variance_params.public_partitions)
+                max_value=variance_params.max_value)
             self.assertEqual(params, args[1])
 
     def test_variance_returns_sensible_result(self):
@@ -299,8 +298,7 @@ class PrivateBeamTest(unittest.TestCase):
                 max_contributions_per_partition=mean_params.
                 max_contributions_per_partition,
                 min_value=mean_params.min_value,
-                max_value=mean_params.max_value,
-                public_partitions=mean_params.public_partitions)
+                max_value=mean_params.max_value)
             self.assertEqual(params, args[1])
 
     def test_mean_returns_sensible_result(self):
@@ -405,12 +403,13 @@ class PrivateBeamTest(unittest.TestCase):
                 min_value=1,
                 max_value=5,
                 budget_weight=1,
-                public_partitions=[],
+                #public_partitions=[],
                 partition_extractor=lambda x: f"pk:{x // 10}",
                 value_extractor=lambda x: x)
 
             # Act
-            transformer = private_beam.Sum(sum_params=sum_params)
+            transformer = private_beam.Sum(sum_params=sum_params,
+                                           public_partitions=[])
             private_collection | transformer
 
             # Assert
@@ -427,8 +426,7 @@ class PrivateBeamTest(unittest.TestCase):
                 max_contributions_per_partition=sum_params.
                 max_contributions_per_partition,
                 min_value=sum_params.min_value,
-                max_value=sum_params.max_value,
-                public_partitions=sum_params.public_partitions)
+                max_value=sum_params.max_value)
             self.assertEqual(params, args[1])
 
     def test_sum_returns_sensible_result(self):
@@ -495,11 +493,12 @@ class PrivateBeamTest(unittest.TestCase):
                 budget_weight=1,
                 partition_extractor=lambda x: x[1],
                 value_extractor=lambda x: x[2],
-                public_partitions=["pubK1", "pubK2"])
+                #public_partitions=["pubK1", "pubK2"]
+            )
 
             # Act
             result = private_collection | private_beam.Sum(
-                sum_params=sum_params)
+                sum_params=sum_params, public_partitions=["pubK1", "pubK2"])
             budget_accountant.compute_budgets()
 
             # Assert
@@ -548,8 +547,7 @@ class PrivateBeamTest(unittest.TestCase):
                 max_partitions_contributed=count_params.
                 max_partitions_contributed,
                 max_contributions_per_partition=count_params.
-                max_contributions_per_partition,
-                public_partitions=count_params.public_partitions)
+                max_contributions_per_partition)
             self.assertEqual(args[1], params)
 
     def test_count_returns_sensible_result(self):
@@ -660,8 +658,7 @@ class PrivateBeamTest(unittest.TestCase):
                 metrics=[pipeline_dp.Metrics.PRIVACY_ID_COUNT],
                 max_partitions_contributed=privacy_id_count_params.
                 max_partitions_contributed,
-                max_contributions_per_partition=1,
-                public_partitions=privacy_id_count_params.public_partitions)
+                max_contributions_per_partition=1)
             self.assertEqual(args[1], params)
 
     def test_privacy_id_count_returns_sensible_result(self):

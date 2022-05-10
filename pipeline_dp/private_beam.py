@@ -114,8 +114,7 @@ class Variance(PrivatePTransform):
             max_contributions_per_partition=self._variance_params.
             max_contributions_per_partition,
             min_value=self._variance_params.min_value,
-            max_value=self._variance_params.max_value,
-            public_partitions=self._variance_params.public_partitions)
+            max_value=self._variance_params.max_value)
 
         data_extractors = pipeline_dp.DataExtractors(
             partition_extractor=lambda x: self._variance_params.
@@ -124,7 +123,8 @@ class Variance(PrivatePTransform):
             value_extractor=lambda x: self._variance_params.value_extractor(x[1]
                                                                            ))
 
-        dp_result = dp_engine.aggregate(pcol, params, data_extractors)
+        dp_result = dp_engine.aggregate(pcol, params, data_extractors,
+                                        self._variance_params.public_partitions)
         # dp_result : (partition_key, [dp_variance])
 
         # aggregate() returns a namedtuple of metrics for each partition key.
@@ -157,8 +157,7 @@ class Mean(PrivatePTransform):
             max_contributions_per_partition=self._mean_params.
             max_contributions_per_partition,
             min_value=self._mean_params.min_value,
-            max_value=self._mean_params.max_value,
-            public_partitions=self._mean_params.public_partitions)
+            max_value=self._mean_params.max_value)
 
         data_extractors = pipeline_dp.DataExtractors(
             partition_extractor=lambda x: self._mean_params.partition_extractor(
@@ -166,7 +165,8 @@ class Mean(PrivatePTransform):
             privacy_id_extractor=lambda x: x[0],
             value_extractor=lambda x: self._mean_params.value_extractor(x[1]))
 
-        dp_result = dp_engine.aggregate(pcol, params, data_extractors)
+        dp_result = dp_engine.aggregate(pcol, params, data_extractors,
+                                        self._mean_params.public_partitions)
         # dp_result : (partition_key, [dp_mean])
 
         # aggregate() returns a namedtuple of metrics for each partition key.
@@ -183,9 +183,11 @@ class Sum(PrivatePTransform):
 
     def __init__(self,
                  sum_params: aggregate_params.SumParams,
-                 label: Optional[str] = None):
+                 label: Optional[str] = None,
+                 public_partitions=None):
         super().__init__(return_anonymized=True, label=label)
         self._sum_params = sum_params
+        self._public_partitions = public_partitions
 
     def expand(self, pcol: pvalue.PCollection) -> pvalue.PCollection:
         backend = pipeline_dp.BeamBackend()
@@ -199,8 +201,7 @@ class Sum(PrivatePTransform):
             max_contributions_per_partition=self._sum_params.
             max_contributions_per_partition,
             min_value=self._sum_params.min_value,
-            max_value=self._sum_params.max_value,
-            public_partitions=self._sum_params.public_partitions)
+            max_value=self._sum_params.max_value)
 
         data_extractors = pipeline_dp.DataExtractors(
             partition_extractor=lambda x: self._sum_params.partition_extractor(
@@ -208,7 +209,8 @@ class Sum(PrivatePTransform):
             privacy_id_extractor=lambda x: x[0],
             value_extractor=lambda x: self._sum_params.value_extractor(x[1]))
 
-        dp_result = dp_engine.aggregate(pcol, params, data_extractors)
+        dp_result = dp_engine.aggregate(pcol, params, data_extractors,
+                                        self._public_partitions)
         # dp_result : (partition_key, [dp_sum])
 
         # aggregate() returns a namedtuple of metrics for each partition key.
@@ -239,8 +241,7 @@ class Count(PrivatePTransform):
             max_partitions_contributed=self._count_params.
             max_partitions_contributed,
             max_contributions_per_partition=self._count_params.
-            max_contributions_per_partition,
-            public_partitions=self._count_params.public_partitions)
+            max_contributions_per_partition)
 
         data_extractors = pipeline_dp.DataExtractors(
             partition_extractor=lambda x: self._count_params.
@@ -250,7 +251,8 @@ class Count(PrivatePTransform):
             # doesn't use value extractor.
             value_extractor=lambda x: None)
 
-        dp_result = dp_engine.aggregate(pcol, params, data_extractors)
+        dp_result = dp_engine.aggregate(pcol, params, data_extractors,
+                                        self._count_params.public_partitions)
         # dp_result : (partition_key, [dp_count])
 
         # aggregate() returns a namedtuple of metrics for each partition key.
@@ -280,8 +282,7 @@ class PrivacyIdCount(PrivatePTransform):
             metrics=[pipeline_dp.Metrics.PRIVACY_ID_COUNT],
             max_partitions_contributed=self._privacy_id_count_params.
             max_partitions_contributed,
-            max_contributions_per_partition=1,
-            public_partitions=self._privacy_id_count_params.public_partitions)
+            max_contributions_per_partition=1)
 
         data_extractors = pipeline_dp.DataExtractors(
             partition_extractor=lambda x: self._privacy_id_count_params.
@@ -290,7 +291,9 @@ class PrivacyIdCount(PrivatePTransform):
             # PrivacyIdCount ignores values.
             value_extractor=lambda x: None)
 
-        dp_result = dp_engine.aggregate(pcol, params, data_extractors)
+        dp_result = dp_engine.aggregate(
+            pcol, params, data_extractors,
+            self._privacy_id_count_params.public_partitions)
         # dp_result : (partition_key, [dp_privacy_id_count])
 
         # aggregate() returns a namedtuple of metrics for each partition key.

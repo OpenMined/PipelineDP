@@ -49,8 +49,11 @@ class DPEngine:
     def _add_report_stage(self, text):
         self._report_generators[-1].add_stage(text)
 
-    def aggregate(self, col, params: pipeline_dp.AggregateParams,
-                  data_extractors: DataExtractors):
+    def aggregate(self,
+                  col,
+                  params: pipeline_dp.AggregateParams,
+                  data_extractors: DataExtractors,
+                  public_partitions=None):
         """Computes DP aggregate metrics.
 
         Args:
@@ -58,11 +61,15 @@ class DPEngine:
           params: specifies which metrics to compute and computation parameters.
           data_extractors: functions that extract needed pieces of information
             from elements of 'col'.
+          public_partitions: A collection of partition keys that will be present in
+          the result. Optional. If not provided, partitions will be selected in a DP
+          manner.
         """
         _check_aggregate_params(col, params, data_extractors)
 
         with self._budget_accountant.scope(weight=params.budget_weight):
-            col = self._aggregate(col, params, data_extractors)
+            col = self._aggregate(col, params, data_extractors,
+                                  public_partitions)
             budget = self._budget_accountant._compute_budget_for_aggregation(
                 params.budget_weight)
             return self._backend.annotate(col,
@@ -71,7 +78,7 @@ class DPEngine:
                                           budget=budget)
 
     def _aggregate(self, col, params: pipeline_dp.AggregateParams,
-                   data_extractors: DataExtractors):
+                   data_extractors: DataExtractors, public_partitions):
 
         self._report_generators.append(report_generator.ReportGenerator(params))
 
@@ -86,9 +93,8 @@ class DPEngine:
             combiner = combiners.create_compound_combiner(
                 params, self._budget_accountant)
 
-        if params.public_partitions is not None:
-            col = self._drop_not_public_partitions(col,
-                                                   params.public_partitions,
+        if public_partitions is not None:
+            col = self._drop_not_public_partitions(col, public_partitions,
                                                    data_extractors)
 
         # Extract the columns.
@@ -107,9 +113,8 @@ class DPEngine:
                                       "Drop privacy id")
         # col : (partition_key, accumulator)
 
-        if params.public_partitions:
-            col = self._add_empty_public_partitions(col,
-                                                    params.public_partitions,
+        if public_partitions:
+            col = self._add_empty_public_partitions(col, public_partitions,
                                                     combiner.create_accumulator)
         # col : (partition_key, accumulator)
 
@@ -117,7 +122,7 @@ class DPEngine:
             col, combiner, "Reduce accumulators per partition key")
         # col : (partition_key, accumulator)
 
-        if params.public_partitions is None:
+        if public_partitions is None:
             col = self._select_private_partitions_internal(
                 col, params.max_partitions_contributed)
         # col : (partition_key, accumulator)

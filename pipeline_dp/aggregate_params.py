@@ -67,9 +67,6 @@ class AggregateParams:
       aggregation.
     min_value: Lower bound on each value.
     max_value: Upper bound on each value.
-    public_partitions: A collection of partition keys that will be present in
-      the result. Optional. If not provided, partitions will be selected in a DP
-      manner.
     custom_combiners: Warning: experimental@ Combiners for computing custom
       metrics.
   """
@@ -82,7 +79,7 @@ class AggregateParams:
     high: float = None  # deprecated
     min_value: float = None
     max_value: float = None
-    public_partitions: Any = None
+    public_partitions: Any = None  # deprecated
     noise_kind: NoiseKind = NoiseKind.LAPLACE
     custom_combiners: Iterable['CustomCombiner'] = None
 
@@ -130,6 +127,10 @@ class AggregateParams:
             # whether this check is required?
             raise ValueError(
                 "Custom combiners can not be used with standard metrics")
+        if self.public_partitions:
+            raise ValueError(
+                " AggregateParams.public_partitions is deprecated. Please use public_partitions argument in DPEngine.aggregate insead."
+            )
 
     def __str__(self):
         if self.custom_combiners:
@@ -185,7 +186,8 @@ class SumParams:
     high: float = None  # deprecated
     budget_weight: float = 1
     noise_kind: NoiseKind = NoiseKind.LAPLACE
-    public_partitions: Union[Iterable, 'PCollection', 'RDD'] = None
+    public_partitions: Union[Iterable, 'PCollection',
+                             'RDD'] = None  # deprecated
 
     def __post_init__(self):
         if self.low is not None:
@@ -193,6 +195,11 @@ class SumParams:
 
         if self.high is not None:
             raise ValueError("SumParams: please use max_value instead of high")
+
+        if self.public_partitions:
+            raise ValueError(
+                " AggregateParams.public_partitions is deprecated. Please use public_partitions argument in DPEngine.aggregate insead."
+            )
 
 
 @dataclass
