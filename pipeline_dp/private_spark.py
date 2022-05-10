@@ -103,11 +103,16 @@ class PrivateRDD:
 
         return dp_result
 
-    def mean(self, mean_params: aggregate_params.MeanParams) -> RDD:
+    def mean(self,
+             mean_params: aggregate_params.MeanParams,
+             public_partitions=None) -> RDD:
         """Computes a DP mean.
 
         Args:
             mean_params: parameters for calculation
+            public_partitions: A collection of partition keys that will be present in
+          the result. Optional. If not provided, partitions will be selected in a DP
+          manner.
         """
 
         backend = pipeline_dp.SparkRDDBackend(self._rdd.context)
@@ -129,7 +134,7 @@ class PrivateRDD:
             value_extractor=lambda x: mean_params.value_extractor(x[1]))
 
         dp_result = dp_engine.aggregate(self._rdd, params, data_extractors,
-                                        mean_params.public_partitions)
+                                        public_partitions)
         # dp_result : (partition_key, (mean=dp_mean))
 
         # aggregate() returns a namedtuple of metrics for each partition key.

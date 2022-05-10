@@ -276,12 +276,12 @@ class PrivateBeamTest(unittest.TestCase):
                 min_value=1,
                 max_value=5,
                 budget_weight=1,
-                public_partitions=[],
                 partition_extractor=lambda x: f"pk:{x // 10}",
                 value_extractor=lambda x: x)
 
             # Act
-            transformer = private_beam.Mean(mean_params=mean_params)
+            transformer = private_beam.Mean(mean_params=mean_params,
+                                            public_partitions=[])
             private_collection | transformer
 
             # Assert
@@ -364,12 +364,11 @@ class PrivateBeamTest(unittest.TestCase):
                 max_value=2.7889,  # 100 should be clipped to this value
                 budget_weight=1,
                 partition_extractor=lambda x: x[1],
-                value_extractor=lambda x: x[2],
-                public_partitions=["pubK1", "pubK2"])
+                value_extractor=lambda x: x[2])
 
             # Act
             result = private_collection | private_beam.Mean(
-                mean_params=mean_params)
+                mean_params=mean_params, public_partitions=["pubK1", "pubK2"])
             budget_accountant.compute_budgets()
 
             # Assert

@@ -143,9 +143,11 @@ class Mean(PrivatePTransform):
 
     def __init__(self,
                  mean_params: aggregate_params.MeanParams,
-                 label: Optional[str] = None):
+                 label: Optional[str] = None,
+                 public_partitions=None):
         super().__init__(return_anonymized=True, label=label)
         self._mean_params = mean_params
+        self._public_partitions = public_partitions
 
     def expand(self, pcol: pvalue.PCollection) -> pvalue.PCollection:
         backend = pipeline_dp.BeamBackend()
@@ -168,7 +170,7 @@ class Mean(PrivatePTransform):
             value_extractor=lambda x: self._mean_params.value_extractor(x[1]))
 
         dp_result = dp_engine.aggregate(pcol, params, data_extractors,
-                                        self._mean_params.public_partitions)
+                                        self._public_partitions)
         # dp_result : (partition_key, [dp_mean])
 
         # aggregate() returns a namedtuple of metrics for each partition key.
