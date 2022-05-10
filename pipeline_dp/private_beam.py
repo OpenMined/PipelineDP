@@ -275,9 +275,11 @@ class PrivacyIdCount(PrivatePTransform):
 
     def __init__(self,
                  privacy_id_count_params: aggregate_params.PrivacyIdCountParams,
-                 label: Optional[str] = None):
+                 label: Optional[str] = None,
+                 public_partitions=None):
         super().__init__(return_anonymized=True, label=label)
         self._privacy_id_count_params = privacy_id_count_params
+        self._public_partitions = public_partitions
 
     def expand(self, pcol: pvalue.PCollection) -> pvalue.PCollection:
         backend = pipeline_dp.BeamBackend()
@@ -297,9 +299,8 @@ class PrivacyIdCount(PrivatePTransform):
             # PrivacyIdCount ignores values.
             value_extractor=lambda x: None)
 
-        dp_result = dp_engine.aggregate(
-            pcol, params, data_extractors,
-            self._privacy_id_count_params.public_partitions)
+        dp_result = dp_engine.aggregate(pcol, params, data_extractors,
+                                        self._public_partitions)
         # dp_result : (partition_key, [dp_privacy_id_count])
 
         # aggregate() returns a namedtuple of metrics for each partition key.

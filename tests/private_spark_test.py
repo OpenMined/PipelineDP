@@ -696,11 +696,11 @@ class PrivateRDDTest(unittest.TestCase):
             noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
             max_partitions_contributed=2,
             budget_weight=1,
-            partition_extractor=lambda x: x[1],
-            public_partitions=["pubK1", "pubK2"])
+            partition_extractor=lambda x: x[1])
 
         # Act
-        actual_result = prdd.privacy_id_count(privacy_id_count_params)
+        actual_result = prdd.privacy_id_count(
+            privacy_id_count_params, public_partitions=["pubK1", "pubK2"])
         budget_accountant.compute_budgets()
 
         # Assert

@@ -315,15 +315,20 @@ class PrivacyIdCountParams:
         budget_weight: Relative weight of the privacy budget allocated for this
             operation.
         partition_extractor: A function which, given an input element, will return its partition id.
-        public_partitions: A collection of partition keys that will be present in
-            the result. Optional.
     """
 
     noise_kind: NoiseKind
     max_partitions_contributed: int
     partition_extractor: Callable
     budget_weight: float = 1
-    public_partitions: Union[Iterable, 'PCollection', 'RDD'] = None
+    public_partitions: Union[Iterable, 'PCollection',
+                             'RDD'] = None  # deprecated
+
+    def __post_init__(self):
+        if self.public_partitions:
+            raise ValueError(
+                "CountParams.public_partitions is deprecated. Please read API documentation for anonymous Count transform."
+            )
 
 
 def _not_a_proper_number(num):

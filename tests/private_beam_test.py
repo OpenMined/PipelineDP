@@ -710,12 +710,12 @@ class PrivateBeamTest(unittest.TestCase):
                 noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
                 max_partitions_contributed=2,
                 budget_weight=1,
-                partition_extractor=lambda x: x[1],
-                public_partitions=["pubK1", "pubK2"])
+                partition_extractor=lambda x: x[1])
 
             # Act
             result = private_collection | private_beam.PrivacyIdCount(
-                privacy_id_count_params=privacy_id_count_params)
+                privacy_id_count_params=privacy_id_count_params,
+                public_partitions=["pubK1", "pubK2"])
             budget_accountant.compute_budgets()
 
             # Assert

@@ -229,12 +229,16 @@ class PrivateRDD:
         return dp_result
 
     def privacy_id_count(
-            self, privacy_id_count_params: aggregate_params.PrivacyIdCountParams
-    ) -> RDD:
+            self,
+            privacy_id_count_params: aggregate_params.PrivacyIdCountParams,
+            public_partitions=None) -> RDD:
         """Computes a DP Privacy ID count.
 
         Args:
             privacy_id_count_params: parameters for calculation
+            public_partitions: A collection of partition keys that will be present in
+          the result. Optional. If not provided, partitions will be selected in a DP
+          manner.
         """
 
         backend = pipeline_dp.SparkRDDBackend(self._rdd.context)
@@ -254,9 +258,8 @@ class PrivateRDD:
             # PrivacyIdCount ignores values.
             value_extractor=lambda x: None)
 
-        dp_result = dp_engine.aggregate(
-            self._rdd, params, data_extractors,
-            privacy_id_count_params.public_partitions)
+        dp_result = dp_engine.aggregate(self._rdd, params, data_extractors,
+                                        public_partitions)
         # dp_result : (partition_key, (privacy_id_count=dp_privacy_id_count))
 
         # aggregate() returns a namedtuple of metrics for each partition key.
