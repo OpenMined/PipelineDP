@@ -198,7 +198,7 @@ class SumParams:
 
         if self.public_partitions:
             raise ValueError(
-                "SumParams.public_partitions is deprecated. Please read core API for each backend use case instead"
+                "SumParams.public_partitions is deprecated. Please read API documentation for anonymous Sum transform."
             )
 
 

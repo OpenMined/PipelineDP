@@ -145,9 +145,6 @@ class PrivateRDD:
             public_partitions: A collection of partition keys that will be present in
           the result. Optional. If not provided, partitions will be selected in a DP
           manner.
-          public_partitions: A collection of partition keys that will be present in
-          the result. Optional. If not provided, partitions will be selected in a DP
-          manner.
         """
 
         backend = pipeline_dp.SparkRDDBackend(self._rdd.context)
