@@ -327,7 +327,7 @@ class PrivacyIdCountParams:
     def __post_init__(self):
         if self.public_partitions:
             raise ValueError(
-                "CountParams.public_partitions is deprecated. Please read API documentation for anonymous Count transform."
+                "PrivacyIdCountParams.public_partitions is deprecated. Please read API documentation for anonymous PrivacyIdCountParams transform."
             )
 
 
