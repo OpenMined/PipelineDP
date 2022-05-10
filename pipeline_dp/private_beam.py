@@ -98,9 +98,11 @@ class Variance(PrivatePTransform):
 
     def __init__(self,
                  variance_params: aggregate_params.VarianceParams,
-                 label: Optional[str] = None):
+                 label: Optional[str] = None,
+                 public_partitions=None):
         super().__init__(return_anonymized=True, label=label)
         self._variance_params = variance_params
+        self._public_partitions = public_partitions
 
     def expand(self, pcol: pvalue.PCollection) -> pvalue.PCollection:
         backend = pipeline_dp.BeamBackend()
@@ -124,7 +126,7 @@ class Variance(PrivatePTransform):
                                                                            ))
 
         dp_result = dp_engine.aggregate(pcol, params, data_extractors,
-                                        self._variance_params.public_partitions)
+                                        self._public_partitions)
         # dp_result : (partition_key, [dp_variance])
 
         # aggregate() returns a namedtuple of metrics for each partition key.

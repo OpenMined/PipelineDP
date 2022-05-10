@@ -59,11 +59,16 @@ class PrivateRDD:
         rdd = self._rdd.flatMapValues(fn)
         return make_private(rdd, self._budget_accountant, None)
 
-    def variance(self, variance_params: aggregate_params.VarianceParams) -> RDD:
+    def variance(self,
+                 variance_params: aggregate_params.VarianceParams,
+                 public_partitions=None) -> RDD:
         """Computes a DP variance.
 
         Args:
             variance_params: parameters for calculation
+            public_partitions: A collection of partition keys that will be present in
+          the result. Optional. If not provided, partitions will be selected in a DP
+          manner.
         """
 
         backend = pipeline_dp.SparkRDDBackend(self._rdd.context)
@@ -87,7 +92,7 @@ class PrivateRDD:
             value_extractor=lambda x: variance_params.value_extractor(x[1]))
 
         dp_result = dp_engine.aggregate(self._rdd, params, data_extractors,
-                                        variance_params.public_partitions)
+                                        public_partitions)
         # dp_result : (partition_key, (variance=dp_variance))
 
         # aggregate() returns a namedtuple of metrics for each partition key.

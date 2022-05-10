@@ -215,8 +215,6 @@ class VarianceParams:
         min_value: Lower bound on a value contributed by a unit of privacy in a partition.
         max_value: Upper bound on a value contributed by a unit of privacy in a
             partition.
-        public_partitions: A collection of partition keys that will be present in
-            the result.
         partition_extractor: A function for partition id extraction from a collection record.
         value_extractor: A function for extraction of value
             for which the sum will be calculated.
@@ -229,7 +227,14 @@ class VarianceParams:
     value_extractor: Callable
     budget_weight: float = 1
     noise_kind: NoiseKind = NoiseKind.LAPLACE
-    public_partitions: Union[Iterable, 'PCollection', 'RDD'] = None
+    public_partitions: Union[Iterable, 'PCollection',
+                             'RDD'] = None  # deprecated
+
+    def __post_init__(self):
+        if self.public_partitions:
+            raise ValueError(
+                "VarianceParams.public_partitions is deprecated. Please read API documentation for anonymous Variance transform."
+            )
 
 
 @dataclass
