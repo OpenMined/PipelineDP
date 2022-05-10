@@ -421,7 +421,6 @@ class PrivateRDDTest(unittest.TestCase):
                                    min_value=1.55,
                                    max_value=2.7889,
                                    budget_weight=1,
-                                   public_partitions=None,
                                    partition_extractor=lambda x: x[1],
                                    value_extractor=lambda x: x[2])
 
