@@ -39,7 +39,7 @@ class Combiner(abc.ABC):
     4. Continue 3 until 1 accumulator is left.
     5. Call compute_metrics() for the accumulator that left.
 
-    Assumption: merge_accumulators is associative binary operation.
+    Assumption: merge_accumulators is an associative binary operation.
 
     The type of accumulator depends on the aggregation performed by this Combiner.
     For example, this can be a primitive type (e.g. int for a simple "count"
@@ -376,9 +376,11 @@ class CompoundCombiner(Combiner):
     they are to be outputted from MeanCombiner. For VarianceCombiner you can
     additionally set output_mean to True.
 
-    The type of the accumulator is a tuple of int and an iterable.
-    The first int represents the privacy id count. The second iterable
-    contains accumulators from internal combiners.
+
+    The type of the accumulator is a tuple of int and an iterable:
+    - The first int represents the number of input rows. If rows are grouped by privacy ID,
+      this will effectively be privacy ID count.
+    - The second iterable contains accumulators from internal combiners.
 
     Returns:
         if return_named_tuple == False tuple with elements returned from the
@@ -423,16 +425,16 @@ class CompoundCombiner(Combiner):
             self, compound_accumulator1: AccumulatorType,
             compound_accumulator2: AccumulatorType) -> AccumulatorType:
         merged_accumulators = []
-        privacy_id_count1, accumulator1 = compound_accumulator1
-        privacy_id_count2, accumulator2 = compound_accumulator2
+        row_count1, accumulator1 = compound_accumulator1
+        row_count2, accumulator2 = compound_accumulator2
         for combiner, acc1, acc2 in zip(self._combiners, accumulator1,
                                         accumulator2):
             merged_accumulators.append(combiner.merge_accumulators(acc1, acc2))
-        return (privacy_id_count1 + privacy_id_count2,
+        return (row_count1 + row_count2,
                 tuple(merged_accumulators))
 
     def compute_metrics(self, compound_accumulator: AccumulatorType):
-        privacy_id_count, accumulator = compound_accumulator
+        _, accumulator = compound_accumulator
 
         if not self._return_named_tuple:
             # returns tuple of what the internal combiners return.
@@ -502,6 +504,9 @@ def create_compound_combiner(
             combiners.append(
                 SumCombiner(CombinerParams(budget_sum, aggregate_params)))
     if pipeline_dp.Metrics.PRIVACY_ID_COUNT in aggregate_params.metrics:
+        if aggregate_params.contribution_bounds_already_enforced:
+            raise 'Cannot calculate PRIVACY_ID_COUNT when ' \
+                  'contribution_bounds_already_enforced is set to True.'
         budget_privacy_id_count = budget_accountant.request_budget(
             mechanism_type, weight=aggregate_params.budget_weight)
         combiners.append(
