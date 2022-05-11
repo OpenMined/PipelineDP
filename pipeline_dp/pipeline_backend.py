@@ -132,6 +132,20 @@ class PipelineBackend(abc.ABC):
         """
         pass
 
+    def annotate(self, col, stage_name: str, **kwargs):
+        """Annotates collection with registered annotators.
+
+        Args:
+          col: input collection of elements of any type.
+          stage_name: name of the stage.
+          kwargs: additional arguments about the current aggregation.
+
+        Returns:
+          The input collection after applying annotations from all registered
+          annotators.
+        """
+        return col  # no-op if not implemented for a Backend
+
 
 class UniqueLabelsGenerator:
     """Generate unique labels for each pipeline aggregation."""
@@ -281,6 +295,14 @@ class BeamBackend(PipelineBackend):
     def flatten(self, col1, col2, stage_name: str):
         return (col1, col2) | self._ulg.unique(stage_name) >> beam.Flatten()
 
+    def annotate(self, col, stage_name: str, **kwargs):
+        if not _annotators:
+            return col
+        for annotator in _annotators:
+            col = annotator.annotate(col, self._ulg.unique(stage_name),
+                                     **kwargs)
+        return col
+
 
 class SparkRDDBackend(PipelineBackend):
     """Apache Spark RDD adapter."""
@@ -411,7 +433,7 @@ class LocalBackend(PipelineBackend):
         keys_to_keep,
         stage_name: typing.Optional[str] = None,
     ):
-        return [kv for kv in col if kv[0] in keys_to_keep]
+        return (kv for kv in col if kv[0] in keys_to_keep)
 
     def keys(self, col, stage_name: typing.Optional[str] = None):
         return (k for k, v in col)
@@ -674,3 +696,30 @@ class MultiProcLocalBackend(PipelineBackend):
 
     def flatten(self, col1, col2, stage_name: str = None):
         return itertools.chain(col1, col2)
+
+
+class Annotator(abc.ABC):
+    """Interface to annotate a PipelineDP pipeline.
+
+    Call register_annotator() with your custom Annotator to annotate your
+    pipeline."""
+
+    @abc.abstractmethod
+    def annotate(self, col, stage_name: str, **kwargs):
+        """Annotates a collection.
+
+        Args:
+          stage_name: annotation stage_name, it needs to be correctly propagated
+          kwargs: additional arguments about the current aggregation.
+
+        Returns:
+            The input collection after applying an annotation.
+        """
+        pass
+
+
+_annotators = []
+
+
+def register_annotator(annotator: Annotator):
+    _annotators.append(annotator)

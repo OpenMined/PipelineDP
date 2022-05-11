@@ -74,13 +74,13 @@ def calc_dp_rating_metrics(movie_views, backend, public_partitions):
     params = pipeline_dp.AggregateParams(
         noise_kind=pipeline_dp.NoiseKind.LAPLACE,
         metrics=[
-            pipeline_dp.Metrics.COUNT, pipeline_dp.Metrics.SUM, pipeline_dp.Metrics.MEAN
+            pipeline_dp.Metrics.COUNT, pipeline_dp.Metrics.SUM,
+            pipeline_dp.Metrics.MEAN, pipeline_dp.Metrics.VARIANCE
         ] + ([pipeline_dp.Metrics.PRIVACY_ID_COUNT] if not FLAGS.contribution_bounds_already_enforced else []),
         max_partitions_contributed=2,
         max_contributions_per_partition=1,
         min_value=1,
         max_value=5,
-        public_partitions=public_partitions,
         contribution_bounds_already_enforced=FLAGS.contribution_bounds_already_enforced)
 
     # Specify how to extract privacy_id, partition_key and value from an
@@ -91,7 +91,8 @@ def calc_dp_rating_metrics(movie_views, backend, public_partitions):
         value_extractor=lambda mv: mv.rating)
 
     # Run aggregation.
-    dp_result = dp_engine.aggregate(movie_views, params, data_extractors)
+    dp_result = dp_engine.aggregate(movie_views, params, data_extractors,
+                                    public_partitions)
 
     budget_accountant.compute_budgets()
     return dp_result
