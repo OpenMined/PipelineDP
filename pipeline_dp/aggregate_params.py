@@ -129,7 +129,7 @@ class AggregateParams:
                 "Custom combiners can not be used with standard metrics")
         if self.public_partitions:
             raise ValueError(
-                " AggregateParams.public_partitions is deprecated. Please use public_partitions argument in DPEngine.aggregate insead."
+                "AggregateParams.public_partitions is deprecated. Please use public_partitions argument in DPEngine.aggregate insead."
             )
 
     def __str__(self):
@@ -198,7 +198,7 @@ class SumParams:
 
         if self.public_partitions:
             raise ValueError(
-                " AggregateParams.public_partitions is deprecated. Please use public_partitions argument in DPEngine.aggregate insead."
+                "SumParams.public_partitions is deprecated. Please read API documentation for anonymous Sum transform."
             )
 
 
@@ -215,8 +215,6 @@ class VarianceParams:
         min_value: Lower bound on a value contributed by a unit of privacy in a partition.
         max_value: Upper bound on a value contributed by a unit of privacy in a
             partition.
-        public_partitions: A collection of partition keys that will be present in
-            the result.
         partition_extractor: A function for partition id extraction from a collection record.
         value_extractor: A function for extraction of value
             for which the sum will be calculated.
@@ -229,7 +227,14 @@ class VarianceParams:
     value_extractor: Callable
     budget_weight: float = 1
     noise_kind: NoiseKind = NoiseKind.LAPLACE
-    public_partitions: Union[Iterable, 'PCollection', 'RDD'] = None
+    public_partitions: Union[Iterable, 'PCollection',
+                             'RDD'] = None  # deprecated
+
+    def __post_init__(self):
+        if self.public_partitions:
+            raise ValueError(
+                "VarianceParams.public_partitions is deprecated. Please read API documentation for anonymous Variance transform."
+            )
 
 
 @dataclass
@@ -247,7 +252,6 @@ class MeanParams:
             partition.
         public_partitions: A collection of partition keys that will be present in
             the result.
-        partition_extractor: A function for partition id extraction from a collection record.
         value_extractor: A function for extraction of value
             for which the sum will be calculated.
   """
@@ -259,7 +263,14 @@ class MeanParams:
     value_extractor: Callable
     budget_weight: float = 1
     noise_kind: NoiseKind = NoiseKind.LAPLACE
-    public_partitions: Union[Iterable, 'PCollection', 'RDD'] = None
+    public_partitions: Union[Iterable, 'PCollection',
+                             'RDD'] = None  # deprecated
+
+    def __post_init__(self):
+        if self.public_partitions:
+            raise ValueError(
+                "MeanParams.public_partitions is deprecated. Please read API documentation for anonymous Mean transform."
+            )
 
 
 @dataclass
@@ -275,8 +286,6 @@ class CountParams:
         partition_extractor: A function which, given an input element, will return its partition id.
         budget_weight: Relative weight of the privacy budget allocated for this
             operation.
-        public_partitions: A collection of partition keys that will be present in
-            the result. Optional.
 
     """
 
@@ -285,7 +294,14 @@ class CountParams:
     max_contributions_per_partition: int
     partition_extractor: Callable
     budget_weight: float = 1
-    public_partitions: Union[Iterable, 'PCollection', 'RDD'] = None
+    public_partitions: Union[Iterable, 'PCollection',
+                             'RDD'] = None  # deprecated
+
+    def __post_init__(self):
+        if self.public_partitions:
+            raise ValueError(
+                "CountParams.public_partitions is deprecated. Please read API documentation for anonymous Count transform."
+            )
 
 
 @dataclass
@@ -299,15 +315,20 @@ class PrivacyIdCountParams:
         budget_weight: Relative weight of the privacy budget allocated for this
             operation.
         partition_extractor: A function which, given an input element, will return its partition id.
-        public_partitions: A collection of partition keys that will be present in
-            the result. Optional.
     """
 
     noise_kind: NoiseKind
     max_partitions_contributed: int
     partition_extractor: Callable
     budget_weight: float = 1
-    public_partitions: Union[Iterable, 'PCollection', 'RDD'] = None
+    public_partitions: Union[Iterable, 'PCollection',
+                             'RDD'] = None  # deprecated
+
+    def __post_init__(self):
+        if self.public_partitions:
+            raise ValueError(
+                "PrivacyIdCountParams.public_partitions is deprecated. Please read API documentation for anonymous PrivacyIdCountParams transform."
+            )
 
 
 def _not_a_proper_number(num):

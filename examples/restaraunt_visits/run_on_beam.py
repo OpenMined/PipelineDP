@@ -72,7 +72,6 @@ def main(unused_argv):
                       min_value=1,
                       max_value=100,
                       budget_weight=1,
-                      public_partitions=None,
                       partition_extractor=lambda row: row.day,
                       value_extractor=lambda row: row.spent_money))
         budget_accountant.compute_budgets()
