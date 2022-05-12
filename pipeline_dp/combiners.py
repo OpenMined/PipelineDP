@@ -20,6 +20,7 @@ from pipeline_dp import dp_computations
 from pipeline_dp import budget_accounting
 import numpy as np
 import collections
+from pipeline_dp.aggregate_params import NormKind
 
 
 class Combiner(abc.ABC):
@@ -147,6 +148,20 @@ class CombinerParams:
             self.aggregate_params.max_partitions_contributed,
             self.aggregate_params.max_contributions_per_partition,
             self.aggregate_params.noise_kind)
+
+    @property
+    def additive_vector_noise_params(self):
+        return dp_computations.AdditiveVectorNoiseParams(
+            eps_per_coordinate=self.eps,
+            delta_per_coordinate=self.delta,
+            max_norm=self.aggregate_params.max_value,
+            l0_sensitivity=self.aggregate_params.max_partitions_contributed,
+            linf_sensitivity=self.aggregate_params.
+            max_contributions_per_partition *
+            max(self.aggregate_params.min_value,
+                self.aggregate_params.max_value),
+            norm_kind=NormKind.Linf,
+            noise_kind=self.aggregate_params.noise_kind)
 
 
 class CountCombiner(Combiner):
@@ -520,3 +535,42 @@ def create_compound_combiner_with_custom_combiners(
         combiner.set_aggregate_params(aggregate_params)
 
     return CompoundCombiner(custom_combiners, return_named_tuple=False)
+
+
+class VectorSumCombiner(Combiner):
+    """Combiner for computing dp vector sum.
+
+    the type of the accumulator is ndarray, which represents sum of the vectors of the same size
+    in the dataset for which this accumulator is computed.
+    """
+    AccumulatorType = np.ndarray
+
+    def __init__(self, params: CombinerParams):
+        self._params = params
+
+    def create_accumulator(self,
+                           values: Iterable[np.ndarray]) -> AccumulatorType:
+        array_sum = None
+        for val in values:
+            if array_sum is None:
+                array_sum = val
+            else:
+                if array_sum.shape != val.shape:
+                    raise TypeError(
+                        f"Shape mismatch: {array_sum.shape} != {val.shape}")
+                array_sum += val
+        return array_sum
+
+    def merge_accumulators(self, array_sum1: AccumulatorType,
+                           array_sum2: AccumulatorType):
+        return array_sum1 + array_sum2
+
+    def compute_metrics(self, array_sum: AccumulatorType) -> dict:
+        return {
+            'array_sum':
+                dp_computations.add_noise_vector(
+                    array_sum, self._params.additive_vector_noise_params)
+        }
+
+    def metrics_names(self) -> List[str]:
+        return ['array_sum']

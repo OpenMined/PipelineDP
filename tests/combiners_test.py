@@ -458,5 +458,45 @@ class CompoundCombinerTest(parameterized.TestCase):
         self.assertTrue(np.var(noised_sum) > 1)  # check that noise is added
 
 
+class VectorSumCombinerTest(parameterized.TestCase):
+
+    def _create_combiner(self, no_noise):
+        mechanism_spec = _create_mechanism_spec(no_noise)
+        aggregate_params = _create_aggregate_params()
+        params = dp_combiners.CombinerParams(mechanism_spec, aggregate_params)
+        return dp_combiners.VectorSumCombiner(params)
+
+    @parameterized.named_parameters(
+        dict(testcase_name='no_noise', no_noise=True),
+        dict(testcase_name='noise', no_noise=False),
+    )
+    def test_create_accumulator(self, no_noise):
+        combiner = self._create_combiner(no_noise)
+        self.assertEqual(np.array([0.]), combiner.create_accumulator([[0.]]))
+        self.assertEqual(
+            np.array([2.]),
+            combiner.create_accumulator([np.array([1.]),
+                                         np.array([1.])]))
+        # Bounding on values.
+        #self.assertEqual(2, combiner.create_accumulator([1, 3]))
+        #self.assertEqual(1, combiner.create_accumulator([0, 3]))
+
+    #@parameterized.named_parameters(
+    #    dict(testcase_name='no_noise', no_noise=True),
+    #    dict(testcase_name='noise', no_noise=False),
+    #)
+    #def test_merge_accumulators(self, no_noise):
+    #    combiner = self._create_combiner(no_noise)
+    #    self.assertEqual(0, combiner.merge_accumulators(0, 0))
+    #    self.assertEqual(5, combiner.merge_accumulators(1, 4))
+
+
+#
+#def test_compute_metrics_no_noise(self):
+#    combiner = self._create_combiner(no_noise=True)
+#    self.assertAlmostEqual(3,
+#                           combiner.compute_metrics(3)['sum'],
+#                           delta=1e-5)
+
 if __name__ == '__main__':
     absltest.main()
