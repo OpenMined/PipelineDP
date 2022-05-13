@@ -26,6 +26,7 @@ class Metrics(Enum):
     SUM = 'sum'
     MEAN = 'mean'
     VARIANCE = 'variance'
+    ARRAY_SUM = 'array_sum'
 
 
 class NoiseKind(Enum):
@@ -71,8 +72,8 @@ class AggregateParams:
       metrics.
     norm_kind: The type of norm to use for the DP calculations.
     max_norm: Bound on each value of a vector.
+    array_size: Number of coordinates in a vector.
   """
-
     metrics: Iterable[Metrics]
     max_partitions_contributed: int
     max_contributions_per_partition: int
@@ -86,6 +87,7 @@ class AggregateParams:
     custom_combiners: Iterable['CustomCombiner'] = None
     norm_kind: NormKind = NormKind.Linf
     max_norm: float = None
+    array_size: int = None
 
     def __post_init__(self):
         if self.low is not None:
