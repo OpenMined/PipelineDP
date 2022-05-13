@@ -40,7 +40,8 @@ def _create_aggregate_params(max_value: float = 1):
         max_partitions_contributed=1,
         max_contributions_per_partition=3,
         noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
-        metrics=[pipeline_dp.Metrics.COUNT])
+        metrics=[pipeline_dp.Metrics.COUNT],
+        max_norm=3)
 
 
 class CreateCompoundCombinersTest(parameterized.TestCase):
@@ -481,22 +482,41 @@ class VectorSumCombinerTest(parameterized.TestCase):
         #self.assertEqual(2, combiner.create_accumulator([1, 3]))
         #self.assertEqual(1, combiner.create_accumulator([0, 3]))
 
-    #@parameterized.named_parameters(
-    #    dict(testcase_name='no_noise', no_noise=True),
-    #    dict(testcase_name='noise', no_noise=False),
-    #)
-    #def test_merge_accumulators(self, no_noise):
-    #    combiner = self._create_combiner(no_noise)
-    #    self.assertEqual(0, combiner.merge_accumulators(0, 0))
-    #    self.assertEqual(5, combiner.merge_accumulators(1, 4))
+    @parameterized.named_parameters(
+        dict(testcase_name='no_noise', no_noise=True),
+        dict(testcase_name='noise', no_noise=False),
+    )
+    def test_merge_accumulators(self, no_noise):
+        combiner = self._create_combiner(no_noise)
+        self.assertEqual(
+            np.array([0.]),
+            combiner.merge_accumulators(np.array([0.]), np.array([0.])))
+        merge_resut = combiner.merge_accumulators(np.array([1., 1.]),
+                                                  np.array([1., 4.]))
+        self.assertEqual(2., merge_resut[0])
+        self.assertEqual(5., merge_resut[1])
 
+    def test_compute_metrics_no_noise(self):
+        combiner = self._create_combiner(no_noise=True)
+        self.assertAlmostEqual(3,
+                               combiner.compute_metrics(np.array(
+                                   [3]))['array_sum'],
+                               delta=1e-5)
 
-#
-#def test_compute_metrics_no_noise(self):
-#    combiner = self._create_combiner(no_noise=True)
-#    self.assertAlmostEqual(3,
-#                           combiner.compute_metrics(3)['sum'],
-#                           delta=1e-5)
+    def test_compute_metrics_with_noise(self):
+        combiner = self._create_combiner(no_noise=False)
+        accumulator = np.array([1, 3])
+        noisy_values = [
+            combiner.compute_metrics(accumulator)['array_sum']
+            for _ in range(1000)
+        ]
+        # Standard deviation for the noise is about 1.37. So we set a large
+        # delta here.
+        mean_array = np.mean(noisy_values, axis=0)
+        self.assertAlmostEqual(accumulator[0], mean_array[0], delta=0.5)
+        self.assertAlmostEqual(accumulator[1], mean_array[1], delta=0.5)
+        self.assertTrue(np.var(noisy_values) > 1)  # check that noise is added
+
 
 if __name__ == '__main__':
     absltest.main()
