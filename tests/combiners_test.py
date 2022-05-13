@@ -42,7 +42,7 @@ def _create_aggregate_params(max_value: float = 1, array_size: int = 1):
         noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
         metrics=[pipeline_dp.Metrics.COUNT],
         max_norm=5,
-        array_size = array_size)
+        array_size=array_size)
 
 
 class CreateCompoundCombinersTest(parameterized.TestCase):
@@ -88,6 +88,9 @@ class CreateCompoundCombinersTest(parameterized.TestCase):
                  pipeline_dp.Metrics.MEAN, pipeline_dp.Metrics.VARIANCE
              ],
              expected_combiner_types=[dp_combiners.VarianceCombiner]),
+        dict(testcase_name='array_sum',
+             metrics=[pipeline_dp.Metrics.ARRAY_SUM],
+             expected_combiner_types=[dp_combiners.VectorSumCombiner]),
     )
     def test_create_compound_combiner(self, metrics, expected_combiner_types):
         # Arrange.
