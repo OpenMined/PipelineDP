@@ -154,13 +154,11 @@ class CombinerParams:
         return dp_computations.AdditiveVectorNoiseParams(
             eps_per_coordinate=self.eps,
             delta_per_coordinate=self.delta,
-            max_norm=self.aggregate_params.max_value,
+            max_norm=self.aggregate_params.max_norm,
             l0_sensitivity=self.aggregate_params.max_partitions_contributed,
             linf_sensitivity=self.aggregate_params.
-            max_contributions_per_partition *
-            max(self.aggregate_params.min_value,
-                self.aggregate_params.max_value),
-            norm_kind=NormKind.Linf,
+            max_contributions_per_partition,
+            norm_kind=self.aggregate_params.norm_kind,
             noise_kind=self.aggregate_params.noise_kind)
 
 

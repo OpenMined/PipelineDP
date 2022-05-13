@@ -69,6 +69,8 @@ class AggregateParams:
     max_value: Upper bound on each value.
     custom_combiners: Warning: experimental@ Combiners for computing custom
       metrics.
+    norm_kind: The type of norm to use for the DP calculations.
+    max_norm: Bound on each value of a vector.
   """
 
     metrics: Iterable[Metrics]
@@ -82,6 +84,8 @@ class AggregateParams:
     public_partitions: Any = None  # deprecated
     noise_kind: NoiseKind = NoiseKind.LAPLACE
     custom_combiners: Iterable['CustomCombiner'] = None
+    norm_kind: NormKind = NormKind.Linf
+    max_norm: float = None
 
     def __post_init__(self):
         if self.low is not None:
