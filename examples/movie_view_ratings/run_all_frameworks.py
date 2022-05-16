@@ -46,6 +46,8 @@ flags.DEFINE_list('public_partitions', None,
 flags.DEFINE_boolean(
     'private_partitions', False,
     'Output private partitions (do not calculate any DP metrics)')
+flags.DEFINE_boolean('vector_metrics', False,
+                     'Compute DP vector metrics for rating values')
 
 
 def calculate_private_result(movie_views, pipeline_backend):
@@ -66,7 +68,6 @@ def calc_dp_rating_metrics(movie_views, backend, public_partitions):
     # Create a DPEngine instance.
     dp_engine = pipeline_dp.DPEngine(budget_accountant, backend)
 
-    # Specify which DP aggregated metrics to compute.
     params = pipeline_dp.AggregateParams(
         noise_kind=pipeline_dp.NoiseKind.LAPLACE,
         metrics=[
@@ -79,12 +80,22 @@ def calc_dp_rating_metrics(movie_views, backend, public_partitions):
         min_value=1,
         max_value=5)
 
+    value_extractor = lambda mv: mv.rating
+
+    if FLAGS.vector_metrics:
+        # Specify which DP aggregated metrics to compute for vector values.
+        params.metrics = [pipeline_dp.Metrics.ARRAY_SUM]
+        params.array_size = 5  # Size of ratings vector
+        params.max_norm = 1
+        value_extractor = lambda mv: vector_rating(mv.rating - 1, params.
+                                                   array_size)
+
     # Specify how to extract privacy_id, partition_key and value from an
     # element of movie view collection.
     data_extractors = pipeline_dp.DataExtractors(
         partition_extractor=lambda mv: mv.movie_id,
         privacy_id_extractor=lambda mv: mv.user_id,
-        value_extractor=lambda mv: mv.rating)
+        value_extractor=value_extractor)
 
     # Run aggregation.
     dp_result = dp_engine.aggregate(movie_views, params, data_extractors,
@@ -161,6 +172,12 @@ def compute_on_local_backend():
     pipeline_backend = pipeline_dp.LocalBackend()
     dp_result = list(calculate_private_result(movie_views, pipeline_backend))
     write_to_file(dp_result, FLAGS.output_file)
+
+
+def vector_rating(value, array_size):
+    vec = [0] * array_size
+    vec[value] = 1
+    return vec
 
 
 def main(unused_argv):
