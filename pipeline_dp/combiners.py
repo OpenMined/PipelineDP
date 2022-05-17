@@ -151,7 +151,8 @@ class CombinerParams:
             self.aggregate_params.noise_kind)
 
     @property
-    def additive_vector_noise_params(self):
+    def additive_vector_noise_params(
+            self) -> dp_computations.AdditiveVectorNoiseParams:
         return dp_computations.AdditiveVectorNoiseParams(
             eps_per_coordinate=self.eps / self.aggregate_params.vector_size,
             delta_per_coordinate=self.delta / self.aggregate_params.vector_size,
@@ -497,9 +498,6 @@ class VectorSumCombiner(Combiner):
             if array_sum is None:
                 array_sum = val
             else:
-                if array_sum.shape != val.shape:
-                    raise TypeError(
-                        f"Shape mismatch: {array_sum.shape} != {val.shape}")
                 array_sum += val
         return array_sum
 
