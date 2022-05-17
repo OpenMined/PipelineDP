@@ -476,20 +476,24 @@ class CompoundCombiner(Combiner):
 class VectorSumCombiner(Combiner):
     """Combiner for computing dp vector sum.
 
-    The type of the accumulator is ArrayLike, which represents sum of the vectors of the same size
+    The type of the accumulator is np.ndarray, which represents sum of the vectors of the same size
     for which this accumulator is computed.
     """
-    AccumulatorType = ArrayLike
+    AccumulatorType = np.ndarray
 
     def __init__(self, params: CombinerParams):
         self._params = params
 
-    def create_accumulator(
-            self, values: Iterable[AccumulatorType]) -> AccumulatorType:
+    def create_accumulator(self,
+                           values: Iterable[ArrayLike]) -> AccumulatorType:
         array_sum = None
         for val in values:
             if type(val) is not np.ndarray:
                 val = np.array(val)
+            if val.shape != (self._params.aggregate_params.vector_size,):
+                raise TypeError(
+                    f"Shape mismatch: {val.shape} != {(self._params.aggregate_params.vector_size,)}"
+                )
             if array_sum is None:
                 array_sum = val
             else:

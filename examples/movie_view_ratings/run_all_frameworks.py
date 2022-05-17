@@ -87,8 +87,8 @@ def calc_dp_rating_metrics(movie_views, backend, public_partitions):
         params.metrics = [pipeline_dp.Metrics.VECTOR_SUM]
         params.vector_size = 5  # Size of ratings vector
         params.vector_max_norm = 1
-        value_extractor = lambda mv: one_hot_encoder(mv.rating - 1, params.
-                                                     vector_size)
+        value_extractor = lambda mv: encode_one_hot(mv.rating - 1, params.
+                                                    vector_size)
 
     # Specify how to extract privacy_id, partition_key and value from an
     # element of movie view collection.
@@ -174,7 +174,7 @@ def compute_on_local_backend():
     write_to_file(dp_result, FLAGS.output_file)
 
 
-def one_hot_encoder(value, vector_size):
+def encode_one_hot(value, vector_size):
     vec = [0] * vector_size
     vec[value] = 1
     return vec

@@ -482,9 +482,6 @@ class VectorSumCombinerTest(parameterized.TestCase):
             np.array([2.]),
             combiner.create_accumulator([np.array([1.]),
                                          np.array([1.])]))
-        # Bounding on values.
-        #self.assertEqual(2, combiner.create_accumulator([1, 3]))
-        #self.assertEqual(1, combiner.create_accumulator([0, 3]))
 
     @parameterized.named_parameters(
         dict(testcase_name='no_noise', no_noise=True),
@@ -496,10 +493,9 @@ class VectorSumCombinerTest(parameterized.TestCase):
             np.array([0.]),
             combiner.merge_accumulators(np.array([0.]), np.array([0.])))
         combiner = self._create_combiner(no_noise, vector_size=2)
-        merge_resut = combiner.merge_accumulators(np.array([1., 1.]),
-                                                  np.array([1., 4.]))
-        self.assertEqual(2., merge_resut[0])
-        self.assertEqual(5., merge_resut[1])
+        merge_result = combiner.merge_accumulators(np.array([1., 1.]),
+                                                   np.array([1., 4.]))
+        self.assertTrue(np.array_equal(np.array([2., 5.]), merge_result))
 
     def test_compute_metrics_no_noise(self):
         combiner = self._create_combiner(no_noise=True, vector_size=1)
