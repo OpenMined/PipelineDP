@@ -33,7 +33,7 @@ def _create_mechanism_spec(no_noise):
     return ba.MechanismSpec(ba.MechanismType.GAUSSIAN, None, eps, delta)
 
 
-def _create_aggregate_params(max_value: float = 1, array_size: int = 1):
+def _create_aggregate_params(max_value: float = 1, vector_size: int = 1):
     return pipeline_dp.AggregateParams(
         min_value=0,
         max_value=max_value,
@@ -41,8 +41,8 @@ def _create_aggregate_params(max_value: float = 1, array_size: int = 1):
         max_contributions_per_partition=3,
         noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
         metrics=[pipeline_dp.Metrics.COUNT],
-        max_norm=5,
-        array_size=array_size)
+        vector_max_norm=5,
+        vector_size=vector_size)
 
 
 class CreateCompoundCombinersTest(parameterized.TestCase):
@@ -88,8 +88,8 @@ class CreateCompoundCombinersTest(parameterized.TestCase):
                  pipeline_dp.Metrics.MEAN, pipeline_dp.Metrics.VARIANCE
              ],
              expected_combiner_types=[dp_combiners.VarianceCombiner]),
-        dict(testcase_name='array_sum',
-             metrics=[pipeline_dp.Metrics.ARRAY_SUM],
+        dict(testcase_name='vector_sum',
+             metrics=[pipeline_dp.Metrics.VECTOR_SUM],
              expected_combiner_types=[dp_combiners.VectorSumCombiner]),
     )
     def test_create_compound_combiner(self, metrics, expected_combiner_types):
@@ -465,9 +465,9 @@ class CompoundCombinerTest(parameterized.TestCase):
 
 class VectorSumCombinerTest(parameterized.TestCase):
 
-    def _create_combiner(self, no_noise, array_size):
+    def _create_combiner(self, no_noise, vector_size):
         mechanism_spec = _create_mechanism_spec(no_noise)
-        aggregate_params = _create_aggregate_params(array_size=array_size)
+        aggregate_params = _create_aggregate_params(vector_size=vector_size)
         params = dp_combiners.CombinerParams(mechanism_spec, aggregate_params)
         return dp_combiners.VectorSumCombiner(params)
 
@@ -476,7 +476,7 @@ class VectorSumCombinerTest(parameterized.TestCase):
         dict(testcase_name='noise', no_noise=False),
     )
     def test_create_accumulator(self, no_noise):
-        combiner = self._create_combiner(no_noise, array_size=1)
+        combiner = self._create_combiner(no_noise, vector_size=1)
         self.assertEqual(np.array([0.]), combiner.create_accumulator([[0.]]))
         self.assertEqual(
             np.array([2.]),
@@ -491,28 +491,28 @@ class VectorSumCombinerTest(parameterized.TestCase):
         dict(testcase_name='noise', no_noise=False),
     )
     def test_merge_accumulators(self, no_noise):
-        combiner = self._create_combiner(no_noise, array_size=1)
+        combiner = self._create_combiner(no_noise, vector_size=1)
         self.assertEqual(
             np.array([0.]),
             combiner.merge_accumulators(np.array([0.]), np.array([0.])))
-        combiner = self._create_combiner(no_noise, array_size=2)
+        combiner = self._create_combiner(no_noise, vector_size=2)
         merge_resut = combiner.merge_accumulators(np.array([1., 1.]),
                                                   np.array([1., 4.]))
         self.assertEqual(2., merge_resut[0])
         self.assertEqual(5., merge_resut[1])
 
     def test_compute_metrics_no_noise(self):
-        combiner = self._create_combiner(no_noise=True, array_size=1)
+        combiner = self._create_combiner(no_noise=True, vector_size=1)
         self.assertAlmostEqual(5,
                                combiner.compute_metrics(np.array(
-                                   [5]))['array_sum'],
+                                   [5]))['vector_sum'],
                                delta=1e-5)
 
     def test_compute_metrics_with_noise(self):
-        combiner = self._create_combiner(no_noise=False, array_size=2)
+        combiner = self._create_combiner(no_noise=False, vector_size=2)
         accumulator = np.array([1, 3])
         noisy_values = [
-            combiner.compute_metrics(accumulator)['array_sum']
+            combiner.compute_metrics(accumulator)['vector_sum']
             for _ in range(1000)
         ]
         # Standard deviation for the noise is about 1.37. So we set a large

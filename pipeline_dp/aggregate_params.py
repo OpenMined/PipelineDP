@@ -26,7 +26,7 @@ class Metrics(Enum):
     SUM = 'sum'
     MEAN = 'mean'
     VARIANCE = 'variance'
-    ARRAY_SUM = 'array_sum'
+    VECTOR_SUM = 'vector_sum'
 
 
 class NoiseKind(Enum):
@@ -70,9 +70,9 @@ class AggregateParams:
     max_value: Upper bound on each value.
     custom_combiners: Warning: experimental@ Combiners for computing custom
       metrics.
-    norm_kind: The type of norm to use for the DP calculations.
-    max_norm: Bound on each value of a vector.
-    array_size: Number of coordinates in a vector.
+    vector_norm_kind: The type of norm to use for the DP calculations.
+    vector_max_norm: Bound on each value of a vector.
+    vector_size: Number of coordinates in a vector.
   """
     metrics: Iterable[Metrics]
     max_partitions_contributed: int
@@ -85,9 +85,9 @@ class AggregateParams:
     public_partitions: Any = None  # deprecated
     noise_kind: NoiseKind = NoiseKind.LAPLACE
     custom_combiners: Iterable['CustomCombiner'] = None
-    norm_kind: NormKind = NormKind.Linf
-    max_norm: float = None
-    array_size: int = None
+    vector_norm_kind: NormKind = NormKind.Linf
+    vector_max_norm: float = None
+    vector_size: int = None
 
     def __post_init__(self):
         if self.low is not None:
@@ -122,6 +122,13 @@ class AggregateParams:
             if needs_min_max_value and self.max_value < self.min_value:
                 raise ValueError(
                     "params.max_value must be equal to or greater than params.min_value"
+                )
+            if Metrics.VECTOR_SUM in self.metrics and \
+            (Metrics.SUM in self.metrics or \
+            Metrics.MEAN in self.metrics or \
+            Metrics.VARIANCE in self.metrics):
+                raise ValueError(
+                    "Vector sum can not be computed together with scalar metrics, like sum, mean etc"
                 )
         if self.custom_combiners:
             logging.warning("Warning: custom combiners are used. This is an "

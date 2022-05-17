@@ -84,11 +84,11 @@ def calc_dp_rating_metrics(movie_views, backend, public_partitions):
 
     if FLAGS.vector_metrics:
         # Specify which DP aggregated metrics to compute for vector values.
-        params.metrics = [pipeline_dp.Metrics.ARRAY_SUM]
-        params.array_size = 5  # Size of ratings vector
-        params.max_norm = 1
-        value_extractor = lambda mv: vector_rating(mv.rating - 1, params.
-                                                   array_size)
+        params.metrics = [pipeline_dp.Metrics.VECTOR_SUM]
+        params.vector_size = 5  # Size of ratings vector
+        params.vector_max_norm = 1
+        value_extractor = lambda mv: one_hot_encoder(mv.rating - 1, params.
+                                                     vector_size)
 
     # Specify how to extract privacy_id, partition_key and value from an
     # element of movie view collection.
@@ -174,8 +174,8 @@ def compute_on_local_backend():
     write_to_file(dp_result, FLAGS.output_file)
 
 
-def vector_rating(value, array_size):
-    vec = [0] * array_size
+def one_hot_encoder(value, vector_size):
+    vec = [0] * vector_size
     vec[value] = 1
     return vec
 
