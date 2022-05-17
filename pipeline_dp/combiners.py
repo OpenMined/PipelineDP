@@ -476,7 +476,7 @@ class CompoundCombiner(Combiner):
 class VectorSumCombiner(Combiner):
     """Combiner for computing dp vector sum.
 
-    the type of the accumulator is ndarray, which represents sum of the vectors of the same size
+    The type of the accumulator is ArrayLike, which represents sum of the vectors of the same size
     for which this accumulator is computed.
     """
     AccumulatorType = ArrayLike
