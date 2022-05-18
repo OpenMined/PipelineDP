@@ -371,11 +371,11 @@ class DPEngine:
             def divide_and_round_up(a, b):
                 return (a + b - 1) // b
 
-
             # A conservative (lower) estimate of how many privacy IDs contributed to
             # this partition. This estimate is only needed when privacy IDs are not available
             # in the original dataset.
-            privacy_id_count = divide_and_round_up(row_count, max_rows_per_privacy_id)
+            privacy_id_count = divide_and_round_up(row_count,
+                                                   max_rows_per_privacy_id)
 
             partition_selection_strategy = (
                 partition_selection.
