@@ -77,6 +77,7 @@ class AggregateParams:
   """
 
     metrics: Iterable[Metrics]
+    max_contributions: int
     max_partitions_contributed: int
     max_contributions_per_partition: int
     budget_weight: float = 1
