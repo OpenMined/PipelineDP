@@ -46,6 +46,10 @@ flags.DEFINE_list('public_partitions', None,
 flags.DEFINE_boolean(
     'private_partitions', False,
     'Output private partitions (do not calculate any DP metrics)')
+flags.DEFINE_boolean(
+    'contribution_bounds_already_enforced', False,
+    'Assume the input dataset already enforces the hard-coded contribution'
+    'bounds. Ignore the user identifiers.')
 flags.DEFINE_boolean('vector_metrics', False,
                      'Compute DP vector metrics for rating values')
 
@@ -72,13 +76,15 @@ def calc_dp_rating_metrics(movie_views, backend, public_partitions):
         noise_kind=pipeline_dp.NoiseKind.LAPLACE,
         metrics=[
             pipeline_dp.Metrics.COUNT, pipeline_dp.Metrics.SUM,
-            pipeline_dp.Metrics.PRIVACY_ID_COUNT, pipeline_dp.Metrics.MEAN,
-            pipeline_dp.Metrics.VARIANCE
-        ],
+            pipeline_dp.Metrics.MEAN, pipeline_dp.Metrics.VARIANCE
+        ] + ([pipeline_dp.Metrics.PRIVACY_ID_COUNT]
+             if not FLAGS.contribution_bounds_already_enforced else []),
         max_partitions_contributed=2,
         max_contributions_per_partition=1,
         min_value=1,
-        max_value=5)
+        max_value=5,
+        contribution_bounds_already_enforced=FLAGS.
+        contribution_bounds_already_enforced)
 
     value_extractor = lambda mv: mv.rating
 
@@ -94,7 +100,8 @@ def calc_dp_rating_metrics(movie_views, backend, public_partitions):
     # element of movie view collection.
     data_extractors = pipeline_dp.DataExtractors(
         partition_extractor=lambda mv: mv.movie_id,
-        privacy_id_extractor=lambda mv: mv.user_id,
+        privacy_id_extractor=(lambda mv: mv.user_id)
+        if not FLAGS.contribution_bounds_already_enforced else None,
         value_extractor=value_extractor)
 
     # Run aggregation.

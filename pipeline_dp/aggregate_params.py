@@ -73,6 +73,11 @@ class AggregateParams:
     vector_norm_kind: The type of norm to use for the DP calculations.
     vector_max_norm: Bound on each value of a vector.
     vector_size: Number of coordinates in a vector.
+    contribution_bounds_already_enforced: assume that the input dataset complies
+      with the bounds provided in max_partitions_contributed and
+      max_contributions_per_partition. This option can be used if the dataset
+      does not contain any identifiers that can be used to enforce contribution
+      bounds automatically.
   """
     metrics: Iterable[Metrics]
     max_partitions_contributed: int
@@ -88,6 +93,7 @@ class AggregateParams:
     vector_norm_kind: NormKind = NormKind.Linf
     vector_max_norm: float = None
     vector_size: int = None
+    contribution_bounds_already_enforced: bool = False
 
     def __post_init__(self):
         if self.low is not None:
@@ -130,6 +136,10 @@ class AggregateParams:
                 raise ValueError(
                     "Vector sum can not be computed together with scalar metrics, like sum, mean etc"
                 )
+            if self.contribution_bounds_already_enforced and Metrics.PRIVACY_ID_COUNT in self.metrics:
+                raise ValueError(
+                    "Cannot calculate PRIVACY_ID_COUNT when "
+                    "contribution_bounds_already_enforced is set to True.")
         if self.custom_combiners:
             logging.warning("Warning: custom combiners are used. This is an "
                             "experimental feature. It might not work properly "
@@ -167,6 +177,8 @@ class SelectPartitionsParams:
     """
     max_partitions_contributed: int
     budget_weight: float = 1
+
+    # TODO: Add support for contribution_bounds_already_enforced
 
     def __str__(self):
         return "Private Partitions"

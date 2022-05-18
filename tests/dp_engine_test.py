@@ -56,6 +56,13 @@ class DpEngineTest(parameterized.TestCase):
     aggregator_fn = lambda input_values: (len(input_values), np.sum(
         input_values), np.sum(np.square(input_values)))
 
+    def _get_default_extractors(self) -> pipeline_dp.DataExtractors:
+        return pipeline_dp.DataExtractors(
+            privacy_id_extractor=lambda x: x,
+            partition_extractor=lambda x: x,
+            value_extractor=lambda x: x,
+        )
+
     def test_contribution_bounding_empty_col(self):
         input_col = []
         max_partitions_contributed = 2
@@ -232,19 +239,10 @@ class DpEngineTest(parameterized.TestCase):
                     max_contributions_per_partition,
                     min_value=min_value,
                     max_value=max_value,
-                    metrics=metrics),
-                pipeline_dp.DataExtractors(
-                    privacy_id_extractor=lambda x: x,
-                    partition_extractor=lambda x: x,
-                    value_extractor=lambda x: x,
-                ))
+                    metrics=metrics), self._get_default_extractors())
 
     def test_check_aggregate_params(self):
-        default_extractors = pipeline_dp.DataExtractors(
-            privacy_id_extractor=lambda x: x,
-            partition_extractor=lambda x: x,
-            value_extractor=lambda x: x,
-        )
+        default_extractors = self._get_default_extractors()
         default_params = pipeline_dp.AggregateParams(
             noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
             max_partitions_contributed=1,
@@ -397,7 +395,7 @@ class DpEngineTest(parameterized.TestCase):
                 new=_mock_partition_strategy_factory(
                     min_users)) as mock_factory:
             data_filtered = engine._select_private_partitions_internal(
-                col, max_partitions_contributed)
+                col, max_partitions_contributed, max_rows_per_privacy_id=1)
             engine._budget_accountant.compute_budgets()
             self.assertListEqual(list(data_filtered), expected_partitions)
 
@@ -544,11 +542,7 @@ class DpEngineTest(parameterized.TestCase):
 
     def test_check_select_partitions(self):
         """ Tests validation of parameters for select_partitions()"""
-        default_extractor = pipeline_dp.DataExtractors(
-            privacy_id_extractor=lambda x: x,
-            partition_extractor=lambda x: x,
-            value_extractor=lambda x: x,
-        )
+        default_extractors = self._get_default_extractors()
 
         test_cases = [
             {
@@ -560,7 +554,7 @@ class DpEngineTest(parameterized.TestCase):
                     pipeline_dp.SelectPartitionsParams(
                         max_partitions_contributed=1,),
                 "data_extractor":
-                    default_extractor,
+                    default_extractors,
             },
             {
                 "desc":
@@ -570,13 +564,13 @@ class DpEngineTest(parameterized.TestCase):
                     pipeline_dp.SelectPartitionsParams(
                         max_partitions_contributed=1,),
                 "data_extractor":
-                    default_extractor,
+                    default_extractors,
             },
             {
                 "desc": "none params",
                 "col": [0],
                 "params": None,
-                "data_extractor": default_extractor,
+                "data_extractor": default_extractors,
             },
             {
                 "desc":
@@ -586,7 +580,7 @@ class DpEngineTest(parameterized.TestCase):
                     pipeline_dp.SelectPartitionsParams(
                         max_partitions_contributed=-1,),
                 "data_extractor":
-                    default_extractor,
+                    default_extractors,
             },
             {
                 "desc":
@@ -596,7 +590,7 @@ class DpEngineTest(parameterized.TestCase):
                     pipeline_dp.SelectPartitionsParams(
                         max_partitions_contributed=1.1,),
                 "data_extractor":
-                    default_extractor,
+                    default_extractors,
             },
             {
                 "desc":
@@ -827,11 +821,7 @@ class DpEngineTest(parameterized.TestCase):
                                              metrics=None,
                                              custom_combiners=[custom_combiner])
 
-        data_extractors = pipeline_dp.DataExtractors(
-            privacy_id_extractor=lambda x: x,
-            partition_extractor=lambda x: x,
-            value_extractor=lambda x: x,
-        )
+        data_extractors = self._get_default_extractors()
 
         engine.aggregate(col, params, data_extractors)
         mock_create_custom_combiners.assert_called_once()
@@ -847,7 +837,7 @@ class DpEngineTest(parameterized.TestCase):
         dp_engine = self.create_dp_engine_default(budget_accountant)
         aggregate_params, public_partitions = self.create_params_default()
         select_partition_params = SelectPartitionsParams(2)
-        extractors = pipeline_dp.DataExtractors(None, None, None)
+        extractors = self._get_default_extractors()
         input = [1, 2, 3]
 
         # Act and assert
