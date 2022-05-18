@@ -324,7 +324,7 @@ class DPEngine:
             col, lambda pid_pk, v: (pid_pk[0], pid_pk[1], v),
             "Rekey to (privacy_id, partition_key, value)")
         col = self._backend.sample_fixed_per_key(
-            col, max_contributions, "Sample per (privacy_id, partition_key)")
+            col, max_contributions, "Sample per privacy_id")
         self._add_report_stage(
             f"max contribution bounding: randomly selected not "
             f"more than {max_contributions} contributions")
