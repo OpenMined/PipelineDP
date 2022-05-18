@@ -290,8 +290,7 @@ class DPEngine:
 
     def _bound_contributions(self, col, max_partitions_contributed: int,
                              max_contributions_per_partition: int,
-                             max_contributions:int,
-                             aggregator_fn):
+                             max_contributions: int, aggregator_fn):
         """Bounds the contribution by privacy_id in and cross partitions.
 
         Args:
@@ -301,6 +300,8 @@ class DPEngine:
             privacy id can contribute to.
           max_contributions_per_partition: maximum number of records that one
             privacy id can contribute to one partition.
+          max_contributions: maximum number of records that one privacy id can
+            contribute.
           aggregator_fn: function that takes a list of values and returns an
             aggregator object which handles all aggregation logic.
 
@@ -323,8 +324,7 @@ class DPEngine:
             col, lambda pid_pk, v: (pid_pk[0], pid_pk[1], v),
             "Rekey to (privacy_id, partition_key, value)")
         col = self._backend.sample_fixed_per_key(
-            col, max_contributions,
-            "Sample per (privacy_id, partition_key)")
+            col, max_contributions, "Sample per (privacy_id, partition_key)")
         self._add_report_stage(
             f"max contribution bounding: randomly selected not "
             f"more than {max_contributions} contributions")

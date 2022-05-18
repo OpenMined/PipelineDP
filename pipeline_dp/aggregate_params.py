@@ -59,6 +59,8 @@ class AggregateParams:
   Args:
     noise_kind: The type of noise to use for the DP calculations.
     metrics: A list of metrics to compute.
+    max_contributions: A bound on the total number of times one unit of privacy
+      (e.g., a user) can contribute.
     max_partitions_contributed: A bound on the number of partitions to which one
       unit of privacy (e.g., a user) can contribute.
     max_contributions_per_partition: A bound on the number of times one unit of
