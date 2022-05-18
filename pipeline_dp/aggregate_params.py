@@ -123,6 +123,10 @@ class AggregateParams:
                 raise ValueError(
                     "params.max_value must be equal to or greater than params.min_value"
                 )
+            if self.contribution_bounds_already_enforced and Metrics.PRIVACY_ID_COUNT in self.metrics:
+                raise ValueError(
+                    "Cannot calculate PRIVACY_ID_COUNT when "
+                    "contribution_bounds_already_enforced is set to True.")
         if self.custom_combiners:
             logging.warning("Warning: custom combiners are used. This is an "
                             "experimental feature. It might not work properly "

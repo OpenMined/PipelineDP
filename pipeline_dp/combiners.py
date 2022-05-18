@@ -503,9 +503,6 @@ def create_compound_combiner(
             combiners.append(
                 SumCombiner(CombinerParams(budget_sum, aggregate_params)))
     if pipeline_dp.Metrics.PRIVACY_ID_COUNT in aggregate_params.metrics:
-        if aggregate_params.contribution_bounds_already_enforced:
-            raise 'Cannot calculate PRIVACY_ID_COUNT when ' \
-                  'contribution_bounds_already_enforced is set to True.'
         budget_privacy_id_count = budget_accountant.request_budget(
             mechanism_type, weight=aggregate_params.budget_weight)
         combiners.append(
