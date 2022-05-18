@@ -76,18 +76,21 @@ def calc_dp_rating_metrics(movie_views, backend, public_partitions):
         metrics=[
             pipeline_dp.Metrics.COUNT, pipeline_dp.Metrics.SUM,
             pipeline_dp.Metrics.MEAN, pipeline_dp.Metrics.VARIANCE
-        ] + ([pipeline_dp.Metrics.PRIVACY_ID_COUNT] if not FLAGS.contribution_bounds_already_enforced else []),
+        ] + ([pipeline_dp.Metrics.PRIVACY_ID_COUNT]
+             if not FLAGS.contribution_bounds_already_enforced else []),
         max_partitions_contributed=2,
         max_contributions_per_partition=1,
         min_value=1,
         max_value=5,
-        contribution_bounds_already_enforced=FLAGS.contribution_bounds_already_enforced)
+        contribution_bounds_already_enforced=FLAGS.
+        contribution_bounds_already_enforced)
 
     # Specify how to extract privacy_id, partition_key and value from an
     # element of movie view collection.
     data_extractors = pipeline_dp.DataExtractors(
         partition_extractor=lambda mv: mv.movie_id,
-        privacy_id_extractor=(lambda mv: mv.user_id) if not FLAGS.contribution_bounds_already_enforced else None,
+        privacy_id_extractor=(lambda mv: mv.user_id)
+        if not FLAGS.contribution_bounds_already_enforced else None,
         value_extractor=lambda mv: mv.rating)
 
     # Run aggregation.

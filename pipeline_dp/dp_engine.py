@@ -104,9 +104,10 @@ class DPEngine:
                                   data_extractors.value_extractor(row)),
                 "Extract (privacy_id, partition_key, value))")
             # col : (privacy_id, partition_key, value)
-            col = self._bound_contributions(col, params.max_partitions_contributed,
-                                            params.max_contributions_per_partition,
-                                            combiner.create_accumulator)
+            col = self._bound_contributions(
+                col, params.max_partitions_contributed,
+                params.max_contributions_per_partition,
+                combiner.create_accumulator)
             # col : ((privacy_id, partition_key), accumulator)
 
             col = self._backend.map_tuple(col, lambda pid_pk, v: (pid_pk[1], v),
@@ -134,7 +135,6 @@ class DPEngine:
             col, combiner, "Reduce accumulators per partition key")
         # col : (partition_key, accumulator)
 
-
         if public_partitions is None:
             max_privacy_ids_per_row = 1
 
@@ -145,8 +145,7 @@ class DPEngine:
                 max_privacy_ids_per_row = params.max_contributions_per_partition
 
             col = self._select_private_partitions_internal(
-                col, params.max_partitions_contributed,
-                max_privacy_ids_per_row)
+                col, params.max_partitions_contributed, max_privacy_ids_per_row)
         # col : (partition_key, accumulator)
 
         # Compute DP metrics.
@@ -361,7 +360,8 @@ class DPEngine:
             mechanism_type=pipeline_dp.MechanismType.GENERIC)
 
         def filter_fn(
-            budget: 'MechanismSpec', max_partitions: int, max_privacy_ids_per_row: int,
+            budget: 'MechanismSpec', max_partitions: int,
+            max_privacy_ids_per_row: int,
             row: Tuple[Any,
                        combiners.CompoundCombiner.AccumulatorType]) -> bool:
             """Lazily creates a partition selection strategy and uses it to determine which

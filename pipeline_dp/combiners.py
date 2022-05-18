@@ -430,8 +430,7 @@ class CompoundCombiner(Combiner):
         for combiner, acc1, acc2 in zip(self._combiners, accumulator1,
                                         accumulator2):
             merged_accumulators.append(combiner.merge_accumulators(acc1, acc2))
-        return (row_count1 + row_count2,
-                tuple(merged_accumulators))
+        return (row_count1 + row_count2, tuple(merged_accumulators))
 
     def compute_metrics(self, compound_accumulator: AccumulatorType):
         _, accumulator = compound_accumulator
