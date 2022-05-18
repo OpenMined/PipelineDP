@@ -12,9 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import unittest.mock as mock
+from unittest.mock import patch
 
 from absl.testing import absltest
 from absl.testing import parameterized
+import typing
 import pipeline_dp
 import pipeline_dp.combiners as dp_combiners
 import pipeline_dp.budget_accounting as ba
@@ -43,7 +45,7 @@ def _create_aggregate_params(max_value: float = 1):
 
 class CreateCompoundCombinersTest(parameterized.TestCase):
 
-    def _create_aggregate_params(self, metrics: list):
+    def _create_aggregate_params(self, metrics: typing.Optional[typing.List]):
         return pipeline_dp.AggregateParams(
             noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
             metrics=metrics,
@@ -72,6 +74,18 @@ class CreateCompoundCombinersTest(parameterized.TestCase):
                  dp_combiners.CountCombiner, dp_combiners.SumCombiner,
                  dp_combiners.PrivacyIdCountCombiner
              ]),
+        dict(testcase_name='mean',
+             metrics=[
+                 pipeline_dp.Metrics.COUNT, pipeline_dp.Metrics.SUM,
+                 pipeline_dp.Metrics.MEAN
+             ],
+             expected_combiner_types=[dp_combiners.MeanCombiner]),
+        dict(testcase_name='variance',
+             metrics=[
+                 pipeline_dp.Metrics.COUNT, pipeline_dp.Metrics.SUM,
+                 pipeline_dp.Metrics.MEAN, pipeline_dp.Metrics.VARIANCE
+             ],
+             expected_combiner_types=[dp_combiners.VarianceCombiner]),
     )
     def test_create_compound_combiner(self, metrics, expected_combiner_types):
         # Arrange.
@@ -99,6 +113,33 @@ class CreateCompoundCombinersTest(parameterized.TestCase):
                 combiners, expected_combiner_types, mock_budgets):
             self.assertIsInstance(combiner, expect_type)
             self.assertEqual(combiner._params._mechanism_spec, expected_budget)
+
+    @patch.multiple("pipeline_dp.combiners.CustomCombiner",
+                    __abstractmethods__=set())  # Mock CustomCombiner
+    def test_create_compound_combiner_with_custom_combiners(self):
+        # Arrange.
+        # Create Mock CustomCombiners.
+        custom_combiners = [
+            dp_combiners.CustomCombiner(),
+            dp_combiners.CustomCombiner()
+        ]
+
+        # Mock request budget and metrics names functions.
+        for i, combiner in enumerate(custom_combiners):
+            combiner.request_budget = mock.Mock()
+
+        aggregate_params = self._create_aggregate_params(None)
+
+        budget_accountant = pipeline_dp.NaiveBudgetAccountant(1, 1e-10)
+
+        # Act
+        compound_combiner = dp_combiners.create_compound_combiner_with_custom_combiners(
+            aggregate_params, budget_accountant, custom_combiners)
+
+        # Assert
+        self.assertFalse(compound_combiner._return_named_tuple)
+        for combiner in custom_combiners:
+            combiner.request_budget.assert_called_once()
 
 
 class CountCombinerTest(parameterized.TestCase):
@@ -289,6 +330,71 @@ class MeanCombinerTest(parameterized.TestCase):
         self.assertTrue(np.var(noisy_means) > 1)  # check that noise is added
 
 
+class VarianceCombinerTest(parameterized.TestCase):
+
+    def _create_combiner(self, no_noise):
+        mechanism_spec = _create_mechanism_spec(no_noise)
+        aggregate_params = _create_aggregate_params(max_value=4)
+        metrics_to_compute = ['count', 'sum', 'mean', 'variance']
+        params = dp_combiners.CombinerParams(mechanism_spec, aggregate_params)
+        return dp_combiners.VarianceCombiner(params, metrics_to_compute)
+
+    def test_create_accumulator(self):
+        for no_noise in [False, True]:
+            combiner = self._create_combiner(no_noise)
+            self.assertEqual((0, 0, 0), combiner.create_accumulator([]))
+            self.assertEqual((2, 3, 5), combiner.create_accumulator([1, 2]))
+
+    def test_merge_accumulators(self):
+        for no_noise in [False, True]:
+            combiner = self._create_combiner(no_noise)
+            self.assertEqual((0, 0, 0),
+                             combiner.merge_accumulators((0, 0, 0), (0, 0, 0)))
+            self.assertEqual((5, 2, 2),
+                             combiner.merge_accumulators((1, 0, 0), (4, 2, 2)))
+
+    def test_compute_metrics_no_noise(self):
+        combiner = self._create_combiner(no_noise=True)
+        # potential values: 1, 2, 2, 3
+        res = combiner.compute_metrics((4, 8, 18))
+        self.assertAlmostEqual(4, res['count'], delta=1e-5)
+        self.assertAlmostEqual(8, res['sum'], delta=1e-5)
+        self.assertAlmostEqual(2, res['mean'], delta=1e-5)
+        self.assertAlmostEqual(0.5, res['variance'], delta=1e-5)
+
+    def test_compute_metrics_with_noise(self):
+        combiner = self._create_combiner(no_noise=False)
+        # potential values: 1, 1, 2, 3, 3
+        count = 5
+        sum = 10
+        sum_of_squares = 24
+        mean = 2
+        variance = 0.8
+        noisy_values = [
+            combiner.compute_metrics((count, sum, sum_of_squares))
+            for _ in range(1000)
+        ]
+
+        noisy_counts = [noisy_value['count'] for noisy_value in noisy_values]
+        self.assertAlmostEqual(count, np.mean(noisy_counts), delta=5e-1)
+        self.assertGreater(np.var(noisy_counts), 1)  # check that noise is added
+
+        noisy_sums = [noisy_value['sum'] for noisy_value in noisy_values]
+        self.assertAlmostEqual(sum, np.mean(noisy_sums), delta=1)
+        self.assertGreater(np.var(noisy_sums), 1)  # check that noise is added
+
+        noisy_means = [noisy_value['mean'] for noisy_value in noisy_values]
+        self.assertAlmostEqual(mean, np.mean(noisy_means), delta=5e-1)
+        self.assertGreater(np.var(noisy_means), 1)  # check that noise is added
+
+        noisy_variances = [
+            noisy_value['variance'] for noisy_value in noisy_values
+        ]
+        self.assertAlmostEqual(variance, np.mean(noisy_variances), delta=20)
+        self.assertGreater(np.var(noisy_variances),
+                           1)  # check that noise is added
+
+
 class CompoundCombinerTest(parameterized.TestCase):
 
     def _create_combiner(self, no_noise):
@@ -298,7 +404,8 @@ class CompoundCombinerTest(parameterized.TestCase):
         return dp_combiners.CompoundCombiner([
             dp_combiners.CountCombiner(params),
             dp_combiners.SumCombiner(params)
-        ])
+        ],
+                                             return_named_tuple=True)
 
     @parameterized.named_parameters(
         dict(testcase_name='no_noise', no_noise=True),

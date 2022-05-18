@@ -46,17 +46,17 @@ class DPEngine:
         self._backend = backend
         self._report_generators = []
 
-    def _add_report_stage(self, text):
-        self._report_generators[-1].add_stage(text)
-
     def _add_report_stages(self, lines):
         self._report_generators[-1].add_stages(lines)
 
     def explain_computations_report(self):
         return [report_generator.report() for report_generator in self._report_generators]
 
-    def aggregate(self, col, params: pipeline_dp.AggregateParams,
-                  data_extractors: DataExtractors):
+    def aggregate(self,
+                  col,
+                  params: pipeline_dp.AggregateParams,
+                  data_extractors: DataExtractors,
+                  public_partitions=None):
         """Computes DP aggregate metrics.
 
         Args:
@@ -64,44 +64,73 @@ class DPEngine:
           params: specifies which metrics to compute and computation parameters.
           data_extractors: functions that extract needed pieces of information
             from elements of 'col'.
+          public_partitions: A collection of partition keys that will be present in
+          the result. Optional. If not provided, partitions will be selected in a DP
+          manner.
         """
         _check_aggregate_params(col, params, data_extractors)
 
         with self._budget_accountant.scope(weight=params.budget_weight):
-            return self._aggregate(col, params, data_extractors)
+            col = self._aggregate(col, params, data_extractors,
+                                  public_partitions)
+            budget = self._budget_accountant._compute_budget_for_aggregation(
+                params.budget_weight)
+            return self._backend.annotate(col,
+                                          "annotation",
+                                          params=params,
+                                          budget=budget)
 
     def _aggregate(self, col, params: pipeline_dp.AggregateParams,
-                   data_extractors: DataExtractors):
+                   data_extractors: DataExtractors, public_partitions):
 
         self._report_generators.append(report_generator.ReportGenerator(params))
 
-        combiner = combiners.create_compound_combiner(params,
-                                                      self._budget_accountant)
+        if params.custom_combiners:
+            # TODO(dvadym): after finishing implementation of custom combiners
+            # to figure out whether it makes sense to encapsulate creation of
+            # combiners in one function instead of considering 2 cases -
+            # standard combiners and custom combiners.
+            combiner = combiners.create_compound_combiner_with_custom_combiners(
+                params, self._budget_accountant, params.custom_combiners)
+        else:
+            combiner = combiners.create_compound_combiner(
+                params, self._budget_accountant)
 
-        if params.public_partitions is not None:
-            col = self._drop_not_public_partitions(col,
-                                                   params.public_partitions,
+        if public_partitions is not None:
+            col = self._drop_not_public_partitions(col, public_partitions,
                                                    data_extractors)
+        if not params.contribution_bounds_already_enforced:
+            # Extract the columns.
+            col = self._backend.map(
+                col, lambda row: (data_extractors.privacy_id_extractor(row),
+                                  data_extractors.partition_extractor(row),
+                                  data_extractors.value_extractor(row)),
+                "Extract (privacy_id, partition_key, value))")
+            # col : (privacy_id, partition_key, value)
+            col = self._bound_contributions(
+                col, params.max_partitions_contributed,
+                params.max_contributions_per_partition,
+                combiner.create_accumulator)
+            # col : ((privacy_id, partition_key), accumulator)
 
-        # Extract the columns.
-        col = self._backend.map(
-            col, lambda row: (data_extractors.privacy_id_extractor(row),
-                              data_extractors.partition_extractor(row),
-                              data_extractors.value_extractor(row)),
-            "Extract (privacy_id, partition_key, value))")
-        # col : (privacy_id, partition_key, value)
-        col = self._bound_contributions(col, params.max_partitions_contributed,
-                                        params.max_contributions_per_partition,
-                                        combiner.create_accumulator)
-        # col : ((privacy_id, partition_key), accumulator)
+            col = self._backend.map_tuple(col, lambda pid_pk, v: (pid_pk[1], v),
+                                          "Drop privacy id")
+            # col : (partition_key, accumulator)
+        else:
+            # Extract the columns.
+            col = self._backend.map(
+                col, lambda row: (data_extractors.partition_extractor(row),
+                                  data_extractors.value_extractor(row)),
+                "Extract (partition_key, value))")
+            # col : (partition_key, value)
 
-        col = self._backend.map_tuple(col, lambda pid_pk, v: (pid_pk[1], v),
-                                      "Drop privacy id")
-        # col : (partition_key, accumulator)
+            col = self._backend.map_values(
+                col, lambda value: combiner.create_accumulator([value]),
+                "Wrap values into accumulators")
+            # col : (partition_key, accumulator)
 
-        if params.public_partitions:
-            col = self._add_empty_public_partitions(col,
-                                                    params.public_partitions,
+        if public_partitions:
+            col = self._add_empty_public_partitions(col, public_partitions,
                                                     combiner.create_accumulator)
         # col : (partition_key, accumulator)
 
@@ -109,11 +138,17 @@ class DPEngine:
             col, combiner, "Reduce accumulators per partition key")
         # col : (partition_key, accumulator)
 
-        if params.public_partitions is None:
+        if public_partitions is None:
+            max_rows_per_privacy_id = 1
+
+            if params.contribution_bounds_already_enforced:
+                # This regime assumes the input data doesn't have privacy IDs, and therefore
+                # we didn't group by them and cannot guarantee one row corresponds to exactly
+                # one privacy ID.
+                max_rows_per_privacy_id = params.max_contributions_per_partition
+
             col = self._select_private_partitions_internal(
-                col, params.max_partitions_contributed)
-        else:
-            pass
+                col, params.max_partitions_contributed, max_rows_per_privacy_id)
         # col : (partition_key, accumulator)
 
         # Compute DP metrics.
@@ -152,13 +187,20 @@ class DPEngine:
           col: collection where all elements are of the same type.
           params: parameters, see doc for SelectPrivatePartitionsParams.
           data_extractors: functions that extract needed pieces of information
-            from elements of 'col'. Only privacy_id_extractor and partition_extractor are required.
-            value_extractor is not required.
+            from elements of 'col'. Only `privacy_id_extractor` and
+            `partition_extractor` are required.
+            `value_extractor` is not required.
         """
         self._check_select_private_partitions(col, params, data_extractors)
 
         with self._budget_accountant.scope(weight=params.budget_weight):
-            return self._select_partitions(col, params, data_extractors)
+            col = self._select_partitions(col, params, data_extractors)
+            budget = self._budget_accountant._compute_budget_for_aggregation(
+                params.budget_weight)
+            return self._backend.annotate(col,
+                                          "annotation",
+                                          params=params,
+                                          budget=budget)
 
     def _select_partitions(self, col,
                            params: pipeline_dp.SelectPartitionsParams,
@@ -206,7 +248,8 @@ class DPEngine:
         # col : (privacy_id, partition_key)
 
         # A compound accumulator without any child accumulators is used to calculate the raw privacy ID count.
-        compound_combiner = combiners.CompoundCombiner([])
+        compound_combiner = combiners.CompoundCombiner([],
+                                                       return_named_tuple=False)
         col = self._backend.map_tuple(
             col, lambda pid, pk: (pk, compound_combiner.create_accumulator([])),
             "Drop privacy id and add accumulator")
@@ -217,7 +260,7 @@ class DPEngine:
         # col : (partition_key, accumulator)
 
         col = self._select_private_partitions_internal(
-            col, max_partitions_contributed)
+            col, max_partitions_contributed, max_rows_per_privacy_id=1)
         col = self._backend.keys(col,
                                  "Drop accumulators, keep only partition keys")
 
@@ -287,8 +330,7 @@ class DPEngine:
         # Cross partition bounding
         col = self._backend.map_tuple(
             col, lambda pid_pk, v: (pid_pk[0], (pid_pk[1], v)),
-            "Rekey to (privacy_id, (partition_key, "
-            "accumulator))")
+            "Rekey to (privacy_id, (partition_key, accumulator))")
         col = self._backend.sample_fixed_per_key(col,
                                                  max_partitions_contributed,
                                                  "Sample per privacy_id")
@@ -306,7 +348,8 @@ class DPEngine:
             col, unnest_cross_partition_bound_sampled_per_key, "Unnest")
 
     def _select_private_partitions_internal(self, col,
-                                            max_partitions_contributed: int):
+                                            max_partitions_contributed: int,
+                                            max_rows_per_privacy_id: int):
         """Selects and publishes private partitions.
 
         Args:
@@ -323,11 +366,22 @@ class DPEngine:
 
         def filter_fn(
             budget: 'MechanismSpec', max_partitions: int,
+            max_rows_per_privacy_id: int,
             row: Tuple[Any,
                        combiners.CompoundCombiner.AccumulatorType]) -> bool:
             """Lazily creates a partition selection strategy and uses it to determine which
             partitions to keep."""
-            privacy_id_count, _ = row[1]
+            row_count, _ = row[1]
+
+            def divide_and_round_up(a, b):
+                return (a + b - 1) // b
+
+            # A conservative (lower) estimate of how many privacy IDs contributed to
+            # this partition. This estimate is only needed when privacy IDs are not available
+            # in the original dataset.
+            privacy_id_count = divide_and_round_up(row_count,
+                                                   max_rows_per_privacy_id)
+
             partition_selection_strategy = (
                 partition_selection.
                 create_truncated_geometric_partition_strategy(
@@ -336,7 +390,8 @@ class DPEngine:
 
         # make filter_fn serializable
         filter_fn = functools.partial(filter_fn, budget,
-                                      max_partitions_contributed)
+                                      max_partitions_contributed,
+                                      max_rows_per_privacy_id)
         self._add_report_stage(
             lambda:
             f"Private Partition selection: using {budget.mechanism_type.value} "
@@ -357,3 +412,7 @@ def _check_aggregate_params(col, params: pipeline_dp.AggregateParams,
         raise ValueError("data_extractors must be set to a DataExtractors")
     if not isinstance(data_extractors, pipeline_dp.DataExtractors):
         raise TypeError("data_extractors must be set to a DataExtractors")
+    if params.contribution_bounds_already_enforced == \
+            (data_extractors.privacy_id_extractor is not None):
+        raise ValueError("privacy_id_extractor should be set iff "\
+                         "contribution_bounds_already_enforced is False")

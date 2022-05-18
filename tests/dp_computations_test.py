@@ -302,6 +302,18 @@ class DPComputationsTest(unittest.TestCase):
                                   delta=params.delta,
                                   l2_sensitivity=l2_sensitivity)
 
+    def test_compute_dp_sum_min_max_zero(self):
+        params = dp_computations.MeanVarParams(
+            eps=0.5,
+            delta=1e-10,
+            min_value=0,
+            max_value=0,
+            max_partitions_contributed=1,
+            max_contributions_per_partition=1,
+            noise_kind=NoiseKind.LAPLACE)
+
+        self.assertEqual(0, dp_computations.compute_dp_sum(10, params))
+
     def test_equally_split_budget(self):
         # The number of mechanisms must be bigger than 0.
         with self.assertRaises(ValueError):
@@ -379,6 +391,21 @@ class DPComputationsTest(unittest.TestCase):
                                expected_sum / expected_count,
                                delta=0.1)
 
+    def test_compute_dp_mean_equal_min_max(self):
+        params = dp_computations.MeanVarParams(
+            eps=0.5,
+            delta=1e-10,
+            min_value=42.0,
+            max_value=42.0,  # = min_value
+            max_partitions_contributed=1,
+            max_contributions_per_partition=1,
+            noise_kind=NoiseKind.LAPLACE)
+
+        count, sum, mean = dp_computations.compute_dp_mean(count=10,
+                                                           sum=400,
+                                                           dp_params=params)
+        self.assertEqual(mean, 42.0)
+
     def test_compute_dp_var(self):
         params = dp_computations.MeanVarParams(
             eps=10,
@@ -403,7 +430,7 @@ class DPComputationsTest(unittest.TestCase):
                                            dp_params=params)
             for _ in range(N_ITERATIONS)
         ]
-        count_values, sum_values, sum_squares_values, var_values = zip(*results)
+        count_values, sum_values, mean_values, var_values = zip(*results)
         self._test_laplace_noise(
             results=count_values,
             num_trials=N_ITERATIONS,
@@ -412,7 +439,7 @@ class DPComputationsTest(unittest.TestCase):
             l1_sensitivity=dp_computations.compute_l1_sensitivity(
                 l0_sensitivity, count_linf_sensitivity))
         self.assertAlmostEqual(np.mean(sum_values), 1000000, delta=1)
-        self.assertAlmostEqual(np.mean(sum_squares_values), 20000000, delta=2)
+        self.assertAlmostEqual(np.mean(mean_values), 10, delta=0.00003)
         self.assertAlmostEqual(np.mean(var_values), 100, delta=0.1)
 
         # Gaussian Mechanism
@@ -424,7 +451,7 @@ class DPComputationsTest(unittest.TestCase):
                                            dp_params=params)
             for _ in range(N_ITERATIONS)
         ]
-        count_values, sum_values, sum_squares_values, var_values = zip(*results)
+        count_values, sum_values, mean_values, var_values = zip(*results)
 
         self._test_gaussian_noise(
             results=count_values,
@@ -435,7 +462,7 @@ class DPComputationsTest(unittest.TestCase):
             l2_sensitivity=dp_computations.compute_l2_sensitivity(
                 l0_sensitivity, count_linf_sensitivity))
         self.assertAlmostEqual(np.mean(sum_values), 1000000, delta=5)
-        self.assertAlmostEqual(np.mean(sum_squares_values), 20000000, delta=5)
+        self.assertAlmostEqual(np.mean(mean_values), 10, delta=0.0002)
         self.assertAlmostEqual(np.mean(var_values), 100, delta=0.5)
 
 

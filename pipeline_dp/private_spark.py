@@ -59,11 +59,60 @@ class PrivateRDD:
         rdd = self._rdd.flatMapValues(fn)
         return make_private(rdd, self._budget_accountant, None)
 
-    def mean(self, mean_params: aggregate_params.MeanParams) -> RDD:
+    def variance(self,
+                 variance_params: aggregate_params.VarianceParams,
+                 public_partitions=None) -> RDD:
+        """Computes a DP variance.
+
+        Args:
+            variance_params: parameters for calculation
+            public_partitions: A collection of partition keys that will be present in
+          the result. Optional. If not provided, partitions will be selected in a DP
+          manner.
+        """
+
+        backend = pipeline_dp.SparkRDDBackend(self._rdd.context)
+        dp_engine = pipeline_dp.DPEngine(self._budget_accountant, backend)
+
+        params = pipeline_dp.AggregateParams(
+            noise_kind=variance_params.noise_kind,
+            metrics=[pipeline_dp.Metrics.VARIANCE],
+            max_partitions_contributed=variance_params.
+            max_partitions_contributed,
+            max_contributions_per_partition=variance_params.
+            max_contributions_per_partition,
+            min_value=variance_params.min_value,
+            max_value=variance_params.max_value,
+            budget_weight=variance_params.budget_weight)
+
+        data_extractors = pipeline_dp.DataExtractors(
+            partition_extractor=lambda x: variance_params.partition_extractor(x[
+                1]),
+            privacy_id_extractor=lambda x: x[0],
+            value_extractor=lambda x: variance_params.value_extractor(x[1]))
+
+        dp_result = dp_engine.aggregate(self._rdd, params, data_extractors,
+                                        public_partitions)
+        # dp_result : (partition_key, (variance=dp_variance))
+
+        # aggregate() returns a namedtuple of metrics for each partition key.
+        # Here is only one metric - variance. Extract it from the list.
+        dp_result = backend.map_values(dp_result, lambda v: v.variance,
+                                       "Extract variance")
+        # dp_result : (partition_key, dp_variance)
+
+        return dp_result
+
+    def mean(self,
+             mean_params: aggregate_params.MeanParams,
+             public_partitions=None) -> RDD:
         """Computes a DP mean.
 
         Args:
             mean_params: parameters for calculation
+            public_partitions: A collection of partition keys that will be present in
+          the result. Optional. If not provided, partitions will be selected in a DP
+          manner.
         """
 
         backend = pipeline_dp.SparkRDDBackend(self._rdd.context)
@@ -77,7 +126,6 @@ class PrivateRDD:
             max_contributions_per_partition,
             min_value=mean_params.min_value,
             max_value=mean_params.max_value,
-            public_partitions=mean_params.public_partitions,
             budget_weight=mean_params.budget_weight)
 
         data_extractors = pipeline_dp.DataExtractors(
@@ -85,21 +133,28 @@ class PrivateRDD:
             privacy_id_extractor=lambda x: x[0],
             value_extractor=lambda x: mean_params.value_extractor(x[1]))
 
-        dp_result = dp_engine.aggregate(self._rdd, params, data_extractors)
-        # dp_result : (partition_key, [dp_mean])
+        dp_result = dp_engine.aggregate(self._rdd, params, data_extractors,
+                                        public_partitions)
+        # dp_result : (partition_key, (mean=dp_mean))
 
-        # aggregate() returns a list of metrics for each partition key.
-        # Here is only one metric - sum. Remove list.
-        dp_result = backend.map_values(dp_result, lambda v: v[0], "Unnest list")
+        # aggregate() returns a namedtuple of metrics for each partition key.
+        # Here is only one metric - mean. Extract it from the list.
+        dp_result = backend.map_values(dp_result, lambda v: v.mean,
+                                       "Extract mean")
         # dp_result : (partition_key, dp_mean)
 
         return dp_result
 
-    def sum(self, sum_params: aggregate_params.SumParams) -> RDD:
+    def sum(self,
+            sum_params: aggregate_params.SumParams,
+            public_partitions=None) -> RDD:
         """Computes a DP sum.
 
         Args:
             sum_params: parameters for calculation
+            public_partitions: A collection of partition keys that will be present in
+          the result. Optional. If not provided, partitions will be selected in a DP
+          manner.
         """
 
         backend = pipeline_dp.SparkRDDBackend(self._rdd.context)
@@ -113,7 +168,6 @@ class PrivateRDD:
             max_contributions_per_partition,
             min_value=sum_params.min_value,
             max_value=sum_params.max_value,
-            public_partitions=sum_params.public_partitions,
             budget_weight=sum_params.budget_weight)
 
         data_extractors = pipeline_dp.DataExtractors(
@@ -121,21 +175,28 @@ class PrivateRDD:
             privacy_id_extractor=lambda x: x[0],
             value_extractor=lambda x: sum_params.value_extractor(x[1]))
 
-        dp_result = dp_engine.aggregate(self._rdd, params, data_extractors)
-        # dp_result : (partition_key, [dp_sum])
+        dp_result = dp_engine.aggregate(self._rdd, params, data_extractors,
+                                        public_partitions)
+        # dp_result : (partition_key, (sum=dp_sum))
 
-        # aggregate() returns a list of metrics for each partition key.
-        # Here is only one metric - sum. Remove list.
-        dp_result = backend.map_values(dp_result, lambda v: v[0], "Unnest list")
+        # aggregate() returns a namedtuple of metrics for each partition key.
+        # Here is only one metric - sum. Extract it from the list.
+        dp_result = backend.map_values(dp_result, lambda v: v.sum,
+                                       "Extract sum")
         # dp_result : (partition_key, dp_sum)
 
         return dp_result
 
-    def count(self, count_params: aggregate_params.CountParams) -> RDD:
+    def count(self,
+              count_params: aggregate_params.CountParams,
+              public_partitions=None) -> RDD:
         """Computes a DP count.
 
         Args:
             count_params: parameters for calculation
+            public_partitions: A collection of partition keys that will be present in
+          the result. Optional. If not provided, partitions will be selected in a DP
+          manner.
         """
 
         backend = pipeline_dp.SparkRDDBackend(self._rdd.context)
@@ -147,7 +208,6 @@ class PrivateRDD:
             max_partitions_contributed=count_params.max_partitions_contributed,
             max_contributions_per_partition=count_params.
             max_contributions_per_partition,
-            public_partitions=count_params.public_partitions,
             budget_weight=count_params.budget_weight)
 
         data_extractors = pipeline_dp.DataExtractors(
@@ -156,23 +216,29 @@ class PrivateRDD:
             privacy_id_extractor=lambda x: x[0],
             value_extractor=lambda x: None)
 
-        dp_result = dp_engine.aggregate(self._rdd, params, data_extractors)
-        # dp_result : (partition_key, [dp_count])
+        dp_result = dp_engine.aggregate(self._rdd, params, data_extractors,
+                                        public_partitions)
+        # dp_result : (partition_key, (count=dp_count))
 
-        # aggregate() returns a list of metrics for each partition key.
-        # Here is only one metric - count. Remove list.
-        dp_result = backend.map_values(dp_result, lambda v: v[0], "Unnest list")
+        # aggregate() returns a namedtuple of metrics for each partition key.
+        # Here is only one metric - count. Extract it from the list.
+        dp_result = backend.map_values(dp_result, lambda v: v.count,
+                                       "Extract count")
         # dp_result : (partition_key, dp_count)
 
         return dp_result
 
     def privacy_id_count(
-            self, privacy_id_count_params: aggregate_params.PrivacyIdCountParams
-    ) -> RDD:
+            self,
+            privacy_id_count_params: aggregate_params.PrivacyIdCountParams,
+            public_partitions=None) -> RDD:
         """Computes a DP Privacy ID count.
 
         Args:
             privacy_id_count_params: parameters for calculation
+            public_partitions: A collection of partition keys that will be present in
+          the result. Optional. If not provided, partitions will be selected in a DP
+          manner.
         """
 
         backend = pipeline_dp.SparkRDDBackend(self._rdd.context)
@@ -183,8 +249,7 @@ class PrivateRDD:
             metrics=[pipeline_dp.Metrics.PRIVACY_ID_COUNT],
             max_partitions_contributed=privacy_id_count_params.
             max_partitions_contributed,
-            max_contributions_per_partition=1,
-            public_partitions=privacy_id_count_params.public_partitions)
+            max_contributions_per_partition=1)
 
         data_extractors = pipeline_dp.DataExtractors(
             partition_extractor=lambda x: privacy_id_count_params.
@@ -193,12 +258,14 @@ class PrivateRDD:
             # PrivacyIdCount ignores values.
             value_extractor=lambda x: None)
 
-        dp_result = dp_engine.aggregate(self._rdd, params, data_extractors)
-        # dp_result : (partition_key, [dp_privacy_id_count])
+        dp_result = dp_engine.aggregate(self._rdd, params, data_extractors,
+                                        public_partitions)
+        # dp_result : (partition_key, (privacy_id_count=dp_privacy_id_count))
 
-        # aggregate() returns a list of metrics for each partition key.
-        # Here is only one metric - privacy_id_count. Remove list.
-        dp_result = backend.map_values(dp_result, lambda v: v[0], "Unnest list")
+        # aggregate() returns a namedtuple of metrics for each partition key.
+        # Here is only one metric - privacy id count. Extract it from the list.
+        dp_result = backend.map_values(dp_result, lambda v: v.privacy_id_count,
+                                       "Extract privacy id count")
         # dp_result : (partition_key, dp_privacy_id_count)
 
         return dp_result

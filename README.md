@@ -27,10 +27,10 @@ to bring Differential Privacy to production.
 
 Here are some examples of how to use PipelineDP:
 
-* [Apache Spark example](examples/movie_view_ratings/run_on_spark.py)
-* [Apache Beam example](examples/movie_view_ratings/run_on_beam.py)
-* [Framework-free example](examples/movie_view_ratings/run_without_frameworks.py)
-* [Example with all frameworks](examples/movie_view_ratings/run_all_frameworks.py)
+* [Apache Spark example](https://github.com/OpenMined/PipelineDP/blob/main/examples/movie_view_ratings/run_on_spark.py)
+* [Apache Beam example](https://github.com/OpenMined/PipelineDP/blob/main/examples/movie_view_ratings/run_on_beam.py)
+* [Framework-free example](https://github.com/OpenMined/PipelineDP/blob/main/examples/movie_view_ratings/run_without_frameworks.py)
+* [Example with all frameworks](https://github.com/OpenMined/PipelineDP/blob/main/examples/movie_view_ratings/run_all_frameworks.py)
 
 Please check out the [codelab](https://github.com/OpenMined/PipelineDP/blob/main/examples/restaurant_visits.ipynb) for a more detailed demonstration of the API functionality and usage.
 
@@ -40,7 +40,7 @@ Code sample showing private processing on Spark:
 budget_accountant = pipeline_dp.NaiveBudgetAccountant(total_epsilon=1,
                                                       total_delta=1e-6)
 
-# Wrap Spark's RDD into it's private version. You will use this private wrapper
+# Wrap Spark's RDD into its private version. You will use this private wrapper
 # for all further processing instead of the Spark's RDD. Using the wrapper ensures
 # that only private statistics can be released.
 private_movie_views = \
@@ -75,7 +75,17 @@ dp_result.saveAsTextFile(FLAGS.output_file)
 
 ## Installation
 
+PipelineDP without any frameworks:
+
 `pip install pipeline-dp`
+
+If you like to run PipelineDP on Apache Spark:
+
+`pip install pipeline-dp pyspark`
+
+on Apache Beam:
+
+`pip install pipeline-dp apache-beam`.
 
 Supported Python version >= 3.7.
 
@@ -104,7 +114,7 @@ sample of it. Here's how to take a subset of the data in bash:
 
    `head -10000 combined_data_1.txt > data.txt`
 
-3. Run `python movie_view_ratings.py --input_file=<path to data.txt from 2> --output_file=<...>`
+3. Run `python run_all_frameworks.py --input_file=<path to data.txt from 2> --output_file=<...>`
 
 ## Support and Community on Slack
 

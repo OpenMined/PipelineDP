@@ -271,6 +271,9 @@ def compute_dp_sum(sum: float, dp_params: MeanVarParams):
     linf_sensitivity = dp_params.max_contributions_per_partition * max(
         abs(dp_params.min_value), abs(dp_params.max_value))
 
+    if linf_sensitivity == 0:
+        return 0
+
     return _add_random_noise(
         sum,
         dp_params.eps,
@@ -312,6 +315,8 @@ def _compute_mean(
     Returns:
         The anonymized mean.
     """
+    if min_value == max_value:
+        return min_value
     middle = compute_middle(min_value, max_value)
     linf_sensitivity = max_contributions_per_partition * abs(middle - min_value)
 
@@ -384,7 +389,7 @@ def compute_dp_var(count: int, sum: float, sum_squares: float,
         ValueError: The noise kind is invalid.
 
     Returns:
-        The tuple of anonymized count, sum, sum_squares and variance.
+        The tuple of anonymized count, sum, mean and variance.
     """
     # Splits the budget equally between the three mechanisms.
     (
@@ -428,4 +433,4 @@ def compute_dp_var(count: int, sum: float, sum_squares: float,
                                     dp_params.noise_kind)
 
     dp_var = dp_mean_squares - dp_mean**2
-    return dp_count, dp_mean * dp_count, dp_mean_squares * dp_count, dp_var
+    return dp_count, dp_mean * dp_count, dp_mean, dp_var

@@ -39,7 +39,7 @@ class Combiner(abc.ABC):
     4. Continue 3 until 1 accumulator is left.
     5. Call compute_metrics() for the accumulator that left.
 
-    Assumption: merge_accumulators is associative binary operation.
+    Assumption: merge_accumulators is an associative binary operation.
 
     The type of accumulator depends on the aggregation performed by this Combiner.
     For example, this can be a primitive type (e.g. int for a simple "count"
@@ -65,6 +65,60 @@ class Combiner(abc.ABC):
     @abc.abstractmethod
     def explain_computation(self) -> str:
         pass
+
+
+class CustomCombiner(Combiner, abc.ABC):
+    """Base class for custom combiners.
+
+    Warning: this is an experimental API. It might not work properly and it
+    might be changed/removed without any notifications.
+
+    Custom combiners are combiners provided by PipelineDP users and they allow
+    to add custom DP aggregations for extending the PipelineDP functionality.
+
+    The responsibility of CustomCombiner:
+      1.Implement DP mechanism in `compute_metrics()`.
+      2.If needed implement contribution bounding in
+    `create_accumulator()`.
+
+    Warning: this is an advanced feature that can break differential privacy
+    guarantees if not implemented correctly.
+
+    TODO(dvadym): after full implementation of Custom combiners to figure out
+    whether CustomCombiner class is needed or Combiner can be used.
+    """
+
+    @abc.abstractmethod
+    def request_budget(self,
+                       budget_accountant: budget_accounting.BudgetAccountant):
+        """Requests the budget.
+
+        It is called by PipelineDP during the construction of the computations.
+        The custom combiner can request a DP budget by calling
+        'budget_accountant.request_budget()'. The budget object needs to be
+        stored in a field of 'self'. It will be serialized and distributed
+        to the workers together with 'self'.
+
+        Warning: do not store 'budget_accountant' in 'self'. It is assumed to
+        live in the driver process.
+        """
+        pass
+
+    def set_aggregate_params(self,
+                             aggregate_params: pipeline_dp.AggregateParams):
+        """Sets aggregate parameters
+
+        The custom combiner can optionally use it for own DP parameter
+        computations.
+        """
+        self._aggregate_params = aggregate_params
+
+    def metrics_names(self) -> List[str]:
+        """Metrics that self computes.
+
+        By default returns class name.
+        """
+        return self.__class__.__name__
 
 
 class CombinerParams:
@@ -249,7 +303,61 @@ class MeanCombiner(Combiner):
 
 
 
-# Cache for namedtuple types. It is should be used only in
+class VarianceCombiner(Combiner):
+    """Combiner for computing DP Variance. Also returns mean, sum and count in addition to
+    the variance.
+    The type of the accumulator is a tuple(count: int, sum: float, sum_of_squares: float) that holds
+    the count, sum and sum of squares of elements in the dataset for which this accumulator is
+    computed.
+    """
+    AccumulatorType = Tuple[int, float, float]
+
+    def __init__(self, params: CombinerParams,
+                 metrics_to_compute: Iterable[str]):
+        self._params = params
+        if len(metrics_to_compute) != len(set(metrics_to_compute)):
+            raise ValueError(f"{metrics_to_compute} cannot contain duplicates")
+        for metric in metrics_to_compute:
+            variance_metrics = ['count', 'sum', 'mean', 'variance']
+            if metric not in variance_metrics:
+                raise ValueError(
+                    f"{metric} should be one of {variance_metrics}")
+        if 'variance' not in metrics_to_compute:
+            raise ValueError(
+                f"one of the {metrics_to_compute} should be 'variance'")
+        self._metrics_to_compute = metrics_to_compute
+
+    def create_accumulator(self, values: Iterable[float]) -> AccumulatorType:
+        clipped_values = np.clip(values,
+                                 self._params.aggregate_params.min_value,
+                                 self._params.aggregate_params.max_value)
+        return len(values), clipped_values.sum(), (clipped_values**2).sum()
+
+    def merge_accumulators(self, accum1: AccumulatorType,
+                           accum2: AccumulatorType):
+        count1, sum1, sum_of_squares1 = accum1
+        count2, sum2, sum_of_squares2 = accum2
+        return count1 + count2, sum1 + sum2, sum_of_squares1 + sum_of_squares2
+
+    def compute_metrics(self, accum: AccumulatorType) -> dict:
+        total_count, total_sum, total_sum_of_squares = accum
+        noisy_count, noisy_sum, noisy_mean, noisy_variance = dp_computations.compute_dp_var(
+            total_count, total_sum, total_sum_of_squares,
+            self._params.mean_var_params)
+        variance_dict = {'variance': noisy_variance}
+        if 'count' in self._metrics_to_compute:
+            variance_dict['count'] = noisy_count
+        if 'sum' in self._metrics_to_compute:
+            variance_dict['sum'] = noisy_sum
+        if 'mean' in self._metrics_to_compute:
+            variance_dict['mean'] = noisy_mean
+        return variance_dict
+
+    def metrics_names(self) -> List[str]:
+        return self._metrics_to_compute
+
+
+# Cache for namedtuple types. It should be used only in
 # '_get_or_create_named_tuple()' function.
 _named_tuple_cache = {}
 
@@ -279,34 +387,44 @@ class CompoundCombiner(Combiner):
     """Combiner for computing a set of dp aggregations.
 
     CompoundCombiner contains one or more combiners of other types for computing
-    multiple metrics. For example it can contain [CountCombiner, SumCombiner].
+    multiple metrics. For example, it can contain [CountCombiner, SumCombiner].
     CompoundCombiner delegates all operations to the internal combiners.
 
     In case one the of combiners is MeanCombiner, which computes count and sum
     in addition to mean, output_count and output_sum should be set to True if
-    they are to be outputted from MeanCombiner.
+    they are to be outputted from MeanCombiner. For VarianceCombiner you can
+    additionally set output_mean to True.
 
-    The type of the accumulator is a a tuple of int and an iterable.
-    The first int represents the privacy id count. The second iterable
-    contains accumulators from internal combiners.
+
+    The type of the accumulator is a tuple of int and an iterable:
+    - The first int represents the number of input rows. If rows are grouped by privacy ID,
+      this will effectively be privacy ID count.
+    - The second iterable contains accumulators from internal combiners.
 
     Returns:
-        namedtuple (MetricsTuple) whose fields are one or more of
-        pipeline_dp.Metrics, depending on what the combiners compute. E.g., if
-        CompoundCombiner has a PrivacyIdCountCombiner that computes
-        'privacy_id_count' and a MeanCombiner that computes 'mean' and 'sum',
-        CompoundCombiner will return a MetricsTuple(
-            privacy_id_count=dp_privacy_id_count,
-            sum=dp_sum,
-            count=dp_mean,
-        )
+        if return_named_tuple == False tuple with elements returned from the
+            internal combiners in order in which internal combiners are specified.
+        else returns namedtuple (MetricsTuple) whose fields are one or more of
+            pipeline_dp.Metrics, depending on what the combiners compute.
+            E.g., if CompoundCombiner has a PrivacyIdCountCombiner that computes
+            'privacy_id_count' and a MeanCombiner that computes 'mean' and 'sum',
+            CompoundCombiner will return a MetricsTuple(
+                privacy_id_count=dp_privacy_id_count,
+                sum=dp_sum,
+                mean=dp_mean,
+            )
     """
 
     AccumulatorType = Tuple[int, Tuple]
 
-    def __init__(self, combiners: Iterable['Combiner']):
+    def __init__(self, combiners: Iterable['Combiner'],
+                 return_named_tuple: bool):
         self._combiners = combiners
         self._metrics_to_compute = []
+        self._return_named_tuple = return_named_tuple
+        if not self._return_named_tuple:
+            return
+        # Creates namedtuple type based on what the internal combiners return.
         for combiner in self._combiners:
             self._metrics_to_compute.extend(combiner.metrics_names())
         if len(self._metrics_to_compute) != len(set(self._metrics_to_compute)):
@@ -326,18 +444,24 @@ class CompoundCombiner(Combiner):
             self, compound_accumulator1: AccumulatorType,
             compound_accumulator2: AccumulatorType) -> AccumulatorType:
         merged_accumulators = []
-        privacy_id_count1, accumulator1 = compound_accumulator1
-        privacy_id_count2, accumulator2 = compound_accumulator2
+        row_count1, accumulator1 = compound_accumulator1
+        row_count2, accumulator2 = compound_accumulator2
         for combiner, acc1, acc2 in zip(self._combiners, accumulator1,
                                         accumulator2):
             merged_accumulators.append(combiner.merge_accumulators(acc1, acc2))
-        return (privacy_id_count1 + privacy_id_count2,
-                tuple(merged_accumulators))
+        return (row_count1 + row_count2, tuple(merged_accumulators))
 
     def compute_metrics(self, compound_accumulator: AccumulatorType):
-        privacy_id_count, accumulator = compound_accumulator
-        # Concatenates output of combiners, raises Exception if there are any
-        # duplicates.
+        _, accumulator = compound_accumulator
+
+        if not self._return_named_tuple:
+            # returns tuple of what the internal combiners return.
+            return tuple(
+                combiner.compute_metrics(acc)
+                for combiner, acc in zip(self._combiners, accumulator))
+
+        # Concatenates output of the internal combiners into Namedtype, raises
+        # Exception if there are any duplicates.
         combined_metrics = {}
         for combiner, acc in zip(self._combiners, accumulator):
             metrics_for_combiner = combiner.compute_metrics(acc)
@@ -366,7 +490,20 @@ def create_compound_combiner(
     combiners = []
     mechanism_type = aggregate_params.noise_kind.convert_to_mechanism_type()
 
-    if pipeline_dp.Metrics.MEAN in aggregate_params.metrics:
+    if pipeline_dp.Metrics.VARIANCE in aggregate_params.metrics:
+        budget_variance = budget_accountant.request_budget(
+            mechanism_type, weight=aggregate_params.budget_weight)
+        metrics_to_compute = ['variance']
+        if pipeline_dp.Metrics.MEAN in aggregate_params.metrics:
+            metrics_to_compute.append('mean')
+        if pipeline_dp.Metrics.COUNT in aggregate_params.metrics:
+            metrics_to_compute.append('count')
+        if pipeline_dp.Metrics.SUM in aggregate_params.metrics:
+            metrics_to_compute.append('sum')
+        combiners.append(
+            VarianceCombiner(CombinerParams(budget_variance, aggregate_params),
+                             metrics_to_compute))
+    elif pipeline_dp.Metrics.MEAN in aggregate_params.metrics:
         budget_mean = budget_accountant.request_budget(
             mechanism_type, weight=aggregate_params.budget_weight)
         metrics_to_compute = ['mean']
@@ -395,4 +532,15 @@ def create_compound_combiner(
             PrivacyIdCountCombiner(
                 CombinerParams(budget_privacy_id_count, aggregate_params)))
 
-    return CompoundCombiner(combiners)
+    return CompoundCombiner(combiners, return_named_tuple=True)
+
+
+def create_compound_combiner_with_custom_combiners(
+        aggregate_params: pipeline_dp.AggregateParams,
+        budget_accountant: budget_accounting.BudgetAccountant,
+        custom_combiners: Iterable[CustomCombiner]) -> CompoundCombiner:
+    for combiner in custom_combiners:
+        combiner.request_budget(budget_accountant)
+        combiner.set_aggregate_params(aggregate_params)
+
+    return CompoundCombiner(custom_combiners, return_named_tuple=False)

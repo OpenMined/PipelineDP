@@ -26,7 +26,7 @@ part of it. You can get a part of it by running in bash:
 
    head -10000 combined_data_1.txt > data.txt
 
-4. Run python run_all_frameworks.py --framework=<framework> --input_file=<path to data.txt from 3> --output_file=<...>
+4. Run python custom_combiners.py --framework=<framework> --input_file=<path to data.txt from 3> --output_file=<...>
 """
 
 from absl import app
@@ -35,6 +35,7 @@ from apache_beam.runners.portability import fn_api_runner
 import pyspark
 from examples.movie_view_ratings.common_utils import *
 import pipeline_dp
+import numpy as np
 
 FLAGS = flags.FLAGS
 flags.DEFINE_string('input_file', None, 'The file with the movie view data')
@@ -43,21 +44,49 @@ flags.DEFINE_enum('framework', None, ['beam', 'spark', 'local'],
                   'Pipeline framework to use.')
 flags.DEFINE_list('public_partitions', None,
                   'List of comma-separated public partition keys')
-flags.DEFINE_boolean(
-    'private_partitions', False,
-    'Output private partitions (do not calculate any DP metrics)')
-flags.DEFINE_boolean(
-    'contribution_bounds_already_enforced', False,
-    'Assume the input dataset already enforces the hard-coded contribution'
-    'bounds. Ignore the user identifiers.')
 
 
 def calculate_private_result(movie_views, pipeline_backend):
-    if FLAGS.private_partitions:
-        return get_private_movies(movie_views, pipeline_backend)
-    else:
-        return calc_dp_rating_metrics(movie_views, pipeline_backend,
-                                      get_public_partitions())
+    return calc_dp_rating_metrics(movie_views, pipeline_backend,
+                                  get_public_partitions())
+
+
+class CountCombiner(pipeline_dp.CustomCombiner):
+    """DP sum combiner.
+
+    It is just for demonstration how custom combiners API work.
+    """
+
+    def create_accumulator(self, values):
+        """Creates accumulator from 'values'."""
+        return len(values)
+
+    def merge_accumulators(self, count1, count2):
+        """Merges the accumulators and returns accumulator."""
+        return count1 + count2
+
+    def compute_metrics(self, count):
+        """Computes and returns the result of aggregation."""
+        # Simple implementation of Laplace mechanism.
+        sensitivity = self._aggregate_params.max_contributions_per_partition * \
+                      self._aggregate_params.max_partitions_contributed
+        eps = self._budget.eps
+        laplace_b = sensitivity / eps
+
+        # Warning: using a standard laplace noise is done only for simplicity, don't use it in production.
+        # Better it's to use a standard PipelineDP metric Count.
+        return np.random.laplace(count, laplace_b)
+
+    def request_budget(self, budget_accountant):
+        self._budget = budget_accountant.request_budget(
+            pipeline_dp.MechanismType.LAPLACE)
+        # _budget object is not initialized yet. It will be initialized with
+        # eps/delta only during budget_accountant.compute_budgets() call.
+        # Warning: do not access eps/delta or make deep copy of _budget object
+        # in this function.
+
+    def set_aggregate_params(self, aggregate_params):
+        self._aggregate_params = aggregate_params
 
 
 def calc_dp_rating_metrics(movie_views, backend, public_partitions):
@@ -73,67 +102,26 @@ def calc_dp_rating_metrics(movie_views, backend, public_partitions):
     # Specify which DP aggregated metrics to compute.
     params = pipeline_dp.AggregateParams(
         noise_kind=pipeline_dp.NoiseKind.LAPLACE,
-        metrics=[
-            pipeline_dp.Metrics.COUNT, pipeline_dp.Metrics.SUM,
-            pipeline_dp.Metrics.MEAN, pipeline_dp.Metrics.VARIANCE
-        ] + ([pipeline_dp.Metrics.PRIVACY_ID_COUNT]
-             if not FLAGS.contribution_bounds_already_enforced else []),
+        metrics=None,
         max_partitions_contributed=2,
         max_contributions_per_partition=1,
         min_value=1,
         max_value=5,
-        contribution_bounds_already_enforced=FLAGS.
-        contribution_bounds_already_enforced)
+        public_partitions=public_partitions,
+        custom_combiners=[CountCombiner()])
 
     # Specify how to extract privacy_id, partition_key and value from an
     # element of movie view collection.
     data_extractors = pipeline_dp.DataExtractors(
         partition_extractor=lambda mv: mv.movie_id,
-        privacy_id_extractor=(lambda mv: mv.user_id)
-        if not FLAGS.contribution_bounds_already_enforced else None,
+        privacy_id_extractor=lambda mv: mv.user_id,
         value_extractor=lambda mv: mv.rating)
 
     # Run aggregation.
-    dp_result = dp_engine.aggregate(movie_views, params, data_extractors,
-                                    public_partitions)
+    dp_result = dp_engine.aggregate(movie_views, params, data_extractors)
 
     budget_accountant.compute_budgets()
 
-    reports = dp_engine.explain_computations_report()
-    for report in reports:
-        lines = report.split("\n")
-        for line in lines:
-            print(line)
-    return dp_result
-
-
-def get_private_movies(movie_views, backend):
-    """Obtains the list of movies in a differentially private manner.
-
-    This does not calculate any metrics; it merely returns the list of
-    movies, making sure the result is differentially private.
-    """
-
-    # Set the total privacy budget.
-    budget_accountant = pipeline_dp.NaiveBudgetAccountant(total_epsilon=0.1,
-                                                          total_delta=1e-6)
-
-    # Create a DPEngine instance.
-    dp_engine = pipeline_dp.DPEngine(budget_accountant, backend)
-
-    # Specify how to extract privacy_id, partition_key and value from an
-    # element of movie view collection.
-    data_extractors = pipeline_dp.DataExtractors(
-        partition_extractor=lambda mv: mv.movie_id,
-        privacy_id_extractor=lambda mv: mv.user_id)
-
-    # Run aggregation.
-    dp_result = dp_engine.select_partitions(
-        movie_views,
-        pipeline_dp.SelectPartitionsParams(max_partitions_contributed=2),
-        data_extractors=data_extractors)
-
-    budget_accountant.compute_budgets()
     return dp_result
 
 
@@ -161,7 +149,7 @@ def compute_on_spark():
     conf = pyspark.SparkConf().setMaster(master)
     sc = pyspark.SparkContext(conf=conf)
     movie_views = sc.textFile(FLAGS.input_file) \
-        .mapPartitions(parse_partition)
+      .mapPartitions(parse_partition)
     pipeline_backend = pipeline_dp.SparkRDDBackend(sc)
     dp_result = calculate_private_result(movie_views, pipeline_backend)
 

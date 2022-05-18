@@ -15,7 +15,7 @@
 
 For running:
 1. Install Python and run on the command line `pip install pipeline-dp apache-beam absl-py`
-2. Run python python run_on_beam.py --input_file=<path to data.txt from 3> --output_file=<...>
+2. Run python python beam_combine_fn.py --input_file=<path to data.txt from 3> --output_file=<...>
 
 """
 
@@ -24,14 +24,53 @@ from absl import flags
 import apache_beam as beam
 from apache_beam.runners.portability import fn_api_runner
 import pipeline_dp
-from pipeline_dp import private_beam
-from pipeline_dp import SumParams
-from pipeline_dp.private_beam import MakePrivate
-from common_utils import ParseFile
+from pipeline_dp import private_beam as pbeam
+from examples.movie_view_ratings.common_utils import ParseFile
+import numpy as np
+from pydp.algorithms import numerical_mechanisms as dp_mechanisms
 
 FLAGS = flags.FLAGS
 flags.DEFINE_string('input_file', None, 'The file with the movie view data')
 flags.DEFINE_string('output_file', None, 'Output file')
+
+
+class DPSumCombineFn(pbeam.PrivateCombineFn):
+
+    def __init__(self, min_value, max_value):
+        self._min_value = min_value
+        self._max_value = max_value
+
+    def create_accumulator(self):
+        return 0
+
+    def add_input_for_private_output(self, accumulator, input):
+        return accumulator + np.clip(input, self._min_value, self._max_value)
+
+    def merge_accumulators(self, accumulators):
+        return sum(accumulators)
+
+    def extract_private_output(self, accumulator, budget):
+        # Simple implementation of Laplace mechanism.
+        max_abs_value = np.maximum(np.abs(self._min_value),
+                                   np.abs(self._max_value))
+        l1_sensitivity = self._aggregate_params.max_contributions_per_partition * \
+                      self._aggregate_params.max_partitions_contributed * max_abs_value
+
+        # Here is an example of using noise hardened against the floating point attacks.
+        # Warning: Do not use in production unsafe noise, i.e. which isn't hardened against the
+        # floating point attacks.
+        mechanism = dp_mechanisms.LaplaceMechanism(epsilon=budget.eps,
+                                                   sensitivity=l1_sensitivity)
+        return mechanism.add_noise(1.0 * accumulator)
+
+    def request_budget(self, budget_accountant):
+        return budget_accountant.request_budget(
+            pipeline_dp.MechanismType.LAPLACE)
+        # The output of budget_accountant.request_budget() is not initialized yet.
+        # It will be initialized with eps/delta only during
+        # budget_accountant.compute_budgets().
+        # Warning: do not access eps/delta or make deep copy of _budget object in
+        # this function.
 
 
 def main(unused_argv):
@@ -54,26 +93,22 @@ def main(unused_argv):
 
         # Wrap Beam's PCollection into it's private version
         private_movie_views = (movie_views_pcol |
-                               'Create private collection' >> MakePrivate(
+                               'Create private collection' >> pbeam.MakePrivate(
                                    budget_accountant=budget_accountant,
                                    privacy_id_extractor=lambda mv: mv.user_id))
 
+        private_movie_views = private_movie_views | pbeam.Map(
+            lambda mv: (mv.movie_id, mv.rating))
+
         # Calculate the private sum
-        dp_result = private_movie_views | "Private Sum" >> private_beam.Sum(
-            SumParams(
+        dp_result = private_movie_views | pbeam.CombinePerKey(
+            DPSumCombineFn(min_value=1, max_value=5),
+            pbeam.CombinePerKeyParams(
                 # Limits to how much one user can contribute:
                 # .. at most two movies rated per user
                 max_partitions_contributed=2,
                 # .. at most one rating for each movie
-                max_contributions_per_partition=1,
-                # .. with minimal rating of "1"
-                min_value=1,
-                # .. and maximum rating of "5"
-                max_value=5,
-                # The aggregation key: we're grouping data by movies
-                partition_extractor=lambda mv: mv.movie_id,
-                # The value we're aggregating: we're summing up ratings
-                value_extractor=lambda mv: mv.rating))
+                max_contributions_per_partition=1))
         budget_accountant.compute_budgets()
 
         # Save the results
