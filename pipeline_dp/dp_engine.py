@@ -50,7 +50,10 @@ class DPEngine:
         self._report_generators[-1].add_stages(lines)
 
     def explain_computations_report(self):
-        return [report_generator.report() for report_generator in self._report_generators]
+        return [
+            report_generator.report()
+            for report_generator in self._report_generators
+        ]
 
     def aggregate(self,
                   col,
@@ -155,7 +158,6 @@ class DPEngine:
         self._add_report_stages(combiner.explain_computation())
         col = self._backend.map_values(col, combiner.compute_metrics,
                                        "Compute DP` metrics")
-
 
         return col
 

@@ -216,7 +216,6 @@ class PrivacyIdCountCombiner(Combiner):
         return lambda: f"Computed privacy id count with (eps={self._params.eps} delta={self._params.delta})"
 
 
-
 class SumCombiner(Combiner):
     """Combiner for computing dp sum.
 
@@ -247,7 +246,6 @@ class SumCombiner(Combiner):
 
     def explain_computation(self):
         return lambda: f"Computed sum with (eps={self._params.eps} delta={self._params.delta})"
-
 
 
 class MeanCombiner(Combiner):
@@ -300,7 +298,6 @@ class MeanCombiner(Combiner):
 
     def explain_computation(self):
         return lambda: f"Computed mean with (eps={self._params.eps} delta={self._params.delta})"
-
 
 
 class VarianceCombiner(Combiner):
@@ -480,7 +477,6 @@ class CompoundCombiner(Combiner):
 
     def explain_computation(self):
         return [combiner.explain_computation() for combiner in self._combiners]
-
 
 
 def create_compound_combiner(
