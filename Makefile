@@ -2,7 +2,9 @@
 
 .PHONY: format
 format:
-	yapf -i -r pipeline_dp tests examples || yapf3 -i -r pipeline_dp tests examples
+	yapf -i -r pipeline_dp tests examples || \
+	    yapf3 -i -r pipeline_dp tests examples || \
+	    python3 -m yapf -i -r pipeline_dp tests examples
 
 .PHONY: lint
 lint:

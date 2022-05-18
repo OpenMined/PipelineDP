@@ -69,6 +69,11 @@ class AggregateParams:
     max_value: Upper bound on each value.
     custom_combiners: Warning: experimental@ Combiners for computing custom
       metrics.
+    contribution_bounds_already_enforced: assume that the input dataset complies
+      with the bounds provided in max_partitions_contributed and
+      max_contributions_per_partition. This option can be used if the dataset
+      does not contain any identifiers that can be used to enforce contribution
+      bounds automatically.
   """
 
     metrics: Iterable[Metrics]
@@ -82,6 +87,7 @@ class AggregateParams:
     public_partitions: Any = None  # deprecated
     noise_kind: NoiseKind = NoiseKind.LAPLACE
     custom_combiners: Iterable['CustomCombiner'] = None
+    contribution_bounds_already_enforced: bool = False
 
     def __post_init__(self):
         if self.low is not None:
@@ -117,6 +123,10 @@ class AggregateParams:
                 raise ValueError(
                     "params.max_value must be equal to or greater than params.min_value"
                 )
+            if self.contribution_bounds_already_enforced and Metrics.PRIVACY_ID_COUNT in self.metrics:
+                raise ValueError(
+                    "Cannot calculate PRIVACY_ID_COUNT when "
+                    "contribution_bounds_already_enforced is set to True.")
         if self.custom_combiners:
             logging.warning("Warning: custom combiners are used. This is an "
                             "experimental feature. It might not work properly "
@@ -154,6 +164,8 @@ class SelectPartitionsParams:
     """
     max_partitions_contributed: int
     budget_weight: float = 1
+
+    # TODO: Add support for contribution_bounds_already_enforced
 
     def __str__(self):
         return "Private Partitions"
