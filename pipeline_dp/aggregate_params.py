@@ -15,7 +15,7 @@
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Iterable, Callable, Union
+from typing import Any, Iterable, Callable, Union, Optional
 import math
 import logging
 
@@ -79,9 +79,9 @@ class AggregateParams:
   """
 
     metrics: Iterable[Metrics]
-    max_contributions: int
-    max_partitions_contributed: int
-    max_contributions_per_partition: int
+    max_contributions: Optional[int]
+    max_partitions_contributed: Optional[int]
+    max_contributions_per_partition: Optional[int]
     budget_weight: float = 1
     low: float = None  # deprecated
     high: float = None  # deprecated
@@ -144,6 +144,13 @@ class AggregateParams:
             raise ValueError(
                 "AggregateParams.public_partitions is deprecated. Please use public_partitions argument in DPEngine.aggregate insead."
             )
+        if self.max_contributions is not None:
+            if ((self.max_partitions_contributed is not None) or
+                (self.max_contributions_per_partition is not None)):
+                raise ValueError(
+                    "Only one in params.max_contributions or "
+                    "(params.max_partitions_contributed and "
+                    "params.max_contributions_per_partition) must be set")
 
     def __str__(self):
         if self.custom_combiners:
