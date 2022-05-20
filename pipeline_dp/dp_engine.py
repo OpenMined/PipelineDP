@@ -307,9 +307,10 @@ class DPEngine:
         return: collection with elements ((privacy_id, partition_key),
               accumulator).
         """
-        # Max contributions bounding
+        # Max user contributions bounding
         col = self._backend.sample_fixed_per_key(col, max_contributions,
                                                  "Sample per privacy_id")
+        # (privacy_id, [partition_key, value])
         self._add_report_stage(
             f"max contribution bounding: randomly selected not "
             f"more than {max_contributions} contributions")

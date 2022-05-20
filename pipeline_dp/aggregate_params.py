@@ -144,7 +144,7 @@ class AggregateParams:
             raise ValueError(
                 "AggregateParams.public_partitions is deprecated. Please use public_partitions argument in DPEngine.aggregate insead."
             )
-        if self.max_contributions is not None:
+        if self.max_contributions is not None and self.max_contributions > 0:
             if ((self.max_partitions_contributed is not None) or
                 (self.max_contributions_per_partition is not None)):
                 raise ValueError(
