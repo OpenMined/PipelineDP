@@ -70,9 +70,9 @@ class AggregateParams:
     max_value: Upper bound on each value.
     custom_combiners: Warning: experimental@ Combiners for computing custom
       metrics.
-    vector_norm_kind: The type of norm to use for the DP calculations.
-    vector_max_norm: Bound on each value of a vector.
-    vector_size: Number of coordinates in a vector.
+    vector_norm_kind: The type of norm. Used only for VECTOR_SUM metric calculations.
+    vector_max_norm: Bound on each value of a vector. Used only for VECTOR_SUM metric calculations.
+    vector_size: Number of coordinates in a vector. Used only for VECTOR_SUM metric calculations.
     contribution_bounds_already_enforced: assume that the input dataset complies
       with the bounds provided in max_partitions_contributed and
       max_contributions_per_partition. This option can be used if the dataset

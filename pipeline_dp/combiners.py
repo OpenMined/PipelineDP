@@ -490,7 +490,7 @@ class VectorSumCombiner(Combiner):
                            values: Iterable[ArrayLike]) -> AccumulatorType:
         array_sum = None
         for val in values:
-            if type(val) is not np.ndarray:
+            if not isinstance(val, np.ndarray):
                 val = np.array(val)
             if val.shape != (self._params.aggregate_params.vector_size,):
                 raise TypeError(
