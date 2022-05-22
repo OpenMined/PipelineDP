@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """DP aggregations."""
+import collections
 import dataclasses
 import functools
 from typing import Any, Callable, Tuple
@@ -294,7 +295,7 @@ class DPEngine:
 
     def _bound_per_user_contributions(self, col, max_contributions: int,
                                       aggregator_fn):
-        """Bounds the contribution by privacy_id in and cross partitions.
+        """Bounds the total contributions by a privacy_id.
 
         Args:
           col: collection, with types of each element: (privacy_id,
@@ -307,22 +308,55 @@ class DPEngine:
         return: collection with elements ((privacy_id, partition_key),
               accumulator).
         """
-        # Max user contributions bounding
+        # bounds the total number of contributions by a privacy id.
+        col = self._backend.map_tuple(
+            col, lambda pid, pk, v: (pid, (pk, v)),
+            "Rekey to ((privacy_id), (partition_key, value))")
         col = self._backend.sample_fixed_per_key(col, max_contributions,
                                                  "Sample per privacy_id")
-        # (privacy_id, [partition_key, value])
         self._add_report_stage(
-            f"max contribution bounding: randomly selected not "
+            f"User contributions bounding: randomly selected not "
             f"more than {max_contributions} contributions")
-        col = self._backend.map_tuple(
-            col, lambda pid, pk, v: ((pid, pk), v),
-            "Rekey to ( (privacy_id, partition_key), value))")
-        # ((privacy_id, partition_key), [value])
+
+        # (privacy_id, [(partition_key, value)])
+
+        # Convert the per privacy id list into a dict with key as partition_key
+        # and value to be list of input values.
+        def collect_values_per_partition_key_per_privacy_id(input_list):
+            d = collections.defaultdict(list)
+            for key, value in input_list:
+                d[key].append(value)
+            return d
+
         col = self._backend.map_values(
+            col, collect_values_per_partition_key_per_privacy_id,
+            "Apply fn to convert per privacy id values into a dict of values"
+            "per partition key")
+
+        # (privacy_id, {partition_key: [value]})
+
+        # Rekey it into values per privacy id and partition key. This returns
+        # it as one list per privacy id.
+        def rekey_per_privacy_id_per_partition_key(privacy_id, partition_dict):
+            result = list()
+            for partition_key in partition_dict:
+                result.append(((privacy_id, partition_key),
+                               partition_dict[partition_key]))
+            return result
+
+        col = self._backend.map_tuple(
+            col, rekey_per_privacy_id_per_partition_key,
+            "Rekey to ((privacy_id, partition_key), value))")
+        # [((privacy_id, partition_key), [value])]
+
+        # Unnest the list per privacy id into tuples.
+        col = self._backend.flat_map(col, lambda list: (tup for tup in list),
+                                     "Unnest")
+        # ((privacy_id, partition_key), [value])
+
+        return self._backend.map_values(
             col, aggregator_fn,
-            "Apply aggregate_fn after per partition bounding")
-        # ((privacy_id, partition_key), accumulator)
-        return col
+            "Apply aggregate_fn after per privacy id contributions bounding")
 
     def _bound_contributions(self, col, max_partitions_contributed: int,
                              max_contributions_per_partition: int,
@@ -357,7 +391,6 @@ class DPEngine:
             col, aggregator_fn,
             "Apply aggregate_fn after per partition bounding")
         # ((privacy_id, partition_key), accumulator)
-
         # Cross partition bounding
         col = self._backend.map_tuple(
             col, lambda pid_pk, v: (pid_pk[0], (pid_pk[1], v)),

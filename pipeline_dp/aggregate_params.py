@@ -79,9 +79,9 @@ class AggregateParams:
   """
 
     metrics: Iterable[Metrics]
-    max_contributions: Optional[int]
-    max_partitions_contributed: Optional[int]
-    max_contributions_per_partition: Optional[int]
+    max_contributions: Optional[int] = None
+    max_partitions_contributed: Optional[int] = None
+    max_contributions_per_partition: Optional[int] = None
     budget_weight: float = 1
     low: float = None  # deprecated
     high: float = None  # deprecated
@@ -151,6 +151,16 @@ class AggregateParams:
                     "Only one in params.max_contributions or "
                     "(params.max_partitions_contributed and "
                     "params.max_contributions_per_partition) must be set")
+        else:
+            if ((self.max_partitions_contributed is None or
+                 self.max_partitions_contributed <= 0) and
+                (self.max_contributions_per_partition is None or
+                 self.max_contributions_per_partition <= 0)):
+                raise ValueError(
+                    "One amongst params.max_contributions or "
+                    "(params.max_partitions_contributed or "
+                    "params.max_contributions_per_partition) must be set to a "
+                    "positive value.")
 
     def __str__(self):
         if self.custom_combiners:
