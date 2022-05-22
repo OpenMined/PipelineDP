@@ -26,6 +26,7 @@ class Metrics(Enum):
     SUM = 'sum'
     MEAN = 'mean'
     VARIANCE = 'variance'
+    VECTOR_SUM = 'vector_sum'
 
 
 class NoiseKind(Enum):
@@ -71,13 +72,15 @@ class AggregateParams:
     max_value: Upper bound on each value.
     custom_combiners: Warning: experimental@ Combiners for computing custom
       metrics.
+    vector_norm_kind: The type of norm. Used only for VECTOR_SUM metric calculations.
+    vector_max_norm: Bound on each value of a vector. Used only for VECTOR_SUM metric calculations.
+    vector_size: Number of coordinates in a vector. Used only for VECTOR_SUM metric calculations.
     contribution_bounds_already_enforced: assume that the input dataset complies
       with the bounds provided in max_partitions_contributed and
       max_contributions_per_partition. This option can be used if the dataset
       does not contain any identifiers that can be used to enforce contribution
       bounds automatically.
   """
-
     metrics: Iterable[Metrics]
     max_contributions: Optional[int] = None
     max_partitions_contributed: Optional[int] = None
@@ -90,6 +93,9 @@ class AggregateParams:
     public_partitions: Any = None  # deprecated
     noise_kind: NoiseKind = NoiseKind.LAPLACE
     custom_combiners: Iterable['CustomCombiner'] = None
+    vector_norm_kind: NormKind = NormKind.Linf
+    vector_max_norm: float = None
+    vector_size: int = None
     contribution_bounds_already_enforced: bool = False
 
     def __post_init__(self):
@@ -125,6 +131,13 @@ class AggregateParams:
             if needs_min_max_value and self.max_value < self.min_value:
                 raise ValueError(
                     "params.max_value must be equal to or greater than params.min_value"
+                )
+            if Metrics.VECTOR_SUM in self.metrics and \
+            (Metrics.SUM in self.metrics or \
+            Metrics.MEAN in self.metrics or \
+            Metrics.VARIANCE in self.metrics):
+                raise ValueError(
+                    "Vector sum can not be computed together with scalar metrics, like sum, mean etc"
                 )
             if self.contribution_bounds_already_enforced and Metrics.PRIVACY_ID_COUNT in self.metrics:
                 raise ValueError(
