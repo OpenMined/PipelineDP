@@ -105,7 +105,7 @@ class DPEngine:
                                   data_extractors.value_extractor(row)),
                 "Extract (privacy_id, partition_key, value))")
             # col : (privacy_id, partition_key, value)
-            if params.max_contributions is not None:
+            if params.max_contributions:
                 col = self._bound_per_user_contributions(
                     col, params.max_contributions, combiner.create_accumulator)
             else:
@@ -330,19 +330,15 @@ class DPEngine:
 
         col = self._backend.map_values(
             col, collect_values_per_partition_key_per_privacy_id,
-            "Apply fn to convert per privacy id values into a dict of values"
-            "per partition key")
+            "Group per (privacy_id, partition_key)")
 
         # (privacy_id, {partition_key: [value]})
 
         # Rekey it into values per privacy id and partition key. This returns
         # it as one list per privacy id.
         def rekey_per_privacy_id_per_partition_key(privacy_id, partition_dict):
-            result = list()
-            for partition_key in partition_dict:
-                result.append(((privacy_id, partition_key),
-                               partition_dict[partition_key]))
-            return result
+            for partition_key, values in partition_dict.items():
+                yield (privacy_id, partition_key), values
 
         col = self._backend.map_tuple(
             col, rekey_per_privacy_id_per_partition_key,

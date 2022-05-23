@@ -104,7 +104,7 @@ class DpEngineTest(parameterized.TestCase):
                 max_contributions=max_contributions,
                 aggregator_fn=DpEngineTest.aggregator_fn))
         print(bound_result)
-        self.assertEqual(5, len(bound_result))
+        self.assertLen(bound_result, 5)
 
     def test_contribution_bounding_empty_col(self):
         input_col = []
