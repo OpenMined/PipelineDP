@@ -63,6 +63,49 @@ class DpEngineTest(parameterized.TestCase):
             value_extractor=lambda x: x,
         )
 
+    def test_user_contribution_bounding_empty_col(self):
+        input_col = []
+        max_contributions = 4
+
+        dp_engine = self.create_dp_engine_default()
+        bound_result = list(
+            dp_engine._bound_per_user_contributions(
+                input_col,
+                max_contributions=max_contributions,
+                aggregator_fn=DpEngineTest.aggregator_fn))
+
+        self.assertFalse(bound_result)
+
+    def test_user_contribution_bounding_bound_input_nothing_dropped(self):
+        input_col = [("pid1", 'pk1', 1), ("pid1", 'pk1', 2), ("pid1", 'pk2', 3),
+                     ("pid1", 'pk2', 4)]
+        max_contributions = 4
+
+        dp_engine = self.create_dp_engine_default()
+        bound_result = list(
+            dp_engine._bound_per_user_contributions(
+                input_col,
+                max_contributions=max_contributions,
+                aggregator_fn=DpEngineTest.aggregator_fn))
+
+        expected_result = [(('pid1', 'pk2'), (2, 7, 25)),
+                           (('pid1', 'pk1'), (2, 3, 5))]
+        self.assertEqual(set(expected_result), set(bound_result))
+
+    def test_user_contribution_bounding_applied(self):
+        input_col = [("pid1", 'pk1', 1), ("pid1", 'pk2', 2), ("pid1", 'pk3', 3),
+                     ("pid1", 'pk4', 4), ("pid1", 'pk5', 5), ("pid2", 'pk1', 6)]
+        max_contributions = 4
+
+        dp_engine = self.create_dp_engine_default()
+        bound_result = list(
+            dp_engine._bound_per_user_contributions(
+                input_col,
+                max_contributions=max_contributions,
+                aggregator_fn=DpEngineTest.aggregator_fn))
+        print(bound_result)
+        self.assertLen(bound_result, 5)
+
     def test_contribution_bounding_empty_col(self):
         input_col = []
         max_partitions_contributed = 2
