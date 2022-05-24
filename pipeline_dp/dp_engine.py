@@ -334,19 +334,15 @@ class DPEngine:
 
         # (privacy_id, {partition_key: [value]})
 
-        # Rekey it into values per privacy id and partition key. This returns
-        # it as one list per privacy id.
-        def rekey_per_privacy_id_per_partition_key(privacy_id, partition_dict):
+        # Rekey it into values per privacy id and partition key.
+        def rekey_per_privacy_id_per_partition_key(pid_pk_dict):
+            privacy_id, partition_dict = pid_pk_dict
             for partition_key, values in partition_dict.items():
                 yield (privacy_id, partition_key), values
 
-        col = self._backend.map_tuple(
-            col, rekey_per_privacy_id_per_partition_key,
-            "Rekey to ((privacy_id, partition_key), value))")
-        # [((privacy_id, partition_key), [value])]
-
-        # Unnest the list per privacy id into tuples.
-        col = self._backend.flat_map(col, lambda list: (tup for tup in list),
+        # Unnest the list per privacy id.
+        col = self._backend.flat_map(col,
+                                     rekey_per_privacy_id_per_partition_key,
                                      "Unnest")
         # ((privacy_id, partition_key), [value])
 
