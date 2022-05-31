@@ -61,10 +61,16 @@ class DPEngine:
           col: collection where all elements are of the same type.
           params: specifies which metrics to compute and computation parameters.
           data_extractors: functions that extract needed pieces of information
-            from elements of 'col'.
-          public_partitions: A collection of partition keys that will be present in
-          the result. Optional. If not provided, partitions will be selected in a DP
+          from elements of 'col'.
+          public_partitions: A collection of partition keys that will be present
+          in the result. If not provided, partitions will be selected in a DP
           manner.
+
+        Returns:
+          Collection of (partition_key, result_dictionary), where
+          'result_dictionary' contains computed metrics per partition_key.
+          Keys of 'result_dictionary' correspond to computed metrics, e.g.
+          'count' for COUNT metrics etc.
         """
         _check_aggregate_params(col, params, data_extractors)
 
@@ -106,7 +112,7 @@ class DPEngine:
                 "Extract (privacy_id, partition_key, value))")
             # col : (privacy_id, partition_key, value)
             if params.max_contributions:
-                col = self._bound_per_user_contributions(
+                col = self._bound_per_privacy_id_contributions(
                     col, params.max_contributions, combiner.create_accumulator)
             else:
                 col = self._bound_contributions(
@@ -144,9 +150,9 @@ class DPEngine:
             max_rows_per_privacy_id = 1
 
             if params.contribution_bounds_already_enforced:
-                # This regime assumes the input data doesn't have privacy IDs, and therefore
-                # we didn't group by them and cannot guarantee one row corresponds to exactly
-                # one privacy ID.
+                # This regime assumes the input data doesn't have privacy IDs,
+                # and therefore we didn't group by them and cannot guarantee one
+                # row corresponds to exactly one privacy ID.
                 max_rows_per_privacy_id = params.max_contributions_per_partition
 
             col = self._select_private_partitions_internal(
@@ -162,6 +168,7 @@ class DPEngine:
     def _check_select_private_partitions(
             self, col, params: pipeline_dp.SelectPartitionsParams,
             data_extractors: DataExtractors):
+        """Verifies that arguments for select_partitions are correct."""
         if col is None or not col:
             raise ValueError("col must be non-empty")
         if params is None:
@@ -205,6 +212,7 @@ class DPEngine:
     def _select_partitions(self, col,
                            params: pipeline_dp.SelectPartitionsParams,
                            data_extractors: DataExtractors):
+        """Implementation of select_partitions computational graph."""
         self._report_generators.append(report_generator.ReportGenerator(params))
         max_partitions_contributed = params.max_partitions_contributed
 
@@ -247,7 +255,8 @@ class DPEngine:
                                      "Sample cross-partition contributions")
         # col : (privacy_id, partition_key)
 
-        # A compound accumulator without any child accumulators is used to calculate the raw privacy ID count.
+        # A compound accumulator without any child accumulators is used to
+        # calculate the raw privacy ID count.
         compound_combiner = combiners.CompoundCombiner([],
                                                        return_named_tuple=False)
         col = self._backend.map_tuple(
@@ -293,8 +302,8 @@ class DPEngine:
             col, empty_accumulators,
             "Join public partitions with partitions from data")
 
-    def _bound_per_user_contributions(self, col, max_contributions: int,
-                                      aggregator_fn):
+    def _bound_per_privacy_id_contributions(self, col, max_contributions: int,
+                                            aggregator_fn):
         """Bounds the total contributions by a privacy_id.
 
         Args:
@@ -308,7 +317,6 @@ class DPEngine:
         return: collection with elements ((privacy_id, partition_key),
               accumulator).
         """
-        # bounds the total number of contributions by a privacy id.
         col = self._backend.map_tuple(
             col, lambda pid, pk, v: (pid, (pk, v)),
             "Rekey to ((privacy_id), (partition_key, value))")
@@ -392,8 +400,8 @@ class DPEngine:
                                                  "Sample per privacy_id")
 
         self._add_report_stage(
-            f"Cross-partition contribution bounding: randomly selected not more than "
-            f"{max_partitions_contributed} partitions per user")
+            f"Cross-partition contribution bounding: randomly selected not more"
+            f" than {max_partitions_contributed} partitions per privacy id")
 
         # (privacy_id, [(partition_key, accumulator)])
         def unnest_cross_partition_bound_sampled_per_key(pid_pk_v):
@@ -411,11 +419,11 @@ class DPEngine:
         Args:
             col: collection, with types for each element:
                 (partition_key, Accumulator)
-            max_partitions_contributed: maximum amount of partitions that one privacy unit
-                might contribute.
+            max_partitions_contributed: maximum amount of partitions that one
+            privacy unit might contribute.
 
         Returns:
-            collection of elements (partition_key, accumulator)
+            collection of elements (partition_key, accumulator).
         """
         budget = self._budget_accountant.request_budget(
             mechanism_type=pipeline_dp.MechanismType.GENERIC)
@@ -425,16 +433,16 @@ class DPEngine:
             max_rows_per_privacy_id: int,
             row: Tuple[Any,
                        combiners.CompoundCombiner.AccumulatorType]) -> bool:
-            """Lazily creates a partition selection strategy and uses it to determine which
-            partitions to keep."""
+            """Lazily creates a partition selection strategy and uses it to
+            determine which partitions to keep."""
             row_count, _ = row[1]
 
             def divide_and_round_up(a, b):
                 return (a + b - 1) // b
 
-            # A conservative (lower) estimate of how many privacy IDs contributed to
-            # this partition. This estimate is only needed when privacy IDs are not available
-            # in the original dataset.
+            # A conservative (lower) estimate of how many privacy IDs
+            # contributed to this partition. This estimate is only needed when
+            # privacy IDs are not available in the original dataset.
             privacy_id_count = divide_and_round_up(row_count,
                                                    max_rows_per_privacy_id)
 

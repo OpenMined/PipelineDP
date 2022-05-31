@@ -69,7 +69,7 @@ class DpEngineTest(parameterized.TestCase):
 
         dp_engine = self.create_dp_engine_default()
         bound_result = list(
-            dp_engine._bound_per_user_contributions(
+            dp_engine._bound_per_privacy_id_contributions(
                 input_col,
                 max_contributions=max_contributions,
                 aggregator_fn=DpEngineTest.aggregator_fn))
@@ -83,7 +83,7 @@ class DpEngineTest(parameterized.TestCase):
 
         dp_engine = self.create_dp_engine_default()
         bound_result = list(
-            dp_engine._bound_per_user_contributions(
+            dp_engine._bound_per_privacy_id_contributions(
                 input_col,
                 max_contributions=max_contributions,
                 aggregator_fn=DpEngineTest.aggregator_fn))
@@ -99,7 +99,7 @@ class DpEngineTest(parameterized.TestCase):
 
         dp_engine = self.create_dp_engine_default()
         bound_result = list(
-            dp_engine._bound_per_user_contributions(
+            dp_engine._bound_per_privacy_id_contributions(
                 input_col,
                 max_contributions=max_contributions,
                 aggregator_fn=DpEngineTest.aggregator_fn))
@@ -377,7 +377,7 @@ class DpEngineTest(parameterized.TestCase):
             engine._report_generators[0].report(),
             "Differentially private: Computing <Metrics: ['privacy_id_count', 'count', 'mean']>"
             "\n1. Per-partition contribution bounding: randomly selected not more than 2 contributions"
-            "\n2. Cross-partition contribution bounding: randomly selected not more than 3 partitions per user"
+            "\n2. Cross-partition contribution bounding: randomly selected not more than 3 partitions per privacy id"
             "\n3. Private Partition selection: using Truncated Geometric method with (eps= 0.1111111111111111, delta = 1.1111111111111111e-11)"
         )
         self.assertEqual(
@@ -385,7 +385,7 @@ class DpEngineTest(parameterized.TestCase):
             "Differentially private: Computing <Metrics: ['sum', 'mean']>"
             "\n1. Public partition selection: dropped non public partitions"
             "\n2. Per-partition contribution bounding: randomly selected not more than 3 contributions"
-            "\n3. Cross-partition contribution bounding: randomly selected not more than 1 partitions per user"
+            "\n3. Cross-partition contribution bounding: randomly selected not more than 1 partitions per privacy id"
             "\n4. Adding empty partitions to public partitions that are missing in data"
         )
         self.assertEqual(
