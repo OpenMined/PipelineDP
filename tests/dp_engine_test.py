@@ -63,6 +63,49 @@ class DpEngineTest(parameterized.TestCase):
             value_extractor=lambda x: x,
         )
 
+    def test_user_contribution_bounding_empty_col(self):
+        input_col = []
+        max_contributions = 4
+
+        dp_engine = self.create_dp_engine_default()
+        bound_result = list(
+            dp_engine._bound_per_privacy_id_contributions(
+                input_col,
+                max_contributions=max_contributions,
+                aggregator_fn=DpEngineTest.aggregator_fn))
+
+        self.assertFalse(bound_result)
+
+    def test_user_contribution_bounding_bound_input_nothing_dropped(self):
+        input_col = [("pid1", 'pk1', 1), ("pid1", 'pk1', 2), ("pid1", 'pk2', 3),
+                     ("pid1", 'pk2', 4)]
+        max_contributions = 4
+
+        dp_engine = self.create_dp_engine_default()
+        bound_result = list(
+            dp_engine._bound_per_privacy_id_contributions(
+                input_col,
+                max_contributions=max_contributions,
+                aggregator_fn=DpEngineTest.aggregator_fn))
+
+        expected_result = [(('pid1', 'pk2'), (2, 7, 25)),
+                           (('pid1', 'pk1'), (2, 3, 5))]
+        self.assertEqual(set(expected_result), set(bound_result))
+
+    def test_user_contribution_bounding_applied(self):
+        input_col = [("pid1", 'pk1', 1), ("pid1", 'pk2', 2), ("pid1", 'pk3', 3),
+                     ("pid1", 'pk4', 4), ("pid1", 'pk5', 5), ("pid2", 'pk1', 6)]
+        max_contributions = 4
+
+        dp_engine = self.create_dp_engine_default()
+        bound_result = list(
+            dp_engine._bound_per_privacy_id_contributions(
+                input_col,
+                max_contributions=max_contributions,
+                aggregator_fn=DpEngineTest.aggregator_fn))
+        print(bound_result)
+        self.assertLen(bound_result, 5)
+
     def test_contribution_bounding_empty_col(self):
         input_col = []
         max_partitions_contributed = 2
@@ -334,7 +377,7 @@ class DpEngineTest(parameterized.TestCase):
             engine._report_generators[0].report(),
             "Differentially private: Computing <Metrics: ['privacy_id_count', 'count', 'mean']>"
             "\n1. Per-partition contribution bounding: randomly selected not more than 2 contributions"
-            "\n2. Cross-partition contribution bounding: randomly selected not more than 3 partitions per user"
+            "\n2. Cross-partition contribution bounding: randomly selected not more than 3 partitions per privacy id"
             "\n3. Private Partition selection: using Truncated Geometric method with (eps= 0.1111111111111111, delta = 1.1111111111111111e-11)"
         )
         self.assertEqual(
@@ -342,7 +385,7 @@ class DpEngineTest(parameterized.TestCase):
             "Differentially private: Computing <Metrics: ['sum', 'mean']>"
             "\n1. Public partition selection: dropped non public partitions"
             "\n2. Per-partition contribution bounding: randomly selected not more than 3 contributions"
-            "\n3. Cross-partition contribution bounding: randomly selected not more than 1 partitions per user"
+            "\n3. Cross-partition contribution bounding: randomly selected not more than 1 partitions per privacy id"
             "\n4. Adding empty partitions to public partitions that are missing in data"
         )
         self.assertEqual(

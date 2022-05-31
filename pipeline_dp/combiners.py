@@ -13,13 +13,15 @@
 # limitations under the License.
 import abc
 import copy
-from typing import Iterable, Sized, Tuple, List
+from typing import Iterable, Sized, Tuple, List, Union
 
 import pipeline_dp
 from pipeline_dp import dp_computations
 from pipeline_dp import budget_accounting
 import numpy as np
 import collections
+
+ArrayLike = Union[np.ndarray, List[float]]
 
 
 class Combiner(abc.ABC):
@@ -151,6 +153,19 @@ class CombinerParams:
             self.aggregate_params.max_partitions_contributed,
             self.aggregate_params.max_contributions_per_partition,
             self.aggregate_params.noise_kind)
+
+    @property
+    def additive_vector_noise_params(
+            self) -> dp_computations.AdditiveVectorNoiseParams:
+        return dp_computations.AdditiveVectorNoiseParams(
+            eps_per_coordinate=self.eps / self.aggregate_params.vector_size,
+            delta_per_coordinate=self.delta / self.aggregate_params.vector_size,
+            max_norm=self.aggregate_params.vector_max_norm,
+            l0_sensitivity=self.aggregate_params.max_partitions_contributed,
+            linf_sensitivity=self.aggregate_params.
+            max_contributions_per_partition,
+            norm_kind=self.aggregate_params.vector_norm_kind,
+            noise_kind=self.aggregate_params.noise_kind)
 
 
 class CountCombiner(Combiner):
@@ -479,6 +494,48 @@ class CompoundCombiner(Combiner):
         return [combiner.explain_computation() for combiner in self._combiners]
 
 
+class VectorSumCombiner(Combiner):
+    """Combiner for computing dp vector sum.
+
+    The type of the accumulator is np.ndarray, which represents sum of the vectors of the same size
+    for which this accumulator is computed.
+    """
+    AccumulatorType = np.ndarray
+
+    def __init__(self, params: CombinerParams):
+        self._params = params
+
+    def create_accumulator(self,
+                           values: Iterable[ArrayLike]) -> AccumulatorType:
+        array_sum = None
+        for val in values:
+            if not isinstance(val, np.ndarray):
+                val = np.array(val)
+            if val.shape != (self._params.aggregate_params.vector_size,):
+                raise TypeError(
+                    f"Shape mismatch: {val.shape} != {(self._params.aggregate_params.vector_size,)}"
+                )
+            if array_sum is None:
+                array_sum = val
+            else:
+                array_sum += val
+        return array_sum
+
+    def merge_accumulators(self, array_sum1: AccumulatorType,
+                           array_sum2: AccumulatorType):
+        return array_sum1 + array_sum2
+
+    def compute_metrics(self, array_sum: AccumulatorType) -> dict:
+        return {
+            'vector_sum':
+                dp_computations.add_noise_vector(
+                    array_sum, self._params.additive_vector_noise_params)
+        }
+
+    def metrics_names(self) -> List[str]:
+        return ['vector_sum']
+
+
 def create_compound_combiner(
         aggregate_params: pipeline_dp.AggregateParams,
         budget_accountant: budget_accounting.BudgetAccountant
@@ -527,6 +584,12 @@ def create_compound_combiner(
         combiners.append(
             PrivacyIdCountCombiner(
                 CombinerParams(budget_privacy_id_count, aggregate_params)))
+    if pipeline_dp.Metrics.VECTOR_SUM in aggregate_params.metrics:
+        budget_vector_sum = budget_accountant.request_budget(
+            mechanism_type, weight=aggregate_params.budget_weight)
+        combiners.append(
+            VectorSumCombiner(
+                CombinerParams(budget_vector_sum, aggregate_params)))
 
     return CompoundCombiner(combiners, return_named_tuple=True)
 
