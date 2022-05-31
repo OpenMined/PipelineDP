@@ -87,6 +87,16 @@ class PipelineBackend(abc.ABC):
 
     @abc.abstractmethod
     def sample_fixed_per_key(self, col, n: int, stage_name: str):
+        """Get random samples without replacement of values for each key.
+
+        Args:
+          col: input collection of elements (key, value).
+          n: number of values to sample for each key.
+          stage_name: name of the stage.
+
+        Returns:
+          A collection of (key, [value]).
+        """
         pass
 
     @abc.abstractmethod
@@ -110,7 +120,7 @@ class PipelineBackend(abc.ABC):
     @abc.abstractmethod
     def combine_accumulators_per_key(self, col, combiner: dp_combiners.Combiner,
                                      stage_name: str):
-        """Reduces the input collection so that all elements per each key are merged.
+        """Combines the input collection so that all elements per each key are merged.
 
         Args:
           col: input collection which contains tuples (key, accumulator).
@@ -366,18 +376,7 @@ class SparkRDDBackend(PipelineBackend):
         return rdd.values()
 
     def sample_fixed_per_key(self, rdd, n: int, stage_name: str = None):
-        """Get fixed-size random samples for each unique key in an RDD of key-values.
-        Sampling is not guaranteed to be uniform across partitions.
-
-        Args:
-          rdd: input RDD
-          n: number of values to sample for each key
-          stage_name: not used
-
-        Returns:
-          An RDD of tuples.
-
-        """
+        """See base class. The sampling is not guaranteed to be uniform."""
         return rdd.mapValues(lambda x: [x]).reduceByKey(
             lambda x, y: random.sample(x + y, min(len(x) + len(y), n)))
 

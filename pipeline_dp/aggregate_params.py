@@ -57,41 +57,44 @@ class NormKind(Enum):
 class AggregateParams:
     """Specifies parameters for function DPEngine.aggregate()
 
-  Args:
-    noise_kind: The type of noise to use for the DP calculations.
-    metrics: A list of metrics to compute.
-    max_contributions: A bound on the total number of times one unit of privacy
-      (e.g., a user) can contribute.
-    max_partitions_contributed: A bound on the number of partitions to which one
-      unit of privacy (e.g., a user) can contribute.
-    max_contributions_per_partition: A bound on the number of times one unit of
-      privacy (e.g. a user) can contribute to a partition.
-    budget_weight: Relative weight of the privacy budget allocated to this
-      aggregation.
-    min_value: Lower bound on each value.
-    max_value: Upper bound on each value.
-    custom_combiners: Warning: experimental@ Combiners for computing custom
-      metrics.
-    vector_norm_kind: The type of norm. Used only for VECTOR_SUM metric calculations.
-    vector_max_norm: Bound on each value of a vector. Used only for VECTOR_SUM metric calculations.
-    vector_size: Number of coordinates in a vector. Used only for VECTOR_SUM metric calculations.
-    contribution_bounds_already_enforced: assume that the input dataset complies
-      with the bounds provided in max_partitions_contributed and
-      max_contributions_per_partition. This option can be used if the dataset
-      does not contain any identifiers that can be used to enforce contribution
-      bounds automatically.
-  """
+    Args:
+        metrics: A list of metrics to compute.
+        noise_kind: The type of noise to use for the DP calculations.
+        max_partitions_contributed: A bound on the number of partitions to which one
+          unit of privacy (e.g., a user) can contribute.
+        max_contributions_per_partition: A bound on the number of times one unit of
+          privacy (e.g. a user) can contribute to a partition.
+        max_contributions: A bound on the total number of times one unit of privacy
+          (e.g., a user) can contribute.
+        budget_weight: Relative weight of the privacy budget allocated to this
+          aggregation.
+        min_value: Lower bound on each value.
+        max_value: Upper bound on each value.
+        custom_combiners: Warning: experimental@ Combiners for computing custom
+          metrics.
+        vector_norm_kind: The type of norm. Used only for VECTOR_SUM metric
+        calculations.
+        vector_max_norm: Bound on each value of a vector. Used only for
+         VECTOR_SUM metric calculations.
+        vector_size: Number of coordinates in a vector. Used only for VECTOR_SUM
+         metric calculations.
+        contribution_bounds_already_enforced: assume that the input dataset
+         complies with the bounds provided in max_partitions_contributed and
+         max_contributions_per_partition. This option can be used if the dataset
+         does not contain any identifiers that can be used to enforce
+         contribution bounds automatically.
+    """
     metrics: Iterable[Metrics]
-    max_contributions: Optional[int] = None
+    noise_kind: NoiseKind = NoiseKind.LAPLACE
     max_partitions_contributed: Optional[int] = None
     max_contributions_per_partition: Optional[int] = None
+    max_contributions: Optional[int] = None
     budget_weight: float = 1
     low: float = None  # deprecated
     high: float = None  # deprecated
     min_value: float = None
     max_value: float = None
     public_partitions: Any = None  # deprecated
-    noise_kind: NoiseKind = NoiseKind.LAPLACE
     custom_combiners: Iterable['CustomCombiner'] = None
     vector_norm_kind: NormKind = NormKind.Linf
     vector_max_norm: float = None
@@ -214,13 +217,11 @@ class SumParams:
             unit of privacy (e.g., a user) can contribute.
         max_contributions_per_partition: A bound on the number of times one unit of
             privacy (e.g. a user) can contribute to a partition.
-        low: Lower bound on each value.
-        high: Upper bound on each value.
-        public_partitions: A collection of partition keys that will be present in
-            the result. Optioanl.
+        min_value: Lower bound on each value.
+        max_value: Upper bound on each value.
         partition_extractor: A function which, given an input element, will return its partition id.
         value_extractor: A function which, given an input element, will return its value.
-  """
+    """
     max_partitions_contributed: int
     max_contributions_per_partition: int
     min_value: float

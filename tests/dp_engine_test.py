@@ -69,7 +69,7 @@ class DpEngineTest(parameterized.TestCase):
 
         dp_engine = self.create_dp_engine_default()
         bound_result = list(
-            dp_engine._bound_per_user_contributions(
+            dp_engine._bound_per_privacy_id_contributions(
                 input_col,
                 max_contributions=max_contributions,
                 aggregator_fn=DpEngineTest.aggregator_fn))
@@ -83,7 +83,7 @@ class DpEngineTest(parameterized.TestCase):
 
         dp_engine = self.create_dp_engine_default()
         bound_result = list(
-            dp_engine._bound_per_user_contributions(
+            dp_engine._bound_per_privacy_id_contributions(
                 input_col,
                 max_contributions=max_contributions,
                 aggregator_fn=DpEngineTest.aggregator_fn))
@@ -99,7 +99,7 @@ class DpEngineTest(parameterized.TestCase):
 
         dp_engine = self.create_dp_engine_default()
         bound_result = list(
-            dp_engine._bound_per_user_contributions(
+            dp_engine._bound_per_privacy_id_contributions(
                 input_col,
                 max_contributions=max_contributions,
                 aggregator_fn=DpEngineTest.aggregator_fn))
