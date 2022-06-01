@@ -88,9 +88,7 @@ class DpEngineTest(parameterized.TestCase):
     def _create_params_default(self):
         return (pipeline_dp.AggregateParams(
             noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
-            metrics=[
-                agg.Metrics.COUNT, agg.Metrics.SUM, agg.Metrics.PRIVACY_ID_COUNT
-            ],
+            metrics=[agg.Metrics.COUNT, agg.Metrics.SUM, agg.Metrics.MEAN],
             min_value=0,
             max_value=1,
             max_partitions_contributed=1,
@@ -587,7 +585,7 @@ class DpEngineTest(parameterized.TestCase):
 
         # Assert.
         mock_bound_contributions.assert_not_called()
-        mock_bound_contributions.assert_not_called()
+        mock_bound_per_privacy_id_contributions.assert_not_called()
         mock_select_private_partitions_internal.assert_called_once()
         actual_max_rows_per_privacy_id = mock_select_private_partitions_internal.call_args[
             0][2]
@@ -620,19 +618,6 @@ class DpEngineTest(parameterized.TestCase):
         self.assertLen(col, len(public_partitions))
         values = [x[1].sum for x in col]
         self.assertSequenceAlmostEqual(values, [1.0] * len(public_partitions))
-
-    def test_contribution_bounds_already_enforced_no_contrib_bounding(
-            self, mock_bound_per_privacy_id_contributions,
-            mock_bound_contributions):
-        engine = self._create_dp_engine_default()
-        aggregate_params, _ = self._create_params_default()
-        aggregate_params.contribution_bounds_already_enforced = True
-        data_extractors = self._get_default_extractors()
-        data_extractors.privacy_id_extractor = None
-
-        engine.aggregate([1], aggregate_params, data_extractors)
-        mock_bound_contributions.assert_not_called()
-        mock_bound_contributions.assert_not_called()
 
     def test_select_partitions(self):
         # This test is probabilistic, but the parameters were chosen to ensure
