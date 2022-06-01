@@ -13,7 +13,7 @@
 # limitations under the License.
 import abc
 import copy
-from typing import Iterable, Sized, Tuple, List, Union
+from typing import Callable, Iterable, Sized, Tuple, List, Union
 
 import pipeline_dp
 from pipeline_dp import dp_computations
@@ -367,6 +367,10 @@ class VarianceCombiner(Combiner):
 
     def metrics_names(self) -> List[str]:
         return self._metrics_to_compute
+
+    def explain_computation(self) -> Callable:
+        return lambda: f"Computed variance with (eps={self._params.eps} delta={self._params.delta})"
+
 
 
 # Cache for namedtuple types. It should be used only in

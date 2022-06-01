@@ -47,6 +47,9 @@ class DPEngine:
         self._backend = backend
         self._report_generators = []
 
+    def _add_report_stage(self, lines):
+        self._report_generators[-1].add_stage(lines)
+
     def _add_report_stages(self, lines):
         self._report_generators[-1].add_stages(lines)
 
