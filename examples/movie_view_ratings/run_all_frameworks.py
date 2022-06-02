@@ -79,8 +79,7 @@ def calc_dp_rating_metrics(movie_views, backend, public_partitions):
             pipeline_dp.Metrics.MEAN, pipeline_dp.Metrics.VARIANCE
         ] + ([pipeline_dp.Metrics.PRIVACY_ID_COUNT]
              if not FLAGS.contribution_bounds_already_enforced else []),
-        max_partitions_contributed=2,
-        max_contributions_per_partition=1,
+        max_contributions=10,
         min_value=1,
         max_value=5,
         contribution_bounds_already_enforced=FLAGS.

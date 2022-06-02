@@ -466,6 +466,8 @@ class DPEngine:
 
 def _check_aggregate_params(col, params: pipeline_dp.AggregateParams,
                             data_extractors: DataExtractors):
+    if params.max_contributions is not None:
+        raise NotImplementedError("max_contributions is not supported yet.")
     if col is None or not col:
         raise ValueError("col must be non-empty")
     if params is None:
