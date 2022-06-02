@@ -100,6 +100,7 @@ class AggregateParams:
     vector_max_norm: float = None
     vector_size: int = None
     contribution_bounds_already_enforced: bool = False
+    mechanism_type: str = MechanismType.GENERIC
 
     def __post_init__(self):
         if self.low is not None:
