@@ -29,4 +29,4 @@ from pipeline_dp.pipeline_backend import LocalBackend
 from pipeline_dp.pipeline_backend import SparkRDDBackend
 from pipeline_dp.aggregate_params import NormKind
 
-__version__ = '0.1.1'
+__version__ = '0.2.0'
