@@ -115,26 +115,26 @@ class AggregateParams:
             if needs_min_max_value and (self.min_value is None or
                                         self.max_value is None):
                 raise ValueError(
-                    "params.min_value and params.max_value must be set")
+                    "AggregateParams: min_value and max_value must be set")
             if needs_min_max_value and (_not_a_proper_number(self.min_value) or
                                         _not_a_proper_number(self.max_value)):
                 raise ValueError(
-                    "params.min_value and params.max_value must be both finite numbers"
-                )
+                    "AggregateParams: min_value and max_value must be both "
+                    "finite numbers")
             if needs_min_max_value and self.max_value < self.min_value:
                 raise ValueError(
-                    "params.max_value must be equal to or greater than params.min_value"
-                )
+                    "AggregateParams: max_value must be equal to or greater than"
+                    " min_value")
             if Metrics.VECTOR_SUM in self.metrics and \
             (Metrics.SUM in self.metrics or \
             Metrics.MEAN in self.metrics or \
             Metrics.VARIANCE in self.metrics):
                 raise ValueError(
-                    "Vector sum can not be computed together with scalar metrics, like sum, mean etc"
-                )
+                    "AggregateParams: vector sum can not be computed together "
+                    "with scalar metrics, like sum, mean etc")
             if self.contribution_bounds_already_enforced and Metrics.PRIVACY_ID_COUNT in self.metrics:
                 raise ValueError(
-                    "Cannot calculate PRIVACY_ID_COUNT when "
+                    "AggregateParams: Cannot calculate PRIVACY_ID_COUNT when "
                     "contribution_bounds_already_enforced is set to True.")
         if self.custom_combiners:
             logging.warning("Warning: custom combiners are used. This is an "
@@ -151,24 +151,30 @@ class AggregateParams:
                 "AggregateParams.public_partitions is deprecated. Please use public_partitions argument in DPEngine.aggregate insead."
             )
         if self.max_contributions is not None:
-            _check_positive_int(self.max_contributions, "max_contributions")
+            _check_is_positive_int(self.max_contributions, "max_contributions")
             if ((self.max_partitions_contributed is not None) or
                 (self.max_contributions_per_partition is not None)):
                 raise ValueError(
-                    "Only one in params.max_contributions or "
-                    "(params.max_partitions_contributed and "
-                    "params.max_contributions_per_partition) must be set")
-        else:
-            if (self.max_partitions_contributed is None or
-                    self.max_contributions_per_partition is None):
+                    "AggregateParams: only one in max_contributions or "
+                    "(max_partitions_contributed and "
+                    "max_contributions_per_partition) must be set")
+        else:  # self.max_contributions is None
+            n_not_none = _count_not_none(self.max_partitions_contributed,
+                                         self.max_contributions_per_partition)
+            if n_not_none == 0:
                 raise ValueError(
-                    "Either params.max_contributions must be set or "
-                    "(params.max_partitions_contributed and "
-                    "params.max_contributions_per_partition) must be set.")
-            _check_positive_int(self.max_partitions_contributed,
-                                "max_partitions_contributed")
-            _check_positive_int(self.max_contributions_per_partition,
-                                "max_contributions_per_partition")
+                    "AggregateParams: either max_contributions must be set or "
+                    "(max_partitions_contributed and "
+                    "max_contributions_per_partition) must be set.")
+            elif n_not_none == 1:
+                raise ValueError(
+                    "AggregateParams: either none or both from "
+                    "max_partitions_contributed and "
+                    " max_contributions_per_partition must be set.")
+            _check_is_positive_int(self.max_partitions_contributed,
+                                   "max_partitions_contributed")
+            _check_is_positive_int(self.max_contributions_per_partition,
+                                   "max_contributions_per_partition")
 
     def __str__(self):
         if self.custom_combiners:
@@ -375,7 +381,11 @@ def _not_a_proper_number(num: Any) -> bool:
     return math.isnan(num) or math.isinf(num)
 
 
-def _check_positive_int(num: Any, field_name: str) -> bool:
+def _check_is_positive_int(num: Any, field_name: str) -> bool:
     if not (isinstance(num, int) and num > 0):
         raise ValueError(
             f"{field_name} has to be positive integer, but {num} given.")
+
+
+def _count_not_none(*args):
+    return sum([1 for arg in args if arg is not None])
