@@ -447,7 +447,8 @@ class DPEngine:
             privacy_id_count = divide_and_round_up(row_count,
                                                    max_rows_per_privacy_id)
 
-            partition_selection_strategy = lambda create_partition_strategy: create_partition_strategy(budget.eps, budget.delta, max_partitions).should_keep(privacy_id_count)
+            def partition_selection_strategy(create_partition_strategy):
+                return create_partition_strategy(budget.eps, budget.delta, max_partitions).should_keep(privacy_id_count)
             if mechanism_type == pipeline_dp.MechanismType.GENERIC:
               return partition_selection_strategy(partition_selection.create_truncated_geometric_partition_strategy)
             elif mechanism_type == pipeline_dp.MechanismType.LAPLACE:

@@ -83,6 +83,7 @@ class AggregateParams:
          max_contributions_per_partition. This option can be used if the dataset
          does not contain any identifiers that can be used to enforce
          contribution bounds automatically.
+        mechanism_type: Used for partition selection strategy.
     """
     metrics: Iterable[Metrics]
     noise_kind: NoiseKind = NoiseKind.LAPLACE
