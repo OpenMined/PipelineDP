@@ -156,16 +156,16 @@ class AggregateParams:
                 (self.max_contributions_per_partition is not None)):
                 raise ValueError(
                     "AggregateParams: only one in max_contributions or "
-                    "(max_partitions_contributed and "
-                    "max_contributions_per_partition) must be set")
+                    "both max_partitions_contributed and "
+                    "max_contributions_per_partition must be set")
         else:  # self.max_contributions is None
             n_not_none = _count_not_none(self.max_partitions_contributed,
                                          self.max_contributions_per_partition)
             if n_not_none == 0:
                 raise ValueError(
                     "AggregateParams: either max_contributions must be set or "
-                    "(max_partitions_contributed and "
-                    "max_contributions_per_partition) must be set.")
+                    "both max_partitions_contributed and "
+                    "max_contributions_per_partition must be set.")
             elif n_not_none == 1:
                 raise ValueError(
                     "AggregateParams: either none or both from "
