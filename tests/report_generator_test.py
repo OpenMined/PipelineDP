@@ -23,14 +23,23 @@ from pipeline_dp.report_generator import ReportGenerator
 class ReportGeneratorTest(unittest.TestCase):
 
     def test_report_empty(self):
-        self.assertEqual("", ReportGenerator(None).report())
+        self.assertEqual("", ReportGenerator(None, "test_method").report())
 
     def test_report_params(self):
-        test_report = ("Differentially private: Computing <Metrics: "
-                       "['privacy_id_count', 'count', 'mean', 'sum']>"
-                       "\n1. Eat between (1, 5) snacks"
-                       "\n2. Eat a maximum of snack varieties total: 2"
-                       "\n3. Eat a maximum of a single snack variety: 1")
+        expected_report = (
+            "DPEngine method: test_method\n"
+            "AggregateParams:\n"
+            " metrics=['privacy_id_count', 'count', 'mean', 'sum']\n"
+            " noise_kind=gaussian\n"
+            " budget_weight=1\n"
+            " Contribution bounding:\n"
+            "  max_partitions_contributed=2\n"
+            "  max_contributions_per_partition=1\n"
+            "  min_value=1\n"
+            "  max_value=5\n"
+            "Computation graph:\n"
+            " 1. Stage1 \n"
+            " 2. Stage2")
         params = AggregateParams(noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
                                  max_partitions_contributed=2,
                                  max_contributions_per_partition=1,
@@ -40,19 +49,10 @@ class ReportGeneratorTest(unittest.TestCase):
                                      Metrics.PRIVACY_ID_COUNT, Metrics.COUNT,
                                      Metrics.MEAN, Metrics.SUM
                                  ])
-        generated_report = aggregate_stub(params)
-        self.assertIn(test_report, generated_report)
-
-
-def aggregate_stub(params: AggregateParams) -> str:
-    report_generator = ReportGenerator(params)
-    report_generator.add_stage(
-        f"Eat between {params.min_value, params.max_value} snacks")
-    report_generator.add_stage(("Eat a maximum of snack varieties total: "
-                                f"{params.max_partitions_contributed}"))
-    report_generator.add_stage(("Eat a maximum of a single snack variety: "
-                                f"{params.max_contributions_per_partition}"))
-    return report_generator.report()
+        report_generator = ReportGenerator(params, "test_method")
+        report_generator.add_stage("Stage1 ")  # add string
+        report_generator.add_stage(lambda: "Stage2")  # add lambda returning str
+        self.assertEqual(expected_report, report_generator.report())
 
 
 if __name__ == "__main__":
