@@ -791,6 +791,9 @@ class SumCombiner(dp_combiners.Combiner):
     def metrics_names(self) -> List[str]:
         return ['sum']
 
+    def explain_computation(self) -> str:
+        return "Compute non-dp Sum for tests"
+
 
 if __name__ == '__main__':
     unittest.main()
