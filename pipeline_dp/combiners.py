@@ -197,6 +197,7 @@ class CountCombiner(Combiner):
         return ['count']
 
     def explain_computation(self) -> str:
+        # TODO: add information in this and others combiners about amount of noise.
         return lambda: f"Computed count with (eps={self._params.eps} delta={self._params.delta})"
 
 
@@ -539,6 +540,7 @@ class VectorSumCombiner(Combiner):
         return ['vector_sum']
 
     def explain_computation(self) -> str:
+        # TODO: add information about vector size, norm, amount of noise.
         lambda: f"Computed vector sum with (eps={self._params.eps} delta={self._params.delta})"
 
 
