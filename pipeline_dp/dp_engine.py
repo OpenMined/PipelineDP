@@ -84,6 +84,9 @@ class DPEngine:
         _check_aggregate_params(col, params, data_extractors)
 
         with self._budget_accountant.scope(weight=params.budget_weight):
+            self._report_generators.append(
+                report_generator.ReportGenerator(params, "aggregate",
+                                                 public_partitions is not None))
             col = self._aggregate(col, params, data_extractors,
                                   public_partitions)
             budget = self._budget_accountant._compute_budget_for_aggregation(
@@ -95,8 +98,6 @@ class DPEngine:
 
     def _aggregate(self, col, params: pipeline_dp.AggregateParams,
                    data_extractors: DataExtractors, public_partitions):
-
-        self._report_generators.append(report_generator.ReportGenerator(params))
 
         if params.custom_combiners:
             # TODO(dvadym): after finishing implementation of custom combiners
@@ -211,6 +212,8 @@ class DPEngine:
         self._check_select_private_partitions(col, params, data_extractors)
 
         with self._budget_accountant.scope(weight=params.budget_weight):
+            self._report_generators.append(
+                report_generator.ReportGenerator(params, "select_partitions"))
             col = self._select_partitions(col, params, data_extractors)
             budget = self._budget_accountant._compute_budget_for_aggregation(
                 params.budget_weight)
@@ -223,7 +226,6 @@ class DPEngine:
                            params: pipeline_dp.SelectPartitionsParams,
                            data_extractors: DataExtractors):
         """Implementation of select_partitions computational graph."""
-        self._report_generators.append(report_generator.ReportGenerator(params))
         max_partitions_contributed = params.max_partitions_contributed
 
         # Extract the columns.
@@ -469,7 +471,7 @@ class DPEngine:
         self._add_report_stage(
             lambda:
             f"Private Partition selection: using {budget.mechanism_type.value} "
-            f"method with (eps= {budget.eps}, delta = {budget.delta})")
+            f"method with (eps={budget.eps}, delta={budget.delta})")
 
         return self._backend.filter(col, filter_fn, "Filter private partitions")
 

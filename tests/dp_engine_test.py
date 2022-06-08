@@ -22,6 +22,7 @@ import numpy as np
 import pydp.algorithms.partition_selection as partition_selection
 from absl.testing import absltest
 from absl.testing import parameterized
+from typing import List
 
 import pipeline_dp
 from pipeline_dp import aggregate_params as agg
@@ -371,6 +372,12 @@ class DpEngineTest(parameterized.TestCase):
                 engine.aggregate(test_case["col"], test_case["params"],
                                  test_case["data_extractor"])
 
+    def _check_string_contains_strings(self, string: str,
+                                       substrings: List[str]):
+        print(string)
+        for substring in substrings:
+            self.assertContainsSubsequence(string, substring)
+
     def test_aggregate_report(self):
         col = [[1], [2], [3], [3]]
         data_extractor = pipeline_dp.DataExtractors(
@@ -409,25 +416,36 @@ class DpEngineTest(parameterized.TestCase):
         engine.select_partitions(col, select_partitions_params, data_extractor)
         self.assertEqual(3, len(engine._report_generators))  # pylint: disable=protected-access
         budget_accountant.compute_budgets()
-        self.assertEqual(
+        self._check_string_contains_strings(
             engine._report_generators[0].report(),
-            "Differentially private: Computing <Metrics: ['privacy_id_count', 'count', 'mean']>"
-            "\n1. Per-partition contribution bounding: randomly selected not more than 2 contributions"
-            "\n2. Cross-partition contribution bounding: randomly selected not more than 3 partitions per privacy id"
-            "\n3. Private Partition selection: using Truncated Geometric method with (eps= 0.1111111111111111, delta = 1.1111111111111111e-11)"
+            [
+                "DPEngine method: aggregate",
+                "metrics=['privacy_id_count', 'count', 'mean']",
+                " noise_kind=gaussian", "max_value=5",
+                "Partition selection: private partitions",
+                "Per-partition contribution bounding: randomly selected not more than 2 contributions",
+                "Private Partition selection: using Truncated Geometric method with (eps="
+            ],
         )
-        self.assertEqual(
+
+        self._check_string_contains_strings(
             engine._report_generators[1].report(),
-            "Differentially private: Computing <Metrics: ['sum', 'mean']>"
-            "\n1. Public partition selection: dropped non public partitions"
-            "\n2. Per-partition contribution bounding: randomly selected not more than 3 contributions"
-            "\n3. Cross-partition contribution bounding: randomly selected not more than 1 partitions per privacy id"
-            "\n4. Adding empty partitions to public partitions that are missing in data"
+            [
+                "metrics=['sum', 'mean']", " noise_kind=gaussian",
+                "max_value=5", "Partition selection: public partitions",
+                "Per-partition contribution bounding: randomly selected not more than 3 contributions",
+                "Adding empty partitions to public partitions that are missing in data"
+            ],
         )
-        self.assertEqual(
+
+        self._check_string_contains_strings(
             engine._report_generators[2].report(),
-            "Differentially private: Computing <Private Partitions>"
-            "\n1. Private Partition selection: using Truncated Geometric method with (eps= 0.3333333333333333, delta = 3.3333333333333335e-11)"
+            [
+                "DPEngine method: select_partitions",
+                " budget_weight=1",
+                "max_partitions_contributed=2",
+                "Private Partition selection: using Truncated Geometric method with",
+            ],
         )
 
     @patch('pipeline_dp.DPEngine._bound_contributions')
@@ -806,7 +824,8 @@ class DpEngineTest(parameterized.TestCase):
             metrics=[],
             max_partitions_contributed=1,
             max_contributions_per_partition=1)
-        dp_engine._report_generators.append(ReportGenerator(aggregator_params))
+        dp_engine._report_generators.append(
+            ReportGenerator(aggregator_params, method_name="test"))
         dp_engine._add_report_stage("DP Engine Test")
         return dp_engine
 

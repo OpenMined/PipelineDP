@@ -196,7 +196,7 @@ class CountCombiner(Combiner):
     def metrics_names(self) -> List[str]:
         return ['count']
 
-    def explain_computation(self):
+    def explain_computation(self) -> str:
         return lambda: f"Computed count with (eps={self._params.eps} delta={self._params.delta})"
 
 
@@ -227,7 +227,7 @@ class PrivacyIdCountCombiner(Combiner):
     def metrics_names(self) -> List[str]:
         return ['privacy_id_count']
 
-    def explain_computation(self):
+    def explain_computation(self) -> str:
         return lambda: f"Computed privacy id count with (eps={self._params.eps} delta={self._params.delta})"
 
 
@@ -259,7 +259,7 @@ class SumCombiner(Combiner):
     def metrics_names(self) -> List[str]:
         return ['sum']
 
-    def explain_computation(self):
+    def explain_computation(self) -> str:
         return lambda: f"Computed sum with (eps={self._params.eps} delta={self._params.delta})"
 
 
@@ -311,7 +311,7 @@ class MeanCombiner(Combiner):
     def metrics_names(self) -> List[str]:
         return self._metrics_to_compute
 
-    def explain_computation(self):
+    def explain_computation(self) -> str:
         return lambda: f"Computed mean with (eps={self._params.eps} delta={self._params.delta})"
 
 
@@ -493,7 +493,7 @@ class CompoundCombiner(Combiner):
     def metrics_names(self) -> List[str]:
         return self._metrics_to_compute
 
-    def explain_computation(self):
+    def explain_computation(self) -> str:
         return [combiner.explain_computation() for combiner in self._combiners]
 
 
@@ -537,6 +537,9 @@ class VectorSumCombiner(Combiner):
 
     def metrics_names(self) -> List[str]:
         return ['vector_sum']
+
+    def explain_computation(self) -> str:
+        lambda: f"Computed vector sum with (eps={self._params.eps} delta={self._params.delta})"
 
 
 def create_compound_combiner(

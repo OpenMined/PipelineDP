@@ -15,7 +15,7 @@
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Iterable, Callable, Union, Optional
+from typing import Any, Iterable, Sequence, Callable, Union, Optional, List
 import math
 import logging
 
@@ -84,7 +84,7 @@ class AggregateParams:
          does not contain any identifiers that can be used to enforce
          contribution bounds automatically.
     """
-    metrics: Iterable[Metrics]
+    metrics: List[Metrics]
     noise_kind: NoiseKind = NoiseKind.LAPLACE
     max_partitions_contributed: Optional[int] = None
     max_contributions_per_partition: Optional[int] = None
@@ -95,11 +95,17 @@ class AggregateParams:
     min_value: float = None
     max_value: float = None
     public_partitions: Any = None  # deprecated
-    custom_combiners: Iterable['CustomCombiner'] = None
-    vector_norm_kind: NormKind = NormKind.Linf
-    vector_max_norm: float = None
-    vector_size: int = None
+    custom_combiners: Sequence['CustomCombiner'] = None
+    vector_norm_kind: Optional[NormKind] = None
+    vector_max_norm: Optional[float] = None
+    vector_size: Optional[int] = None
     contribution_bounds_already_enforced: bool = False
+
+    @property
+    def metrics_str(self) -> str:
+        if self.custom_combiners:
+            return f"custom combiners={[c.metrics_names() for c in self.custom_combiners]}"
+        return f"metrics={[m.value for m in self.metrics]}"
 
     def __post_init__(self):
         if self.low is not None:
@@ -177,9 +183,7 @@ class AggregateParams:
                                    "max_contributions_per_partition")
 
     def __str__(self):
-        if self.custom_combiners:
-            return f"Custom combiners: {[c.metrics_names() for c in self.custom_combiners]}"
-        return f"Metrics: {[m.value for m in self.metrics]}"
+        return parameters_to_readable_string(self)
 
 
 @dataclass
@@ -365,7 +369,7 @@ class PrivacyIdCountParams:
     max_partitions_contributed: int
     partition_extractor: Callable
     budget_weight: float = 1
-    public_partitions: Union[Iterable, 'PCollection',
+    public_partitions: Union[Sequence, 'PCollection',
                              'RDD'] = None  # deprecated
 
     def __post_init__(self):
@@ -389,3 +393,45 @@ def _check_is_positive_int(num: Any, field_name: str) -> bool:
 
 def _count_not_none(*args):
     return sum([1 for arg in args if arg is not None])
+
+
+def _add_if_obj_has_property(obj: Any, property_name: str, n_spaces,
+                             res: List[str]):
+    if not hasattr(obj, property_name):
+        return
+    value = getattr(obj, property_name)
+    if value is None:
+        return
+    res.append(" " * n_spaces + f"{property_name}={value}")
+
+
+def parameters_to_readable_string(params,
+                                  is_public_partition: Optional[bool] = None
+                                 ) -> str:
+    result = [f"{type(params).__name__}:"]
+    if hasattr(params, "metrics_str"):
+        result.append(f" {params.metrics_str}")
+    if hasattr(params, "noise_kind"):
+        result.append(f" noise_kind={params.noise_kind.value}")
+    if hasattr(params, "budget_weight"):
+        result.append(f" budget_weight={params.budget_weight}")
+    result.append(f" Contribution bounding:")
+    _add_if_obj_has_property(params, "max_partitions_contributed", 2, result)
+    _add_if_obj_has_property(params, "max_contributions_per_partition", 2,
+                             result)
+    _add_if_obj_has_property(params, "max_contributions", 2, result)
+    _add_if_obj_has_property(params, "min_value", 2, result)
+    _add_if_obj_has_property(params, "max_value", 2, result)
+    if hasattr(params, "contribution_bounds_already_enforced"
+              ) and params.contribution_bounds_already_enforced:
+        result.append("  contribution_bounds_already_enforced=True")
+    _add_if_obj_has_property(params, "vector_max_norm", 2, result)
+    _add_if_obj_has_property(params, "vector_size", 2, result)
+    _add_if_obj_has_property(params, "vector_norm_kind", 2, result)
+
+    if is_public_partition is not None:
+        type_str = ("public"
+                    if is_public_partition else "private") + " partitions"
+        result.append(f" Partition selection: {type_str}")
+
+    return "\n".join(result)
