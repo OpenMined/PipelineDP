@@ -372,7 +372,6 @@ class VarianceCombiner(Combiner):
         return lambda: f"Computed variance with (eps={self._params.eps} delta={self._params.delta})"
 
 
-
 # Cache for namedtuple types. It should be used only in
 # '_get_or_create_named_tuple()' function.
 _named_tuple_cache = {}
