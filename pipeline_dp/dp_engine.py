@@ -47,11 +47,12 @@ class DPEngine:
         self._backend = backend
         self._report_generators = []
 
-    def _add_report_stage(self, lines):
-        self._report_generators[-1].add_stage(lines)
+    def _add_report_stage(self, stage_description):
+        self._report_generators[-1].add_stage(stage_description)
 
-    def _add_report_stages(self, lines):
-        self._report_generators[-1].add_stages(lines)
+    def _add_report_stages(self, stages_description):
+        for stage_description in stages_description:
+            self._add_report_stage(stage_description)
 
     def explain_computations_report(self):
         return [

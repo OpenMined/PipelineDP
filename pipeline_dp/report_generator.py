@@ -15,7 +15,7 @@
 
 from pipeline_dp import aggregate_params as agg
 
-from typing import Optional
+from typing import Optional, Union, Callable
 
 
 class ReportGenerator:
@@ -38,13 +38,9 @@ class ReportGenerator:
         self._method_name = method_name
         self._stages = []
 
-    def add_stage(self, text: str):  #not text
+    def add_stage(self, stage_description: Union[Callable, str]):
         """Add a stage description to the report."""
-        self._stages.append(text)
-
-    def add_stages(self, lines):
-        """Add a stage description to the report."""
-        self._stages.extend(lines)
+        self._stages.append(stage_description)
 
     def report(self) -> str:
         """Constructs a report based on stages and metrics."""
