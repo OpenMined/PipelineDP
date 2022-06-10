@@ -16,6 +16,7 @@ from pipeline_dp.aggregate_params import CountParams
 from pipeline_dp.aggregate_params import MechanismType
 from pipeline_dp.aggregate_params import Metrics
 from pipeline_dp.aggregate_params import NoiseKind
+from pipeline_dp.aggregate_params import PartitionSelectionMethod
 from pipeline_dp.aggregate_params import PrivacyIdCountParams
 from pipeline_dp.aggregate_params import SelectPartitionsParams
 from pipeline_dp.aggregate_params import SumParams

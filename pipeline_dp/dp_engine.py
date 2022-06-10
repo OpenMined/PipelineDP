@@ -156,7 +156,8 @@ class DPEngine:
                 max_rows_per_privacy_id = params.max_contributions_per_partition
 
             col = self._select_private_partitions_internal(
-                col, params.max_partitions_contributed, max_rows_per_privacy_id, params.mechanism_type)
+                col, params.max_partitions_contributed, max_rows_per_privacy_id,
+                params.partition_selection_method)
         # col : (partition_key, accumulator)
 
         # Compute DP metrics.
@@ -411,10 +412,13 @@ class DPEngine:
         return self._backend.flat_map(
             col, unnest_cross_partition_bound_sampled_per_key, "Unnest")
 
-    def _select_private_partitions_internal(self, col,
-                                            max_partitions_contributed: int,
-                                            max_rows_per_privacy_id: int,
-                                            mechanism_type: str = pipeline_dp.MechanismType.GENERIC):
+    def _select_private_partitions_internal(
+        self,
+        col,
+        max_partitions_contributed: int,
+        max_rows_per_privacy_id: int,
+        partition_selection_method: str = pipeline_dp.PartitionSelectionMethod.
+        GENERIC):
         """Selects and publishes private partitions.
 
         Args:
@@ -422,12 +426,13 @@ class DPEngine:
                 (partition_key, Accumulator)
             max_partitions_contributed: maximum amount of partitions that one
             privacy unit might contribute.
+            partition_selection_method: Used for partition selection strategy.
 
         Returns:
             collection of elements (partition_key, accumulator).
         """
         budget = self._budget_accountant.request_budget(
-            mechanism_type=mechanism_type)
+            mechanism_type=pipeline_dp.MechanismType.GENERIC)
 
         def filter_fn(
             budget: 'MechanismSpec', max_partitions: int,
@@ -447,14 +452,10 @@ class DPEngine:
             privacy_id_count = divide_and_round_up(row_count,
                                                    max_rows_per_privacy_id)
 
-            def partition_selection_strategy(create_partition_strategy):
-                return create_partition_strategy(budget.eps, budget.delta, max_partitions).should_keep(privacy_id_count)
-            if mechanism_type == pipeline_dp.MechanismType.GENERIC:
-              return partition_selection_strategy(partition_selection.create_truncated_geometric_partition_strategy)
-            elif mechanism_type == pipeline_dp.MechanismType.LAPLACE:
-              return partition_selection_strategy(partition_selection.create_laplace_partition_strategy)
-            elif mechanism_type == pipeline_dp.MechanismType.GAUSSIAN:
-              return partition_selection_strategy(partition_selection.create_gaussian_partition_strategy)
+            partition_selection_strategy = partition_selection.create_partition_strategy(
+                partition_selection_method.value, budget.eps, budget.delta,
+                max_partitions)
+            return partition_selection_strategy.should_keep(privacy_id_count)
 
         # make filter_fn serializable
         filter_fn = functools.partial(filter_fn, budget,

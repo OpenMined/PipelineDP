@@ -53,6 +53,12 @@ class NormKind(Enum):
     L2 = "l2"
 
 
+class PartitionSelectionMethod(Enum):
+    LAPLACE = 'Laplace'
+    GAUSSIAN = 'Gaussian'
+    GENERIC = 'Truncated_Geometric'
+
+
 @dataclass
 class AggregateParams:
     """Specifies parameters for function DPEngine.aggregate()
@@ -83,7 +89,7 @@ class AggregateParams:
          max_contributions_per_partition. This option can be used if the dataset
          does not contain any identifiers that can be used to enforce
          contribution bounds automatically.
-        mechanism_type: Used for partition selection strategy.
+        partition_selection_method: Used for partition selection strategy.
     """
     metrics: Iterable[Metrics]
     noise_kind: NoiseKind = NoiseKind.LAPLACE
@@ -101,7 +107,7 @@ class AggregateParams:
     vector_max_norm: float = None
     vector_size: int = None
     contribution_bounds_already_enforced: bool = False
-    mechanism_type: str = MechanismType.GENERIC
+    partition_selection_method: str = PartitionSelectionMethod.GENERIC
 
     def __post_init__(self):
         if self.low is not None:
