@@ -245,6 +245,7 @@ class SumParams:
                 "SumParams.public_partitions is deprecated. Please read API documentation for anonymous Sum transform."
             )
 
+
 @dataclass
 class VectorSumParams:
     """Specifies parameters for differentially-private vector summation calculation.

@@ -99,7 +99,7 @@ class VectorSum(PrivatePTransform):
     def __init__(self,
                  vector_sum_params: aggregate_params.VectorSumParams,
                  label: Optional[str] = None,
-                 public_partitions = None):
+                 public_partitions=None):
         super().__init__(return_anonymized=True, label=label)
         self._vector_sum_params = vector_sum_params
         self._public_partitions = public_partitions
@@ -126,8 +126,8 @@ class VectorSum(PrivatePTransform):
             partition_extractor=lambda x: self._vector_sum_params.
             partition_extractor(x[1]),
             privacy_id_extractor=lambda x: x[0],
-            value_extractor=lambda x: self._vector_sum_params.value_extractor(x[1]
-                                                                           ))
+            value_extractor=lambda x: self._vector_sum_params.value_extractor(x[
+                1]))
 
         dp_result = dp_engine.aggregate(pcol, params, data_extractors,
                                         self._public_partitions)
@@ -140,6 +140,7 @@ class VectorSum(PrivatePTransform):
         # dp_result : (partition_key, dp_vector_sum)
 
         return dp_result
+
 
 class Variance(PrivatePTransform):
     """Transform class for performing DP Variance on PrivatePCollection."""
