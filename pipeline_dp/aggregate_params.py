@@ -245,6 +245,42 @@ class SumParams:
                 "SumParams.public_partitions is deprecated. Please read API documentation for anonymous Sum transform."
             )
 
+@dataclass
+class VectorSumParams:
+    """Specifies parameters for differentially-private vector summation calculation.
+
+    Args:
+        noise_kind: The type of noise to use for the DP calculations.
+        max_partitions_contributed: A bound on the number of partitions to which one
+          unit of privacy (e.g., a user) can contribute.
+        max_contributions_per_partition: A bound on the number of times one unit of
+          privacy (e.g. a user) can contribute to a partition.
+              min_value: Lower bound on each value.
+        min_value: Lower bound on each value.
+        max_value: Upper bound on each value.
+        budget_weight: Relative weight of the privacy budget allocated to this
+          aggregation.
+        vector_norm_kind: The type of norm. Used only for VECTOR_SUM metric
+        calculations.
+        vector_max_norm: Bound on each value of a vector. Used only for
+         VECTOR_SUM metric calculations.
+        vector_size: Number of coordinates in a vector. Used only for VECTOR_SUM
+         metric calculations.
+        partition_extractor: A function which, given an input element, will return its partition id.
+        value_extractor: A function which, given an input element, will return its value.
+    """
+    partition_extractor: Callable
+    value_extractor: Callable
+    noise_kind: NoiseKind = NoiseKind.LAPLACE
+    max_partitions_contributed: Optional[int] = None
+    max_contributions_per_partition: Optional[int] = None
+    min_value: float = None
+    max_value: float = None
+    budget_weight: float = 1
+    vector_norm_kind: NormKind = NormKind.Linf
+    vector_max_norm: float = None
+    vector_size: int = None
+
 
 @dataclass
 class VarianceParams:

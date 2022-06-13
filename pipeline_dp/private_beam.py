@@ -93,6 +93,54 @@ class MakePrivate(PrivatePTransform):
         return PrivatePCollection(pcol, self._budget_accountant)
 
 
+class VectorSum(PrivatePTransform):
+    """Transform class for performing DP vector summation on PrivatePCollection."""
+
+    def __init__(self,
+                 vector_sum_params: aggregate_params.VectorSumParams,
+                 label: Optional[str] = None,
+                 public_partitions = None):
+        super().__init__(return_anonymized=True, label=label)
+        self._vector_sum_params = vector_sum_params
+        self._public_partitions = public_partitions
+
+    def expand(self, pcol: pvalue.PCollection) -> pvalue.PCollection:
+        backend = pipeline_dp.BeamBackend()
+        dp_engine = pipeline_dp.DPEngine(self._budget_accountant, backend)
+
+        params = aggregate_params.AggregateParams(
+            noise_kind=self._vector_sum_params.noise_kind,
+            metrics=[pipeline_dp.Metrics.VECTOR_SUM],
+            max_partitions_contributed=self._vector_sum_params.
+            max_partitions_contributed,
+            max_contributions_per_partition=self._vector_sum_params.
+            max_contributions_per_partition,
+            min_value=self._vector_sum_params.min_value,
+            max_value=self._vector_sum_params.max_value,
+            vector_norm_kind=self._vector_sum_params.vector_norm_kind,
+            vector_max_norm=self._vector_sum_params.vector_max_norm,
+            vector_size=self._vector_sum_params.vector_size,
+        )
+
+        data_extractors = pipeline_dp.DataExtractors(
+            partition_extractor=lambda x: self._vector_sum_params.
+            partition_extractor(x[1]),
+            privacy_id_extractor=lambda x: x[0],
+            value_extractor=lambda x: self._vector_sum_params.value_extractor(x[1]
+                                                                           ))
+
+        dp_result = dp_engine.aggregate(pcol, params, data_extractors,
+                                        self._public_partitions)
+        # dp_result : (partition_key, [dp_vector_sum])
+
+        # aggregate() returns a namedtuple of metrics for each partition key.
+        # Here is only one metric - vector summation. Extract it from the list.
+        dp_result = backend.map_values(dp_result, lambda v: v.vector_sum,
+                                       "Extract vector_sum")
+        # dp_result : (partition_key, dp_vector_sum)
+
+        return dp_result
+
 class Variance(PrivatePTransform):
     """Transform class for performing DP Variance on PrivatePCollection."""
 
