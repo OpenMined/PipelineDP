@@ -135,8 +135,8 @@ class PrivateBeamTest(unittest.TestCase):
         runner = fn_api_runner.FnApiRunner()
         with beam.Pipeline(runner=runner) as pipeline:
             # Arrange
-            pcol = pipeline | 'Create produce' >> beam.Create(
-                [[1, 2, 3],[4, 5, 6]])
+            pcol = pipeline | 'Create produce' >> beam.Create([[1, 2, 3],
+                                                               [4, 5, 6]])
             budget_accountant = budget_accounting.NaiveBudgetAccountant(
                 total_epsilon=1, total_delta=0.01)
             private_collection = (
@@ -153,11 +153,12 @@ class PrivateBeamTest(unittest.TestCase):
                 vector_max_norm=5,
                 vector_size=3,
                 partition_extractor=lambda x: f"pk:{x // 10}",
-                value_extractor=lambda x: x,)
+                value_extractor=lambda x: x,
+            )
 
             # Act
-            transformer = private_beam.VectorSum(vector_sum_params=vector_sum_params,
-                                                public_partitions=[])
+            transformer = private_beam.VectorSum(
+                vector_sum_params=vector_sum_params, public_partitions=[])
             private_collection | transformer
 
             # Assert
@@ -175,13 +176,14 @@ class PrivateBeamTest(unittest.TestCase):
                 max_contributions_per_partition,
                 vector_norm_kind=aggregate_params.NormKind.Linf,
                 vector_max_norm=5,
-                vector_size=3,)
+                vector_size=3,
+            )
             self.assertEqual(params, args[1])
 
     def test_vector_sum_returns_sensible_result(self):
         with TestPipeline() as pipeline:
             # Arrange
-            col = [(f"{u}", "pk1",[-100.0]) for u in range(30)]
+            col = [(f"{u}", "pk1", [-100.0]) for u in range(30)]
             col += [(f"{u + 30}", "pk1", [100.0]) for u in range(30)]
             pcol = pipeline | 'Create produce' >> beam.Create(col)
             # Use very high epsilon and delta to minimize noise and test
@@ -192,7 +194,7 @@ class PrivateBeamTest(unittest.TestCase):
                 pcol | 'Create private collection' >> private_beam.MakePrivate(
                     budget_accountant=budget_accountant,
                     privacy_id_extractor=lambda x: x[0]))
-      
+
             vector_sum_params = aggregate_params.VectorSumParams(
                 noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
                 max_partitions_contributed=2,
@@ -202,7 +204,8 @@ class PrivateBeamTest(unittest.TestCase):
                 vector_max_norm=5,
                 vector_size=1,
                 partition_extractor=lambda x: x[1],
-                value_extractor=lambda x: x[2],)
+                value_extractor=lambda x: x[2],
+            )
 
             # Act
             result = private_collection | private_beam.VectorSum(
