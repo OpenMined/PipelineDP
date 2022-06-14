@@ -115,8 +115,6 @@ class VectorSum(PrivatePTransform):
             max_partitions_contributed,
             max_contributions_per_partition=self._vector_sum_params.
             max_contributions_per_partition,
-            min_value=self._vector_sum_params.min_value,
-            max_value=self._vector_sum_params.max_value,
             vector_norm_kind=self._vector_sum_params.vector_norm_kind,
             vector_max_norm=self._vector_sum_params.vector_max_norm,
             vector_size=self._vector_sum_params.vector_size,
