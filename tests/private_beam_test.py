@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import collections
 import unittest
 import apache_beam as beam
 from apache_beam.runners.portability import fn_api_runner
@@ -40,6 +41,14 @@ class PrivateBeamTest(unittest.TestCase):
     def value_per_key_within_tolerance(expected, actual, tolerance):
         return actual[0] == expected[0] and abs(actual[1] -
                                                 expected[1]) <= tolerance
+
+    @staticmethod
+    def value_per_key_within_tolerance_named_tuple(expected, actual, tolerance):
+        expected_dict = expected._asdict()
+        actual_dict = actual._asdict()
+        return all([(actual_dict[k] == expected_dict[k]) or
+                    (abs(actual_dict[k] - expected_dict[k]) <= tolerance)
+                    for k in actual_dict])
 
     def test_make_private_transform_succeeds(self):
         runner = fn_api_runner.FnApiRunner()
@@ -889,6 +898,65 @@ class PrivateBeamTest(unittest.TestCase):
                 beam_util.equal_to([("pk1", 0.0)],
                                    equals_fn=lambda e, a: PrivateBeamTest.
                                    value_per_key_within_tolerance(e, a, 10.0)))
+
+    def test_multiple_aggregates(self):
+        with TestPipeline() as pipeline:
+            # Arrange
+            col = [(u, "pk1", 100) for u in range(30)]
+            col += [(f"{u + 20}", "pk2", 100) for u in range(30)]
+            col += [(f"{u + 30}", "pk1", -100.0) for u in range(30)]
+            pcol = pipeline | 'Create produce' >> beam.Create(col)
+            # Use very high epsilon and delta to minimize noise and test
+            # flakiness.
+            budget_accountant = budget_accounting.NaiveBudgetAccountant(
+                total_epsilon=800, total_delta=0.999)
+            private_collection = (
+                pcol | 'Create private collection' >> private_beam.MakePrivate(
+                    budget_accountant=budget_accountant,
+                    privacy_id_extractor=lambda x: x[0]))
+
+            privacy_id_count_params = aggregate_params.PrivacyIdCountParams(
+                noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+                max_partitions_contributed=2,
+                budget_weight=1,
+                partition_extractor=lambda x: x[1])
+            sum_params = aggregate_params.SumParams(
+                noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+                max_partitions_contributed=2,
+                max_contributions_per_partition=3,
+                min_value=1.55,
+                max_value=2.7889,
+                budget_weight=1,
+                partition_extractor=lambda x: x[1],
+                value_extractor=lambda x: x[2])
+
+            # Act
+            result = private_collection | private_beam.Aggregate(
+            ).aggregate_value(
+                privacy_id_count_params,
+                col_name='privacy_id_count',
+                agg_type=pipeline_dp.Metrics.PRIVACY_ID_COUNT).aggregate_value(
+                    sum_params,
+                    col_name='sum',
+                    agg_type=pipeline_dp.Metrics.SUM)
+            budget_accountant.compute_budgets()
+
+            # Assert
+            # This is a health check to validate that the result is sensible.
+            # Hence, we use a very large tolerance to reduce test flakiness.
+            beam_util.assert_that(
+                result,
+                beam_util.equal_to(
+                    [
+                        collections.namedtuple(
+                            "AggregatesTuple",
+                            ['pid', 'privacy_id_count', 'sum'])('pk1', 60, 130),
+                        collections.namedtuple(
+                            "AggregatesTuple",
+                            ['pid', 'privacy_id_count', 'sum'])('pk2', 30, 83)
+                    ],
+                    equals_fn=lambda e, a: PrivateBeamTest.
+                    value_per_key_within_tolerance_named_tuple(e, a, 10)))
 
 
 class SumCombineFn(private_beam.PrivateCombineFn):

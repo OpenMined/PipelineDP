@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import abc
+import collections
 import dataclasses
 import typing
 from apache_beam.transforms import ptransform
@@ -534,3 +535,96 @@ class CombinePerKey(PrivatePTransform):
         # dp_result : (partition_key, result)
 
         return dp_result
+
+
+# Cache for namedtuple types. It is should be used only in
+# '_get_or_create_named_tuple()' function.
+_agg_named_tuple_cache = {}
+
+
+def _get_or_create_named_tuple(type_name: str,
+                               field_names: tuple) -> 'MetricsTuple':
+    """Creates namedtuple type with a custom serializer."""
+
+    # The custom serializer is required for supporting serialization of
+    # namedtuples in Apache Beam.
+    cache_key = (type_name, field_names)
+    named_tuple = _agg_named_tuple_cache.get(cache_key)
+    if named_tuple is None:
+        named_tuple = collections.namedtuple(type_name, field_names)
+        named_tuple.__reduce__ = lambda self: (_create_named_tuple_instance,
+                                               (type_name, field_names,
+                                                tuple(self)))
+        _agg_named_tuple_cache[cache_key] = named_tuple
+    return named_tuple
+
+
+def _create_named_tuple_instance(type_name: str, field_names: tuple, values):
+    return _get_or_create_named_tuple(type_name, field_names)(*values)
+
+
+class Aggregate(PrivatePTransform):
+    """Transform class for performing multiple aggregations on a PrivatePCollection."""
+
+    def __init__(self, label=None):
+        super().__init__(return_anonymized=True, label=label)
+
+    def aggregate_value(self, *args, col_name: str,
+                        agg_type: pipeline_dp.Metrics):
+        """Returns _Aggregate transform corresponding to the agg_type
+
+        Args:
+            args: args for Aggregate Transforms like SumParams.)
+            col_name: name of the column for the resulting aggregate value.
+            agg_type: type of pipeline_dp.Metrics identifying the aggregate
+            to calculate."""
+        return _Aggregate([args], col_name=[col_name], agg_type=[agg_type])
+
+
+class _Aggregate(PrivatePTransform):
+
+    def __init__(self,
+                 *args,
+                 col_name: str,
+                 agg_type: pipeline_dp.Metrics,
+                 label: Optional[str] = None):
+        super().__init__(return_anonymized=True, label=label)
+        self.args = args
+        self.col_name = col_name
+        self.agg_type = agg_type
+
+    def aggregate_value(self, *args, col_name: str,
+                        agg_type: pipeline_dp.Metrics):
+        return _Aggregate(list(*self.args) + [args],
+                          col_name=list(self.col_name) + [col_name],
+                          agg_type=list(self.agg_type) + [agg_type])
+
+    def expand(self, pcol: pvalue.PCollection):
+        columns = {
+            self.col_name[i]: pcol | "agg " + str(i) >> self._getTransform(
+                self.agg_type[i], *self.args[0][i])
+            for i in range(len(self.col_name))
+        }
+        return columns | 'LeftJoiner: Combine' >> beam.CoGroupByKey(
+        ) | beam.Map(lambda x: _create_named_tuple_instance(
+            'AggregatesTuple', tuple(["pid"] + [k for k in x[1]]),
+            tuple([x[0]] + [x[1][k][0] for k in x[1]])))
+
+    def _getTransform(self, agg_type: pipeline_dp.Metrics, *args):
+        """Gets the correct transform corresponding to agg_type."""
+        transform = None
+        if agg_type == pipeline_dp.Metrics.MEAN:
+            transform = Mean(*args)
+        elif agg_type == pipeline_dp.Metrics.SUM:
+            transform = Sum(*args)
+        elif agg_type == pipeline_dp.Metrics.COUNT:
+            transform = Count(*args)
+        elif agg_type == pipeline_dp.Metrics.PRIVACY_ID_COUNT:
+            transform = PrivacyIdCount(*args)
+        else:
+            raise NotImplementedError(
+                "Transform for agg_type: %s is not "
+                "implemented.", agg_type)
+        transform.set_additional_parameters(
+            budget_accountant=self._budget_accountant)
+        return transform
