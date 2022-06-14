@@ -153,7 +153,7 @@ class DPEngine:
                 # This regime assumes the input data doesn't have privacy IDs,
                 # and therefore we didn't group by them and cannot guarantee one
                 # row corresponds to exactly one privacy ID.
-                max_rows_per_privacy_id = params.max_contributions_per_partition
+                max_rows_per_privacy_id = params.max_contributions or params.max_contributions_per_partition
 
             col = self._select_private_partitions_internal(
                 col, params.max_partitions_contributed, max_rows_per_privacy_id)
@@ -478,7 +478,10 @@ def _check_aggregate_params(col, params: pipeline_dp.AggregateParams,
         raise ValueError("data_extractors must be set to a DataExtractors")
     if not isinstance(data_extractors, pipeline_dp.DataExtractors):
         raise TypeError("data_extractors must be set to a DataExtractors")
-    if params.contribution_bounds_already_enforced == \
-            (data_extractors.privacy_id_extractor is not None):
-        raise ValueError("privacy_id_extractor should be set iff "\
-                         "contribution_bounds_already_enforced is False")
+    if params.contribution_bounds_already_enforced:
+        if data_extractors.privacy_id_extractor:
+            raise ValueError("privacy_id_extractor should be set iff "
+                             "contribution_bounds_already_enforced is False")
+        if pipeline_dp.Metrics.PRIVACY_ID_COUNT in params.metrics:
+            raise ValueError("PRIVACY_ID_COUNT can not be computed when "
+                             "contribution_bounds_already_enforced is True.")
