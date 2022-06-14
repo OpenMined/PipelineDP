@@ -83,21 +83,6 @@ class BeamBackendTest(parameterized.TestCase):
                                                 "filter_by_key")
             beam_util.assert_that(result, beam_util.equal_to([]))
 
-    def test_reduce_accumulators_per_key(self):
-        with test_pipeline.TestPipeline() as p:
-            col = p | "Create PCollection" >> beam.Create([(6, 1), (7, 1),
-                                                           (6, 1), (7, 1),
-                                                           (8, 1)])
-            col = self.backend.map_values(col, SumAccumulator,
-                                          "Wrap into accumulators")
-            col = self.backend.reduce_accumulators_per_key(
-                col, "Reduce accumulators per key")
-            result = col | "Get accumulated values" >> beam.Map(
-                lambda row: (row[0], row[1].get_metrics()))
-
-            beam_util.assert_that(result,
-                                  beam_util.equal_to([(6, 2), (7, 2), (8, 1)]))
-
     def test_combine_accumulators_per_key(self):
         with test_pipeline.TestPipeline() as p:
             col = p | "Create PCollection" >> beam.Create([(6, 1), (7, 1),
@@ -202,12 +187,6 @@ class BeamBackendStageNameTest(unittest.TestCase):
         backend.count_per_element(mock_pcollection, "stage_name")
         mock_rrshift.assert_called_once_with("unique_label")
 
-    @patch("apache_beam.transforms.ptransform.PTransform.__rrshift__")
-    def test_reduce_accumulators_per_key(self, mock_rrshift):
-        mock_pcollection, backend = self._test_helper()
-        backend.reduce_accumulators_per_key(mock_pcollection, "stage_name")
-        mock_rrshift.assert_called_once_with("unique_label")
-
     def test_backend_stage_name_must_be_unique(self):
         backend_1 = BeamBackend("SAME_backend_SUFFIX")
         backend_2 = BeamBackend("SAME_backend_SUFFIX")
@@ -301,18 +280,6 @@ class SparkRDDBackendTest(parameterized.TestCase):
         result = rdd.collect()
         result = dict(result)
         self.assertDictEqual(result, {'a': 2, 'b': 1})
-
-    def test_reduce_accumulators_per_key(self):
-        data = [(1, 11), (2, 22), (3, 33), (1, 14), (2, 25), (1, 16)]
-        dist_data = self.sc.parallelize(data)
-        rdd = self.backend.map_values(dist_data, SumAccumulator,
-                                      "Wrap into accumulators")
-        result = self.backend\
-            .reduce_accumulators_per_key(rdd, "Reduce accumulator per key")\
-            .map(lambda row: (row[0], row[1].get_metrics()))\
-            .collect()
-        result = dict(result)
-        self.assertDictEqual(result, {1: 41, 2: 47, 3: 33})
 
     def test_combine_accumulators_per_key(self):
         data = self.sc.parallelize([(1, 2), (2, 1), (1, 4), (3, 8), (2, 3)])
@@ -436,13 +403,13 @@ class LocalBackendTest(unittest.TestCase):
         col = [(7, 1), (2, 1), (3, 9), (4, 1), (9, 10)]
         keys_to_keep = []
         result = self.backend.filter_by_key(col, keys_to_keep, "filter_by_key")
-        self.assertEqual(result, [])
+        self.assertEqual(list(result), [])
 
     def test_local_filter_by_key_remove(self):
         col = [(7, 1), (2, 1), (3, 9), (4, 1), (9, 10)]
         keys_to_keep = [7, 9]
         result = self.backend.filter_by_key(col, keys_to_keep, "filter_by_key")
-        self.assertEqual(result, [(7, 1), (9, 10)])
+        self.assertEqual(list(result), [(7, 1), (9, 10)])
 
     def test_local_keys(self):
         self.assertEqual(list(self.backend.keys([])), [])
@@ -471,13 +438,6 @@ class LocalBackendTest(unittest.TestCase):
             6: 1,
             0: 1
         })
-
-    def test_local_reduce_accumulators_per_key(self):
-        example_list = [(1, 2), (2, 1), (1, 4), (3, 8), (2, 3)]
-        col = self.backend.map_values(example_list, SumAccumulator)
-        col = self.backend.reduce_accumulators_per_key(col)
-        result = list(map(lambda row: (row[0], row[1].get_metrics()), col))
-        self.assertEqual(result, [(1, 6), (2, 4), (3, 8)])
 
     def test_local_combine_accumulators_per_key(self):
         data = [(1, 2), (2, 1), (1, 4), (3, 8), (2, 3)]
@@ -514,7 +474,7 @@ class LocalBackendTest(unittest.TestCase):
         assert_laziness(self.backend.count_per_element)
         assert_laziness(self.backend.flat_map, str)
         assert_laziness(self.backend.sample_fixed_per_key, int)
-        assert_laziness(self.backend.reduce_accumulators_per_key)
+        assert_laziness(self.backend.filter_by_key, list)
 
     def test_local_sample_fixed_per_key_requires_no_discarding(self):
         input_col = [("pid1", ('pk1', 1)), ("pid1", ('pk2', 1)),
@@ -815,26 +775,6 @@ class MultiProcLocalBackendTest(unittest.TestCase):
         assert_laziness(self.backend.count_per_element)
         assert_laziness(self.backend.flat_map, str)
         assert_laziness(self.backend.sample_fixed_per_key, int)
-
-
-# TODO: Extend the proper Accumulator class once it's available.
-class SumAccumulator:
-    """A simple accumulator for testing purposes."""
-
-    def __init__(self, v):
-        self.sum = v
-
-    def add_value(self, v):
-        self.sum += v
-        return self
-
-    def get_metrics(self):
-        return self.sum
-
-    def add_accumulator(self,
-                        accumulator: 'SumAccumulator') -> 'SumAccumulator':
-        self.sum += accumulator.sum
-        return self
 
 
 class SumCombiner(dp_combiners.Combiner):

@@ -389,7 +389,7 @@ def compute_dp_var(count: int, sum: float, sum_squares: float,
         ValueError: The noise kind is invalid.
 
     Returns:
-        The tuple of anonymized count, sum, sum_squares and variance.
+        The tuple of anonymized count, sum, mean and variance.
     """
     # Splits the budget equally between the three mechanisms.
     (
@@ -433,4 +433,4 @@ def compute_dp_var(count: int, sum: float, sum_squares: float,
                                     dp_params.noise_kind)
 
     dp_var = dp_mean_squares - dp_mean**2
-    return dp_count, dp_mean * dp_count, dp_mean_squares * dp_count, dp_var
+    return dp_count, dp_mean * dp_count, dp_mean, dp_var
