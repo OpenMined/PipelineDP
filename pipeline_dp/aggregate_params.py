@@ -56,7 +56,7 @@ class NormKind(Enum):
 class PartitionSelectionMethod(Enum):
     LAPLACE = 'Laplace'
     GAUSSIAN = 'Gaussian'
-    GENERIC = 'Truncated_Geometric'
+    TRUNCATED_GEOMETRIC = 'Truncated_Geometric'
 
 
 @dataclass
@@ -107,7 +107,7 @@ class AggregateParams:
     vector_max_norm: float = None
     vector_size: int = None
     contribution_bounds_already_enforced: bool = False
-    partition_selection_method: str = PartitionSelectionMethod.GENERIC
+    partition_selection_method: PartitionSelectionMethod = PartitionSelectionMethod.TRUNCATED_GEOMETRIC
 
     def __post_init__(self):
         if self.low is not None:

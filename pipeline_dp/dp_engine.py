@@ -413,12 +413,9 @@ class DPEngine:
             col, unnest_cross_partition_bound_sampled_per_key, "Unnest")
 
     def _select_private_partitions_internal(
-        self,
-        col,
-        max_partitions_contributed: int,
-        max_rows_per_privacy_id: int,
-        partition_selection_method: str = pipeline_dp.PartitionSelectionMethod.
-        GENERIC):
+            self, col, max_partitions_contributed: int,
+            max_rows_per_privacy_id: int,
+            partition_selection_method: pipeline_dp.PartitionSelectionMethod):
         """Selects and publishes private partitions.
 
         Args:
