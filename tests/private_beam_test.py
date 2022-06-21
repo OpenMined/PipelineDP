@@ -931,14 +931,12 @@ class PrivateBeamTest(unittest.TestCase):
                 value_extractor=lambda x: x[2])
 
             # Act
-            result = private_collection | private_beam.Aggregate(
+            result = private_collection | private_beam.AggregationBuilder(
             ).aggregate_value(
                 privacy_id_count_params,
                 col_name='privacy_id_count',
-                agg_type=pipeline_dp.Metrics.PRIVACY_ID_COUNT).aggregate_value(
-                    sum_params,
-                    col_name='sum',
-                    agg_type=pipeline_dp.Metrics.SUM)
+                metrics=pipeline_dp.Metrics.PRIVACY_ID_COUNT).aggregate_value(
+                    sum_params, col_name='sum', metrics=pipeline_dp.Metrics.SUM)
             budget_accountant.compute_budgets()
 
             # Assert

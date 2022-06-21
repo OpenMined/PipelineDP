@@ -275,6 +275,10 @@ class BeamBackend(PipelineBackend):
     def flatten(self, col1, col2, stage_name: str):
         return (col1, col2) | self._ulg.unique(stage_name) >> beam.Flatten()
 
+    def to_pcollection(self, col, not_col, stage_name: str):
+        return col.pipeline | self._ulg.unique(stage_name) >> beam.Create(
+            not_col)
+
     def annotate(self, col, stage_name: str, **kwargs):
         if not _annotators:
             return col

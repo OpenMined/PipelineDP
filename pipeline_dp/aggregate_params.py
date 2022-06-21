@@ -19,6 +19,8 @@ from typing import Any, Iterable, Callable, Union, Optional
 import math
 import logging
 
+import pipeline_dp
+
 
 class Metrics(Enum):
     COUNT = 'count'
@@ -374,6 +376,31 @@ class PrivacyIdCountParams:
                 "PrivacyIdCountParams.public_partitions is deprecated. Please "
                 "read API documentation for anonymous PrivacyIdCountParams "
                 "transform.")
+
+
+@dataclass
+class AggregationBuilderParams:
+    # todo: add budget weight
+    partition_extractor: Callable
+    noise_kind: Optional[NoiseKind] = None
+    max_partitions_contributed: Optional[int] = None
+    max_contributions_per_partition: Optional[int] = None
+    max_contributions: Optional[int] = None
+
+
+@dataclass
+class ScalarValueParams:
+    min_value: float
+    max_value: float
+    noise: Optional[NoiseKind] = None
+
+
+@dataclass
+class VectorValueParams:
+    vector_norm_kind: NormKind
+    vector_max_norm: float
+    vector_size: int
+    noise: Optional[NoiseKind] = None
 
 
 def _not_a_proper_number(num: Any) -> bool:

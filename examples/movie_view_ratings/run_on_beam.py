@@ -20,18 +20,18 @@ For running:
 """
 
 from absl import app
-from absl import flags
+# from absl import flags
 import apache_beam as beam
 from apache_beam.runners.portability import fn_api_runner
 import pipeline_dp
 from pipeline_dp import private_beam
-from pipeline_dp import SumParams
+from pipeline_dp import SumParams, PrivacyIdCountParams
 from pipeline_dp.private_beam import MakePrivate
 from common_utils import ParseFile
-
-FLAGS = flags.FLAGS
-flags.DEFINE_string('input_file', None, 'The file with the movie view data')
-flags.DEFINE_string('output_file', None, 'Output file')
+#
+# FLAGS = flags.FLAGS
+# flags.DEFINE_string('input_file', None, 'The file with the movie view data')
+# flags.DEFINE_string('output_file', None, 'Output file')
 
 
 def main(unused_argv):
@@ -49,7 +49,7 @@ def main(unused_argv):
 
         # Load and parse input data
         movie_views_pcol = pipeline | \
-                           beam.io.ReadFromText(FLAGS.input_file) | \
+                           beam.io.ReadFromText(input_file) | \
                            beam.ParDo(ParseFile())
 
         # Wrap Beam's PCollection into it's private version
@@ -58,31 +58,36 @@ def main(unused_argv):
                                    budget_accountant=budget_accountant,
                                    privacy_id_extractor=lambda mv: mv.user_id))
 
+        global_params = pipeline_dp.aggregate_params.AggregationBuilderParams(
+            partition_extractor=lambda mv: mv.movie_id,
+            noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+            max_partitions_contributed=2,
+            max_contributions_per_partition=1,
+        )
+
+        scalar_value_params = pipeline_dp.aggregate_params.ScalarValueParams(
+            min_value=1, max_value=5)
+
         # Calculate the private sum
-        dp_result = private_movie_views | "Private Sum" >> private_beam.Sum(
-            SumParams(
-                # Limits to how much one user can contribute:
-                # .. at most two movies rated per user
-                max_partitions_contributed=2,
-                # .. at most one rating for each movie
-                max_contributions_per_partition=1,
-                # .. with minimal rating of "1"
-                min_value=1,
-                # .. and maximum rating of "5"
-                max_value=5,
-                # The aggregation key: we're grouping data by movies
-                partition_extractor=lambda mv: mv.movie_id,
-                # The value we're aggregating: we're summing up ratings
-                value_extractor=lambda mv: mv.rating))
+        dp_result = private_movie_views | \
+                    "Private aggregate" >> private_beam.AggregationBuilder(global_params, [1,2,3,4,5]).\
+                        aggregate_value(lambda mv:mv.rating, metrics=[pipeline_dp.Metrics.MEAN, pipeline_dp.Metrics.COUNT], output_col_name="rating1", scalar_value_params=scalar_value_params).\
+                        aggregate_value(lambda mv:mv.rating, metrics=[pipeline_dp.Metrics.MEAN, pipeline_dp.Metrics.COUNT], output_col_name="rating2", scalar_value_params=scalar_value_params)
         budget_accountant.compute_budgets()
 
         # Save the results
-        dp_result | beam.io.WriteToText(FLAGS.output_file)
+        dp_result | beam.io.WriteToText(output_file)
 
     return 0
 
 
+input_file = "/usr/local/google/home/dvadym/data/movie_views/netflix_dataset_100000.txt"
+output_file = "/usr/local/google/home/dvadym/IdeaProjects/Dev/dp_100000b"
+
+# --input_file=/usr/local/google/home/dvadym/data/movie_views/netflix_dataset_100000.txt
+# --output_file=/usr/local/google/home/dvadym/IdeaProjects/dp_100000
+
 if __name__ == '__main__':
-    flags.mark_flag_as_required("input_file")
-    flags.mark_flag_as_required("output_file")
+    # flags.mark_flag_as_required("input_file")
+    # flags.mark_flag_as_required("output_file")
     app.run(main)

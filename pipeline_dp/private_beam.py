@@ -17,7 +17,7 @@ import dataclasses
 import typing
 from apache_beam.transforms import ptransform
 from abc import abstractmethod
-from typing import Callable, Optional
+from typing import Callable, Optional, Sequence, Union
 from apache_beam import pvalue
 import apache_beam as beam
 
@@ -563,68 +563,110 @@ def _create_named_tuple_instance(type_name: str, field_names: tuple, values):
     return _get_or_create_named_tuple(type_name, field_names)(*values)
 
 
-class Aggregate(PrivatePTransform):
+@dataclasses.dataclass
+class _MultiAggregation:  # todo, another name?
+    value_extractor: Callable
+    metrics: Union[pipeline_dp.Metrics, Sequence[pipeline_dp.Metrics]]
+    output_col_name: str
+    scalar_value_params: aggregate_params.ScalarValueParams
+    vector_value_params: aggregate_params.VectorValueParams
+
+    # todo Validation
+
+
+class AggregationBuilder(PrivatePTransform):
     """Transform class for performing multiple aggregations on a PrivatePCollection."""
 
-    def __init__(self, label=None):
+    def __init__(self,
+                 params: aggregate_params.AggregationBuilderParams,
+                 public_partitions=None,
+                 label=None):
         super().__init__(return_anonymized=True, label=label)
+        self._params = params
+        self._public_partitions = public_partitions
+        self._aggregations = []
 
-    def aggregate_value(self, *args, col_name: str,
-                        agg_type: pipeline_dp.Metrics):
-        """Returns _Aggregate transform corresponding to the agg_type
+    def aggregate_value(
+            self,
+            value_extractor: Callable,
+            metrics: Union[pipeline_dp.Metrics, Sequence[pipeline_dp.Metrics]],
+            output_col_name: str,
+            scalar_value_params: aggregate_params.ScalarValueParams = None,
+            vector_value_params: aggregate_params.VectorValueParams = None):
+        """Adds aggregation to the computation graph and returns self.
 
-        Args:
+        Args: todo
             args: args for Aggregate Transforms like SumParams.)
             col_name: name of the column for the resulting aggregate value.
-            agg_type: type of pipeline_dp.Metrics identifying the aggregate
+            metrics: type of pipeline_dp.Metrics identifying the aggregate
             to calculate."""
-        return _Aggregate([args], col_name=[col_name], agg_type=[agg_type])
+        self._aggregations.append(
+            _MultiAggregation(value_extractor, metrics, output_col_name,
+                              scalar_value_params, vector_value_params))
+        return self
 
+    def expand(self, pcol: pvalue.PCollection) -> pvalue.PCollection:
+        backend = pipeline_dp.BeamBackend()
+        dp_engine = pipeline_dp.DPEngine(self._budget_accountant, backend)
+        privacy_id_extractor = lambda x: x[0]
+        partition_extractor = lambda x: self._params.partition_extractor(x[1])
 
-class _Aggregate(PrivatePTransform):
+        partitions = self._public_partitions
+        if partitions is None:
+            selection_partition_params = aggregate_params.SelectPartitionsParams(
+                max_partitions_contributed=self._params.
+                max_partitions_contributed)
+            data_extractors = pipeline_dp.DataExtractors(
+                privacy_id_extractor, partition_extractor)
+            partitions = dp_engine.select_partitions(
+                pcol, selection_partition_params, data_extractors)
 
-    def __init__(self,
-                 *args,
-                 col_name: str,
-                 agg_type: pipeline_dp.Metrics,
-                 label: Optional[str] = None):
-        super().__init__(return_anonymized=True, label=label)
-        self.args = args
-        self.col_name = col_name
-        self.agg_type = agg_type
+        output_pcollections = []
+        for one_aggregation_params in self._aggregations:
+            value_extractor = lambda x: one_aggregation_params.value_extractor(
+                x[1])
+            data_extractors = pipeline_dp.DataExtractors(
+                privacy_id_extractor, partition_extractor, value_extractor)
+            dp_engine_aggregate_params = self._create_aggregate_params(
+                one_aggregation_params)
+            output_pcollections.append(
+                dp_engine.aggregate(pcol, dp_engine_aggregate_params,
+                                    data_extractors, partitions))
 
-    def aggregate_value(self, *args, col_name: str,
-                        agg_type: pipeline_dp.Metrics):
-        return _Aggregate(list(*self.args) + [args],
-                          col_name=list(self.col_name) + [col_name],
-                          agg_type=list(self.agg_type) + [agg_type])
+        n_aggregations = len(output_pcollections)
+        col_names = [agg.output_col_name for agg in self._aggregations]
 
-    def expand(self, pcol: pvalue.PCollection):
-        columns = {
-            self.col_name[i]: pcol | "agg " + str(i) >> self._getTransform(
-                self.agg_type[i], *self.args[0][i])
-            for i in range(len(self.col_name))
-        }
-        return columns | 'LeftJoiner: Combine' >> beam.CoGroupByKey(
-        ) | beam.Map(lambda x: _create_named_tuple_instance(
-            'AggregatesTuple', tuple(["pid"] + [k for k in x[1]]),
-            tuple([x[0]] + [x[1][k][0] for k in x[1]])))
+        def pack_per_partition(join_data):
+            column_names = []
+            values = []
+            for i in range(n_aggregations):
+                pk, join_dict = join_data
+                metric_tuple = join_dict[i][0]
+                metric_names = sorted(metric_tuple._fields)
+                for m in metric_names:
+                    column_names.append(f"{col_names[i]}_{m}")
+                    values.append(getattr(metric_tuple, m))
+            return _create_named_tuple_instance("ResultTuple",
+                                                tuple(column_names),
+                                                tuple(values))
 
-    def _getTransform(self, agg_type: pipeline_dp.Metrics, *args):
-        """Gets the correct transform corresponding to agg_type."""
-        transform = None
-        if agg_type == pipeline_dp.Metrics.MEAN:
-            transform = Mean(*args)
-        elif agg_type == pipeline_dp.Metrics.SUM:
-            transform = Sum(*args)
-        elif agg_type == pipeline_dp.Metrics.COUNT:
-            transform = Count(*args)
-        elif agg_type == pipeline_dp.Metrics.PRIVACY_ID_COUNT:
-            transform = PrivacyIdCount(*args)
-        else:
-            raise NotImplementedError(
-                "Transform for agg_type: %s is not "
-                "implemented.", agg_type)
-        transform.set_additional_parameters(
-            budget_accountant=self._budget_accountant)
-        return transform
+        dict_pcollections = dict(enumerate(output_pcollections))
+        return dict_pcollections | "CoGroup by partition key" >> beam.CoGroupByKey(
+        ) | "Pack per partition" >> beam.Map(pack_per_partition)
+
+    def _create_aggregate_params(
+        self, one_aggregation_params: _MultiAggregation
+    ) -> aggregate_params.AggregateParams:
+        # todo implement for Vector metrics
+        noise = self._params.noise_kind or one_aggregation_params.scalar_value_params.noise_kind
+        scalar_value_params = one_aggregation_params.scalar_value_params
+        return pipeline_dp.AggregateParams(
+            metrics=one_aggregation_params.metrics,
+            noise_kind=noise,
+            max_partitions_contributed=self._params.max_partitions_contributed,
+            max_contributions_per_partition=self._params.
+            max_contributions_per_partition,
+            max_contributions=self._params.max_contributions,
+            min_value=scalar_value_params.min_value,
+            max_value=scalar_value_params.max_value,
+        )

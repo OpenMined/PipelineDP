@@ -294,6 +294,10 @@ class DPEngine:
         self._add_report_stage(
             "Adding empty partitions to public partitions that are missing in "
             "data")
+        import apache_beam as beam  # todo proper solution
+        if not isinstance(public_partitions, beam.PCollection):
+            public_partitions = self._backend.to_pcollection(
+                col, public_partitions, "to_pcol")
         empty_accumulators = self._backend.map(
             public_partitions, lambda partition_key:
             (partition_key, aggregator_fn([])), "Build empty accumulators")
