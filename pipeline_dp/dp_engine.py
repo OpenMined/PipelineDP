@@ -97,8 +97,7 @@ class DPEngine:
             combiner = combiners.create_compound_combiner_with_custom_combiners(
                 params, self._budget_accountant, params.custom_combiners)
         else:
-            combiner = combiners.create_compound_combiner(
-                params, self._budget_accountant)
+            combiner = self._create_compound_combiner(params)
 
         if public_partitions is not None:
             col = self._drop_not_public_partitions(col, public_partitions,
@@ -414,7 +413,7 @@ class DPEngine:
     def _select_private_partitions_internal(self, col,
                                             max_partitions_contributed: int,
                                             max_rows_per_privacy_id: int):
-        """Selects and publishes private partitions.
+        """Selects and returns private partitions.
 
         Args:
             col: collection, with types for each element:
@@ -462,6 +461,13 @@ class DPEngine:
             f"method with (eps= {budget.eps}, delta = {budget.delta})")
 
         return self._backend.filter(col, filter_fn, "Filter private partitions")
+
+    def _create_compound_combiner(
+            self,
+            params: pipeline_dp.AggregateParams) -> combiners.CompoundCombiner:
+        """Creates CompoundCombiner based on aggregation parameters."""
+        return combiners.create_compound_combiner(params,
+                                                  self._budget_accountant)
 
 
 def _check_aggregate_params(col, params: pipeline_dp.AggregateParams,
