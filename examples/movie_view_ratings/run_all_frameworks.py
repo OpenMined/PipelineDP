@@ -112,8 +112,8 @@ def calc_dp_rating_metrics(movie_views, backend, public_partitions):
 
     reports = dp_engine.explain_computations_report()
     for report in reports:
-        for line in report.split("\n"):
-            print(line)
+        print(report)
+
     return dp_result
 
 
