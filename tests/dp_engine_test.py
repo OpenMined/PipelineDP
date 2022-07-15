@@ -79,7 +79,8 @@ class DpEngineTest(parameterized.TestCase):
             metrics=[],
             max_partitions_contributed=1,
             max_contributions_per_partition=1)
-        dp_engine._report_generators.append(ReportGenerator(aggregator_params))
+        dp_engine._report_generators.append(
+            ReportGenerator(aggregator_params, "test_method"))
         dp_engine._add_report_stage("DP Engine Test")
         if return_accountant:
             return dp_engine, accountant
