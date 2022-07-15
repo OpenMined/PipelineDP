@@ -33,7 +33,9 @@ def _create_mechanism_spec(no_noise):
     return ba.MechanismSpec(ba.MechanismType.GAUSSIAN, None, eps, delta)
 
 
-def _create_aggregate_params(max_value: float = 1, vector_size: int = 1):
+def _create_aggregate_params(max_value: float = 1,
+                             vector_size: int = 1,
+                             vector_norm_kind=pipeline_dp.NormKind.Linf):
     return pipeline_dp.AggregateParams(
         min_value=0,
         max_value=max_value,
@@ -41,6 +43,7 @@ def _create_aggregate_params(max_value: float = 1, vector_size: int = 1):
         max_contributions_per_partition=3,
         noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
         metrics=[pipeline_dp.Metrics.COUNT],
+        vector_norm_kind=vector_norm_kind,
         vector_max_norm=5,
         vector_size=vector_size)
 

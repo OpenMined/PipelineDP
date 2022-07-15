@@ -13,7 +13,7 @@
 # limitations under the License.
 import abc
 import copy
-from typing import Iterable, Sized, Tuple, List, Union
+from typing import Callable, Iterable, Sized, Tuple, List, Union
 
 import pipeline_dp
 from pipeline_dp import dp_computations
@@ -22,6 +22,7 @@ import numpy as np
 import collections
 
 ArrayLike = Union[np.ndarray, List[float]]
+ExplainComputationReport = Union[Callable, str, List[Union[Callable, str]]]
 
 
 class Combiner(abc.ABC):
@@ -63,6 +64,10 @@ class Combiner(abc.ABC):
     @abc.abstractmethod
     def metrics_names(self) -> List[str]:
         """Return the list of names of the metrics this combiner computes"""
+
+    @abc.abstractmethod
+    def explain_computation(self) -> ExplainComputationReport:
+        pass
 
 
 class CustomCombiner(Combiner, abc.ABC):
@@ -192,6 +197,10 @@ class CountCombiner(Combiner):
     def metrics_names(self) -> List[str]:
         return ['count']
 
+    def explain_computation(self) -> ExplainComputationReport:
+        # TODO: add information in this and others combiners about amount of noise.
+        return lambda: f"Computed count with (eps={self._params.eps} delta={self._params.delta})"
+
 
 class PrivacyIdCountCombiner(Combiner):
     """Combiner for computing DP privacy id count.
@@ -219,6 +228,9 @@ class PrivacyIdCountCombiner(Combiner):
 
     def metrics_names(self) -> List[str]:
         return ['privacy_id_count']
+
+    def explain_computation(self) -> ExplainComputationReport:
+        return lambda: f"Computed privacy id count with (eps={self._params.eps} delta={self._params.delta})"
 
 
 class SumCombiner(Combiner):
@@ -248,6 +260,9 @@ class SumCombiner(Combiner):
 
     def metrics_names(self) -> List[str]:
         return ['sum']
+
+    def explain_computation(self) -> ExplainComputationReport:
+        return lambda: f"Computed sum with (eps={self._params.eps} delta={self._params.delta})"
 
 
 class MeanCombiner(Combiner):
@@ -300,6 +315,9 @@ class MeanCombiner(Combiner):
 
     def metrics_names(self) -> List[str]:
         return self._metrics_to_compute
+
+    def explain_computation(self) -> ExplainComputationReport:
+        return lambda: f"Computed mean with (eps={self._params.eps} delta={self._params.delta})"
 
 
 class VarianceCombiner(Combiner):
@@ -359,6 +377,9 @@ class VarianceCombiner(Combiner):
 
     def metrics_names(self) -> List[str]:
         return self._metrics_to_compute
+
+    def explain_computation(self) -> ExplainComputationReport:
+        return lambda: f"Computed variance with (eps={self._params.eps} delta={self._params.delta})"
 
 
 # Cache for namedtuple types. It should be used only in
@@ -482,6 +503,9 @@ class CompoundCombiner(Combiner):
     def metrics_names(self) -> List[str]:
         return self._metrics_to_compute
 
+    def explain_computation(self) -> ExplainComputationReport:
+        return [combiner.explain_computation() for combiner in self._combiners]
+
 
 class VectorSumCombiner(Combiner):
     """Combiner for computing dp vector sum.
@@ -523,6 +547,10 @@ class VectorSumCombiner(Combiner):
 
     def metrics_names(self) -> List[str]:
         return ['vector_sum']
+
+    def explain_computation(self) -> ExplainComputationReport:
+        # TODO: add information about vector size, norm, amount of noise.
+        lambda: f"Computed vector sum with (eps={self._params.eps} delta={self._params.delta})"
 
 
 def create_compound_combiner(

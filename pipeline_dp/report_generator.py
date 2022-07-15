@@ -13,6 +13,10 @@
 # limitations under the License.
 """Generator for explaining DP computation reports."""
 
+from pipeline_dp import aggregate_params as agg
+
+from typing import Optional, Union, Callable
+
 
 class ReportGenerator:
     """Generates a report based on the metrics and stages in the pipeline.
@@ -22,26 +26,39 @@ class ReportGenerator:
   and generates a report.
   """
 
-    def __init__(self, params):
+    def __init__(self,
+                 params,
+                 method_name: str,
+                 is_public_partition: Optional[bool] = None):
         """Initialize the ReportGenerator."""
         self._params_str = None
         if params:
-            self._params_str = str(params)
+            self._params_str = agg.parameters_to_readable_string(
+                params, is_public_partition)
+        self._method_name = method_name
         self._stages = []
 
-    def add_stage(self, text: str):
-        """Add a stage description to the report."""
-        self._stages.append(text)
+    def add_stage(self, stage_description: Union[Callable, str]) -> None:
+        """Add a stage description to the report.
+
+        Args:
+            stage_description: description of the stage. Note that it might be
+            a Callable that returns str. Support Callable is needed to support
+            cases when the description contains information which is not yet
+            available during the pipeline construction, e.g. the budget.
+        """
+        self._stages.append(stage_description)
 
     def report(self) -> str:
         """Constructs a report based on stages and metrics."""
         if not self._params_str:
             return ""
-        title = f"Computing <{self._params_str}>"
-        result = [f"Differentially private: {title}"]
+        result = [f"DPEngine method: {self._method_name}"]
+        result.append(self._params_str)
+        result.append("Computation graph:")
         for i, stage_str in enumerate(self._stages):
             if hasattr(stage_str, "__call__"):
-                result.append(f"{i+1}. {stage_str()}")
+                result.append(f" {i+1}. {stage_str()}")
             else:
-                result.append(f"{i+1}. {stage_str}")
+                result.append(f" {i+1}. {stage_str}")
         return "\n".join(result)

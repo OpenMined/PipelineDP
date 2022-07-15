@@ -47,8 +47,18 @@ class DPEngine:
         self._backend = backend
         self._report_generators = []
 
-    def _add_report_stage(self, text):
-        self._report_generators[-1].add_stage(text)
+    def _add_report_stage(self, stage_description):
+        self._report_generators[-1].add_stage(stage_description)
+
+    def _add_report_stages(self, stages_description):
+        for stage_description in stages_description:
+            self._add_report_stage(stage_description)
+
+    def explain_computations_report(self):
+        return [
+            report_generator.report()
+            for report_generator in self._report_generators
+        ]
 
     def aggregate(self,
                   col,
@@ -75,6 +85,9 @@ class DPEngine:
         _check_aggregate_params(col, params, data_extractors)
 
         with self._budget_accountant.scope(weight=params.budget_weight):
+            self._report_generators.append(
+                report_generator.ReportGenerator(params, "aggregate",
+                                                 public_partitions is not None))
             col = self._aggregate(col, params, data_extractors,
                                   public_partitions)
             budget = self._budget_accountant._compute_budget_for_aggregation(
@@ -86,8 +99,6 @@ class DPEngine:
 
     def _aggregate(self, col, params: pipeline_dp.AggregateParams,
                    data_extractors: DataExtractors, public_partitions):
-
-        self._report_generators.append(report_generator.ReportGenerator(params))
 
         if params.custom_combiners:
             # TODO(dvadym): after finishing implementation of custom combiners
@@ -159,6 +170,7 @@ class DPEngine:
         # col : (partition_key, accumulator)
 
         # Compute DP metrics.
+        self._add_report_stages(combiner.explain_computation())
         col = self._backend.map_values(col, combiner.compute_metrics,
                                        "Compute DP` metrics")
 
@@ -200,6 +212,8 @@ class DPEngine:
         self._check_select_private_partitions(col, params, data_extractors)
 
         with self._budget_accountant.scope(weight=params.budget_weight):
+            self._report_generators.append(
+                report_generator.ReportGenerator(params, "select_partitions"))
             col = self._select_partitions(col, params, data_extractors)
             budget = self._budget_accountant._compute_budget_for_aggregation(
                 params.budget_weight)
@@ -212,7 +226,6 @@ class DPEngine:
                            params: pipeline_dp.SelectPartitionsParams,
                            data_extractors: DataExtractors):
         """Implementation of select_partitions computational graph."""
-        self._report_generators.append(report_generator.ReportGenerator(params))
         max_partitions_contributed = params.max_partitions_contributed
 
         # Extract the columns.
@@ -291,7 +304,7 @@ class DPEngine:
         """Adds empty accumulators to all `public_partitions` and returns those
         empty accumulators joined with `col`."""
         self._add_report_stage(
-            "Adding empty partitions to public partitions that are missing in "
+            "Adding empty partitions for public partitions that are missing in "
             "data")
         empty_accumulators = self._backend.map(
             public_partitions, lambda partition_key:
@@ -458,7 +471,7 @@ class DPEngine:
         self._add_report_stage(
             lambda:
             f"Private Partition selection: using {budget.mechanism_type.value} "
-            f"method with (eps= {budget.eps}, delta = {budget.delta})")
+            f"method with (eps={budget.eps}, delta={budget.delta})")
 
         return self._backend.filter(col, filter_fn, "Filter private partitions")
 
