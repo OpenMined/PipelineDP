@@ -299,7 +299,7 @@ class MeanCombinerTest(parameterized.TestCase):
         for no_noise in [False, True]:
             combiner = self._create_combiner(no_noise)
             self.assertEqual((0, 0), combiner.create_accumulator([]))
-            self.assertEqual((2, 3), combiner.create_accumulator([1, 2]))
+            self.assertEqual((2, 0), combiner.create_accumulator([1, 3]))
 
     def test_merge_accumulators(self):
         for no_noise in [False, True]:
@@ -313,16 +313,18 @@ class MeanCombinerTest(parameterized.TestCase):
         combiner = self._create_combiner(no_noise=True)
         res = combiner.compute_metrics((3, 3))
         self.assertAlmostEqual(3, res['count'], delta=1e-5)
-        self.assertAlmostEqual(3, res['sum'], delta=1e-5)
-        self.assertAlmostEqual(1, res['mean'], delta=1e-5)
+        self.assertAlmostEqual(9, res['sum'], delta=1e-5)
+        self.assertAlmostEqual(3, res['mean'], delta=1e-5)
 
     def test_compute_metrics_with_noise(self):
         combiner = self._create_combiner(no_noise=False)
         count = 5
         sum = 10
+        normalized_sum = 0
         mean = 2
         noisy_values = [
-            combiner.compute_metrics((count, sum)) for _ in range(1000)
+            combiner.compute_metrics((count, normalized_sum))
+            for _ in range(1000)
         ]
 
         noisy_counts = [noisy_value['count'] for noisy_value in noisy_values]
@@ -351,7 +353,7 @@ class VarianceCombinerTest(parameterized.TestCase):
         for no_noise in [False, True]:
             combiner = self._create_combiner(no_noise)
             self.assertEqual((0, 0, 0), combiner.create_accumulator([]))
-            self.assertEqual((2, 3, 5), combiner.create_accumulator([1, 2]))
+            self.assertEqual((2, -1, 1), combiner.create_accumulator([1, 2]))
 
     def test_merge_accumulators(self):
         for no_noise in [False, True]:
@@ -363,8 +365,8 @@ class VarianceCombinerTest(parameterized.TestCase):
 
     def test_compute_metrics_no_noise(self):
         combiner = self._create_combiner(no_noise=True)
-        # potential values: 1, 2, 2, 3
-        res = combiner.compute_metrics((4, 8, 18))
+        # potential values: 1, 2, 2, 3 | middle = 2
+        res = combiner.compute_metrics((4, 0, 2))
         self.assertAlmostEqual(4, res['count'], delta=1e-5)
         self.assertAlmostEqual(8, res['sum'], delta=1e-5)
         self.assertAlmostEqual(2, res['mean'], delta=1e-5)
@@ -372,14 +374,16 @@ class VarianceCombinerTest(parameterized.TestCase):
 
     def test_compute_metrics_with_noise(self):
         combiner = self._create_combiner(no_noise=False)
-        # potential values: 1, 1, 2, 3, 3
+        # potential values: 1, 1, 2, 3, 3 | middle = 2
         count = 5
         sum = 10
-        sum_of_squares = 24
+        normalized_sum = 0
+        normalized_sum_of_squares = 4
         mean = 2
         variance = 0.8
         noisy_values = [
-            combiner.compute_metrics((count, sum, sum_of_squares))
+            combiner.compute_metrics(
+                (count, normalized_sum, normalized_sum_of_squares))
             for _ in range(1000)
         ]
 

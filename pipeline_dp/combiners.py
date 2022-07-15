@@ -267,8 +267,8 @@ class SumCombiner(Combiner):
 class MeanCombiner(Combiner):
     """Combiner for computing DP Mean. Also returns sum and count in addition to
     the mean.
-    The type of the accumulator is a tuple(count: int, sum: float) that holds
-    the count and sum of elements in the dataset for which this accumulator is
+    The type of the accumulator is a tuple(count: int, normalized_sum: float) that holds
+    the count and normalized sum of elements in the dataset for which this accumulator is
     computed.
     """
     AccumulatorType = Tuple[int, float]
@@ -288,9 +288,12 @@ class MeanCombiner(Combiner):
         self._metrics_to_compute = metrics_to_compute
 
     def create_accumulator(self, values: Iterable[float]) -> AccumulatorType:
-        return len(values), np.clip(
-            values, self._params.aggregate_params.min_value,
-            self._params.aggregate_params.max_value).sum()
+        min_value = self._params.aggregate_params.min_value
+        max_value = self._params.aggregate_params.max_value
+        middle = dp_computations.compute_middle(min_value, max_value)
+        normalized_values = np.clip(values, min_value, max_value) - middle
+
+        return len(values), normalized_values.sum()
 
     def merge_accumulators(self, accum1: AccumulatorType,
                            accum2: AccumulatorType):
@@ -299,9 +302,9 @@ class MeanCombiner(Combiner):
         return count1 + count2, sum1 + sum2
 
     def compute_metrics(self, accum: AccumulatorType) -> dict:
-        total_count, total_sum = accum
+        total_count, total_normalized_sum = accum
         noisy_count, noisy_sum, noisy_mean = dp_computations.compute_dp_mean(
-            total_count, total_sum, self._params.mean_var_params)
+            total_count, total_normalized_sum, self._params.mean_var_params)
         mean_dict = {'mean': noisy_mean}
         if 'count' in self._metrics_to_compute:
             mean_dict['count'] = noisy_count
@@ -319,8 +322,8 @@ class MeanCombiner(Combiner):
 class VarianceCombiner(Combiner):
     """Combiner for computing DP Variance. Also returns mean, sum and count in addition to
     the variance.
-    The type of the accumulator is a tuple(count: int, sum: float, sum_of_squares: float) that holds
-    the count, sum and sum of squares of elements in the dataset for which this accumulator is
+    The type of the accumulator is a tuple(count: int, normalized_sum: float, normalized_sum_of_squares: float) that holds
+    the count, normalized sum and normalized sum of squares of elements in the dataset for which this accumulator is
     computed.
     """
     AccumulatorType = Tuple[int, float, float]
@@ -341,10 +344,15 @@ class VarianceCombiner(Combiner):
         self._metrics_to_compute = metrics_to_compute
 
     def create_accumulator(self, values: Iterable[float]) -> AccumulatorType:
-        clipped_values = np.clip(values,
-                                 self._params.aggregate_params.min_value,
-                                 self._params.aggregate_params.max_value)
-        return len(values), clipped_values.sum(), (clipped_values**2).sum()
+        min_value = self._params.aggregate_params.min_value
+        max_value = self._params.aggregate_params.max_value
+        middle = dp_computations.compute_middle(min_value, max_value)
+
+        clipped_values = np.clip(values, min_value, max_value)
+        normalized_values = clipped_values - middle
+
+        return len(values), normalized_values.sum(), (
+            normalized_values**2).sum()
 
     def merge_accumulators(self, accum1: AccumulatorType,
                            accum2: AccumulatorType):
@@ -353,9 +361,9 @@ class VarianceCombiner(Combiner):
         return count1 + count2, sum1 + sum2, sum_of_squares1 + sum_of_squares2
 
     def compute_metrics(self, accum: AccumulatorType) -> dict:
-        total_count, total_sum, total_sum_of_squares = accum
+        total_count, total_normalized_sum, total_normalized_sum_of_squares = accum
         noisy_count, noisy_sum, noisy_mean, noisy_variance = dp_computations.compute_dp_var(
-            total_count, total_sum, total_sum_of_squares,
+            total_count, total_normalized_sum, total_normalized_sum_of_squares,
             self._params.mean_var_params)
         variance_dict = {'variance': noisy_variance}
         if 'count' in self._metrics_to_compute:

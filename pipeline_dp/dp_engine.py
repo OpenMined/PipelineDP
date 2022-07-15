@@ -108,8 +108,7 @@ class DPEngine:
             combiner = combiners.create_compound_combiner_with_custom_combiners(
                 params, self._budget_accountant, params.custom_combiners)
         else:
-            combiner = combiners.create_compound_combiner(
-                params, self._budget_accountant)
+            combiner = self._create_compound_combiner(params)
 
         if public_partitions is not None:
             col = self._drop_not_public_partitions(col, public_partitions,
@@ -164,7 +163,7 @@ class DPEngine:
                 # This regime assumes the input data doesn't have privacy IDs,
                 # and therefore we didn't group by them and cannot guarantee one
                 # row corresponds to exactly one privacy ID.
-                max_rows_per_privacy_id = params.max_contributions_per_partition
+                max_rows_per_privacy_id = params.max_contributions or params.max_contributions_per_partition
 
             col = self._select_private_partitions_internal(
                 col, params.max_partitions_contributed, max_rows_per_privacy_id)
@@ -427,7 +426,7 @@ class DPEngine:
     def _select_private_partitions_internal(self, col,
                                             max_partitions_contributed: int,
                                             max_rows_per_privacy_id: int):
-        """Selects and publishes private partitions.
+        """Selects and returns private partitions.
 
         Args:
             col: collection, with types for each element:
@@ -476,6 +475,13 @@ class DPEngine:
 
         return self._backend.filter(col, filter_fn, "Filter private partitions")
 
+    def _create_compound_combiner(
+            self,
+            params: pipeline_dp.AggregateParams) -> combiners.CompoundCombiner:
+        """Creates CompoundCombiner based on aggregation parameters."""
+        return combiners.create_compound_combiner(params,
+                                                  self._budget_accountant)
+
 
 def _check_aggregate_params(col, params: pipeline_dp.AggregateParams,
                             data_extractors: DataExtractors):
@@ -491,7 +497,10 @@ def _check_aggregate_params(col, params: pipeline_dp.AggregateParams,
         raise ValueError("data_extractors must be set to a DataExtractors")
     if not isinstance(data_extractors, pipeline_dp.DataExtractors):
         raise TypeError("data_extractors must be set to a DataExtractors")
-    if params.contribution_bounds_already_enforced == \
-            (data_extractors.privacy_id_extractor is not None):
-        raise ValueError("privacy_id_extractor should be set iff "\
-                         "contribution_bounds_already_enforced is False")
+    if params.contribution_bounds_already_enforced:
+        if data_extractors.privacy_id_extractor:
+            raise ValueError("privacy_id_extractor should be set iff "
+                             "contribution_bounds_already_enforced is False")
+        if pipeline_dp.Metrics.PRIVACY_ID_COUNT in params.metrics:
+            raise ValueError("PRIVACY_ID_COUNT can not be computed when "
+                             "contribution_bounds_already_enforced is True.")
