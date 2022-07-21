@@ -11,18 +11,19 @@ CrossAndPerPartitionContributionParams = collections.namedtuple(
     "CrossAndPerPartitionContributionParams",
     ["max_partitions_contributed", "max_contributions_per_partition"])
 
+aggregate_fn = lambda input_values: (len(input_values), np.sum(input_values),
+                                     np.sum(np.square(input_values)))
 
-class ContributionBoundersTest(parameterized.TestCase):
 
-    aggregate_fn = lambda input_values: (len(input_values), np.sum(
-        input_values), np.sum(np.square(input_values)))
+def _create_report_generator():
+    return pipeline_dp.report_generator.ReportGenerator(None, "test")
 
-    def _create_report_generator(self):
-        return pipeline_dp.report_generator.ReportGenerator(None, "test")
 
-    def _run_l0_linf_contribution_bounding(self, input,
-                                           max_partitions_contributed,
-                                           max_contributions_per_partition):
+class SamplingCrossAndPerPartitionContributionBounderTest(
+        parameterized.TestCase):
+
+    def _run_contribution_bounding(self, input, max_partitions_contributed,
+                                   max_contributions_per_partition):
         params = CrossAndPerPartitionContributionParams(
             max_partitions_contributed, max_contributions_per_partition)
 
@@ -31,27 +32,13 @@ class ContributionBoundersTest(parameterized.TestCase):
         return list(
             bounder.bound_contributions(input, params,
                                         pipeline_dp.LocalBackend(),
-                                        self._create_report_generator(),
-                                        ContributionBoundersTest.aggregate_fn))
-
-    def test_contribution_bounding_applied(self):
-        input = [("pid1", 'pk1', 1), ("pid1", 'pk2', 2), ("pid1", 'pk3', 3),
-                 ("pid1", 'pk4', 4), ("pid1", 'pk5', 5), ("pid2", 'pk1', 6)]
-        params = MaxContributionsParams(4)
-
-        bounder = contribution_bounders.SamplingPerPrivacyIdContributionBounder(
-        )
-        bound_result = list(
-            bounder.bound_contributions(input, params,
-                                        pipeline_dp.LocalBackend(),
-                                        self._create_report_generator(),
-                                        ContributionBoundersTest.aggregate_fn))
-        self.assertLen(bound_result, 5)
+                                        _create_report_generator(),
+                                        aggregate_fn))
 
     def test_contribution_bounding_empty_col(self):
         input = []
         max_partitions_contributed = max_contributions_per_partition = 2
-        bound_result = self._run_l0_linf_contribution_bounding(
+        bound_result = self._run_contribution_bounding(
             input, max_partitions_contributed, max_contributions_per_partition)
 
         self.assertFalse(bound_result)
@@ -60,7 +47,7 @@ class ContributionBoundersTest(parameterized.TestCase):
         input = [("pid1", 'pk1', 1), ("pid1", 'pk1', 2), ("pid1", 'pk2', 3),
                  ("pid1", 'pk2', 4)]
         max_partitions_contributed = max_contributions_per_partition = 2
-        bound_result = self._run_l0_linf_contribution_bounding(
+        bound_result = self._run_contribution_bounding(
             input, max_partitions_contributed, max_contributions_per_partition)
 
         expected_result = [(('pid1', 'pk2'), (2, 7, 25)),
@@ -71,7 +58,7 @@ class ContributionBoundersTest(parameterized.TestCase):
         input = [("pid1", 'pk1', 1), ("pid1", 'pk1', 2), ("pid1", 'pk2', 3),
                  ("pid1", 'pk2', 4), ("pid1", 'pk2', 5), ("pid2", 'pk2', 6)]
         max_partitions_contributed, max_contributions_per_partition = 5, 2
-        bound_result = self._run_l0_linf_contribution_bounding(
+        bound_result = self._run_contribution_bounding(
             input, max_partitions_contributed, max_contributions_per_partition)
 
         self.assertEqual(3, len(bound_result))
@@ -89,7 +76,7 @@ class ContributionBoundersTest(parameterized.TestCase):
         max_partitions_contributed = 3
         max_contributions_per_partition = 5
 
-        bound_result = self._run_l0_linf_contribution_bounding(
+        bound_result = self._run_contribution_bounding(
             input, max_partitions_contributed, max_contributions_per_partition)
 
         self.assertEqual(4, len(bound_result))
@@ -110,31 +97,42 @@ class ContributionBoundersTest(parameterized.TestCase):
                     lambda key: len(dict_of_pid_to_pk[key]) <=
                     max_partitions_contributed, dict_of_pid_to_pk)))
 
+
+class SamplingPerPrivacyIdContributionBounderTest(parameterized.TestCase):
+
+    def _run_contribution_bounding(self, input, max_contributions):
+        params = MaxContributionsParams(max_contributions)
+
+        bounder = contribution_bounders.SamplingPerPrivacyIdContributionBounder(
+        )
+        return list(
+            bounder.bound_contributions(input, params,
+                                        pipeline_dp.LocalBackend(),
+                                        _create_report_generator(),
+                                        aggregate_fn))
+
+    def test_contribution_bounding_applied(self):
+        input = [("pid1", 'pk1', 1), ("pid1", 'pk2', 2), ("pid1", 'pk3', 3),
+                 ("pid1", 'pk4', 4), ("pid1", 'pk5', 5), ("pid1", 'pk1', 6)]
+        max_contributions = 5
+        bound_result = self._run_contribution_bounding(input, max_contributions)
+        self.assertLen(bound_result, max_contributions)
+
     def test_contribution_bounding_bound_input_nothing_dropped(self):
         input = [("pid1", 'pk1', 1), ("pid1", 'pk1', 2), ("pid1", 'pk2', 3),
                  ("pid1", 'pk2', 4)]
         max_contributions = 4
 
-        dp_engine = self._create_dp_engine_default()
-        bound_result = list(
-            dp_engine._bound_per_privacy_id_contributions(
-                input,
-                max_contributions=max_contributions,
-                aggregator_fn=ContributionBoundersTest.aggregate_fn))
+        bound_result = self._run_contribution_bounding(input, max_contributions)
 
         expected_result = [(('pid1', 'pk2'), (2, 7, 25)),
                            (('pid1', 'pk1'), (2, 3, 5))]
         self.assertEqual(set(expected_result), set(bound_result))
 
-    def test_contribution_bounding_empty_col(self):  # todo
+    def test_contribution_bounding_empty_col(self):
         input = []
         max_contributions = 4
 
-        dp_engine = self._create_dp_engine_default()
-        bound_result = list(
-            dp_engine._bound_per_privacy_id_contributions(
-                input,
-                max_contributions=max_contributions,
-                aggregator_fn=ContributionBoundersTest.aggregate_fn))
+        bound_result = self._run_contribution_bounding(input, max_contributions)
 
         self.assertFalse(bound_result)
