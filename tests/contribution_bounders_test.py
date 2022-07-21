@@ -126,15 +126,15 @@ class ContributionBoundersTest(parameterized.TestCase):
                            (('pid1', 'pk1'), (2, 3, 5))]
         self.assertEqual(set(expected_result), set(bound_result))
 
-    # def test_contribution_bounding_empty_col(self):
-    #   input = []
-    #   max_contributions = 4
-    #
-    #   dp_engine = self._create_dp_engine_default()
-    #   bound_result = list(
-    #       dp_engine._bound_per_privacy_id_contributions(
-    #           input,
-    #           max_contributions=max_contributions,
-    #           aggregator_fn=ContributionBoundersTest.aggregate_fn))
-    #
-    #   self.assertFalse(bound_result)
+    def test_contribution_bounding_empty_col(self):  # todo
+        input = []
+        max_contributions = 4
+
+        dp_engine = self._create_dp_engine_default()
+        bound_result = list(
+            dp_engine._bound_per_privacy_id_contributions(
+                input,
+                max_contributions=max_contributions,
+                aggregator_fn=ContributionBoundersTest.aggregate_fn))
+
+        self.assertFalse(bound_result)
