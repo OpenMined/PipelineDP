@@ -322,7 +322,7 @@ class DpEngineTest(parameterized.TestCase):
                 "metrics=['privacy_id_count', 'count', 'mean']",
                 " noise_kind=gaussian", "max_value=5",
                 "Partition selection: private partitions",
-                "Per-partition contribution bounding: randomly selected not more than 2 contributions",
+                "Cross-partition contribution bounding: for each privacy id randomly select max(actual_partition_contributed, 3)",
                 "Private Partition selection: using Truncated Geometric method with (eps="
             ],
         )
@@ -332,7 +332,7 @@ class DpEngineTest(parameterized.TestCase):
             [
                 "metrics=['sum', 'mean']", " noise_kind=gaussian",
                 "max_value=5", "Partition selection: public partitions",
-                "Per-partition contribution bounding: randomly selected not more than 3 contributions",
+                "Per-partition contribution bounding: for each privacy_id and eachpartition, randomly select max(actual_contributions_per_partition, 3)",
                 "Adding empty partitions for public partitions that are missing in data"
             ],
         )

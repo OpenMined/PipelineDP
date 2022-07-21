@@ -77,8 +77,8 @@ class SamplingCrossAndPerPartitionContributionBounder(ContributionBounder):
                                            "Sample per privacy_id")
 
         report_generator.add_stage(
-            f"Cross-partition contribution bounding: for eacy privacy id "
-            f" randomly select max(actual_partition_contributed, "
+            f"Cross-partition contribution bounding: for each privacy id "
+            f"randomly select max(actual_partition_contributed, "
             f"{max_partitions_contributed}) partitions")
 
         # (privacy_id, [(partition_key, accumulator)])
@@ -97,10 +97,6 @@ class SamplingPerPrivacyIdContributionBounder(ContributionBounder):
     If a privacy_id contributes more than max_contributions, then
     max_contributions contributions are uniformly sampled, otherwise all
     contributions are kept.
-
-    Warning: This contribution bounder does group_by by privacy_id and processes
-    each privacy_id's data on one worker. In case if there are some privacy_ids
-    which contributes too much, it might lead to stale worker jobs.
     """
 
     def bound_contributions(self, col, params, backend, report_generator,
