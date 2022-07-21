@@ -16,18 +16,18 @@ class ContributionBounder(abc.ABC):
         """Bound contributions of privacy id.
 
         Contribution bounding is performed to ensure that sensitivity of the
-        query to anonymize is limited. There are many ways how to perform
-        contribution bounding. Sub-classes implement specific contribution
+        aggregations to anonymize are limited. There are many ways how to
+        perform contribution bounding. Sub-classes implement specific contribution
         strategies.
 
-        Also this function performs the aggregation step per
+        This function also performs the aggregation step per
         (privacy_id, partition_key) by calling aggregate_fn on data points
         corresponding to each (privacy_id, partition_key).
 
         Args:
           col: collection, with types of each element: (privacy_id,
             partition_key, value).
-          params: contains parameters needed for contribution bounding..
+          params: contains parameters needed for contribution bounding.
           backend: pipeline backend for performing operations on collections.
           aggregate_fn: function that takes a list of values and returns an
             aggregator object.
@@ -41,15 +41,16 @@ class ContributionBounder(abc.ABC):
 class SamplingCrossAndPerPartitionContributionBounder(ContributionBounder):
     """Bounds the contribution by privacy_id per and cross partitions.
 
-    It ensures by performing sampling if needed that each privacy_id contributes
-    not more than to max_partitions_contributed partitions (cross-partition
-    contribution bounding) and not more than max_contributions_per_partition to
-    each contributed partition (per partition contribution bounding).
+    It ensures that each privacy_id contributes to not more than
+    max_partitions_contributed partitions (cross-partition contribution
+    bounding) and not more than max_contributions_per_partition to each
+    contributed partition (per-partition contribution bounding), by performing
+    sampling if needed.
     """
 
     def bound_contributions(self, col, params, backend, report_generator,
                             aggregate_fn):
-        """See docstrings for this class and for the base class bound_contributions."""
+        """See docstrings for this class and the base class."""
         max_partitions_contributed = params.max_partitions_contributed
         max_contributions_per_partition = params.max_contributions_per_partition
         col = backend.map_tuple(
@@ -59,8 +60,9 @@ class SamplingCrossAndPerPartitionContributionBounder(ContributionBounder):
             col, params.max_contributions_per_partition,
             "Sample per (privacy_id, partition_key)")
         report_generator.add_stage(
-            f"Per-partition contribution bounding: randomly selected not "
-            f"more than {max_contributions_per_partition} contributions")
+            f"Per-partition contribution bounding: for each privacy_id and each"
+            f"partition, randomly select max(actual_contributions_per_partition"
+            f", {max_contributions_per_partition}) contributions.")
         # ((privacy_id, partition_key), [value])
         col = backend.map_values(
             col, aggregate_fn,
@@ -75,8 +77,9 @@ class SamplingCrossAndPerPartitionContributionBounder(ContributionBounder):
                                            "Sample per privacy_id")
 
         report_generator.add_stage(
-            f"Cross-partition contribution bounding: randomly selected not more"
-            f" than {max_partitions_contributed} partitions per privacy id")
+            f"Cross-partition contribution bounding: for eacy privacy id "
+            f" randomly select max(actual_partition_contributed, "
+            f"{max_partitions_contributed}) partitions")
 
         # (privacy_id, [(partition_key, accumulator)])
         def unnest_cross_partition_bound_sampled_per_key(pid_pk_v):
@@ -102,7 +105,7 @@ class SamplingPerPrivacyIdContributionBounder(ContributionBounder):
 
     def bound_contributions(self, col, params, backend, report_generator,
                             aggregate_fn):
-        """See docstrings for this class and for the base class bound_contributions."""
+        """See docstrings for this class and the base class."""
         max_contributions = params.max_contributions
         col = backend.map_tuple(
             col, lambda pid, pk, v: (pid, (pk, v)),
@@ -110,13 +113,13 @@ class SamplingPerPrivacyIdContributionBounder(ContributionBounder):
         col = backend.sample_fixed_per_key(col, max_contributions,
                                            "Sample per privacy_id")
         report_generator.add_stage(
-            f"User contributions bounding: randomly selected not "
+            f"User contribution bounding: randomly selected not "
             f"more than {max_contributions} contributions")
 
         # (privacy_id, [(partition_key, value)])
 
         # Convert the per privacy id list into a dict with key as partition_key
-        # and value to be list of input values.
+        # and values as the list of input values.
         def collect_values_per_partition_key_per_privacy_id(input_list):
             d = collections.defaultdict(list)
             for key, value in input_list:
@@ -142,4 +145,4 @@ class SamplingPerPrivacyIdContributionBounder(ContributionBounder):
 
         return backend.map_values(
             col, aggregate_fn,
-            "Apply aggregate_fn after per privacy id contributions bounding")
+            "Apply aggregate_fn after per privacy id contribution bounding")
