@@ -113,7 +113,7 @@ class SamplingPerPrivacyIdContributionBounderTest(parameterized.TestCase):
 
     def test_contribution_bounding_applied(self):
         input = [("pid1", 'pk1', 1), ("pid1", 'pk2', 2), ("pid1", 'pk3', 3),
-                 ("pid1", 'pk4', 4), ("pid1", 'pk5', 5), ("pid1", 'pk1', 6)]
+                 ("pid1", 'pk4', 4), ("pid1", 'pk5', 5), ("pid1", 'pk6', 6)]
         max_contributions = 5
         bound_result = self._run_contribution_bounding(input, max_contributions)
         self.assertLen(bound_result, max_contributions)
