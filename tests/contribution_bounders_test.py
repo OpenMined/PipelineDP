@@ -80,13 +80,13 @@ class SamplingCrossAndPerPartitionContributionBounderTest(
             input, max_partitions_contributed, max_contributions_per_partition)
 
         self.assertEqual(4, len(bound_result))
-        # Check contributions per partitions
+        # Check contributions per partitions are enforced.
         self.assertTrue(
             all(
                 map(
                     lambda op_val: op_val[1][0] <=
                     max_contributions_per_partition, bound_result)))
-        # Check cross partition contributions
+        # Check cross partition contributions are enforced.
         dict_of_pid_to_pk = collections.defaultdict(lambda: [])
         for key, _ in bound_result:
             dict_of_pid_to_pk[key[0]].append(key[1])
