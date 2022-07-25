@@ -20,6 +20,7 @@ import numpy as np
 
 import pipeline_dp
 from pipeline_dp import combiners
+import pipeline_dp.contribution_bounders as contribution_bounders
 import pipeline_dp.report_generator as report_generator
 
 import pydp.algorithms.partition_selection as partition_selection
@@ -47,8 +48,12 @@ class DPEngine:
         self._backend = backend
         self._report_generators = []
 
+    @property
+    def _current_report_generator(self):
+        return self._report_generators[-1]
+
     def _add_report_stage(self, stage_description):
-        self._report_generators[-1].add_stage(stage_description)
+        self._current_report_generator.add_stage(stage_description)
 
     def _add_report_stages(self, stages_description):
         for stage_description in stages_description:
@@ -121,14 +126,10 @@ class DPEngine:
                                   data_extractors.value_extractor(row)),
                 "Extract (privacy_id, partition_key, value))")
             # col : (privacy_id, partition_key, value)
-            if params.max_contributions:
-                col = self._bound_per_privacy_id_contributions(
-                    col, params.max_contributions, combiner.create_accumulator)
-            else:
-                col = self._bound_contributions(
-                    col, params.max_partitions_contributed,
-                    params.max_contributions_per_partition,
-                    combiner.create_accumulator)
+            contribution_bounder = self._create_contribution_bounder(params)
+            col = contribution_bounder.bound_contributions(
+                col, params, self._backend, self._current_report_generator,
+                combiner.create_accumulator)
             # col : ((privacy_id, partition_key), accumulator)
 
             col = self._backend.map_tuple(col, lambda pid_pk, v: (pid_pk[1], v),
@@ -314,115 +315,6 @@ class DPEngine:
             col, empty_accumulators,
             "Join public partitions with partitions from data")
 
-    def _bound_per_privacy_id_contributions(self, col, max_contributions: int,
-                                            aggregator_fn):
-        """Bounds the total contributions by a privacy_id.
-
-        Args:
-          col: collection, with types of each element: (privacy_id,
-            partition_key, value).
-          max_contributions: maximum number of records that one privacy id can
-            contribute.
-          aggregator_fn: function that takes a list of values and returns an
-            aggregator object which handles all aggregation logic.
-
-        return: collection with elements ((privacy_id, partition_key),
-              accumulator).
-        """
-        col = self._backend.map_tuple(
-            col, lambda pid, pk, v: (pid, (pk, v)),
-            "Rekey to ((privacy_id), (partition_key, value))")
-        col = self._backend.sample_fixed_per_key(col, max_contributions,
-                                                 "Sample per privacy_id")
-        self._add_report_stage(
-            f"User contributions bounding: randomly selected not "
-            f"more than {max_contributions} contributions")
-
-        # (privacy_id, [(partition_key, value)])
-
-        # Convert the per privacy id list into a dict with key as partition_key
-        # and value to be list of input values.
-        def collect_values_per_partition_key_per_privacy_id(input_list):
-            d = collections.defaultdict(list)
-            for key, value in input_list:
-                d[key].append(value)
-            return d
-
-        col = self._backend.map_values(
-            col, collect_values_per_partition_key_per_privacy_id,
-            "Group per (privacy_id, partition_key)")
-
-        # (privacy_id, {partition_key: [value]})
-
-        # Rekey it into values per privacy id and partition key.
-        def rekey_per_privacy_id_per_partition_key(pid_pk_dict):
-            privacy_id, partition_dict = pid_pk_dict
-            for partition_key, values in partition_dict.items():
-                yield (privacy_id, partition_key), values
-
-        # Unnest the list per privacy id.
-        col = self._backend.flat_map(col,
-                                     rekey_per_privacy_id_per_partition_key,
-                                     "Unnest")
-        # ((privacy_id, partition_key), [value])
-
-        return self._backend.map_values(
-            col, aggregator_fn,
-            "Apply aggregate_fn after per privacy id contributions bounding")
-
-    def _bound_contributions(self, col, max_partitions_contributed: int,
-                             max_contributions_per_partition: int,
-                             aggregator_fn):
-        """Bounds the contribution by privacy_id in and cross partitions.
-
-        Args:
-          col: collection, with types of each element: (privacy_id,
-            partition_key, value).
-          max_partitions_contributed: maximum number of partitions that one
-            privacy id can contribute to.
-          max_contributions_per_partition: maximum number of records that one
-            privacy id can contribute to one partition.
-          aggregator_fn: function that takes a list of values and returns an
-            aggregator object which handles all aggregation logic.
-
-        return: collection with elements ((privacy_id, partition_key),
-              accumulator).
-        """
-        # per partition-contribution bounding with bounding of each contribution
-        col = self._backend.map_tuple(
-            col, lambda pid, pk, v: ((pid, pk), v),
-            "Rekey to ( (privacy_id, partition_key), value))")
-        col = self._backend.sample_fixed_per_key(
-            col, max_contributions_per_partition,
-            "Sample per (privacy_id, partition_key)")
-        self._add_report_stage(
-            f"Per-partition contribution bounding: randomly selected not "
-            f"more than {max_contributions_per_partition} contributions")
-        # ((privacy_id, partition_key), [value])
-        col = self._backend.map_values(
-            col, aggregator_fn,
-            "Apply aggregate_fn after per partition bounding")
-        # ((privacy_id, partition_key), accumulator)
-        # Cross partition bounding
-        col = self._backend.map_tuple(
-            col, lambda pid_pk, v: (pid_pk[0], (pid_pk[1], v)),
-            "Rekey to (privacy_id, (partition_key, accumulator))")
-        col = self._backend.sample_fixed_per_key(col,
-                                                 max_partitions_contributed,
-                                                 "Sample per privacy_id")
-
-        self._add_report_stage(
-            f"Cross-partition contribution bounding: randomly selected not more"
-            f" than {max_partitions_contributed} partitions per privacy id")
-
-        # (privacy_id, [(partition_key, accumulator)])
-        def unnest_cross_partition_bound_sampled_per_key(pid_pk_v):
-            pid, pk_values = pid_pk_v
-            return (((pid, pk), v) for (pk, v) in pk_values)
-
-        return self._backend.flat_map(
-            col, unnest_cross_partition_bound_sampled_per_key, "Unnest")
-
     def _select_private_partitions_internal(self, col,
                                             max_partitions_contributed: int,
                                             max_rows_per_privacy_id: int):
@@ -481,6 +373,17 @@ class DPEngine:
         """Creates CompoundCombiner based on aggregation parameters."""
         return combiners.create_compound_combiner(params,
                                                   self._budget_accountant)
+
+    def _create_contribution_bounder(
+        self, params: pipeline_dp.AggregateParams
+    ) -> contribution_bounders.ContributionBounder:
+        """Creates ContributionBounder based on aggregation parameters."""
+        if params.max_contributions:
+            return contribution_bounders.SamplingPerPrivacyIdContributionBounder(
+            )
+        else:
+            return contribution_bounders.SamplingCrossAndPerPartitionContributionBounder(
+            )
 
 
 def _check_aggregate_params(col, params: pipeline_dp.AggregateParams,

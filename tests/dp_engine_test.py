@@ -54,8 +54,6 @@ def _mock_partition_strategy_factory(min_users):
 
 
 class DpEngineTest(parameterized.TestCase):
-    aggregator_fn = lambda input_values: (len(input_values), np.sum(
-        input_values), np.sum(np.square(input_values)))
 
     def _get_default_extractors(self) -> pipeline_dp.DataExtractors:
         return pipeline_dp.DataExtractors(
@@ -94,136 +92,6 @@ class DpEngineTest(parameterized.TestCase):
             max_value=1,
             max_partitions_contributed=1,
             max_contributions_per_partition=1), ["pk0", "pk10", "pk11"])
-
-    def test_contribution_bounding_empty_col(self):
-        input_col = []
-        max_contributions = 4
-
-        dp_engine = self._create_dp_engine_default()
-        bound_result = list(
-            dp_engine._bound_per_privacy_id_contributions(
-                input_col,
-                max_contributions=max_contributions,
-                aggregator_fn=DpEngineTest.aggregator_fn))
-
-        self.assertFalse(bound_result)
-
-    def test_contribution_bounding_bound_input_nothing_dropped(self):
-        input_col = [("pid1", 'pk1', 1), ("pid1", 'pk1', 2), ("pid1", 'pk2', 3),
-                     ("pid1", 'pk2', 4)]
-        max_contributions = 4
-
-        dp_engine = self._create_dp_engine_default()
-        bound_result = list(
-            dp_engine._bound_per_privacy_id_contributions(
-                input_col,
-                max_contributions=max_contributions,
-                aggregator_fn=DpEngineTest.aggregator_fn))
-
-        expected_result = [(('pid1', 'pk2'), (2, 7, 25)),
-                           (('pid1', 'pk1'), (2, 3, 5))]
-        self.assertEqual(set(expected_result), set(bound_result))
-
-    def test_contribution_bounding_applied(self):
-        input_col = [("pid1", 'pk1', 1), ("pid1", 'pk2', 2), ("pid1", 'pk3', 3),
-                     ("pid1", 'pk4', 4), ("pid1", 'pk5', 5), ("pid2", 'pk1', 6)]
-        max_contributions = 4
-
-        dp_engine = self._create_dp_engine_default()
-        bound_result = list(
-            dp_engine._bound_per_privacy_id_contributions(
-                input_col,
-                max_contributions=max_contributions,
-                aggregator_fn=DpEngineTest.aggregator_fn))
-        self.assertLen(bound_result, 5)
-
-    def test_contribution_bounding_empty_col(self):
-        input_col = []
-        max_partitions_contributed = 2
-        max_contributions_per_partition = 2
-
-        dp_engine = self._create_dp_engine_default()
-        bound_result = list(
-            dp_engine._bound_contributions(
-                input_col,
-                max_partitions_contributed=max_partitions_contributed,
-                max_contributions_per_partition=max_contributions_per_partition,
-                aggregator_fn=DpEngineTest.aggregator_fn))
-
-        self.assertFalse(bound_result)
-
-    def test_contribution_bounding_bound_input_nothing_dropped(self):
-        input_col = [("pid1", 'pk1', 1), ("pid1", 'pk1', 2), ("pid1", 'pk2', 3),
-                     ("pid1", 'pk2', 4)]
-        max_partitions_contributed = 2
-        max_contributions_per_partition = 2
-
-        dp_engine = self._create_dp_engine_default()
-        bound_result = list(
-            dp_engine._bound_contributions(
-                input_col,
-                max_partitions_contributed=max_partitions_contributed,
-                max_contributions_per_partition=max_contributions_per_partition,
-                aggregator_fn=DpEngineTest.aggregator_fn))
-
-        expected_result = [(('pid1', 'pk2'), (2, 7, 25)),
-                           (('pid1', 'pk1'), (2, 3, 5))]
-        self.assertEqual(set(expected_result), set(bound_result))
-
-    def test_contribution_bounding_per_partition_bounding_applied(self):
-        input_col = [("pid1", 'pk1', 1), ("pid1", 'pk1', 2), ("pid1", 'pk2', 3),
-                     ("pid1", 'pk2', 4), ("pid1", 'pk2', 5), ("pid2", 'pk2', 6)]
-        max_partitions_contributed = 5
-        max_contributions_per_partition = 2
-
-        dp_engine = self._create_dp_engine_default()
-        bound_result = list(
-            dp_engine._bound_contributions(
-                input_col,
-                max_partitions_contributed=max_partitions_contributed,
-                max_contributions_per_partition=max_contributions_per_partition,
-                aggregator_fn=DpEngineTest.aggregator_fn))
-
-        self.assertEqual(3, len(bound_result))
-        # Check contributions per partitions
-        self.assertTrue(
-            all(
-                map(
-                    lambda op_val: op_val[1][0] <=
-                    max_contributions_per_partition, bound_result)))
-
-    def test_contribution_bounding_cross_partition_bounding_applied(self):
-        input_col = [("pid1", 'pk1', 1), ("pid1", 'pk1', 2), ("pid1", 'pk2', 3),
-                     ("pid1", 'pk2', 4), ("pid1", 'pk2', 5), ("pid1", 'pk3', 6),
-                     ("pid1", 'pk4', 7), ("pid2", 'pk4', 8)]
-        max_partitions_contributed = 3
-        max_contributions_per_partition = 5
-
-        dp_engine = self._create_dp_engine_default()
-        bound_result = list(
-            dp_engine._bound_contributions(
-                input_col,
-                max_partitions_contributed=max_partitions_contributed,
-                max_contributions_per_partition=max_contributions_per_partition,
-                aggregator_fn=DpEngineTest.aggregator_fn))
-
-        self.assertEqual(4, len(bound_result))
-        # Check contributions per partitions
-        self.assertTrue(
-            all(
-                map(
-                    lambda op_val: op_val[1][0] <=
-                    max_contributions_per_partition, bound_result)))
-        # Check cross partition contributions
-        dict_of_pid_to_pk = collections.defaultdict(lambda: [])
-        for key, _ in bound_result:
-            dict_of_pid_to_pk[key[0]].append(key[1])
-        self.assertEqual(2, len(dict_of_pid_to_pk))
-        self.assertTrue(
-            all(
-                map(
-                    lambda key: len(dict_of_pid_to_pk[key]) <=
-                    max_partitions_contributed, dict_of_pid_to_pk)))
 
     def test_aggregate_none(self):
         with self.assertRaises(Exception):
@@ -454,7 +322,7 @@ class DpEngineTest(parameterized.TestCase):
                 "metrics=['privacy_id_count', 'count', 'mean']",
                 " noise_kind=gaussian", "max_value=5",
                 "Partition selection: private partitions",
-                "Per-partition contribution bounding: randomly selected not more than 2 contributions",
+                "Cross-partition contribution bounding: for each privacy id randomly select max(actual_partition_contributed, 3)",
                 "Private Partition selection: using Truncated Geometric method with (eps="
             ],
         )
@@ -464,7 +332,7 @@ class DpEngineTest(parameterized.TestCase):
             [
                 "metrics=['sum', 'mean']", " noise_kind=gaussian",
                 "max_value=5", "Partition selection: public partitions",
-                "Per-partition contribution bounding: randomly selected not more than 3 contributions",
+                "Per-partition contribution bounding: for each privacy_id and eachpartition, randomly select max(actual_contributions_per_partition, 3)",
                 "Adding empty partitions for public partitions that are missing in data"
             ],
         )
@@ -479,11 +347,13 @@ class DpEngineTest(parameterized.TestCase):
             ],
         )
 
-    @patch('pipeline_dp.DPEngine._bound_contributions')
+    @patch(
+        'pipeline_dp.contribution_bounders.SamplingCrossAndPerPartitionContributionBounder.bound_contributions'
+    )
     def test_aggregate_computation_graph_verification(self,
                                                       mock_bound_contributions):
         # Arrange
-        aggregator_params = pipeline_dp.AggregateParams(
+        aggregate_params = pipeline_dp.AggregateParams(
             noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
             metrics=[agg.Metrics.COUNT],
             max_partitions_contributed=5,
@@ -503,17 +373,17 @@ class DpEngineTest(parameterized.TestCase):
             [("pid3", "pk3"), (1, [2])],
         ]
 
-        engine = pipeline_dp.DPEngine(budget_accountant=budget_accountant,
-                                      backend=pipeline_dp.LocalBackend())
-        col = engine.aggregate(col=col,
-                               params=aggregator_params,
-                               data_extractors=data_extractor)
+        backend = pipeline_dp.LocalBackend()
+        engine = pipeline_dp.DPEngine(budget_accountant, backend)
+        engine.aggregate(col=col,
+                         params=aggregate_params,
+                         data_extractors=data_extractor)
 
         # Assert
-        mock_bound_contributions.assert_called_with(
-            unittest.mock.ANY, aggregator_params.max_partitions_contributed,
-            aggregator_params.max_contributions_per_partition,
-            unittest.mock.ANY)
+        mock_bound_contributions.assert_called_with(unittest.mock.ANY,
+                                                    aggregate_params, backend,
+                                                    unittest.mock.ANY,
+                                                    unittest.mock.ANY)
 
     def _mock_and_assert_private_partitions(self, engine: pipeline_dp.DPEngine,
                                             col, min_users, expected_partitions,
@@ -618,12 +488,11 @@ class DpEngineTest(parameterized.TestCase):
         # very close to 1.
         self.assertLess(len(col), 5)
 
-    @patch('pipeline_dp.DPEngine._bound_contributions')
-    @patch('pipeline_dp.DPEngine._bound_per_privacy_id_contributions')
+    @patch('pipeline_dp.DPEngine._create_contribution_bounder')
     @patch('pipeline_dp.DPEngine._select_private_partitions_internal')
     def test_contribution_bounds_already_enforced_computation_graph(
             self, mock_select_private_partitions_internal,
-            mock_bound_per_privacy_id_contributions, mock_bound_contributions):
+            mock_create_contribution_bounder):
         # Arrange.
         engine = self._create_dp_engine_default()
         aggregate_params, _ = self._create_params_default()
@@ -638,8 +507,7 @@ class DpEngineTest(parameterized.TestCase):
         engine.aggregate([1], aggregate_params, data_extractors)
 
         # Assert.
-        mock_bound_contributions.assert_not_called()
-        mock_bound_per_privacy_id_contributions.assert_not_called()
+        mock_create_contribution_bounder.assert_not_called()
         mock_select_private_partitions_internal.assert_called_once()
         actual_max_rows_per_privacy_id = mock_select_private_partitions_internal.call_args[
             0][2]
