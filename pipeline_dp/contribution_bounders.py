@@ -82,13 +82,12 @@ class SamplingCrossAndPerPartitionContributionBounder(ContributionBounder):
             f"{max_partitions_contributed}) partitions")
 
         # (privacy_id, [(partition_key, accumulator)])
-        def unnest_cross_partition_bound_sampled_per_key(pid_pk_v):
+        def rekey_by_privacy_id_and_unnest(pid_pk_v):
             pid, pk_values = pid_pk_v
             return (((pid, pk), v) for (pk, v) in pk_values)
 
-        return backend.flat_map(col,
-                                unnest_cross_partition_bound_sampled_per_key,
-                                "Unnest")
+        return backend.flat_map(col, rekey_by_privacy_id_and_unnest,
+                                "Rekey by privacy id and unnest")
 
 
 class SamplingPerPrivacyIdContributionBounder(ContributionBounder):

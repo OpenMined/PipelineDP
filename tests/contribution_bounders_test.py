@@ -41,7 +41,7 @@ class SamplingCrossAndPerPartitionContributionBounderTest(
         bound_result = self._run_contribution_bounding(
             input, max_partitions_contributed, max_contributions_per_partition)
 
-        self.assertFalse(bound_result)
+        self.assertEmpty(bound_result)
 
     def test_contribution_bounding_bound_input_nothing_dropped(self):
         input = [("pid1", 'pk1', 1), ("pid1", 'pk1', 2), ("pid1", 'pk2', 3),
@@ -62,7 +62,7 @@ class SamplingCrossAndPerPartitionContributionBounderTest(
             input, max_partitions_contributed, max_contributions_per_partition)
 
         self.assertEqual(3, len(bound_result))
-        # Check contributions per partitions
+        # Check contribution limits per-partition are enforced.
         self.assertTrue(
             all(
                 map(
@@ -135,4 +135,4 @@ class SamplingPerPrivacyIdContributionBounderTest(parameterized.TestCase):
 
         bound_result = self._run_contribution_bounding(input, max_contributions)
 
-        self.assertFalse(bound_result)
+        self.assertEmpty(bound_result)
