@@ -149,12 +149,12 @@ class PrivateBeamTest(unittest.TestCase):
                 min_value=1,
                 max_value=5,
                 budget_weight=1,
-                public_partitions=[],
                 partition_extractor=lambda x: f"pk:{x // 10}",
                 value_extractor=lambda x: x)
 
             # Act
-            transformer = private_beam.Variance(variance_params=variance_params)
+            transformer = private_beam.Variance(variance_params=variance_params,
+                                                public_partitions=[])
             private_collection | transformer
 
             # Assert
@@ -171,8 +171,7 @@ class PrivateBeamTest(unittest.TestCase):
                 max_contributions_per_partition=variance_params.
                 max_contributions_per_partition,
                 min_value=variance_params.min_value,
-                max_value=variance_params.max_value,
-                public_partitions=variance_params.public_partitions)
+                max_value=variance_params.max_value)
             self.assertEqual(params, args[1])
 
     def test_variance_returns_sensible_result(self):
@@ -238,12 +237,12 @@ class PrivateBeamTest(unittest.TestCase):
                 max_value=2.7889,  # 100 should be clipped to this value
                 budget_weight=1,
                 partition_extractor=lambda x: x[1],
-                value_extractor=lambda x: x[2],
-                public_partitions=["pubK1", "pubK2"])
+                value_extractor=lambda x: x[2])
 
             # Act
             result = private_collection | private_beam.Variance(
-                variance_params=variance_params)
+                variance_params=variance_params,
+                public_partitions=["pubK1", "pubK2"])
             budget_accountant.compute_budgets()
 
             # Assert
@@ -252,7 +251,7 @@ class PrivateBeamTest(unittest.TestCase):
             beam_util.assert_that(
                 result,
                 # pubK2 has no data points therefore the dataset is assumed to be {min_value, max_value}
-                beam_util.equal_to([("pubK1", 0.288), ("pubK2", 0.384)],
+                beam_util.equal_to([("pubK1", 0.288), ("pubK2", 0.0)],
                                    equals_fn=lambda e, a: PrivateBeamTest.
                                    value_per_key_within_tolerance(e, a, 0.1)))
 
@@ -277,12 +276,12 @@ class PrivateBeamTest(unittest.TestCase):
                 min_value=1,
                 max_value=5,
                 budget_weight=1,
-                public_partitions=[],
                 partition_extractor=lambda x: f"pk:{x // 10}",
                 value_extractor=lambda x: x)
 
             # Act
-            transformer = private_beam.Mean(mean_params=mean_params)
+            transformer = private_beam.Mean(mean_params=mean_params,
+                                            public_partitions=[])
             private_collection | transformer
 
             # Assert
@@ -299,8 +298,7 @@ class PrivateBeamTest(unittest.TestCase):
                 max_contributions_per_partition=mean_params.
                 max_contributions_per_partition,
                 min_value=mean_params.min_value,
-                max_value=mean_params.max_value,
-                public_partitions=mean_params.public_partitions)
+                max_value=mean_params.max_value)
             self.assertEqual(params, args[1])
 
     def test_mean_returns_sensible_result(self):
@@ -366,12 +364,11 @@ class PrivateBeamTest(unittest.TestCase):
                 max_value=2.7889,  # 100 should be clipped to this value
                 budget_weight=1,
                 partition_extractor=lambda x: x[1],
-                value_extractor=lambda x: x[2],
-                public_partitions=["pubK1", "pubK2"])
+                value_extractor=lambda x: x[2])
 
             # Act
             result = private_collection | private_beam.Mean(
-                mean_params=mean_params)
+                mean_params=mean_params, public_partitions=["pubK1", "pubK2"])
             budget_accountant.compute_budgets()
 
             # Assert
@@ -405,12 +402,12 @@ class PrivateBeamTest(unittest.TestCase):
                 min_value=1,
                 max_value=5,
                 budget_weight=1,
-                public_partitions=[],
                 partition_extractor=lambda x: f"pk:{x // 10}",
                 value_extractor=lambda x: x)
 
             # Act
-            transformer = private_beam.Sum(sum_params=sum_params)
+            transformer = private_beam.Sum(sum_params=sum_params,
+                                           public_partitions=[])
             private_collection | transformer
 
             # Assert
@@ -427,8 +424,7 @@ class PrivateBeamTest(unittest.TestCase):
                 max_contributions_per_partition=sum_params.
                 max_contributions_per_partition,
                 min_value=sum_params.min_value,
-                max_value=sum_params.max_value,
-                public_partitions=sum_params.public_partitions)
+                max_value=sum_params.max_value)
             self.assertEqual(params, args[1])
 
     def test_sum_returns_sensible_result(self):
@@ -494,12 +490,11 @@ class PrivateBeamTest(unittest.TestCase):
                 max_value=2.7889,
                 budget_weight=1,
                 partition_extractor=lambda x: x[1],
-                value_extractor=lambda x: x[2],
-                public_partitions=["pubK1", "pubK2"])
+                value_extractor=lambda x: x[2])
 
             # Act
             result = private_collection | private_beam.Sum(
-                sum_params=sum_params)
+                sum_params=sum_params, public_partitions=["pubK1", "pubK2"])
             budget_accountant.compute_budgets()
 
             # Assert
@@ -548,8 +543,7 @@ class PrivateBeamTest(unittest.TestCase):
                 max_partitions_contributed=count_params.
                 max_partitions_contributed,
                 max_contributions_per_partition=count_params.
-                max_contributions_per_partition,
-                public_partitions=count_params.public_partitions)
+                max_contributions_per_partition)
             self.assertEqual(args[1], params)
 
     def test_count_returns_sensible_result(self):
@@ -607,12 +601,11 @@ class PrivateBeamTest(unittest.TestCase):
                 max_partitions_contributed=2,
                 max_contributions_per_partition=3,
                 budget_weight=1,
-                partition_extractor=lambda x: x[1],
-                public_partitions=["pubK1", "pubK2"])
+                partition_extractor=lambda x: x[1])
 
             # Act
             result = private_collection | private_beam.Count(
-                count_params=count_params)
+                count_params=count_params, public_partitions=["pubK1", "pubK2"])
             budget_accountant.compute_budgets()
 
             # Assert
@@ -660,8 +653,7 @@ class PrivateBeamTest(unittest.TestCase):
                 metrics=[pipeline_dp.Metrics.PRIVACY_ID_COUNT],
                 max_partitions_contributed=privacy_id_count_params.
                 max_partitions_contributed,
-                max_contributions_per_partition=1,
-                public_partitions=privacy_id_count_params.public_partitions)
+                max_contributions_per_partition=1)
             self.assertEqual(args[1], params)
 
     def test_privacy_id_count_returns_sensible_result(self):
@@ -718,12 +710,12 @@ class PrivateBeamTest(unittest.TestCase):
                 noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
                 max_partitions_contributed=2,
                 budget_weight=1,
-                partition_extractor=lambda x: x[1],
-                public_partitions=["pubK1", "pubK2"])
+                partition_extractor=lambda x: x[1])
 
             # Act
             result = private_collection | private_beam.PrivacyIdCount(
-                privacy_id_count_params=privacy_id_count_params)
+                privacy_id_count_params=privacy_id_count_params,
+                public_partitions=["pubK1", "pubK2"])
             budget_accountant.compute_budgets()
 
             # Assert

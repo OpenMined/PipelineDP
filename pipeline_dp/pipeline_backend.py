@@ -20,7 +20,6 @@ import numpy as np
 from collections.abc import Iterable
 
 import abc
-import pipeline_dp.accumulator as accumulator
 import pipeline_dp.combiners as dp_combiners
 import typing
 import collections
@@ -87,6 +86,16 @@ class PipelineBackend(abc.ABC):
 
     @abc.abstractmethod
     def sample_fixed_per_key(self, col, n: int, stage_name: str):
+        """Get random samples without replacement of values for each key.
+
+        Args:
+          col: input collection of elements (key, value).
+          n: number of values to sample for each key.
+          stage_name: name of the stage.
+
+        Returns:
+          A collection of (key, [value]).
+        """
         pass
 
     @abc.abstractmethod
@@ -94,23 +103,9 @@ class PipelineBackend(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def reduce_accumulators_per_key(self, col, stage_name: str):
-        """Reduces the input collection so that all elements per each key are merged.
-
-        Args:
-          col: input collection which contains tuples (key, accumulator)
-          stage_name: name of the stage
-
-        Returns:
-          A collection of tuples (key, accumulator).
-
-        """
-        pass
-
-    @abc.abstractmethod
     def combine_accumulators_per_key(self, col, combiner: dp_combiners.Combiner,
                                      stage_name: str):
-        """Reduces the input collection so that all elements per each key are merged.
+        """Combines the input collection so that all elements per each key are merged.
 
         Args:
           col: input collection which contains tuples (key, accumulator).
@@ -122,7 +117,6 @@ class PipelineBackend(abc.ABC):
           A collection of tuples (key, accumulator).
 
         """
-        pass
 
     @abc.abstractmethod
     def flatten(self, col1, col2, stage_name: str):
@@ -263,20 +257,6 @@ class BeamBackend(PipelineBackend):
         return col | self._ulg.unique(
             stage_name) >> combiners.Count.PerElement()
 
-    def reduce_accumulators_per_key(self, col, stage_name: str):
-        # TODO: Use merge function from the accumulator framework.
-        def merge_accumulators(accumulators):
-            res = None
-            for acc in accumulators:
-                if res:
-                    res.add_accumulator(acc)
-                else:
-                    res = acc
-            return res
-
-        return col | self._ulg.unique(stage_name) >> beam.CombinePerKey(
-            merge_accumulators)
-
     def combine_accumulators_per_key(self, col, combiner: dp_combiners.Combiner,
                                      stage_name: str):
 
@@ -366,26 +346,12 @@ class SparkRDDBackend(PipelineBackend):
         return rdd.values()
 
     def sample_fixed_per_key(self, rdd, n: int, stage_name: str = None):
-        """Get fixed-size random samples for each unique key in an RDD of key-values.
-        Sampling is not guaranteed to be uniform across partitions.
-
-        Args:
-          rdd: input RDD
-          n: number of values to sample for each key
-          stage_name: not used
-
-        Returns:
-          An RDD of tuples.
-
-        """
+        """See base class. The sampling is not guaranteed to be uniform."""
         return rdd.mapValues(lambda x: [x]).reduceByKey(
             lambda x, y: random.sample(x + y, min(len(x) + len(y), n)))
 
     def count_per_element(self, rdd, stage_name: str = None):
         return rdd.map(lambda x: (x, 1)).reduceByKey(lambda x, y: (x + y))
-
-    def reduce_accumulators_per_key(self, rdd, stage_name: str):
-        return rdd.reduceByKey(lambda acc1, acc2: acc1.add_accumulator(acc2))
 
     def combine_accumulators_per_key(self,
                                      rdd,
@@ -461,9 +427,6 @@ class LocalBackend(PipelineBackend):
 
     def count_per_element(self, col, stage_name: typing.Optional[str] = None):
         yield from collections.Counter(col).items()
-
-    def reduce_accumulators_per_key(self, col, stage_name: str = None):
-        return self.map_values(self.group_by_key(col), accumulator.merge)
 
     def combine_accumulators_per_key(self,
                                      col,
@@ -682,11 +645,6 @@ class MultiProcLocalBackend(PipelineBackend):
     def count_per_element(self, col, stage_name: typing.Optional[str] = None):
         return _LazyMultiProcCountIterator(col, self.chunksize, self.n_jobs,
                                            **self.pool_kwargs)
-
-    def reduce_accumulators_per_key(self,
-                                    col,
-                                    stage_name: typing.Optional[str] = None):
-        return self.map_values(col, accumulator.merge)
 
     def combine_accumulators_per_key(self, col, combiner: dp_combiners.Combiner,
                                      stage_name: str):

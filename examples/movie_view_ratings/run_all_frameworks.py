@@ -46,6 +46,12 @@ flags.DEFINE_list('public_partitions', None,
 flags.DEFINE_boolean(
     'private_partitions', False,
     'Output private partitions (do not calculate any DP metrics)')
+flags.DEFINE_boolean(
+    'contribution_bounds_already_enforced', False,
+    'Assume the input dataset already enforces the hard-coded contribution'
+    'bounds. Ignore the user identifiers.')
+flags.DEFINE_boolean('vector_metrics', False,
+                     'Compute DP vector metrics for rating values')
 
 
 def calculate_private_result(movie_views, pipeline_backend):
@@ -66,31 +72,48 @@ def calc_dp_rating_metrics(movie_views, backend, public_partitions):
     # Create a DPEngine instance.
     dp_engine = pipeline_dp.DPEngine(budget_accountant, backend)
 
-    # Specify which DP aggregated metrics to compute.
     params = pipeline_dp.AggregateParams(
         noise_kind=pipeline_dp.NoiseKind.LAPLACE,
         metrics=[
             pipeline_dp.Metrics.COUNT, pipeline_dp.Metrics.SUM,
-            pipeline_dp.Metrics.PRIVACY_ID_COUNT, pipeline_dp.Metrics.MEAN,
-            pipeline_dp.Metrics.VARIANCE
-        ],
+            pipeline_dp.Metrics.MEAN, pipeline_dp.Metrics.VARIANCE
+        ] + ([pipeline_dp.Metrics.PRIVACY_ID_COUNT]
+             if not FLAGS.contribution_bounds_already_enforced else []),
         max_partitions_contributed=2,
         max_contributions_per_partition=1,
         min_value=1,
         max_value=5,
-        public_partitions=public_partitions)
+        contribution_bounds_already_enforced=FLAGS.
+        contribution_bounds_already_enforced)
+
+    value_extractor = lambda mv: mv.rating
+
+    if FLAGS.vector_metrics:
+        # Specify which DP aggregated metrics to compute for vector values.
+        params.metrics = [pipeline_dp.Metrics.VECTOR_SUM]
+        params.vector_size = 5  # Size of ratings vector
+        params.vector_max_norm = 1
+        value_extractor = lambda mv: encode_one_hot(mv.rating - 1, params.
+                                                    vector_size)
 
     # Specify how to extract privacy_id, partition_key and value from an
     # element of movie view collection.
     data_extractors = pipeline_dp.DataExtractors(
         partition_extractor=lambda mv: mv.movie_id,
-        privacy_id_extractor=lambda mv: mv.user_id,
-        value_extractor=lambda mv: mv.rating)
+        privacy_id_extractor=(lambda mv: mv.user_id)
+        if not FLAGS.contribution_bounds_already_enforced else None,
+        value_extractor=value_extractor)
 
     # Run aggregation.
-    dp_result = dp_engine.aggregate(movie_views, params, data_extractors)
+    dp_result = dp_engine.aggregate(movie_views, params, data_extractors,
+                                    public_partitions)
 
     budget_accountant.compute_budgets()
+
+    reports = dp_engine.explain_computations_report()
+    for report in reports:
+        print(report)
+
     return dp_result
 
 
@@ -161,6 +184,12 @@ def compute_on_local_backend():
     pipeline_backend = pipeline_dp.LocalBackend()
     dp_result = list(calculate_private_result(movie_views, pipeline_backend))
     write_to_file(dp_result, FLAGS.output_file)
+
+
+def encode_one_hot(value, vector_size):
+    vec = [0] * vector_size
+    vec[value] = 1
+    return vec
 
 
 def main(unused_argv):

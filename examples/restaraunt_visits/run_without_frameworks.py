@@ -66,8 +66,7 @@ def main(unused_argv):
         max_partitions_contributed=3,
         max_contributions_per_partition=2,
         min_value=0,
-        max_value=60,
-        public_partitions=list(range(1, 8)))
+        max_value=60)
 
     # Specify how to extract privacy_id, partition_key and value from an
     # element of restaraunt_visits_rows.
@@ -81,8 +80,10 @@ def main(unused_argv):
     # fail until budget is computed (below).
     # It’s possible to call DPEngine.aggregate multiple times with different
     # metrics to compute.
-    dp_result = dp_engine.aggregate(restaraunt_visits_rows, params,
-                                    data_extractors)
+    dp_result = dp_engine.aggregate(restaraunt_visits_rows,
+                                    params,
+                                    data_extractors,
+                                    public_partitions=list(range(1, 8)))
 
     budget_accountant.compute_budgets()
 

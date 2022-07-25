@@ -37,11 +37,12 @@ class MeanVarParams:
         """"Returns the L0 sensitivity of the parameters."""
         return self.max_partitions_contributed
 
-    def squares_interval(self):
-        """Returns the bounds of the interval [min_value^2, max_value^2]."""
-        if self.min_value < 0 and self.max_value > 0:
-            return 0, max(self.min_value**2, self.max_value**2)
-        return self.min_value**2, self.max_value**2
+
+def compute_squares_interval(min_value: float, max_value: float):
+    """Returns the bounds of the interval [min_value^2, max_value^2]."""
+    if min_value < 0 < max_value:
+        return 0, max(min_value**2, max_value**2)
+    return min_value**2, max_value**2
 
 
 def compute_middle(min_value: float, max_value: float):
@@ -284,8 +285,7 @@ def compute_dp_sum(sum: float, dp_params: MeanVarParams):
     )
 
 
-def _compute_mean(
-    count: float,
+def _compute_mean_for_normalized_sum(
     dp_count: float,
     sum: float,
     min_value: float,
@@ -299,10 +299,9 @@ def _compute_mean(
     """Helper function to compute the DP mean of a raw sum using the DP count.
 
     Args:
-        count: Non-DP count.
         dp_count: DP count.
-        sum: Non-DP sum.
-        min_value, max_value: The lowest/highest contribution.
+        sum: Non-DP normalized sum.
+        min_value, max_value: The lowest/highest contribution of the non-normalized values.
         eps, delta: The budget allocated.
         l0_sensitivity: The L0 sensitivity.
         max_contributions_per_partition: The maximum number of contributions
@@ -320,23 +319,22 @@ def _compute_mean(
     middle = compute_middle(min_value, max_value)
     linf_sensitivity = max_contributions_per_partition * abs(middle - min_value)
 
-    normalized_sum = sum - count * middle
-    dp_normalized_sum = _add_random_noise(normalized_sum, eps, delta,
-                                          l0_sensitivity, linf_sensitivity,
-                                          noise_kind)
+    dp_normalized_sum = _add_random_noise(sum, eps, delta, l0_sensitivity,
+                                          linf_sensitivity, noise_kind)
     # Clamps dp_count to 1.0. We know that actual count > 1 except when the
     # input set is empty, in which case it shouldn't matter much what the
     # denominator is.
     dp_count_clamped = max(1.0, dp_count)
-    return dp_normalized_sum / dp_count_clamped + middle
+    return dp_normalized_sum / dp_count_clamped
 
 
-def compute_dp_mean(count: int, sum: float, dp_params: MeanVarParams):
+def compute_dp_mean(count: int, normalized_sum: float,
+                    dp_params: MeanVarParams):
     """Computes DP mean.
 
     Args:
         count: Non-DP count.
-        sum: Non-DP sum.
+        normalized_sum: Non-DP normalized sum.
         dp_params: The parameters used at computing the noise.
 
     Raises:
@@ -359,10 +357,9 @@ def compute_dp_mean(count: int, sum: float, dp_params: MeanVarParams):
         dp_params.noise_kind,
     )
 
-    dp_mean = _compute_mean(
-        count,
+    dp_mean = _compute_mean_for_normalized_sum(
         dp_count,
-        sum,
+        normalized_sum,
         dp_params.min_value,
         dp_params.max_value,
         sum_eps,
@@ -372,17 +369,20 @@ def compute_dp_mean(count: int, sum: float, dp_params: MeanVarParams):
         dp_params.noise_kind,
     )
 
+    if dp_params.min_value != dp_params.max_value:
+        dp_mean += compute_middle(dp_params.min_value, dp_params.max_value)
+
     return dp_count, dp_mean * dp_count, dp_mean
 
 
-def compute_dp_var(count: int, sum: float, sum_squares: float,
-                   dp_params: MeanVarParams):
+def compute_dp_var(count: int, normalized_sum: float,
+                   normalized_sum_squares: float, dp_params: MeanVarParams):
     """Computes DP variance.
 
     Args:
         count: Non-DP count.
-        sum: Non-DP sum.
-        sum_squares: Non-DP sum of squares.
+        normalized_sum: Non-DP normalized sum.
+        normalized_sum_squares: Non-DP normalized sum of squares.
         dp_params: The parameters used at computing the noise.
 
     Raises:
@@ -409,10 +409,9 @@ def compute_dp_var(count: int, sum: float, sum_squares: float,
     )
 
     # Computes and adds noise to the mean.
-    dp_mean = _compute_mean(
-        count,
+    dp_mean = _compute_mean_for_normalized_sum(
         dp_count,
-        sum,
+        normalized_sum,
         dp_params.min_value,
         dp_params.max_value,
         sum_eps,
@@ -422,15 +421,17 @@ def compute_dp_var(count: int, sum: float, sum_squares: float,
         dp_params.noise_kind,
     )
 
-    squares_min_value, squares_max_value = dp_params.squares_interval()
+    squares_min_value, squares_max_value = compute_squares_interval(
+        dp_params.min_value, dp_params.max_value)
 
     # Computes and adds noise to the mean of squares.
-    dp_mean_squares = _compute_mean(count, dp_count, sum_squares,
-                                    squares_min_value, squares_max_value,
-                                    sum_squares_eps, sum_squares_delta,
-                                    l0_sensitivity,
-                                    dp_params.max_contributions_per_partition,
-                                    dp_params.noise_kind)
+    dp_mean_squares = _compute_mean_for_normalized_sum(
+        dp_count, normalized_sum_squares, squares_min_value, squares_max_value,
+        sum_squares_eps, sum_squares_delta, l0_sensitivity,
+        dp_params.max_contributions_per_partition, dp_params.noise_kind)
 
     dp_var = dp_mean_squares - dp_mean**2
+    if dp_params.min_value != dp_params.max_value:
+        dp_mean += compute_middle(dp_params.min_value, dp_params.max_value)
+
     return dp_count, dp_mean * dp_count, dp_mean, dp_var

@@ -15,7 +15,7 @@
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Iterable, Callable, Union
+from typing import Any, Iterable, Sequence, Callable, Union, Optional, List
 import math
 import logging
 
@@ -26,6 +26,7 @@ class Metrics(Enum):
     SUM = 'sum'
     MEAN = 'mean'
     VARIANCE = 'variance'
+    VECTOR_SUM = 'vector_sum'
 
 
 class NoiseKind(Enum):
@@ -56,35 +57,55 @@ class NormKind(Enum):
 class AggregateParams:
     """Specifies parameters for function DPEngine.aggregate()
 
-  Args:
-    noise_kind: The type of noise to use for the DP calculations.
-    metrics: A list of metrics to compute.
-    max_partitions_contributed: A bound on the number of partitions to which one
-      unit of privacy (e.g., a user) can contribute.
-    max_contributions_per_partition: A bound on the number of times one unit of
-      privacy (e.g. a user) can contribute to a partition.
-    budget_weight: Relative weight of the privacy budget allocated to this
-      aggregation.
-    min_value: Lower bound on each value.
-    max_value: Upper bound on each value.
-    public_partitions: A collection of partition keys that will be present in
-      the result. Optional. If not provided, partitions will be selected in a DP
-      manner.
-    custom_combiners: Warning: experimental@ Combiners for computing custom
-      metrics.
-  """
-
-    metrics: Iterable[Metrics]
-    max_partitions_contributed: int
-    max_contributions_per_partition: int
+    Args:
+        metrics: A list of metrics to compute.
+        noise_kind: The type of noise to use for the DP calculations.
+        max_partitions_contributed: A bound on the number of partitions to which one
+          unit of privacy (e.g., a user) can contribute.
+        max_contributions_per_partition: A bound on the number of times one unit of
+          privacy (e.g. a user) can contribute to a partition.
+        max_contributions: A bound on the total number of times one unit of privacy
+          (e.g., a user) can contribute.
+        budget_weight: Relative weight of the privacy budget allocated to this
+          aggregation.
+        min_value: Lower bound on each value.
+        max_value: Upper bound on each value.
+        custom_combiners: Warning: experimental@ Combiners for computing custom
+          metrics.
+        vector_norm_kind: The type of norm. Used only for VECTOR_SUM metric
+        calculations.
+        vector_max_norm: Bound on each value of a vector. Used only for
+         VECTOR_SUM metric calculations.
+        vector_size: Number of coordinates in a vector. Used only for VECTOR_SUM
+         metric calculations.
+        contribution_bounds_already_enforced: assume that the input dataset
+         complies with the bounds provided in max_partitions_contributed and
+         max_contributions_per_partition. This option can be used if the dataset
+         does not contain any identifiers that can be used to enforce
+         contribution bounds automatically.
+    """
+    metrics: List[Metrics]
+    noise_kind: NoiseKind = NoiseKind.LAPLACE
+    max_partitions_contributed: Optional[int] = None
+    max_contributions_per_partition: Optional[int] = None
+    max_contributions: Optional[int] = None
     budget_weight: float = 1
     low: float = None  # deprecated
     high: float = None  # deprecated
     min_value: float = None
     max_value: float = None
-    public_partitions: Any = None
-    noise_kind: NoiseKind = NoiseKind.LAPLACE
-    custom_combiners: Iterable['CustomCombiner'] = None
+    public_partitions: Any = None  # deprecated
+    custom_combiners: Sequence['CustomCombiner'] = None
+    vector_norm_kind: Optional[NormKind] = None
+    vector_max_norm: Optional[float] = None
+    vector_size: Optional[int] = None
+    contribution_bounds_already_enforced: bool = False
+
+    @property
+    def metrics_str(self) -> str:
+        if self.custom_combiners:
+            return f"custom combiners={[c.metrics_names() for c in self.custom_combiners]}"
+        return f"metrics={[m.value for m in self.metrics]}"
 
     def __post_init__(self):
         if self.low is not None:
@@ -97,29 +118,30 @@ class AggregateParams:
             needs_min_max_value = Metrics.SUM in self.metrics \
                                   or Metrics.MEAN in self.metrics \
                                   or Metrics.VARIANCE in self.metrics
-            if not isinstance(self.max_partitions_contributed,
-                              int) or self.max_partitions_contributed <= 0:
-                raise ValueError(
-                    "params.max_partitions_contributed must be set "
-                    "to a positive integer")
-            if not isinstance(self.max_contributions_per_partition,
-                              int) or self.max_contributions_per_partition <= 0:
-                raise ValueError(
-                    "params.max_contributions_per_partition must be set "
-                    "to a positive integer")
             if needs_min_max_value and (self.min_value is None or
                                         self.max_value is None):
                 raise ValueError(
-                    "params.min_value and params.max_value must be set")
+                    "AggregateParams: min_value and max_value must be set")
             if needs_min_max_value and (_not_a_proper_number(self.min_value) or
                                         _not_a_proper_number(self.max_value)):
                 raise ValueError(
-                    "params.min_value and params.max_value must be both finite numbers"
-                )
+                    "AggregateParams: min_value and max_value must be both "
+                    "finite numbers")
             if needs_min_max_value and self.max_value < self.min_value:
                 raise ValueError(
-                    "params.max_value must be equal to or greater than params.min_value"
-                )
+                    "AggregateParams: max_value must be equal to or greater than"
+                    " min_value")
+            if Metrics.VECTOR_SUM in self.metrics and \
+            (Metrics.SUM in self.metrics or \
+            Metrics.MEAN in self.metrics or \
+            Metrics.VARIANCE in self.metrics):
+                raise ValueError(
+                    "AggregateParams: vector sum can not be computed together "
+                    "with scalar metrics, like sum, mean etc")
+            if self.contribution_bounds_already_enforced and Metrics.PRIVACY_ID_COUNT in self.metrics:
+                raise ValueError(
+                    "AggregateParams: Cannot calculate PRIVACY_ID_COUNT when "
+                    "contribution_bounds_already_enforced is set to True.")
         if self.custom_combiners:
             logging.warning("Warning: custom combiners are used. This is an "
                             "experimental feature. It might not work properly "
@@ -130,11 +152,38 @@ class AggregateParams:
             # whether this check is required?
             raise ValueError(
                 "Custom combiners can not be used with standard metrics")
+        if self.public_partitions:
+            raise ValueError(
+                "AggregateParams.public_partitions is deprecated. Please use public_partitions argument in DPEngine.aggregate insead."
+            )
+        if self.max_contributions is not None:
+            _check_is_positive_int(self.max_contributions, "max_contributions")
+            if ((self.max_partitions_contributed is not None) or
+                (self.max_contributions_per_partition is not None)):
+                raise ValueError(
+                    "AggregateParams: only one in max_contributions or "
+                    "both max_partitions_contributed and "
+                    "max_contributions_per_partition must be set")
+        else:  # self.max_contributions is None
+            n_not_none = _count_not_none(self.max_partitions_contributed,
+                                         self.max_contributions_per_partition)
+            if n_not_none == 0:
+                raise ValueError(
+                    "AggregateParams: either max_contributions must be set or "
+                    "both max_partitions_contributed and "
+                    "max_contributions_per_partition must be set.")
+            elif n_not_none == 1:
+                raise ValueError(
+                    "AggregateParams: either none or both from "
+                    "max_partitions_contributed and "
+                    " max_contributions_per_partition must be set.")
+            _check_is_positive_int(self.max_partitions_contributed,
+                                   "max_partitions_contributed")
+            _check_is_positive_int(self.max_contributions_per_partition,
+                                   "max_contributions_per_partition")
 
     def __str__(self):
-        if self.custom_combiners:
-            return f"Custom combiners: {[c.metrics_names() for c in self.custom_combiners]}"
-        return f"Metrics: {[m.value for m in self.metrics]}"
+        return parameters_to_readable_string(self)
 
 
 @dataclass
@@ -154,6 +203,8 @@ class SelectPartitionsParams:
     max_partitions_contributed: int
     budget_weight: float = 1
 
+    # TODO: Add support for contribution_bounds_already_enforced
+
     def __str__(self):
         return "Private Partitions"
 
@@ -168,13 +219,11 @@ class SumParams:
             unit of privacy (e.g., a user) can contribute.
         max_contributions_per_partition: A bound on the number of times one unit of
             privacy (e.g. a user) can contribute to a partition.
-        low: Lower bound on each value.
-        high: Upper bound on each value.
-        public_partitions: A collection of partition keys that will be present in
-            the result. Optioanl.
+        min_value: Lower bound on each value.
+        max_value: Upper bound on each value.
         partition_extractor: A function which, given an input element, will return its partition id.
         value_extractor: A function which, given an input element, will return its value.
-  """
+    """
     max_partitions_contributed: int
     max_contributions_per_partition: int
     min_value: float
@@ -185,7 +234,8 @@ class SumParams:
     high: float = None  # deprecated
     budget_weight: float = 1
     noise_kind: NoiseKind = NoiseKind.LAPLACE
-    public_partitions: Union[Iterable, 'PCollection', 'RDD'] = None
+    public_partitions: Union[Iterable, 'PCollection',
+                             'RDD'] = None  # deprecated
 
     def __post_init__(self):
         if self.low is not None:
@@ -193,6 +243,11 @@ class SumParams:
 
         if self.high is not None:
             raise ValueError("SumParams: please use max_value instead of high")
+
+        if self.public_partitions:
+            raise ValueError(
+                "SumParams.public_partitions is deprecated. Please read API documentation for anonymous Sum transform."
+            )
 
 
 @dataclass
@@ -208,8 +263,6 @@ class VarianceParams:
         min_value: Lower bound on a value contributed by a unit of privacy in a partition.
         max_value: Upper bound on a value contributed by a unit of privacy in a
             partition.
-        public_partitions: A collection of partition keys that will be present in
-            the result.
         partition_extractor: A function for partition id extraction from a collection record.
         value_extractor: A function for extraction of value
             for which the sum will be calculated.
@@ -222,7 +275,14 @@ class VarianceParams:
     value_extractor: Callable
     budget_weight: float = 1
     noise_kind: NoiseKind = NoiseKind.LAPLACE
-    public_partitions: Union[Iterable, 'PCollection', 'RDD'] = None
+    public_partitions: Union[Iterable, 'PCollection',
+                             'RDD'] = None  # deprecated
+
+    def __post_init__(self):
+        if self.public_partitions:
+            raise ValueError(
+                "VarianceParams.public_partitions is deprecated. Please read API documentation for anonymous Variance transform."
+            )
 
 
 @dataclass
@@ -240,7 +300,6 @@ class MeanParams:
             partition.
         public_partitions: A collection of partition keys that will be present in
             the result.
-        partition_extractor: A function for partition id extraction from a collection record.
         value_extractor: A function for extraction of value
             for which the sum will be calculated.
   """
@@ -252,7 +311,14 @@ class MeanParams:
     value_extractor: Callable
     budget_weight: float = 1
     noise_kind: NoiseKind = NoiseKind.LAPLACE
-    public_partitions: Union[Iterable, 'PCollection', 'RDD'] = None
+    public_partitions: Union[Iterable, 'PCollection',
+                             'RDD'] = None  # deprecated
+
+    def __post_init__(self):
+        if self.public_partitions:
+            raise ValueError(
+                "MeanParams.public_partitions is deprecated. Please read API documentation for anonymous Mean transform."
+            )
 
 
 @dataclass
@@ -268,8 +334,6 @@ class CountParams:
         partition_extractor: A function which, given an input element, will return its partition id.
         budget_weight: Relative weight of the privacy budget allocated for this
             operation.
-        public_partitions: A collection of partition keys that will be present in
-            the result. Optional.
 
     """
 
@@ -278,7 +342,14 @@ class CountParams:
     max_contributions_per_partition: int
     partition_extractor: Callable
     budget_weight: float = 1
-    public_partitions: Union[Iterable, 'PCollection', 'RDD'] = None
+    public_partitions: Union[Iterable, 'PCollection',
+                             'RDD'] = None  # deprecated
+
+    def __post_init__(self):
+        if self.public_partitions:
+            raise ValueError(
+                "CountParams.public_partitions is deprecated. Please read API documentation for anonymous Count transform."
+            )
 
 
 @dataclass
@@ -292,20 +363,75 @@ class PrivacyIdCountParams:
         budget_weight: Relative weight of the privacy budget allocated for this
             operation.
         partition_extractor: A function which, given an input element, will return its partition id.
-        public_partitions: A collection of partition keys that will be present in
-            the result. Optional.
     """
 
     noise_kind: NoiseKind
     max_partitions_contributed: int
     partition_extractor: Callable
     budget_weight: float = 1
-    public_partitions: Union[Iterable, 'PCollection', 'RDD'] = None
+    public_partitions: Union[Sequence, 'PCollection',
+                             'RDD'] = None  # deprecated
+
+    def __post_init__(self):
+        if self.public_partitions:
+            raise ValueError(
+                "PrivacyIdCountParams.public_partitions is deprecated. Please "
+                "read API documentation for anonymous PrivacyIdCountParams "
+                "transform.")
 
 
-def _not_a_proper_number(num):
-    """
-    Returns:
-        true if num is inf or NaN, false otherwise.
-    """
+def _not_a_proper_number(num: Any) -> bool:
+    """Returns true if num is inf or NaN, false otherwise."""
     return math.isnan(num) or math.isinf(num)
+
+
+def _check_is_positive_int(num: Any, field_name: str) -> bool:
+    if not (isinstance(num, int) and num > 0):
+        raise ValueError(
+            f"{field_name} has to be positive integer, but {num} given.")
+
+
+def _count_not_none(*args):
+    return sum([1 for arg in args if arg is not None])
+
+
+def _add_if_obj_has_property(obj: Any, property_name: str, n_spaces,
+                             res: List[str]):
+    if not hasattr(obj, property_name):
+        return
+    value = getattr(obj, property_name)
+    if value is None:
+        return
+    res.append(" " * n_spaces + f"{property_name}={value}")
+
+
+def parameters_to_readable_string(params,
+                                  is_public_partition: Optional[bool] = None
+                                 ) -> str:
+    result = [f"{type(params).__name__}:"]
+    if hasattr(params, "metrics_str"):
+        result.append(f" {params.metrics_str}")
+    if hasattr(params, "noise_kind"):
+        result.append(f" noise_kind={params.noise_kind.value}")
+    if hasattr(params, "budget_weight"):
+        result.append(f" budget_weight={params.budget_weight}")
+    result.append(f" Contribution bounding:")
+    _add_if_obj_has_property(params, "max_partitions_contributed", 2, result)
+    _add_if_obj_has_property(params, "max_contributions_per_partition", 2,
+                             result)
+    _add_if_obj_has_property(params, "max_contributions", 2, result)
+    _add_if_obj_has_property(params, "min_value", 2, result)
+    _add_if_obj_has_property(params, "max_value", 2, result)
+    if hasattr(params, "contribution_bounds_already_enforced"
+              ) and params.contribution_bounds_already_enforced:
+        result.append("  contribution_bounds_already_enforced=True")
+    _add_if_obj_has_property(params, "vector_max_norm", 2, result)
+    _add_if_obj_has_property(params, "vector_size", 2, result)
+    _add_if_obj_has_property(params, "vector_norm_kind", 2, result)
+
+    if is_public_partition is not None:
+        type_str = ("public"
+                    if is_public_partition else "private") + " partitions"
+        result.append(f" Partition selection: {type_str}")
+
+    return "\n".join(result)

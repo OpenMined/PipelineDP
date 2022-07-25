@@ -101,7 +101,6 @@ class PrivateRDDTest(unittest.TestCase):
             min_value=1.5,
             max_value=5.78,
             budget_weight=1.1,
-            public_partitions=None,
             partition_extractor=lambda x: x[0],
             value_extractor=lambda x: x)
 
@@ -153,7 +152,6 @@ class PrivateRDDTest(unittest.TestCase):
             min_value=1.55,  # -100 should be clipped to this value
             max_value=2.7889,  # 100 should be clipped to this value
             budget_weight=1,
-            public_partitions=None,
             partition_extractor=lambda x: x[1],
             value_extractor=lambda x: x[2])
 
@@ -198,17 +196,17 @@ class PrivateRDDTest(unittest.TestCase):
             max_value=2.7889,  # 100 should be clipped to this value
             budget_weight=1,
             partition_extractor=lambda x: x[1],
-            value_extractor=lambda x: x[2],
-            public_partitions=["pubK1", "pubK2"])
+            value_extractor=lambda x: x[2])
 
         # Act
-        actual_result = prdd.variance(variance_params)
+        actual_result = prdd.variance(variance_params,
+                                      public_partitions=["pubK1", "pubK2"])
         budget_accountant.compute_budgets()
 
         # Assert
         # This is a health check to validate that the result is sensible.
         # Hence, we use a very large tolerance to reduce test flakiness.
-        expected_result_dict = {"pubK1": 0.288, "pubK2": 0.384}
+        expected_result_dict = {"pubK1": 0.288, "pubK2": 0.0}
         actual_result_dict = self.to_dict(actual_result.collect())
 
         for pk, variance in actual_result_dict.items():
@@ -239,7 +237,6 @@ class PrivateRDDTest(unittest.TestCase):
                                      min_value=1.5,
                                      max_value=5.78,
                                      budget_weight=1.1,
-                                     public_partitions=None,
                                      partition_extractor=lambda x: x[0],
                                      value_extractor=lambda x: x)
 
@@ -261,8 +258,7 @@ class PrivateRDDTest(unittest.TestCase):
             max_contributions_per_partition,
             min_value=mean_params.min_value,
             max_value=mean_params.max_value,
-            budget_weight=mean_params.budget_weight,
-            public_partitions=mean_params.public_partitions)
+            budget_weight=mean_params.budget_weight)
         self.assertEqual(args[1], params)
 
         self.assertEqual(actual_result.collect(), [("pk1", 2.0)])
@@ -289,7 +285,6 @@ class PrivateRDDTest(unittest.TestCase):
                                      min_value=1.55,
                                      max_value=2.7889,
                                      budget_weight=1,
-                                     public_partitions=None,
                                      partition_extractor=lambda x: x[1],
                                      value_extractor=lambda x: x[2])
 
@@ -333,11 +328,11 @@ class PrivateRDDTest(unittest.TestCase):
                                      max_value=2.789,
                                      budget_weight=1,
                                      partition_extractor=lambda x: x[1],
-                                     value_extractor=lambda x: x[2],
-                                     public_partitions=["pubK1", "pubK2"])
+                                     value_extractor=lambda x: x[2])
 
         # Act
-        actual_result = prdd.mean(mean_params)
+        actual_result = prdd.mean(mean_params,
+                                  public_partitions=["pubK1", "pubK2"])
         budget_accountant.compute_budgets()
 
         # Assert
@@ -374,7 +369,6 @@ class PrivateRDDTest(unittest.TestCase):
                                    min_value=1.55,
                                    max_value=2.7889,
                                    budget_weight=1.1,
-                                   public_partitions=None,
                                    partition_extractor=lambda x: x[0],
                                    value_extractor=lambda x: x)
 
@@ -396,8 +390,7 @@ class PrivateRDDTest(unittest.TestCase):
             max_contributions_per_partition,
             min_value=sum_params.min_value,
             max_value=sum_params.max_value,
-            budget_weight=sum_params.budget_weight,
-            public_partitions=sum_params.public_partitions)
+            budget_weight=sum_params.budget_weight)
         self.assertEqual(args[1], params)
 
         self.assertEqual(actual_result.collect(), [("pk1", 3.0)])
@@ -424,7 +417,6 @@ class PrivateRDDTest(unittest.TestCase):
                                    min_value=1.55,
                                    max_value=2.7889,
                                    budget_weight=1,
-                                   public_partitions=None,
                                    partition_extractor=lambda x: x[1],
                                    value_extractor=lambda x: x[2])
 
@@ -467,11 +459,11 @@ class PrivateRDDTest(unittest.TestCase):
                                    max_value=2.7889,
                                    budget_weight=1,
                                    partition_extractor=lambda x: x[1],
-                                   value_extractor=lambda x: x[2],
-                                   public_partitions=["pubK1", "pubK2"])
+                                   value_extractor=lambda x: x[2])
 
         # Act
-        actual_result = prdd.sum(sum_params)
+        actual_result = prdd.sum(sum_params,
+                                 public_partitions=["pubK1", "pubK2"])
         budget_accountant.compute_budgets()
 
         # Assert
@@ -507,7 +499,6 @@ class PrivateRDDTest(unittest.TestCase):
             max_partitions_contributed=2,
             max_contributions_per_partition=3,
             budget_weight=1,
-            public_partitions=None,
             partition_extractor=lambda x: x[1])
 
         # Act
@@ -524,8 +515,7 @@ class PrivateRDDTest(unittest.TestCase):
             metrics=[pipeline_dp.Metrics.COUNT],
             max_partitions_contributed=count_params.max_partitions_contributed,
             max_contributions_per_partition=count_params.
-            max_contributions_per_partition,
-            public_partitions=count_params.public_partitions)
+            max_contributions_per_partition)
         self.assertEqual(args[1], params)
 
         self.assertEqual(actual_result.collect(), [("pk1", 2)])
@@ -551,7 +541,6 @@ class PrivateRDDTest(unittest.TestCase):
             max_partitions_contributed=2,
             max_contributions_per_partition=3,
             budget_weight=1,
-            public_partitions=None,
             partition_extractor=lambda x: x[1])
 
         # Act
@@ -592,11 +581,11 @@ class PrivateRDDTest(unittest.TestCase):
             max_partitions_contributed=2,
             max_contributions_per_partition=3,
             budget_weight=1,
-            public_partitions=["pubK1", "pubK2"],
             partition_extractor=lambda x: x[1])
 
         # Act
-        actual_result = prdd.count(count_params)
+        actual_result = prdd.count(count_params,
+                                   public_partitions=["pubK1", "pubK2"])
         budget_accountant.compute_budgets()
 
         # Assert
@@ -649,8 +638,7 @@ class PrivateRDDTest(unittest.TestCase):
             metrics=[pipeline_dp.Metrics.PRIVACY_ID_COUNT],
             max_partitions_contributed=privacy_id_count_params.
             max_partitions_contributed,
-            max_contributions_per_partition=1,
-            public_partitions=privacy_id_count_params.public_partitions)
+            max_contributions_per_partition=1)
         self.assertEqual(args[1], params)
 
         self.assertEqual([("pk1", 2)], actual_result.collect())
@@ -708,11 +696,11 @@ class PrivateRDDTest(unittest.TestCase):
             noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
             max_partitions_contributed=2,
             budget_weight=1,
-            partition_extractor=lambda x: x[1],
-            public_partitions=["pubK1", "pubK2"])
+            partition_extractor=lambda x: x[1])
 
         # Act
-        actual_result = prdd.privacy_id_count(privacy_id_count_params)
+        actual_result = prdd.privacy_id_count(
+            privacy_id_count_params, public_partitions=["pubK1", "pubK2"])
         budget_accountant.compute_budgets()
 
         # Assert

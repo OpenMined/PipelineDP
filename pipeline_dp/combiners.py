@@ -13,13 +13,16 @@
 # limitations under the License.
 import abc
 import copy
-from typing import Iterable, Sized, Tuple, List
+from typing import Callable, Iterable, Sized, Tuple, List, Union
 
 import pipeline_dp
 from pipeline_dp import dp_computations
 from pipeline_dp import budget_accounting
 import numpy as np
 import collections
+
+ArrayLike = Union[np.ndarray, List[float]]
+ExplainComputationReport = Union[Callable, str, List[Union[Callable, str]]]
 
 
 class Combiner(abc.ABC):
@@ -39,7 +42,7 @@ class Combiner(abc.ABC):
     4. Continue 3 until 1 accumulator is left.
     5. Call compute_metrics() for the accumulator that left.
 
-    Assumption: merge_accumulators is associative binary operation.
+    Assumption: merge_accumulators is an associative binary operation.
 
     The type of accumulator depends on the aggregation performed by this Combiner.
     For example, this can be a primitive type (e.g. int for a simple "count"
@@ -61,6 +64,10 @@ class Combiner(abc.ABC):
     @abc.abstractmethod
     def metrics_names(self) -> List[str]:
         """Return the list of names of the metrics this combiner computes"""
+
+    @abc.abstractmethod
+    def explain_computation(self) -> ExplainComputationReport:
+        pass
 
 
 class CustomCombiner(Combiner, abc.ABC):
@@ -148,6 +155,19 @@ class CombinerParams:
             self.aggregate_params.max_contributions_per_partition,
             self.aggregate_params.noise_kind)
 
+    @property
+    def additive_vector_noise_params(
+            self) -> dp_computations.AdditiveVectorNoiseParams:
+        return dp_computations.AdditiveVectorNoiseParams(
+            eps_per_coordinate=self.eps / self.aggregate_params.vector_size,
+            delta_per_coordinate=self.delta / self.aggregate_params.vector_size,
+            max_norm=self.aggregate_params.vector_max_norm,
+            l0_sensitivity=self.aggregate_params.max_partitions_contributed,
+            linf_sensitivity=self.aggregate_params.
+            max_contributions_per_partition,
+            norm_kind=self.aggregate_params.vector_norm_kind,
+            noise_kind=self.aggregate_params.noise_kind)
+
 
 class CountCombiner(Combiner):
     """Combiner for computing DP Count.
@@ -177,6 +197,10 @@ class CountCombiner(Combiner):
     def metrics_names(self) -> List[str]:
         return ['count']
 
+    def explain_computation(self) -> ExplainComputationReport:
+        # TODO: add information in this and others combiners about amount of noise.
+        return lambda: f"Computed count with (eps={self._params.eps} delta={self._params.delta})"
+
 
 class PrivacyIdCountCombiner(Combiner):
     """Combiner for computing DP privacy id count.
@@ -204,6 +228,9 @@ class PrivacyIdCountCombiner(Combiner):
 
     def metrics_names(self) -> List[str]:
         return ['privacy_id_count']
+
+    def explain_computation(self) -> ExplainComputationReport:
+        return lambda: f"Computed privacy id count with (eps={self._params.eps} delta={self._params.delta})"
 
 
 class SumCombiner(Combiner):
@@ -234,12 +261,15 @@ class SumCombiner(Combiner):
     def metrics_names(self) -> List[str]:
         return ['sum']
 
+    def explain_computation(self) -> ExplainComputationReport:
+        return lambda: f"Computed sum with (eps={self._params.eps} delta={self._params.delta})"
+
 
 class MeanCombiner(Combiner):
     """Combiner for computing DP Mean. Also returns sum and count in addition to
     the mean.
-    The type of the accumulator is a tuple(count: int, sum: float) that holds
-    the count and sum of elements in the dataset for which this accumulator is
+    The type of the accumulator is a tuple(count: int, normalized_sum: float) that holds
+    the count and normalized sum of elements in the dataset for which this accumulator is
     computed.
     """
     AccumulatorType = Tuple[int, float]
@@ -259,9 +289,12 @@ class MeanCombiner(Combiner):
         self._metrics_to_compute = metrics_to_compute
 
     def create_accumulator(self, values: Iterable[float]) -> AccumulatorType:
-        return len(values), np.clip(
-            values, self._params.aggregate_params.min_value,
-            self._params.aggregate_params.max_value).sum()
+        min_value = self._params.aggregate_params.min_value
+        max_value = self._params.aggregate_params.max_value
+        middle = dp_computations.compute_middle(min_value, max_value)
+        normalized_values = np.clip(values, min_value, max_value) - middle
+
+        return len(values), normalized_values.sum()
 
     def merge_accumulators(self, accum1: AccumulatorType,
                            accum2: AccumulatorType):
@@ -270,9 +303,9 @@ class MeanCombiner(Combiner):
         return count1 + count2, sum1 + sum2
 
     def compute_metrics(self, accum: AccumulatorType) -> dict:
-        total_count, total_sum = accum
+        total_count, total_normalized_sum = accum
         noisy_count, noisy_sum, noisy_mean = dp_computations.compute_dp_mean(
-            total_count, total_sum, self._params.mean_var_params)
+            total_count, total_normalized_sum, self._params.mean_var_params)
         mean_dict = {'mean': noisy_mean}
         if 'count' in self._metrics_to_compute:
             mean_dict['count'] = noisy_count
@@ -283,12 +316,15 @@ class MeanCombiner(Combiner):
     def metrics_names(self) -> List[str]:
         return self._metrics_to_compute
 
+    def explain_computation(self) -> ExplainComputationReport:
+        return lambda: f"Computed mean with (eps={self._params.eps} delta={self._params.delta})"
+
 
 class VarianceCombiner(Combiner):
     """Combiner for computing DP Variance. Also returns mean, sum and count in addition to
     the variance.
-    The type of the accumulator is a tuple(count: int, sum: float, sum_of_squares: float) that holds
-    the count, sum and sum of squares of elements in the dataset for which this accumulator is
+    The type of the accumulator is a tuple(count: int, normalized_sum: float, normalized_sum_of_squares: float) that holds
+    the count, normalized sum and normalized sum of squares of elements in the dataset for which this accumulator is
     computed.
     """
     AccumulatorType = Tuple[int, float, float]
@@ -309,10 +345,15 @@ class VarianceCombiner(Combiner):
         self._metrics_to_compute = metrics_to_compute
 
     def create_accumulator(self, values: Iterable[float]) -> AccumulatorType:
-        clipped_values = np.clip(values,
-                                 self._params.aggregate_params.min_value,
-                                 self._params.aggregate_params.max_value)
-        return len(values), clipped_values.sum(), (clipped_values**2).sum()
+        min_value = self._params.aggregate_params.min_value
+        max_value = self._params.aggregate_params.max_value
+        middle = dp_computations.compute_middle(min_value, max_value)
+
+        clipped_values = np.clip(values, min_value, max_value)
+        normalized_values = clipped_values - middle
+
+        return len(values), normalized_values.sum(), (
+            normalized_values**2).sum()
 
     def merge_accumulators(self, accum1: AccumulatorType,
                            accum2: AccumulatorType):
@@ -321,9 +362,9 @@ class VarianceCombiner(Combiner):
         return count1 + count2, sum1 + sum2, sum_of_squares1 + sum_of_squares2
 
     def compute_metrics(self, accum: AccumulatorType) -> dict:
-        total_count, total_sum, total_sum_of_squares = accum
+        total_count, total_normalized_sum, total_normalized_sum_of_squares = accum
         noisy_count, noisy_sum, noisy_mean, noisy_variance = dp_computations.compute_dp_var(
-            total_count, total_sum, total_sum_of_squares,
+            total_count, total_normalized_sum, total_normalized_sum_of_squares,
             self._params.mean_var_params)
         variance_dict = {'variance': noisy_variance}
         if 'count' in self._metrics_to_compute:
@@ -336,6 +377,9 @@ class VarianceCombiner(Combiner):
 
     def metrics_names(self) -> List[str]:
         return self._metrics_to_compute
+
+    def explain_computation(self) -> ExplainComputationReport:
+        return lambda: f"Computed variance with (eps={self._params.eps} delta={self._params.delta})"
 
 
 # Cache for namedtuple types. It should be used only in
@@ -376,9 +420,11 @@ class CompoundCombiner(Combiner):
     they are to be outputted from MeanCombiner. For VarianceCombiner you can
     additionally set output_mean to True.
 
-    The type of the accumulator is a tuple of int and an iterable.
-    The first int represents the privacy id count. The second iterable
-    contains accumulators from internal combiners.
+
+    The type of the accumulator is a tuple of int and an iterable:
+    - The first int represents the number of input rows. If rows are grouped by privacy ID,
+      this will effectively be privacy ID count.
+    - The second iterable contains accumulators from internal combiners.
 
     Returns:
         if return_named_tuple == False tuple with elements returned from the
@@ -423,16 +469,15 @@ class CompoundCombiner(Combiner):
             self, compound_accumulator1: AccumulatorType,
             compound_accumulator2: AccumulatorType) -> AccumulatorType:
         merged_accumulators = []
-        privacy_id_count1, accumulator1 = compound_accumulator1
-        privacy_id_count2, accumulator2 = compound_accumulator2
+        row_count1, accumulator1 = compound_accumulator1
+        row_count2, accumulator2 = compound_accumulator2
         for combiner, acc1, acc2 in zip(self._combiners, accumulator1,
                                         accumulator2):
             merged_accumulators.append(combiner.merge_accumulators(acc1, acc2))
-        return (privacy_id_count1 + privacy_id_count2,
-                tuple(merged_accumulators))
+        return (row_count1 + row_count2, tuple(merged_accumulators))
 
     def compute_metrics(self, compound_accumulator: AccumulatorType):
-        privacy_id_count, accumulator = compound_accumulator
+        _, accumulator = compound_accumulator
 
         if not self._return_named_tuple:
             # returns tuple of what the internal combiners return.
@@ -457,6 +502,55 @@ class CompoundCombiner(Combiner):
 
     def metrics_names(self) -> List[str]:
         return self._metrics_to_compute
+
+    def explain_computation(self) -> ExplainComputationReport:
+        return [combiner.explain_computation() for combiner in self._combiners]
+
+
+class VectorSumCombiner(Combiner):
+    """Combiner for computing dp vector sum.
+
+    The type of the accumulator is np.ndarray, which represents sum of the vectors of the same size
+    for which this accumulator is computed.
+    """
+    AccumulatorType = np.ndarray
+
+    def __init__(self, params: CombinerParams):
+        self._params = params
+
+    def create_accumulator(self,
+                           values: Iterable[ArrayLike]) -> AccumulatorType:
+        array_sum = None
+        for val in values:
+            if not isinstance(val, np.ndarray):
+                val = np.array(val)
+            if val.shape != (self._params.aggregate_params.vector_size,):
+                raise TypeError(
+                    f"Shape mismatch: {val.shape} != {(self._params.aggregate_params.vector_size,)}"
+                )
+            if array_sum is None:
+                array_sum = val
+            else:
+                array_sum += val
+        return array_sum
+
+    def merge_accumulators(self, array_sum1: AccumulatorType,
+                           array_sum2: AccumulatorType):
+        return array_sum1 + array_sum2
+
+    def compute_metrics(self, array_sum: AccumulatorType) -> dict:
+        return {
+            'vector_sum':
+                dp_computations.add_noise_vector(
+                    array_sum, self._params.additive_vector_noise_params)
+        }
+
+    def metrics_names(self) -> List[str]:
+        return ['vector_sum']
+
+    def explain_computation(self) -> ExplainComputationReport:
+        # TODO: add information about vector size, norm, amount of noise.
+        lambda: f"Computed vector sum with (eps={self._params.eps} delta={self._params.delta})"
 
 
 def create_compound_combiner(
@@ -507,6 +601,12 @@ def create_compound_combiner(
         combiners.append(
             PrivacyIdCountCombiner(
                 CombinerParams(budget_privacy_id_count, aggregate_params)))
+    if pipeline_dp.Metrics.VECTOR_SUM in aggregate_params.metrics:
+        budget_vector_sum = budget_accountant.request_budget(
+            mechanism_type, weight=aggregate_params.budget_weight)
+        combiners.append(
+            VectorSumCombiner(
+                CombinerParams(budget_vector_sum, aggregate_params)))
 
     return CompoundCombiner(combiners, return_named_tuple=True)
 
