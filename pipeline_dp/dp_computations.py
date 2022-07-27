@@ -438,16 +438,8 @@ def compute_dp_var(count: int, normalized_sum: float,
     return dp_count, dp_mean * dp_count, dp_mean, dp_var
 
 
-def compute_dp_count_noise_params(
-        dp_params: MeanVarParams) -> Tuple[str, float]:
-    """Computes noise type and standard deviation for DP count.
-
-    Args:
-        dp_params: parameters for DP count aggregation.
-
-    Returns:
-        Tuple (noise type ('laplace' or 'gaussian'), noise std).
-    """
+def compute_dp_count_noise_std(dp_params: MeanVarParams) -> float:
+    """Computes noise standard deviation for DP count."""
     l0_sensitivity = dp_params.l0_sensitivity()
     linf_sensitivity = dp_params.max_contributions_per_partition
 
@@ -456,10 +448,9 @@ def compute_dp_count_noise_params(
                                                 linf_sensitivity)
         mechanism = dp_mechanisms.LaplaceMechanism(epsilon=dp_params.eps,
                                                    sensitivity=l1_sensitivity)
-        return "laplace", mechanism.diversity * np.sqrt(2)
+        return mechanism.diversity * np.sqrt(2)
     if dp_params.noise_kind == NoiseKind.GAUSSIAN:
         l2_sensitivity = compute_l2_sensitivity(l0_sensitivity,
                                                 linf_sensitivity)
-        return "gaussian", compute_sigma(dp_params.eps, dp_params.delta,
-                                         l2_sensitivity)
+        return compute_sigma(dp_params.eps, dp_params.delta, l2_sensitivity)
     assert "Only Laplace and Gaussian noise is supported."
