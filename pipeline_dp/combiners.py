@@ -241,7 +241,7 @@ class SumCombiner(Combiner):
     """
     AccumulatorType = float
 
-    def __init__(self, params: CombinerParams):
+    def __init__(self, params: CombinerParams, bound_per):
         self._params = params
 
     def create_accumulator(self, values: Iterable[float]) -> AccumulatorType:

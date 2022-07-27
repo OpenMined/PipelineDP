@@ -94,6 +94,8 @@ class AggregateParams:
     high: float = None  # deprecated
     min_value: float = None
     max_value: float = None
+    min_sum_per_partition: float = None
+    max_sum_per_partition: float = None
     public_partitions: Any = None  # deprecated
     custom_combiners: Sequence['CustomCombiner'] = None
     vector_norm_kind: Optional[NormKind] = None
