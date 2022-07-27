@@ -14,6 +14,7 @@
 """Differential privacy computing of count, sum, mean, variance."""
 
 import numpy as np
+from typing import Tuple
 import pipeline_dp
 # TODO: import only modules https://google.github.io/styleguide/pyguide.html#22-imports
 from pipeline_dp.aggregate_params import NoiseKind
@@ -435,3 +436,29 @@ def compute_dp_var(count: int, normalized_sum: float,
         dp_mean += compute_middle(dp_params.min_value, dp_params.max_value)
 
     return dp_count, dp_mean * dp_count, dp_mean, dp_var
+
+
+def compute_count_noise_params(dp_params: MeanVarParams) -> Tuple[str, float]:
+    """Computes noise type and scale for DP count.
+
+    Args:
+        dp_params: parameters for DP count aggregation.
+
+    Returns:
+        Tuple (noise type ('laplace' or 'gaussian'), noise scale).
+    """
+    l0_sensitivity = dp_params.l0_sensitivity()
+    linf_sensitivity = dp_params.max_contributions_per_partition
+
+    if dp_params.noise_kind == NoiseKind.LAPLACE:
+        l1_sensitivity = compute_l1_sensitivity(l0_sensitivity,
+                                                linf_sensitivity)
+        mechanism = dp_mechanisms.LaplaceMechanism(epsilon=dp_params.eps,
+                                                   sensitivity=l1_sensitivity)
+        return "laplace", mechanism.diversity * np.sqrt(2)
+    if dp_params.noise_kind == NoiseKind.GAUSSIAN:
+        l2_sensitivity = compute_l2_sensitivity(l0_sensitivity,
+                                                linf_sensitivity)
+        return "gaussian", compute_sigma(dp_params.eps, dp_params.delta,
+                                         l2_sensitivity)
+    assert "Only Laplace and Gaussian noise is supported."
