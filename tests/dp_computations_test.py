@@ -507,7 +507,7 @@ class DPComputationsTest(parameterized.TestCase):
             "max_partitions_contributed": 100,
             "max_contributions_per_partition": 10
         })
-    def test_compute_count_noise_params_laplace(
+    def test_compute_dp_count_noise_params_laplace(
             self, eps: float, max_partitions_contributed: int,
             max_contributions_per_partition: int):
         params = dp_computations.MeanVarParams(
@@ -521,7 +521,8 @@ class DPComputationsTest(parameterized.TestCase):
         expected_scale = max_partitions_contributed * max_contributions_per_partition / eps * np.sqrt(
             2)
 
-        noise_kind, scale = dp_computations.compute_count_noise_params(params)
+        noise_kind, scale = dp_computations.compute_dp_count_noise_params(
+            params)
         self.assertEqual("laplace", noise_kind)
         self.assertAlmostEqual(scale, expected_scale, delta=1e-10)
 
@@ -539,7 +540,7 @@ class DPComputationsTest(parameterized.TestCase):
             "max_contributions_per_partition": 1,
             "expected_scale": 3.732421875
         })
-    def test_compute_count_noise_params_gaussian(
+    def test_compute_dp_count_noise_params_gaussian(
             self, eps: float, delta: float, max_partitions_contributed: int,
             max_contributions_per_partition: int, expected_scale: float):
         params = dp_computations.MeanVarParams(
@@ -551,7 +552,8 @@ class DPComputationsTest(parameterized.TestCase):
             max_contributions_per_partition=max_contributions_per_partition,
             noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)
 
-        noise_kind, scale = dp_computations.compute_count_noise_params(params)
+        noise_kind, scale = dp_computations.compute_dp_count_noise_params(
+            params)
         self.assertEqual("gaussian", noise_kind)
         self.assertAlmostEqual(scale, expected_scale)
 

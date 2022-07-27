@@ -438,14 +438,15 @@ def compute_dp_var(count: int, normalized_sum: float,
     return dp_count, dp_mean * dp_count, dp_mean, dp_var
 
 
-def compute_count_noise_params(dp_params: MeanVarParams) -> Tuple[str, float]:
-    """Computes noise type and scale for DP count.
+def compute_dp_count_noise_params(
+        dp_params: MeanVarParams) -> Tuple[str, float]:
+    """Computes noise type and standard deviation for DP count.
 
     Args:
         dp_params: parameters for DP count aggregation.
 
     Returns:
-        Tuple (noise type ('laplace' or 'gaussian'), noise scale).
+        Tuple (noise type ('laplace' or 'gaussian'), noise std).
     """
     l0_sensitivity = dp_params.l0_sensitivity()
     linf_sensitivity = dp_params.max_contributions_per_partition
