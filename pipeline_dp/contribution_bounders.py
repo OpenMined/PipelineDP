@@ -113,7 +113,7 @@ class SamplingPerPrivacyIdContributionBounder(ContributionBounder):
 
         # (privacy_id, [(partition_key, value)])
 
-        # Convert the per privacy id list into a dict with key as partition_key
+        # Convert the per-privacy_id list into a dict with key as partition_key
         # and values as the list of input values.
         def collect_values_per_partition_key_per_privacy_id(input_list):
             d = collections.defaultdict(list)

@@ -11,8 +11,8 @@ CrossAndPerPartitionContributionParams = collections.namedtuple(
     "CrossAndPerPartitionContributionParams",
     ["max_partitions_contributed", "max_contributions_per_partition"])
 
-aggregate_fn = lambda input_values: (len(input_values), np.sum(input_values),
-                                     np.sum(np.square(input_values)))
+aggregate_fn = lambda input_value: (len(input_value), np.sum(input_value),
+                                    np.sum(np.square(input_value)))
 
 
 def _create_report_generator():
