@@ -35,7 +35,7 @@ class DPComputationsTest(parameterized.TestCase):
         return abs(expected - actual) <= tolerance
 
     def test_l0_sensitivity(self):
-        params = dp_computations.MeanVarParams(
+        params = dp_computations.ScalarNoiseParams(
             eps=1,
             delta=1e-10,
             min_value=2,
@@ -224,7 +224,7 @@ class DPComputationsTest(parameterized.TestCase):
         self.assertEqual("value_with_noise", anonymized_value)
 
     def test_compute_dp_count(self):
-        params = dp_computations.MeanVarParams(
+        params = dp_computations.ScalarNoiseParams(
             eps=0.5,
             delta=1e-10,
             min_value=0,
@@ -264,7 +264,7 @@ class DPComputationsTest(parameterized.TestCase):
                                   l2_sensitivity=l2_sensitivity)
 
     def test_compute_dp_sum(self):
-        params = dp_computations.MeanVarParams(
+        params = dp_computations.ScalarNoiseParams(
             eps=0.5,
             delta=1e-10,
             min_value=2,
@@ -305,7 +305,7 @@ class DPComputationsTest(parameterized.TestCase):
                                   l2_sensitivity=l2_sensitivity)
 
     def test_compute_dp_sum_min_max_zero(self):
-        params = dp_computations.MeanVarParams(
+        params = dp_computations.ScalarNoiseParams(
             eps=0.5,
             delta=1e-10,
             min_value=0,
@@ -333,7 +333,7 @@ class DPComputationsTest(parameterized.TestCase):
                          expected_budgets)
 
     def test_compute_dp_mean(self):
-        params = dp_computations.MeanVarParams(
+        params = dp_computations.ScalarNoiseParams(
             eps=0.5,
             delta=1e-10,
             min_value=1,
@@ -395,7 +395,7 @@ class DPComputationsTest(parameterized.TestCase):
                                delta=0.1)
 
     def test_compute_dp_mean_equal_min_max(self):
-        params = dp_computations.MeanVarParams(
+        params = dp_computations.ScalarNoiseParams(
             eps=0.5,
             delta=1e-10,
             min_value=42.0,
@@ -410,7 +410,7 @@ class DPComputationsTest(parameterized.TestCase):
         self.assertEqual(mean, 42.0)
 
     def test_compute_dp_variance_equal_min_max(self):
-        params = dp_computations.MeanVarParams(
+        params = dp_computations.ScalarNoiseParams(
             eps=0.5,
             delta=1e-10,
             min_value=42.0,
@@ -428,7 +428,7 @@ class DPComputationsTest(parameterized.TestCase):
         self.assertEqual(var, 0.0)
 
     def test_compute_dp_var(self):
-        params = dp_computations.MeanVarParams(
+        params = dp_computations.ScalarNoiseParams(
             eps=10,
             delta=1e-10,
             min_value=1,
@@ -510,7 +510,7 @@ class DPComputationsTest(parameterized.TestCase):
     def test_compute_dp_count_noise_std_laplace(
             self, eps: float, max_partitions_contributed: int,
             max_contributions_per_partition: int):
-        params = dp_computations.MeanVarParams(
+        params = dp_computations.ScalarNoiseParams(
             eps=eps,
             delta=0,
             max_partitions_contributed=max_partitions_contributed,
@@ -541,7 +541,7 @@ class DPComputationsTest(parameterized.TestCase):
     def test_compute_dp_count_noise_std_gaussian(
             self, eps: float, delta: float, max_partitions_contributed: int,
             max_contributions_per_partition: int, expected_std: float):
-        params = dp_computations.MeanVarParams(
+        params = dp_computations.ScalarNoiseParams(
             eps=eps,
             delta=delta,
             min_value=0,
