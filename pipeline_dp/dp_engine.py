@@ -20,7 +20,7 @@ import pipeline_dp
 from pipeline_dp import combiners
 import pipeline_dp.contribution_bounders as contribution_bounders
 import pipeline_dp.report_generator as report_generator
-import pipeline_dp.utils as utils
+import pipeline_dp.sampling_utils as sampling_utils
 
 import pydp.algorithms.partition_selection as partition_selection
 
@@ -245,7 +245,7 @@ class DPEngine:
         def sample_unique_elements_fn(pid_and_pks):
             pid, pks = pid_and_pks
             unique_pks = list(set(pks))
-            sampled_elements = utils.choose_from_list_without_replacement(
+            sampled_elements = sampling_utils.choose_from_list_without_replacement(
                 unique_pks, max_partitions_contributed)
             return ((pid, pk) for pk in sampled_elements)
 
