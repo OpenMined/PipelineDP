@@ -141,3 +141,57 @@ class SamplingPerPrivacyIdContributionBounder(ContributionBounder):
         return backend.map_values(
             col, aggregate_fn,
             "Apply aggregate_fn after per privacy id contribution bounding")
+
+
+class SamplingCrossPartitionContributionBounder(ContributionBounder):
+    """Bounds the total contributions of a privacy_id. todo
+
+    If a privacy_id contributes more than max_contributions, then
+    max_contributions contributions are uniformly sampled, otherwise all
+    contributions are kept.
+    """
+
+    def bound_contributions(self, col, params, backend, report_generator,
+        aggregate_fn):
+        col = backend.map_tuple(
+            col, lambda pid, pk, v: (pid, (pk, v)),
+            "Rekey to ((privacy_id), (partition_key, value))")
+
+        col = self._backend.group_by_key(col, "Group by privacy_id")
+
+        # col = backend.sample_fixed_per_key(col, max_contributions,
+        #                                    "Sample per privacy_id")
+        # report_generator.add_stage(
+        #     f"User contribution bounding: randomly selected not "
+        #     f"more than {max_contributions} contributions")
+        # Convert the per privacy id list into a dict with key as partition_key
+        # and values as the list of input values.
+        # TODO: extract
+        def collect_values_per_partition_key_per_privacy_id(input_list):
+            d = collections.defaultdict(list)
+            for key, value in input_list:
+                d[key].append(value)
+            return d
+
+        col = backend.map_values(
+            col, collect_values_per_partition_key_per_privacy_id,
+            "Group per (privacy_id, partition_key)")
+
+        # (privacy_id, {partition_key: [value]})
+
+        # todo Rekey it into values per privacy id and partition key.
+        def rekey_per_privacy_id_per_partition_key(pid_pk_v_dict):
+            privacy_id, partition_value_dict = pid_pk_v_dict
+            partitions_values = list(partition_value_dict.items())
+
+            # for partition_key, values in partition_dict.items():
+            #     yield (privacy_id, partition_key), values
+
+        # Unnest the list per privacy id.
+        col = backend.flat_map(col, rekey_per_privacy_id_per_partition_key,
+                               "Unnest")
+        # ((privacy_id, partition_key), [value])
+
+        return backend.map_values(
+            col, aggregate_fn,
+            "Apply aggregate_fn after per privacy id contribution bounding")
