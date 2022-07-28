@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """DP aggregations."""
-import collections
 import dataclasses
 import functools
 from typing import Any, Callable, Tuple
@@ -21,7 +20,7 @@ import pipeline_dp
 from pipeline_dp import combiners
 import pipeline_dp.contribution_bounders as contribution_bounders
 import pipeline_dp.report_generator as report_generator
-import pipeline_dp.util as util
+import pipeline_dp.utils as utils
 
 import pydp.algorithms.partition_selection as partition_selection
 
@@ -246,7 +245,7 @@ class DPEngine:
         def sample_unique_elements_fn(pid_and_pks):
             pid, pks = pid_and_pks
             unique_pks = list(set(pks))
-            sampled_elements = util.choose_from_list_without_replacement(
+            sampled_elements = utils.choose_from_list_without_replacement(
                 unique_pks, max_partitions_contributed)
             return ((pid, pk) for pk in sampled_elements)
 

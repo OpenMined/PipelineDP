@@ -1,10 +1,10 @@
 from absl.testing import absltest
 from absl.testing import parameterized
 
-import pipeline_dp.util as util
+import pipeline_dp.utils as utils
 
 
-class UtilTest(parameterized.TestCase):
+class UtilsTest(parameterized.TestCase):
 
     def _check_is_subset(self, a: list, b: list) -> bool:
         return set(a).issubset(set(b))
@@ -19,7 +19,7 @@ class UtilTest(parameterized.TestCase):
     def test_choose_from_list_ints(self, size, sample_sizes):
         a = list(range(size))
         for sample_size in sample_sizes:
-            sample = util.choose_from_list_without_replacement(a, sample_size)
+            sample = utils.choose_from_list_without_replacement(a, sample_size)
             self.assertTrue(self._check_is_subset(sample, a))
 
     @parameterized.parameters({
@@ -32,7 +32,7 @@ class UtilTest(parameterized.TestCase):
     def test_choose_from_list_tuples(self, size, sample_sizes):
         a = [(i, i) for i in range(size)]
         for sample_size in sample_sizes:
-            sample = util.choose_from_list_without_replacement(a, sample_size)
+            sample = utils.choose_from_list_without_replacement(a, sample_size)
             self.assertTrue(self._check_is_subset(sample, a))
 
 
