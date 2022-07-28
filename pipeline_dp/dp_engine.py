@@ -16,12 +16,12 @@ import collections
 import dataclasses
 import functools
 from typing import Any, Callable, Tuple
-import numpy as np
 
 import pipeline_dp
 from pipeline_dp import combiners
 import pipeline_dp.contribution_bounders as contribution_bounders
 import pipeline_dp.report_generator as report_generator
+import pipeline_dp.util as util
 
 import pydp.algorithms.partition_selection as partition_selection
 
@@ -246,22 +246,8 @@ class DPEngine:
         def sample_unique_elements_fn(pid_and_pks):
             pid, pks = pid_and_pks
             unique_pks = list(set(pks))
-            if len(unique_pks) <= max_partitions_contributed:
-                sampled_elements = unique_pks
-            else:
-                # np.random.choice makes casting of elements to numpy types
-                # which is undesirable by 2 reasons:
-                # 1. Apache Beam can not serialize numpy types.
-                # 2. It might lead for losing precision (e.g. arbitrary
-                # precision int is converted to int64).
-                # So np.random.choice should not be applied directly to
-                # 'unique_pks'. It is better to apply it to indices.
-                sampled_indices = np.random.choice(np.arange(len(unique_pks)),
-                                                   max_partitions_contributed,
-                                                   replace=False)
-
-                sampled_elements = [unique_pks[i] for i in sampled_indices]
-
+            sampled_elements = util.choose_from_list_without_replacement(
+                unique_pks, max_partitions_contributed)
             return ((pid, pk) for pk in sampled_elements)
 
         col = self._backend.flat_map(col, sample_unique_elements_fn,
