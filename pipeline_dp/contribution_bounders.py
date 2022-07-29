@@ -1,9 +1,10 @@
 import abc
 import collections
-from typing import Callable
+from typing import Callable, Iterable
 
 import pipeline_dp
 from pipeline_dp import pipeline_backend
+from pipeline_dp import sampling_utils
 
 
 class ContributionBounder(abc.ABC):
@@ -39,7 +40,7 @@ class ContributionBounder(abc.ABC):
 
 
 class SamplingCrossAndPerPartitionContributionBounder(ContributionBounder):
-    """Bounds the contribution by privacy_id per and cross partitions.
+    """Bounds the contribution of privacy_id per and cross partitions.
 
     It ensures that each privacy_id contributes to not more than
     max_partitions_contributed partitions (cross-partition contribution
@@ -144,11 +145,12 @@ class SamplingPerPrivacyIdContributionBounder(ContributionBounder):
 
 
 class SamplingCrossPartitionContributionBounder(ContributionBounder):
-    """Bounds the total contributions of a privacy_id. todo
+    """Bounds the contribution of privacy_id cross partitions.
 
-    If a privacy_id contributes more than max_contributions, then
-    max_contributions contributions are uniformly sampled, otherwise all
-    contributions are kept.
+    It ensures that each privacy_id contributes to not more than
+    max_partitions_contributed partitions (cross-partition contribution
+    bounding), by performing sampling if needed. It is assumed that provided
+    aggregate_fn function performs per-partition contributions.
     """
 
     def bound_contributions(self, col, params, backend, report_generator,
@@ -157,41 +159,56 @@ class SamplingCrossPartitionContributionBounder(ContributionBounder):
             col, lambda pid, pk, v: (pid, (pk, v)),
             "Rekey to ((privacy_id), (partition_key, value))")
 
-        col = self._backend.group_by_key(col, "Group by privacy_id")
+        col = collect_values_per_partition_key_per_privacy_id(col, backend)
+        # (privacy_id, [partition_key, [value]])
 
-        # col = backend.sample_fixed_per_key(col, max_contributions,
-        #                                    "Sample per privacy_id")
-        # report_generator.add_stage(
-        #     f"User contribution bounding: randomly selected not "
-        #     f"more than {max_contributions} contributions")
-        # Convert the per privacy id list into a dict with key as partition_key
-        # and values as the list of input values.
-        # TODO: extract
-        def collect_values_per_partition_key_per_privacy_id(input_list):
-            d = collections.defaultdict(list)
-            for key, value in input_list:
-                d[key].append(value)
-            return d
+        # Bound cross partition contributions with sampling.
+        sample = sampling_utils.choose_from_list_without_replacement
+        sample_size = params.max_partitions_contributed
+        col = backend.map_values(col, lambda a: sample(a, sample_size))
 
-        col = backend.map_values(
-            col, collect_values_per_partition_key_per_privacy_id,
-            "Group per (privacy_id, partition_key)")
-
-        # (privacy_id, {partition_key: [value]})
-
-        # todo Rekey it into values per privacy id and partition key.
-        def rekey_per_privacy_id_per_partition_key(pid_pk_v_dict):
-            privacy_id, partition_value_dict = pid_pk_v_dict
-            partitions_values = list(partition_value_dict.items())
-
-            # for partition_key, values in partition_dict.items():
-            #     yield (privacy_id, partition_key), values
+        # (privacy_id, [partition_key, [value]])
 
         # Unnest the list per privacy id.
+        def rekey_per_privacy_id_per_partition_key(pid_pk_v_values):
+            privacy_id, partition_values = pid_pk_v_values
+
+            for partition_key, values in partition_values:
+                yield (privacy_id, partition_key), values
+
         col = backend.flat_map(col, rekey_per_privacy_id_per_partition_key,
-                               "Unnest")
+                               "Unnest per privacy id")
         # ((privacy_id, partition_key), [value])
 
         return backend.map_values(
             col, aggregate_fn,
             "Apply aggregate_fn after per privacy id contribution bounding")
+
+
+def collect_values_per_partition_key_per_privacy_id(
+        col, backend: pipeline_backend.PipelineBackend):
+    """Groups per privacy id and collects values per partition key.
+
+    The output collection is a mapping from privacy_id (i.e. each privacy_id
+     from 'col' occurs exactly once) to a list [(partition_key, [values]].
+    And for any privacy_id, each partition_key for which it contributes,
+    partition_key occurs exactly once.
+
+    Args:
+        col: collection with elements (privacy_id, (partition_key, value)).
+        backend: pipeline backend for performing operations on collections.
+
+    Returns:
+        collection with elements (privacy_id, [partition_key, [values]).
+    """
+    col = backend.group_by_key(col, "Group by privacy_id")
+
+    def collect_values_per_partition_key_per_privacy_id_fn(input: Iterable):
+        d = collections.defaultdict(list)
+        for key, value in input:
+            d[key].append(value)
+        return list(d.items())
+
+    return backend.map_values(
+        col, collect_values_per_partition_key_per_privacy_id_fn,
+        "Collect values per privacy_id and partition_key")

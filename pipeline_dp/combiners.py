@@ -250,19 +250,19 @@ class SumCombiner(Combiner):
     def create_accumulator(self, values: Iterable[float]) -> AccumulatorType:
         agg_params = self._params.aggregate_params
         if self._bouding_per_partition:
-            # Clip aggregated contribution.
+            # Sum values and clip.
             return np.clip(sum(values), agg_params.min_sum_per_partition,
                            agg_params.max_sum_per_partition)
-        # Clip each value.
+        # Clip each value and sum.
         return np.clip(values, agg_params.min_value, agg_params.max_value).sum()
 
     def merge_accumulators(self, sum1: AccumulatorType, sum2: AccumulatorType):
         return sum1 + sum2
 
-    def compute_metrics(self, sum: AccumulatorType) -> dict:
+    def compute_metrics(self, sum_: AccumulatorType) -> dict:
         return {
             'sum':
-                dp_computations.compute_dp_sum(sum,
+                dp_computations.compute_dp_sum(sum_,
                                                self._params.scalar_noise_params)
         }
 
