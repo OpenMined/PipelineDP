@@ -70,6 +70,10 @@ class AggregateParams:
           aggregation.
         min_value: Lower bound on each value.
         max_value: Upper bound on each value.
+        min_sum_per_partition: Lower bound on sum per partition. Used only for
+        SUM metric calculations.
+        max_sum_per_partition: Upper bound on sum per partition. Used only for
+        SUM metric calculations.
         custom_combiners: Warning: experimental@ Combiners for computing custom
           metrics.
         vector_norm_kind: The type of norm. Used only for VECTOR_SUM metric
@@ -183,6 +187,7 @@ class AggregateParams:
                                    "max_partitions_contributed")
             _check_is_positive_int(self.max_contributions_per_partition,
                                    "max_contributions_per_partition")
+        #TODO(this PR): validation that min/max_sum_per_partition is used only for SUM and min_value, max_value are not set.
 
     def __str__(self):
         return parameters_to_readable_string(self)
