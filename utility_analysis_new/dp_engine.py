@@ -20,6 +20,7 @@ from dataclasses import dataclass
 
 
 class DPEngine(pipeline_dp.DPEngine):
+    """Performs utility analysis for DP aggregations."""
 
     def __init__(self, budget_accountant: 'BudgetAccountant',
                  backend: 'PipelineBackend'):
@@ -37,7 +38,7 @@ class DPEngine(pipeline_dp.DPEngine):
     def _create_contribution_bounder(
         self, params: pipeline_dp.AggregateParams
     ) -> contribution_bounders.ContributionBounder:
-        """Creates Utility Analysis ContributionBounder."""
+        """Creates ContributionBounder for utility analysis."""
         return utility_contribution_bounders.SamplingCrossAndPerPartitionContributionBounder(
         )
 

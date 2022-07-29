@@ -36,7 +36,7 @@ class DpEngine(unittest.TestCase):
             max_contributions_per_partition=1,
             metrics=[pipeline_dp.Metrics.COUNT])
         params_with_custom_combiners = default_params
-        params_with_custom_combiners.custom_combiners = lambda x: sum(x)
+        params_with_custom_combiners.custom_combiners = sum
         params_with_unsupported_metric = default_params
         params_with_unsupported_metric.metrics = [pipeline_dp.Metrics.MEAN]
         params_with_contribution_bounds_already_enforced = default_params

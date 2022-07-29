@@ -37,9 +37,6 @@ class SamplingCrossAndPerPartitionContributionBounder(
             "Rekey to ((privacy_id), (partition_key, value))")
         col = backend.group_by_key(
             col, "Group by key to get (privacy_id, [(partition_key, value)])")
-        report_generator.add_stage(
-            f"Converting ((privacy_id), (partition_key, value)) to"
-            f"(privacy_id, [(partition_key, value)])")
 
         # (privacy_id, [(partition_key, value)])
 
@@ -66,7 +63,7 @@ class SamplingCrossAndPerPartitionContributionBounder(
 
         # Unnest the list per privacy id.
         col = backend.flat_map(
-            col, rekey_per_privacy_id_per_partition_key_and_unnest, "Unnest")
+            col, rekey_per_privacy_id_per_partition_key_and_unnest, "Unnest per-privacy_id")
 
         return backend.map_values(
             col, aggregate_fn,

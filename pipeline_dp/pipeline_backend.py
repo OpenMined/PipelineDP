@@ -190,12 +190,12 @@ class BeamBackend(PipelineBackend):
         """Group the values for each key in the PCollection into a single sequence.
 
         Args:
-          col: input collection (k, v)
+          col: input collection with elements (key, value)
           stage_name: name of the stage
 
         Returns:
           A PCollection of tuples in which the type of the second item is an
-          iterable, i.e. (k, [v]).
+          iterable, i.e. (key, Iterable[value]).
 
         """
         return col | self._ulg.unique(stage_name) >> beam.GroupByKey()
