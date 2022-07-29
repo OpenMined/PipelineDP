@@ -243,12 +243,18 @@ class SumCombiner(Combiner):
     """
     AccumulatorType = float
 
-    def __init__(self, params: CombinerParams, bound_per):
+    def __init__(self, params: CombinerParams):
         self._params = params
+        self._bouding_per_partition = params.scalar_noise_params.bounds_per_partition_are_set
 
     def create_accumulator(self, values: Iterable[float]) -> AccumulatorType:
-        return np.clip(values, self._params.aggregate_params.min_value,
-                       self._params.aggregate_params.max_value).sum()
+        agg_params = self._params.aggregate_params
+        if self._bouding_per_partition:
+            # Clip aggregated contribution.
+            return np.clip(sum(values), agg_params.min_sum_per_partition,
+                           agg_params.max_sum_per_partition)
+        # Clip each value.
+        return np.clip(values, agg_params.min_value, agg_params.max_value).sum()
 
     def merge_accumulators(self, sum1: AccumulatorType, sum2: AccumulatorType):
         return sum1 + sum2

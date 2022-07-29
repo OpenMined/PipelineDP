@@ -152,7 +152,7 @@ class SamplingCrossPartitionContributionBounder(ContributionBounder):
     """
 
     def bound_contributions(self, col, params, backend, report_generator,
-        aggregate_fn):
+                            aggregate_fn):
         col = backend.map_tuple(
             col, lambda pid, pk, v: (pid, (pk, v)),
             "Rekey to ((privacy_id), (partition_key, value))")
