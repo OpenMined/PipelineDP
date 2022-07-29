@@ -20,7 +20,6 @@ import math
 from typing import Optional
 
 from dataclasses import dataclass
-# TODO: import only modules https://google.github.io/styleguide/pyguide.html#22-imports
 import pipeline_dp.aggregate_params as agg_params
 
 try:
