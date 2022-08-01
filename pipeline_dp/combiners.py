@@ -245,7 +245,7 @@ class SumCombiner(Combiner):
 
     def __init__(self, params: CombinerParams):
         self._params = params
-        self._bouding_per_partition = params.scalar_noise_params.bounds_per_partition_are_set
+        self._bouding_per_partition = params.aggregate_params.bounds_per_partition_are_set
 
     def create_accumulator(self, values: Iterable[float]) -> AccumulatorType:
         agg_params = self._params.aggregate_params
