@@ -50,7 +50,6 @@ class ContributionBounder(abc.ABC):
         Returns:
           collection with elements ((privacy_id, partition_key),
               accumulator).
-
         """
 
 
@@ -93,7 +92,7 @@ class SamplingCrossAndPerPartitionContributionBounder(ContributionBounder):
                                            "Sample per privacy_id")
 
         report_generator.add_stage(
-            f"Cross-partition contribution bounding: for each privacy id "
+            f"Cross-partition contribution bounding: for each privacy_id "
             f"randomly select max(actual_partition_contributed, "
             f"{max_partitions_contributed}) partitions")
 
@@ -103,7 +102,7 @@ class SamplingCrossAndPerPartitionContributionBounder(ContributionBounder):
             return (((pid, pk), v) for (pk, v) in pk_values)
 
         return backend.flat_map(col, rekey_by_privacy_id_and_unnest,
-                                "Rekey by privacy id and unnest")
+                                "Rekey by privacy_id and unnest")
 
 
 class SamplingPerPrivacyIdContributionBounder(ContributionBounder):
@@ -156,7 +155,7 @@ class SamplingPerPrivacyIdContributionBounder(ContributionBounder):
 
         return backend.map_values(
             col, aggregate_fn,
-            "Apply aggregate_fn after per privacy id contribution bounding")
+            "Apply aggregate_fn after per privacy_id contribution bounding")
 
 
 class SamplingCrossPartitionContributionBounder(ContributionBounder):
@@ -164,8 +163,8 @@ class SamplingCrossPartitionContributionBounder(ContributionBounder):
 
     It ensures that each privacy_id contributes to not more than
     max_partitions_contributed partitions (cross-partition contribution
-    bounding), by performing sampling if needed. It is assumed that provided
-    aggregate_fn function performs per-partition contributions.
+    bounding), by performing sampling if needed. It is assumed that the provided
+    aggregate_fn function bounds per-partition contributions.
     """
 
     def bound_contributions(self, col, params, backend, report_generator,
@@ -192,12 +191,12 @@ class SamplingCrossPartitionContributionBounder(ContributionBounder):
                 yield (privacy_id, partition_key), values
 
         col = backend.flat_map(col, rekey_per_privacy_id_per_partition_key,
-                               "Unnest per privacy id")
+                               "Unnest per privacy_id")
         # ((privacy_id, partition_key), [value])
 
         return backend.map_values(
             col, aggregate_fn,
-            "Apply aggregate_fn after per privacy id contribution bounding")
+            "Apply aggregate_fn after cross-partition contribution bounding")
 
 
 def collect_values_per_partition_key_per_privacy_id(
@@ -205,9 +204,9 @@ def collect_values_per_partition_key_per_privacy_id(
     """Groups per privacy id and collects values per partition key.
 
     The output collection is a mapping from privacy_id (i.e. each privacy_id
-     from 'col' occurs exactly once) to a list [(partition_key, [values]].
-    And for any privacy_id, each partition_key for which it contributes,
-    partition_key occurs exactly once.
+    from 'col' occurs exactly once) to a list [(partition_key, [values]].
+    For any privacy_id, each partition_key it contributes to appear exactly
+    once.
 
     Args:
         col: collection with elements (privacy_id, (partition_key, value)).

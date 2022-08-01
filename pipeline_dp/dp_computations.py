@@ -35,8 +35,12 @@ class ScalarNoiseParams:
     noise_kind: pipeline_dp.NoiseKind  # Laplace or Gaussian
 
     def __post_init__(self):
-        assert self.min_value is None == self.max_value is None, "min_value and max_value should be or both set or both None."
-        assert self.min_sum_per_partition is None == self.max_sum_per_partition is None, "min_sum_per_partition and max_sum_per_partition should be or both set or both None."
+        assert (self.min_value is None) == (
+            self.max_value is
+            None), "min_value and max_value should be or both set or both None."
+        assert (self.min_sum_per_partition is None) == (
+            self.max_sum_per_partition is None
+        ), "min_sum_per_partition and max_sum_per_partition should be or both set or both None."
 
     def l0_sensitivity(self):
         """"Returns the L0 sensitivity of the parameters."""
