@@ -14,10 +14,7 @@
 """Differential privacy computing of count, sum, mean, variance."""
 
 import numpy as np
-from typing import Tuple
 import pipeline_dp
-# TODO: import only modules https://google.github.io/styleguide/pyguide.html#22-imports
-from pipeline_dp.aggregate_params import NoiseKind
 from dataclasses import dataclass
 from pydp.algorithms import numerical_mechanisms as dp_mechanisms
 
@@ -32,7 +29,7 @@ class MeanVarParams:
     max_value: float
     max_partitions_contributed: int
     max_contributions_per_partition: int
-    noise_kind: NoiseKind  # Laplace or Gaussian
+    noise_kind: pipeline_dp.NoiseKind  # Laplace or Gaussian
 
     def l0_sensitivity(self):
         """"Returns the L0 sensitivity of the parameters."""
@@ -133,7 +130,7 @@ def _add_random_noise(
     delta: float,
     l0_sensitivity: float,
     linf_sensitivity: float,
-    noise_kind: NoiseKind,
+    noise_kind: pipeline_dp.NoiseKind,
 ):
     """Adds random noise according to the parameters.
 
@@ -148,11 +145,11 @@ def _add_random_noise(
     Returns:
         The value resulted after adding the random noise.
     """
-    if noise_kind == NoiseKind.LAPLACE:
+    if noise_kind == pipeline_dp.NoiseKind.LAPLACE:
         l1_sensitivity = compute_l1_sensitivity(l0_sensitivity,
                                                 linf_sensitivity)
         return apply_laplace_mechanism(value, eps, l1_sensitivity)
-    if noise_kind == NoiseKind.GAUSSIAN:
+    if noise_kind == pipeline_dp.NoiseKind.GAUSSIAN:
         l2_sensitivity = compute_l2_sensitivity(l0_sensitivity,
                                                 linf_sensitivity)
         return apply_gaussian_mechanism(value, eps, delta, l2_sensitivity)
@@ -167,7 +164,7 @@ class AdditiveVectorNoiseParams:
     l0_sensitivity: float
     linf_sensitivity: float
     norm_kind: pipeline_dp.aggregate_params.NormKind
-    noise_kind: NoiseKind
+    noise_kind: pipeline_dp.NoiseKind
 
 
 def _clip_vector(vec: np.ndarray, max_norm: float,
@@ -295,7 +292,7 @@ def _compute_mean_for_normalized_sum(
     delta: float,
     l0_sensitivity: float,
     max_contributions_per_partition: float,
-    noise_kind: NoiseKind,
+    noise_kind: pipeline_dp.NoiseKind,
 ):
     """Helper function to compute the DP mean of a raw sum using the DP count.
 
@@ -443,13 +440,13 @@ def compute_dp_count_noise_std(dp_params: MeanVarParams) -> float:
     l0_sensitivity = dp_params.l0_sensitivity()
     linf_sensitivity = dp_params.max_contributions_per_partition
 
-    if dp_params.noise_kind == NoiseKind.LAPLACE:
+    if dp_params.noise_kind == pipeline_dp.NoiseKind.LAPLACE:
         l1_sensitivity = compute_l1_sensitivity(l0_sensitivity,
                                                 linf_sensitivity)
         mechanism = dp_mechanisms.LaplaceMechanism(epsilon=dp_params.eps,
                                                    sensitivity=l1_sensitivity)
         return mechanism.diversity * np.sqrt(2)
-    if dp_params.noise_kind == NoiseKind.GAUSSIAN:
+    if dp_params.noise_kind == pipeline_dp.NoiseKind.GAUSSIAN:
         l2_sensitivity = compute_l2_sensitivity(l0_sensitivity,
                                                 linf_sensitivity)
         return compute_sigma(dp_params.eps, dp_params.delta, l2_sensitivity)
