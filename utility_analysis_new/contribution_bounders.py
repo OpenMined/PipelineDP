@@ -63,7 +63,8 @@ class SamplingCrossAndPerPartitionContributionBounder(
 
         # Unnest the list per privacy id.
         col = backend.flat_map(
-            col, rekey_per_privacy_id_per_partition_key_and_unnest, "Unnest per-privacy_id")
+            col, rekey_per_privacy_id_per_partition_key_and_unnest,
+            "Unnest per-privacy_id")
 
         return backend.map_values(
             col, aggregate_fn,

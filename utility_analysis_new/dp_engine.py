@@ -50,19 +50,4 @@ def _check_utility_analysis_params(params: pipeline_dp.AggregateParams,
         pipeline_dp.Metrics.COUNT
     ], f"Supported only count metrics, metrics={params.metrics}"
     assert public_partitions is not None, "Only public partitions supported"
-    assert params.contribution_bounds_already_enforced is False, "Utility Analysis when contribution bounds are already enforced is not supported"
-
-
-@dataclass
-class ErrorPrimitives:
-    raw_count: int
-    # expected value of deviation from raw_count due to per-partition bounding
-    # (always nonpositive)
-    per_partition_bounding_error: int
-    # expected value of deviation from raw_count due to cross-partition bounding
-    # (always nonpositive)
-    cross_partition_bounding_error: float
-    # variance of deviation from raw_count due to cross-partition bounding
-    cross_partition_bounding_variance: float
-    noise_type: pipeline_dp.NoiseKind
-    noise_std: float
+    assert not params.contribution_bounds_already_enforced, "Utility Analysis when contribution bounds are already enforced is not supported"

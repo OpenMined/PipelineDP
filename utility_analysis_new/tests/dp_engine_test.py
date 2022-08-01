@@ -16,7 +16,7 @@ import unittest
 
 import pipeline_dp
 from pipeline_dp import budget_accounting
-from utility_analysis_new import dpengine
+from utility_analysis_new import dp_engine
 
 
 class DpEngine(unittest.TestCase):
@@ -45,28 +45,24 @@ class DpEngine(unittest.TestCase):
         test_cases = [
             {
                 "desc": "custom combiners",
-                "col": [0, 1, 2],
                 "params": params_with_custom_combiners,
                 "data_extractor": default_extractors,
                 "public_partitions": [1]
             },
             {
                 "desc": "non-supported metric",
-                "col": [0, 1, 2],
                 "params": params_with_unsupported_metric,
                 "data_extractor": default_extractors,
                 "public_partitions": [1]
             },
             {
                 "desc": "private partitions",
-                "col": [0, 1, 2],
                 "params": params_with_unsupported_metric,
                 "data_extractor": default_extractors,
                 "public_partitions": None
             },
             {
                 "desc": "contribution bounds are already enforced",
-                "col": [0, 1, 2],
                 "params": params_with_contribution_bounds_already_enforced,
                 "data_extractor": default_extractors,
                 "public_partitions": [1]
@@ -78,10 +74,11 @@ class DpEngine(unittest.TestCase):
             with self.assertRaises(Exception, msg=test_case["desc"]):
                 budget_accountant = budget_accounting.NaiveBudgetAccountant(
                     total_epsilon=1, total_delta=1e-10)
-                engine = dpengine.DPEngine(budget_accountant=budget_accountant,
-                                           backend=pipeline_dp.LocalBackend())
+                engine = dp_engine.DPEngine(budget_accountant=budget_accountant,
+                                            backend=pipeline_dp.LocalBackend())
+                col = [0, 1, 2]
                 engine.aggregate(
-                    test_case["col"],
+                    col,
                     test_case["params"],
                     test_case["data_extractor"],
                     public_partitions=test_case["public_partitions"])

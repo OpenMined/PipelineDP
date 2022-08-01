@@ -13,6 +13,8 @@
 # limitations under the License.
 """ContributionBounders Test"""
 import collections
+
+from absl.testing import absltest
 from absl.testing import parameterized
 
 import pipeline_dp
@@ -93,3 +95,7 @@ class SamplingCrossAndPerPartitionContributionBounderTest(
                            (('pid2', 'pk4'), 1)]
         # Check per- and cross-partition contribution limits are not enforced.
         self.assertEqual(set(expected_result), set(bound_result))
+
+
+if __name__ == '__main__':
+    absltest.main()
