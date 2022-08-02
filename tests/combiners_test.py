@@ -30,7 +30,8 @@ def _create_mechanism_spec(no_noise):
     else:
         eps, delta = 10, 1e-5
 
-    return ba.MechanismSpec(ba.MechanismType.GAUSSIAN, None, eps, delta)
+    return ba.MechanismSpec(pipeline_dp.MechanismType.GAUSSIAN, None, eps,
+                            delta)
 
 
 def _create_aggregate_params(max_value: float = 1,
