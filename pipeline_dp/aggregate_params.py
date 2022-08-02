@@ -171,7 +171,7 @@ class AggregateParams:
                         f"AggregateParams: min_sum_per_partition is not "
                         f"compatible with metrics {not_allowed_metrics}. Please"
                         f"use min_value/max_value.")
-            elif not partition_bound and value_bound:
+            elif not partition_bound and not value_bound:
                 ALL_ALLOWED_METRICS = set(
                     [Metrics.PRIVACY_ID_COUNT, Metrics.COUNT])
                 not_allowed_metrics = set(
