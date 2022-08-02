@@ -128,24 +128,16 @@ class SamplingPerPrivacyIdContributionBounder(ContributionBounder):
 
         # (privacy_id, [(partition_key, value)])
 
-        # Convert the per-privacy_id list into a dict with key as partition_key
-        # and values as the list of input values.
-        def collect_values_per_partition_key_per_privacy_id(input_list):
-            d = collections.defaultdict(list)
-            for key, value in input_list:
-                d[key].append(value)
-            return d
+        col = collect_values_per_partition_key_per_privacy_id(col, backend)
 
-        col = backend.map_values(
-            col, collect_values_per_partition_key_per_privacy_id,
-            "Group per (privacy_id, partition_key)")
-
-        # (privacy_id, {partition_key: [value]})
+        # (privacy_id, [(partition_key, [value])])
 
         # Rekey it into values per privacy id and partition key.
-        def rekey_per_privacy_id_per_partition_key(pid_pk_dict):
-            privacy_id, partition_dict = pid_pk_dict
-            for partition_key, values in partition_dict.items():
+        # Unnest the list per privacy id.
+        def rekey_per_privacy_id_per_partition_key(pid_pk_v_values):
+            privacy_id, partition_values = pid_pk_v_values
+
+            for partition_key, values in partition_values:
                 yield (privacy_id, partition_key), values
 
         # Unnest the list per privacy id.
@@ -173,8 +165,11 @@ class SamplingCrossPartitionContributionBounder(ContributionBounder):
             col, lambda pid, pk, v: (pid, (pk, v)),
             "Rekey to ((privacy_id), (partition_key, value))")
 
+        col = backend.group_by_key(col, "Group by privacy_id")
+        # (privacy_id, [(partition_key, value)])
+
         col = collect_values_per_partition_key_per_privacy_id(col, backend)
-        # (privacy_id, [partition_key, [value]])
+        # (privacy_id, [(partition_key, [value])])
 
         # Bound cross partition contributions with sampling.
         sample = sampling_utils.choose_from_list_without_replacement
@@ -201,7 +196,7 @@ class SamplingCrossPartitionContributionBounder(ContributionBounder):
 
 def collect_values_per_partition_key_per_privacy_id(
         col, backend: pipeline_backend.PipelineBackend):
-    """Groups per privacy id and collects values per partition key.
+    """Collects values per partition key in grouped by privacy_id collection.
 
     The output collection is a mapping from privacy_id (i.e. each privacy_id
     from 'col' occurs exactly once) to a list [(partition_key, [values]].
@@ -209,13 +204,14 @@ def collect_values_per_partition_key_per_privacy_id(
     once.
 
     Args:
-        col: collection with elements (privacy_id, (partition_key, value)).
+        col: collection with elements (privacy_id,
+        Iterable[(partition_key, value)]). It's assumed that each privacy_id
+        occurs only once.
         backend: pipeline backend for performing operations on collections.
 
     Returns:
         collection with elements (privacy_id, [partition_key, [values]).
     """
-    col = backend.group_by_key(col, "Group by privacy_id")
 
     def collect_values_per_partition_key_per_privacy_id_fn(input: Iterable):
         d = collections.defaultdict(list)
