@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""DPEngine Test"""
+"""UtilityAnalysisEngine Test"""
 import unittest
 
 import pipeline_dp
@@ -74,8 +74,9 @@ class DpEngine(unittest.TestCase):
             with self.assertRaises(Exception, msg=test_case["desc"]):
                 budget_accountant = budget_accounting.NaiveBudgetAccountant(
                     total_epsilon=1, total_delta=1e-10)
-                engine = dp_engine.DPEngine(budget_accountant=budget_accountant,
-                                            backend=pipeline_dp.LocalBackend())
+                engine = dp_engine.UtilityAnalysisEngine(
+                    budget_accountant=budget_accountant,
+                    backend=pipeline_dp.LocalBackend())
                 col = [0, 1, 2]
                 engine.aggregate(
                     col,

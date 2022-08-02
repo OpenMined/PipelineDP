@@ -16,10 +16,9 @@
 import pipeline_dp
 from pipeline_dp import contribution_bounders
 import utility_analysis_new.contribution_bounders as utility_contribution_bounders
-from dataclasses import dataclass
 
 
-class DPEngine(pipeline_dp.DPEngine):
+class UtilityAnalysisEngine(pipeline_dp.DPEngine):
     """Performs utility analysis for DP aggregations."""
 
     def __init__(self, budget_accountant: 'BudgetAccountant',
