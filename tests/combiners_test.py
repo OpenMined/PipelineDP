@@ -242,7 +242,7 @@ class PrivacyIdCountCombinerTest(parameterized.TestCase):
 
 class SumCombinerTest(parameterized.TestCase):
 
-    def _create_combiner(self, no_noise):
+    def _create_combiner(self, no_noise, per_partition_bound):
         mechanism_spec = _create_mechanism_spec(no_noise)
         aggregate_params = _create_aggregate_params()
         params = dp_combiners.CombinerParams(mechanism_spec, aggregate_params)

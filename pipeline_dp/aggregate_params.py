@@ -114,7 +114,7 @@ class AggregateParams:
         return f"metrics={[m.value for m in self.metrics]}"
 
     @property
-    def bounds_per_value_are_set(self) -> bool:
+    def bounds_per_contribution_are_set(self) -> bool:
         return self.min_value is not None and self.max_value is not None
 
     @property
@@ -128,17 +128,18 @@ class AggregateParams:
         if self.high is not None:
             raise ValueError(
                 "AggregateParams: please use max_value instead of high")
-        if (self.min_value is None) != (self.max_value is None):
-            raise ValueError(
-                "AggregateParams: min_value and max_value should be or both set or both None."
-            )
-        if (self.min_sum_per_partition is None) != (self.max_sum_per_partition
-                                                    is None):
-            raise ValueError(
-                "AggregateParams: min_sum_per_partition and max_sum_per_partition should be or both set or both None."
-            )
+
+        self._check_both_property_set_or_not("min_value", "max_value")
+        self._check_both_property_set_or_not("min_sum_per_partition",
+                                             "max_sum_per_partition")
 
         value_bound = self.min_value is not None
+        partition_bound = self.min_sum_per_partition is not None
+
+        if value_bound and partition_bound:
+            raise ValueError(
+                "min_value and min_sum_per_partition can not be both set.")
+
         if value_bound:
             self._check_range_correctness("min_value", "max_value")
             if self.max_contributions_per_partition is None:
@@ -146,21 +147,16 @@ class AggregateParams:
                     "AggregateParams: max_contributions_per_partition must be "
                     "set when min_value/max_value are set.")
 
-        partition_bound = self.min_sum_per_partition is not None
         if partition_bound:
             self._check_range_correctness("min_sum_per_partition",
                                           "max_sum_per_partition")
-
-        if value_bound and partition_bound:
-            raise ValueError(
-                "min_value and min_sum_per_partition can not be both set.")
 
         if self.metrics:
             if Metrics.VECTOR_SUM in self.metrics:
                 if Metrics.SUM in self.metrics or Metrics.MEAN in self.metrics or Metrics.VARIANCE in self.metrics:
                     raise ValueError(
                         "AggregateParams: vector sum can not be computed together"
-                        " with scalar metrics, like sum, mean etc")
+                        " with scalar metrics such as sum, mean etc")
             elif partition_bound:
                 ALL_ALLOWED_METRICS = set(
                     [Metrics.SUM, Metrics.PRIVACY_ID_COUNT, Metrics.COUNT])
@@ -226,6 +222,15 @@ class AggregateParams:
             _check_is_positive_int(self.max_contributions_per_partition,
                                    "max_contributions_per_partition")
 
+    def _check_both_property_set_or_not(self, property1_name: str,
+                                        property2_name: str):
+        value1 = getattr(self, property1_name)
+        value2 = getattr(self, property2_name)
+        if (value1 is None) != (value2 is None):
+            raise ValueError(
+                f"AggregateParams: {property1_name} and {property2_name} should"
+                f" be both set or both None.")
+
     def _check_range_correctness(self, min_property_name: str,
                                  max_property_name: str):
         for property_name in [min_property_name, max_property_name]:
@@ -237,8 +242,8 @@ class AggregateParams:
         max_value = getattr(self, max_property_name)
         if min_value > max_value:
             raise ValueError(
-                "AggregateParams: max_value must be equal to or greater than"
-                " min_value")
+                f"AggregateParams: {max_property_name} must be equal to or "
+                f"greater than {min_property_name}")
 
     def __str__(self):
         return parameters_to_readable_string(self)

@@ -47,7 +47,7 @@ class ScalarNoiseParams:
         return self.max_partitions_contributed
 
     @property
-    def bounds_per_value_are_set(self) -> bool:
+    def bounds_per_contribution_are_set(self) -> bool:
         return self.min_value is not None and self.max_value is not None
 
     @property
@@ -287,7 +287,7 @@ def compute_dp_sum(sum: float, dp_params: ScalarNoiseParams):
     """
     l0_sensitivity = dp_params.l0_sensitivity()
 
-    if dp_params.bounds_per_value_are_set:
+    if dp_params.bounds_per_contribution_are_set:
         max_abs = max(abs(dp_params.min_value), abs(dp_params.max_value))
         linf_sensitivity = dp_params.max_contributions_per_partition * max_abs
     else:

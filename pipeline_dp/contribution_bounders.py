@@ -210,7 +210,7 @@ def collect_values_per_partition_key_per_privacy_id(
         backend: pipeline backend for performing operations on collections.
 
     Returns:
-        collection with elements (privacy_id, [partition_key, [values]).
+        collection with elements (privacy_id, [partition_key, [values]]).
     """
 
     def collect_values_per_partition_key_per_privacy_id_fn(input: Iterable):
