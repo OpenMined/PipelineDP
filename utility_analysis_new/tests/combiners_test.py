@@ -66,8 +66,8 @@ class UtilityAnalysisCountCombinerTest(parameterized.TestCase):
              params=_create_combiner_params(),
              expected_metrics=combiners.CountUtilityAnalysisMetrics(
                  count=4,
-                 per_partition_contribution_error=2,
-                 expected_cross_partition_error=1.5,
+                 per_partition_contribution_error=-2,
+                 expected_cross_partition_error=-1.5,
                  std_cross_partition_error=0.8660254037844386,
                  std_noise=7.46484375,
                  noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)))
