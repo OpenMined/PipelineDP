@@ -30,7 +30,7 @@ jobs:
 
       - name: Check formatting
         run: |
-          yapf --diff --recursive pipeline_dp tests
+          yapf --diff --recursive pipeline_dp tests utility_analysis_new
 
   test:
     runs-on: ${{ matrix.os }}
