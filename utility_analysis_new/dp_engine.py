@@ -44,9 +44,14 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
 
 def _check_utility_analysis_params(params: pipeline_dp.AggregateParams,
                                    public_partitions=None):
-    assert params.custom_combiners is None, "Custom combiners are not supported"
-    assert params.metrics == [
-        pipeline_dp.Metrics.COUNT
-    ], f"Supported only count metrics, metrics={params.metrics}"
-    assert public_partitions is not None, "Only public partitions supported"
-    assert not params.contribution_bounds_already_enforced, "Utility Analysis when contribution bounds are already enforced is not supported"
+    if params.custom_combiners is not None:
+        raise NotImplementedError("custom combiners are not supported")
+    if params.metrics != [pipeline_dp.Metrics.COUNT]:
+        raise NotImplementedError(
+            f"supported only count metrics, metrics={params.metrics}")
+    if public_partitions is None:
+        raise NotImplementedError("only public partitions supported")
+    if params.contribution_bounds_already_enforced:
+        raise NotImplementedError(
+            "utility analysis when contribution bounds are already enforced is not supported"
+        )
