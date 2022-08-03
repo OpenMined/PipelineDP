@@ -75,9 +75,8 @@ class UtilityAnalysisCountCombiner(pipeline_dp.Combiner):
         prob_keep_partition = min(1, max_partitions /
                                   n_partitions) if n_partitions > 0 else 0
         per_partition_contribution = min(max_per_partition, count)
-        per_partition_contribution_error = max(
-            0, count - per_partition_contribution)
-        expected_cross_partition_error = per_partition_contribution * (
+        per_partition_contribution_error = per_partition_contribution - count
+        expected_cross_partition_error = -per_partition_contribution * (
             1 - prob_keep_partition)
         var_cross_partition_error = per_partition_contribution**2 * prob_keep_partition * (
             1 - prob_keep_partition)
