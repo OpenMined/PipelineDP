@@ -134,7 +134,7 @@ class DpEngineTest(parameterized.TestCase):
              max_contributions=None,
              metrics=[pipeline_dp.Metrics.PRIVACY_ID_COUNT]),
         dict(
-            testcase_name='min_value is not set, max_valus is set SUM',
+            testcase_name='min_value is not set, max_value is set SUM',
             error_msg='min_value and max_value should be both set or both None',
             min_value=None,
             max_value=1,
