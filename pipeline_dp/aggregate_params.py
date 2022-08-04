@@ -142,10 +142,6 @@ class AggregateParams:
 
         if value_bound:
             self._check_range_correctness("min_value", "max_value")
-            if self.max_contributions_per_partition is None:
-                raise ValueError(
-                    "AggregateParams: max_contributions_per_partition must be "
-                    "set when min_value/max_value are set.")
 
         if partition_bound:
             self._check_range_correctness("min_sum_per_partition",

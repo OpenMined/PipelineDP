@@ -31,7 +31,7 @@ class ScalarNoiseParams:
     min_sum_per_partition: Optional[float]
     max_sum_per_partition: Optional[float]
     max_partitions_contributed: int
-    max_contributions_per_partition: int
+    max_contributions_per_partition: Optional[int]
     noise_kind: pipeline_dp.NoiseKind  # Laplace or Gaussian
 
     def __post_init__(self):

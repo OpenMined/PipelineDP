@@ -40,6 +40,8 @@ class DPComputationsTest(parameterized.TestCase):
             delta=1e-10,
             min_value=2,
             max_value=3,
+            min_sum_per_partition=None,
+            max_sum_per_partition=None,
             max_partitions_contributed=4,
             max_contributions_per_partition=5,
             noise_kind=NoiseKind.LAPLACE)
@@ -229,6 +231,8 @@ class DPComputationsTest(parameterized.TestCase):
             delta=1e-10,
             min_value=0,
             max_value=0,
+            min_sum_per_partition=None,
+            max_sum_per_partition=None,
             max_partitions_contributed=1,
             max_contributions_per_partition=1,
             noise_kind=NoiseKind.LAPLACE)
@@ -269,6 +273,8 @@ class DPComputationsTest(parameterized.TestCase):
             delta=1e-10,
             min_value=2,
             max_value=3,
+            min_sum_per_partition=None,
+            max_sum_per_partition=None,
             max_partitions_contributed=1,
             max_contributions_per_partition=1,
             noise_kind=NoiseKind.LAPLACE)
@@ -310,6 +316,8 @@ class DPComputationsTest(parameterized.TestCase):
             delta=1e-10,
             min_value=0,
             max_value=0,
+            min_sum_per_partition=None,
+            max_sum_per_partition=None,
             max_partitions_contributed=1,
             max_contributions_per_partition=1,
             noise_kind=NoiseKind.LAPLACE)
@@ -338,6 +346,8 @@ class DPComputationsTest(parameterized.TestCase):
             delta=1e-10,
             min_value=1,
             max_value=20,
+            min_sum_per_partition=None,
+            max_sum_per_partition=None,
             max_partitions_contributed=1,
             max_contributions_per_partition=1,
             noise_kind=NoiseKind.LAPLACE)
@@ -400,6 +410,8 @@ class DPComputationsTest(parameterized.TestCase):
             delta=1e-10,
             min_value=42.0,
             max_value=42.0,  # = min_value
+            min_sum_per_partition=None,
+            max_sum_per_partition=None,
             max_partitions_contributed=1,
             max_contributions_per_partition=1,
             noise_kind=NoiseKind.LAPLACE)
@@ -415,6 +427,8 @@ class DPComputationsTest(parameterized.TestCase):
             delta=1e-10,
             min_value=42.0,
             max_value=42.0,  # = min_value
+            min_sum_per_partition=None,
+            max_sum_per_partition=None,
             max_partitions_contributed=1,
             max_contributions_per_partition=1,
             noise_kind=NoiseKind.LAPLACE)
@@ -433,6 +447,8 @@ class DPComputationsTest(parameterized.TestCase):
             delta=1e-10,
             min_value=1,
             max_value=20,
+            min_sum_per_partition=None,
+            max_sum_per_partition=None,
             max_partitions_contributed=1,
             max_contributions_per_partition=1,
             noise_kind=NoiseKind.LAPLACE)
@@ -517,7 +533,9 @@ class DPComputationsTest(parameterized.TestCase):
             max_contributions_per_partition=max_contributions_per_partition,
             noise_kind=pipeline_dp.NoiseKind.LAPLACE,
             min_value=0,
-            max_value=0)
+            max_value=0,
+            min_sum_per_partition=None,
+            max_sum_per_partition=None)
         expected_std = max_partitions_contributed * max_contributions_per_partition / eps * np.sqrt(
             2)
 
@@ -546,6 +564,8 @@ class DPComputationsTest(parameterized.TestCase):
             delta=delta,
             min_value=0,
             max_value=0,
+            min_sum_per_partition=None,
+            max_sum_per_partition=None,
             max_partitions_contributed=max_partitions_contributed,
             max_contributions_per_partition=max_contributions_per_partition,
             noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)
