@@ -267,20 +267,31 @@ class DPComputationsTest(parameterized.TestCase):
                                   delta=params.delta,
                                   l2_sensitivity=l2_sensitivity)
 
-    def test_compute_dp_sum(self):
+    @parameterized.parameters(False, True)
+    def test_compute_dp_sum(self, bound_per_partition):
+        min_value = max_value = min_sum_per_partition = max_sum_per_partition = None
+        if bound_per_partition:
+            min_sum_per_partition, max_sum_per_partition = 2, 3
+        else:
+            min_value, max_value = 2, 3
+
         params = dp_computations.ScalarNoiseParams(
             eps=0.5,
             delta=1e-10,
-            min_value=2,
-            max_value=3,
-            min_sum_per_partition=None,
-            max_sum_per_partition=None,
+            min_value=min_value,
+            max_value=max_value,
+            min_sum_per_partition=min_sum_per_partition,
+            max_sum_per_partition=max_sum_per_partition,
             max_partitions_contributed=1,
             max_contributions_per_partition=1,
             noise_kind=NoiseKind.LAPLACE)
         l0_sensitivity = params.l0_sensitivity()
-        linf_sensitivity = params.max_contributions_per_partition * max(
-            params.min_value, params.max_value)
+        if bound_per_partition:
+            linf_sensitivity = params.max_contributions_per_partition * max(
+                params.min_sum_per_partition, params.max_sum_per_partition)
+        else:  # bound per contribution
+            linf_sensitivity = params.max_contributions_per_partition * max(
+                params.min_value, params.max_value)
 
         # Laplace Mechanism
         l1_sensitivity = dp_computations.compute_l1_sensitivity(
