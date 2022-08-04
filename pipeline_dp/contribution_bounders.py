@@ -196,7 +196,7 @@ class SamplingCrossPartitionContributionBounder(ContributionBounder):
 
 def collect_values_per_partition_key_per_privacy_id(
         col, backend: pipeline_backend.PipelineBackend):
-    """Collects values per partition key in grouped by privacy_id collection.
+    """Collects values into a list for each privacy_id and partition_key.
 
     The output collection is a mapping from privacy_id (i.e. each privacy_id
     from 'col' occurs exactly once) to a list [(partition_key, [values]].
