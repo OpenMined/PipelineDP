@@ -71,9 +71,11 @@ class AggregateParams:
         min_value: Lower bound on each value.
         max_value: Upper bound on each value.
         min_sum_per_partition: Lower bound on sum per partition. Used only for
-        SUM metric calculations.
+        SUM metric calculations. It can not be set when min_value/max_value is
+         set.
         max_sum_per_partition: Upper bound on sum per partition. Used only for
-        SUM metric calculations.
+        SUM metric calculations. It can not be set when min_value/max_value is
+         set.
         custom_combiners: Warning: experimental@ Combiners for computing custom
           metrics.
         vector_norm_kind: The type of norm. Used only for VECTOR_SUM metric
