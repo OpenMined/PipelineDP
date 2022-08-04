@@ -242,9 +242,23 @@ class PrivacyIdCountCombinerTest(parameterized.TestCase):
 
 class SumCombinerTest(parameterized.TestCase):
 
+    def _create_aggregate_params_per_partition_bound(self):
+        return pipeline_dp.AggregateParams(
+            min_sum_per_partition=0,
+            max_sum_per_partition=3,
+            max_contributions_per_partition=1,
+            max_partitions_contributed=1,
+            noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+            metrics=[pipeline_dp.Metrics.SUM])
+
     def _create_combiner(self, no_noise, per_partition_bound):
         mechanism_spec = _create_mechanism_spec(no_noise)
-        aggregate_params = _create_aggregate_params()
+        if per_partition_bound:
+            aggregate_params = self._create_aggregate_params_per_partition_bound(
+            )
+        else:
+            aggregate_params = _create_aggregate_params()
+            aggregate_params.metrics = [pipeline_dp.Metrics.SUM]
         params = dp_combiners.CombinerParams(mechanism_spec, aggregate_params)
         return dp_combiners.SumCombiner(params)
 
@@ -252,31 +266,49 @@ class SumCombinerTest(parameterized.TestCase):
         dict(testcase_name='no_noise', no_noise=True),
         dict(testcase_name='noise', no_noise=False),
     )
-    def test_create_accumulator(self, no_noise):
-        combiner = self._create_combiner(no_noise)
+    def test_create_accumulator_per_contribution_bounding(self, no_noise):
+        combiner = self._create_combiner(no_noise, per_partition_bound=False)
         self.assertEqual(0, combiner.create_accumulator([]))
         self.assertEqual(2, combiner.create_accumulator([1, 1]))
         # Bounding on values.
         self.assertEqual(2, combiner.create_accumulator([1, 3]))
         self.assertEqual(1, combiner.create_accumulator([0, 3]))
 
+    def test_create_accumulator_per_partition_bound(self):
+        combiner = self._create_combiner(no_noise=False,
+                                         per_partition_bound=True)
+        self.assertEqual(0, combiner.create_accumulator([]))
+        self.assertEqual(2.5, combiner.create_accumulator([2, 0.5]))
+        # Clipping sum to [0, 3].
+        self.assertEqual(3, combiner.create_accumulator([4, 1]))
+        self.assertEqual(0, combiner.create_accumulator([-10, 5, 3]))
+
     @parameterized.named_parameters(
-        dict(testcase_name='no_noise', no_noise=True),
-        dict(testcase_name='noise', no_noise=False),
+        dict(testcase_name='no_noise', no_noise=True, per_partition_bound=True),
+        dict(testcase_name='noise', no_noise=False, per_partition_bound=False),
     )
-    def test_merge_accumulators(self, no_noise):
-        combiner = self._create_combiner(no_noise)
+    def test_merge_accumulators(self, no_noise, per_partition_bound):
+        combiner = self._create_combiner(no_noise, per_partition_bound)
         self.assertEqual(0, combiner.merge_accumulators(0, 0))
         self.assertEqual(5, combiner.merge_accumulators(1, 4))
 
-    def test_compute_metrics_no_noise(self):
-        combiner = self._create_combiner(no_noise=True)
+    @parameterized.named_parameters(
+        dict(testcase_name='per_contribution_bound', per_partition_bound=True),
+        dict(testcase_name='per_partition_bound', per_partition_bound=False),
+    )
+    def test_compute_metrics_no_noise(self, per_partition_bound):
+        combiner = self._create_combiner(
+            no_noise=True, per_partition_bound=per_partition_bound)
         self.assertAlmostEqual(3,
                                combiner.compute_metrics(3)['sum'],
                                delta=1e-5)
 
-    def test_compute_metrics_with_noise(self):
-        combiner = self._create_combiner(no_noise=False)
+    @parameterized.named_parameters(
+        # dict(testcase_name='per_contribution_bound', per_partition_bound=True),
+        dict(testcase_name='per_partition_bound', per_partition_bound=False),)
+    def test_compute_metrics_with_noise(self, per_partition_bound):
+        combiner = self._create_combiner(
+            no_noise=False, per_partition_bound=per_partition_bound)
         accumulator = 5
         noisy_values = [
             combiner.compute_metrics(accumulator)['sum'] for _ in range(1000)
