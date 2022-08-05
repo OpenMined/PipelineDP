@@ -45,11 +45,10 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
         )
 
     def _create_compound_combiner(
-        self, aggregate_params: pipeline_dp.AggregateParams,
-        budget_accountant: budget_accounting.BudgetAccountant
+        self, aggregate_params: pipeline_dp.AggregateParams
     ) -> combiners.CompoundCombiner:
         mechanism_type = aggregate_params.noise_kind.convert_to_mechanism_type()
-        budget = budget_accountant.request_budget(
+        budget = self._budget_accountant.request_budget(
             mechanism_type, weight=aggregate_params.budget_weight)
         return combiners.CompoundCombiner([
             utility_analysis_combiners.UtilityAnalysisCountCombiner(
