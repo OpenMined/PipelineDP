@@ -14,8 +14,11 @@
 """DPEngine for utility analysis."""
 
 import pipeline_dp
+from pipeline_dp import budget_accounting
+from pipeline_dp import combiners
 from pipeline_dp import contribution_bounders
 import utility_analysis_new.contribution_bounders as utility_contribution_bounders
+import utility_analysis_new.combiners as utility_analysis_combiners
 
 
 class UtilityAnalysisEngine(pipeline_dp.DPEngine):
@@ -40,6 +43,18 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
         """Creates ContributionBounder for utility analysis."""
         return utility_contribution_bounders.SamplingCrossAndPerPartitionContributionBounder(
         )
+
+    def _create_compound_combiner(
+        self, aggregate_params: pipeline_dp.AggregateParams
+    ) -> combiners.CompoundCombiner:
+        mechanism_type = aggregate_params.noise_kind.convert_to_mechanism_type()
+        budget = self._budget_accountant.request_budget(
+            mechanism_type, weight=aggregate_params.budget_weight)
+        return combiners.CompoundCombiner([
+            utility_analysis_combiners.UtilityAnalysisCountCombiner(
+                combiners.CombinerParams(budget, aggregate_params))
+        ],
+                                          return_named_tuple=False)
 
 
 def _check_utility_analysis_params(params: pipeline_dp.AggregateParams,

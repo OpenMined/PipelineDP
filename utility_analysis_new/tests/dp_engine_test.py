@@ -16,6 +16,7 @@ import unittest
 
 import pipeline_dp
 from pipeline_dp import budget_accounting
+from pipeline_dp import aggregate_params as agg
 from utility_analysis_new import dp_engine
 
 
@@ -83,6 +84,44 @@ class DpEngine(unittest.TestCase):
                     test_case["params"],
                     test_case["data_extractor"],
                     public_partitions=test_case["public_partitions"])
+
+    def test_aggregate_public_partition_applied(self):
+        # Arrange
+        aggregator_params = pipeline_dp.AggregateParams(
+            noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+            metrics=[agg.Metrics.COUNT],
+            max_partitions_contributed=1,
+            max_contributions_per_partition=1)
+
+        budget_accountant = pipeline_dp.NaiveBudgetAccountant(total_epsilon=1,
+                                                              total_delta=1e-10)
+
+        public_partitions = ["pk0", "pk1", "pk101"]
+
+        # Input collection has 100 elements, such that each privacy id
+        # contributes 1 time and each partition has 1 element.
+        col = list(range(100))
+        data_extractor = pipeline_dp.DataExtractors(
+            privacy_id_extractor=lambda x: x,
+            partition_extractor=lambda x: f"pk{x}",
+            value_extractor=lambda x: None)
+
+        engine = dp_engine.UtilityAnalysisEngine(
+            budget_accountant=budget_accountant,
+            backend=pipeline_dp.LocalBackend())
+
+        col = engine.aggregate(col=col,
+                               params=aggregator_params,
+                               data_extractors=data_extractor,
+                               public_partitions=public_partitions)
+        budget_accountant.compute_budgets()
+
+        col = list(col)
+
+        # Assert public partitions are applied, i.e. that pk0 and pk1 are kept,
+        # and pk101 is added.
+        self.assertEqual(len(col), 3)
+        self.assertTrue(any(map(lambda x: x[0] == "pk101", col)))
 
 
 if __name__ == '__main__':
