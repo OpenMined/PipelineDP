@@ -44,7 +44,7 @@ class UtilityAnalysisCountCombinerTest(parameterized.TestCase):
              params=_create_combiner_params(),
              expected_metrics=combiners.CountUtilityAnalysisMetrics(
                  count=0,
-                 per_partition_contribution_error=0,
+                 per_partition_error=0,
                  expected_cross_partition_error=0,
                  std_cross_partition_error=0,
                  std_noise=7.46484375,
@@ -55,7 +55,7 @@ class UtilityAnalysisCountCombinerTest(parameterized.TestCase):
              params=_create_combiner_params(),
              expected_metrics=combiners.CountUtilityAnalysisMetrics(
                  count=2,
-                 per_partition_contribution_error=0,
+                 per_partition_error=0,
                  expected_cross_partition_error=0,
                  std_cross_partition_error=0,
                  std_noise=7.46484375,
@@ -66,7 +66,7 @@ class UtilityAnalysisCountCombinerTest(parameterized.TestCase):
              params=_create_combiner_params(),
              expected_metrics=combiners.CountUtilityAnalysisMetrics(
                  count=4,
-                 per_partition_contribution_error=-2,
+                 per_partition_error=-2,
                  expected_cross_partition_error=-1.5,
                  std_cross_partition_error=0.8660254037844386,
                  std_noise=7.46484375,
@@ -90,9 +90,8 @@ class UtilityAnalysisCountCombinerTest(parameterized.TestCase):
 
         self.assertEqual(test_acc1.count + test_acc2.count, merged_acc.count)
         self.assertEqual(
-            test_acc1.per_partition_contribution_error +
-            test_acc2.per_partition_contribution_error,
-            merged_acc.per_partition_contribution_error)
+            test_acc1.per_partition_error + test_acc2.per_partition_error,
+            merged_acc.per_partition_error)
         self.assertEqual(
             test_acc1.expected_cross_partition_error +
             test_acc2.expected_cross_partition_error,
