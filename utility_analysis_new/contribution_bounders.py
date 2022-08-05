@@ -37,27 +37,19 @@ class SamplingCrossAndPerPartitionContributionBounder(
             "Rekey to ((privacy_id), (partition_key, value))")
         col = backend.group_by_key(
             col, "Group by key to get (privacy_id, [(partition_key, value)])")
-
         # (privacy_id, [(partition_key, value)])
 
-        # Convert the per-privacy_id list into a dict with key as partition_key
-        # and values as the list of input values.
-        def collect_values_per_partition_key_per_privacy_id(input_list):
-            d = collections.defaultdict(list)
-            for key, value in input_list:
-                d[key].append(value)
-            return d
+        col = contribution_bounders.collect_values_per_partition_key_per_privacy_id(
+            col, backend)
 
-        col = backend.map_values(
-            col, collect_values_per_partition_key_per_privacy_id,
-            "Group per (privacy_id, partition_key)")
+        # (privacy_id, [(partition_key, [value])])
 
         # Rekey by (privacy_id, partition_key) and unnest values along with the
         # number of partitions contributed per privacy_id.
-        def rekey_per_privacy_id_per_partition_key_and_unnest(pid_pk_dict):
-            privacy_id, partition_dict = pid_pk_dict
-            num_partitions_contributed = len(partition_dict)
-            for partition_key, values in partition_dict.items():
+        def rekey_per_privacy_id_per_partition_key_and_unnest(pid_pk_v_values):
+            privacy_id, partition_values = pid_pk_v_values
+            num_partitions_contributed = len(partition_values)
+            for partition_key, values in partition_values:
                 yield (privacy_id, partition_key), (values,
                                                     num_partitions_contributed)
 
