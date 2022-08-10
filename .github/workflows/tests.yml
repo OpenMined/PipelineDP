@@ -58,4 +58,4 @@ jobs:
 
       - name: Run pytest
         run: |
-          pytest tests
+          pytest tests utility_analysis_new/tests
