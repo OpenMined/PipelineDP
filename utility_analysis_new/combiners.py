@@ -93,7 +93,9 @@ class PartitionSelectionAccumulator:
     moments: Optional[SumOfRandomVariablesMoments] = None
 
     def __post_init__(self):
-        assert (self.probabilities is None) != (self.moments is None), "todo"
+        assert (self.probabilities is None) != (
+            self.moments is
+            None), "Only one of probabilities and moments must be set."
 
     def __add__(self, other):
         probs1 = self.probabilities
