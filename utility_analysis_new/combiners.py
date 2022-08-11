@@ -108,7 +108,7 @@ class UtilityAnalysisCountCombiner(pipeline_dp.Combiner):
             A CountUtilityAnalysisMetrics object with computed metrics.
         """
         std_noise = dp_computations.compute_dp_count_noise_std(
-            self._params.mean_var_params)
+            self._params.scalar_noise_params)
         return CountUtilityAnalysisMetrics(
             count=acc.count,
             per_partition_contribution_error=acc.

@@ -28,7 +28,7 @@ from pipeline_dp import SumParams
 import pandas as pd
 
 FLAGS = flags.FLAGS
-flags.DEFINE_string('input_file', 'restaraunts_week_data.csv',
+flags.DEFINE_string('input_file', 'restaurants_week_data.csv',
                     'The CSV file with restaraunt visits data')
 flags.DEFINE_string('output_file', None, 'Output file')
 
