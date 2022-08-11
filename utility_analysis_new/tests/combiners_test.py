@@ -13,6 +13,7 @@
 # limitations under the License.
 """UtilityAnalysisCountCombinerTest."""
 
+from absl.testing import absltest
 from absl.testing import parameterized
 
 import pipeline_dp
@@ -101,3 +102,7 @@ class UtilityAnalysisCountCombinerTest(parameterized.TestCase):
             test_acc1.var_cross_partition_error +
             test_acc2.var_cross_partition_error,
             merged_acc.var_cross_partition_error)
+
+
+if __name__ == '__main__':
+    absltest.main()
