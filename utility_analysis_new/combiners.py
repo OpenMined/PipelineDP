@@ -77,22 +77,29 @@ class PartitionSelectionAccumulator:
     """Stores data needed for computing probability of keeping the partition.
 
     Args:
-        probabities_to_contribute: probabilities that each specific user contributes to the partition after contribution bounding.
-        moments: contains some moments of the sum of independent random variables, which represent whether user contributes to the partition.
+        probabilities: probabilities that each specific user contributes to the
+        partition after contribution bounding.
+        moments: contains moments of the sum of independent random
+        variables, which represent whether user contributes to the partition.
 
-    Those variables are set mutually exclusive. Until len(probabities_to_contribute) <= MAX_PROBABILITIES_IN_ACCUMULATOR then 'probabilities' are used otherwiser 'moments'. The idea is that when the number of the contribution are small the sum of the random variables is far from Normal, exact computations are performed, otherwise an approximataion based on moments.
+    Those variables are set mutually exclusive. If len(probabilities) <= 
+    MAX_PROBABILITIES_IN_ACCUMULATOR then 'probabilities' are used otherwise
+    'moments'. The idea is that when the number of the contributions are small
+    the sum of the random variables is far from Normal distribution and exact
+    computations are performed, otherwise a Normal approximation based on
+    moments is used.
     """
-    probabities_to_contribute: Optional[List[float]] = None
+    probabilities: Optional[List[float]] = None
     moments: Optional[SumOfRandomVariablesMoments] = None
 
     def __post_init__(self):
-        assert (self.probabities_to_contribute is None) != (self.moments is
-                                                            None), "todo"
+        assert (self.probabilities is None) != (self.moments is None), "todo"
 
     def __add__(self, other):
-        probs1 = self.probabities_to_contribute
-        probs2 = other.probabities_to_contribute
-        if probs1 and probs2 and len(probs1) + len(probs2) <= MAX_PROBABILITIES_IN_ACCUMULATOR:
+        probs1 = self.probabilities
+        probs2 = other.probabilities
+        if probs1 and probs2 and len(probs1) + len(
+                probs2) <= MAX_PROBABILITIES_IN_ACCUMULATOR:
             return PartitionSelectionAccumulator(probs1 + probs2)
         moments1 = self.moments
         if moments1 is None:
@@ -164,7 +171,7 @@ class UtilityAnalysisCountCombiner(pipeline_dp.Combiner):
         ps_accumulator = None
         if not self._is_public_partitions:
             ps_accumulator = PartitionSelectionAccumulator(
-                probabities_to_contribute=[prob_keep_partition])
+                probabilities=[prob_keep_partition])
 
         return UtilityAnalysisCountAccumulator(
             count, per_partition_contribution_error,
