@@ -27,6 +27,7 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
     def __init__(self, budget_accountant: 'BudgetAccountant',
                  backend: 'PipelineBackend'):
         super().__init__(budget_accountant, backend)
+        self._is_public_partitions = None
 
     def aggregate(self,
                   col,
@@ -34,8 +35,11 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
                   data_extractors: pipeline_dp.DataExtractors,
                   public_partitions=None):
         _check_utility_analysis_params(params, public_partitions)
-        return super().aggregate(col, params, data_extractors,
-                                 public_partitions)
+        self._is_public_partitions = public_partitions is not None
+        result = super().aggregate(col, params, data_extractors,
+                                   public_partitions)
+        self._is_public_partitions = None
+        return result
 
     def _create_contribution_bounder(
         self, params: pipeline_dp.AggregateParams
@@ -52,7 +56,8 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
             mechanism_type, weight=aggregate_params.budget_weight)
         return combiners.CompoundCombiner([
             utility_analysis_combiners.UtilityAnalysisCountCombiner(
-                combiners.CombinerParams(budget, aggregate_params))
+                combiners.CombinerParams(budget, aggregate_params),
+                self._is_public_partitions)
         ],
                                           return_named_tuple=False)
 

@@ -14,11 +14,13 @@
 """UtilityAnalysisCountCombiner."""
 
 from dataclasses import dataclass
-from typing import List, Sized, Tuple
+from typing import List, Optional, Sized, Tuple
 import numpy as np
 
 import pipeline_dp
 from pipeline_dp import dp_computations
+
+MAX_PROBABILITIES_IN_ACCUMULATOR = 100
 
 
 @dataclass
@@ -42,19 +44,107 @@ class CountUtilityAnalysisMetrics:
 
 
 @dataclass
+class SumOfRandomVariablesMoments:
+    """Stores moments of sum of random independent random variables."""
+    count: int
+    expectation: float
+    variance: float
+    third_central_moment: float
+
+    def __add__(
+            self, other: 'SumOfRandomVariablesMoments'
+    ) -> 'SumOfRandomVariablesMoments':
+        return SumOfRandomVariablesMoments(
+            self.count + other.count, self.expectation + other.expectation,
+            self.variance + other.variance,
+            self.third_central_moment + other.third_central_moment)
+
+
+def _probabilities_to_moments(
+        probabilities: List[float]) -> SumOfRandomVariablesMoments:
+    """Computes moments of sum of independent bernoulli random variables."""
+    exp = np.sum(probabilities)
+    var = np.sum([p * (1 - p) for p in probabilities])
+    third_central_moment = np.sum(
+        [p * (1 - p) * (1 - 2 * p) for p in probabilities])
+
+    return SumOfRandomVariablesMoments(len(probabilities), exp, var,
+                                       third_central_moment)
+
+
+@dataclass
+class PartitionSelectionAccumulator:
+    """Stores data needed for computing probability of keeping the partition.
+
+    Args:
+        probabilities: probabilities that each specific user contributes to the
+        partition after contribution bounding.
+        moments: contains moments of the sum of independent random
+        variables, which represent whether user contributes to the partition.
+
+    Those variables are set mutually exclusive. If len(probabilities) <= 
+    MAX_PROBABILITIES_IN_ACCUMULATOR then 'probabilities' are used otherwise
+    'moments'. The idea is that when the number of the contributions are small
+    the sum of the random variables is far from Normal distribution and exact
+    computations are performed, otherwise a Normal approximation based on
+    moments is used.
+    """
+    probabilities: Optional[List[float]] = None
+    moments: Optional[SumOfRandomVariablesMoments] = None
+
+    def __post_init__(self):
+        assert (self.probabilities is None) != (
+            self.moments is
+            None), "Only one of probabilities and moments must be set."
+
+    def __add__(self, other):
+        probs_self = self.probabilities
+        probs_other = other.probabilities
+        if probs_self and probs_other and len(probs_self) + len(
+                probs_other) <= MAX_PROBABILITIES_IN_ACCUMULATOR:
+            return PartitionSelectionAccumulator(probs_self + probs_other)
+        moments_self = self.moments
+        if moments_self is None:
+            moments_self = _probabilities_to_moments(probs_self)
+
+        moments_other = other.moments
+        if moments_other is None:
+            moments_other = _probabilities_to_moments(probs_other)
+
+        return PartitionSelectionAccumulator(moments=moments_self +
+                                             moments_other)
+
+
+@dataclass
 class UtilityAnalysisCountAccumulator:
     count: int
     per_partition_contribution_error: int
     expected_cross_partition_error: float
     var_cross_partition_error: float
+    partition_selection_accumulator: Optional[PartitionSelectionAccumulator]
+
+    def __add__(self, other):
+        ps_accumulator = None
+        if self.partition_selection_accumulator is not None:
+            ps_accumulator = self.partition_selection_accumulator + other.partition_selection_accumulator
+
+        return UtilityAnalysisCountAccumulator(
+            self.count + other.count, self.per_partition_contribution_error +
+            other.per_partition_contribution_error,
+            self.expected_cross_partition_error +
+            other.expected_cross_partition_error,
+            self.var_cross_partition_error + other.var_cross_partition_error,
+            ps_accumulator)
 
 
 class UtilityAnalysisCountCombiner(pipeline_dp.Combiner):
     """A combiner for utility analysis counts."""
     AccumulatorType = UtilityAnalysisCountAccumulator
 
-    def __init__(self, params: pipeline_dp.combiners.CombinerParams):
+    def __init__(self, params: pipeline_dp.combiners.CombinerParams,
+                 is_public_partitions: bool):
         self._params = params
+        self._is_public_partitions = is_public_partitions
 
     def create_accumulator(self, data: Tuple[Sized, int]) -> AccumulatorType:
         """Create an accumulator for data.
@@ -67,7 +157,7 @@ class UtilityAnalysisCountCombiner(pipeline_dp.Combiner):
             An accumulator with the count of contributions and the contribution error.
         """
         if not data:
-            return UtilityAnalysisCountAccumulator(0, 0, 0, 0)
+            return UtilityAnalysisCountAccumulator(0, 0, 0, 0, None)
         values, n_partitions = data
         count = len(values)
         max_per_partition = self._params.aggregate_params.max_contributions_per_partition
@@ -81,21 +171,19 @@ class UtilityAnalysisCountCombiner(pipeline_dp.Combiner):
         var_cross_partition_error = per_partition_contribution**2 * prob_keep_partition * (
             1 - prob_keep_partition)
 
+        ps_accumulator = None
+        if not self._is_public_partitions:
+            ps_accumulator = PartitionSelectionAccumulator(
+                probabilities=[prob_keep_partition])
+
         return UtilityAnalysisCountAccumulator(
             count, per_partition_contribution_error,
-            expected_cross_partition_error, var_cross_partition_error)
+            expected_cross_partition_error, var_cross_partition_error,
+            ps_accumulator)
 
     def merge_accumulators(self, acc1: AccumulatorType, acc2: AccumulatorType):
         """Merge two accumulators together additively."""
-        return UtilityAnalysisCountAccumulator(
-            count=acc1.count + acc2.count,
-            per_partition_contribution_error=acc1.
-            per_partition_contribution_error +
-            acc2.per_partition_contribution_error,
-            expected_cross_partition_error=acc1.expected_cross_partition_error +
-            acc2.expected_cross_partition_error,
-            var_cross_partition_error=acc1.var_cross_partition_error +
-            acc2.var_cross_partition_error)
+        return acc1 + acc2
 
     def compute_metrics(self,
                         acc: AccumulatorType) -> CountUtilityAnalysisMetrics:
