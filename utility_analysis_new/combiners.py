@@ -98,20 +98,21 @@ class PartitionSelectionAccumulator:
             None), "Only one of probabilities and moments must be set."
 
     def __add__(self, other):
-        probs1 = self.probabilities
-        probs2 = other.probabilities
-        if probs1 and probs2 and len(probs1) + len(
-                probs2) <= MAX_PROBABILITIES_IN_ACCUMULATOR:
-            return PartitionSelectionAccumulator(probs1 + probs2)
-        moments1 = self.moments
-        if moments1 is None:
-            moments1 = _probabilities_to_moments(probs1)
+        probs_self = self.probabilities
+        probs_other = other.probabilities
+        if probs_self and probs_other and len(probs_self) + len(
+                probs_other) <= MAX_PROBABILITIES_IN_ACCUMULATOR:
+            return PartitionSelectionAccumulator(probs_self + probs_other)
+        moments_self = self.moments
+        if moments_self is None:
+            moments_self = _probabilities_to_moments(probs_self)
 
-        moments2 = other.moments
-        if moments2 is None:
-            moments2 = _probabilities_to_moments(probs2)
+        moments_other = other.moments
+        if moments_other is None:
+            moments_other = _probabilities_to_moments(probs_other)
 
-        return PartitionSelectionAccumulator(moments=moments1 + moments2)
+        return PartitionSelectionAccumulator(moments=moments_self +
+                                             moments_other)
 
 
 @dataclass
@@ -156,7 +157,7 @@ class UtilityAnalysisCountCombiner(pipeline_dp.Combiner):
             An accumulator with the count of contributions and the contribution error.
         """
         if not data:
-            return UtilityAnalysisCountAccumulator(0, 0, 0, 0)
+            return UtilityAnalysisCountAccumulator(0, 0, 0, 0, None)
         values, n_partitions = data
         count = len(values)
         max_per_partition = self._params.aggregate_params.max_contributions_per_partition
