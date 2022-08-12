@@ -11,20 +11,23 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-""" Demo of running PipelineDP locally, without any external data processing framework
+"""Demo of running PipelineDP locally, without any external data processing framework.
+
+This demo outputs a utility analysis of errors and noise for each partition in the dataset.
 
 1. Install Python and run on the command line `pip install pipeline-dp absl-py`
-2. Run python python run_without_frameworks.py --input_file=<path to data.txt from 3> --output_file=<...>
+2. Run python python run_without_frameworks_utility_analysis.py --output_file=<...>
 """
 
 from absl import app
 from absl import flags
 import pipeline_dp
 import pandas as pd
+from utility_analysis_new.dp_engine import UtilityAnalysisEngine
 
 FLAGS = flags.FLAGS
-flags.DEFINE_string('input_file', 'restaraunts_week_data.csv',
-                    'The file with the restaraunt visits data')
+flags.DEFINE_string('input_file', 'restaurants_week_data.csv',
+                    'The file with the restaurant visits data')
 flags.DEFINE_string('output_file', None, 'Output file')
 
 
@@ -55,32 +58,29 @@ def main(unused_argv):
                   'Money spent (euros)': 'spent_money',
                   'Day': 'day'
               })
-    restaraunt_visits_rows = [index_row[1] for index_row in df.iterrows()]
+    # Double the inputs so we have twice as many contributions per partition
+    df_double = pd.concat([df, df])
+    df_double.columns = df.columns
+    restaurant_visits_rows = [index_row[1] for index_row in df_double.iterrows()]
 
-    # Create a DPEngine instance.
-    dp_engine = pipeline_dp.DPEngine(budget_accountant, backend)
+    # Create a UtilityAnalysisEngine instance.
+    utility_analysis_engine = UtilityAnalysisEngine(budget_accountant, backend)
 
+    # Limit contributions to 1 per partition, contribution error will be half of the count.
     params = pipeline_dp.AggregateParams(
         noise_kind=pipeline_dp.NoiseKind.LAPLACE,
-        metrics=[pipeline_dp.Metrics.COUNT, pipeline_dp.Metrics.SUM],
-        max_partitions_contributed=3,
-        max_contributions_per_partition=2,
-        min_value=0,
-        max_value=60)
+        metrics=[pipeline_dp.Metrics.COUNT],
+        max_partitions_contributed=1,
+        max_contributions_per_partition=1)
 
     # Specify how to extract privacy_id, partition_key and value from an
-    # element of restaraunt_visits_rows.
+    # element of restaurant_visits_rows.
     data_extractors = pipeline_dp.DataExtractors(
         partition_extractor=lambda row: row.day,
         privacy_id_extractor=lambda row: row.user_id,
         value_extractor=lambda row: row.spent_money)
 
-    # Create a computational graph for the aggregation.
-    # All computations are lazy. dp_result is iterable, but iterating it would
-    # fail until budget is computed (below).
-    # It’s possible to call DPEngine.aggregate multiple times with different
-    # metrics to compute.
-    dp_result = dp_engine.aggregate(restaraunt_visits_rows,
+    dp_result = utility_analysis_engine.aggregate(restaurant_visits_rows,
                                     params,
                                     data_extractors,
                                     public_partitions=list(range(1, 8)))
