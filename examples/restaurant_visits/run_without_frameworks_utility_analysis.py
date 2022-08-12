@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-""" Demo of running PipelineDP locally, without any external data processing framework.
+"""Demo of running PipelineDP locally, without any external data processing framework.
 
 This demo outputs a utility analysis of errors and noise for each partition in the dataset.
 
@@ -21,7 +21,6 @@ This demo outputs a utility analysis of errors and noise for each partition in t
 
 from absl import app
 from absl import flags
-import numpy as np
 import pipeline_dp
 import pandas as pd
 from utility_analysis_new.dp_engine import UtilityAnalysisEngine
@@ -60,7 +59,7 @@ def main(unused_argv):
                   'Day': 'day'
               })
     # Double the inputs so we have twice as many contributions per partition
-    df_double = pd.DataFrame(np.repeat(df.values, 2, axis=0))
+    df_double = pd.concat([df, df])
     df_double.columns = df.columns
     restaurant_visits_rows = [index_row[1] for index_row in df_double.iterrows()]
 
