@@ -109,6 +109,11 @@ def calc_dp_rating_metrics(movie_views, backend, public_partitions):
                                     public_partitions)
 
     budget_accountant.compute_budgets()
+
+    reports = dp_engine.explain_computations_report()
+    for report in reports:
+        print(report)
+
     return dp_result
 
 

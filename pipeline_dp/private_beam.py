@@ -463,6 +463,10 @@ class _CombineFnCombiner(pipeline_dp.CustomCombiner):
         return self._private_combine_fn.extract_private_output(
             accumulator, self._budget)
 
+    def explain_computation(self) -> str:
+        # TODO: implement
+        return "Explain computations for PrivateCombineFn not implemented."
+
     def request_budget(self,
                        budget_accountant: budget_accounting.BudgetAccountant):
         self._budget = self._private_combine_fn.request_budget(

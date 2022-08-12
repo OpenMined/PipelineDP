@@ -14,34 +14,52 @@
 """Differential privacy computing of count, sum, mean, variance."""
 
 import numpy as np
+from typing import Optional
 import pipeline_dp
-# TODO: import only modules https://google.github.io/styleguide/pyguide.html#22-imports
-from pipeline_dp.aggregate_params import NoiseKind
 from dataclasses import dataclass
 from pydp.algorithms import numerical_mechanisms as dp_mechanisms
 
 
 @dataclass
-class MeanVarParams:
+class ScalarNoiseParams:
     """The parameters used for computing the dp sum, count, mean, variance."""
 
     eps: float
     delta: float
-    min_value: float
-    max_value: float
+    min_value: Optional[float]
+    max_value: Optional[float]
+    min_sum_per_partition: Optional[float]
+    max_sum_per_partition: Optional[float]
     max_partitions_contributed: int
-    max_contributions_per_partition: int
-    noise_kind: NoiseKind  # Laplace or Gaussian
+    max_contributions_per_partition: Optional[int]
+    noise_kind: pipeline_dp.NoiseKind  # Laplace or Gaussian
+
+    def __post_init__(self):
+        assert (self.min_value is None) == (
+            self.max_value is
+            None), "min_value and max_value should be or both set or both None."
+        assert (self.min_sum_per_partition is None) == (
+            self.max_sum_per_partition is None
+        ), "min_sum_per_partition and max_sum_per_partition should be or both set or both None."
 
     def l0_sensitivity(self):
         """"Returns the L0 sensitivity of the parameters."""
         return self.max_partitions_contributed
 
-    def squares_interval(self):
-        """Returns the bounds of the interval [min_value^2, max_value^2]."""
-        if self.min_value < 0 and self.max_value > 0:
-            return 0, max(self.min_value**2, self.max_value**2)
-        return self.min_value**2, self.max_value**2
+    @property
+    def bounds_per_contribution_are_set(self) -> bool:
+        return self.min_value is not None and self.max_value is not None
+
+    @property
+    def bounds_per_partition_are_set(self) -> bool:
+        return self.min_sum_per_partition is not None and self.max_sum_per_partition is not None
+
+
+def compute_squares_interval(min_value: float, max_value: float):
+    """Returns the bounds of the interval [min_value^2, max_value^2]."""
+    if min_value < 0 < max_value:
+        return 0, max(min_value**2, max_value**2)
+    return min_value**2, max_value**2
 
 
 def compute_middle(min_value: float, max_value: float):
@@ -131,7 +149,7 @@ def _add_random_noise(
     delta: float,
     l0_sensitivity: float,
     linf_sensitivity: float,
-    noise_kind: NoiseKind,
+    noise_kind: pipeline_dp.NoiseKind,
 ):
     """Adds random noise according to the parameters.
 
@@ -146,11 +164,11 @@ def _add_random_noise(
     Returns:
         The value resulted after adding the random noise.
     """
-    if noise_kind == NoiseKind.LAPLACE:
+    if noise_kind == pipeline_dp.NoiseKind.LAPLACE:
         l1_sensitivity = compute_l1_sensitivity(l0_sensitivity,
                                                 linf_sensitivity)
         return apply_laplace_mechanism(value, eps, l1_sensitivity)
-    if noise_kind == NoiseKind.GAUSSIAN:
+    if noise_kind == pipeline_dp.NoiseKind.GAUSSIAN:
         l2_sensitivity = compute_l2_sensitivity(l0_sensitivity,
                                                 linf_sensitivity)
         return apply_gaussian_mechanism(value, eps, delta, l2_sensitivity)
@@ -165,7 +183,7 @@ class AdditiveVectorNoiseParams:
     l0_sensitivity: float
     linf_sensitivity: float
     norm_kind: pipeline_dp.aggregate_params.NormKind
-    noise_kind: NoiseKind
+    noise_kind: pipeline_dp.NoiseKind
 
 
 def _clip_vector(vec: np.ndarray, max_norm: float,
@@ -234,7 +252,7 @@ def equally_split_budget(eps: float, delta: float, no_mechanisms: int):
     return budgets
 
 
-def compute_dp_count(count: int, dp_params: MeanVarParams):
+def compute_dp_count(count: int, dp_params: ScalarNoiseParams):
     """Computes DP count.
 
     Args:
@@ -257,7 +275,7 @@ def compute_dp_count(count: int, dp_params: MeanVarParams):
     )
 
 
-def compute_dp_sum(sum: float, dp_params: MeanVarParams):
+def compute_dp_sum(sum: float, dp_params: ScalarNoiseParams):
     """Computes DP sum.
 
     Args:
@@ -268,8 +286,13 @@ def compute_dp_sum(sum: float, dp_params: MeanVarParams):
         ValueError: The noise kind is invalid.
     """
     l0_sensitivity = dp_params.l0_sensitivity()
-    linf_sensitivity = dp_params.max_contributions_per_partition * max(
-        abs(dp_params.min_value), abs(dp_params.max_value))
+
+    if dp_params.bounds_per_contribution_are_set:
+        max_abs = max(abs(dp_params.min_value), abs(dp_params.max_value))
+        linf_sensitivity = dp_params.max_contributions_per_partition * max_abs
+    else:
+        linf_sensitivity = max(abs(dp_params.min_sum_per_partition),
+                               abs(dp_params.max_sum_per_partition))
 
     if linf_sensitivity == 0:
         return 0
@@ -284,8 +307,7 @@ def compute_dp_sum(sum: float, dp_params: MeanVarParams):
     )
 
 
-def _compute_mean(
-    count: float,
+def _compute_mean_for_normalized_sum(
     dp_count: float,
     sum: float,
     min_value: float,
@@ -294,15 +316,14 @@ def _compute_mean(
     delta: float,
     l0_sensitivity: float,
     max_contributions_per_partition: float,
-    noise_kind: NoiseKind,
+    noise_kind: pipeline_dp.NoiseKind,
 ):
     """Helper function to compute the DP mean of a raw sum using the DP count.
 
     Args:
-        count: Non-DP count.
         dp_count: DP count.
-        sum: Non-DP sum.
-        min_value, max_value: The lowest/highest contribution.
+        sum: Non-DP normalized sum.
+        min_value, max_value: The lowest/highest contribution of the non-normalized values.
         eps, delta: The budget allocated.
         l0_sensitivity: The L0 sensitivity.
         max_contributions_per_partition: The maximum number of contributions
@@ -320,23 +341,22 @@ def _compute_mean(
     middle = compute_middle(min_value, max_value)
     linf_sensitivity = max_contributions_per_partition * abs(middle - min_value)
 
-    normalized_sum = sum - count * middle
-    dp_normalized_sum = _add_random_noise(normalized_sum, eps, delta,
-                                          l0_sensitivity, linf_sensitivity,
-                                          noise_kind)
+    dp_normalized_sum = _add_random_noise(sum, eps, delta, l0_sensitivity,
+                                          linf_sensitivity, noise_kind)
     # Clamps dp_count to 1.0. We know that actual count > 1 except when the
     # input set is empty, in which case it shouldn't matter much what the
     # denominator is.
     dp_count_clamped = max(1.0, dp_count)
-    return dp_normalized_sum / dp_count_clamped + middle
+    return dp_normalized_sum / dp_count_clamped
 
 
-def compute_dp_mean(count: int, sum: float, dp_params: MeanVarParams):
+def compute_dp_mean(count: int, normalized_sum: float,
+                    dp_params: ScalarNoiseParams):
     """Computes DP mean.
 
     Args:
         count: Non-DP count.
-        sum: Non-DP sum.
+        normalized_sum: Non-DP normalized sum.
         dp_params: The parameters used at computing the noise.
 
     Raises:
@@ -359,10 +379,9 @@ def compute_dp_mean(count: int, sum: float, dp_params: MeanVarParams):
         dp_params.noise_kind,
     )
 
-    dp_mean = _compute_mean(
-        count,
+    dp_mean = _compute_mean_for_normalized_sum(
         dp_count,
-        sum,
+        normalized_sum,
         dp_params.min_value,
         dp_params.max_value,
         sum_eps,
@@ -372,17 +391,20 @@ def compute_dp_mean(count: int, sum: float, dp_params: MeanVarParams):
         dp_params.noise_kind,
     )
 
+    if dp_params.min_value != dp_params.max_value:
+        dp_mean += compute_middle(dp_params.min_value, dp_params.max_value)
+
     return dp_count, dp_mean * dp_count, dp_mean
 
 
-def compute_dp_var(count: int, sum: float, sum_squares: float,
-                   dp_params: MeanVarParams):
+def compute_dp_var(count: int, normalized_sum: float,
+                   normalized_sum_squares: float, dp_params: ScalarNoiseParams):
     """Computes DP variance.
 
     Args:
         count: Non-DP count.
-        sum: Non-DP sum.
-        sum_squares: Non-DP sum of squares.
+        normalized_sum: Non-DP normalized sum.
+        normalized_sum_squares: Non-DP normalized sum of squares.
         dp_params: The parameters used at computing the noise.
 
     Raises:
@@ -409,10 +431,9 @@ def compute_dp_var(count: int, sum: float, sum_squares: float,
     )
 
     # Computes and adds noise to the mean.
-    dp_mean = _compute_mean(
-        count,
+    dp_mean = _compute_mean_for_normalized_sum(
         dp_count,
-        sum,
+        normalized_sum,
         dp_params.min_value,
         dp_params.max_value,
         sum_eps,
@@ -422,15 +443,35 @@ def compute_dp_var(count: int, sum: float, sum_squares: float,
         dp_params.noise_kind,
     )
 
-    squares_min_value, squares_max_value = dp_params.squares_interval()
+    squares_min_value, squares_max_value = compute_squares_interval(
+        dp_params.min_value, dp_params.max_value)
 
     # Computes and adds noise to the mean of squares.
-    dp_mean_squares = _compute_mean(count, dp_count, sum_squares,
-                                    squares_min_value, squares_max_value,
-                                    sum_squares_eps, sum_squares_delta,
-                                    l0_sensitivity,
-                                    dp_params.max_contributions_per_partition,
-                                    dp_params.noise_kind)
+    dp_mean_squares = _compute_mean_for_normalized_sum(
+        dp_count, normalized_sum_squares, squares_min_value, squares_max_value,
+        sum_squares_eps, sum_squares_delta, l0_sensitivity,
+        dp_params.max_contributions_per_partition, dp_params.noise_kind)
 
     dp_var = dp_mean_squares - dp_mean**2
+    if dp_params.min_value != dp_params.max_value:
+        dp_mean += compute_middle(dp_params.min_value, dp_params.max_value)
+
     return dp_count, dp_mean * dp_count, dp_mean, dp_var
+
+
+def compute_dp_count_noise_std(dp_params: ScalarNoiseParams) -> float:
+    """Computes noise standard deviation for DP count."""
+    l0_sensitivity = dp_params.l0_sensitivity()
+    linf_sensitivity = dp_params.max_contributions_per_partition
+
+    if dp_params.noise_kind == pipeline_dp.NoiseKind.LAPLACE:
+        l1_sensitivity = compute_l1_sensitivity(l0_sensitivity,
+                                                linf_sensitivity)
+        mechanism = dp_mechanisms.LaplaceMechanism(epsilon=dp_params.eps,
+                                                   sensitivity=l1_sensitivity)
+        return mechanism.diversity * np.sqrt(2)
+    if dp_params.noise_kind == pipeline_dp.NoiseKind.GAUSSIAN:
+        l2_sensitivity = compute_l2_sensitivity(l0_sensitivity,
+                                                linf_sensitivity)
+        return compute_sigma(dp_params.eps, dp_params.delta, l2_sensitivity)
+    assert "Only Laplace and Gaussian noise is supported."

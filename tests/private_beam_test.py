@@ -260,7 +260,7 @@ class PrivateBeamTest(unittest.TestCase):
             beam_util.assert_that(
                 result,
                 # pubK2 has no data points therefore the dataset is assumed to be {min_value, max_value}
-                beam_util.equal_to([("pubK1", 0.288), ("pubK2", 0.384)],
+                beam_util.equal_to([("pubK1", 0.288), ("pubK2", 0.0)],
                                    equals_fn=lambda e, a: PrivateBeamTest.
                                    value_per_key_within_tolerance(e, a, 0.1)))
 
