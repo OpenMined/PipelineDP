@@ -13,6 +13,7 @@
 # limitations under the License.
 """UtilityAnalysisCountCombinerTest."""
 
+from absl.testing import absltest
 from absl.testing import parameterized
 
 import pipeline_dp
@@ -163,3 +164,7 @@ class PartitionSelectionAccumulatorTest(parameterized.TestCase):
         self.assertIsNotNone(acc.partition_selection_accumulator)
         self.assertSequenceAlmostEqual(
             [1 / 4], acc.partition_selection_accumulator.probabilities)
+
+
+if __name__ == '__main__':
+    absltest.main()
