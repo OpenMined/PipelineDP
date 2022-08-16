@@ -54,11 +54,18 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
         mechanism_type = aggregate_params.noise_kind.convert_to_mechanism_type()
         budget = self._budget_accountant.request_budget(
             mechanism_type, weight=aggregate_params.budget_weight)
-        return combiners.CompoundCombiner([
-            utility_analysis_combiners.UtilityAnalysisCountCombiner(
-                combiners.CombinerParams(budget, aggregate_params),
-                self._is_public_partitions)
-        ],
+        compound_combiners = []
+        if aggregate_params.metrics in [pipeline_dp.Metrics.COUNT]:
+            compound_combiners.append(
+                utility_analysis_combiners.UtilityAnalysisCountCombiner(
+                    combiners.CombinerParams(budget, aggregate_params),
+                    self._is_public_partitions))
+        if aggregate_params.metrics in [pipeline_dp.Metrics.SUM]:
+            compound_combiners.append(
+                utility_analysis_combiners.UtilityAnalysisSumCombiner(
+                    combiners.CombinerParams(budget, aggregate_params),
+                    self._is_public_partitions))
+        return combiners.CompoundCombiner(compound_combiners,
                                           return_named_tuple=False)
 
 
@@ -66,9 +73,13 @@ def _check_utility_analysis_params(params: pipeline_dp.AggregateParams,
                                    public_partitions=None):
     if params.custom_combiners is not None:
         raise NotImplementedError("custom combiners are not supported")
-    if params.metrics != [pipeline_dp.Metrics.COUNT]:
+    if not (set(params.metrics).issubset(
+        {pipeline_dp.Metrics.COUNT, pipeline_dp.Metrics.SUM})):
+        not_supported_metrics = list(
+            set(params.metrics).difference(
+                {pipeline_dp.Metrics.COUNT, pipeline_dp.Metrics.SUM}))
         raise NotImplementedError(
-            f"supported only count metrics, metrics={params.metrics}")
+            f"unsupported metric in metrics={not_supported_metrics}")
     if public_partitions is None:
         raise NotImplementedError("only public partitions supported")
     if params.contribution_bounds_already_enforced:

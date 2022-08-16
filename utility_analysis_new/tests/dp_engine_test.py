@@ -13,10 +13,10 @@
 # limitations under the License.
 """UtilityAnalysisEngine Test"""
 import unittest
+import copy
 
 import pipeline_dp
 from pipeline_dp import budget_accounting
-from pipeline_dp import aggregate_params as agg
 from utility_analysis_new import dp_engine
 
 
@@ -36,9 +36,9 @@ class DpEngine(unittest.TestCase):
             max_partitions_contributed=1,
             max_contributions_per_partition=1,
             metrics=[pipeline_dp.Metrics.COUNT])
-        params_with_custom_combiners = default_params
+        params_with_custom_combiners = copy.copy(default_params)
         params_with_custom_combiners.custom_combiners = sum
-        params_with_unsupported_metric = default_params
+        params_with_unsupported_metric = copy.copy(default_params)
         params_with_unsupported_metric.metrics = [pipeline_dp.Metrics.MEAN]
         params_with_contribution_bounds_already_enforced = default_params
         params_with_contribution_bounds_already_enforced.contribution_bounds_already_enforced = True
@@ -51,14 +51,14 @@ class DpEngine(unittest.TestCase):
                 "public_partitions": [1]
             },
             {
-                "desc": "non-supported metric",
+                "desc": "unsupported metric in metrics",
                 "params": params_with_unsupported_metric,
                 "data_extractor": default_extractors,
                 "public_partitions": [1]
             },
             {
-                "desc": "private partitions",
-                "params": params_with_unsupported_metric,
+                "desc": "only public partitions supported",
+                "params": default_params,
                 "data_extractor": default_extractors,
                 "public_partitions": None
             },
@@ -72,7 +72,8 @@ class DpEngine(unittest.TestCase):
 
         for test_case in test_cases:
 
-            with self.assertRaises(Exception, msg=test_case["desc"]):
+            with self.assertRaisesRegex(Exception,
+                                        expected_regex=test_case["desc"]):
                 budget_accountant = budget_accounting.NaiveBudgetAccountant(
                     total_epsilon=1, total_delta=1e-10)
                 engine = dp_engine.UtilityAnalysisEngine(
@@ -89,7 +90,7 @@ class DpEngine(unittest.TestCase):
         # Arrange
         aggregator_params = pipeline_dp.AggregateParams(
             noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
-            metrics=[agg.Metrics.COUNT],
+            metrics=[pipeline_dp.Metrics.COUNT],
             max_partitions_contributed=1,
             max_contributions_per_partition=1)
 

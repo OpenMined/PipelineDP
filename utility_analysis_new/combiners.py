@@ -11,10 +11,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""UtilityAnalysisCountCombiner."""
+"""Utility Analysis Combiners."""
 
 from dataclasses import dataclass
-from typing import List, Optional, Sized, Tuple
+from typing import List, Optional, Sequence, Sized, Tuple
 import numpy as np
 
 import pipeline_dp
@@ -147,7 +147,7 @@ class UtilityAnalysisCountCombiner(pipeline_dp.Combiner):
         self._is_public_partitions = is_public_partitions
 
     def create_accumulator(self, data: Tuple[Sized, int]) -> AccumulatorType:
-        """Create an accumulator for data.
+        """Creates an accumulator for data.
 
         Args:
             data is a Tuple containing; 1) a list of the user's contributions for a single partition, and 2) the total
@@ -182,12 +182,12 @@ class UtilityAnalysisCountCombiner(pipeline_dp.Combiner):
             ps_accumulator)
 
     def merge_accumulators(self, acc1: AccumulatorType, acc2: AccumulatorType):
-        """Merge two accumulators together additively."""
+        """Merges two accumulators together additively."""
         return acc1 + acc2
 
     def compute_metrics(self,
                         acc: AccumulatorType) -> CountUtilityAnalysisMetrics:
-        """Compute metrics based on the accumulator properties.
+        """Computes metrics based on the accumulator properties.
 
         Args:
             acc: the accumulator to compute from.
@@ -209,6 +209,140 @@ class UtilityAnalysisCountCombiner(pipeline_dp.Combiner):
     def metrics_names(self) -> List[str]:
         return [
             'count', 'per_partition_contribution_error',
+            'expected_cross_partition_error', 'std_cross_partition_error',
+            'std_noise', 'noise_kind'
+        ]
+
+    def explain_computation(self):
+        pass
+
+
+@dataclass
+class SumUtilityAnalysisMetrics:
+    """Stores metrics for the sum utility analysis.
+
+    Args:
+        sum: actual sum of contributions per partition.
+        per_partition_contribution_error_min: the amount of sum contribution error in a partition created by
+        contribution min clipping.
+        per_partition_contribution_error_max: the amount of sum contribution error in a partition created by
+        contribution max clipping.
+        expected_cross_partition_error: the estimated amount of error across partitions.
+        std_cross_partition_error: the standard deviation of the contribution bounding error.
+        std_noise: the noise standard deviation for DP count.
+        noise_kind: the type of noise used.
+    """
+    sum: float
+    per_partition_contribution_error_min: float
+    per_partition_contribution_error_max: float
+    expected_cross_partition_error: float
+    std_cross_partition_error: float
+    std_noise: float
+    noise_kind: pipeline_dp.NoiseKind
+
+
+@dataclass
+class UtilityAnalysisSumAccumulator:
+    sum: float
+    per_partition_contribution_error_min: float
+    per_partition_contribution_error_max: float
+    expected_cross_partition_error: float
+    var_cross_partition_error: float
+    partition_selection_accumulator: Optional[PartitionSelectionAccumulator]
+
+    def __add__(self, other):
+        ps_accumulator = None
+        if self.partition_selection_accumulator is not None:
+            ps_accumulator = self.partition_selection_accumulator +\
+                             other.partition_selection_accumulator
+
+        return UtilityAnalysisSumAccumulator(
+            self.sum + other.sum, self.per_partition_contribution_error_min +
+            other.per_partition_contribution_error_min,
+            self.per_partition_contribution_error_max +
+            other.per_partition_contribution_error_max,
+            self.expected_cross_partition_error +
+            other.expected_cross_partition_error,
+            self.var_cross_partition_error + other.var_cross_partition_error,
+            ps_accumulator)
+
+
+class UtilityAnalysisSumCombiner(pipeline_dp.Combiner):
+    """A combiner for utility analysis sums."""
+    AccumulatorType = UtilityAnalysisSumAccumulator
+
+    def __init__(self, params: pipeline_dp.combiners.CombinerParams,
+                 is_public_partitions: bool):
+        self._params = params
+        self._is_public_partitions = is_public_partitions
+
+    def create_accumulator(self, data: Tuple[Sequence, int]) -> AccumulatorType:
+        """Creates an accumulator for data.
+
+        Args:
+            data is a Tuple containing; 1) a list of the user's contributions for a single partition, and 2) the total
+            number of partitions a user contributed to.
+
+        Returns:
+            An accumulator with the sum of contributions and the contribution error.
+        """
+        if not data or not data[0]:
+            return UtilityAnalysisSumAccumulator(0, 0, 0, 0, 0, None)
+        values, n_partitions = data
+        max_partitions = self._params.aggregate_params.max_partitions_contributed
+        prob_keep_partition = min(1, max_partitions /
+                                  n_partitions) if n_partitions > 0 else 0
+        partition_sum = np.sum(values)
+        per_partition_contribution = np.clip(
+            partition_sum, self._params.aggregate_params.min_sum_per_partition,
+            self._params.aggregate_params.max_sum_per_partition)
+        per_partition_contribution_error_min = 0
+        per_partition_contribution_error_max = 0
+        per_partition_contribution_error = partition_sum - per_partition_contribution
+        if per_partition_contribution_error > 0:
+            per_partition_contribution_error_max = per_partition_contribution_error
+        elif per_partition_contribution_error < 0:
+            per_partition_contribution_error_min = per_partition_contribution_error
+        expected_cross_partition_error = -per_partition_contribution * (
+            1 - prob_keep_partition)
+        var_cross_partition_error = per_partition_contribution**2 * prob_keep_partition * (
+            1 - prob_keep_partition)
+
+        ps_accumulator = None
+        if not self._is_public_partitions:
+            ps_accumulator = PartitionSelectionAccumulator(
+                probabilities=[prob_keep_partition])
+
+        return UtilityAnalysisSumAccumulator(
+            partition_sum, per_partition_contribution_error_min,
+            per_partition_contribution_error_max,
+            expected_cross_partition_error, var_cross_partition_error,
+            ps_accumulator)
+
+    def merge_accumulators(self, acc1: AccumulatorType, acc2: AccumulatorType):
+        """Merges two accumulators together additively."""
+        return acc1 + acc2
+
+    def compute_metrics(self,
+                        acc: AccumulatorType) -> SumUtilityAnalysisMetrics:
+        """Computes metrics based on the accumulator properties."""
+        std_noise = dp_computations.compute_dp_count_noise_std(
+            self._params.scalar_noise_params)
+        return SumUtilityAnalysisMetrics(
+            sum=acc.sum,
+            per_partition_contribution_error_min=acc.
+            per_partition_contribution_error_min,
+            per_partition_contribution_error_max=acc.
+            per_partition_contribution_error_max,
+            expected_cross_partition_error=acc.expected_cross_partition_error,
+            std_cross_partition_error=np.sqrt(acc.var_cross_partition_error),
+            std_noise=std_noise,
+            noise_kind=self._params.aggregate_params.noise_kind)
+
+    def metrics_names(self) -> List[str]:
+        return [
+            'sum', 'per_partition_contribution_error_min',
+            'per_partition_contribution_error_max',
             'expected_cross_partition_error', 'std_cross_partition_error',
             'std_noise', 'noise_kind'
         ]

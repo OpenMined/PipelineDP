@@ -20,7 +20,7 @@ import pipeline_dp
 from utility_analysis_new import combiners
 
 
-def _create_combiner_params() -> pipeline_dp.combiners.CombinerParams:
+def _create_combiner_params_for_count() -> pipeline_dp.combiners.CombinerParams:
     return pipeline_dp.combiners.CombinerParams(
         pipeline_dp.budget_accounting.MechanismSpec(
             mechanism_type=pipeline_dp.MechanismType.GAUSSIAN,
@@ -42,7 +42,7 @@ class UtilityAnalysisCountCombinerTest(parameterized.TestCase):
         dict(testcase_name='empty',
              num_partitions=0,
              contribution_values=(),
-             params=_create_combiner_params(),
+             params=_create_combiner_params_for_count(),
              expected_metrics=combiners.CountUtilityAnalysisMetrics(
                  count=0,
                  per_partition_contribution_error=0,
@@ -53,7 +53,7 @@ class UtilityAnalysisCountCombinerTest(parameterized.TestCase):
         dict(testcase_name='one_partition_zero_error',
              num_partitions=1,
              contribution_values=(1, 2),
-             params=_create_combiner_params(),
+             params=_create_combiner_params_for_count(),
              expected_metrics=combiners.CountUtilityAnalysisMetrics(
                  count=2,
                  per_partition_contribution_error=0,
@@ -64,7 +64,7 @@ class UtilityAnalysisCountCombinerTest(parameterized.TestCase):
         dict(testcase_name='4_partitions_4_contributions_keep_half',
              num_partitions=4,
              contribution_values=(1, 2, 3, 4),
-             params=_create_combiner_params(),
+             params=_create_combiner_params_for_count(),
              expected_metrics=combiners.CountUtilityAnalysisMetrics(
                  count=4,
                  per_partition_contribution_error=-2,
@@ -83,7 +83,7 @@ class UtilityAnalysisCountCombinerTest(parameterized.TestCase):
 
     def test_merge(self):
         utility_analysis_combiner = combiners.UtilityAnalysisCountCombiner(
-            _create_combiner_params(), is_public_partitions=True)
+            _create_combiner_params_for_count(), is_public_partitions=True)
         test_acc1 = utility_analysis_combiner.create_accumulator(((2, 3, 4), 1))
         test_acc2 = utility_analysis_combiner.create_accumulator(((6, 7, 8), 5))
         merged_acc = utility_analysis_combiner.merge_accumulators(
@@ -159,11 +159,130 @@ class PartitionSelectionAccumulatorTest(parameterized.TestCase):
 
     def test_partition_selection_accumulator_created(self):
         utility_analysis_combiner = combiners.UtilityAnalysisCountCombiner(
-            _create_combiner_params(), is_public_partitions=False)
+            _create_combiner_params_for_count(), is_public_partitions=False)
         acc = utility_analysis_combiner.create_accumulator(((2, 3, 4), 4))
         self.assertIsNotNone(acc.partition_selection_accumulator)
         self.assertSequenceAlmostEqual(
             [1 / 4], acc.partition_selection_accumulator.probabilities)
+
+
+def _create_combiner_params_for_sum(
+        min, max) -> pipeline_dp.combiners.CombinerParams:
+    return pipeline_dp.combiners.CombinerParams(
+        pipeline_dp.budget_accounting.MechanismSpec(
+            mechanism_type=pipeline_dp.MechanismType.GAUSSIAN,
+            _eps=1,
+            _delta=0.00001),
+        pipeline_dp.AggregateParams(
+            max_partitions_contributed=1,
+            max_contributions_per_partition=2,
+            min_sum_per_partition=min,
+            max_sum_per_partition=max,
+            noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+            metrics=[pipeline_dp.Metrics.SUM],
+        ))
+
+
+class UtilityAnalysisSumCombinerTest(parameterized.TestCase):
+
+    @parameterized.named_parameters(
+        dict(testcase_name='empty',
+             num_partitions=0,
+             contribution_values=(),
+             params=_create_combiner_params_for_sum(0, 0),
+             expected_metrics=combiners.SumUtilityAnalysisMetrics(
+                 sum=0,
+                 per_partition_contribution_error_min=0,
+                 per_partition_contribution_error_max=0,
+                 expected_cross_partition_error=0,
+                 std_cross_partition_error=0,
+                 std_noise=7.46484375,
+                 noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)),
+        dict(testcase_name='one_partition_zero_partition_error',
+             num_partitions=1,
+             contribution_values=(1.1, 2.2),
+             params=_create_combiner_params_for_sum(0, 3.4),
+             expected_metrics=combiners.SumUtilityAnalysisMetrics(
+                 sum=3.3,
+                 per_partition_contribution_error_min=0,
+                 per_partition_contribution_error_max=0,
+                 expected_cross_partition_error=0,
+                 std_cross_partition_error=0,
+                 std_noise=7.46484375,
+                 noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)),
+        dict(testcase_name='4_partitions_4_contributions_clip_max_error_half',
+             num_partitions=4,
+             contribution_values=(1.1, 2.2, 3.3, 4.4),
+             params=_create_combiner_params_for_sum(0, 5.5),
+             expected_metrics=combiners.SumUtilityAnalysisMetrics(
+                 sum=11.0,
+                 per_partition_contribution_error_min=0,
+                 per_partition_contribution_error_max=5.5,
+                 expected_cross_partition_error=-4.125,
+                 std_cross_partition_error=2.381569860407206,
+                 std_noise=7.46484375,
+                 noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)),
+        dict(testcase_name='4_partitions_4_contributions_clip_min',
+             num_partitions=4,
+             contribution_values=(0.1, 0.2, 0.3, 0.4),
+             params=_create_combiner_params_for_sum(2, 20),
+             expected_metrics=combiners.SumUtilityAnalysisMetrics(
+                 sum=1.0,
+                 per_partition_contribution_error_min=-1,
+                 per_partition_contribution_error_max=0,
+                 expected_cross_partition_error=-1.5,
+                 std_cross_partition_error=0.8660254037844386,
+                 std_noise=7.46484375,
+                 noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)))
+    def test_compute_metrics(self, num_partitions, contribution_values, params,
+                             expected_metrics):
+        utility_analysis_combiner = combiners.UtilityAnalysisSumCombiner(
+            params, is_public_partitions=True)
+        test_acc = utility_analysis_combiner.create_accumulator(
+            (contribution_values, num_partitions))
+        actual_metrics = utility_analysis_combiner.compute_metrics(test_acc)
+        self.assertAlmostEqual(expected_metrics.sum, actual_metrics.sum)
+        self.assertAlmostEqual(
+            expected_metrics.per_partition_contribution_error_min,
+            actual_metrics.per_partition_contribution_error_min)
+        self.assertAlmostEqual(
+            expected_metrics.per_partition_contribution_error_max,
+            actual_metrics.per_partition_contribution_error_max)
+        self.assertAlmostEqual(expected_metrics.expected_cross_partition_error,
+                               actual_metrics.expected_cross_partition_error)
+        self.assertAlmostEqual(expected_metrics.std_cross_partition_error,
+                               actual_metrics.std_cross_partition_error)
+        self.assertAlmostEqual(expected_metrics.std_noise,
+                               actual_metrics.std_noise)
+        self.assertEqual(expected_metrics.noise_kind, actual_metrics.noise_kind)
+
+    def test_merge(self):
+        utility_analysis_combiner = combiners.UtilityAnalysisSumCombiner(
+            _create_combiner_params_for_sum(0, 20), is_public_partitions=True)
+        test_acc1 = utility_analysis_combiner.create_accumulator(
+            ((2.2, 3.3, 4.4), 1))
+        test_acc2 = utility_analysis_combiner.create_accumulator(
+            ((6.6, 7.7, 8.8), 5))
+        merged_acc = utility_analysis_combiner.merge_accumulators(
+            test_acc1, test_acc2)
+
+        self.assertEqual(test_acc1.sum + test_acc2.sum, merged_acc.sum)
+        self.assertEqual(
+            test_acc1.per_partition_contribution_error_min +
+            test_acc2.per_partition_contribution_error_min,
+            merged_acc.per_partition_contribution_error_min)
+        self.assertEqual(
+            test_acc1.per_partition_contribution_error_max +
+            test_acc2.per_partition_contribution_error_max,
+            merged_acc.per_partition_contribution_error_max)
+        self.assertEqual(
+            test_acc1.expected_cross_partition_error +
+            test_acc2.expected_cross_partition_error,
+            merged_acc.expected_cross_partition_error)
+        self.assertEqual(
+            test_acc1.var_cross_partition_error +
+            test_acc2.var_cross_partition_error,
+            merged_acc.var_cross_partition_error)
 
 
 if __name__ == '__main__':
