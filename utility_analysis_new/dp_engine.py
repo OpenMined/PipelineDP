@@ -55,12 +55,12 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
         budget = self._budget_accountant.request_budget(
             mechanism_type, weight=aggregate_params.budget_weight)
         compound_combiners = []
-        if aggregate_params.metrics in [pipeline_dp.Metrics.COUNT]:
+        if pipeline_dp.Metrics.COUNT in aggregate_params.metrics:
             compound_combiners.append(
                 utility_analysis_combiners.UtilityAnalysisCountCombiner(
                     combiners.CombinerParams(budget, aggregate_params),
                     self._is_public_partitions))
-        if aggregate_params.metrics in [pipeline_dp.Metrics.SUM]:
+        if pipeline_dp.Metrics.SUM in aggregate_params.metrics:
             compound_combiners.append(
                 utility_analysis_combiners.UtilityAnalysisSumCombiner(
                     combiners.CombinerParams(budget, aggregate_params),
