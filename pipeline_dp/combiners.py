@@ -452,7 +452,7 @@ class CompoundCombiner(Combiner):
 
     def __init__(self, combiners: Iterable['Combiner'],
                  return_named_tuple: bool):
-        self._combiners = combiners
+        self._combiners = list(combiners)
         self._metrics_to_compute = []
         self._return_named_tuple = return_named_tuple
         if not self._return_named_tuple:

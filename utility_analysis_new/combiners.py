@@ -14,6 +14,7 @@
 """Utility Analysis Combiners."""
 
 from dataclasses import dataclass
+from typing import Iterable
 from typing import List, Optional, Sequence, Sized, Tuple
 import numpy as np
 import math
@@ -45,7 +46,6 @@ class CountUtilityAnalysisMetrics:
     std_cross_partition_error: float
     std_noise: float
     noise_kind: pipeline_dp.NoiseKind
-    probability_keep: Optional[float] = None
 
 
 @dataclass
@@ -119,7 +119,7 @@ class PartitionSelectionAccumulator:
         return PartitionSelectionAccumulator(moments=moments_self +
                                              moments_other)
 
-    def compute_probability_to_keep(self, budget, max_partitions):
+    def compute_probability_to_keep(self, eps, delta, max_partitions):
         if self.probabilities:
             pmf = poisson_binomial.compute_pmf(self.probabilities)
         else:
@@ -130,11 +130,55 @@ class PartitionSelectionAccumulator:
                 moments.expectation, std, skewness, moments.count)
 
         ps_strategy = partition_selection.create_truncated_geometric_partition_strategy(
-            budget.eps, budget.delta, max_partitions)
+            eps, delta, max_partitions)
         probability = 0
         for i, p in enumerate(pmf):
             probability += p * ps_strategy.probability_of_keep(i)
         return probability
+
+
+class PartitionSelectionCombiner(pipeline_dp.Combiner):
+    """A combiner for utility analysis counts."""
+    AccumulatorType = PartitionSelectionAccumulator
+
+    def __init__(self, params: pipeline_dp.combiners.CombinerParams):
+        self._params = params
+
+    def create_accumulator(self, data: Tuple[Sized, int]) -> AccumulatorType:
+        """Creates an accumulator for data.
+
+        Args:
+            data is a Tuple containing; 1) a list of the user's contributions
+            for a single partition, and 2) the total number of partitions a user
+            contributed to.
+
+        Returns:
+            An accumulator for computing probability of selecting partition.
+        """
+        values, n_partitions = data
+        max_partitions = self._params.aggregate_params.max_partitions_contributed
+        prob_keep_contribution = min(1, max_partitions /
+                                     n_partitions) if n_partitions > 0 else 0
+
+        return PartitionSelectionAccumulator(
+            probabilities=[prob_keep_contribution])
+
+    def merge_accumulators(self, acc1: AccumulatorType, acc2: AccumulatorType):
+        """Merges two accumulators together additively."""
+        return acc1 + acc2
+
+    def compute_metrics(self, acc: AccumulatorType) -> float:
+        """Computes metrics based on the accumulator properties."""
+        params = self._params
+        return acc.compute_probability_to_keep(
+            params.eps, params.delta,
+            params.aggregate_params.max_partitions_contributed)
+
+    def metrics_names(self) -> List[str]:
+        return ['probability_to_keep']
+
+    def explain_computation(self):
+        pass
 
 
 @dataclass
@@ -143,30 +187,22 @@ class UtilityAnalysisCountAccumulator:
     per_partition_contribution_error: int
     expected_cross_partition_error: float
     var_cross_partition_error: float
-    partition_selection_accumulator: Optional[PartitionSelectionAccumulator]
 
     def __add__(self, other):
-        ps_accumulator = None
-        if self.partition_selection_accumulator is not None:
-            ps_accumulator = self.partition_selection_accumulator + other.partition_selection_accumulator
-
         return UtilityAnalysisCountAccumulator(
             self.count + other.count, self.per_partition_contribution_error +
             other.per_partition_contribution_error,
             self.expected_cross_partition_error +
             other.expected_cross_partition_error,
-            self.var_cross_partition_error + other.var_cross_partition_error,
-            ps_accumulator)
+            self.var_cross_partition_error + other.var_cross_partition_error)
 
 
 class UtilityAnalysisCountCombiner(pipeline_dp.Combiner):
     """A combiner for utility analysis counts."""
     AccumulatorType = UtilityAnalysisCountAccumulator
 
-    def __init__(self, params: pipeline_dp.combiners.CombinerParams,
-                 partition_selection_budget):
+    def __init__(self, params: pipeline_dp.combiners.CombinerParams):
         self._params = params
-        self._partition_selection_budget = partition_selection_budget
 
     @property
     def _is_public_partitions(self):
@@ -183,7 +219,7 @@ class UtilityAnalysisCountCombiner(pipeline_dp.Combiner):
             An accumulator with the count of contributions and the contribution error.
         """
         if not data:
-            return UtilityAnalysisCountAccumulator(0, 0, 0, 0, None)
+            return UtilityAnalysisCountAccumulator(0, 0, 0, 0)
         values, n_partitions = data
         count = len(values)
         max_per_partition = self._params.aggregate_params.max_contributions_per_partition
@@ -197,15 +233,9 @@ class UtilityAnalysisCountCombiner(pipeline_dp.Combiner):
         var_cross_partition_error = per_partition_contribution**2 * prob_keep_partition * (
             1 - prob_keep_partition)
 
-        ps_accumulator = None
-        if not self._is_public_partitions:
-            ps_accumulator = PartitionSelectionAccumulator(
-                probabilities=[prob_keep_partition])
-
         return UtilityAnalysisCountAccumulator(
             count, per_partition_contribution_error,
-            expected_cross_partition_error, var_cross_partition_error,
-            ps_accumulator)
+            expected_cross_partition_error, var_cross_partition_error)
 
     def merge_accumulators(self, acc1: AccumulatorType, acc2: AccumulatorType):
         """Merges two accumulators together additively."""
@@ -223,11 +253,6 @@ class UtilityAnalysisCountCombiner(pipeline_dp.Combiner):
         """
         std_noise = dp_computations.compute_dp_count_noise_std(
             self._params.scalar_noise_params)
-        probability_keep = None
-        if acc.partition_selection_accumulator:
-            max_partitions_contributed = self._params.aggregate_params.max_partitions_contributed
-            probability_keep = acc.partition_selection_accumulator.compute_probability_to_keep(
-                self._partition_selection_budget, max_partitions_contributed)
         return CountUtilityAnalysisMetrics(
             count=acc.count,
             per_partition_contribution_error=acc.
@@ -235,8 +260,7 @@ class UtilityAnalysisCountCombiner(pipeline_dp.Combiner):
             expected_cross_partition_error=acc.expected_cross_partition_error,
             std_cross_partition_error=np.sqrt(acc.var_cross_partition_error),
             std_noise=std_noise,
-            noise_kind=self._params.aggregate_params.noise_kind,
-            probability_keep=probability_keep)
+            noise_kind=self._params.aggregate_params.noise_kind)
 
     def metrics_names(self) -> List[str]:
         return [
@@ -271,7 +295,6 @@ class SumUtilityAnalysisMetrics:
     std_cross_partition_error: float
     std_noise: float
     noise_kind: pipeline_dp.NoiseKind
-    probability_keep: Optional[float] = None
 
 
 @dataclass
@@ -281,14 +304,8 @@ class UtilityAnalysisSumAccumulator:
     per_partition_contribution_error_max: float
     expected_cross_partition_error: float
     var_cross_partition_error: float
-    partition_selection_accumulator: Optional[PartitionSelectionAccumulator]
 
     def __add__(self, other):
-        ps_accumulator = None
-        if self.partition_selection_accumulator is not None:
-            ps_accumulator = self.partition_selection_accumulator +\
-                             other.partition_selection_accumulator
-
         return UtilityAnalysisSumAccumulator(
             self.sum + other.sum, self.per_partition_contribution_error_min +
             other.per_partition_contribution_error_min,
@@ -296,18 +313,15 @@ class UtilityAnalysisSumAccumulator:
             other.per_partition_contribution_error_max,
             self.expected_cross_partition_error +
             other.expected_cross_partition_error,
-            self.var_cross_partition_error + other.var_cross_partition_error,
-            ps_accumulator)
+            self.var_cross_partition_error + other.var_cross_partition_error)
 
 
 class UtilityAnalysisSumCombiner(pipeline_dp.Combiner):
     """A combiner for utility analysis sums."""
     AccumulatorType = UtilityAnalysisSumAccumulator
 
-    def __init__(self, params: pipeline_dp.combiners.CombinerParams,
-                 is_public_partitions: bool):
+    def __init__(self, params: pipeline_dp.combiners.CombinerParams):
         self._params = params
-        self._is_public_partitions = is_public_partitions
 
     def create_accumulator(self, data: Tuple[Sequence, int]) -> AccumulatorType:
         """Creates an accumulator for data.
@@ -320,7 +334,7 @@ class UtilityAnalysisSumCombiner(pipeline_dp.Combiner):
             An accumulator with the sum of contributions and the contribution error.
         """
         if not data or not data[0]:
-            return UtilityAnalysisSumAccumulator(0, 0, 0, 0, 0, None)
+            return UtilityAnalysisSumAccumulator(0, 0, 0, 0, 0)
         values, n_partitions = data
         max_partitions = self._params.aggregate_params.max_partitions_contributed
         prob_keep_partition = min(1, max_partitions /
@@ -341,16 +355,10 @@ class UtilityAnalysisSumCombiner(pipeline_dp.Combiner):
         var_cross_partition_error = per_partition_contribution**2 * prob_keep_partition * (
             1 - prob_keep_partition)
 
-        ps_accumulator = None
-        if not self._is_public_partitions:
-            ps_accumulator = PartitionSelectionAccumulator(
-                probabilities=[prob_keep_partition])
-
         return UtilityAnalysisSumAccumulator(
             partition_sum, per_partition_contribution_error_min,
             per_partition_contribution_error_max,
-            expected_cross_partition_error, var_cross_partition_error,
-            ps_accumulator)
+            expected_cross_partition_error, var_cross_partition_error)
 
     def merge_accumulators(self, acc1: AccumulatorType, acc2: AccumulatorType):
         """Merges two accumulators together additively."""

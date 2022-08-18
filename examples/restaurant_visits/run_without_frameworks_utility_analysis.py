@@ -86,7 +86,7 @@ def main(unused_argv):
         restaurant_visits_rows,
         params,
         data_extractors,
-        # public_partitions=list(range(1, 8)),
+        public_partitions=list(range(1, 8)),
     )
 
     budget_accountant.compute_budgets()

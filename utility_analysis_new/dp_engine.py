@@ -52,20 +52,24 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
         self, aggregate_params: pipeline_dp.AggregateParams
     ) -> combiners.CompoundCombiner:
         mechanism_type = aggregate_params.noise_kind.convert_to_mechanism_type()
-        budget = self._budget_accountant.request_budget(
-            mechanism_type, weight=aggregate_params.budget_weight)
         internal_combiners = []
-        partition_selection_budget = None
         if not self._is_public_partitions:
             partition_selection_budget = self._budget_accountant.request_budget(
                 mechanism_type=pipeline_dp.MechanismType.GENERIC)
+            combiner_params = combiners.CombinerParams(
+                partition_selection_budget, aggregate_params)
+            internal_combiners.append(
+                utility_analysis_combiners.PartitionSelectionCombiner(
+                    combiner_params))
         if pipeline_dp.Metrics.COUNT in aggregate_params.metrics:
+            budget = self._budget_accountant.request_budget(
+                mechanism_type, weight=aggregate_params.budget_weight)
             internal_combiners.append(
                 utility_analysis_combiners.UtilityAnalysisCountCombiner(
-                    combiners.CombinerParams(budget, aggregate_params),
-                    partition_selection_budget))
+                    combiners.CombinerParams(budget, aggregate_params)))
         if pipeline_dp.Metrics.SUM in aggregate_params.metrics:
-            # TODO: add support private partitions for sum.
+            budget = self._budget_accountant.request_budget(
+                mechanism_type, weight=aggregate_params.budget_weight)
             internal_combiners.append(
                 utility_analysis_combiners.UtilityAnalysisSumCombiner(
                     combiners.CombinerParams(budget, aggregate_params),
