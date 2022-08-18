@@ -120,7 +120,11 @@ class PartitionSelectionAccumulator:
 
     def compute_probability_to_keep(self, eps: float, delta: float,
                                     max_partitions_contributed: int) -> float:
-        """Computes the probability that this partition is kept."""
+        """Computes the probability that this partition is kept.
+
+        If self.probabilities is set, then the computed probability is exact,
+        otherwise it is an approximation computed from self.moments.
+        """
         if self.probabilities:
             pmf = poisson_binomial.compute_pmf(self.probabilities)
         else:
