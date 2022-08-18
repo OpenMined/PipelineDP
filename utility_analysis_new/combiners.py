@@ -16,9 +16,13 @@
 from dataclasses import dataclass
 from typing import List, Optional, Sequence, Sized, Tuple
 import numpy as np
+import math
 
 import pipeline_dp
 from pipeline_dp import dp_computations
+from utility_analysis_new import poisson_binomial
+
+import pydp.algorithms.partition_selection as partition_selection
 
 MAX_PROBABILITIES_IN_ACCUMULATOR = 100
 
@@ -41,6 +45,7 @@ class CountUtilityAnalysisMetrics:
     std_cross_partition_error: float
     std_noise: float
     noise_kind: pipeline_dp.NoiseKind
+    probability_keep: float = None
 
 
 @dataclass
@@ -63,9 +68,9 @@ class SumOfRandomVariablesMoments:
 def _probabilities_to_moments(
         probabilities: List[float]) -> SumOfRandomVariablesMoments:
     """Computes moments of sum of independent bernoulli random variables."""
-    exp = np.sum(probabilities)
-    var = np.sum([p * (1 - p) for p in probabilities])
-    third_central_moment = np.sum(
+    exp = sum(probabilities)
+    var = sum([p * (1 - p) for p in probabilities])
+    third_central_moment = sum(
         [p * (1 - p) * (1 - 2 * p) for p in probabilities])
 
     return SumOfRandomVariablesMoments(len(probabilities), exp, var,
@@ -113,6 +118,24 @@ class PartitionSelectionAccumulator:
 
         return PartitionSelectionAccumulator(moments=moments_self +
                                              moments_other)
+
+    def compute_probability_to_keep(self):
+        if self.probabilities:
+            pmf = poisson_binomial.compute_pmf(self.probabilities)
+        else:
+            moments = self.moments
+            skewness = moments.third_central_moment / math.pow(
+                moments.variance, 1.5)
+            pmf = poisson_binomial.compute_pmf_approximation(
+                self.moments.expectation, self.moments.variance, skewness,
+                moments.count)
+
+        ps_strategy = partition_selection.create_truncated_geometric_partition_strategy(
+        )
+        probability = 0
+        for i, p in enumerate(pmf):
+            probability += p * ps_strategy.probability_to_keep(i)
+        return probability
 
 
 @dataclass
