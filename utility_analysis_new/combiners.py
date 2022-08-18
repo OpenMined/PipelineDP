@@ -45,7 +45,7 @@ class CountUtilityAnalysisMetrics:
     std_cross_partition_error: float
     std_noise: float
     noise_kind: pipeline_dp.NoiseKind
-    probability_keep: float = None
+    probability_keep: Optional[float] = None
 
 
 @dataclass
@@ -119,22 +119,21 @@ class PartitionSelectionAccumulator:
         return PartitionSelectionAccumulator(moments=moments_self +
                                              moments_other)
 
-    def compute_probability_to_keep(self):
+    def compute_probability_to_keep(self, budget, max_partitions):
         if self.probabilities:
             pmf = poisson_binomial.compute_pmf(self.probabilities)
         else:
             moments = self.moments
-            skewness = moments.third_central_moment / math.pow(
-                moments.variance, 1.5)
+            std = math.sqrt(moments.variance)
+            skewness = moments.third_central_moment / std**3
             pmf = poisson_binomial.compute_pmf_approximation(
-                self.moments.expectation, self.moments.variance, skewness,
-                moments.count)
+                moments.expectation, std, skewness, moments.count)
 
         ps_strategy = partition_selection.create_truncated_geometric_partition_strategy(
-        )
+            budget.eps, budget.delta, max_partitions)
         probability = 0
         for i, p in enumerate(pmf):
-            probability += p * ps_strategy.probability_to_keep(i)
+            probability += p * ps_strategy.probability_of_keep(i)
         return probability
 
 
@@ -165,9 +164,13 @@ class UtilityAnalysisCountCombiner(pipeline_dp.Combiner):
     AccumulatorType = UtilityAnalysisCountAccumulator
 
     def __init__(self, params: pipeline_dp.combiners.CombinerParams,
-                 is_public_partitions: bool):
+                 partition_selection_budget):
         self._params = params
-        self._is_public_partitions = is_public_partitions
+        self._partition_selection_budget = partition_selection_budget
+
+    @property
+    def _is_public_partitions(self):
+        return self._partition_selection_budget is None
 
     def create_accumulator(self, data: Tuple[Sized, int]) -> AccumulatorType:
         """Creates an accumulator for data.
@@ -220,6 +223,11 @@ class UtilityAnalysisCountCombiner(pipeline_dp.Combiner):
         """
         std_noise = dp_computations.compute_dp_count_noise_std(
             self._params.scalar_noise_params)
+        probability_keep = None
+        if acc.partition_selection_accumulator:
+            max_partitions_contributed = self._params.aggregate_params.max_partitions_contributed
+            probability_keep = acc.partition_selection_accumulator.compute_probability_to_keep(
+                self._partition_selection_budget, max_partitions_contributed)
         return CountUtilityAnalysisMetrics(
             count=acc.count,
             per_partition_contribution_error=acc.
@@ -227,7 +235,8 @@ class UtilityAnalysisCountCombiner(pipeline_dp.Combiner):
             expected_cross_partition_error=acc.expected_cross_partition_error,
             std_cross_partition_error=np.sqrt(acc.var_cross_partition_error),
             std_noise=std_noise,
-            noise_kind=self._params.aggregate_params.noise_kind)
+            noise_kind=self._params.aggregate_params.noise_kind,
+            probability_keep=probability_keep)
 
     def metrics_names(self) -> List[str]:
         return [
@@ -262,6 +271,7 @@ class SumUtilityAnalysisMetrics:
     std_cross_partition_error: float
     std_noise: float
     noise_kind: pipeline_dp.NoiseKind
+    probability_keep: Optional[float] = None
 
 
 @dataclass
