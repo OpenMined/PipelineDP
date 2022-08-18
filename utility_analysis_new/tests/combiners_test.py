@@ -77,7 +77,7 @@ class UtilityAnalysisCountCombinerTest(parameterized.TestCase):
     def test_compute_metrics(self, num_partitions, contribution_values, params,
                              expected_metrics):
         utility_analysis_combiner = combiners.UtilityAnalysisCountCombiner(
-            params, is_public_partitions=True)
+            params)
         test_acc = utility_analysis_combiner.create_accumulator(
             (contribution_values, num_partitions))
         self.assertEqual(expected_metrics,
@@ -85,7 +85,7 @@ class UtilityAnalysisCountCombinerTest(parameterized.TestCase):
 
     def test_merge(self):
         utility_analysis_combiner = combiners.UtilityAnalysisCountCombiner(
-            _create_combiner_params_for_count(), is_public_partitions=True)
+            _create_combiner_params_for_count())
         test_acc1 = utility_analysis_combiner.create_accumulator(((2, 3, 4), 1))
         test_acc2 = utility_analysis_combiner.create_accumulator(((6, 7, 8), 5))
         merged_acc = utility_analysis_combiner.merge_accumulators(
@@ -268,8 +268,7 @@ class UtilityAnalysisSumCombinerTest(parameterized.TestCase):
                  noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)))
     def test_compute_metrics(self, num_partitions, contribution_values, params,
                              expected_metrics):
-        utility_analysis_combiner = combiners.UtilityAnalysisSumCombiner(
-            params, is_public_partitions=True)
+        utility_analysis_combiner = combiners.UtilityAnalysisSumCombiner(params)
         test_acc = utility_analysis_combiner.create_accumulator(
             (contribution_values, num_partitions))
         actual_metrics = utility_analysis_combiner.compute_metrics(test_acc)
@@ -290,7 +289,7 @@ class UtilityAnalysisSumCombinerTest(parameterized.TestCase):
 
     def test_merge(self):
         utility_analysis_combiner = combiners.UtilityAnalysisSumCombiner(
-            _create_combiner_params_for_sum(0, 20), is_public_partitions=True)
+            _create_combiner_params_for_sum(0, 20))
         test_acc1 = utility_analysis_combiner.create_accumulator(
             ((2.2, 3.3, 4.4), 1))
         test_acc2 = utility_analysis_combiner.create_accumulator(
