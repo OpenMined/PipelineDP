@@ -14,7 +14,6 @@
 """Utility Analysis Combiners."""
 
 from dataclasses import dataclass
-from typing import Iterable
 from typing import List, Optional, Sequence, Sized, Tuple
 import numpy as np
 import math
@@ -119,7 +118,9 @@ class PartitionSelectionAccumulator:
         return PartitionSelectionAccumulator(moments=moments_self +
                                              moments_other)
 
-    def compute_probability_to_keep(self, eps, delta, max_partitions):
+    def compute_probability_to_keep(self, eps: float, delta: float,
+                                    max_partitions_contributed: int) -> float:
+        """Computes the probability that this partition is kept."""
         if self.probabilities:
             pmf = poisson_binomial.compute_pmf(self.probabilities)
         else:
@@ -130,10 +131,10 @@ class PartitionSelectionAccumulator:
                 moments.expectation, std, skewness, moments.count)
 
         ps_strategy = partition_selection.create_truncated_geometric_partition_strategy(
-            eps, delta, max_partitions)
+            eps, delta, max_partitions_contributed)
         probability = 0
-        for i, p in enumerate(pmf):
-            probability += p * ps_strategy.probability_of_keep(i)
+        for i, prob in enumerate(pmf):
+            probability += prob * ps_strategy.probability_of_keep(i)
         return probability
 
 
