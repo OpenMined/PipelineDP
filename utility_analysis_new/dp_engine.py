@@ -54,13 +54,11 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
         mechanism_type = aggregate_params.noise_kind.convert_to_mechanism_type()
         internal_combiners = []
         if not self._is_public_partitions:
-            partition_selection_budget = self._budget_accountant.request_budget(
+            budget = self._budget_accountant.request_budget(
                 mechanism_type=pipeline_dp.MechanismType.GENERIC)
-            combiner_params = combiners.CombinerParams(
-                partition_selection_budget, aggregate_params)
             internal_combiners.append(
                 utility_analysis_combiners.PartitionSelectionCombiner(
-                    combiner_params))
+                    combiners.CombinerParams(budget, aggregate_params)))
         if pipeline_dp.Metrics.COUNT in aggregate_params.metrics:
             budget = self._budget_accountant.request_budget(
                 mechanism_type, weight=aggregate_params.budget_weight)
