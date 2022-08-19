@@ -28,26 +28,6 @@ MAX_PROBABILITIES_IN_ACCUMULATOR = 100
 
 
 @dataclass
-class CountUtilityAnalysisMetrics:
-    """Stores metrics for the count utility analysis.
-
-    Args:
-        count: actual count of contributions per partition.
-        per_partition_contribution_error: the amount of contribution error in a partition.
-        expected_cross_partition_error: the estimated amount of error across partitions.
-        std_cross_partition_error: the standard deviation of the contribution bounding error.
-        std_noise: the noise standard deviation for DP count.
-        noise_kind: the type of noise used.
-    """
-    count: int
-    per_partition_contribution_error: int
-    expected_cross_partition_error: float
-    std_cross_partition_error: float
-    std_noise: float
-    noise_kind: pipeline_dp.NoiseKind
-
-
-@dataclass
 class SumOfRandomVariablesMoments:
     """Stores moments of sum of random independent random variables."""
     count: int
@@ -187,6 +167,26 @@ class PartitionSelectionCombiner(pipeline_dp.Combiner):
 
 
 @dataclass
+class CountUtilityAnalysisMetrics:
+    """Stores metrics for the count utility analysis.
+
+    Args:
+        count: actual count of contributions per partition.
+        per_partition_contribution_error: the amount of contribution error in a partition.
+        expected_cross_partition_error: the estimated amount of error across partitions.
+        std_cross_partition_error: the standard deviation of the contribution bounding error.
+        std_noise: the noise standard deviation for DP count.
+        noise_kind: the type of noise used.
+    """
+    count: int
+    per_partition_contribution_error: int
+    expected_cross_partition_error: float
+    std_cross_partition_error: float
+    std_noise: float
+    noise_kind: pipeline_dp.NoiseKind
+
+
+@dataclass
 class UtilityAnalysisCountAccumulator:
     count: int
     per_partition_contribution_error: int
@@ -248,14 +248,7 @@ class UtilityAnalysisCountCombiner(pipeline_dp.Combiner):
 
     def compute_metrics(self,
                         acc: AccumulatorType) -> CountUtilityAnalysisMetrics:
-        """Computes metrics based on the accumulator properties.
-
-        Args:
-            acc: the accumulator to compute from.
-
-        Returns:
-            A CountUtilityAnalysisMetrics object with computed metrics.
-        """
+        """Computes metrics based on the accumulator properties."""
         std_noise = dp_computations.compute_dp_count_noise_std(
             self._params.scalar_noise_params)
         return CountUtilityAnalysisMetrics(
@@ -433,8 +426,7 @@ class UtilityAnalysisPrivacyIdCountCombiner(pipeline_dp.Combiner):
     """A combiner for utility analysis privacy ID counts."""
     AccumulatorType = UtilityAnalysisPrivacyIdCountAccumulator
 
-    def __init__(self, params: pipeline_dp.combiners.CombinerParams,
-                 is_public_partitions: bool):
+    def __init__(self, params: pipeline_dp.combiners.CombinerParams):
         self._params = params
 
     def create_accumulator(self, data: Tuple[Sized, int]) -> AccumulatorType:
@@ -468,14 +460,7 @@ class UtilityAnalysisPrivacyIdCountCombiner(pipeline_dp.Combiner):
 
     def compute_metrics(
             self, acc: AccumulatorType) -> PrivacyIdCountUtilityAnalysisMetrics:
-        """Computes metrics based on the accumulator properties.
-
-        Args:
-            acc: the accumulator to compute from.
-
-        Returns:
-            A PrivacyIdCountUtilityAnalysisMetrics object with computed metrics.
-        """
+        """Computes metrics based on the accumulator properties."""
         std_noise = dp_computations.compute_dp_count_noise_std(
             self._params.scalar_noise_params)
         return PrivacyIdCountUtilityAnalysisMetrics(

@@ -70,16 +70,14 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
                 mechanism_type, weight=aggregate_params.budget_weight)
             internal_combiners.append(
                 utility_analysis_combiners.UtilityAnalysisSumCombiner(
-                    combiners.CombinerParams(budget, aggregate_params),
-                    self._is_public_partitions))
+                    combiners.CombinerParams(budget, aggregate_params)))
         if pipeline_dp.Metrics.PRIVACY_ID_COUNT in aggregate_params.metrics:
             budget = self._budget_accountant.request_budget(
                 mechanism_type, weight=aggregate_params.budget_weight)
             internal_combiners.append(
                 utility_analysis_combiners.
                 UtilityAnalysisPrivacyIdCountCombiner(
-                    combiners.CombinerParams(budget, aggregate_params),
-                    self._is_public_partitions))
+                    combiners.CombinerParams(budget, aggregate_params)))
         return combiners.CompoundCombiner(internal_combiners,
                                           return_named_tuple=False)
 
