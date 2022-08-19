@@ -29,6 +29,8 @@ FLAGS = flags.FLAGS
 flags.DEFINE_string('input_file', 'restaurants_week_data.csv',
                     'The file with the restaurant visits data')
 flags.DEFINE_string('output_file', None, 'Output file')
+flags.DEFINE_boolean('public_partitions', False,
+                     'Whether public partitions are used')
 
 
 def write_to_file(col, filename):
@@ -61,7 +63,9 @@ def main(unused_argv):
     # Double the inputs so we have twice as many contributions per partition
     df_double = pd.concat([df, df])
     df_double.columns = df.columns
-    restaurant_visits_rows = [index_row[1] for index_row in df_double.iterrows()]
+    restaurant_visits_rows = [
+        index_row[1] for index_row in df_double.iterrows()
+    ]
 
     # Create a UtilityAnalysisEngine instance.
     utility_analysis_engine = UtilityAnalysisEngine(budget_accountant, backend)
@@ -80,10 +84,11 @@ def main(unused_argv):
         privacy_id_extractor=lambda row: row.user_id,
         value_extractor=lambda row: row.spent_money)
 
+    public_partitions = list(range(1, 8)) if FLAGS.public_partitions else None
+
     dp_result = utility_analysis_engine.aggregate(restaurant_visits_rows,
-                                    params,
-                                    data_extractors,
-                                    public_partitions=list(range(1, 8)))
+                                                  params, data_extractors,
+                                                  public_partitions)
 
     budget_accountant.compute_budgets()
 

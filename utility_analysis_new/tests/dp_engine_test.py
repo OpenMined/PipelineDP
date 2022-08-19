@@ -57,12 +57,6 @@ class DpEngine(unittest.TestCase):
                 "public_partitions": [1]
             },
             {
-                "desc": "only public partitions supported",
-                "params": default_params,
-                "data_extractor": default_extractors,
-                "public_partitions": None
-            },
-            {
                 "desc": "contribution bounds are already enforced",
                 "params": params_with_contribution_bounds_already_enforced,
                 "data_extractor": default_extractors,
