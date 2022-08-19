@@ -72,6 +72,14 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
                 utility_analysis_combiners.UtilityAnalysisSumCombiner(
                     combiners.CombinerParams(budget, aggregate_params),
                     self._is_public_partitions))
+        if pipeline_dp.Metrics.PRIVACY_ID_COUNT in aggregate_params.metrics:
+            budget = self._budget_accountant.request_budget(
+                mechanism_type, weight=aggregate_params.budget_weight)
+            internal_combiners.append(
+                utility_analysis_combiners.
+                UtilityAnalysisPrivacyIdCountCombiner(
+                    combiners.CombinerParams(budget, aggregate_params),
+                    self._is_public_partitions))
         return combiners.CompoundCombiner(internal_combiners,
                                           return_named_tuple=False)
 
@@ -85,11 +93,15 @@ def _check_utility_analysis_params(params: pipeline_dp.AggregateParams,
                                    public_partitions=None):
     if params.custom_combiners is not None:
         raise NotImplementedError("custom combiners are not supported")
-    if not (set(params.metrics).issubset(
-        {pipeline_dp.Metrics.COUNT, pipeline_dp.Metrics.SUM})):
+    if not (set(params.metrics).issubset({
+            pipeline_dp.Metrics.COUNT, pipeline_dp.Metrics.SUM,
+            pipeline_dp.Metrics.PRIVACY_ID_COUNT
+    })):
         not_supported_metrics = list(
-            set(params.metrics).difference(
-                {pipeline_dp.Metrics.COUNT, pipeline_dp.Metrics.SUM}))
+            set(params.metrics).difference({
+                pipeline_dp.Metrics.COUNT, pipeline_dp.Metrics.SUM,
+                pipeline_dp.Metrics.PRIVACY_ID_COUNT
+            }))
         raise NotImplementedError(
             f"unsupported metric in metrics={not_supported_metrics}")
     if params.contribution_bounds_already_enforced:

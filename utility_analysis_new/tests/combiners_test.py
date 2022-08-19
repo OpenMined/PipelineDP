@@ -316,5 +316,100 @@ class UtilityAnalysisSumCombinerTest(parameterized.TestCase):
             merged_acc.var_cross_partition_error)
 
 
+def _create_combiner_params_for_privacy_id_count(
+) -> pipeline_dp.combiners.CombinerParams:
+    return pipeline_dp.combiners.CombinerParams(
+        pipeline_dp.budget_accounting.MechanismSpec(
+            mechanism_type=pipeline_dp.MechanismType.GAUSSIAN,
+            _eps=1,
+            _delta=0.00001),
+        pipeline_dp.AggregateParams(
+            max_partitions_contributed=2,
+            max_contributions_per_partition=2,
+            noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+            metrics=[pipeline_dp.Metrics.PRIVACY_ID_COUNT],
+        ))
+
+
+class UtilityAnalysisPrivacyIdCountCombinerTest(parameterized.TestCase):
+
+    @parameterized.named_parameters(
+        dict(testcase_name='empty',
+             num_partitions=0,
+             contribution_values=(),
+             params=_create_combiner_params_for_privacy_id_count(),
+             expected_metrics=combiners.PrivacyIdCountUtilityAnalysisMetrics(
+                 privacy_id_count=0,
+                 std_noise=10.556883272246033,
+                 expected_cross_partition_error=-1,
+                 std_cross_partition_error=0,
+                 noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)),
+        dict(testcase_name='single_contribution_keep_half',
+             num_partitions=4,
+             contribution_values=(2),
+             params=_create_combiner_params_for_privacy_id_count(),
+             expected_metrics=combiners.PrivacyIdCountUtilityAnalysisMetrics(
+                 privacy_id_count=1,
+                 expected_cross_partition_error=-0.5,
+                 std_cross_partition_error=0.5,
+                 std_noise=10.556883272246033,
+                 noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)),
+        dict(testcase_name='multiple_contributions_keep_half',
+             num_partitions=4,
+             contribution_values=(2, 2, 2, 2),
+             params=_create_combiner_params_for_privacy_id_count(),
+             expected_metrics=combiners.PrivacyIdCountUtilityAnalysisMetrics(
+                 privacy_id_count=1,
+                 expected_cross_partition_error=-0.5,
+                 std_cross_partition_error=0.5,
+                 std_noise=10.556883272246033,
+                 noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)),
+        dict(testcase_name='multiple_contributions_keep_all_no_error',
+             num_partitions=1,
+             contribution_values=(2, 2),
+             params=_create_combiner_params_for_privacy_id_count(),
+             expected_metrics=combiners.PrivacyIdCountUtilityAnalysisMetrics(
+                 privacy_id_count=1,
+                 expected_cross_partition_error=0,
+                 std_cross_partition_error=0,
+                 std_noise=10.556883272246033,
+                 noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)))
+    def test_compute_metrics(self, num_partitions, contribution_values, params,
+                             expected_metrics):
+        utility_analysis_combiner = combiners.UtilityAnalysisPrivacyIdCountCombiner(
+            params, is_public_partitions=True)
+        test_acc = utility_analysis_combiner.create_accumulator(
+            (contribution_values, num_partitions))
+        actual_metrics = utility_analysis_combiner.compute_metrics(test_acc)
+        self.assertAlmostEqual(expected_metrics.privacy_id_count,
+                               actual_metrics.privacy_id_count)
+        self.assertAlmostEqual(expected_metrics.expected_cross_partition_error,
+                               actual_metrics.expected_cross_partition_error)
+        self.assertAlmostEqual(expected_metrics.std_cross_partition_error,
+                               actual_metrics.std_cross_partition_error)
+        self.assertAlmostEqual(expected_metrics.std_noise,
+                               actual_metrics.std_noise)
+        self.assertEqual(expected_metrics.noise_kind, actual_metrics.noise_kind)
+
+    def test_merge(self):
+        utility_analysis_combiner = combiners.UtilityAnalysisPrivacyIdCountCombiner(
+            _create_combiner_params_for_count(), is_public_partitions=True)
+        test_acc1 = utility_analysis_combiner.create_accumulator(((1, 1, 1), 2))
+        test_acc2 = utility_analysis_combiner.create_accumulator(((2, 2, 2), 2))
+        merged_acc = utility_analysis_combiner.merge_accumulators(
+            test_acc1, test_acc2)
+        self.assertEqual(
+            test_acc1.privacy_id_count + test_acc2.privacy_id_count,
+            merged_acc.privacy_id_count)
+        self.assertAlmostEqual(
+            test_acc1.expected_cross_partition_error +
+            test_acc2.expected_cross_partition_error,
+            merged_acc.expected_cross_partition_error)
+        self.assertAlmostEqual(
+            test_acc1.var_cross_partition_error +
+            test_acc2.var_cross_partition_error,
+            merged_acc.var_cross_partition_error)
+
+
 if __name__ == '__main__':
     absltest.main()

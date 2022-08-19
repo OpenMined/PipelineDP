@@ -395,3 +395,101 @@ class UtilityAnalysisSumCombiner(pipeline_dp.Combiner):
 
     def explain_computation(self):
         pass
+
+
+@dataclass
+class PrivacyIdCountUtilityAnalysisMetrics:
+    """Stores metrics for the privacy ID count utility analysis.
+
+    Args:
+        privacy_id_count: actual count of privacy id in a partition.
+        expected_cross_partition_error: the estimated amount of error across partitions.
+        std_cross_partition_error: the standard deviation of the contribution bounding error.
+        std_noise: the noise standard deviation for DP count.
+        noise_kind: the type of noise used.
+    """
+    privacy_id_count: int
+    expected_cross_partition_error: float
+    std_cross_partition_error: float
+    std_noise: float
+    noise_kind: pipeline_dp.NoiseKind
+
+
+@dataclass
+class UtilityAnalysisPrivacyIdCountAccumulator:
+    privacy_id_count: int
+    expected_cross_partition_error: float
+    var_cross_partition_error: float
+
+    def __add__(self, other):
+        return UtilityAnalysisPrivacyIdCountAccumulator(
+            self.privacy_id_count + other.privacy_id_count,
+            self.expected_cross_partition_error +
+            other.expected_cross_partition_error,
+            self.var_cross_partition_error + other.var_cross_partition_error)
+
+
+class UtilityAnalysisPrivacyIdCountCombiner(pipeline_dp.Combiner):
+    """A combiner for utility analysis privacy ID counts."""
+    AccumulatorType = UtilityAnalysisPrivacyIdCountAccumulator
+
+    def __init__(self, params: pipeline_dp.combiners.CombinerParams,
+                 is_public_partitions: bool):
+        self._params = params
+
+    def create_accumulator(self, data: Tuple[Sized, int]) -> AccumulatorType:
+        """Creates an accumulator for data.
+
+        Args:
+            data is a Tuple containing; 1) a list of the user's contributions for a single partition, and 2) the total
+            number of partitions a user contributed to.
+
+        Returns:
+            An accumulator with the privacy ID count of partitions and the contribution error.
+        """
+        if not data:
+            return UtilityAnalysisPrivacyIdCountAccumulator(0, 0, 0)
+        values, n_partitions = data
+        privacy_id_count = 1 if values else 0
+        max_partitions = self._params.aggregate_params.max_partitions_contributed
+        prob_keep_partition = min(1, max_partitions /
+                                  n_partitions) if n_partitions > 0 else 0
+        expected_cross_partition_error = -(1 - prob_keep_partition)
+        var_cross_partition_error = prob_keep_partition * (1 -
+                                                           prob_keep_partition)
+
+        return UtilityAnalysisPrivacyIdCountAccumulator(
+            privacy_id_count, expected_cross_partition_error,
+            var_cross_partition_error)
+
+    def merge_accumulators(self, acc1: AccumulatorType, acc2: AccumulatorType):
+        """Merges two accumulators together additively."""
+        return acc1 + acc2
+
+    def compute_metrics(
+            self, acc: AccumulatorType) -> PrivacyIdCountUtilityAnalysisMetrics:
+        """Computes metrics based on the accumulator properties.
+
+        Args:
+            acc: the accumulator to compute from.
+
+        Returns:
+            A PrivacyIdCountUtilityAnalysisMetrics object with computed metrics.
+        """
+        std_noise = dp_computations.compute_dp_count_noise_std(
+            self._params.scalar_noise_params)
+        return PrivacyIdCountUtilityAnalysisMetrics(
+            privacy_id_count=acc.privacy_id_count,
+            expected_cross_partition_error=acc.expected_cross_partition_error,
+            std_cross_partition_error=np.sqrt(acc.var_cross_partition_error),
+            std_noise=std_noise,
+            noise_kind=self._params.aggregate_params.noise_kind)
+
+    def metrics_names(self) -> List[str]:
+        return [
+            'privacy_id_count', 'expected_cross_partition_error',
+            'std_cross_partition_error', 'std_noise', 'noise_kind'
+        ]
+
+    def explain_computation(self):
+        pass
