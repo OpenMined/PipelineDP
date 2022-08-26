@@ -147,10 +147,12 @@ class CombinerParams:
         return self._mechanism_spec.delta
 
     @property
-    def mean_var_params(self):
-        return dp_computations.MeanVarParams(
+    def scalar_noise_params(self):
+        return dp_computations.ScalarNoiseParams(
             self.eps, self.delta, self.aggregate_params.min_value,
             self.aggregate_params.max_value,
+            self.aggregate_params.min_sum_per_partition,
+            self.aggregate_params.max_sum_per_partition,
             self.aggregate_params.max_partitions_contributed,
             self.aggregate_params.max_contributions_per_partition,
             self.aggregate_params.noise_kind)
@@ -190,8 +192,8 @@ class CountCombiner(Combiner):
     def compute_metrics(self, count: AccumulatorType) -> dict:
         return {
             'count':
-                dp_computations.compute_dp_count(count,
-                                                 self._params.mean_var_params)
+                dp_computations.compute_dp_count(
+                    count, self._params.scalar_noise_params)
         }
 
     def metrics_names(self) -> List[str]:
@@ -222,8 +224,8 @@ class PrivacyIdCountCombiner(Combiner):
     def compute_metrics(self, accumulator: AccumulatorType) -> dict:
         return {
             'privacy_id_count':
-                dp_computations.compute_dp_count(accumulator,
-                                                 self._params.mean_var_params)
+                dp_computations.compute_dp_count(
+                    accumulator, self._params.scalar_noise_params)
         }
 
     def metrics_names(self) -> List[str]:
@@ -243,19 +245,25 @@ class SumCombiner(Combiner):
 
     def __init__(self, params: CombinerParams):
         self._params = params
+        self._bouding_per_partition = params.aggregate_params.bounds_per_partition_are_set
 
     def create_accumulator(self, values: Iterable[float]) -> AccumulatorType:
-        return np.clip(values, self._params.aggregate_params.min_value,
-                       self._params.aggregate_params.max_value).sum()
+        agg_params = self._params.aggregate_params
+        if self._bouding_per_partition:
+            # Sum values and clip.
+            return np.clip(sum(values), agg_params.min_sum_per_partition,
+                           agg_params.max_sum_per_partition)
+        # Clip each value and sum.
+        return np.clip(values, agg_params.min_value, agg_params.max_value).sum()
 
     def merge_accumulators(self, sum1: AccumulatorType, sum2: AccumulatorType):
         return sum1 + sum2
 
-    def compute_metrics(self, sum: AccumulatorType) -> dict:
+    def compute_metrics(self, sum_: AccumulatorType) -> dict:
         return {
             'sum':
-                dp_computations.compute_dp_sum(sum,
-                                               self._params.mean_var_params)
+                dp_computations.compute_dp_sum(sum_,
+                                               self._params.scalar_noise_params)
         }
 
     def metrics_names(self) -> List[str]:
@@ -305,7 +313,7 @@ class MeanCombiner(Combiner):
     def compute_metrics(self, accum: AccumulatorType) -> dict:
         total_count, total_normalized_sum = accum
         noisy_count, noisy_sum, noisy_mean = dp_computations.compute_dp_mean(
-            total_count, total_normalized_sum, self._params.mean_var_params)
+            total_count, total_normalized_sum, self._params.scalar_noise_params)
         mean_dict = {'mean': noisy_mean}
         if 'count' in self._metrics_to_compute:
             mean_dict['count'] = noisy_count
@@ -365,7 +373,7 @@ class VarianceCombiner(Combiner):
         total_count, total_normalized_sum, total_normalized_sum_of_squares = accum
         noisy_count, noisy_sum, noisy_mean, noisy_variance = dp_computations.compute_dp_var(
             total_count, total_normalized_sum, total_normalized_sum_of_squares,
-            self._params.mean_var_params)
+            self._params.scalar_noise_params)
         variance_dict = {'variance': noisy_variance}
         if 'count' in self._metrics_to_compute:
             variance_dict['count'] = noisy_count
@@ -444,7 +452,7 @@ class CompoundCombiner(Combiner):
 
     def __init__(self, combiners: Iterable['Combiner'],
                  return_named_tuple: bool):
-        self._combiners = combiners
+        self._combiners = list(combiners)
         self._metrics_to_compute = []
         self._return_named_tuple = return_named_tuple
         if not self._return_named_tuple:
