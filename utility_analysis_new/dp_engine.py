@@ -13,6 +13,7 @@
 # limitations under the License.
 """DPEngine for utility analysis."""
 import math
+from typing import Tuple
 
 import scipy.stats
 
@@ -42,8 +43,8 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
                                    public_partitions)
         self._is_public_partitions = None
         return self._backend.map_values(
-            result, _compute_high_level_metrics,
-            "Compute high-level metrics from variance and expectation")
+            result, _compute_derived_metrics,
+            "Compute derived metrics from variance and expectation")
 
     def _create_contribution_bounder(
         self, params: pipeline_dp.AggregateParams
@@ -112,7 +113,17 @@ def _check_utility_analysis_params(params: pipeline_dp.AggregateParams,
         )
 
 
-def _compute_high_level_metrics(
+def _compute_derived_metrics(metrics: Tuple):
+    derived_metrics = []
+    for metric in metrics:
+        if isinstance(metric,
+                      utility_analysis_combiners.CountUtilityAnalysisMetrics):
+            metric = _compute_derived_metrics_count(metric)
+        derived_metrics.append(metric)
+    return tuple(derived_metrics)
+
+
+def _compute_derived_metrics_count(
         metrics: utility_analysis_combiners.CountUtilityAnalysisMetrics):
     # Absolute error metrics
     metrics.abs_error_expected = metrics.per_partition_error + metrics.expected_cross_partition_error
@@ -126,8 +137,14 @@ def _compute_high_level_metrics(
         q=0.01, loc=loc_cpe_ne, scale=std_cpe_ne) + metrics.per_partition_error
 
     # Relative error metrics
-    metrics.rel_error_expected = metrics.abs_error_expected / metrics.count
-    metrics.rel_error_variance = metrics.abs_error_variance / (metrics.count**2)
-    metrics.rel_error_99pct = metrics.abs_error_99pct / metrics.count
+    if metrics.count == 0:  # For empty public partitions, to avoid division by 0
+        metrics.rel_error_expected = float('inf')
+        metrics.rel_error_variance = float('inf')
+        metrics.rel_error_99pct = float('inf')
+    else:
+        metrics.rel_error_expected = metrics.abs_error_expected / metrics.count
+        metrics.rel_error_variance = metrics.abs_error_variance / (metrics.count
+                                                                   **2)
+        metrics.rel_error_99pct = metrics.abs_error_99pct / metrics.count
 
     return metrics
