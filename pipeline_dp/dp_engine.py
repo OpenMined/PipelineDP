@@ -292,6 +292,8 @@ class DPEngine:
         self._add_report_stage(
             "Adding empty partitions for public partitions that are missing in "
             "data")
+        public_partitions = self._backend.to_collection(
+            public_partitions, col, "Public partitions to collection")
         empty_accumulators = self._backend.map(
             public_partitions, lambda partition_key:
             (partition_key, aggregator_fn([])), "Build empty accumulators")
