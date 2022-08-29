@@ -159,6 +159,7 @@ class PartitionSelectionTest(parameterized.TestCase):
         self.assertEqual(100, acc.moments.variance)
         self.assertEqual(2, acc.moments.third_central_moment)
 
+    @unittest.skip("Enable when the new version of PyDP is released.")
     @parameterized.named_parameters(
         dict(testcase_name='Large eps delta',
              eps=100,
