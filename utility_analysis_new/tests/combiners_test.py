@@ -159,7 +159,6 @@ class PartitionSelectionTest(parameterized.TestCase):
         self.assertEqual(100, acc.moments.variance)
         self.assertEqual(2, acc.moments.third_central_moment)
 
-    @unittest.skip("Enable when the new version of PyDP is released.")
     @parameterized.named_parameters(
         dict(testcase_name='Large eps delta',
              eps=100,
@@ -171,6 +170,11 @@ class PartitionSelectionTest(parameterized.TestCase):
              delta=1e-5,
              probabilities=[0.1] * 100,
              expected_probability_to_keep=0.3321336253750503),
+        dict(testcase_name='All probabilities = 1',
+             eps=1,
+             delta=1e-5,
+             probabilities=[1] * 10,
+             expected_probability_to_keep=0.12818308050524607),
     )
     def test_partition_selection_accumulator_compute_probability(
             self, eps, delta, probabilities, expected_probability_to_keep):
