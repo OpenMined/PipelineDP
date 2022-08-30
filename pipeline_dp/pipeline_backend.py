@@ -37,6 +37,25 @@ class PipelineBackend(abc.ABC):
     """Interface implemented by the pipeline backends compatible with PipelineDP
     """
 
+    def to_collection(self, collection_or_iterable, col, stage_name: str):
+        """Converts to collection native to Pipeline Framework.
+
+        If collection_or_iterable is already the framework collection then
+        its return, if it is iterable, it is converted to the framework
+        collection and return.
+
+        Note, that col is required to be the framework collection in order to
+        get correct pipeline information.
+
+        Args:
+            collection_or_iterable: iterable or Framework collection.
+            col: some framework collection.
+            stage_name: stage name.
+        Returns:
+            the framework collection with elements from collection_or_iterable.
+        """
+        return collection_or_iterable
+
     @abc.abstractmethod
     def map(self, col, fn, stage_name: str):
         pass
@@ -173,6 +192,10 @@ class BeamBackend(PipelineBackend):
         super().__init__()
         self._ulg = UniqueLabelsGenerator(suffix)
 
+    def to_collection(self, collection_or_iterable, col, stage_name: str):
+        return col.pipeline | self._ulg.unique(stage_name) >> beam.Create(
+            collection_or_iterable)
+
     def map(self, col, fn, stage_name: str):
         return col | self._ulg.unique(stage_name) >> beam.Map(fn)
 
@@ -290,6 +313,10 @@ class SparkRDDBackend(PipelineBackend):
 
     def __init__(self, sc: 'SparkContext'):
         self._sc = sc
+
+    def to_collection(self, collection_or_iterable, col, stage_name: str):
+        # TODO: implement it and remove workaround in map() below.
+        return collection_or_iterable
 
     def map(self, rdd, fn, stage_name: str = None):
         # TODO(make more elegant solution): workaround for public_partitions
