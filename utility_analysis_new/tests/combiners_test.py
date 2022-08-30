@@ -171,6 +171,11 @@ class PartitionSelectionTest(parameterized.TestCase):
              delta=1e-5,
              probabilities=[0.1] * 100,
              expected_probability_to_keep=0.3321336253750503),
+        dict(testcase_name='All probabilities = 1',
+             eps=1,
+             delta=1e-5,
+             probabilities=[1] * 10,
+             expected_probability_to_keep=0.12818308050524607),
     )
     def test_partition_selection_accumulator_compute_probability(
             self, eps, delta, probabilities, expected_probability_to_keep):

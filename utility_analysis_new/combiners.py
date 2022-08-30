@@ -110,9 +110,13 @@ class PartitionSelectionAccumulator:
         else:
             moments = self.moments
             std = math.sqrt(moments.variance)
-            skewness = moments.third_central_moment / std**3
-            pmf = poisson_binomial.compute_pmf_approximation(
-                moments.expectation, std, skewness, moments.count)
+            if std == 0:  # this is a constant random variable
+                pmf = np.zeros(moments.count + 1)
+                pmf[int(moments.expectation)] = 1
+            else:
+                skewness = moments.third_central_moment / std**3
+                pmf = poisson_binomial.compute_pmf_approximation(
+                    moments.expectation, std, skewness, moments.count)
 
         ps_strategy = partition_selection.create_truncated_geometric_partition_strategy(
             eps, delta, max_partitions_contributed)
