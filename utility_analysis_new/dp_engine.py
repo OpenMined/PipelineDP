@@ -41,10 +41,12 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
         self._is_public_partitions = public_partitions is not None
         result = super().aggregate(col, params, data_extractors,
                                    public_partitions)
-        self._is_public_partitions = None
-        return self._backend.map_values(
-            result, _compute_derived_metrics,
-            "Compute derived metrics from variance and expectation")
+        keyed_by_same_key = self._backend.map(
+            result, _replace_with_same_key, "Rekey partitions by the same key")
+        return self._backend.combine_accumulators_per_key(
+            keyed_by_same_key,
+            self._create_aggregate_error_compound_combiner(params),
+            "Compute aggregate metrics from per-partition error metrics")
 
     def _create_contribution_bounder(
         self, params: pipeline_dp.AggregateParams
@@ -86,6 +88,21 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
         return combiners.CompoundCombiner(internal_combiners,
                                           return_named_tuple=False)
 
+    def _create_aggregate_error_compound_combiner(
+        self, aggregate_params: pipeline_dp.AggregateParams
+    ) -> combiners.CompoundCombiner:
+        internal_combiners = []
+        if not self._is_public_partitions:
+            internal_combiners.append(
+                utility_analysis_combiners.
+                PrivatePartitionSelectionAggregateErrorMetricsCombiner(None))
+        if pipeline_dp.Metrics.COUNT in aggregate_params.metrics:
+            internal_combiners.append(
+                utility_analysis_combiners.CountAggregateErrorMetricsCombiner(
+                    None))
+        return combiners.CompoundCombiner(internal_combiners,
+                                          return_named_tuple=False)
+
     def _select_private_partitions_internal(self, col,
                                             max_partitions_contributed: int,
                                             max_rows_per_privacy_id: int):
@@ -113,38 +130,6 @@ def _check_utility_analysis_params(params: pipeline_dp.AggregateParams,
         )
 
 
-def _compute_derived_metrics(metrics: Tuple):
-    derived_metrics = []
-    for metric in metrics:
-        if isinstance(metric,
-                      utility_analysis_combiners.CountUtilityAnalysisMetrics):
-            metric = _compute_derived_metrics_count(metric)
-        derived_metrics.append(metric)
-    return tuple(derived_metrics)
-
-
-def _compute_derived_metrics_count(
-        metrics: utility_analysis_combiners.CountUtilityAnalysisMetrics):
-    # Absolute error metrics
-    metrics.abs_error_expected = metrics.per_partition_error + metrics.expected_cross_partition_error
-    metrics.abs_error_variance = metrics.std_cross_partition_error**2 + metrics.std_noise**2
-    # TODO: Implement Laplace Noise
-    assert metrics.noise_kind == pipeline_dp.NoiseKind.GAUSSIAN, "Laplace noise for utility analysis not implemented yet"
-    loc_cpe_ne = metrics.expected_cross_partition_error
-    std_cpe_ne = math.sqrt(metrics.std_cross_partition_error**2 +
-                           metrics.std_noise**2)
-    metrics.abs_error_99pct = scipy.stats.norm.ppf(
-        q=0.01, loc=loc_cpe_ne, scale=std_cpe_ne) + metrics.per_partition_error
-
-    # Relative error metrics
-    if metrics.count == 0:  # For empty public partitions, to avoid division by 0
-        metrics.rel_error_expected = float('inf')
-        metrics.rel_error_variance = float('inf')
-        metrics.rel_error_99pct = float('inf')
-    else:
-        metrics.rel_error_expected = metrics.abs_error_expected / metrics.count
-        metrics.rel_error_variance = metrics.abs_error_variance / (metrics.count
-                                                                   **2)
-        metrics.rel_error_99pct = metrics.abs_error_99pct / metrics.count
-
-    return metrics
+def _replace_with_same_key(v: Tuple):
+    # v = (partition_key, (utility_analysis_metrics))
+    return 0, v[1]

@@ -423,7 +423,7 @@ class CompoundCombiner(Combiner):
     multiple metrics. For example, it can contain [CountCombiner, SumCombiner].
     CompoundCombiner delegates all operations to the internal combiners.
 
-    In case one the of combiners is MeanCombiner, which computes count and sum
+    In case one of the combiners is MeanCombiner, which computes count and sum
     in addition to mean, output_count and output_sum should be set to True if
     they are to be outputted from MeanCombiner. For VarianceCombiner you can
     additionally set output_mean to True.
