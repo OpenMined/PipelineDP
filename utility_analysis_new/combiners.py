@@ -22,6 +22,7 @@ import scipy
 
 import pipeline_dp
 from pipeline_dp import dp_computations
+from pipeline_dp import combiners
 from utility_analysis_new import poisson_binomial
 
 import pydp.algorithms.partition_selection as partition_selection
@@ -120,7 +121,8 @@ class PartitionSelectionAccumulator:
             eps, delta, max_partitions_contributed)
         probability = 0
         for i, prob in enumerate(pmf):
-            probability += prob * ps_strategy.probability_of_keep(i)
+            # TODO: Replace 0.5 with ps_strategy.probability_of_keep(i)
+            probability += prob * 0.5
         return probability
 
 
@@ -509,6 +511,16 @@ class AggregateErrorMetricsAccumulator:
     rel_error_99pct_sum: float = None
 
 
+class AggregateErrorMetricsCompoundCombiner(combiners.CompoundCombiner):
+    """A compound combiner for aggregating error metrics across partitions"""
+    AccumulatorType = Tuple[int, Tuple]
+
+    def create_accumulator(self, values) -> AccumulatorType:
+        return (1,
+                tuple(self._combiners[i].create_accumulator(values[i])
+                      for i in len(self._combiners)))
+
+
 class CountAggregateErrorMetricsCombiner(pipeline_dp.Combiner):
     """A combiner for aggregating errors across partitions for Count"""
     AccumulatorType = AggregateErrorMetricsAccumulator
@@ -601,7 +613,7 @@ class CountAggregateErrorMetricsCombiner(pipeline_dp.Combiner):
 class PrivatePartitionSelectionAggregateErrorMetricsCombiner(
         pipeline_dp.Combiner):
     """A combiner for aggregating errors across partitions for private partition selection"""
-    # TODO: Implement
+    # TODO: Implement logic.
     AccumulatorType = AggregateErrorMetricsAccumulator
 
     def __init__(self, params: pipeline_dp.combiners.CombinerParams):

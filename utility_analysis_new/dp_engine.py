@@ -41,11 +41,13 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
         self._is_public_partitions = public_partitions is not None
         result = super().aggregate(col, params, data_extractors,
                                    public_partitions)
+        error_aggregators = self._create_aggregate_error_compound_combiner(
+            params)
+        self._is_public_partitions = None
         keyed_by_same_key = self._backend.map(
             result, _replace_with_same_key, "Rekey partitions by the same key")
         return self._backend.combine_accumulators_per_key(
-            keyed_by_same_key,
-            self._create_aggregate_error_compound_combiner(params),
+            keyed_by_same_key, error_aggregators,
             "Compute aggregate metrics from per-partition error metrics")
 
     def _create_contribution_bounder(
@@ -100,8 +102,8 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
             internal_combiners.append(
                 utility_analysis_combiners.CountAggregateErrorMetricsCombiner(
                     None))
-        return combiners.CompoundCombiner(internal_combiners,
-                                          return_named_tuple=False)
+        return utility_analysis_combiners.AggregateErrorMetricsCompoundCombiner(
+            internal_combiners, return_named_tuple=False)
 
     def _select_private_partitions_internal(self, col,
                                             max_partitions_contributed: int,
