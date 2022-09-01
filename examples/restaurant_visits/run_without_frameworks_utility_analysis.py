@@ -23,7 +23,7 @@ from absl import app
 from absl import flags
 import pipeline_dp
 import pandas as pd
-from utility_analysis_new.dp_engine import UtilityAnalysisEngine
+from utility_analysis_new.dp_engine import UtilityAnalysisEngine, CountMultiRunConfiguration, UtilityAnalysisAggregateParams
 
 FLAGS = flags.FLAGS
 flags.DEFINE_string('input_file', 'restaurants_week_data.csv',
@@ -70,12 +70,15 @@ def main(unused_argv):
     # Create a UtilityAnalysisEngine instance.
     utility_analysis_engine = UtilityAnalysisEngine(budget_accountant, backend)
 
+    count_multi_run = CountMultiRunConfiguration([1, 1, 2, 2], [1, 2, 1, 2])
+
     # Limit contributions to 1 per partition, contribution error will be half of the count.
-    params = pipeline_dp.AggregateParams(
+    params = UtilityAnalysisAggregateParams(
         noise_kind=pipeline_dp.NoiseKind.LAPLACE,
         metrics=[pipeline_dp.Metrics.COUNT],
-        max_partitions_contributed=1,
-        max_contributions_per_partition=1)
+        max_partitions_contributed=3,
+        max_contributions_per_partition=3,
+        count_multi_run=count_multi_run)
 
     # Specify how to extract privacy_id, partition_key and value from an
     # element of restaurant_visits_rows.
