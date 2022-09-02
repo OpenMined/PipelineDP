@@ -103,6 +103,20 @@ class BeamBackendTest(parameterized.TestCase):
             beam_util.assert_that(result,
                                   beam_util.equal_to([(6, 2), (7, 2), (8, 1)]))
 
+    def test_local_combine_accumulators_per_key(self):
+        with test_pipeline.TestPipeline() as p:
+            data = p | beam.Create([(1, 2), (2, 1), (1, 4), (3, 8), (2, 3)])
+            col = self.backend.combine_per_key(data, lambda x, y: x + y,
+                                               "Combine")
+            beam_util.assert_that(col,
+                                  beam_util.equal_to([(1, 6), (2, 4), (3, 8)]))
+
+    def test_local_combine_accumulators_per_key(self):
+        with test_pipeline.TestPipeline() as p:
+            data = p | beam.Create([1, 2, 3, 4, 5])
+            col = self.backend.to_list(data, "To list")
+            beam_util.assert_that(col, beam_util.equal_to([[1, 2, 3, 4, 5]]))
+
 
 class BeamBackendStageNameTest(unittest.TestCase):
 
@@ -451,6 +465,18 @@ class LocalBackendTest(unittest.TestCase):
         col = self.backend.map_values(col, sum_combiner.compute_metrics)
         result = list(col)
         self.assertEqual(result, [(1, 6), (2, 4), (3, 8)])
+
+    def test_local_combine_accumulators_per_key(self):
+        data = [(1, 2), (2, 1), (1, 4), (3, 8), (2, 3)]
+        col = self.backend.combine_per_key(data, lambda x, y: x + y, "Combine")
+        result = list(col)
+        self.assertEqual(result, [(1, 6), (2, 4), (3, 8)])
+
+    def test_local_combine_accumulators_per_key(self):
+        data = [1, 2, 3, 4, 5]
+        col = self.backend.to_list(data, "To list")
+        result = list(col)
+        self.assertEqual(result, [[1, 2, 3, 4, 5]])
 
     def test_laziness(self):
 

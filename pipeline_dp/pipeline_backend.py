@@ -18,7 +18,7 @@ import multiprocessing as mp
 import random
 import numpy as np
 from collections.abc import Iterable
-from typing import Any, Callable
+from typing import Callable
 
 import abc
 import pipeline_dp.combiners as dp_combiners
@@ -135,12 +135,22 @@ class PipelineBackend(abc.ABC):
 
         Returns:
           A collection of tuples (key, accumulator).
-
         """
 
     @abc.abstractmethod
     def combine_per_key(self, col, combine_fn: Callable, stage_name: str):
-        """Combines the input collection TODO"""
+        """Combines the input collection so that all elements per each key are combined.
+
+        Args:
+          col: input collection which contains tuples (key, value).
+          combine_fn: function of 2 elements, which returns element of the same
+          type. The operation defined by this function needs to be associative
+          and commutative (e.g. +, *).
+          stage_name: name of the stage.
+
+        Returns:
+          A collection of tuples (key, value).
+        """
 
     @abc.abstractmethod
     def flatten(self, col1, col2, stage_name: str):
@@ -151,7 +161,7 @@ class PipelineBackend(abc.ABC):
 
     @abc.abstractmethod
     def to_list(self, col, stage_name: str):
-        """todo"""
+        """Returns a 1-element collection with a list of all elements."""
 
     def annotate(self, col, stage_name: str, **kwargs):
         """Annotates collection with registered annotators.
@@ -708,8 +718,16 @@ class MultiProcLocalBackend(PipelineBackend):
             "combine_accumulators_per_key is not implmeneted for MultiProcLocalBackend"
         )
 
+    def combine_per_key(self, col, combine_fn: Callable, stage_name: str):
+        raise NotImplementedError(
+            "combine_per_key is not implmeneted for MultiProcLocalBackend")
+
     def flatten(self, col1, col2, stage_name: str = None):
         return itertools.chain(col1, col2)
+
+    def to_list(self, col, stage_name: str):
+        raise NotImplementedError(
+            "to_list is not implmeneted for MultiProcLocalBackend")
 
 
 class Annotator(abc.ABC):
@@ -729,7 +747,6 @@ class Annotator(abc.ABC):
         Returns:
             The input collection after applying an annotation.
         """
-        pass
 
 
 _annotators = []

@@ -5,6 +5,17 @@ import operator
 
 @dataclass
 class FrequencyBin:
+    """Represents 1 bin of the histogram.
+
+    The bin represents integers between 'lower' (inclusive) and 'upper'
+     (exclusive, not stored in this class).
+
+    Attributes:
+        lower: the lower bound of the bin.
+        count: the number of elements in the bin.
+        sum: the sum of elements in the bin.
+        max: the maximum element in the bin (which might be smaller than upper-1).
+    """
     lower: int
     count: int
     sum: int
@@ -19,6 +30,12 @@ class FrequencyBin:
 
 
 def _to_bin_lower(n: int) -> int:
+    """Finds the lower bound of the histogram bin which contains ."""
+    # For scalability reasons bins can not be all width=1. For the goals of
+    # contribution computations it is ok to make bins of large values, to be
+    # larger.
+    # Here, the following strategy is used: n is rounded down, such that only 3
+    # left-most digits of n is kept, e.g. 123->123, 1234->1230, 12345->12300.
     bound = 1000
     while n > bound:
         bound *= 10
@@ -29,8 +46,16 @@ def _to_bin_lower(n: int) -> int:
 
 def _compute_frequency_histogram(
         col, backend: pipeline_dp.pipeline_backend.PipelineBackend):
+    """Computes histogram of frequencies elements in collection.
 
-    col = backend.count_per_element(col, "Frequency of counts")
+    Args:
+        col: collection with elements of positive integers.
+        backend: PipelineBackend to run operations on col.
+    Returns:
+
+    """
+
+    col = backend.count_per_element(col, "Frequency of elements")
 
     # Combiner elements to histogram buckets of increasing sizes. Having buckets
     # of size = 1 is not scalable.

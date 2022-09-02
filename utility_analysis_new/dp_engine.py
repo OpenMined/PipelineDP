@@ -24,8 +24,8 @@ import utility_analysis_new.combiners as utility_analysis_combiners
 class UtilityAnalysisEngine(pipeline_dp.DPEngine):
     """Performs utility analysis for DP aggregations."""
 
-    def __init__(self, budget_accountant: 'BudgetAccountant',
-                 backend: 'PipelineBackend'):
+    def __init__(self, budget_accountant: budget_accounting.BudgetAccountant,
+                 backend: pipeline_dp.pipeline_backend.PipelineBackend):
         super().__init__(budget_accountant, backend)
         self._is_public_partitions = None
 
