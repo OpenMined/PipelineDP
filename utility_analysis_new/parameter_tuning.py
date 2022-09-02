@@ -46,13 +46,14 @@ def _to_bin_lower(n: int) -> int:
 
 def _compute_frequency_histogram(
         col, backend: pipeline_dp.pipeline_backend.PipelineBackend):
-    """Computes histogram of frequencies elements in collection.
+    """Computes histogram of elements frequencies in collection.
 
     Args:
-        col: collection with elements of positive integers.
-        backend: PipelineBackend to run operations on col.
+        col: collection with positive integers.
+        backend: PipelineBackend to run operations on the collection.
     Returns:
-
+        1 element collection, which contains a list of FrequencyBin sorted by
+        'lower' attribute.
     """
 
     col = backend.count_per_element(col, "Frequency of elements")
