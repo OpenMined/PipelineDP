@@ -189,16 +189,6 @@ class CountUtilityAnalysisMetrics:
     std_noise: float
     noise_kind: pipeline_dp.NoiseKind
 
-    # Absolute error metrics derived from the primitives above
-    abs_error_expected: float = None
-    abs_error_variance: float = None
-    abs_error_99pct: float = None
-
-    # Relative error metrics derived from the primitives above
-    rel_error_expected: float = None
-    rel_error_variance: float = None
-    rel_error_99pct: float = None
-
 
 @dataclass
 class UtilityAnalysisCountAccumulator:
@@ -516,9 +506,14 @@ class AggregateErrorMetricsCompoundCombiner(combiners.CompoundCombiner):
     AccumulatorType = Tuple[int, Tuple]
 
     def create_accumulator(self, values) -> AccumulatorType:
-        return (1,
-                tuple(self._combiners[i].create_accumulator(values[i])
-                      for i in len(self._combiners)))
+        accumulators = []
+        for i in range(len(self._combiners)):
+            accumulators.append(self._combiners[i].create_accumulator(
+                values[i]))
+        return (1, tuple(accumulators))
+        # return (1,
+        #         tuple(self._combiners[i].create_accumulator(values[i])
+        #               for i in len(self._combiners)))
 
 
 class CountAggregateErrorMetricsCombiner(pipeline_dp.Combiner):
@@ -549,9 +544,9 @@ class CountAggregateErrorMetricsCombiner(pipeline_dp.Combiner):
             rel_error_variance = float('inf')
             rel_error_99pct = float('inf')
         else:
-            rel_error_expected = metrics.abs_error_expected / metrics.count
-            rel_error_variance = metrics.abs_error_variance / (metrics.count**2)
-            rel_error_99pct = metrics.abs_error_99pct / metrics.count
+            rel_error_expected = abs_error_expected / metrics.count
+            rel_error_variance = abs_error_variance / (metrics.count**2)
+            rel_error_99pct = abs_error_99pct / metrics.count
 
         return AggregateErrorMetricsAccumulator(
             num_partitions=1,
@@ -590,7 +585,7 @@ class CountAggregateErrorMetricsCombiner(pipeline_dp.Combiner):
         return AggregateErrorMetrics(
             abs_error_expected_avg=acc.abs_error_expected_sum /
             acc.num_partitions,
-            abs_error_variance_avg=acc.abs_error_expected_sum /
+            abs_error_variance_avg=acc.abs_error_variance_sum /
             acc.num_partitions,
             abs_error_99pct_avg=acc.abs_error_99pct_sum / acc.num_partitions,
             rel_error_expected_avg=acc.rel_error_expected_sum /
