@@ -18,6 +18,7 @@ import multiprocessing as mp
 import random
 import numpy as np
 from collections.abc import Iterable
+from typing import Any, Callable
 
 import abc
 import pipeline_dp.combiners as dp_combiners
@@ -138,12 +139,19 @@ class PipelineBackend(abc.ABC):
         """
 
     @abc.abstractmethod
+    def combine_per_key(self, col, combine_fn: Callable, stage_name: str):
+        """Combines the input collection TODO"""
+
+    @abc.abstractmethod
     def flatten(self, col1, col2, stage_name: str):
         """
         Returns:
           A collection that contains all values from col1 and col2.
         """
-        pass
+
+    @abc.abstractmethod
+    def to_list(self, col, stage_name: str):
+        """todo"""
 
     def annotate(self, col, stage_name: str, **kwargs):
         """Annotates collection with registered annotators.
@@ -296,8 +304,15 @@ class BeamBackend(PipelineBackend):
         return col | self._ulg.unique(stage_name) >> beam.CombinePerKey(
             merge_accumulators)
 
+    def combine_per_key(self, col, combine_fn: Callable, stage_name: str):
+        return col | self._ulg.unique(stage_name) >> beam.CombinePerKey(
+            combine_fn)
+
     def flatten(self, col1, col2, stage_name: str):
         return (col1, col2) | self._ulg.unique(stage_name) >> beam.Flatten()
+
+    def to_list(self, col, stage_name: str):
+        return col | self._ulg.unique(stage_name) >> beam.combiners.ToList()
 
     def annotate(self, col, stage_name: str, **kwargs):
         if not _annotators:
@@ -388,8 +403,14 @@ class SparkRDDBackend(PipelineBackend):
         return rdd.reduceByKey(
             lambda acc1, acc2: combiner.merge_accumulators(acc1, acc2))
 
+    def combine_per_key(self, rdd, combine_fn: Callable, stage_name: str):
+        return rdd.reduceByKey(combine_fn)
+
     def flatten(self, col1, col2, stage_name: str = None):
         return col1.union(col2)
+
+    def to_list(self, col, stage_name: str):
+        raise NotImplementedError("to_list is not implement in SparkBackend.")
 
 
 class LocalBackend(PipelineBackend):
@@ -468,8 +489,15 @@ class LocalBackend(PipelineBackend):
 
         return self.map_values(self.group_by_key(col), merge_accumulators)
 
+    def combine_per_key(self, col, combine_fn: Callable, stage_name: str):
+        combine = lambda elements: functools.reduce(combine_fn, elements)
+        return self.map_values(self.group_by_key(col), combine)
+
     def flatten(self, col1, col2, stage_name: str = None):
         return itertools.chain(col1, col2)
+
+    def to_list(self, col, stage_name: str):
+        return (list(col) for _ in range(1))
 
 
 # workaround for passing lambda functions to multiprocessing
