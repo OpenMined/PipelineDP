@@ -481,24 +481,44 @@ class UtilityAnalysisPrivacyIdCountCombiner(pipeline_dp.Combiner):
 class AggregateErrorMetrics:
     """Stores aggregate metrics for utility analysis."""
 
-    abs_error_expected_avg: float = None
-    abs_error_variance_avg: float = None
-    abs_error_99pct_avg: float = None
-    rel_error_expected_avg: float = None
-    rel_error_variance_avg: float = None
-    rel_error_99pct_avg: float = None
+    abs_error_expected_avg: float
+    abs_error_variance_avg: float
+    abs_error_quantiles_avg: List[float]
+    rel_error_expected_avg: float
+    rel_error_variance_avg: float
+    rel_error_quantiles_avg: List[float]
 
 
 @dataclass
 class AggregateErrorMetricsAccumulator:
     num_partitions: int
 
-    abs_error_expected_sum: float = None
-    abs_error_variance_sum: float = None
-    abs_error_99pct_sum: float = None
-    rel_error_expected_sum: float = None
-    rel_error_variance_sum: float = None
-    rel_error_99pct_sum: float = None
+    abs_error_expected_sum: float
+    abs_error_variance_sum: float
+    abs_error_quantiles_sum: List[float]
+    rel_error_expected_sum: float
+    rel_error_variance_sum: float
+    rel_error_quantiles_sum: List[float]
+
+    def __add__(self, other):
+        return AggregateErrorMetricsAccumulator(
+            num_partitions=self.num_partitions + other.num_partitions,
+            abs_error_expected_sum=self.abs_error_expected_sum +
+            other.abs_error_expected_sum,
+            abs_error_variance_sum=self.abs_error_variance_sum +
+            other.abs_error_variance_sum,
+            abs_error_quantiles_sum=[
+                s1 + s2 for (s1, s2) in zip(self.abs_error_quantiles_sum,
+                                            other.abs_error_quantiles_sum)
+            ],
+            rel_error_expected_sum=self.rel_error_expected_sum +
+            other.rel_error_expected_sum,
+            rel_error_variance_sum=self.rel_error_variance_sum +
+            other.rel_error_variance_sum,
+            rel_error_quantiles_sum=[
+                s1 + s2 for (s1, s2) in zip(self.rel_error_quantiles_sum,
+                                            other.rel_error_quantiles_sum)
+            ])
 
 
 class AggregateErrorMetricsCompoundCombiner(combiners.CompoundCombiner):
@@ -507,25 +527,23 @@ class AggregateErrorMetricsCompoundCombiner(combiners.CompoundCombiner):
 
     def create_accumulator(self, values) -> AccumulatorType:
         accumulators = []
-        for i in range(len(self._combiners)):
-            accumulators.append(self._combiners[i].create_accumulator(
-                values[i]))
-        return (1, tuple(accumulators))
-        # return (1,
-        #         tuple(self._combiners[i].create_accumulator(values[i])
-        #               for i in len(self._combiners)))
+        for combiner, metrics in zip(self._combiners, values):
+            accumulators.append(combiner.create_accumulator(metrics))
+        return 1, tuple(accumulators)
 
 
 class CountAggregateErrorMetricsCombiner(pipeline_dp.Combiner):
     """A combiner for aggregating errors across partitions for Count"""
     AccumulatorType = AggregateErrorMetricsAccumulator
 
-    def __init__(self, params: pipeline_dp.combiners.CombinerParams):
+    def __init__(self, params: pipeline_dp.combiners.CombinerParams,
+                 error_quantiles: List[float]):
         self._params = params
+        self._error_quantiles = error_quantiles
 
     def create_accumulator(
             self, metrics: CountUtilityAnalysisMetrics) -> AccumulatorType:
-        """Create an accumulator for metrics."""
+        """Creates an accumulator for metrics."""
         # Absolute error metrics
         abs_error_expected = metrics.per_partition_error + metrics.expected_cross_partition_error
         abs_error_variance = metrics.std_cross_partition_error**2 + metrics.std_noise**2
@@ -534,65 +552,56 @@ class CountAggregateErrorMetricsCombiner(pipeline_dp.Combiner):
         loc_cpe_ne = metrics.expected_cross_partition_error
         std_cpe_ne = math.sqrt(metrics.std_cross_partition_error**2 +
                                metrics.std_noise**2)
-        abs_error_99pct = scipy.stats.norm.ppf(
-            q=0.01, loc=loc_cpe_ne,
-            scale=std_cpe_ne) + metrics.per_partition_error
+        abs_error_quantiles = []
+        for quantile in self._error_quantiles:
+            error_at_quantile = scipy.stats.norm.ppf(
+                q=1 - quantile, loc=loc_cpe_ne,
+                scale=std_cpe_ne) + metrics.per_partition_error
+            abs_error_quantiles.append(error_at_quantile)
 
         # Relative error metrics
         if metrics.count == 0:  # For empty public partitions, to avoid division by 0
             rel_error_expected = float('inf')
             rel_error_variance = float('inf')
-            rel_error_99pct = float('inf')
+            rel_error_quantiles = [float('inf')] * len(self._error_quantiles)
         else:
             rel_error_expected = abs_error_expected / metrics.count
             rel_error_variance = abs_error_variance / (metrics.count**2)
-            rel_error_99pct = abs_error_99pct / metrics.count
+            rel_error_quantiles = [
+                error / metrics.count for error in abs_error_quantiles
+            ]
 
         return AggregateErrorMetricsAccumulator(
             num_partitions=1,
             abs_error_expected_sum=abs_error_expected,
             abs_error_variance_sum=abs_error_variance,
-            abs_error_99pct_sum=abs_error_99pct,
+            abs_error_quantiles_sum=abs_error_quantiles,
             rel_error_expected_sum=rel_error_expected,
             rel_error_variance_sum=rel_error_variance,
-            rel_error_99pct_sum=rel_error_99pct,
+            rel_error_quantiles_sum=rel_error_quantiles,
         )
 
     def merge_accumulators(self, acc1: AccumulatorType, acc2: AccumulatorType):
-        """Merge two accumulators together additively."""
-        return AggregateErrorMetricsAccumulator(
-            num_partitions=acc1.num_partitions + acc2.num_partitions,
-            abs_error_expected_sum=acc1.abs_error_expected_sum +
-            acc2.abs_error_expected_sum,
-            abs_error_variance_sum=acc1.abs_error_variance_sum +
-            acc2.abs_error_variance_sum,
-            abs_error_99pct_sum=acc1.abs_error_99pct_sum +
-            acc2.abs_error_99pct_sum,
-            rel_error_expected_sum=acc1.rel_error_expected_sum +
-            acc2.rel_error_expected_sum,
-            rel_error_variance_sum=acc1.rel_error_variance_sum +
-            acc2.rel_error_variance_sum,
-            rel_error_99pct_sum=acc1.rel_error_99pct_sum +
-            acc2.rel_error_99pct_sum)
+        """Merges two accumulators together additively."""
+        return acc1 + acc2
 
     def compute_metrics(self, acc: AccumulatorType) -> AggregateErrorMetrics:
-        """Compute metrics based on the accumulator properties.
-        Args:
-            acc: the accumulator to compute from.
-        Returns:
-            An AggregateErrorMetrics object with computed metrics.
-        """
+        """Compute metrics based on the accumulator properties."""
         return AggregateErrorMetrics(
             abs_error_expected_avg=acc.abs_error_expected_sum /
             acc.num_partitions,
             abs_error_variance_avg=acc.abs_error_variance_sum /
             acc.num_partitions,
-            abs_error_99pct_avg=acc.abs_error_99pct_sum / acc.num_partitions,
+            abs_error_quantiles_avg=[
+                sum / acc.num_partitions for sum in acc.abs_error_quantiles_sum
+            ],
             rel_error_expected_avg=acc.rel_error_expected_sum /
             acc.num_partitions,
             rel_error_variance_avg=acc.rel_error_variance_sum /
             acc.num_partitions,
-            rel_error_99pct_avg=acc.rel_error_99pct_sum / acc.num_partitions)
+            rel_error_quantiles_avg=[
+                sum / acc.num_partitions for sum in acc.rel_error_quantiles_sum
+            ])
 
     def metrics_names(self) -> List[str]:
         return [
@@ -611,17 +620,24 @@ class PrivatePartitionSelectionAggregateErrorMetricsCombiner(
     # TODO: Implement logic.
     AccumulatorType = AggregateErrorMetricsAccumulator
 
-    def __init__(self, params: pipeline_dp.combiners.CombinerParams):
+    def __init__(self, params: pipeline_dp.combiners.CombinerParams,
+                 error_quantiles: List[float]):
         self._params = params
+        self._error_quantiles = error_quantiles
 
     def create_accumulator(self, probability_to_keep: float) -> AccumulatorType:
         """Create an accumulator for metrics."""
-        return AggregateErrorMetricsAccumulator(num_partitions=1,)
+        return AggregateErrorMetricsAccumulator(num_partitions=1,
+                                                abs_error_expected_sum=0,
+                                                abs_error_variance_sum=0,
+                                                abs_error_quantiles_sum=[],
+                                                rel_error_expected_sum=0,
+                                                rel_error_variance_sum=0,
+                                                rel_error_quantiles_sum=[])
 
     def merge_accumulators(self, acc1: AccumulatorType, acc2: AccumulatorType):
         """Merge two accumulators together additively."""
-        return AggregateErrorMetricsAccumulator(
-            num_partitions=acc1.num_partitions + acc2.num_partitions)
+        return acc1 + acc2
 
     def compute_metrics(self, acc: AccumulatorType) -> AggregateErrorMetrics:
         """Compute metrics based on the accumulator properties.
@@ -630,7 +646,12 @@ class PrivatePartitionSelectionAggregateErrorMetricsCombiner(
         Returns:
             An AggregateErrorMetrics object with computed metrics.
         """
-        return AggregateErrorMetrics()
+        return AggregateErrorMetrics(abs_error_expected_avg=0,
+                                     abs_error_variance_avg=0,
+                                     abs_error_quantiles_avg=[],
+                                     rel_error_expected_avg=0,
+                                     rel_error_variance_avg=0,
+                                     rel_error_quantiles_avg=[])
 
     def metrics_names(self) -> List[str]:
         return []

@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """DPEngine for utility analysis."""
-from typing import Tuple
+from typing import List
 import pipeline_dp
 from pipeline_dp import combiners
 from pipeline_dp import contribution_bounders
@@ -37,22 +37,22 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
         self._is_public_partitions = public_partitions is not None
         result = super().aggregate(col, params, data_extractors,
                                    public_partitions)
-        error_aggregators = self._create_aggregate_error_compound_combiner(
-            params)
+        aggregate_error_combiners = self._create_aggregate_error_compound_combiner(
+            params, [0.1, 0.5, 0.9, 0.99])
         self._is_public_partitions = None
         # TODO: Implement combine_accumulators (w/o per_key)
         keyed_by_same_key = self._backend.map(
-            result, _replace_with_same_key, "Rekey partitions by the same key")
+            result, lambda v: (None, v[1]), "Rekey partitions by the same key")
         accumulators = self._backend.map_values(
-            keyed_by_same_key, error_aggregators.create_accumulator,
+            keyed_by_same_key, aggregate_error_combiners.create_accumulator,
             "Create accumulators for aggregating error metrics")
         aggregates = self._backend.combine_accumulators_per_key(
-            accumulators, error_aggregators,
+            accumulators, aggregate_error_combiners,
             "Combine aggregate metrics from per-partition error metrics")
-        aggregates = self._backend.map_values(aggregates,
-                                              error_aggregators.compute_metrics,
-                                              "Compute aggregate metrics")
-        return self._backend.map(aggregates, _drop_key, "Drop key")
+        aggregates = self._backend.map_values(
+            aggregates, aggregate_error_combiners.compute_metrics,
+            "Compute aggregate metrics")
+        return self._backend.values(aggregates, "Drop key")
 
     def _create_contribution_bounder(
         self, params: pipeline_dp.AggregateParams
@@ -95,17 +95,18 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
                                           return_named_tuple=False)
 
     def _create_aggregate_error_compound_combiner(
-        self, aggregate_params: pipeline_dp.AggregateParams
-    ) -> combiners.CompoundCombiner:
+            self, aggregate_params: pipeline_dp.AggregateParams,
+            error_quantiles: List[float]) -> combiners.CompoundCombiner:
         internal_combiners = []
         if not self._is_public_partitions:
             internal_combiners.append(
                 utility_analysis_combiners.
-                PrivatePartitionSelectionAggregateErrorMetricsCombiner(None))
+                PrivatePartitionSelectionAggregateErrorMetricsCombiner(
+                    None, error_quantiles))
         if pipeline_dp.Metrics.COUNT in aggregate_params.metrics:
             internal_combiners.append(
                 utility_analysis_combiners.CountAggregateErrorMetricsCombiner(
-                    None))
+                    None, error_quantiles))
         return utility_analysis_combiners.AggregateErrorMetricsCompoundCombiner(
             internal_combiners, return_named_tuple=False)
 
@@ -134,13 +135,3 @@ def _check_utility_analysis_params(params: pipeline_dp.AggregateParams,
         raise NotImplementedError(
             "utility analysis when contribution bounds are already enforced is not supported"
         )
-
-
-def _replace_with_same_key(v: Tuple):
-    # v = (partition_key, Tuple(utility_analysis_metric))
-    return 0, v[1]
-
-
-def _drop_key(v: Tuple):
-    # v = (0, (Tuple(aggregate_error_metric)))
-    return v[1]
