@@ -153,19 +153,16 @@ class DpEngine(unittest.TestCase):
         # Assert
         # Assert a singleton is returned
         self.assertEqual(len(col), 1)
-        # Assert there are 2 AggregateErrorMetrics, one for private partition selection and 1 for count.
+        # Assert there are 2 AggregateErrorMetrics, one for private partition
+        # selection and 1 for count.
         self.assertEqual(len(col[0]), 2)
         # Assert count metrics are reasonable.
-        self.assertAlmostEqual(col[0][1].abs_error_expected_avg,
-                               -28,
-                               delta=1e-2)
-        self.assertAlmostEqual(col[0][1].abs_error_variance_avg,
-                               146.47,
-                               delta=1e-2)
-        self.assertAlmostEqual(col[0][1].rel_error_expected_avg,
+        self.assertAlmostEqual(col[0][1].abs_error_expected, -28, delta=1e-2)
+        self.assertAlmostEqual(col[0][1].abs_error_variance, 146.47, delta=1e-2)
+        self.assertAlmostEqual(col[0][1].rel_error_expected,
                                -0.933333,
                                delta=1e-5)
-        self.assertAlmostEqual(col[0][1].rel_error_variance_avg,
+        self.assertAlmostEqual(col[0][1].rel_error_variance,
                                0.16275,
                                delta=1e-5)
 
