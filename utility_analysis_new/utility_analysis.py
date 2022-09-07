@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""API functions for performing utility analysis."""
+"""Public API for performing utility analysis."""
 
 import pipeline_dp
 from dataclasses import dataclass
@@ -37,7 +37,8 @@ def perform_utility_analysis(col,
     data_extractors: functions that extract needed pieces of information
           from elements of 'col'.
     public_partitions: A collection of partition keys that will be present
-          in the result.
+          in the result. If not provided, the utility analysis with private
+          partition selection will be performed.
   """
     raise NotImplementedError(
         "perform_utility_analysis is not implemented yet.")
