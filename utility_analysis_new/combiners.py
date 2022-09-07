@@ -210,6 +210,34 @@ class UtilityAnalysisCountAccumulator:
             self.var_cross_partition_error + other.var_cross_partition_error)
 
 
+LIMIT_FOR_SPARSE = 100
+
+
+class UtilityAnalysisCompoundCombiner(pipeline_dp.combiners.CompoundCombiner):
+    AccumulatorType = int  # todo
+
+    def create_accumulator(self, data) -> AccumulatorType:
+        values, n_partitions = data
+        return (True, [(len(values), sum(values), n_partitions)])
+
+    def to_dense(self, acc):
+        if not acc[0]:
+            return acc
+        # todo
+
+    def merge_accumulators(self, acc1: AccumulatorType, acc2: AccumulatorType):
+        if acc1[0] and acc2[0]:  # sparse
+            return (True, acc1.extend(acc2))
+        dense_acc1 = self.to_dense(acc1)
+        dense_acc2 = self.to_dense(acc2)
+        merged_acc = super().merge_accumulators(dense_acc1, dense_acc2)
+        return (False, merged_acc)
+
+    def compute_metrics(self, acc: AccumulatorType):
+        dense_acc = self.to_dense(acc)
+        return super().compute_metrics(dense_acc)
+
+
 class UtilityAnalysisCountCombiner(pipeline_dp.Combiner):
     """A combiner for utility analysis counts."""
     AccumulatorType = UtilityAnalysisCountAccumulator
