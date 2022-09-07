@@ -14,6 +14,7 @@
 """DPEngine for utility analysis."""
 from typing import List
 import pipeline_dp
+from pipeline_dp import budget_accounting
 from pipeline_dp import combiners
 from pipeline_dp import contribution_bounders
 import utility_analysis_new.contribution_bounders as utility_contribution_bounders
