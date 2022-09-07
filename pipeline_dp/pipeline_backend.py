@@ -715,19 +715,19 @@ class MultiProcLocalBackend(PipelineBackend):
     def combine_accumulators_per_key(self, col, combiner: dp_combiners.Combiner,
                                      stage_name: str):
         raise NotImplementedError(
-            "combine_accumulators_per_key is not implmeneted for MultiProcLocalBackend"
+            "combine_accumulators_per_key is not implemented for MultiProcLocalBackend"
         )
 
     def combine_per_key(self, col, combine_fn: Callable, stage_name: str):
         raise NotImplementedError(
-            "combine_per_key is not implmeneted for MultiProcLocalBackend")
+            "combine_per_key is not implemented for MultiProcLocalBackend")
 
     def flatten(self, col1, col2, stage_name: str = None):
         return itertools.chain(col1, col2)
 
     def to_list(self, col, stage_name: str):
         raise NotImplementedError(
-            "to_list is not implmeneted for MultiProcLocalBackend")
+            "to_list is not implemented for MultiProcLocalBackend")
 
 
 class Annotator(abc.ABC):
