@@ -80,7 +80,7 @@ class DpEngine(unittest.TestCase):
                     test_case["data_extractor"],
                     public_partitions=test_case["public_partitions"])
 
-    def test_aggregate_public_partition_applied(self):
+    def test_aggregate_public_partition_e2e(self):
         # Arrange
         aggregator_params = pipeline_dp.AggregateParams(
             noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
@@ -111,12 +111,60 @@ class DpEngine(unittest.TestCase):
                                public_partitions=public_partitions)
         budget_accountant.compute_budgets()
 
+        # Simply assert pipeline can run for now.
+        col = list(col)
+        # TODO: Verify metrics related to public partitions are correct.
+
+    def test_aggregate_error_metrics(self):
+        # Arrange
+        aggregator_params = pipeline_dp.AggregateParams(
+            noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+            metrics=[pipeline_dp.Metrics.COUNT],
+            max_partitions_contributed=1,
+            max_contributions_per_partition=2)
+
+        budget_accountant = pipeline_dp.NaiveBudgetAccountant(total_epsilon=2,
+                                                              total_delta=1e-10)
+
+        # Input collection has 10 privacy ids where each privacy id
+        # contributes to the same 10 partitions, three times in each partition.
+        col = []
+        for i in range(10):
+            for j in range(10):
+                col.append((i, j))
+                col.append((i, j))
+                col.append((i, j))
+        data_extractor = pipeline_dp.DataExtractors(
+            privacy_id_extractor=lambda x: x[0],
+            partition_extractor=lambda x: f"pk{x[1]}",
+            value_extractor=lambda x: None)
+
+        engine = dp_engine.UtilityAnalysisEngine(
+            budget_accountant=budget_accountant,
+            backend=pipeline_dp.LocalBackend())
+
+        col = engine.aggregate(col=col,
+                               params=aggregator_params,
+                               data_extractors=data_extractor)
+        budget_accountant.compute_budgets()
+
         col = list(col)
 
-        # Assert public partitions are applied, i.e. that pk0 and pk1 are kept,
-        # and pk101 is added.
-        self.assertEqual(len(col), 3)
-        self.assertTrue(any(map(lambda x: x[0] == "pk101", col)))
+        # Assert
+        # Assert a singleton is returned
+        self.assertEqual(len(col), 1)
+        # Assert there are 2 AggregateErrorMetrics, one for private partition
+        # selection and 1 for count.
+        self.assertEqual(len(col[0]), 2)
+        # Assert count metrics are reasonable.
+        self.assertAlmostEqual(col[0][1].abs_error_expected, -28, delta=1e-2)
+        self.assertAlmostEqual(col[0][1].abs_error_variance, 146.47, delta=1e-2)
+        self.assertAlmostEqual(col[0][1].rel_error_expected,
+                               -0.933333,
+                               delta=1e-5)
+        self.assertAlmostEqual(col[0][1].rel_error_variance,
+                               0.16275,
+                               delta=1e-5)
 
 
 if __name__ == '__main__':
