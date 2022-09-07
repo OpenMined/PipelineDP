@@ -74,7 +74,7 @@ def main(unused_argv):
 
     # Limit contributions to 1 per partition, contribution error will be half of the count.
     params = UtilityAnalysisAggregateParams(
-        noise_kind=pipeline_dp.NoiseKind.LAPLACE,
+        noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
         metrics=[pipeline_dp.Metrics.COUNT],
         max_partitions_contributed=3,
         max_contributions_per_partition=3,
