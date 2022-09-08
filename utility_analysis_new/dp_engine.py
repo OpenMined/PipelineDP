@@ -78,6 +78,7 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
         self._is_public_partitions = public_partitions is not None
         result = super().aggregate(col, params, data_extractors,
                                    public_partitions)
+        return result
         aggregate_error_combiners = self._create_aggregate_error_compound_combiner(
             params, [0.1, 0.5, 0.9, 0.99])
         self._is_public_partitions = None

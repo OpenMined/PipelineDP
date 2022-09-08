@@ -14,7 +14,7 @@
 """Utility Analysis Combiners."""
 
 from dataclasses import dataclass
-from typing import List, Optional, Sequence, Sized, Tuple
+from typing import Any, List, Optional, Sequence, Sized, Tuple
 import numpy as np
 import math
 
@@ -137,7 +137,9 @@ class PartitionSelectionCombiner(pipeline_dp.Combiner):
     def __init__(self, params: pipeline_dp.combiners.CombinerParams):
         self._params = params
 
-    def create_accumulator(self, data: Tuple[Sized, int]) -> AccumulatorType:
+    def create_accumulator(
+        self, data: Tuple[Sized, int, Optional[int],
+                          Optional[float]]) -> AccumulatorType:
         """Creates an accumulator for data.
 
         Args:
@@ -148,7 +150,7 @@ class PartitionSelectionCombiner(pipeline_dp.Combiner):
         Returns:
             An accumulator for computing probability of selecting partition.
         """
-        values, n_partitions = data
+        values, n_partitions, count_, sum_ = data
         max_partitions = self._params.aggregate_params.max_partitions_contributed
         prob_keep_contribution = min(1, max_partitions /
                                      n_partitions) if n_partitions > 0 else 0
@@ -210,32 +212,45 @@ class UtilityAnalysisCountAccumulator:
             self.var_cross_partition_error + other.var_cross_partition_error)
 
 
-LIMIT_FOR_SPARSE = 100
-
-
 class UtilityAnalysisCompoundCombiner(pipeline_dp.combiners.CompoundCombiner):
-    AccumulatorType = int  # todo
+    AccumulatorType = Tuple[bool, List[Any]]
 
     def create_accumulator(self, data) -> AccumulatorType:
         values, n_partitions = data
-        return (True, [(len(values), sum(values), n_partitions)])
+        return (True, [(n_partitions, len(values), sum(values))])
 
-    def to_dense(self, acc):
-        if not acc[0]:
-            return acc
-        # todo
+    def to_dense(self, sparse_acc):
+        # compound_acc = (1, [combiner.create_accumulator([None, n_partitions, count, sum_]) for combiner in self._combiners])
+        result = None
+        for n_partitions, count, sum_ in sparse_acc:
+            compound_acc = (1, [
+                combiner.create_accumulator([None, n_partitions, count, sum_])
+                for combiner in self._combiners
+            ])
+            if result is None:
+                result = compound_acc
+            else:
+                result = super().merge_accumulators(result, compound_acc)
+        return result
 
     def merge_accumulators(self, acc1: AccumulatorType, acc2: AccumulatorType):
-        if acc1[0] and acc2[0]:  # sparse
-            return (True, acc1.extend(acc2))
-        dense_acc1 = self.to_dense(acc1)
-        dense_acc2 = self.to_dense(acc2)
+        is_sparse1, acc1 = acc1
+        is_sparse2, acc2 = acc2
+        if is_sparse1 and is_sparse2:
+            acc1.extend(acc2)
+            if len(acc1) <= 5 * len(self._combiners):
+                return (True, acc1)
+            return (False, self.to_dense(acc1))
+        dense_acc1 = self.to_dense(acc1) if is_sparse1 else acc1
+        dense_acc2 = self.to_dense(acc2) if is_sparse2 else acc2
         merged_acc = super().merge_accumulators(dense_acc1, dense_acc2)
         return (False, merged_acc)
 
     def compute_metrics(self, acc: AccumulatorType):
-        dense_acc = self.to_dense(acc)
-        return super().compute_metrics(dense_acc)
+        is_sparse, acc = acc
+        if is_sparse:
+            acc = self.to_dense(acc)
+        return super().compute_metrics(acc)
 
 
 class UtilityAnalysisCountCombiner(pipeline_dp.Combiner):
@@ -249,7 +264,9 @@ class UtilityAnalysisCountCombiner(pipeline_dp.Combiner):
     def _is_public_partitions(self):
         return self._partition_selection_budget is None
 
-    def create_accumulator(self, data: Tuple[Sized, int]) -> AccumulatorType:
+    def create_accumulator(
+        self, data: Tuple[Sized, int, Optional[int],
+                          Optional[float]]) -> AccumulatorType:
         """Creates an accumulator for data.
 
         Args:
@@ -261,8 +278,8 @@ class UtilityAnalysisCountCombiner(pipeline_dp.Combiner):
         """
         if not data:
             return UtilityAnalysisCountAccumulator(0, 0, 0, 0)
-        values, n_partitions = data
-        count = len(values)
+        values, n_partitions, count_, sum_ = data
+        count = len(values) if count_ is None else count_
         max_per_partition = self._params.aggregate_params.max_contributions_per_partition
         max_partitions = self._params.aggregate_params.max_partitions_contributed
         prob_keep_partition = min(1, max_partitions /
