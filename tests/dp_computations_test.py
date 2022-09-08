@@ -35,11 +35,13 @@ class DPComputationsTest(parameterized.TestCase):
         return abs(expected - actual) <= tolerance
 
     def test_l0_sensitivity(self):
-        params = dp_computations.MeanVarParams(
+        params = dp_computations.ScalarNoiseParams(
             eps=1,
             delta=1e-10,
             min_value=2,
             max_value=3,
+            min_sum_per_partition=None,
+            max_sum_per_partition=None,
             max_partitions_contributed=4,
             max_contributions_per_partition=5,
             noise_kind=NoiseKind.LAPLACE)
@@ -224,11 +226,13 @@ class DPComputationsTest(parameterized.TestCase):
         self.assertEqual("value_with_noise", anonymized_value)
 
     def test_compute_dp_count(self):
-        params = dp_computations.MeanVarParams(
+        params = dp_computations.ScalarNoiseParams(
             eps=0.5,
             delta=1e-10,
             min_value=0,
             max_value=0,
+            min_sum_per_partition=None,
+            max_sum_per_partition=None,
             max_partitions_contributed=1,
             max_contributions_per_partition=1,
             noise_kind=NoiseKind.LAPLACE)
@@ -263,18 +267,31 @@ class DPComputationsTest(parameterized.TestCase):
                                   delta=params.delta,
                                   l2_sensitivity=l2_sensitivity)
 
-    def test_compute_dp_sum(self):
-        params = dp_computations.MeanVarParams(
+    @parameterized.parameters(False, True)
+    def test_compute_dp_sum(self, bound_per_partition):
+        min_value = max_value = min_sum_per_partition = max_sum_per_partition = None
+        if bound_per_partition:
+            min_sum_per_partition, max_sum_per_partition = 2, 3
+        else:
+            min_value, max_value = 2, 3
+
+        params = dp_computations.ScalarNoiseParams(
             eps=0.5,
             delta=1e-10,
-            min_value=2,
-            max_value=3,
+            min_value=min_value,
+            max_value=max_value,
+            min_sum_per_partition=min_sum_per_partition,
+            max_sum_per_partition=max_sum_per_partition,
             max_partitions_contributed=1,
             max_contributions_per_partition=1,
             noise_kind=NoiseKind.LAPLACE)
         l0_sensitivity = params.l0_sensitivity()
-        linf_sensitivity = params.max_contributions_per_partition * max(
-            params.min_value, params.max_value)
+        if bound_per_partition:
+            linf_sensitivity = params.max_contributions_per_partition * max(
+                params.min_sum_per_partition, params.max_sum_per_partition)
+        else:  # bound per contribution
+            linf_sensitivity = params.max_contributions_per_partition * max(
+                params.min_value, params.max_value)
 
         # Laplace Mechanism
         l1_sensitivity = dp_computations.compute_l1_sensitivity(
@@ -305,11 +322,13 @@ class DPComputationsTest(parameterized.TestCase):
                                   l2_sensitivity=l2_sensitivity)
 
     def test_compute_dp_sum_min_max_zero(self):
-        params = dp_computations.MeanVarParams(
+        params = dp_computations.ScalarNoiseParams(
             eps=0.5,
             delta=1e-10,
             min_value=0,
             max_value=0,
+            min_sum_per_partition=None,
+            max_sum_per_partition=None,
             max_partitions_contributed=1,
             max_contributions_per_partition=1,
             noise_kind=NoiseKind.LAPLACE)
@@ -333,11 +352,13 @@ class DPComputationsTest(parameterized.TestCase):
                          expected_budgets)
 
     def test_compute_dp_mean(self):
-        params = dp_computations.MeanVarParams(
+        params = dp_computations.ScalarNoiseParams(
             eps=0.5,
             delta=1e-10,
             min_value=1,
             max_value=20,
+            min_sum_per_partition=None,
+            max_sum_per_partition=None,
             max_partitions_contributed=1,
             max_contributions_per_partition=1,
             noise_kind=NoiseKind.LAPLACE)
@@ -395,11 +416,13 @@ class DPComputationsTest(parameterized.TestCase):
                                delta=0.1)
 
     def test_compute_dp_mean_equal_min_max(self):
-        params = dp_computations.MeanVarParams(
+        params = dp_computations.ScalarNoiseParams(
             eps=0.5,
             delta=1e-10,
             min_value=42.0,
             max_value=42.0,  # = min_value
+            min_sum_per_partition=None,
+            max_sum_per_partition=None,
             max_partitions_contributed=1,
             max_contributions_per_partition=1,
             noise_kind=NoiseKind.LAPLACE)
@@ -410,11 +433,13 @@ class DPComputationsTest(parameterized.TestCase):
         self.assertEqual(mean, 42.0)
 
     def test_compute_dp_variance_equal_min_max(self):
-        params = dp_computations.MeanVarParams(
+        params = dp_computations.ScalarNoiseParams(
             eps=0.5,
             delta=1e-10,
             min_value=42.0,
             max_value=42.0,  # = min_value
+            min_sum_per_partition=None,
+            max_sum_per_partition=None,
             max_partitions_contributed=1,
             max_contributions_per_partition=1,
             noise_kind=NoiseKind.LAPLACE)
@@ -428,11 +453,13 @@ class DPComputationsTest(parameterized.TestCase):
         self.assertEqual(var, 0.0)
 
     def test_compute_dp_var(self):
-        params = dp_computations.MeanVarParams(
+        params = dp_computations.ScalarNoiseParams(
             eps=10,
             delta=1e-10,
             min_value=1,
             max_value=20,
+            min_sum_per_partition=None,
+            max_sum_per_partition=None,
             max_partitions_contributed=1,
             max_contributions_per_partition=1,
             noise_kind=NoiseKind.LAPLACE)
@@ -510,14 +537,16 @@ class DPComputationsTest(parameterized.TestCase):
     def test_compute_dp_count_noise_std_laplace(
             self, eps: float, max_partitions_contributed: int,
             max_contributions_per_partition: int):
-        params = dp_computations.MeanVarParams(
+        params = dp_computations.ScalarNoiseParams(
             eps=eps,
             delta=0,
             max_partitions_contributed=max_partitions_contributed,
             max_contributions_per_partition=max_contributions_per_partition,
             noise_kind=pipeline_dp.NoiseKind.LAPLACE,
             min_value=0,
-            max_value=0)
+            max_value=0,
+            min_sum_per_partition=None,
+            max_sum_per_partition=None)
         expected_std = max_partitions_contributed * max_contributions_per_partition / eps * np.sqrt(
             2)
 
@@ -541,11 +570,13 @@ class DPComputationsTest(parameterized.TestCase):
     def test_compute_dp_count_noise_std_gaussian(
             self, eps: float, delta: float, max_partitions_contributed: int,
             max_contributions_per_partition: int, expected_std: float):
-        params = dp_computations.MeanVarParams(
+        params = dp_computations.ScalarNoiseParams(
             eps=eps,
             delta=delta,
             min_value=0,
             max_value=0,
+            min_sum_per_partition=None,
+            max_sum_per_partition=None,
             max_partitions_contributed=max_partitions_contributed,
             max_contributions_per_partition=max_contributions_per_partition,
             noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)

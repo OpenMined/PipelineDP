@@ -70,6 +70,12 @@ class AggregateParams:
           aggregation.
         min_value: Lower bound on each value.
         max_value: Upper bound on each value.
+        min_sum_per_partition: Lower bound on sum per partition. Used only for
+        SUM metric calculations. It can not be set when min_value/max_value is
+         set.
+        max_sum_per_partition: Upper bound on sum per partition. Used only for
+        SUM metric calculations. It can not be set when min_value/max_value is
+         set.
         custom_combiners: Warning: experimental@ Combiners for computing custom
           metrics.
         vector_norm_kind: The type of norm. Used only for VECTOR_SUM metric
@@ -94,6 +100,8 @@ class AggregateParams:
     high: float = None  # deprecated
     min_value: float = None
     max_value: float = None
+    min_sum_per_partition: float = None
+    max_sum_per_partition: float = None
     public_partitions: Any = None  # deprecated
     custom_combiners: Sequence['CustomCombiner'] = None
     vector_norm_kind: Optional[NormKind] = None
@@ -107,6 +115,14 @@ class AggregateParams:
             return f"custom combiners={[c.metrics_names() for c in self.custom_combiners]}"
         return f"metrics={[m.value for m in self.metrics]}"
 
+    @property
+    def bounds_per_contribution_are_set(self) -> bool:
+        return self.min_value is not None and self.max_value is not None
+
+    @property
+    def bounds_per_partition_are_set(self) -> bool:
+        return self.min_sum_per_partition is not None and self.max_sum_per_partition is not None
+
     def __post_init__(self):
         if self.low is not None:
             raise ValueError(
@@ -114,30 +130,52 @@ class AggregateParams:
         if self.high is not None:
             raise ValueError(
                 "AggregateParams: please use max_value instead of high")
+
+        self._check_both_property_set_or_not("min_value", "max_value")
+        self._check_both_property_set_or_not("min_sum_per_partition",
+                                             "max_sum_per_partition")
+
+        value_bound = self.min_value is not None
+        partition_bound = self.min_sum_per_partition is not None
+
+        if value_bound and partition_bound:
+            raise ValueError(
+                "min_value and min_sum_per_partition can not be both set.")
+
+        if value_bound:
+            self._check_range_correctness("min_value", "max_value")
+
+        if partition_bound:
+            self._check_range_correctness("min_sum_per_partition",
+                                          "max_sum_per_partition")
+
         if self.metrics:
-            needs_min_max_value = Metrics.SUM in self.metrics \
-                                  or Metrics.MEAN in self.metrics \
-                                  or Metrics.VARIANCE in self.metrics
-            if needs_min_max_value and (self.min_value is None or
-                                        self.max_value is None):
-                raise ValueError(
-                    "AggregateParams: min_value and max_value must be set")
-            if needs_min_max_value and (_not_a_proper_number(self.min_value) or
-                                        _not_a_proper_number(self.max_value)):
-                raise ValueError(
-                    "AggregateParams: min_value and max_value must be both "
-                    "finite numbers")
-            if needs_min_max_value and self.max_value < self.min_value:
-                raise ValueError(
-                    "AggregateParams: max_value must be equal to or greater than"
-                    " min_value")
-            if Metrics.VECTOR_SUM in self.metrics and \
-            (Metrics.SUM in self.metrics or \
-            Metrics.MEAN in self.metrics or \
-            Metrics.VARIANCE in self.metrics):
-                raise ValueError(
-                    "AggregateParams: vector sum can not be computed together "
-                    "with scalar metrics, like sum, mean etc")
+            if Metrics.VECTOR_SUM in self.metrics:
+                if Metrics.SUM in self.metrics or Metrics.MEAN in self.metrics or Metrics.VARIANCE in self.metrics:
+                    raise ValueError(
+                        "AggregateParams: vector sum can not be computed together"
+                        " with scalar metrics such as sum, mean etc")
+            elif partition_bound:
+                all_allowed_metrics = set(
+                    [Metrics.SUM, Metrics.PRIVACY_ID_COUNT, Metrics.COUNT])
+                not_allowed_metrics = set(
+                    self.metrics).difference(all_allowed_metrics)
+                if not_allowed_metrics:
+                    raise ValueError(
+                        f"AggregateParams: min_sum_per_partition is not "
+                        f"compatible with metrics {not_allowed_metrics}. Please"
+                        f"use min_value/max_value.")
+            elif not partition_bound and not value_bound:
+                all_allowed_metrics = set(
+                    [Metrics.PRIVACY_ID_COUNT, Metrics.COUNT])
+                not_allowed_metrics = set(
+                    self.metrics).difference(all_allowed_metrics)
+                if not_allowed_metrics:
+                    raise ValueError(
+                        f"AggregateParams: for metrics {not_allowed_metrics} "
+                        f"bounds per partition are required (e.g. min_value,"
+                        f"max_value).")
+
             if self.contribution_bounds_already_enforced and Metrics.PRIVACY_ID_COUNT in self.metrics:
                 raise ValueError(
                     "AggregateParams: Cannot calculate PRIVACY_ID_COUNT when "
@@ -145,7 +183,7 @@ class AggregateParams:
         if self.custom_combiners:
             logging.warning("Warning: custom combiners are used. This is an "
                             "experimental feature. It might not work properly "
-                            "and it might be changed orremoved without any "
+                            "and it might be changed or removed without any "
                             "notifications.")
         if self.metrics and self.custom_combiners:
             # TODO(dvadym): after implementation of custom combiners to verify
@@ -182,6 +220,29 @@ class AggregateParams:
             _check_is_positive_int(self.max_contributions_per_partition,
                                    "max_contributions_per_partition")
 
+    def _check_both_property_set_or_not(self, property1_name: str,
+                                        property2_name: str):
+        value1 = getattr(self, property1_name)
+        value2 = getattr(self, property2_name)
+        if (value1 is None) != (value2 is None):
+            raise ValueError(
+                f"AggregateParams: {property1_name} and {property2_name} should"
+                f" be both set or both None.")
+
+    def _check_range_correctness(self, min_property_name: str,
+                                 max_property_name: str):
+        for property_name in [min_property_name, max_property_name]:
+            value = getattr(self, property_name)
+            if _not_a_proper_number(value):
+                raise ValueError(
+                    f"AggregateParams: {property_name} must be a finite number")
+        min_value = getattr(self, min_property_name)
+        max_value = getattr(self, max_property_name)
+        if min_value > max_value:
+            raise ValueError(
+                f"AggregateParams: {max_property_name} must be equal to or "
+                f"greater than {min_property_name}")
+
     def __str__(self):
         return parameters_to_readable_string(self)
 
@@ -198,7 +259,6 @@ class SelectPartitionsParams:
             of dropped partitions.
         budget_weight: Relative weight of the privacy budget allocated to
             partition selection.
-
     """
     max_partitions_contributed: int
     budget_weight: float = 1
@@ -422,6 +482,8 @@ def parameters_to_readable_string(params,
     _add_if_obj_has_property(params, "max_contributions", 2, result)
     _add_if_obj_has_property(params, "min_value", 2, result)
     _add_if_obj_has_property(params, "max_value", 2, result)
+    _add_if_obj_has_property(params, "min_sum_per_partition", 2, result)
+    _add_if_obj_has_property(params, "max_sum_per_partition", 2, result)
     if hasattr(params, "contribution_bounds_already_enforced"
               ) and params.contribution_bounds_already_enforced:
         result.append("  contribution_bounds_already_enforced=True")

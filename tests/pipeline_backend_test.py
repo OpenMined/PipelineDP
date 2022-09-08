@@ -28,10 +28,6 @@ from pipeline_dp.pipeline_backend import BeamBackend
 import pipeline_dp.combiners as dp_combiners
 
 
-class PipelineBackendTest(unittest.TestCase):
-    pass
-
-
 class BeamBackendTest(parameterized.TestCase):
 
     @classmethod
@@ -42,14 +38,21 @@ class BeamBackendTest(parameterized.TestCase):
             privacy_id_extractor=lambda x: x[0],
             value_extractor=lambda x: x[2])
 
+    def test_to_collection(self):
+        with test_pipeline.TestPipeline() as p:
+            input = [1, 3, 5]
+            col = p | beam.Create([])
+            output = self.backend.to_collection(input, col, "to_collection")
+            self.assertIsInstance(output, beam.PCollection)
+            beam_util.assert_that(output, beam_util.equal_to(input))
+
     def test_filter_by_key_must_not_be_none(self):
         with test_pipeline.TestPipeline() as p:
             data = [(7, 1), (2, 1), (3, 9), (4, 1), (9, 10)]
             col = p | "Create PCollection" >> beam.Create(data)
             key_to_keep = None
             with self.assertRaises(TypeError):
-                result = self.backend.filter_by_key(col, key_to_keep,
-                                                    "filter_by_key")
+                self.backend.filter_by_key(col, key_to_keep, "filter_by_key")
 
     @parameterized.parameters(
         {'in_memory': True},
@@ -99,6 +102,20 @@ class BeamBackendTest(parameterized.TestCase):
 
             beam_util.assert_that(result,
                                   beam_util.equal_to([(6, 2), (7, 2), (8, 1)]))
+
+    def test_local_combine_accumulators_per_key(self):
+        with test_pipeline.TestPipeline() as p:
+            data = p | beam.Create([(1, 2), (2, 1), (1, 4), (3, 8), (2, 3)])
+            col = self.backend.combine_per_key(data, lambda x, y: x + y,
+                                               "Combine")
+            beam_util.assert_that(col,
+                                  beam_util.equal_to([(1, 6), (2, 4), (3, 8)]))
+
+    def test_local_combine_accumulators_per_key(self):
+        with test_pipeline.TestPipeline() as p:
+            data = p | beam.Create([1, 2, 3, 4, 5])
+            col = self.backend.to_list(data, "To list")
+            beam_util.assert_that(col, beam_util.equal_to([[1, 2, 3, 4, 5]]))
 
 
 class BeamBackendStageNameTest(unittest.TestCase):
@@ -448,6 +465,18 @@ class LocalBackendTest(unittest.TestCase):
         col = self.backend.map_values(col, sum_combiner.compute_metrics)
         result = list(col)
         self.assertEqual(result, [(1, 6), (2, 4), (3, 8)])
+
+    def test_local_combine_accumulators_per_key(self):
+        data = [(1, 2), (2, 1), (1, 4), (3, 8), (2, 3)]
+        col = self.backend.combine_per_key(data, lambda x, y: x + y, "Combine")
+        result = list(col)
+        self.assertEqual(result, [(1, 6), (2, 4), (3, 8)])
+
+    def test_local_combine_accumulators_per_key(self):
+        data = [1, 2, 3, 4, 5]
+        col = self.backend.to_list(data, "To list")
+        result = list(col)
+        self.assertEqual(result, [[1, 2, 3, 4, 5]])
 
     def test_laziness(self):
 

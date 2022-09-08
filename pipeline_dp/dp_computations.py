@@ -14,26 +14,45 @@
 """Differential privacy computing of count, sum, mean, variance."""
 
 import numpy as np
+from typing import Optional
 import pipeline_dp
 from dataclasses import dataclass
 from pydp.algorithms import numerical_mechanisms as dp_mechanisms
 
 
 @dataclass
-class MeanVarParams:
+class ScalarNoiseParams:
     """The parameters used for computing the dp sum, count, mean, variance."""
 
     eps: float
     delta: float
-    min_value: float
-    max_value: float
+    min_value: Optional[float]
+    max_value: Optional[float]
+    min_sum_per_partition: Optional[float]
+    max_sum_per_partition: Optional[float]
     max_partitions_contributed: int
-    max_contributions_per_partition: int
+    max_contributions_per_partition: Optional[int]
     noise_kind: pipeline_dp.NoiseKind  # Laplace or Gaussian
+
+    def __post_init__(self):
+        assert (self.min_value is None) == (
+            self.max_value is
+            None), "min_value and max_value should be or both set or both None."
+        assert (self.min_sum_per_partition is None) == (
+            self.max_sum_per_partition is None
+        ), "min_sum_per_partition and max_sum_per_partition should be or both set or both None."
 
     def l0_sensitivity(self):
         """"Returns the L0 sensitivity of the parameters."""
         return self.max_partitions_contributed
+
+    @property
+    def bounds_per_contribution_are_set(self) -> bool:
+        return self.min_value is not None and self.max_value is not None
+
+    @property
+    def bounds_per_partition_are_set(self) -> bool:
+        return self.min_sum_per_partition is not None and self.max_sum_per_partition is not None
 
 
 def compute_squares_interval(min_value: float, max_value: float):
@@ -233,7 +252,7 @@ def equally_split_budget(eps: float, delta: float, no_mechanisms: int):
     return budgets
 
 
-def compute_dp_count(count: int, dp_params: MeanVarParams):
+def compute_dp_count(count: int, dp_params: ScalarNoiseParams):
     """Computes DP count.
 
     Args:
@@ -256,7 +275,7 @@ def compute_dp_count(count: int, dp_params: MeanVarParams):
     )
 
 
-def compute_dp_sum(sum: float, dp_params: MeanVarParams):
+def compute_dp_sum(sum: float, dp_params: ScalarNoiseParams):
     """Computes DP sum.
 
     Args:
@@ -267,8 +286,13 @@ def compute_dp_sum(sum: float, dp_params: MeanVarParams):
         ValueError: The noise kind is invalid.
     """
     l0_sensitivity = dp_params.l0_sensitivity()
-    linf_sensitivity = dp_params.max_contributions_per_partition * max(
-        abs(dp_params.min_value), abs(dp_params.max_value))
+
+    if dp_params.bounds_per_contribution_are_set:
+        max_abs = max(abs(dp_params.min_value), abs(dp_params.max_value))
+        linf_sensitivity = dp_params.max_contributions_per_partition * max_abs
+    else:
+        linf_sensitivity = max(abs(dp_params.min_sum_per_partition),
+                               abs(dp_params.max_sum_per_partition))
 
     if linf_sensitivity == 0:
         return 0
@@ -327,7 +351,7 @@ def _compute_mean_for_normalized_sum(
 
 
 def compute_dp_mean(count: int, normalized_sum: float,
-                    dp_params: MeanVarParams):
+                    dp_params: ScalarNoiseParams):
     """Computes DP mean.
 
     Args:
@@ -374,7 +398,7 @@ def compute_dp_mean(count: int, normalized_sum: float,
 
 
 def compute_dp_var(count: int, normalized_sum: float,
-                   normalized_sum_squares: float, dp_params: MeanVarParams):
+                   normalized_sum_squares: float, dp_params: ScalarNoiseParams):
     """Computes DP variance.
 
     Args:
@@ -435,7 +459,7 @@ def compute_dp_var(count: int, normalized_sum: float,
     return dp_count, dp_mean * dp_count, dp_mean, dp_var
 
 
-def compute_dp_count_noise_std(dp_params: MeanVarParams) -> float:
+def compute_dp_count_noise_std(dp_params: ScalarNoiseParams) -> float:
     """Computes noise standard deviation for DP count."""
     l0_sensitivity = dp_params.l0_sensitivity()
     linf_sensitivity = dp_params.max_contributions_per_partition
