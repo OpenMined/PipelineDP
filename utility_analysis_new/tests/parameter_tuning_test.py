@@ -47,10 +47,8 @@ class ParameterTuning(parameterized.TestCase):
         self.assertSequenceEqual(expected, histogram.bins)
 
     def test_list_to_contribution_histograms(self):
-        histogram1 = parameter_tuning.ContributionHistogram(
-            "CrossPartitionHistogram", None)
-        histogram2 = parameter_tuning.ContributionHistogram(
-            "PerPartitionHistogram", None)
+        histogram1 = parameter_tuning.Histogram("CrossPartitionHistogram", None)
+        histogram2 = parameter_tuning.Histogram("PerPartitionHistogram", None)
         histograms = parameter_tuning._list_to_contribution_histograms(
             [histogram2, histogram1])
         self.assertEqual(histogram1, histograms.cross_partition_histogram)
@@ -146,7 +144,6 @@ class ParameterTuning(parameterized.TestCase):
         histogram = parameter_tuning._compute_per_partition_histogram(
             input, pipeline_dp.LocalBackend())
         histogram = list(histogram)[0]
-        print(histogram)
         self.assertEqual("PerPartitionHistogram", histogram.name)
         self.assertSequenceEqual(expected, histogram.bins)
 
@@ -226,7 +223,6 @@ class ParameterTuning(parameterized.TestCase):
         histograms = parameter_tuning.compute_contribution_histograms(
             input, data_extractors, pipeline_dp.LocalBackend())
         histograms = list(histograms)[0]
-        print(histograms)
 
         self.assertEqual("CrossPartitionHistogram",
                          histograms.cross_partition_histogram.name)

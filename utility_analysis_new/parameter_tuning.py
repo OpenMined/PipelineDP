@@ -32,9 +32,17 @@ class FrequencyBin:
 
 
 @dataclass
-class ContributionHistogram:  # name?
+class Histogram:
+    """Represents a histogram over integers."""
     name: str
     bins: List[FrequencyBin]
+
+
+@dataclass
+class ContributionHistograms:
+    """Histograms of privacy id contributions."""
+    cross_partition_histogram: Histogram
+    per_partition_histogram: Histogram
 
 
 def _to_bin_lower(n: int) -> int:
@@ -54,15 +62,14 @@ def _to_bin_lower(n: int) -> int:
 
 def _compute_frequency_histogram(col, backend: pipeline_backend.PipelineBackend,
                                  name: str):
-    """Computes histogram of elements frequencies in collection.
+    """Computes histogram of element frequencies in collection.
 
     Args:
         col: collection with positive integers.
         backend: PipelineBackend to run operations on the collection.
-        name: todo
+        name: name, which is assigned to the computed histogram.
     Returns:
-        1 element collection, which contains a list of FrequencyBin sorted by
-        'lower' attribute in ascending order.
+        1 element collection, which contains Histogram.
     """
 
     col = backend.count_per_element(col, "Frequency of elements")
@@ -86,20 +93,14 @@ def _compute_frequency_histogram(col, backend: pipeline_backend.PipelineBackend,
 
     def bins_to_histogram(bins):
         bins.sort(key=lambda bin: bin.lower)
-        return ContributionHistogram(name, bins)
+        return Histogram(name, bins)
 
     return backend.map(col, bins_to_histogram, "To histogram")
 
 
-@dataclass
-class ContributionHistograms:
-    cross_partition_histogram: ContributionHistogram
-    per_partition_histogram: ContributionHistogram
-    # todo: add sum_histograms
-
-
-def _list_to_contribution_histograms(histograms: List[ContributionHistogram]):
-    cross_partition_histogram = per_partitionn_histogram = None
+def _list_to_contribution_histograms(
+        histograms: List[Histogram]) -> ContributionHistograms:
+    """Packs histograms from a list to ContributionHistograms."""
     for histogram in histograms:
         if histogram.name == "CrossPartitionHistogram":
             cross_partition_histogram = histogram
@@ -111,6 +112,18 @@ def _list_to_contribution_histograms(histograms: List[ContributionHistogram]):
 
 def _compute_cross_partition_histogram(
         col, backend: pipeline_backend.PipelineBackend):
+    """Computes histogram of cross partition privacy id contributions.
+
+    This histogram contains: number of privacy ids which contributes to 1 partition,
+    to 2 partitions etc.
+
+    Args:
+        col: collection with elements (privacy_id, partition_key).
+        backend: PipelineBackend to run operations on the collection.
+
+    Returns:
+        1 element collection, which contains computed Histogram.
+    """
 
     def count_unique_elements(elements: Iterable):
         unique = set()
@@ -130,6 +143,18 @@ def _compute_cross_partition_histogram(
 
 def _compute_per_partition_histogram(col,
                                      backend: pipeline_backend.PipelineBackend):
+    """Computes histogram of per partition privacy id contributions.
+
+    This histogram contains: number of tuple (privacy id, partition_key) which
+    have 1 row in datasets, 2 rows etc.
+
+    Args:
+        col: collection with elements (privacy_id, partition_key).
+        backend: PipelineBackend to run operations on the collection.
+
+    Returns:
+        1 element collection, which contains Histogram.
+    """
     col = backend.count_per_element(
         col, "Contributions per (privacy_id, partition)")
     # col: ((pid, pk), n)
@@ -143,6 +168,7 @@ def _compute_per_partition_histogram(col,
 def compute_contribution_histograms(
         col, data_extractors: pipeline_dp.DataExtractors,
         backend: pipeline_backend.PipelineBackend) -> ContributionHistograms:
+    """Computes privacy id contribution histograms."""
     # Extract the columns.
     col = backend.map(
         col, lambda row: (data_extractors.privacy_id_extractor(row),

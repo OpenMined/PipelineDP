@@ -58,6 +58,7 @@ class PipelineBackend(abc.ABC):
         return collection_or_iterable
 
     def to_multi_transformable_collection(self, col):
+        """Converts to a collection, for which multiple transformations can be applied."""
         return col
 
     @abc.abstractmethod
