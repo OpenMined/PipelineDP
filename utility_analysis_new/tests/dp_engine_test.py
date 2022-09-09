@@ -111,9 +111,11 @@ class DpEngine(unittest.TestCase):
                                public_partitions=public_partitions)
         budget_accountant.compute_budgets()
 
-        # Simply assert pipeline can run for now.
         col = list(col)
-        # TODO: Verify metrics related to public partitions are correct.
+
+        # Assert public partitions are applied.
+        self.assertEqual(len(col), 3)
+        self.assertTrue(any(v[0] == 'pk101' for v in col))
 
     def test_aggregate_error_metrics(self):
         # Arrange
@@ -151,20 +153,14 @@ class DpEngine(unittest.TestCase):
         col = list(col)
 
         # Assert
-        # Assert a singleton is returned
-        self.assertEqual(len(col), 1)
-        # Assert there are 2 AggregateErrorMetrics, one for private partition
-        # selection and 1 for count.
-        self.assertEqual(len(col[0]), 2)
-        # Assert count metrics are reasonable.
-        self.assertAlmostEqual(col[0][1].abs_error_expected, -28, delta=1e-2)
-        self.assertAlmostEqual(col[0][1].abs_error_variance, 146.47, delta=1e-2)
-        self.assertAlmostEqual(col[0][1].rel_error_expected,
-                               -0.933333,
-                               delta=1e-5)
-        self.assertAlmostEqual(col[0][1].rel_error_variance,
-                               0.16275,
-                               delta=1e-5)
+        self.assertEqual(len(col), 10)
+        # Assert count metrics are correct.
+        (self.assertTrue(v[1].per_partition_error == -10) for v in col)
+        (self.assertAlmostEqual(v[1].expected_cross_partition_error, -18, 1e-5)
+         for v in col)
+        (self.assertAlmostEqual(v[1].std_cross_partition_error, -1.89736, 1e-5)
+         for v in col)
+        (self.assertAlmostEqual(v[1].std_noise, -11.95, 1e-5) for v in col)
 
 
 if __name__ == '__main__':
