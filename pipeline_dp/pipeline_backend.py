@@ -57,6 +57,9 @@ class PipelineBackend(abc.ABC):
         """
         return collection_or_iterable
 
+    def to_multi_transformable_collection(self, col):
+        return col
+
     @abc.abstractmethod
     def map(self, col, fn, stage_name: str):
         pass
@@ -425,6 +428,9 @@ class SparkRDDBackend(PipelineBackend):
 
 class LocalBackend(PipelineBackend):
     """Local Pipeline adapter."""
+
+    def to_multi_transformable_collection(self, col):
+        return list(col)
 
     def map(self, col, fn, stage_name: typing.Optional[str] = None):
         return map(fn, col)
