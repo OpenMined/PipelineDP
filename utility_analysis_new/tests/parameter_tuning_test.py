@@ -86,7 +86,7 @@ class ParameterTuning(parameterized.TestCase):
         dict(
             testcase_name='2 privacy ids, same partitions contributed',
             input=[(0, i) for i in range(15)] +
-                  [(1, i) for i in range(10, 25)],  # (privacy_id, partition)
+            [(1, i) for i in range(10, 25)],  # (privacy_id, partition)
             expected=[
                 FrequencyBin(lower=15, count=2, sum=30, max=15),
             ]),
@@ -128,7 +128,7 @@ class ParameterTuning(parameterized.TestCase):
         dict(
             testcase_name='2 privacy ids, same partitions contributed',
             input=[(0, i) for i in range(15)] +
-                  [(1, i) for i in range(10, 25)],  # (privacy_id, partition)
+            [(1, i) for i in range(10, 25)],  # (privacy_id, partition)
             expected=[
                 FrequencyBin(lower=1, count=30, sum=30, max=1),
             ]),
@@ -196,7 +196,7 @@ class ParameterTuning(parameterized.TestCase):
         dict(
             testcase_name='2 privacy ids, same partitions contributed',
             input=[(0, i) for i in range(15)] +
-                  [(1, i) for i in range(10, 25)],  # (privacy_id, partition)
+            [(1, i) for i in range(10, 25)],  # (privacy_id, partition)
             expected_cross_partition=[
                 FrequencyBin(lower=15, count=2, sum=30, max=15),
             ],
@@ -217,8 +217,8 @@ class ParameterTuning(parameterized.TestCase):
             ]),
     )
     def test_compute_contribution_histograms(self, input,
-        expected_cross_partition,
-        expected_per_partition):
+                                             expected_cross_partition,
+                                             expected_per_partition):
         data_extractors = pipeline_dp.DataExtractors(
             privacy_id_extractor=lambda x: x[0],
             partition_extractor=lambda x: x[1],

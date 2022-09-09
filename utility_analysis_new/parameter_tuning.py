@@ -53,7 +53,7 @@ def _to_bin_lower(n: int) -> int:
 
 
 def _compute_frequency_histogram(col, backend: pipeline_backend.PipelineBackend,
-    name: str):
+                                 name: str):
     """Computes histogram of elements frequencies in collection.
 
     Args:
@@ -110,7 +110,7 @@ def _list_to_contribution_histograms(histograms: List[ContributionHistogram]):
 
 
 def _compute_cross_partition_histogram(
-    col, backend: pipeline_backend.PipelineBackend):
+        col, backend: pipeline_backend.PipelineBackend):
 
     def count_unique_elements(elements: Iterable):
         unique = set()
@@ -129,7 +129,7 @@ def _compute_cross_partition_histogram(
 
 
 def _compute_per_partition_histogram(col,
-    backend: pipeline_backend.PipelineBackend):
+                                     backend: pipeline_backend.PipelineBackend):
     col = backend.count_per_element(
         col, "Contributions per (privacy_id, partition)")
     # col: ((pid, pk), n)
@@ -141,8 +141,8 @@ def _compute_per_partition_histogram(col,
 
 
 def compute_contribution_histograms(
-    col, data_extractors: pipeline_dp.DataExtractors,
-    backend: pipeline_backend.PipelineBackend) -> ContributionHistograms:
+        col, data_extractors: pipeline_dp.DataExtractors,
+        backend: pipeline_backend.PipelineBackend) -> ContributionHistograms:
     # Extract the columns.
     col = backend.map(
         col, lambda row: (data_extractors.privacy_id_extractor(row),
