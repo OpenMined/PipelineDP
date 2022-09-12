@@ -84,6 +84,9 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
     def _select_private_partitions_internal(self, col,
                                             max_partitions_contributed: int,
                                             max_rows_per_privacy_id: int):
+        # Utility analysis of private partition selection is performed in a
+        # corresponding combiners (unlike DP computations). So this function is
+        # no-op.
         return col
 
 
@@ -104,5 +107,5 @@ def _check_utility_analysis_params(params: pipeline_dp.AggregateParams,
             f"unsupported metric in metrics={not_supported_metrics}")
     if params.contribution_bounds_already_enforced:
         raise NotImplementedError(
-            "utility analysis when contribution bounds are already enforced is not supported"
-        )
+            "utility analysis when contribution bounds are already enforced is "
+            "not supported")

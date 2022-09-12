@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """ContributionBounder for utility analysis."""
-import collections
-
 from pipeline_dp import contribution_bounders
 
 
@@ -21,13 +19,13 @@ class SamplingCrossAndPerPartitionContributionBounder(
         contribution_bounders.ContributionBounder):
     """'Bounds' the contribution by privacy_id per and cross partitions.
 
-  Because this is for Utility Analysis, it doesn't actually ensure that
-  contribution bounds are enforced. Instead, it keeps track of probabilities
-  different data points are kept under per-partition and cross-partition
-  contribution bounding.
-
-  Only works for count at the moment.
-  """
+    Because this is for Utility Analysis, it doesn't actually ensure that
+    contribution bounds are enforced. Instead, it keeps track of probabilities
+    different data points are kept under per-partition and cross-partition
+    contribution bounding.
+    
+    Only works for count at the moment.
+    """
 
     def bound_contributions(self, col, params, backend, report_generator,
                             aggregate_fn):
