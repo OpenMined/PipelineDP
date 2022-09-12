@@ -1,6 +1,10 @@
 import pipeline_dp
 from dataclasses import dataclass
 import operator
+from typing import Callable, Generic, List, Optional, TypeVar, Union
+from utility_analysis_new import combiners
+from utility_analysis_new import utility_analysis
+from enum import Enum
 
 
 @dataclass
@@ -80,3 +84,79 @@ def _compute_frequency_histogram(
         return bins
 
     return backend.map(col, sort_histogram, "Sort histogram")
+
+@dataclass
+class Histogram:
+    """Represents a histogram over integers."""
+    name: str
+    bins: List[FrequencyBin]
+
+
+@dataclass
+class ContributionHistograms:
+    """Histograms of privacy id contributions."""
+    cross_partition_histogram: Histogram
+    per_partition_histogram: Histogram
+
+@dataclass
+class UtilityAnalysisRun:
+    params: utility_analysis.UtilityAnalysisOptions
+    result: combiners.AggregateErrorMetrics
+
+
+class MinimizingFunction(Enum):
+    ABSOLUTE_ERROR = 'absolute_error'
+    RELATIVE_ERROR = 'relative_error'
+
+
+T = TypeVar('T')
+
+
+@dataclass
+class Bounds(Generic[T]):
+    lower: Optional[T] = None
+    upper: Optional[T] = None
+
+    def __post_init__(self):
+        if self.lower is not None and self.upper is not None:
+            assert self.lower <= self.upper
+
+
+@dataclass
+class ParametersToTune:  # only count for now, None means any value
+    noise_kind: Optional[pipeline_dp.NoiseKind] = None
+    max_partitions_contributed: Optional[Union[int, Bounds[int]]] = None
+    max_contributions_per_partition: Optional[Union[int, Bounds[int]]] = None
+
+    # budget_weigh?
+    def __post_init__(self):
+        if isinstance(self.max_partitions_contributed, int):
+            assert self.max_partitions_contributed > 0
+        elif isinstance(self.max_partitions_contributed, Bounds):
+            assert self.max_partitions_contributed.lower > 0
+        #todo extract verification to another
+
+
+@dataclass
+class ParameterTuningOptions:  # maybe to split in Spec and Options
+    aggregation: pipeline_dp.Metrics
+    description: str
+    function_to_minimize: Union[MinimizingFunction, Callable]
+    parameters_to_tune: ParametersToTune
+    is_public_partitions: bool
+
+
+@dataclass
+class ParameterTuningResult:
+    recommended_params: List[pipeline_dp.AggregateParams]
+    contribution_histograms: ContributionHistograms
+    options: ParameterTuningOptions
+    utility_analysis_runs: List[UtilityAnalysisRun]
+
+
+def perform_parameter_tuning(col,
+    contribution_histograms: ContributionHistograms,
+    options: ParameterTuningOptions,
+    data_extractors: pipeline_dp.DataExtractors,
+    public_partitions=None) -> ParameterTuningResult:
+    pass
