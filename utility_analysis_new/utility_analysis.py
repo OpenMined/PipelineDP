@@ -56,37 +56,42 @@ def perform_utility_analysis(col,
                               data_extractors=data_extractors,
                               public_partitions=public_partitions)
     budget_accountant.compute_budgets()
+    # result : (partition_key, per_partition_metrics)
 
-    def create_aggregate_error_compound_combiner(
-            aggregate_params: pipeline_dp.AggregateParams,
-            error_quantiles: List[float],
-            public_partitions: bool) -> combiners.CompoundCombiner:
-        internal_combiners = []
-        if not public_partitions:
-            internal_combiners.append(
-                utility_analysis_combiners.
-                PrivatePartitionSelectionAggregateErrorMetricsCombiner(
-                    None, error_quantiles))
-        if pipeline_dp.Metrics.COUNT in aggregate_params.metrics:
-            internal_combiners.append(
-                utility_analysis_combiners.CountAggregateErrorMetricsCombiner(
-                    None, error_quantiles))
-        return utility_analysis_combiners.AggregateErrorMetricsCompoundCombiner(
-            internal_combiners, return_named_tuple=False)
-
-    aggregate_error_combiners = create_aggregate_error_compound_combiner(
-        options.aggregate_params, [0.1, 0.5, 0.9, 0.99],
-        public_partitions != None)
+    aggregate_error_combiners = _create_aggregate_error_compound_combiner(
+        options.aggregate_params, [0.1, 0.5, 0.9, 0.99], public_partitions)
     # TODO: Implement combine_accumulators (w/o per_key)
     keyed_by_same_key = backend.map(result, lambda v: (None, v[1]),
                                     "Rekey partitions by the same key")
+    # keyed_by_same_key : (None, per_partition_metrics)
     accumulators = backend.map_values(
         keyed_by_same_key, aggregate_error_combiners.create_accumulator,
         "Create accumulators for aggregating error metrics")
+    # accumulators : (None, (accumulator))
     aggregates = backend.combine_accumulators_per_key(
         accumulators, aggregate_error_combiners,
         "Combine aggregate metrics from per-partition error metrics")
+    # accumulators : (None, (accumulator))
     aggregates = backend.map_values(aggregates,
                                     aggregate_error_combiners.compute_metrics,
                                     "Compute aggregate metrics")
+    # accumulators : (None, aggregate_metrics)
     return backend.values(aggregates, "Drop key")
+
+
+def _create_aggregate_error_compound_combiner(
+        aggregate_params: pipeline_dp.AggregateParams,
+        error_quantiles: List[float],
+        public_partitions: bool) -> combiners.CompoundCombiner:
+    internal_combiners = []
+    if not public_partitions:
+        internal_combiners.append(
+            utility_analysis_combiners.
+            PrivatePartitionSelectionAggregateErrorMetricsCombiner(
+                None, error_quantiles))
+    if pipeline_dp.Metrics.COUNT in aggregate_params.metrics:
+        internal_combiners.append(
+            utility_analysis_combiners.CountAggregateErrorMetricsCombiner(
+                None, error_quantiles))
+    return utility_analysis_combiners.AggregateErrorMetricsCompoundCombiner(
+        internal_combiners, return_named_tuple=False)

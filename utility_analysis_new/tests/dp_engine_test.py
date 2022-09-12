@@ -12,7 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """UtilityAnalysisEngine Test"""
-import unittest
+from absl.testing import absltest
+from absl.testing import parameterized
 import copy
 
 import pipeline_dp
@@ -20,7 +21,7 @@ from pipeline_dp import budget_accounting
 from utility_analysis_new import dp_engine
 
 
-class DpEngine(unittest.TestCase):
+class DpEngine(parameterized.TestCase):
 
     def _get_default_extractors(self) -> pipeline_dp.DataExtractors:
         return pipeline_dp.DataExtractors(
@@ -114,7 +115,7 @@ class DpEngine(unittest.TestCase):
         col = list(col)
 
         # Assert public partitions are applied.
-        self.assertEqual(len(col), 3)
+        self.assertLen(col, 3)
         self.assertTrue(any(v[0] == 'pk101' for v in col))
 
     def test_aggregate_error_metrics(self):
@@ -130,12 +131,7 @@ class DpEngine(unittest.TestCase):
 
         # Input collection has 10 privacy ids where each privacy id
         # contributes to the same 10 partitions, three times in each partition.
-        col = []
-        for i in range(10):
-            for j in range(10):
-                col.append((i, j))
-                col.append((i, j))
-                col.append((i, j))
+        col = [(i, j) for i in range(10) for j in range(10)] * 3
         data_extractor = pipeline_dp.DataExtractors(
             privacy_id_extractor=lambda x: x[0],
             partition_extractor=lambda x: f"pk{x[1]}",
@@ -153,15 +149,24 @@ class DpEngine(unittest.TestCase):
         col = list(col)
 
         # Assert
-        self.assertEqual(len(col), 10)
+        self.assertLen(col, 10)
         # Assert count metrics are correct.
-        (self.assertTrue(v[1].per_partition_error == -10) for v in col)
-        (self.assertAlmostEqual(v[1].expected_cross_partition_error, -18, 1e-5)
-         for v in col)
-        (self.assertAlmostEqual(v[1].std_cross_partition_error, -1.89736, 1e-5)
-         for v in col)
-        (self.assertAlmostEqual(v[1].std_noise, -11.95, 1e-5) for v in col)
+        [self.assertTrue(v[1][1].per_partition_error == -10) for v in col]
+        [
+            self.assertAlmostEqual(v[1][1].expected_cross_partition_error,
+                                   -18.0,
+                                   delta=1e-5) for v in col
+        ]
+        [
+            self.assertAlmostEqual(v[1][1].std_cross_partition_error,
+                                   1.89736,
+                                   delta=1e-5) for v in col
+        ]
+        [
+            self.assertAlmostEqual(v[1][1].std_noise, 11.95312, delta=1e-5)
+            for v in col
+        ]
 
 
 if __name__ == '__main__':
-    unittest.main()
+    absltest.main()

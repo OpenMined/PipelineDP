@@ -11,14 +11,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import collections
 import unittest
 from unittest.mock import patch
 
 import apache_beam as beam
 import apache_beam.testing.test_pipeline as test_pipeline
 import apache_beam.testing.util as beam_util
-import numpy as np
 import pydp.algorithms.partition_selection as partition_selection
 from absl.testing import absltest
 from absl.testing import parameterized

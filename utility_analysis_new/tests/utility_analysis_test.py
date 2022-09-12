@@ -12,13 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Utility Analysis Public API Test"""
-import unittest
+from absl.testing import absltest
+from absl.testing import parameterized
 
 import pipeline_dp
 from utility_analysis_new import utility_analysis
 
 
-class UtilityAnalysis(unittest.TestCase):
+class UtilityAnalysis(parameterized.TestCase):
 
     def _get_default_extractors(self) -> pipeline_dp.DataExtractors:
         return pipeline_dp.DataExtractors(
@@ -27,7 +28,7 @@ class UtilityAnalysis(unittest.TestCase):
             value_extractor=lambda x: x,
         )
 
-    def test_utility_analysis(self):
+    def test_wo_public_partitions(self):
         # Arrange
         aggregate_params = pipeline_dp.AggregateParams(
             noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
@@ -37,12 +38,7 @@ class UtilityAnalysis(unittest.TestCase):
 
         # Input collection has 10 privacy ids where each privacy id
         # contributes to the same 10 partitions, three times in each partition.
-        col = []
-        for i in range(10):
-            for j in range(10):
-                col.append((i, j))
-                col.append((i, j))
-                col.append((i, j))
+        col = [(i, j) for i in range(10) for j in range(10)] * 3
         data_extractors = pipeline_dp.DataExtractors(
             privacy_id_extractor=lambda x: x[0],
             partition_extractor=lambda x: f"pk{x[1]}",
@@ -59,7 +55,7 @@ class UtilityAnalysis(unittest.TestCase):
 
         # Assert
         # Assert a singleton is returned
-        self.assertEqual(len(col), 1)
+        self.assertLen(col, 1)
         # Assert there are 2 AggregateErrorMetrics, one for private partition
         # selection and 1 for count.
         self.assertEqual(len(col[0]), 2)
@@ -73,7 +69,7 @@ class UtilityAnalysis(unittest.TestCase):
                                0.16275,
                                delta=1e-5)
 
-    def test_utility_analysis_w_public_partitions(self):
+    def test_w_public_partitions(self):
         # Arrange
         aggregator_params = pipeline_dp.AggregateParams(
             noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
@@ -102,13 +98,12 @@ class UtilityAnalysis(unittest.TestCase):
         col = list(col)
 
         # Simply assert pipeline can run for now.
-        col = list(col)
         # Assert
         # Assert a singleton is returned
-        self.assertEqual(len(col), 1)
+        self.assertLen(col, 1)
         # Assert there is only a single AggregateErrorMetrics & no metrics for
         # partition selection are returned.
-        self.assertEqual(len(col[0]), 1)
+        self.assertLen(col[0], 1)
         # Assert count metrics are reasonable.
         # Relative errors are infinity due to the empty partition.
         self.assertAlmostEqual(col[0][0].abs_error_expected, 0, delta=1e-2)
@@ -118,4 +113,4 @@ class UtilityAnalysis(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    unittest.main()
+    absltest.main()
