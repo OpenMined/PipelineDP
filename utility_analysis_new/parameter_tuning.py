@@ -174,13 +174,13 @@ class TuneOptions:
 
     Attributes:
         epsilon, delta: differential private budget for aggregations for which
-        tuning is performed.
+          tuning is performed.
         aggregate_params: parameters of aggregation.
         function_to_minimize: which function of the error to minimize. In case
-        if this argument is callable, it should take 1 argument of type
-        AggregateErrorMetrics and return float.
+          if this argument is a callable, it should take 1 argument of type
+          AggregateErrorMetrics and return float.
         parameters_to_tune: spefies which parameters are tunable and what
-        restrictions on their values.
+          restrictions on their values.
     """
     epsilon: float
     delta: float
@@ -195,12 +195,12 @@ class TuneResult:
 
     Attributes:
         recommended_params: recommended parameters to use, according to
-        minimizing function. Note, that those parameters might be not optimal,
-        since finding optimal parameters not always feasible.
+          minimizing function. Note, that those parameters might be not optimal,
+          since finding the optimal parameters not always feasible.
         options: input options of tuning (for convenience).
         contribution_histograms: histograms of privacy id contributions.
         utility_analysis_runs: the results of all utility analysis runs that
-        were performed during tuning process.
+          were performed during tuning process.
     """
     recommended_params: pipeline_dp.AggregateParams
     options: TuneOptions
@@ -208,9 +208,24 @@ class TuneResult:
     utility_analysis_runs: List[UtilityAnalysisRun]
 
 
-def perform_parameter_tuning(col,
-                             contribution_histograms: ContributionHistograms,
-                             options: TuneOptions,
-                             data_extractors: pipeline_dp.DataExtractors,
-                             public_partitions=None) -> TuneResult:
-    pass
+def tune_parameters(col,
+                    contribution_histograms: ContributionHistograms,
+                    options: TuneOptions,
+                    data_extractors: pipeline_dp.DataExtractors,
+                    public_partitions=None) -> TuneResult:
+    """Tunes parameters.
+
+    Args:
+        col: collection where all elements are of the same type.
+          contribution_histograms:
+        options:
+        data_extractors: functions that extract needed pieces of information
+          from elements of 'col'.
+        public_partitions: A collection of partition keys that will be present
+          in the result. If not provided, the tuning for private partition
+          selection will be performed.
+
+    Returns:
+        Tune result.
+    """
+    raise NotImplementedError("tune_parameters is not yet implemented.")
