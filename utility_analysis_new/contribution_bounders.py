@@ -23,7 +23,7 @@ class SamplingCrossAndPerPartitionContributionBounder(
     contribution bounds are enforced. Instead, it keeps track of probabilities
     different data points are kept under per-partition and cross-partition
     contribution bounding.
-    
+
     Only works for count at the moment.
     """
 
