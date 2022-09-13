@@ -35,8 +35,7 @@ except:
 
 
 class PipelineBackend(abc.ABC):
-    """Interface implemented by the pipeline backends compatible with PipelineDP
-    """
+    """Interface implemented by the pipeline backends compatible with PipelineDP."""
 
     def to_collection(self, collection_or_iterable, col, stage_name: str):
         """Converts to collection native to Pipeline Framework.
@@ -106,7 +105,7 @@ class PipelineBackend(abc.ABC):
 
     @abc.abstractmethod
     def sample_fixed_per_key(self, col, n: int, stage_name: str):
-        """Get random samples without replacement of values for each key.
+        """Returns random samples without replacement of values for each key.
 
         Args:
           col: input collection of elements (key, value).
@@ -154,10 +153,7 @@ class PipelineBackend(abc.ABC):
 
     @abc.abstractmethod
     def flatten(self, col1, col2, stage_name: str):
-        """
-        Returns:
-          A collection that contains all values from col1 and col2.
-        """
+        """Returns a collection that contains all values from col1 and col2."""
 
     @abc.abstractmethod
     def to_list(self, col, stage_name: str):
@@ -179,7 +175,7 @@ class PipelineBackend(abc.ABC):
 
 
 class UniqueLabelsGenerator:
-    """Generate unique labels for each pipeline aggregation."""
+    """Generates unique labels for each pipeline aggregation."""
 
     def __init__(self, suffix):
         self._labels = set()
@@ -228,7 +224,7 @@ class BeamBackend(PipelineBackend):
                                                                    (k, fn(v)))
 
     def group_by_key(self, col, stage_name: str):
-        """Group the values for each key in the PCollection into a single sequence.
+        """Groups the values for each key in the PCollection into a single sequence.
 
         Args:
           col: input collection with elements (key, value)
@@ -361,7 +357,7 @@ class SparkRDDBackend(PipelineBackend):
         return rdd.mapValues(fn)
 
     def group_by_key(self, rdd, stage_name: str = None):
-        """Group the values for each key in the RDD into a single sequence.
+        """Groups the values for each key in the RDD into a single sequence.
 
         Args:
           rdd: input RDD
