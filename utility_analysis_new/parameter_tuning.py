@@ -125,19 +125,18 @@ def _compute_cross_partition_histogram(
         1 element collection, which contains computed Histogram.
     """
 
-    def count_unique_elements(elements: Iterable):
-        unique = set()
-        for partition in elements:
-            unique.add(partition)
-        return len(unique)
+    col = backend.distinct(col, "Distinct (privacy_id, partition_key)")
+    # col: (pid, pk)
 
-    col = backend.group_by_key(col, "Group by privacy_id")
-    # col: (pid, [pk])
+    col = backend.keys(col, "Drop partition id")
+    # col: (pid)
+
+    col = backend.count_per_element(col, "Compute partitions per privacy id")
+    # col: (pid, num_pk)
+
     col = backend.values(col, "Drop privacy id")
-    # col: ([pk])
-    col = backend.map(col, count_unique_elements,
-                      "Count partition keys per privacy_id")
     # col: (int)
+
     return _compute_frequency_histogram(col, backend, "CrossPartitionHistogram")
 
 
@@ -188,5 +187,5 @@ def compute_contribution_histograms(
     histograms = backend.to_list(histograms, "Histograms to List")
     # 1 element collection: [ContributionHistogram]
     return backend.map(histograms, _list_to_contribution_histograms,
-                             "To ContributionHistograms")
+                       "To ContributionHistograms")
     # 1 element (ContributionHistograms)
