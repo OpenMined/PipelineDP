@@ -5,6 +5,7 @@ from typing import Callable, Generic, List, Optional, TypeVar, Union
 from utility_analysis_new import combiners
 from utility_analysis_new import utility_analysis
 from enum import Enum
+import numbers
 
 
 @dataclass
@@ -97,7 +98,7 @@ class Histogram:
 class ContributionHistograms:
     """Histograms of privacy id contributions."""
     cross_partition_histogram: Histogram
-    per_partition_histogram: Histogram
+    per_partition_histogram: Optional[Histogram] = None
 
 
 @dataclass
@@ -116,11 +117,21 @@ T = TypeVar('T')
 
 @dataclass
 class Bounds(Generic[T]):
-    """Defines restrictions for numbers (int or floats)."""
+    """Defines optional lower and upper bounds (int or float)."""
     lower: Optional[T] = None
     upper: Optional[T] = None
 
     def __post_init__(self):
+
+        def check_is_number(value, name: str):
+            if name is None:
+                return
+            if not isinstance(value, numbers.Number):
+                raise ValueError(f"{name} must be number, but {name}={value}")
+
+        check_is_number(self.lower, "lower")
+        check_is_number(self.upper, "upper")
+
         if self.lower is not None and self.upper is not None:
             assert self.lower <= self.upper
 
@@ -173,14 +184,14 @@ class TuneOptions:
     from aggregate_params.
 
     Attributes:
-        epsilon, delta: differential private budget for aggregations for which
+        epsilon, delta: differential privacy budget for aggregations for which
           tuning is performed.
         aggregate_params: parameters of aggregation.
         function_to_minimize: which function of the error to minimize. In case
           if this argument is a callable, it should take 1 argument of type
           AggregateErrorMetrics and return float.
-        parameters_to_tune: spefies which parameters are tunable and what
-          restrictions on their values.
+        parameters_to_tune: specifies which parameters are tunable and with
+          optional restrictions on their values.
     """
     epsilon: float
     delta: float
@@ -195,12 +206,13 @@ class TuneResult:
 
     Attributes:
         recommended_params: recommended parameters to use, according to
-          minimizing function. Note, that those parameters might be not optimal,
-          since finding the optimal parameters not always feasible.
-        options: input options of tuning (for convenience).
+          minimizing function. Note, that those parameters might not necessarily
+          be optimal, since finding the optimal parameters is not always
+          feasible.
+        options: input options for tuning.
         contribution_histograms: histograms of privacy id contributions.
         utility_analysis_runs: the results of all utility analysis runs that
-          were performed during tuning process.
+          were performed during the tuning process.
     """
     recommended_params: pipeline_dp.AggregateParams
     options: TuneOptions
@@ -218,14 +230,11 @@ def tune_parameters(col,
     Args:
         col: collection where all elements are of the same type.
           contribution_histograms:
-        options:
+        options: options for tuning.
         data_extractors: functions that extract needed pieces of information
           from elements of 'col'.
         public_partitions: A collection of partition keys that will be present
-          in the result. If not provided, the tuning for private partition
-          selection will be performed.
-
-    Returns:
-        Tune result.
+          in the result. If not provided, tuning will be performed assuming
+          private partition selection is used.
     """
     raise NotImplementedError("tune_parameters is not yet implemented.")
