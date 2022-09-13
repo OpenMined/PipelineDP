@@ -94,7 +94,7 @@ class ParameterTuning(parameterized.TestCase):
             input, pipeline_dp.LocalBackend())
         histogram = list(histogram)[0]
         self.assertEqual("CrossPartitionHistogram", histogram.name)
-        self.assertSequenceEqual(expected, histogram.bins)
+        self.assertListEqual(expected, histogram.bins)
 
     @parameterized.named_parameters(
         dict(testcase_name='empty', input=[], expected=[]),

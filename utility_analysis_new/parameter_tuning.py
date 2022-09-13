@@ -67,9 +67,9 @@ def _compute_frequency_histogram(col, backend: pipeline_backend.PipelineBackend,
     Args:
         col: collection with positive integers.
         backend: PipelineBackend to run operations on the collection.
-        name: name, which is assigned to the computed histogram.
+        name: name which is assigned to the computed histogram.
     Returns:
-        1 element collection, which contains Histogram.
+        1 element collection which contains Histogram.
     """
 
     col = backend.count_per_element(col, "Frequency of elements")
@@ -86,7 +86,7 @@ def _compute_frequency_histogram(col, backend: pipeline_backend.PipelineBackend,
     col = backend.combine_per_key(col, operator.add, "Combine FrequencyBins")
     # (lower_bin_value, FrequencyBin)
     col = backend.values(col, "To FrequencyBin")
-    # (FrequencyBin,)
+    # (FrequencyBin)
     col = backend.to_list(col, "To 1 element collection")
 
     # 1 element collection: [FrequencyBin]
@@ -187,7 +187,6 @@ def compute_contribution_histograms(
     # 2 elements (ContributionHistogram)
     histograms = backend.to_list(histograms, "Histograms to List")
     # 1 element collection: [ContributionHistogram]
-    histograms = backend.map(histograms, _list_to_contribution_histograms,
+    return backend.map(histograms, _list_to_contribution_histograms,
                              "To ContributionHistograms")
     # 1 element (ContributionHistograms)
-    return histograms
