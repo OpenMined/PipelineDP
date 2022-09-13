@@ -12,11 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """DPEngine for utility analysis."""
-from typing import List
 import pipeline_dp
 from pipeline_dp import budget_accounting
 from pipeline_dp import combiners
 from pipeline_dp import contribution_bounders
+from pipeline_dp import pipeline_backend
 import utility_analysis_new.contribution_bounders as utility_contribution_bounders
 import utility_analysis_new.combiners as utility_analysis_combiners
 
@@ -25,7 +25,7 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
     """Performs utility analysis for DP aggregations."""
 
     def __init__(self, budget_accountant: budget_accounting.BudgetAccountant,
-                 backend: pipeline_dp.pipeline_backend.PipelineBackend):
+                 backend: pipeline_backend.PipelineBackend):
         super().__init__(budget_accountant, backend)
         self._is_public_partitions = None
 
@@ -38,22 +38,8 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
         self._is_public_partitions = public_partitions is not None
         result = super().aggregate(col, params, data_extractors,
                                    public_partitions)
-        aggregate_error_combiners = self._create_aggregate_error_compound_combiner(
-            params, [0.1, 0.5, 0.9, 0.99])
         self._is_public_partitions = None
-        # TODO: Implement combine_accumulators (w/o per_key)
-        keyed_by_same_key = self._backend.map(
-            result, lambda v: (None, v[1]), "Rekey partitions by the same key")
-        accumulators = self._backend.map_values(
-            keyed_by_same_key, aggregate_error_combiners.create_accumulator,
-            "Create accumulators for aggregating error metrics")
-        aggregates = self._backend.combine_accumulators_per_key(
-            accumulators, aggregate_error_combiners,
-            "Combine aggregate metrics from per-partition error metrics")
-        aggregates = self._backend.map_values(
-            aggregates, aggregate_error_combiners.compute_metrics,
-            "Compute aggregate metrics")
-        return self._backend.values(aggregates, "Drop key")
+        return result
 
     def _create_contribution_bounder(
         self, params: pipeline_dp.AggregateParams
@@ -95,25 +81,12 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
         return combiners.CompoundCombiner(internal_combiners,
                                           return_named_tuple=False)
 
-    def _create_aggregate_error_compound_combiner(
-            self, aggregate_params: pipeline_dp.AggregateParams,
-            error_quantiles: List[float]) -> combiners.CompoundCombiner:
-        internal_combiners = []
-        if not self._is_public_partitions:
-            internal_combiners.append(
-                utility_analysis_combiners.
-                PrivatePartitionSelectionAggregateErrorMetricsCombiner(
-                    None, error_quantiles))
-        if pipeline_dp.Metrics.COUNT in aggregate_params.metrics:
-            internal_combiners.append(
-                utility_analysis_combiners.CountAggregateErrorMetricsCombiner(
-                    None, error_quantiles))
-        return utility_analysis_combiners.AggregateErrorMetricsCompoundCombiner(
-            internal_combiners, return_named_tuple=False)
-
     def _select_private_partitions_internal(self, col,
                                             max_partitions_contributed: int,
                                             max_rows_per_privacy_id: int):
+        # Utility analysis of private partition selection is performed in a
+        # corresponding combiners (unlike actual DP computations). So this
+        # function is no-op.
         return col
 
 
@@ -134,5 +107,5 @@ def _check_utility_analysis_params(params: pipeline_dp.AggregateParams,
             f"unsupported metric in metrics={not_supported_metrics}")
     if params.contribution_bounds_already_enforced:
         raise NotImplementedError(
-            "utility analysis when contribution bounds are already enforced is not supported"
-        )
+            "utility analysis when contribution bounds are already enforced is "
+            "not supported")
