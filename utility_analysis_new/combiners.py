@@ -17,7 +17,6 @@ from dataclasses import dataclass
 from typing import List, Optional, Sequence, Sized, Tuple
 import numpy as np
 import math
-
 import scipy
 
 import pipeline_dp
@@ -125,8 +124,7 @@ class PartitionSelectionAccumulator:
             eps, delta, max_partitions_contributed)
         probability = 0
         for i, prob in enumerate(pmf):
-            # TODO: Replace 0.5 with ps_strategy.probability_of_keep(i)
-            probability += prob * 0.5
+            probability += prob * ps_strategy.probability_of_keep(i)
         return probability
 
 
@@ -180,9 +178,12 @@ class CountUtilityAnalysisMetrics:
 
     Args:
         count: actual count of contributions per partition.
-        per_partition_error: the amount of error due to per-partition contribution bounding.
-        expected_cross_partition_error: the expected amount of error due to cross-partition contribution bounding.
-        std_cross_partition_error: the standard deviation of the error due to cross-partition contribution bounding.
+        per_partition_error: the amount of error due to per-partition
+        contribution bounding.
+        expected_cross_partition_error: the expected amount of error due to
+        cross-partition contribution bounding.
+        std_cross_partition_error: the standard deviation of the error due to
+        cross-partition contribution bounding.
         std_noise: the noise standard deviation.
         noise_kind: the type of noise used.
     """

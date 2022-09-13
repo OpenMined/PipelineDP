@@ -158,7 +158,6 @@ class PartitionSelectionTest(parameterized.TestCase):
         self.assertEqual(100, acc.moments.variance)
         self.assertEqual(2, acc.moments.third_central_moment)
 
-    @unittest.skip("Enable when the new version of PyDP is released.")
     @parameterized.named_parameters(
         dict(testcase_name='Large eps delta',
              eps=100,
@@ -185,7 +184,6 @@ class PartitionSelectionTest(parameterized.TestCase):
                                prob_to_keep,
                                delta=1e-10)
 
-    @unittest.skip("Enable when the new version of PyDP is released.")
     @patch(
         'utility_analysis_new.combiners.PartitionSelectionAccumulator.compute_probability_to_keep'
     )
