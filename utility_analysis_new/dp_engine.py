@@ -85,8 +85,8 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
                                             max_partitions_contributed: int,
                                             max_rows_per_privacy_id: int):
         # Utility analysis of private partition selection is performed in a
-        # corresponding combiners (unlike DP computations). So this function is
-        # no-op.
+        # corresponding combiners (unlike actual DP computations). So this
+        # function is no-op.
         return col
 
 
