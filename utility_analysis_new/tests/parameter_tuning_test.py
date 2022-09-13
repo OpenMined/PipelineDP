@@ -41,10 +41,12 @@ class ParameterTuning(parameterized.TestCase):
         backend = pipeline_dp.LocalBackend()
         histogram = parameter_tuning._compute_frequency_histogram(
             input, backend, "histogram_name")
-        histogram = list(histogram)[0]  # the output is 1 element collection
+        histogram = list(histogram)
+        self.assertLen(1, histogram[0])
+        histogram = histogram[0]
 
         self.assertEqual("histogram_name", histogram.name)
-        self.assertSequenceEqual(expected, histogram.bins)
+        self.assertListEqual(expected, histogram.bins)
 
     def test_list_to_contribution_histograms(self):
         histogram1 = parameter_tuning.Histogram("CrossPartitionHistogram", None)
@@ -145,7 +147,7 @@ class ParameterTuning(parameterized.TestCase):
             input, pipeline_dp.LocalBackend())
         histogram = list(histogram)[0]
         self.assertEqual("PerPartitionHistogram", histogram.name)
-        self.assertSequenceEqual(expected, histogram.bins)
+        self.assertListEqual(expected, histogram.bins)
 
     @parameterized.named_parameters(
         dict(testcase_name='empty',
@@ -226,11 +228,11 @@ class ParameterTuning(parameterized.TestCase):
 
         self.assertEqual("CrossPartitionHistogram",
                          histograms.cross_partition_histogram.name)
-        self.assertSequenceEqual(expected_cross_partition,
+        self.assertListEqual(expected_cross_partition,
                                  histograms.cross_partition_histogram.bins)
         self.assertEqual("PerPartitionHistogram",
                          histograms.per_partition_histogram.name)
-        self.assertSequenceEqual(expected_per_partition,
+        self.assertListEqual(expected_per_partition,
                                  histograms.per_partition_histogram.bins)
 
 
