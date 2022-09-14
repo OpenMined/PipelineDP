@@ -117,6 +117,12 @@ class BeamBackendTest(parameterized.TestCase):
             col = self.backend.to_list(data, "To list")
             beam_util.assert_that(col, beam_util.equal_to([[1, 2, 3, 4, 5]]))
 
+    def test_distinct(self):
+        with test_pipeline.TestPipeline() as p:
+            input = p | beam.Create([3, 2, 1, 3, 5, 4, 1, 1, 2])
+            output = self.backend.distinct(input, "distinct")
+            beam_util.assert_that(output, beam_util.equal_to([1, 2, 3, 4, 5]))
+
 
 class BeamBackendStageNameTest(unittest.TestCase):
 
@@ -348,6 +354,11 @@ class SparkRDDBackendTest(parameterized.TestCase):
             self.backend.flatten(dist_data1, dist_data2).collect(),
             [1, 2, 3, 4, 5, 6, 7, 8])
 
+    def test_distinct(self):
+        input = self.sc.parallelize([3, 2, 1, 3, 5, 4, 1, 1, 2])
+        output = self.backend.distinct(input, "distinct").collect()
+        self.assertSetEqual(set([1, 2, 3, 4, 5]), set(output))
+
     @classmethod
     def tearDownClass(cls):
         cls.sc.stop()
@@ -504,6 +515,7 @@ class LocalBackendTest(unittest.TestCase):
         assert_laziness(self.backend.flat_map, str)
         assert_laziness(self.backend.sample_fixed_per_key, int)
         assert_laziness(self.backend.filter_by_key, list)
+        assert_laziness(self.backend.distinct, str)
 
     def test_local_sample_fixed_per_key_requires_no_discarding(self):
         input_col = [("pid1", ('pk1', 1)), ("pid1", ('pk2', 1)),
@@ -554,6 +566,11 @@ class LocalBackendTest(unittest.TestCase):
         self.assertEqual(list(self.backend.group_by_key(some_dict)),
                          [("cheese", ["brie", "swiss"]),
                           ("bread", ["sourdough"])])
+
+    def test_distinct(self):
+        input = [3, 2, 1, 3, 5, 4, 1, 1, 2]
+        output = set(self.backend.distinct(input, "distinct"))
+        self.assertSetEqual(set([1, 2, 3, 4, 5]), output)
 
 
 @unittest.skipIf(sys.platform == 'win32' or sys.platform == 'darwin',
