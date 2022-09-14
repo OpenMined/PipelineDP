@@ -746,6 +746,14 @@ class MultiProcLocalBackend(PipelineBackend):
     def flatten(self, col1, col2, stage_name: str = None):
         return itertools.chain(col1, col2)
 
+    def distinct(self, col, stage_name: str):
+
+        def generator():
+            for v in set(col):
+                yield v
+
+        return generator()
+
     def to_list(self, col, stage_name: str):
         raise NotImplementedError(
             "to_list is not implemented for MultiProcLocalBackend")
