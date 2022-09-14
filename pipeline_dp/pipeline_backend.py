@@ -57,7 +57,11 @@ class PipelineBackend(abc.ABC):
         return collection_or_iterable
 
     def to_multi_transformable_collection(self, col):
-        """Converts to a collection, for which multiple transformations can be applied."""
+        """Converts to a collection, for which multiple transformations can be applied.
+
+        Note: for now it's needed only for LocalBackend, because in Beam and
+        Spark any collection can be transformed multiple times.
+        """
         return col
 
     @abc.abstractmethod
