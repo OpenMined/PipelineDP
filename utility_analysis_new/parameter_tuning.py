@@ -2,7 +2,11 @@ import pipeline_dp
 from pipeline_dp import pipeline_backend
 from dataclasses import dataclass
 import operator
-from typing import Iterable, List
+from typing import Callable, Generic, Iterable, List, Optional, TypeVar, Union
+from utility_analysis_new import combiners
+from utility_analysis_new import utility_analysis
+from enum import Enum
+import numbers
 
 
 @dataclass
@@ -189,3 +193,149 @@ def compute_contribution_histograms(
     return backend.map(histograms, _list_to_contribution_histograms,
                        "To ContributionHistograms")
     # 1 element (ContributionHistograms)
+
+
+@dataclass
+class ContributionHistograms:
+    """Histograms of privacy id contributions."""
+    cross_partition_histogram: Histogram
+    per_partition_histogram: Optional[Histogram] = None
+
+
+@dataclass
+class UtilityAnalysisRun:
+    params: utility_analysis.UtilityAnalysisOptions
+    result: combiners.AggregateErrorMetrics
+
+
+class MinimizingFunction(Enum):
+    ABSOLUTE_ERROR = 'absolute_error'
+    RELATIVE_ERROR = 'relative_error'
+
+
+T = TypeVar('T')
+
+
+@dataclass
+class Bounds(Generic[T]):
+    """Defines optional lower and upper bounds (int or float)."""
+    lower: Optional[T] = None
+    upper: Optional[T] = None
+
+    def __post_init__(self):
+
+        def check_is_number(value, name: str):
+            if name is None:
+                return
+            if not isinstance(value, numbers.Number):
+                raise ValueError(f"{name} must be number, but {name}={value}")
+
+        check_is_number(self.lower, "lower")
+        check_is_number(self.upper, "upper")
+
+        if self.lower is not None and self.upper is not None:
+            assert self.lower <= self.upper
+
+
+@dataclass
+class TunedParameters:
+    """Contains parameters to tune.
+
+    Attributes of this class define restrictions on tuning on corresponding
+    attributes in pipeline_dp.AggregateParams.
+
+    Example:
+        max_partitions_contributed
+          1. = Bound(lower=1, upper=10) only numbers between 1 and 10 will be
+          considered during tuning for max_partitions_contributed.
+          2. = Bound(lower=None, upper=10) means numbers till 10.
+          3. = None means no restriction
+          4. = 3 means no tuning, max_partitions_contributed=3.
+    """
+    max_partitions_contributed: Optional[Union[int, Bounds[int]]] = None
+    max_contributions_per_partition: Optional[Union[int, Bounds[int]]] = None
+    min_sum_per_partition: Optional[Union[float, Bounds[float]]] = None
+    max_sum_per_partition: Optional[Union[float, Bounds[float]]] = None
+
+    def __post_init__(self):
+
+        def check_int_attribute(value, name: str):
+            if value is None:
+                return
+            if isinstance(value, int):
+                if value <= 0:
+                    raise ValueError(f"{name} must be >0, but {name}={value}")
+            elif isinstance(value, Bounds):
+                if value.lower <= 0:
+                    raise ValueError(
+                        f"{name} lower bound must be >0, but {name}.lower={value}"
+                    )
+
+        check_int_attribute(self.max_partitions_contributed,
+                            "max_partitions_contributed")
+        check_int_attribute(self.max_contributions_per_partition,
+                            "max_contributions_per_partition")
+
+
+@dataclass
+class TuneOptions:
+    """Options for tuning process.
+
+    Note that parameters that are not tuned (e.g. metrics, noise kind) are taken
+    from aggregate_params.
+
+    Attributes:
+        epsilon, delta: differential privacy budget for aggregations for which
+          tuning is performed.
+        aggregate_params: parameters of aggregation.
+        function_to_minimize: which function of the error to minimize. In case
+          if this argument is a callable, it should take 1 argument of type
+          AggregateErrorMetrics and return float.
+        parameters_to_tune: specifies which parameters are tunable and with
+          optional restrictions on their values.
+    """
+    epsilon: float
+    delta: float
+    aggregate_params: pipeline_dp.AggregateParams
+    function_to_minimize: Union[MinimizingFunction, Callable]
+    parameters_to_tune: TunedParameters
+
+
+@dataclass
+class TuneResult:
+    """Represents tune results.
+
+    Attributes:
+        recommended_params: recommended parameters to use, according to
+          minimizing function. Note, that those parameters might not necessarily
+          be optimal, since finding the optimal parameters is not always
+          feasible.
+        options: input options for tuning.
+        contribution_histograms: histograms of privacy id contributions.
+        utility_analysis_runs: the results of all utility analysis runs that
+          were performed during the tuning process.
+    """
+    recommended_params: pipeline_dp.AggregateParams
+    options: TuneOptions
+    contribution_histograms: ContributionHistograms
+    utility_analysis_runs: List[UtilityAnalysisRun]
+
+
+def tune_parameters(col,
+                    contribution_histograms: ContributionHistograms,
+                    options: TuneOptions,
+                    data_extractors: pipeline_dp.DataExtractors,
+                    public_partitions=None) -> TuneResult:
+    """Tunes parameters.
+
+    Args:
+        col: collection where all elements are of the same type.
+          contribution_histograms:
+        options: options for tuning.
+        data_extractors: functions that extract needed pieces of information
+          from elements of 'col'.
+        public_partitions: A collection of partition keys that will be present
+          in the result. If not provided, tuning will be performed assuming
+          private partition selection is used.
+    """
+    raise NotImplementedError("tune_parameters is not yet implemented.")
