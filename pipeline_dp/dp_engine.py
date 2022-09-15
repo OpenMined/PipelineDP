@@ -18,11 +18,10 @@ from typing import Any, Callable, Tuple
 
 import pipeline_dp
 from pipeline_dp import combiners
-import pipeline_dp.contribution_bounders as contribution_bounders
-import pipeline_dp.report_generator as report_generator
-import pipeline_dp.sampling_utils as sampling_utils
-
-import pydp.algorithms.partition_selection as partition_selection
+from pipeline_dp import contribution_bounders
+from pipeline_dp import report_generator
+from pipeline_dp import sampling_utils
+from pipeline_dp import partition_selection
 
 
 @dataclasses.dataclass
@@ -166,7 +165,8 @@ class DPEngine:
                 max_rows_per_privacy_id = params.max_contributions or params.max_contributions_per_partition
 
             col = self._select_private_partitions_internal(
-                col, params.max_partitions_contributed, max_rows_per_privacy_id)
+                col, params.max_partitions_contributed, max_rows_per_privacy_id,
+                params.partition_selection_strategy)
         # col : (partition_key, accumulator)
 
         # Compute DP metrics.
@@ -267,7 +267,10 @@ class DPEngine:
         # col : (partition_key, accumulator)
 
         col = self._select_private_partitions_internal(
-            col, max_partitions_contributed, max_rows_per_privacy_id=1)
+            col,
+            max_partitions_contributed,
+            max_rows_per_privacy_id=1,
+            partition_selection_strategy=params.partition_selection_strategy)
         col = self._backend.keys(col,
                                  "Drop accumulators, keep only partition keys")
 
@@ -302,9 +305,13 @@ class DPEngine:
             col, empty_accumulators,
             "Join public partitions with partitions from data")
 
-    def _select_private_partitions_internal(self, col,
-                                            max_partitions_contributed: int,
-                                            max_rows_per_privacy_id: int):
+    def _select_private_partitions_internal(
+        self,
+        col,
+        max_partitions_contributed: int,
+        max_rows_per_privacy_id: int,
+        strategy: pipeline_dp.PartitionSelectionStrategy,
+    ):
         """Selects and returns private partitions.
 
         Args:
@@ -322,6 +329,7 @@ class DPEngine:
         def filter_fn(
             budget: 'MechanismSpec', max_partitions: int,
             max_rows_per_privacy_id: int,
+            strategy: pipeline_dp.PartitionSelectionStrategy,
             row: Tuple[Any,
                        combiners.CompoundCombiner.AccumulatorType]) -> bool:
             """Lazily creates a partition selection strategy and uses it to
@@ -337,19 +345,16 @@ class DPEngine:
             privacy_id_count = divide_and_round_up(row_count,
                                                    max_rows_per_privacy_id)
 
-            partition_selection_strategy = (
-                partition_selection.
-                create_truncated_geometric_partition_strategy(
-                    budget.eps, budget.delta, max_partitions))
-            return partition_selection_strategy.should_keep(privacy_id_count)
+            strategy_object = partition_selection.create_partition_selection_strategy(
+                strategy, budget.eps, budget.delta, max_partitions)
+            return strategy_object.should_keep(privacy_id_count)
 
         # make filter_fn serializable
         filter_fn = functools.partial(filter_fn, budget,
                                       max_partitions_contributed,
-                                      max_rows_per_privacy_id)
+                                      max_rows_per_privacy_id, strategy)
         self._add_report_stage(
-            lambda:
-            f"Private Partition selection: using {budget.mechanism_type.value} "
+            lambda: f"Private Partition selection: using {strategy.value} "
             f"method with (eps={budget.eps}, delta={budget.delta})")
 
         return self._backend.filter(col, filter_fn, "Filter private partitions")

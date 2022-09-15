@@ -16,6 +16,8 @@ from pipeline_dp.aggregate_params import CountParams
 from pipeline_dp.aggregate_params import MechanismType
 from pipeline_dp.aggregate_params import Metrics
 from pipeline_dp.aggregate_params import NoiseKind
+from pipeline_dp.aggregate_params import NormKind
+from pipeline_dp.aggregate_params import PartitionSelectionStrategy
 from pipeline_dp.aggregate_params import PrivacyIdCountParams
 from pipeline_dp.aggregate_params import SelectPartitionsParams
 from pipeline_dp.aggregate_params import SumParams
@@ -27,6 +29,5 @@ from pipeline_dp.dp_engine import DPEngine
 from pipeline_dp.pipeline_backend import BeamBackend
 from pipeline_dp.pipeline_backend import LocalBackend
 from pipeline_dp.pipeline_backend import SparkRDDBackend
-from pipeline_dp.aggregate_params import NormKind
 
 __version__ = '0.2.0'
