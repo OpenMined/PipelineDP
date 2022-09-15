@@ -270,7 +270,7 @@ class DPEngine:
             col,
             max_partitions_contributed,
             max_rows_per_privacy_id=1,
-            partition_selection_strategy=params.partition_selection_strategy)
+            strategy=params.partition_selection_strategy)
         col = self._backend.keys(col,
                                  "Drop accumulators, keep only partition keys")
 
@@ -306,12 +306,9 @@ class DPEngine:
             "Join public partitions with partitions from data")
 
     def _select_private_partitions_internal(
-        self,
-        col,
-        max_partitions_contributed: int,
-        max_rows_per_privacy_id: int,
-        strategy: pipeline_dp.PartitionSelectionStrategy,
-    ):
+            self, col, max_partitions_contributed: int,
+            max_rows_per_privacy_id: int,
+            strategy: pipeline_dp.PartitionSelectionStrategy):
         """Selects and returns private partitions.
 
         Args:
@@ -319,6 +316,7 @@ class DPEngine:
                 (partition_key, Accumulator)
             max_partitions_contributed: maximum amount of partitions that one
             privacy unit might contribute.
+            strategy: which strategy to use for partition selection.
 
         Returns:
             collection of elements (partition_key, accumulator).

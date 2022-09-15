@@ -95,6 +95,8 @@ class AggregateParams:
          max_contributions_per_partition. This option can be used if the dataset
          does not contain any identifiers that can be used to enforce
          contribution bounds automatically.
+        partition_selection_strategy: which strategy to use for private
+         partition selection. It is ignored when public paritions are used.
     """
     metrics: List[Metrics]
     noise_kind: NoiseKind = NoiseKind.LAPLACE
@@ -266,6 +268,8 @@ class SelectPartitionsParams:
             of dropped partitions.
         budget_weight: Relative weight of the privacy budget allocated to
             partition selection.
+        partition_selection_strategy: which strategy to use for private
+         partition selection.
     """
     max_partitions_contributed: int
     budget_weight: float = 1
