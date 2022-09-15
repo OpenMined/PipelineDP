@@ -31,6 +31,27 @@ class PartitionSelectionTest(unittest.TestCase):
         mock_method.assert_called_once()
         self.assertEqual((2, 1e-3, 10), mock_method.call_args[0])
 
+    @patch(
+        "pydp.algorithms.partition_selection.create_laplace_partition_strategy")
+    def test_truncated_gemetric(self, mock_method):
+        eps, delta, max_partitions = 5, 1e-2, 12
+        partition_selection.create_partition_selection_strategy(
+            pipeline_dp.PartitionSelectionStrategy.LAPLACE_THRESHOLDING, eps,
+            delta, max_partitions)
+        mock_method.assert_called_once()
+        self.assertEqual((eps, delta, max_partitions), mock_method.call_args[0])
+
+    @patch(
+        "pydp.algorithms.partition_selection.create_gaussian_partition_strategy"
+    )
+    def test_truncated_gemetric(self, mock_method):
+        eps, delta, max_partitions = 1, 1e-5, 20
+        partition_selection.create_partition_selection_strategy(
+            pipeline_dp.PartitionSelectionStrategy.GAUSSIAN_THRESHOLDING, eps,
+            delta, max_partitions)
+        mock_method.assert_called_once()
+        self.assertEqual((eps, delta, max_partitions), mock_method.call_args[0])
+
 
 if __name__ == '__main__':
     unittest.main()
