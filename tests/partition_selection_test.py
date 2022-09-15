@@ -29,7 +29,7 @@ class PartitionSelectionTest(unittest.TestCase):
             pipeline_dp.PartitionSelectionStrategy.TRUNCATED_GEOMETRIC, eps,
             delta, max_partitions)
         mock_method.assert_called_once()
-        self.assertEqual((2, 1e-3, 10), mock_method.call_args[0])
+        mock_method.assert_called_with(eps, delta, max_partitions)
 
     @patch(
         "pydp.algorithms.partition_selection.create_laplace_partition_strategy")
@@ -39,7 +39,7 @@ class PartitionSelectionTest(unittest.TestCase):
             pipeline_dp.PartitionSelectionStrategy.LAPLACE_THRESHOLDING, eps,
             delta, max_partitions)
         mock_method.assert_called_once()
-        self.assertEqual((eps, delta, max_partitions), mock_method.call_args[0])
+        mock_method.assert_called_with(eps, delta, max_partitions)
 
     @patch(
         "pydp.algorithms.partition_selection.create_gaussian_partition_strategy"
@@ -50,7 +50,7 @@ class PartitionSelectionTest(unittest.TestCase):
             pipeline_dp.PartitionSelectionStrategy.GAUSSIAN_THRESHOLDING, eps,
             delta, max_partitions)
         mock_method.assert_called_once()
-        self.assertEqual((eps, delta, max_partitions), mock_method.call_args[0])
+        mock_method.assert_called_with(eps, delta, max_partitions)
 
 
 if __name__ == '__main__':
