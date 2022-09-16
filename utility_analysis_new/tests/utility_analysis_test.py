@@ -48,7 +48,7 @@ class UtilityAnalysis(parameterized.TestCase):
             col=col,
             backend=pipeline_dp.LocalBackend(),
             options=utility_analysis.UtilityAnalysisOptions(
-                eps=2, delta=1e-10, aggregate_params=aggregate_params),
+                eps=2, delta=0.9, aggregate_params=aggregate_params),
             data_extractors=data_extractors)
 
         col = list(col)
@@ -59,14 +59,27 @@ class UtilityAnalysis(parameterized.TestCase):
         # Assert there are 2 AggregateErrorMetrics, one for private partition
         # selection and 1 for count.
         self.assertEqual(len(col[0]), 2)
+        # Assert partition selection metrics are reasonable.
+        # partition_kept_probability = 0.4311114 for each partition
+        self.assertEqual(col[0][0].num_partitions, 10)
+        self.assertAlmostEqual(col[0][0].dropped_partitions_expected,
+                               5.68885,
+                               delta=1e-5)
+        self.assertAlmostEqual(col[0][0].dropped_partitions_variance,
+                               2.45254,
+                               delta=1e-5)
         # Assert count metrics are reasonable.
-        self.assertAlmostEqual(col[0][1].abs_error_expected, -28, delta=1e-2)
-        self.assertAlmostEqual(col[0][1].abs_error_variance, 146.47, delta=1e-2)
+        self.assertAlmostEqual(col[0][1].abs_error_expected,
+                               -12.07119,
+                               delta=1e-5)
+        self.assertAlmostEqual(col[0][1].abs_error_variance,
+                               2.06498,
+                               delta=1e-5)
         self.assertAlmostEqual(col[0][1].rel_error_expected,
-                               -0.933333,
+                               -0.40237,
                                delta=1e-5)
         self.assertAlmostEqual(col[0][1].rel_error_variance,
-                               0.16275,
+                               0.002294,
                                delta=1e-5)
 
     def test_w_public_partitions(self):
