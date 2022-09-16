@@ -96,7 +96,7 @@ class AggregateParams:
          does not contain any identifiers that can be used to enforce
          contribution bounds automatically.
         partition_selection_strategy: which strategy to use for private
-         partition selection. It is ignored when public paritions are used.
+         partition selection. It is ignored when public partitions are used.
     """
     metrics: List[Metrics]
     noise_kind: NoiseKind = NoiseKind.LAPLACE
