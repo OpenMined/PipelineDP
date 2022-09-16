@@ -35,8 +35,7 @@ except:
 
 
 class PipelineBackend(abc.ABC):
-    """Interface implemented by the pipeline backends compatible with PipelineDP
-    """
+    """Interface implemented by the pipeline backends compatible with PipelineDP."""
 
     def to_collection(self, collection_or_iterable, col, stage_name: str):
         """Converts to collection native to Pipeline Framework.
@@ -56,6 +55,14 @@ class PipelineBackend(abc.ABC):
             the framework collection with elements from collection_or_iterable.
         """
         return collection_or_iterable
+
+    def to_multi_transformable_collection(self, col):
+        """Converts to a collection, for which multiple transformations can be applied.
+
+        Note: for now it's needed only for LocalBackend, because in Beam and
+        Spark any collection can be transformed multiple times.
+        """
+        return col
 
     @abc.abstractmethod
     def map(self, col, fn, stage_name: str):
@@ -106,7 +113,7 @@ class PipelineBackend(abc.ABC):
 
     @abc.abstractmethod
     def sample_fixed_per_key(self, col, n: int, stage_name: str):
-        """Get random samples without replacement of values for each key.
+        """Returns random samples without replacement of values for each key.
 
         Args:
           col: input collection of elements (key, value).
@@ -154,10 +161,11 @@ class PipelineBackend(abc.ABC):
 
     @abc.abstractmethod
     def flatten(self, col1, col2, stage_name: str):
-        """
-        Returns:
-          A collection that contains all values from col1 and col2.
-        """
+        """Returns a collection that contains all values from col1 and col2."""
+
+    @abc.abstractmethod
+    def distinct(self, col, stage_name: str):
+        """Returns a collection containing distinct elements of the input collection."""
 
     @abc.abstractmethod
     def to_list(self, col, stage_name: str):
@@ -179,7 +187,7 @@ class PipelineBackend(abc.ABC):
 
 
 class UniqueLabelsGenerator:
-    """Generate unique labels for each pipeline aggregation."""
+    """Generates unique labels for each pipeline aggregation."""
 
     def __init__(self, suffix):
         self._labels = set()
@@ -228,7 +236,7 @@ class BeamBackend(PipelineBackend):
                                                                    (k, fn(v)))
 
     def group_by_key(self, col, stage_name: str):
-        """Group the values for each key in the PCollection into a single sequence.
+        """Groups the values for each key in the PCollection into a single sequence.
 
         Args:
           col: input collection with elements (key, value)
@@ -321,6 +329,9 @@ class BeamBackend(PipelineBackend):
     def flatten(self, col1, col2, stage_name: str):
         return (col1, col2) | self._ulg.unique(stage_name) >> beam.Flatten()
 
+    def distinct(self, col, stage_name: str):
+        return col | self._ulg.unique(stage_name) >> beam.Distinct()
+
     def to_list(self, col, stage_name: str):
         return col | self._ulg.unique(stage_name) >> beam.combiners.ToList()
 
@@ -361,7 +372,7 @@ class SparkRDDBackend(PipelineBackend):
         return rdd.mapValues(fn)
 
     def group_by_key(self, rdd, stage_name: str = None):
-        """Group the values for each key in the RDD into a single sequence.
+        """Groups the values for each key in the RDD into a single sequence.
 
         Args:
           rdd: input RDD
@@ -419,12 +430,18 @@ class SparkRDDBackend(PipelineBackend):
     def flatten(self, col1, col2, stage_name: str = None):
         return col1.union(col2)
 
+    def distinct(self, col, stage_name: str):
+        return col.distinct()
+
     def to_list(self, col, stage_name: str):
         raise NotImplementedError("to_list is not implement in SparkBackend.")
 
 
 class LocalBackend(PipelineBackend):
     """Local Pipeline adapter."""
+
+    def to_multi_transformable_collection(self, col):
+        return list(col)
 
     def map(self, col, fn, stage_name: typing.Optional[str] = None):
         return map(fn, col)
@@ -505,6 +522,14 @@ class LocalBackend(PipelineBackend):
 
     def flatten(self, col1, col2, stage_name: str = None):
         return itertools.chain(col1, col2)
+
+    def distinct(self, col, stage_name: str):
+
+        def generator():
+            for v in set(col):
+                yield v
+
+        return generator()
 
     def to_list(self, col, stage_name: str):
         return (list(col) for _ in range(1))
@@ -724,6 +749,14 @@ class MultiProcLocalBackend(PipelineBackend):
 
     def flatten(self, col1, col2, stage_name: str = None):
         return itertools.chain(col1, col2)
+
+    def distinct(self, col, stage_name: str):
+
+        def generator():
+            for v in set(col):
+                yield v
+
+        return generator()
 
     def to_list(self, col, stage_name: str):
         raise NotImplementedError(
