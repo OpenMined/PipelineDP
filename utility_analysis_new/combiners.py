@@ -18,7 +18,6 @@ from typing import List, Optional, Sequence, Sized, Tuple
 import numpy as np
 import math
 import scipy
-from numpy import ndarray
 
 import pipeline_dp
 from pipeline_dp import dp_computations
@@ -111,14 +110,15 @@ class PartitionSelectionAccumulator:
         otherwise it is an approximation computed from self.moments.
         """
         pmf = self.compute_pmf()
-        ps_strategy = partition_selection.create_truncated_geometric_partition_strategy(
-            eps, delta, max_partitions_contributed)
+        ps_strategy = partition_selection.create_partition_selection_strategy(
+            partition_selection_strategy, eps, delta,
+            max_partitions_contributed)
         probability = 0
         for i, prob in enumerate(pmf):
             probability += prob * ps_strategy.probability_of_keep(i)
         return probability
 
-    def compute_pmf(self) -> ndarray:
+    def compute_pmf(self) -> np.ndarray:
         if self.probabilities:
             pmf = poisson_binomial.compute_pmf(self.probabilities)
         else:
@@ -517,7 +517,7 @@ class AggregateErrorMetricsAccumulator:
     """ Accumulator for AggregateErrorMetrics.
 
     All fields in this dataclass are sums across partitions"""
-    num_partitions: int
+    expected_kept_partitions: float
 
     abs_error_expected: float
     abs_error_variance: float
@@ -528,7 +528,8 @@ class AggregateErrorMetricsAccumulator:
 
     def __add__(self, other):
         return AggregateErrorMetricsAccumulator(
-            num_partitions=self.num_partitions + other.num_partitions,
+            expected_kept_partitions=self.expected_kept_partitions +
+            other.expected_kept_partitions,
             abs_error_expected=self.abs_error_expected +
             other.abs_error_expected,
             abs_error_variance=self.abs_error_variance +
@@ -611,7 +612,7 @@ class CountAggregateErrorMetricsCombiner(pipeline_dp.Combiner):
             ]
 
         return AggregateErrorMetricsAccumulator(
-            num_partitions=1,
+            expected_kept_partitions=probability_to_keep,
             abs_error_expected=abs_error_expected,
             abs_error_variance=abs_error_variance,
             abs_error_quantiles=abs_error_quantiles,
@@ -625,18 +626,23 @@ class CountAggregateErrorMetricsCombiner(pipeline_dp.Combiner):
         return acc1 + acc2
 
     def compute_metrics(self, acc: AccumulatorType) -> AggregateErrorMetrics:
-        """Compute metrics based on the accumulator properties."""
-        return AggregateErrorMetrics(
-            abs_error_expected=acc.abs_error_expected / acc.num_partitions,
-            abs_error_variance=acc.abs_error_variance / acc.num_partitions,
-            abs_error_quantiles=[
-                sum / acc.num_partitions for sum in acc.abs_error_quantiles
-            ],
-            rel_error_expected=acc.rel_error_expected / acc.num_partitions,
-            rel_error_variance=acc.rel_error_variance / acc.num_partitions,
-            rel_error_quantiles=[
-                sum / acc.num_partitions for sum in acc.rel_error_quantiles
-            ])
+        """Computes metrics based on the accumulator properties."""
+        return AggregateErrorMetrics(abs_error_expected=acc.abs_error_expected /
+                                     acc.expected_kept_partitions,
+                                     abs_error_variance=acc.abs_error_variance /
+                                     acc.expected_kept_partitions,
+                                     abs_error_quantiles=[
+                                         sum / acc.expected_kept_partitions
+                                         for sum in acc.abs_error_quantiles
+                                     ],
+                                     rel_error_expected=acc.rel_error_expected /
+                                     acc.expected_kept_partitions,
+                                     rel_error_variance=acc.rel_error_variance /
+                                     acc.expected_kept_partitions,
+                                     rel_error_quantiles=[
+                                         sum / acc.expected_kept_partitions
+                                         for sum in acc.rel_error_quantiles
+                                     ])
 
     def metrics_names(self) -> List[str]:
         return [
