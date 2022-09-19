@@ -43,7 +43,7 @@ class NoiseKind(Enum):
 class MechanismType(Enum):
     LAPLACE = 'Laplace'
     GAUSSIAN = 'Gaussian'
-    GENERIC = 'Truncated Geometric'
+    GENERIC = 'Generic'
 
 
 class NormKind(Enum):
@@ -51,6 +51,12 @@ class NormKind(Enum):
     L0 = "l0"
     L1 = "l1"
     L2 = "l2"
+
+
+class PartitionSelectionStrategy(Enum):
+    TRUNCATED_GEOMETRIC = 'Truncated Geometric'
+    LAPLACE_THRESHOLDING = 'Laplace Thresholding'
+    GAUSSIAN_THRESHOLDING = 'Gaussian Thresholding'
 
 
 @dataclass
@@ -89,6 +95,8 @@ class AggregateParams:
          max_contributions_per_partition. This option can be used if the dataset
          does not contain any identifiers that can be used to enforce
          contribution bounds automatically.
+        partition_selection_strategy: which strategy to use for private
+         partition selection. It is ignored when public partitions are used.
     """
     metrics: List[Metrics]
     noise_kind: NoiseKind = NoiseKind.LAPLACE
@@ -108,6 +116,7 @@ class AggregateParams:
     vector_max_norm: Optional[float] = None
     vector_size: Optional[int] = None
     contribution_bounds_already_enforced: bool = False
+    partition_selection_strategy: PartitionSelectionStrategy = PartitionSelectionStrategy.TRUNCATED_GEOMETRIC
 
     @property
     def metrics_str(self) -> str:
@@ -259,9 +268,12 @@ class SelectPartitionsParams:
             of dropped partitions.
         budget_weight: Relative weight of the privacy budget allocated to
             partition selection.
+        partition_selection_strategy: which strategy to use for private
+         partition selection.
     """
     max_partitions_contributed: int
     budget_weight: float = 1
+    partition_selection_strategy: PartitionSelectionStrategy = PartitionSelectionStrategy.TRUNCATED_GEOMETRIC
 
     # TODO: Add support for contribution_bounds_already_enforced
 

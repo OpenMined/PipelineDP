@@ -158,7 +158,6 @@ class PartitionSelectionTest(parameterized.TestCase):
         self.assertEqual(100, acc.moments.variance)
         self.assertEqual(2, acc.moments.third_central_moment)
 
-    @unittest.skip("Enable when the new version of PyDP is released.")
     @parameterized.named_parameters(
         dict(testcase_name='Large eps delta',
              eps=100,
@@ -180,12 +179,14 @@ class PartitionSelectionTest(parameterized.TestCase):
             self, eps, delta, probabilities, expected_probability_to_keep):
         acc = combiners.PartitionSelectionAccumulator(probabilities)
         prob_to_keep = acc.compute_probability_to_keep(
-            eps, delta, max_partitions_contributed=1)
+            pipeline_dp.PartitionSelectionStrategy.TRUNCATED_GEOMETRIC,
+            eps,
+            delta,
+            max_partitions_contributed=1)
         self.assertAlmostEqual(expected_probability_to_keep,
                                prob_to_keep,
                                delta=1e-10)
 
-    @unittest.skip("Enable when the new version of PyDP is released.")
     @patch(
         'utility_analysis_new.combiners.PartitionSelectionAccumulator.compute_probability_to_keep'
     )
@@ -199,6 +200,7 @@ class PartitionSelectionTest(parameterized.TestCase):
         mock_compute_probability_to_keep.assert_not_called()
         combiner.compute_metrics(acc)
         mock_compute_probability_to_keep.assert_called_with(
+            pipeline_dp.PartitionSelectionStrategy.TRUNCATED_GEOMETRIC,
             params.eps, params.delta, 1)
 
 
