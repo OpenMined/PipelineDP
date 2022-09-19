@@ -38,13 +38,16 @@ class BeamBackendTest(parameterized.TestCase):
             privacy_id_extractor=lambda x: x[0],
             value_extractor=lambda x: x[2])
 
-    def test_to_collection(self):
+    @parameterized.parameters(True, False)
+    def test_to_collection(self, input_is_pcollection):
         with test_pipeline.TestPipeline() as p:
             input = [1, 3, 5]
+            if input_is_pcollection:
+                input = p | "Creat input PCollection" >> beam.Create(input)
             col = p | beam.Create([])
             output = self.backend.to_collection(input, col, "to_collection")
             self.assertIsInstance(output, beam.PCollection)
-            beam_util.assert_that(output, beam_util.equal_to(input))
+            beam_util.assert_that(output, beam_util.equal_to([1, 3, 5]))
 
     def test_filter_by_key_must_not_be_none(self):
         with test_pipeline.TestPipeline() as p:

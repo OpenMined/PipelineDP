@@ -219,6 +219,8 @@ class BeamBackend(PipelineBackend):
         self._ulg = UniqueLabelsGenerator(suffix)
 
     def to_collection(self, collection_or_iterable, col, stage_name: str):
+        if isinstance(collection_or_iterable, beam.PCollection):
+            return collection_or_iterable
         return col.pipeline | self._ulg.unique(stage_name) >> beam.Create(
             collection_or_iterable)
 

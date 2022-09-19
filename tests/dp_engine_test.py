@@ -11,6 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""DPEngine Test"""
+
 import unittest
 from unittest.mock import patch
 
@@ -28,27 +30,6 @@ from pipeline_dp.aggregate_params import SelectPartitionsParams
 from pipeline_dp.budget_accounting import NaiveBudgetAccountant
 from pipeline_dp.pipeline_backend import PipelineBackend
 from pipeline_dp.report_generator import ReportGenerator
-"""DPEngine Test"""
-
-
-class _MockPartitionStrategy(partition_selection.PartitionSelectionStrategy):
-
-    def __init__(self, eps, delta, max_partitions_contributed, min_users):
-        self.eps = eps
-        self.delta = delta
-        self.max_partitions_contributed = max_partitions_contributed
-        self.min_users = min_users
-
-    def should_keep(self, num_users: int) -> bool:
-        return num_users > self.min_users
-
-
-def _mock_partition_strategy_factory(min_users):
-
-    def partition_strategy_factory(e, d, mpc):
-        return _MockPartitionStrategy(e, d, mpc, min_users)
-
-    return partition_strategy_factory
 
 
 class DpEngineTest(parameterized.TestCase):
@@ -260,34 +241,54 @@ class DpEngineTest(parameterized.TestCase):
                                                     unittest.mock.ANY,
                                                     unittest.mock.ANY)
 
-    def _mock_and_assert_private_partitions(self, engine: pipeline_dp.DPEngine,
-                                            col, min_users, expected_partitions,
-                                            max_partitions_contributed):
-        with patch(
-                "pydp.algorithms.partition_selection.create_truncated_geometric_partition_strategy",
-                new=_mock_partition_strategy_factory(
-                    min_users)) as mock_factory:
-            data_filtered = engine._select_private_partitions_internal(
-                col, max_partitions_contributed, max_rows_per_privacy_id=1)
-            engine._budget_accountant.compute_budgets()
-            self.assertListEqual(list(data_filtered), expected_partitions)
-
     @parameterized.named_parameters(
-        dict(testcase_name='all_data_kept', min_users=1),
-        dict(testcase_name='1 partition left', min_users=5),
-        dict(testcase_name='empty result', min_users=20),
+        dict(testcase_name='all_data_kept',
+             min_users=1,
+             strategy=pipeline_dp.PartitionSelectionStrategy.TRUNCATED_GEOMETRIC
+            ),
+        dict(testcase_name='1 partition left',
+             min_users=5,
+             strategy=pipeline_dp.PartitionSelectionStrategy.
+             GAUSSIAN_THRESHOLDING),
+        dict(testcase_name='empty result',
+             min_users=20,
+             strategy=pipeline_dp.PartitionSelectionStrategy.
+             LAPLACE_THRESHOLDING),
     )
-    def test_select_private_partitions_internal(self, min_users):
-        input_col = [("pk1", (3, None)), ("pk2", (10, None))]
+    def test_select_private_partitions_internal(
+            self, min_users: int,
+            strategy: pipeline_dp.PartitionSelectionStrategy):
+        input = [("pk1", (3, None)), ("pk2", (10, None))]
 
         engine = self._create_dp_engine_default()
-        expected_data_filtered = [x for x in input_col if x[1][0] > min_users]
+        expected_data_filtered = [x for x in input if x[1][0] > min_users]
 
-        self._mock_and_assert_private_partitions(engine,
-                                                 input_col,
-                                                 min_users,
-                                                 expected_data_filtered,
-                                                 max_partitions_contributed=1)
+        class MockPartitionStrategy(
+                partition_selection.PartitionSelectionStrategy):
+
+            def __init__(self, min_users):
+                self.min_users = min_users
+
+            def should_keep(self, num_users: int) -> bool:
+                return num_users > self.min_users
+
+        with patch(
+                "pipeline_dp.partition_selection.create_partition_selection_strategy",
+                return_value=MockPartitionStrategy(min_users)) as mock_method:
+            max_partitions_contributed = 2
+            data_filtered = engine._select_private_partitions_internal(
+                input,
+                max_partitions_contributed,
+                max_rows_per_privacy_id=1,
+                strategy=strategy)
+            engine._budget_accountant.compute_budgets()
+            self.assertListEqual(list(data_filtered), expected_data_filtered)
+            args = list(mock_method.call_args_list)
+            self.assertLen(args, 2)  # there are 2 input data.
+            self.assertEqual(args[0], args[1])
+            self.assertTupleEqual(
+                (strategy, 1, 1e-10, max_partitions_contributed),
+                tuple(args[0])[0])
 
     def test_aggregate_private_partition_selection_keep_everything(self):
         # Arrange

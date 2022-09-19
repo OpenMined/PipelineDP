@@ -24,8 +24,7 @@ import pipeline_dp
 from pipeline_dp import dp_computations
 from pipeline_dp import combiners
 from utility_analysis_new import poisson_binomial
-
-import pydp.algorithms.partition_selection as partition_selection
+from pipeline_dp import partition_selection
 
 MAX_PROBABILITIES_IN_ACCUMULATOR = 100
 
@@ -101,7 +100,10 @@ class PartitionSelectionAccumulator:
         return PartitionSelectionAccumulator(moments=moments_self +
                                              moments_other)
 
-    def compute_probability_to_keep(self, eps: float, delta: float,
+    def compute_probability_to_keep(self,
+                                    partition_selection_strategy: pipeline_dp.
+                                    PartitionSelectionStrategy, eps: float,
+                                    delta: float,
                                     max_partitions_contributed: int) -> float:
         """Computes the probability that this partition is kept.
 
@@ -166,8 +168,8 @@ class PartitionSelectionCombiner(pipeline_dp.Combiner):
         """Computes metrics based on the accumulator properties."""
         params = self._params
         return acc.compute_probability_to_keep(
-            params.eps, params.delta,
-            params.aggregate_params.max_partitions_contributed)
+            params.aggregate_params.partition_selection_strategy, params.eps,
+            params.delta, params.aggregate_params.max_partitions_contributed)
 
     def metrics_names(self) -> List[str]:
         return ['probability_to_keep']
