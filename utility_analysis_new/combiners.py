@@ -18,6 +18,7 @@ from typing import List, Optional, Sequence, Sized, Tuple
 import numpy as np
 import math
 import scipy
+from numpy import ndarray
 
 import pipeline_dp
 from pipeline_dp import dp_computations
@@ -109,6 +110,15 @@ class PartitionSelectionAccumulator:
         If self.probabilities is set, then the computed probability is exact,
         otherwise it is an approximation computed from self.moments.
         """
+        pmf = self.compute_pmf()
+        ps_strategy = partition_selection.create_truncated_geometric_partition_strategy(
+            eps, delta, max_partitions_contributed)
+        probability = 0
+        for i, prob in enumerate(pmf):
+            probability += prob * ps_strategy.probability_of_keep(i)
+        return probability
+
+    def compute_pmf(self) -> ndarray:
         if self.probabilities:
             pmf = poisson_binomial.compute_pmf(self.probabilities)
         else:
@@ -121,14 +131,7 @@ class PartitionSelectionAccumulator:
                 skewness = moments.third_central_moment / std**3
                 pmf = poisson_binomial.compute_pmf_approximation(
                     moments.expectation, std, skewness, moments.count)
-
-        ps_strategy = partition_selection.create_partition_selection_strategy(
-            partition_selection_strategy, eps, delta,
-            max_partitions_contributed)
-        probability = 0
-        for i, prob in enumerate(pmf):
-            probability += prob * ps_strategy.probability_of_keep(i)
-        return probability
+        return pmf
 
 
 class PartitionSelectionCombiner(pipeline_dp.Combiner):
@@ -501,6 +504,15 @@ class AggregateErrorMetrics:
 
 
 @dataclass
+class PartitionSelectionMetrics:
+    """Stores aggregate metrics about partition selection."""
+
+    num_partitions: float
+    dropped_partitions_expected: float
+    dropped_partitions_variance: float
+
+
+@dataclass
 class AggregateErrorMetricsAccumulator:
     """ Accumulator for AggregateErrorMetrics.
 
@@ -540,9 +552,18 @@ class AggregateErrorMetricsCompoundCombiner(combiners.CompoundCombiner):
     AccumulatorType = Tuple[int, Tuple]
 
     def create_accumulator(self, values) -> AccumulatorType:
+        probability_to_keep = 1
+        if isinstance(values[0], float):
+            probability_to_keep = values[0]
         accumulators = []
         for combiner, metrics in zip(self._combiners, values):
-            accumulators.append(combiner.create_accumulator(metrics))
+            if isinstance(
+                    combiner,
+                    PrivatePartitionSelectionAggregateErrorMetricsCombiner):
+                accumulators.append(combiner.create_accumulator(metrics))
+            else:
+                accumulators.append(
+                    combiner.create_accumulator(metrics, probability_to_keep))
         return 1, tuple(accumulators)
 
 
@@ -555,12 +576,16 @@ class CountAggregateErrorMetricsCombiner(pipeline_dp.Combiner):
         self._params = params
         self._error_quantiles = error_quantiles
 
-    def create_accumulator(
-            self, metrics: CountUtilityAnalysisMetrics) -> AccumulatorType:
+    def create_accumulator(self,
+                           metrics: CountUtilityAnalysisMetrics,
+                           probability_to_keep: float = 1) -> AccumulatorType:
         """Creates an accumulator for metrics."""
         # Absolute error metrics
-        abs_error_expected = metrics.per_partition_error + metrics.expected_cross_partition_error
-        abs_error_variance = metrics.std_cross_partition_error**2 + metrics.std_noise**2
+        abs_error_expected = probability_to_keep * (
+            metrics.per_partition_error +
+            metrics.expected_cross_partition_error)
+        abs_error_variance = probability_to_keep * (
+            metrics.std_cross_partition_error**2 + metrics.std_noise**2)
         # TODO: Implement Laplace Noise
         assert metrics.noise_kind == pipeline_dp.NoiseKind.GAUSSIAN, "Laplace noise for utility analysis not implemented yet"
         loc_cpe_ne = metrics.expected_cross_partition_error
@@ -568,9 +593,9 @@ class CountAggregateErrorMetricsCombiner(pipeline_dp.Combiner):
                                metrics.std_noise**2)
         abs_error_quantiles = []
         for quantile in self._error_quantiles:
-            error_at_quantile = scipy.stats.norm.ppf(
+            error_at_quantile = probability_to_keep * (scipy.stats.norm.ppf(
                 q=1 - quantile, loc=loc_cpe_ne,
-                scale=std_cpe_ne) + metrics.per_partition_error
+                scale=std_cpe_ne) + metrics.per_partition_error)
             abs_error_quantiles.append(error_at_quantile)
 
         # Relative error metrics
@@ -626,36 +651,34 @@ class CountAggregateErrorMetricsCombiner(pipeline_dp.Combiner):
 class PrivatePartitionSelectionAggregateErrorMetricsCombiner(
         pipeline_dp.Combiner):
     """A combiner for aggregating errors across partitions for private partition selection"""
-    # TODO: Implement logic.
-    AccumulatorType = AggregateErrorMetricsAccumulator
+    AccumulatorType = PartitionSelectionAccumulator
 
     def __init__(self, params: pipeline_dp.combiners.CombinerParams,
                  error_quantiles: List[float]):
         self._params = params
         self._error_quantiles = error_quantiles
 
-    def create_accumulator(self, probability_to_keep: float) -> AccumulatorType:
+    def create_accumulator(self, prob_to_keep: float) -> AccumulatorType:
         """Creates an accumulator for metrics."""
-        return AggregateErrorMetricsAccumulator(num_partitions=1,
-                                                abs_error_expected=0,
-                                                abs_error_variance=0,
-                                                abs_error_quantiles=[],
-                                                rel_error_expected=0,
-                                                rel_error_variance=0,
-                                                rel_error_quantiles=[])
+        return PartitionSelectionAccumulator(probabilities=[prob_to_keep])
 
     def merge_accumulators(self, acc1: AccumulatorType, acc2: AccumulatorType):
         """Merges two accumulators together additively."""
         return acc1 + acc2
 
-    def compute_metrics(self, acc: AccumulatorType) -> AggregateErrorMetrics:
+    def compute_metrics(self,
+                        acc: AccumulatorType) -> PartitionSelectionMetrics:
         """Computes metrics based on the accumulator properties."""
-        return AggregateErrorMetrics(abs_error_expected=0,
-                                     abs_error_variance=0,
-                                     abs_error_quantiles=[],
-                                     rel_error_expected=0,
-                                     rel_error_variance=0,
-                                     rel_error_quantiles=[])
+        if acc.moments is None:
+            acc.moments = _probabilities_to_moments(acc.probabilities)
+        kept_partitions_expected = acc.moments.expectation
+        kept_partitions_variance = acc.moments.variance
+        num_partitions = acc.moments.count
+        return PartitionSelectionMetrics(
+            num_partitions=num_partitions,
+            dropped_partitions_expected=num_partitions -
+            kept_partitions_expected,
+            dropped_partitions_variance=kept_partitions_variance)
 
     def metrics_names(self) -> List[str]:
         return []
