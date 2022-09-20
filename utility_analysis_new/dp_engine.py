@@ -12,6 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """DPEngine for utility analysis."""
+import copy
+from dataclasses import dataclass
+from typing import Iterable, Optional, Sequence
+
 import pipeline_dp
 from pipeline_dp import budget_accounting
 from pipeline_dp import combiners
@@ -19,6 +23,27 @@ from pipeline_dp import contribution_bounders
 from pipeline_dp import pipeline_backend
 import utility_analysis_new.contribution_bounders as utility_contribution_bounders
 import utility_analysis_new.combiners as utility_analysis_combiners
+
+
+@dataclass
+class MultiRunConfiguration:
+    max_partitions_contributed: Sequence[int]
+    max_contributions_per_partition: Sequence[int]
+    min_sum_per_partition: Sequence[float]
+    max_sum_per_partition: Sequence[float]
+
+    def __post_init__(self):
+        pass  # todo
+
+    @property
+    def size(self):
+        return len(self.max_partitions_contributed)  # todo
+
+    def get_aggregate_params(self, params: pipeline_dp.AggregateParams,
+                             index: int) -> pipeline_dp.AggregateParams:
+        params = copy.copy(params)
+        # todo
+        return params
 
 
 class UtilityAnalysisEngine(pipeline_dp.DPEngine):
@@ -29,16 +54,20 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
         super().__init__(budget_accountant, backend)
         self._is_public_partitions = None
 
-    def aggregate(self,
-                  col,
-                  params: pipeline_dp.AggregateParams,
-                  data_extractors: pipeline_dp.DataExtractors,
-                  public_partitions=None):
+    def aggregate(
+            self,
+            col,
+            params: pipeline_dp.AggregateParams,
+            data_extractors: pipeline_dp.DataExtractors,
+            public_partitions=None,
+            multi_run_configuration: Optional[MultiRunConfiguration] = None):
         _check_utility_analysis_params(params, public_partitions)
         self._is_public_partitions = public_partitions is not None
+        self._multi_run_configuration = multi_run_configuration
         result = super().aggregate(col, params, data_extractors,
                                    public_partitions)
         self._is_public_partitions = None
+        self._multi_run_configuration = None
         return result
 
     def _create_contribution_bounder(
@@ -53,33 +82,44 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
     ) -> combiners.CompoundCombiner:
         mechanism_type = aggregate_params.noise_kind.convert_to_mechanism_type()
         internal_combiners = []
-        if not self._is_public_partitions:
-            budget = self._budget_accountant.request_budget(
-                mechanism_type=pipeline_dp.MechanismType.GENERIC)
-            internal_combiners.append(
-                utility_analysis_combiners.PartitionSelectionCombiner(
-                    combiners.CombinerParams(budget, aggregate_params)))
-        if pipeline_dp.Metrics.COUNT in aggregate_params.metrics:
-            budget = self._budget_accountant.request_budget(
-                mechanism_type, weight=aggregate_params.budget_weight)
-            internal_combiners.append(
-                utility_analysis_combiners.UtilityAnalysisCountCombiner(
-                    combiners.CombinerParams(budget, aggregate_params)))
-        if pipeline_dp.Metrics.SUM in aggregate_params.metrics:
-            budget = self._budget_accountant.request_budget(
-                mechanism_type, weight=aggregate_params.budget_weight)
-            internal_combiners.append(
-                utility_analysis_combiners.UtilityAnalysisSumCombiner(
-                    combiners.CombinerParams(budget, aggregate_params)))
-        if pipeline_dp.Metrics.PRIVACY_ID_COUNT in aggregate_params.metrics:
-            budget = self._budget_accountant.request_budget(
-                mechanism_type, weight=aggregate_params.budget_weight)
-            internal_combiners.append(
-                utility_analysis_combiners.
-                UtilityAnalysisPrivacyIdCountCombiner(
-                    combiners.CombinerParams(budget, aggregate_params)))
+        for params in self._get_aggregate_params(aggregate_params):
+            if not self._is_public_partitions:
+                budget = self._budget_accountant.request_budget(
+                    mechanism_type=pipeline_dp.MechanismType.GENERIC)
+                internal_combiners.append(
+                    utility_analysis_combiners.PartitionSelectionCombiner(
+                        combiners.CombinerParams(budget, params)))
+            if pipeline_dp.Metrics.COUNT in aggregate_params.metrics:
+                budget = self._budget_accountant.request_budget(
+                    mechanism_type, weight=aggregate_params.budget_weight)
+                internal_combiners.append(
+                    utility_analysis_combiners.UtilityAnalysisCountCombiner(
+                        combiners.CombinerParams(budget, params)))
+            if pipeline_dp.Metrics.SUM in aggregate_params.metrics:
+                budget = self._budget_accountant.request_budget(
+                    mechanism_type, weight=aggregate_params.budget_weight)
+                internal_combiners.append(
+                    utility_analysis_combiners.UtilityAnalysisSumCombiner(
+                        combiners.CombinerParams(budget, params)))
+            if pipeline_dp.Metrics.PRIVACY_ID_COUNT in aggregate_params.metrics:
+                budget = self._budget_accountant.request_budget(
+                    mechanism_type, weight=aggregate_params.budget_weight)
+                internal_combiners.append(
+                    utility_analysis_combiners.
+                    UtilityAnalysisPrivacyIdCountCombiner(
+                        combiners.CombinerParams(budget, params)))
         return combiners.CompoundCombiner(internal_combiners,
                                           return_named_tuple=False)
+
+    def _get_aggregate_params(
+        self, params: pipeline_dp.AggregateParams
+    ) -> Iterable[pipeline_dp.AggregateParams]:
+        if self._multi_run_configuration is None:
+            yield params
+        else:
+            for i in range(self._multi_run_configuration.size):
+                yield self._multi_run_configuration.get_aggregate_params(
+                    params, i)
 
     def _select_private_partitions_internal(
             self, col, max_partitions_contributed: int,
