@@ -28,7 +28,14 @@ class UtilityAnalysisOptions:
     eps: float
     delta: float
     aggregate_params: pipeline_dp.AggregateParams
-    multi_run_configurations: Optional[dp_engine.MultiRunConfiguration] = None
+    multi_param_configuration: Optional[
+        dp_engine.MultiParameterConfiguration] = None
+
+    @property
+    def n_parameters(self):
+        if self.multi_param_configuration is None:
+            return 1
+        return self.multi_param_configuration.size
 
 
 def perform_utility_analysis(col,
@@ -57,12 +64,13 @@ def perform_utility_analysis(col,
         params=options.aggregate_params,
         data_extractors=data_extractors,
         public_partitions=public_partitions,
-        multi_run_configuration=options.multi_run_configurations)
+        multi_param_configuration=options.multi_param_configuration)
     budget_accountant.compute_budgets()
     # result : (partition_key, per_partition_metrics)
 
     aggregate_error_combiners = _create_aggregate_error_compound_combiner(
-        options.aggregate_params, [0.1, 0.5, 0.9, 0.99], public_partitions)
+        options.aggregate_params, [0.1, 0.5, 0.9, 0.99], public_partitions,
+        options.n_parameters)
     # TODO: Implement combine_accumulators (w/o per_key)
     keyed_by_same_key = backend.map(result, lambda v: (None, v[1]),
                                     "Rekey partitions by the same key")
@@ -84,17 +92,18 @@ def perform_utility_analysis(col,
 
 def _create_aggregate_error_compound_combiner(
         aggregate_params: pipeline_dp.AggregateParams,
-        error_quantiles: List[float],
-        public_partitions: bool) -> combiners.CompoundCombiner:
+        error_quantiles: List[float], public_partitions: bool,
+        n_parameters: int) -> combiners.CompoundCombiner:
     internal_combiners = []
-    if not public_partitions:
-        internal_combiners.append(
-            utility_analysis_combiners.
-            PrivatePartitionSelectionAggregateErrorMetricsCombiner(
-                None, error_quantiles))
-    if pipeline_dp.Metrics.COUNT in aggregate_params.metrics:
-        internal_combiners.append(
-            utility_analysis_combiners.CountAggregateErrorMetricsCombiner(
-                None, error_quantiles))
+    for i in range(n_parameters):
+        if not public_partitions:
+            internal_combiners.append(
+                utility_analysis_combiners.
+                PrivatePartitionSelectionAggregateErrorMetricsCombiner(
+                    None, error_quantiles))
+        if pipeline_dp.Metrics.COUNT in aggregate_params.metrics:
+            internal_combiners.append(
+                utility_analysis_combiners.CountAggregateErrorMetricsCombiner(
+                    None, error_quantiles))
     return utility_analysis_combiners.AggregateErrorMetricsCompoundCombiner(
         internal_combiners, return_named_tuple=False)

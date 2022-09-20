@@ -63,7 +63,7 @@ class PartitionSelectionStrategy(Enum):
 class AggregateParams:
     """Specifies parameters for function DPEngine.aggregate()
 
-    Args:
+    Attributes:
         metrics: A list of metrics to compute.
         noise_kind: The type of noise to use for the DP calculations.
         max_partitions_contributed: A bound on the number of partitions to which one
@@ -260,7 +260,7 @@ class AggregateParams:
 class SelectPartitionsParams:
     """Specifies parameters for differentially-private partition selection.
 
-    Args:
+    Attributes:
         max_partitions_contributed: Maximum number of partitions per privacy ID.
             The algorithm will drop contributions over this limit. To keep more
             data, this should be a good estimate of the realistic upper bound.
@@ -285,7 +285,7 @@ class SelectPartitionsParams:
 class SumParams:
     """Specifies parameters for differentially-private sum calculation.
 
-    Args:
+    Attributes:
         noise_kind: The type of noise to use for the DP calculations.
         max_partitions_contributed: A bounds on the number of partitions to which one
             unit of privacy (e.g., a user) can contribute.
@@ -326,7 +326,7 @@ class SumParams:
 class VarianceParams:
     """Specifies parameters for differentially-private variance calculation.
 
-    Args:
+    Attributes:
         noise_kind: Kind of noise to use for the DP calculations.
         max_partitions_contributed: Bounds the number of partitions in which one
             unit of privacy (e.g., a user) can participate.
@@ -361,7 +361,7 @@ class VarianceParams:
 class MeanParams:
     """Specifies parameters for differentially-private mean calculation.
 
-    Args:
+    Attributes:
         noise_kind: Kind of noise to use for the DP calculations.
         max_partitions_contributed: Bounds the number of partitions in which one
             unit of privacy (e.g., a user) can participate.
@@ -397,7 +397,7 @@ class MeanParams:
 class CountParams:
     """Specifies parameters for differentially-private count calculation.
 
-    Args:
+    Attributes:
         noise_kind: The type of noise to use for the DP calculations.
         max_partitions_contributed: A bound on the number of partitions to which one
             unit of privacy (e.g., a user) can contribute.
@@ -406,7 +406,6 @@ class CountParams:
         partition_extractor: A function which, given an input element, will return its partition id.
         budget_weight: Relative weight of the privacy budget allocated for this
             operation.
-
     """
 
     noise_kind: NoiseKind
@@ -428,7 +427,7 @@ class CountParams:
 class PrivacyIdCountParams:
     """Specifies parameters for differentially-private privacy id count calculation.
 
-    Args:
+    Attributes:
         noise_kind: The type of noise to use for the DP calculations.
         max_partitions_contributed: A bound on the number of partitions to which one
             unit of privacy (e.g., a user) can contribute.

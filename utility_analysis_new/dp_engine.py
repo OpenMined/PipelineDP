@@ -13,7 +13,7 @@
 # limitations under the License.
 """DPEngine for utility analysis."""
 import copy
-from dataclasses import dataclass
+import dataclasses
 from typing import Iterable, Optional, Sequence
 
 import pipeline_dp
@@ -25,24 +25,46 @@ import utility_analysis_new.contribution_bounders as utility_contribution_bounde
 import utility_analysis_new.combiners as utility_analysis_combiners
 
 
-@dataclass
-class MultiRunConfiguration:
-    max_partitions_contributed: Sequence[int]
-    max_contributions_per_partition: Sequence[int]
-    min_sum_per_partition: Sequence[float]
-    max_sum_per_partition: Sequence[float]
+@dataclasses.dataclass
+class MultiParameterConfiguration:
+    max_partitions_contributed: Sequence[int] = None
+    max_contributions_per_partition: Sequence[int] = None
+    min_sum_per_partition: Sequence[float] = None
+    max_sum_per_partition: Sequence[float] = None
 
     def __post_init__(self):
-        pass  # todo
+        field_values = dataclasses.asdict(self)
+        sizes = [len(value) for value in field_values.values() if value]
+        if not sizes:
+            raise ValueError("MultiParameterConfiguration can not be empty.")
+        if min(sizes) != max(sizes):
+            raise ValueError(
+                "All set attributes in MultiParameterConfiguration must have the same length."
+            )
+        if (self.min_sum_per_partition is None) != (self.max_sum_per_partition
+                                                    is None):
+            raise ValueError(
+                "MultiParameterConfiguration: min_sum_per_partition and "
+                "max_sum_per_partition must be both set or both None.")
+        self._size = sizes[0]
 
     @property
     def size(self):
-        return len(self.max_partitions_contributed)  # todo
+        return self._size
 
     def get_aggregate_params(self, params: pipeline_dp.AggregateParams,
                              index: int) -> pipeline_dp.AggregateParams:
         params = copy.copy(params)
-        # todo
+        if self.max_partitions_contributed:
+            params.max_partitions_contributed = self.max_partitions_contributed[
+                index]
+        if self.max_contributions_per_partition:
+            params.max_contributions_per_partition = self.max_contributions_per_partition[
+                index]
+        if self.min_sum_per_partition:
+            params.min_sum_per_partition = self.min_sum_per_partition[index]
+        if self.max_sum_per_partition:
+            params.max_sum_per_partition = self.max_sum_per_partition[index]
         return params
 
 
@@ -55,15 +77,16 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
         self._is_public_partitions = None
 
     def aggregate(
-            self,
-            col,
-            params: pipeline_dp.AggregateParams,
-            data_extractors: pipeline_dp.DataExtractors,
-            public_partitions=None,
-            multi_run_configuration: Optional[MultiRunConfiguration] = None):
+        self,
+        col,
+        params: pipeline_dp.AggregateParams,
+        data_extractors: pipeline_dp.DataExtractors,
+        public_partitions=None,
+        multi_param_configuration: Optional[MultiParameterConfiguration] = None
+    ):
         _check_utility_analysis_params(params, public_partitions)
         self._is_public_partitions = public_partitions is not None
-        self._multi_run_configuration = multi_run_configuration
+        self._multi_run_configuration = multi_param_configuration
         result = super().aggregate(col, params, data_extractors,
                                    public_partitions)
         self._is_public_partitions = None
