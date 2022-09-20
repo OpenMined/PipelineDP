@@ -528,7 +528,7 @@ class AggregateErrorMetricsAccumulator:
 
     def __add__(self, other):
         return AggregateErrorMetricsAccumulator(
-            expected_kept_partitions=self.kept_partitions_expected +
+            kept_partitions_expected=self.kept_partitions_expected +
             other.kept_partitions_expected,
             abs_error_expected=self.abs_error_expected +
             other.abs_error_expected,
@@ -612,7 +612,7 @@ class CountAggregateErrorMetricsCombiner(pipeline_dp.Combiner):
             ]
 
         return AggregateErrorMetricsAccumulator(
-            expected_kept_partitions=probability_to_keep,
+            kept_partitions_expected=probability_to_keep,
             abs_error_expected=abs_error_expected,
             abs_error_variance=abs_error_variance,
             abs_error_quantiles=abs_error_quantiles,
