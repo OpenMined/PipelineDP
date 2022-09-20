@@ -517,7 +517,7 @@ class AggregateErrorMetricsAccumulator:
     """ Accumulator for AggregateErrorMetrics.
 
     All fields in this dataclass are sums across partitions"""
-    expected_kept_partitions: float
+    kept_partitions_expected: float
 
     abs_error_expected: float
     abs_error_variance: float
@@ -528,8 +528,8 @@ class AggregateErrorMetricsAccumulator:
 
     def __add__(self, other):
         return AggregateErrorMetricsAccumulator(
-            expected_kept_partitions=self.expected_kept_partitions +
-            other.expected_kept_partitions,
+            expected_kept_partitions=self.kept_partitions_expected +
+            other.kept_partitions_expected,
             abs_error_expected=self.abs_error_expected +
             other.abs_error_expected,
             abs_error_variance=self.abs_error_variance +
@@ -628,19 +628,19 @@ class CountAggregateErrorMetricsCombiner(pipeline_dp.Combiner):
     def compute_metrics(self, acc: AccumulatorType) -> AggregateErrorMetrics:
         """Computes metrics based on the accumulator properties."""
         return AggregateErrorMetrics(abs_error_expected=acc.abs_error_expected /
-                                     acc.expected_kept_partitions,
+                                     acc.kept_partitions_expected,
                                      abs_error_variance=acc.abs_error_variance /
-                                     acc.expected_kept_partitions,
+                                     acc.kept_partitions_expected,
                                      abs_error_quantiles=[
-                                         sum / acc.expected_kept_partitions
+                                         sum / acc.kept_partitions_expected
                                          for sum in acc.abs_error_quantiles
                                      ],
                                      rel_error_expected=acc.rel_error_expected /
-                                     acc.expected_kept_partitions,
+                                     acc.kept_partitions_expected,
                                      rel_error_variance=acc.rel_error_variance /
-                                     acc.expected_kept_partitions,
+                                     acc.kept_partitions_expected,
                                      rel_error_quantiles=[
-                                         sum / acc.expected_kept_partitions
+                                         sum / acc.kept_partitions_expected
                                          for sum in acc.rel_error_quantiles
                                      ])
 
