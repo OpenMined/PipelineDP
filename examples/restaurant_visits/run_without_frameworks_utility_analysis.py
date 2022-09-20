@@ -1,3 +1,5 @@
+# Copyright 2022 OpenMined.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -10,7 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Demo of running PipelineDP locally, without any external data processing framework.
+
 This demo outputs a utility analysis of errors and noise for each partition in the dataset.
+
 1. Install Python and run on the command line `pip install pipeline-dp absl-py`
 2. Run python python run_without_frameworks_utility_analysis.py --output_file=<...>
 """

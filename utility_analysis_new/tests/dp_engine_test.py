@@ -21,6 +21,12 @@ from pipeline_dp import budget_accounting
 from utility_analysis_new import dp_engine
 
 
+class MultiParameterConfiguration(parameterized.TestCase):
+
+    def test_verification(self):
+        pass
+
+
 class DpEngine(parameterized.TestCase):
 
     def _get_default_extractors(self) -> pipeline_dp.DataExtractors:

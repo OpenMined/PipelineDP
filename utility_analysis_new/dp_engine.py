@@ -27,6 +27,26 @@ import utility_analysis_new.combiners as utility_analysis_combiners
 
 @dataclasses.dataclass
 class MultiParameterConfiguration:
+    """Specifies parameters for multi-parameter Utility Analysis.
+
+    All MultiParameterConfiguration attributes corresponds to attributes in
+    pipeline_dp.AggregateParams.
+
+    UtilityAnalysisEngine can perform utility analysis for multiple sets of
+    parameters simultaneously. API for this is the following:
+    1. Specify blue-print AggregateParams instance.
+    2. Set MultiParameterConfiguration attributes which should have different
+    values.
+    3. Pass created objects to UtilityAnalysisEngine.aggregate().
+
+    Example:
+        max_partitions_contributed = [1, 2]
+        max_contributions_per_partition = [10, 11]
+
+        Then the utility analysis will be performed for
+          AggregateParams(max_partitions_contributed=1, max_contributions_per_partition=10)
+          AggregateParams(max_partitions_contributed=2, max_contributions_per_partition=11)
+    """
     max_partitions_contributed: Sequence[int] = None
     max_contributions_per_partition: Sequence[int] = None
     min_sum_per_partition: Sequence[float] = None
@@ -54,6 +74,7 @@ class MultiParameterConfiguration:
 
     def get_aggregate_params(self, params: pipeline_dp.AggregateParams,
                              index: int) -> pipeline_dp.AggregateParams:
+        """Returns AggregateParams with the index-th parameters."""
         params = copy.copy(params)
         if self.max_partitions_contributed:
             params.max_partitions_contributed = self.max_partitions_contributed[
