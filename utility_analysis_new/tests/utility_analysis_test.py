@@ -70,17 +70,15 @@ class UtilityAnalysis(parameterized.TestCase):
                                2.45254,
                                delta=1e-5)
         # Assert count metrics are reasonable.
-        self.assertAlmostEqual(col[0][1].abs_error_expected,
-                               -12.07119,
-                               delta=1e-5)
+        self.assertAlmostEqual(col[0][1].abs_error_expected, -28, delta=1e-5)
         self.assertAlmostEqual(col[0][1].abs_error_variance,
-                               2.06498,
+                               4.789888954162597,
                                delta=1e-5)
         self.assertAlmostEqual(col[0][1].rel_error_expected,
-                               -0.40237,
+                               -0.933333333333333,
                                delta=1e-5)
         self.assertAlmostEqual(col[0][1].rel_error_variance,
-                               0.002294,
+                               0.005322098837958442,
                                delta=1e-5)
 
     def test_w_public_partitions(self):
