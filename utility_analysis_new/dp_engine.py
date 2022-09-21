@@ -35,9 +35,11 @@ class MultiParameterConfiguration:
     UtilityAnalysisEngine can perform utility analysis for multiple sets of
     parameters simultaneously. API for this is the following:
     1. Specify blue-print AggregateParams instance.
-    2. Set MultiParameterConfiguration attributes which should have different
-    values.
-    3. Pass created objects to UtilityAnalysisEngine.aggregate().
+    2. Set MultiParameterConfiguration attributes (see the example below). Note
+    that each attribute is a sequence of parameter values for which the utility
+    analysis will be run. All attributes that have non-None values must have
+    the same length.
+    3. Pass the created objects to UtilityAnalysisEngine.aggregate().
 
     Example:
         max_partitions_contributed = [1, 2]
@@ -53,14 +55,15 @@ class MultiParameterConfiguration:
     max_sum_per_partition: Sequence[float] = None
 
     def __post_init__(self):
-        field_values = dataclasses.asdict(self)
-        sizes = [len(value) for value in field_values.values() if value]
+        attributes = dataclasses.asdict(self)
+        sizes = [len(value) for value in attributes.values() if value]
         if not sizes:
-            raise ValueError("MultiParameterConfiguration can not be empty.")
+            raise ValueError("MultiParameterConfiguration must have at least 1"
+                             " non-empty attribute.")
         if min(sizes) != max(sizes):
             raise ValueError(
-                "All set attributes in MultiParameterConfiguration must have the same length."
-            )
+                "All set attributes in MultiParameterConfiguration must have "
+                "the same length.")
         if (self.min_sum_per_partition is None) != (self.max_sum_per_partition
                                                     is None):
             raise ValueError(
@@ -105,6 +108,25 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
         public_partitions=None,
         multi_param_configuration: Optional[MultiParameterConfiguration] = None
     ):
+        """Performs utility analysis for DP aggregations per partition.
+
+        Args:
+          col: collection where all elements are of the same type.
+          params: specifies which metrics to compute and computation parameters.
+          data_extractors: functions that extract needed pieces of information
+            from elements of 'col'.
+          public_partitions: A collection of partition keys that will be present
+            in the result. If not provided, the utility analysis with private
+            partition selection will be performed.
+          multi_param_configuration: if provided the utility analysis for
+            multiple parameters will be performed: 'params' is used as
+            blue-print and non-None attributes from 'multi_param_configuration'
+            are used for creating multiple AggregateParams. See docstring for
+            MultiParameterConfiguration for more details.
+
+        Returns:
+            A collection with elements (pk, utility analysis metrics).
+        """
         _check_utility_analysis_params(params, public_partitions)
         self._is_public_partitions = public_partitions is not None
         self._multi_run_configuration = multi_param_configuration

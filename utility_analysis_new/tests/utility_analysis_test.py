@@ -139,10 +139,10 @@ class UtilityAnalysis(parameterized.TestCase):
 
         # Input collection has 1 privacy id, which contributes to 2 partitions
         # 1 and 2 times correspondingly.
-        input = [(0, 0), (0, 1), (0, 1)]
+        input = [(0, "pk0"), (0, "pk1"), (0, "pk1")]
         data_extractors = pipeline_dp.DataExtractors(
             privacy_id_extractor=lambda x: x[0],
-            partition_extractor=lambda x: f"pk{x[1]}",
+            partition_extractor=lambda x: x[1],
             value_extractor=lambda x: None)
 
         public_partitions = ["pk0", "pk1"]
