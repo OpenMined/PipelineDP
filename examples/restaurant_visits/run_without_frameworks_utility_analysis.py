@@ -18,7 +18,6 @@ This demo outputs a utility analysis of errors and noise for each partition in t
 1. Install Python and run on the command line `pip install pipeline-dp absl-py`
 2. Run python python run_without_frameworks_utility_analysis.py --output_file=<...>
 """
-
 from absl import app
 from absl import flags
 import pipeline_dp
@@ -36,6 +35,9 @@ flags.DEFINE_boolean('public_partitions', False,
 flags.DEFINE_boolean(
     'per_partitions_metrics', False,
     'Whether per partition or aggregate utility analysis is computed')
+flags.DEFINE_boolean(
+    'multi_parameters', False, 'Whether utility analysis is performed for '
+    'multiple parameters simultaneously')
 
 
 def write_to_file(col, filename):
@@ -77,6 +79,15 @@ def get_data_extractors():
         value_extractor=lambda row: row.spent_money)
 
 
+def get_multi_params():
+    multi_param = None
+    if FLAGS.multi_parameters:
+        multi_param = utility_analysis_new.MultiParameterConfiguration(
+            max_partitions_contributed=[1, 1, 2],
+            max_contributions_per_partition=[1, 1, 2])
+    return multi_param
+
+
 def per_partition_utility_analysis():
     # Here, we use a local backend for computations. This does not depend on
     # any pipeline framework and it is implemented in pure Python in
@@ -102,7 +113,8 @@ def per_partition_utility_analysis():
     result = utility_analysis_engine.aggregate(restaurant_visits_rows,
                                                aggregate_params,
                                                data_extractors,
-                                               public_partitions)
+                                               public_partitions,
+                                               get_multi_params())
 
     budget_accountant.compute_budgets()
 
@@ -121,8 +133,9 @@ def aggregate_utility_analysis():
     aggregate_params = get_aggregate_params()
     data_extractors = get_data_extractors()
     public_partitions = list(range(1, 8)) if FLAGS.public_partitions else None
+
     options = utility_analysis_new.utility_analysis.UtilityAnalysisOptions(
-        1, 1e-5, aggregate_params)
+        1, 1e-5, aggregate_params, get_multi_params())
 
     result = utility_analysis_new.utility_analysis.perform_utility_analysis(
         restaurant_visits_rows, pipeline_dp.LocalBackend(), options,

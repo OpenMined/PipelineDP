@@ -19,6 +19,67 @@ import copy
 import pipeline_dp
 from pipeline_dp import budget_accounting
 from utility_analysis_new import dp_engine
+from utility_analysis_new.combiners import CountUtilityAnalysisMetrics
+import utility_analysis_new
+
+
+class MultiParameterConfiguration(parameterized.TestCase):
+
+    @parameterized.named_parameters(
+        dict(testcase_name="All MultiParameterConfiguration fields unset",
+             error_msg="MultiParameterConfiguration must have at least 1 "
+             "non-empty attribute.",
+             max_partitions_contributed=None,
+             max_contributions_per_partition=None,
+             min_sum_per_partition=None,
+             max_sum_per_partition=None),
+        dict(testcase_name="Attributes different size 1",
+             error_msg="All set attributes in MultiParameterConfiguration must "
+             "have the same length.",
+             max_partitions_contributed=[1],
+             max_contributions_per_partition=[1, 2],
+             min_sum_per_partition=None,
+             max_sum_per_partition=None),
+        dict(testcase_name="Attributes different size 2",
+             error_msg="All set attributes in MultiParameterConfiguration must "
+             "have the same length.",
+             max_partitions_contributed=None,
+             max_contributions_per_partition=None,
+             min_sum_per_partition=[1, 1, 1],
+             max_sum_per_partition=[2]),
+        dict(testcase_name="One of min_sum_per_partition, "
+             "max_sum_per_partition is None",
+             error_msg="MultiParameterConfiguration: min_sum_per_partition and "
+             "max_sum_per_partition must be both set or both None.",
+             max_partitions_contributed=None,
+             max_contributions_per_partition=None,
+             min_sum_per_partition=[1, 1, 1],
+             max_sum_per_partition=None),
+    )
+    def test_validation(self, error_msg, max_partitions_contributed,
+                        max_contributions_per_partition, min_sum_per_partition,
+                        max_sum_per_partition):
+        with self.assertRaisesRegex(ValueError, error_msg):
+            utility_analysis_new.MultiParameterConfiguration(
+                max_partitions_contributed, max_contributions_per_partition,
+                min_sum_per_partition, max_sum_per_partition)
+
+    def test_get_aggregate_params(self):
+        params = pipeline_dp.AggregateParams(
+            noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+            metrics=[pipeline_dp.Metrics.COUNT],
+            max_partitions_contributed=1,
+            max_contributions_per_partition=1)
+
+        max_partitions_contributed = [10, 12, 15]
+        multi_params = utility_analysis_new.MultiParameterConfiguration(
+            max_partitions_contributed=max_partitions_contributed)
+        self.assertTrue(3, multi_params.size)
+
+        for i in range(multi_params.size):
+            ith_params = multi_params.get_aggregate_params(params, i)
+            params.max_partitions_contributed = max_partitions_contributed[i]
+            self.assertEqual(params, ith_params)
 
 
 class DpEngine(parameterized.TestCase):
@@ -166,6 +227,83 @@ class DpEngine(parameterized.TestCase):
             self.assertAlmostEqual(v[1][1].std_noise, 11.95312, delta=1e-5)
             for v in col
         ]
+
+    def test_multi_parameters(self):
+        # Arrange
+        aggregate_params = pipeline_dp.AggregateParams(
+            noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+            metrics=[pipeline_dp.Metrics.COUNT],
+            max_partitions_contributed=1,
+            max_contributions_per_partition=1)
+
+        multi_param = utility_analysis_new.MultiParameterConfiguration(
+            max_partitions_contributed=[1, 2],
+            max_contributions_per_partition=[1, 2])
+
+        budget_accountant = pipeline_dp.NaiveBudgetAccountant(total_epsilon=1,
+                                                              total_delta=1e-10)
+
+        engine = dp_engine.UtilityAnalysisEngine(
+            budget_accountant=budget_accountant,
+            backend=pipeline_dp.LocalBackend())
+
+        # Input collection has 1 privacy id, which contributes to 2 partitions
+        # 1 and 2 times correspondingly.
+        input = [(0, "pk0"), (0, "pk1"), (0, "pk1")]
+        data_extractors = pipeline_dp.DataExtractors(
+            privacy_id_extractor=lambda x: x[0],
+            partition_extractor=lambda x: x[1],
+            value_extractor=lambda x: None)
+
+        public_partitions = ["pk0", "pk1"]
+
+        output = engine.aggregate(input,
+                                  aggregate_params,
+                                  data_extractors,
+                                  public_partitions=public_partitions,
+                                  multi_param_configuration=multi_param)
+        budget_accountant.compute_budgets()
+
+        output = list(output)
+        self.assertLen(output, 2)
+        # Each partition has 2 metrics (for both parameter set).
+        [self.assertLen(partition_metrics, 2) for partition_metrics in output]
+
+        expected_pk0 = [
+            CountUtilityAnalysisMetrics(
+                count=1,
+                per_partition_error=0,
+                expected_cross_partition_error=-0.5,
+                std_cross_partition_error=0.5,
+                std_noise=11.6640625,
+                noise_kind=pipeline_dp.NoiseKind.GAUSSIAN),
+            CountUtilityAnalysisMetrics(
+                count=1,
+                per_partition_error=0,
+                expected_cross_partition_error=0,
+                std_cross_partition_error=0.0,
+                std_noise=32.99095075973487,
+                noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)
+        ]
+        expected_pk1 = [
+            CountUtilityAnalysisMetrics(
+                count=2,
+                per_partition_error=-1,
+                expected_cross_partition_error=-0.5,
+                std_cross_partition_error=0.5,
+                std_noise=11.6640625,
+                noise_kind=pipeline_dp.NoiseKind.GAUSSIAN),
+            CountUtilityAnalysisMetrics(
+                count=2,
+                per_partition_error=0,
+                expected_cross_partition_error=0,
+                std_cross_partition_error=0.0,
+                std_noise=32.99095075973487,
+                noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)
+        ]
+
+        self.assertSequenceEqual(expected_pk0, output[0][1])
+        self.assertSequenceEqual(expected_pk1, output[1][1])
 
 
 if __name__ == '__main__':

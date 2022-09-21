@@ -16,6 +16,7 @@ from absl.testing import absltest
 from absl.testing import parameterized
 
 import pipeline_dp
+import utility_analysis_new
 from utility_analysis_new import utility_analysis
 
 
@@ -121,6 +122,51 @@ class UtilityAnalysis(parameterized.TestCase):
         self.assertAlmostEqual(col[0][0].abs_error_variance, 9.1648, delta=1e-2)
         self.assertEqual(col[0][0].rel_error_expected, float('inf'))
         self.assertEqual(col[0][0].rel_error_variance, float('inf'))
+
+    def test_multi_parameters(self):
+        # Arrange
+        aggregate_params = pipeline_dp.AggregateParams(
+            noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+            metrics=[pipeline_dp.Metrics.COUNT],
+            max_partitions_contributed=1,
+            max_contributions_per_partition=1)
+
+        multi_param = utility_analysis_new.MultiParameterConfiguration(
+            max_partitions_contributed=[1, 2],
+            max_contributions_per_partition=[1, 2])
+
+        # Input collection has 1 privacy id, which contributes to 2 partitions
+        # 1 and 2 times correspondingly.
+        input = [(0, "pk0"), (0, "pk1"), (0, "pk1")]
+        data_extractors = pipeline_dp.DataExtractors(
+            privacy_id_extractor=lambda x: x[0],
+            partition_extractor=lambda x: x[1],
+            value_extractor=lambda x: None)
+
+        public_partitions = ["pk0", "pk1"]
+
+        output = utility_analysis.perform_utility_analysis(
+            col=input,
+            backend=pipeline_dp.LocalBackend(),
+            options=utility_analysis.UtilityAnalysisOptions(
+                eps=2,
+                delta=1e-10,
+                aggregate_params=aggregate_params,
+                multi_param_configuration=multi_param),
+            data_extractors=data_extractors,
+            public_partitions=public_partitions,
+        )
+
+        output = list(output)
+
+        # Assert
+        # Assert a singleton is returned
+        self.assertLen(output, 1)
+        # Assert there are 2 AggregateErrorMetrics returned
+        self.assertLen(output[0], 2)
+        # Assert abs_error_expected is correct.
+        self.assertAlmostEqual(output[0][0].abs_error_expected, -1)
+        self.assertAlmostEqual(output[0][1].abs_error_expected, 0)
 
 
 if __name__ == '__main__':
