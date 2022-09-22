@@ -43,41 +43,6 @@ class Histogram:
     name: str
     bins: List[FrequencyBin]
 
-    def total_count(self):
-        return sum([bin.count for bin in self.bins])
-
-    def total_sum(self):
-        return sum([bin.sum for bin in self.bins])
-
-    @property
-    def max_value(self):
-        return self.bins[-1].max
-
-    def quantiles(self) -> List[Tuple[int, float]]:
-        result = [(self.max_value, 1)]
-        count_larger = 0
-        total_count = self.total_count()
-
-        for bin in self.bins[::-1]:
-            count_larger += bin.count
-            result.append((bin.lower, 1 - count_larger / total_count))
-        return result[::-1]
-
-    def ratio_dropped(self) -> List[Tuple[int, float]]:
-        result = [(self.max_value, 0.0)]
-        total_count, total_sum = self.total_count(), self.total_sum()
-        previous_value = self.max_value
-        dropped = count_larger = 0
-
-        for bin in self.bins[::-1]:
-            current_value = bin.lower
-            dropped += count_larger * (previous_value - current_value) + (
-                bin.sum - bin.count * current_value)
-            result.append((current_value, 1 - dropped / total_sum))
-            previous_value = current_value
-
-        return result[::-1]
-
 
 @dataclass
 class ContributionHistograms:
@@ -205,13 +170,6 @@ def _compute_per_partition_histogram(col,
     return _compute_frequency_histogram(col, backend, "PerPartitionHistogram")
 
 
-@dataclass
-class ContributionHistograms:
-    """Histograms of privacy id contributions."""
-    cross_partition_histogram: Histogram
-    per_partition_histogram: Optional[Histogram] = None
-
-
 def compute_contribution_histograms(
         col, data_extractors: pipeline_dp.DataExtractors,
         backend: pipeline_backend.PipelineBackend) -> ContributionHistograms:
@@ -278,7 +236,7 @@ class TuneOptions:
         function_to_minimize: which function of the error to minimize. In case
           if this argument is a callable, it should take 1 argument of type
           AggregateErrorMetrics and return float.
-        parameters_to_tune: specifies which parameters.
+        parameters_to_tune: specifies which parameters to tune.
     """
     epsilon: float
     delta: float
@@ -311,56 +269,6 @@ class TuneResult:
     utility_analysis_runs: List[UtilityAnalysisRun]
 
 
-def _find_values(values: List[Tuple[int, float]],
-                 targets: List[float]):  # todo better name
-    result = []
-    i_target = len(targets) - 1
-    for num, val in values[::-1]:  # todo names
-        if val <= targets[i_target]:
-            result.append(num)
-            while i_target >= 0 and val <= targets[i_target]:
-                i_target -= 1
-            if i_target < 0:
-                break
-    return result[::-1]
-
-
-def _find_candidate_parameters(
-    contribution_histograms: ContributionHistograms, options: TuneOptions
-) -> utility_analysis_new.dp_engine.MultiParameterConfiguration:
-    QUANTILES_TO_USE = [0.9, 0.95, 0.98, 0.99, 0.995, 1]
-    l0_quantiles = linf_quantiles = None
-
-    if options.parameters_to_tune.tune_max_partitions_contributed:
-        l0_quantiles = _find_values(
-            contribution_histograms.cross_partition_histogram.quantiles(),
-            QUANTILES_TO_USE)
-
-    if options.parameters_to_tune.tune_max_contributions_per_partition:
-        linf_quantiles = _find_values(
-            contribution_histograms.per_partition_histogram.quantiles(),
-            QUANTILES_TO_USE)
-
-    l0_bounds = linf_bounds = None
-
-    if l0_quantiles and linf_quantiles:
-        l0_bounds, linf_bounds = [], []
-        for l0 in l0_quantiles:
-            for linf in linf_quantiles:
-                l0_bounds.append(l0)
-                linf_bounds.append(linf)
-    elif l0_quantiles:
-        l0_bounds = l0_quantiles
-    elif linf_quantiles:
-        linf_bounds = linf_quantiles
-    else:
-        assert False, "Nothing to tune."
-
-    return utility_analysis_new.dp_engine.MultiParameterConfiguration(
-        max_partitions_contributed=l0_bounds,
-        max_contributions_per_partition=linf_bounds)
-
-
 def tune(col,
          backend: pipeline_backend.PipelineBackend,
          contribution_histograms: ContributionHistograms,
@@ -384,17 +292,7 @@ def tune(col,
     """
     _check_tune_args(options)
 
-    candidates = _find_candidate_parameters(contribution_histograms, options)
-
-    utility_analysis_options = utility_analysis.UtilityAnalysisOptions(
-        options.epsilon,
-        options.delta,
-        options.aggregate_params,
-        multi_param_configuration=candidates)
-    return utility_analysis.perform_utility_analysis(col, backend,
-                                                     utility_analysis_options,
-                                                     data_extractors,
-                                                     public_partitions)
+    raise NotImplementedError("tune() is not yet implemented.")
 
 
 def _check_tune_args(options: TuneOptions):
