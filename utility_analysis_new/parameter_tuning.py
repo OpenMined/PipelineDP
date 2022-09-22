@@ -1,12 +1,14 @@
 import pipeline_dp
+import utility_analysis_new.dp_engine
 from pipeline_dp import pipeline_backend
+from pipeline_dp import input_validators
+import dataclasses
 from dataclasses import dataclass
 import operator
-from typing import Callable, Generic, Iterable, List, Optional, TypeVar, Union
+from typing import Callable, List, Optional, Tuple, Union
 from utility_analysis_new import combiners
 from utility_analysis_new import utility_analysis
 from enum import Enum
-import numbers
 
 
 @dataclass
@@ -196,13 +198,6 @@ def compute_contribution_histograms(
 
 
 @dataclass
-class ContributionHistograms:
-    """Histograms of privacy id contributions."""
-    cross_partition_histogram: Histogram
-    per_partition_histogram: Optional[Histogram] = None
-
-
-@dataclass
 class UtilityAnalysisRun:
     params: utility_analysis.UtilityAnalysisOptions
     result: combiners.AggregateErrorMetrics
@@ -213,68 +208,18 @@ class MinimizingFunction(Enum):
     RELATIVE_ERROR = 'relative_error'
 
 
-T = TypeVar('T')
-
-
 @dataclass
-class Bounds(Generic[T]):
-    """Defines optional lower and upper bounds (int or float)."""
-    lower: Optional[T] = None
-    upper: Optional[T] = None
+class ParametersToTune:
+    """Contains parameters to tune."""
+    tune_max_partitions_contributed: bool = False
+    tune_max_contributions_per_partition: bool = False
+    tune_min_sum_per_partition: bool = False
+    tune_max_sum_per_partition: bool = False
 
     def __post_init__(self):
-
-        def check_is_number(value, name: str):
-            if name is None:
-                return
-            if not isinstance(value, numbers.Number):
-                raise ValueError(f"{name} must be number, but {name}={value}")
-
-        check_is_number(self.lower, "lower")
-        check_is_number(self.upper, "upper")
-
-        if self.lower is not None and self.upper is not None:
-            assert self.lower <= self.upper
-
-
-@dataclass
-class TunedParameters:
-    """Contains parameters to tune.
-
-    Attributes of this class define restrictions on tuning on corresponding
-    attributes in pipeline_dp.AggregateParams.
-
-    Example:
-        max_partitions_contributed
-          1. = Bound(lower=1, upper=10) only numbers between 1 and 10 will be
-          considered during tuning for max_partitions_contributed.
-          2. = Bound(lower=None, upper=10) means numbers till 10.
-          3. = None means no restriction
-          4. = 3 means no tuning, max_partitions_contributed=3.
-    """
-    max_partitions_contributed: Optional[Union[int, Bounds[int]]] = None
-    max_contributions_per_partition: Optional[Union[int, Bounds[int]]] = None
-    min_sum_per_partition: Optional[Union[float, Bounds[float]]] = None
-    max_sum_per_partition: Optional[Union[float, Bounds[float]]] = None
-
-    def __post_init__(self):
-
-        def check_int_attribute(value, name: str):
-            if value is None:
-                return
-            if isinstance(value, int):
-                if value <= 0:
-                    raise ValueError(f"{name} must be >0, but {name}={value}")
-            elif isinstance(value, Bounds):
-                if value.lower <= 0:
-                    raise ValueError(
-                        f"{name} lower bound must be >0, but {name}.lower={value}"
-                    )
-
-        check_int_attribute(self.max_partitions_contributed,
-                            "max_partitions_contributed")
-        check_int_attribute(self.max_contributions_per_partition,
-                            "max_contributions_per_partition")
+        if not any(dataclasses.asdict(self).values()):
+            raise ValueError("ParametersToTune must have at least 1 parameter "
+                             "to tune.")
 
 
 @dataclass
@@ -291,14 +236,17 @@ class TuneOptions:
         function_to_minimize: which function of the error to minimize. In case
           if this argument is a callable, it should take 1 argument of type
           AggregateErrorMetrics and return float.
-        parameters_to_tune: specifies which parameters are tunable and with
-          optional restrictions on their values.
+        parameters_to_tune: specifies which parameters to tune.
     """
     epsilon: float
     delta: float
     aggregate_params: pipeline_dp.AggregateParams
     function_to_minimize: Union[MinimizingFunction, Callable]
-    parameters_to_tune: TunedParameters
+    parameters_to_tune: ParametersToTune
+
+    def __post_init__(self):
+        input_validators.validate_epsilon_delta(self.epsilon, self.delta,
+                                                "TuneOptions")
 
 
 @dataclass
@@ -321,21 +269,32 @@ class TuneResult:
     utility_analysis_runs: List[UtilityAnalysisRun]
 
 
-def tune_parameters(col,
-                    contribution_histograms: ContributionHistograms,
-                    options: TuneOptions,
-                    data_extractors: pipeline_dp.DataExtractors,
-                    public_partitions=None) -> TuneResult:
+def tune(col,
+         backend: pipeline_backend.PipelineBackend,
+         contribution_histograms: ContributionHistograms,
+         options: TuneOptions,
+         data_extractors: pipeline_dp.DataExtractors,
+         public_partitions=None) -> TuneResult:
     """Tunes parameters.
 
     Args:
         col: collection where all elements are of the same type.
           contribution_histograms:
+        backend: PipelineBackend with which the utility analysis will be run.
         options: options for tuning.
         data_extractors: functions that extract needed pieces of information
           from elements of 'col'.
         public_partitions: A collection of partition keys that will be present
           in the result. If not provided, tuning will be performed assuming
           private partition selection is used.
+    Returns:
+        1 element collection which contains TuneResult.
     """
-    raise NotImplementedError("tune_parameters is not yet implemented.")
+    _check_tune_args(options)
+
+    raise NotImplementedError("tune() is not yet implemented.")
+
+
+def _check_tune_args(options: TuneOptions):
+    if options.aggregate_params.metrics != [pipeline_dp.Metrics.COUNT]:
+        raise NotImplementedError("Tuning only for count is supported.")
