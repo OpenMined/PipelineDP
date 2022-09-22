@@ -2,7 +2,7 @@ import pipeline_dp
 from pipeline_dp import pipeline_backend
 from dataclasses import dataclass
 import operator
-from typing import Callable, Generic, Iterable, List, Optional, TypeVar, Union
+from typing import Callable, Generic, List, Optional, Tuple, TypeVar, Union
 from utility_analysis_new import combiners
 from utility_analysis_new import utility_analysis
 from enum import Enum
@@ -40,6 +40,42 @@ class Histogram:
     """Represents a histogram over integers."""
     name: str
     bins: List[FrequencyBin]
+
+    def total_count(self):
+        return sum([bin.count for bin in self.bins])
+
+    def total_sum(self):
+        return sum([bin.sum for bin in self.bins])
+
+    @property
+    def max_value(self):
+        return self.bins[-1].max
+
+    def bin_quantiles(self) -> List[Tuple[int, float]]:
+        """Computes bin"""
+        result = [(self.max_value, 1)]
+        count_larger = 0
+        total_count = self.total_count()
+
+        for bin in self.bins[::-1]:
+            count_larger += bin.count
+            result.append((bin.lower, 1 - count_larger / total_count))
+        return result[::-1]
+
+    def ratio_dropped(self) -> List[Tuple[int, float]]:
+        result = [(self.max_value, 0.0)]
+        total_count, total_sum = self.total_count(), self.total_sum()
+        previous_value = self.max_value
+        dropped = count_larger = 0
+
+        for bin in self.bins[::-1]:
+            current_value = bin.lower
+            dropped += count_larger * (previous_value - current_value) + (
+                bin.sum - bin.count * current_value)
+            result.append((current_value, 1 - dropped / total_sum))
+            previous_value = current_value
+
+        return result[::-1]
 
 
 @dataclass

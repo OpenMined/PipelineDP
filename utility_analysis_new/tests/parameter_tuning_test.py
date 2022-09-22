@@ -240,6 +240,19 @@ class ParameterTuning(parameterized.TestCase):
         self.assertListEqual(expected_per_partition,
                              histograms.per_partition_histogram.bins)
 
+    @parameterized.named_parameters(
+        dict(testcase_name='3 bins histogram',
+             bins=[
+                 FrequencyBin(lower=1, count=2, sum=2, max=1),
+                 FrequencyBin(lower=2, count=1, sum=2, max=2),
+                 FrequencyBin(lower=3, count=1, sum=3, max=3)
+             ],
+             expected_quantiles=[(1, 0.0), (2, 0), (3, 0)]))
+    def test_quantile_contributions(self, bins, expected_quantiles):
+        histogram = parameter_tuning.Histogram("name", bins)
+        output = histogram.bin_quantiles()
+        self.assertListEqual(expected_quantiles, output)
+
 
 if __name__ == '__main__':
     absltest.main()
