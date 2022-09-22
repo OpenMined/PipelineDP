@@ -14,3 +14,6 @@ def validate_epsilon_delta(epsilon: float, delta: float, obj_name: str):
     if delta < 0:
         raise ValueError(
             f"{obj_name}: delta must be non-negative, not {delta}.")
+    if delta > 1:
+        raise ValueError(
+            f"{obj_name}: delta must be not bigger than 1, not {delta}.")
