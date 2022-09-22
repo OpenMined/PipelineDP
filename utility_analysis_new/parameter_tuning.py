@@ -54,7 +54,7 @@ class Histogram:
         return self.bins[-1].max
 
     def quantiles(self) -> List[Tuple[int, float]]:
-        result = []
+        result = [(self.max_value, 1)]
         count_larger = 0
         total_count = self.total_count()
 
@@ -205,6 +205,13 @@ def _compute_per_partition_histogram(col,
     return _compute_frequency_histogram(col, backend, "PerPartitionHistogram")
 
 
+@dataclass
+class ContributionHistograms:
+    """Histograms of privacy id contributions."""
+    cross_partition_histogram: Histogram
+    per_partition_histogram: Optional[Histogram] = None
+
+
 def compute_contribution_histograms(
         col, data_extractors: pipeline_dp.DataExtractors,
         backend: pipeline_backend.PipelineBackend) -> ContributionHistograms:
@@ -230,13 +237,6 @@ def compute_contribution_histograms(
     return backend.map(histograms, _list_to_contribution_histograms,
                        "To ContributionHistograms")
     # 1 element (ContributionHistograms)
-
-
-@dataclass
-class ContributionHistograms:
-    """Histograms of privacy id contributions."""
-    cross_partition_histogram: Histogram
-    per_partition_histogram: Optional[Histogram] = None
 
 
 @dataclass
@@ -287,8 +287,8 @@ class TuneOptions:
     parameters_to_tune: ParametersToTune
 
     def __post_init__(self):
-        input_validators._validate_epsilon_delta(self.epsilon, self.delta,
-                                                 "TuneOptions")
+        input_validators.validate_epsilon_delta(self.epsilon, self.delta,
+                                                "TuneOptions")
 
 
 @dataclass
@@ -315,10 +315,11 @@ def _find_values(values: List[Tuple[int, float]],
                  targets: List[float]):  # todo better name
     result = []
     i_target = len(targets) - 1
-    for num, val in values:  # todo names
-        if val < targets[i_target]:
+    for num, val in values[::-1]:  # todo names
+        if val <= targets[i_target]:
             result.append(num)
-            i_target -= 1
+            while i_target >= 0 and val <= targets[i_target]:
+                i_target -= 1
             if i_target < 0:
                 break
     return result[::-1]
@@ -327,17 +328,17 @@ def _find_values(values: List[Tuple[int, float]],
 def _find_candidate_parameters(
     contribution_histograms: ContributionHistograms, options: TuneOptions
 ) -> utility_analysis_new.dp_engine.MultiParameterConfiguration:
-    QUANTILES_TO_USE = [0.9, 0.95, 0.98, 0.99, 0.995]
+    QUANTILES_TO_USE = [0.9, 0.95, 0.98, 0.99, 0.995, 1]
     l0_quantiles = linf_quantiles = None
 
     if options.parameters_to_tune.tune_max_partitions_contributed:
         l0_quantiles = _find_values(
-            contribution_histograms.cross_partition_histogram.quantiles,
+            contribution_histograms.cross_partition_histogram.quantiles(),
             QUANTILES_TO_USE)
 
     if options.parameters_to_tune.tune_max_contributions_per_partition:
         linf_quantiles = _find_values(
-            contribution_histograms.per_partition_histogram.quantiles,
+            contribution_histograms.per_partition_histogram.quantiles(),
             QUANTILES_TO_USE)
 
     l0_bounds = linf_bounds = None

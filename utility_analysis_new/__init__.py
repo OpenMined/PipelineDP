@@ -14,4 +14,4 @@
 
 from utility_analysis_new.dp_engine import MultiParameterConfiguration
 from utility_analysis_new.utility_analysis import perform_utility_analysis
-from utility_analysis_new.parameter_tuning import tune_parameters
+from utility_analysis_new.parameter_tuning import tune

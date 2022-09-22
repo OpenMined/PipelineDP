@@ -117,8 +117,8 @@ class BudgetAccountant(abc.ABC):
                  num_aggregations: Optional[int],
                  aggregation_weights: Optional[list]):
 
-        input_validators._validate_epsilon_delta(total_epsilon, total_delta,
-                                                 "BudgetAccountant")
+        input_validators.validate_epsilon_delta(total_epsilon, total_delta,
+                                                "BudgetAccountant")
         self._total_epsilon = total_epsilon
         self._total_delta = total_delta
 

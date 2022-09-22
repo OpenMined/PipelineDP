@@ -33,8 +33,8 @@ class UtilityAnalysisOptions:
         dp_engine.MultiParameterConfiguration] = None
 
     def __post_init__(self):
-        input_validators._validate_epsilon_delta(self.epsilon, self.delta,
-                                                 "UtilityAnalysisOptions")
+        input_validators.validate_epsilon_delta(self.epsilon, self.delta,
+                                                "UtilityAnalysisOptions")
 
     @property
     def n_parameters(self):
@@ -63,7 +63,7 @@ def perform_utility_analysis(col,
       1 element collection which contains utility analysis metrics.
     """
     budget_accountant = pipeline_dp.NaiveBudgetAccountant(
-        total_epsilon=options.eps, total_delta=options.delta)
+        total_epsilon=options.epsilon, total_delta=options.delta)
     engine = dp_engine.UtilityAnalysisEngine(
         budget_accountant=budget_accountant, backend=backend)
     result = engine.aggregate(
