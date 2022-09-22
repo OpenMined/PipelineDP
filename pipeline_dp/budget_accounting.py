@@ -21,6 +21,7 @@ from typing import Optional
 
 from dataclasses import dataclass
 import pipeline_dp.aggregate_params as agg_params
+from pipeline_dp import input_validators
 
 try:
     from dp_accounting import privacy_loss_distribution as pldlib
@@ -116,7 +117,8 @@ class BudgetAccountant(abc.ABC):
                  num_aggregations: Optional[int],
                  aggregation_weights: Optional[list]):
 
-        _validate_epsilon_delta(total_epsilon, total_delta)
+        input_validators._validate_epsilon_delta(total_epsilon, total_delta,
+                                                 "BudgetAccountant")
         self._total_epsilon = total_epsilon
         self._total_delta = total_delta
 
@@ -596,19 +598,3 @@ class PLDBudgetAccountant(BudgetAccountant):
             composed = pld if composed is None else composed.compose(pld)
 
         return composed
-
-
-def _validate_epsilon_delta(epsilon: float, delta: float):
-    """Helper function to validate the epsilon and delta parameters.
-
-    Args:
-        epsilon: The epsilon value to validate.
-        delta: The delta value to validate.
-
-    Raises:
-        A ValueError if either epsilon or delta are out of range.
-    """
-    if epsilon <= 0:
-        raise ValueError(f"Epsilon must be positive, not {epsilon}.")
-    if delta < 0:
-        raise ValueError(f"Delta must be non-negative, not {delta}.")

@@ -18,6 +18,7 @@ from typing import List, Optional
 import pipeline_dp
 from pipeline_dp import combiners
 from pipeline_dp import pipeline_backend
+from pipeline_dp import input_validators
 from utility_analysis_new import dp_engine
 import utility_analysis_new.combiners as utility_analysis_combiners
 
@@ -25,11 +26,15 @@ import utility_analysis_new.combiners as utility_analysis_combiners
 @dataclass
 class UtilityAnalysisOptions:
     """Options for the utility analysis."""
-    eps: float
+    epsilon: float
     delta: float
     aggregate_params: pipeline_dp.AggregateParams
     multi_param_configuration: Optional[
         dp_engine.MultiParameterConfiguration] = None
+
+    def __post_init__(self):
+        input_validators._validate_epsilon_delta(self.epsilon, self.delta,
+                                                 "UtilityAnalysisOptions")
 
     @property
     def n_parameters(self):
@@ -54,6 +59,8 @@ def perform_utility_analysis(col,
       public_partitions: A collection of partition keys that will be present
             in the result. If not provided, the utility analysis with private
             partition selection will be performed.
+    Returns:
+      1 element collection which contains utility analysis metrics.
     """
     budget_accountant = pipeline_dp.NaiveBudgetAccountant(
         total_epsilon=options.eps, total_delta=options.delta)

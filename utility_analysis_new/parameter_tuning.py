@@ -1,12 +1,14 @@
 import pipeline_dp
+import utility_analysis_new.dp_engine
 from pipeline_dp import pipeline_backend
+from pipeline_dp import input_validators
+import dataclasses
 from dataclasses import dataclass
 import operator
-from typing import Callable, Generic, Iterable, List, Optional, TypeVar, Union
+from typing import Callable, List, Optional, Tuple, Union
 from utility_analysis_new import combiners
 from utility_analysis_new import utility_analysis
 from enum import Enum
-import numbers
 
 
 @dataclass
@@ -40,6 +42,41 @@ class Histogram:
     """Represents a histogram over integers."""
     name: str
     bins: List[FrequencyBin]
+
+    def total_count(self):
+        return sum([bin.count for bin in self.bins])
+
+    def total_sum(self):
+        return sum([bin.sum for bin in self.bins])
+
+    @property
+    def max_value(self):
+        return self.bins[-1].max
+
+    def quantiles(self) -> List[Tuple[int, float]]:
+        result = []
+        count_larger = 0
+        total_count = self.total_count()
+
+        for bin in self.bins[::-1]:
+            count_larger += bin.count
+            result.append((bin.lower, 1 - count_larger / total_count))
+        return result[::-1]
+
+    def ratio_dropped(self) -> List[Tuple[int, float]]:
+        result = [(self.max_value, 0.0)]
+        total_count, total_sum = self.total_count(), self.total_sum()
+        previous_value = self.max_value
+        dropped = count_larger = 0
+
+        for bin in self.bins[::-1]:
+            current_value = bin.lower
+            dropped += count_larger * (previous_value - current_value) + (
+                bin.sum - bin.count * current_value)
+            result.append((current_value, 1 - dropped / total_sum))
+            previous_value = current_value
+
+        return result[::-1]
 
 
 @dataclass
@@ -213,68 +250,18 @@ class MinimizingFunction(Enum):
     RELATIVE_ERROR = 'relative_error'
 
 
-T = TypeVar('T')
-
-
 @dataclass
-class Bounds(Generic[T]):
-    """Defines optional lower and upper bounds (int or float)."""
-    lower: Optional[T] = None
-    upper: Optional[T] = None
+class ParametersToTune:
+    """Contains parameters to tune."""
+    tune_max_partitions_contributed: bool = False
+    tune_max_contributions_per_partition: bool = False
+    tune_min_sum_per_partition: bool = False
+    tune_max_sum_per_partition: bool = False
 
     def __post_init__(self):
-
-        def check_is_number(value, name: str):
-            if name is None:
-                return
-            if not isinstance(value, numbers.Number):
-                raise ValueError(f"{name} must be number, but {name}={value}")
-
-        check_is_number(self.lower, "lower")
-        check_is_number(self.upper, "upper")
-
-        if self.lower is not None and self.upper is not None:
-            assert self.lower <= self.upper
-
-
-@dataclass
-class TunedParameters:
-    """Contains parameters to tune.
-
-    Attributes of this class define restrictions on tuning on corresponding
-    attributes in pipeline_dp.AggregateParams.
-
-    Example:
-        max_partitions_contributed
-          1. = Bound(lower=1, upper=10) only numbers between 1 and 10 will be
-          considered during tuning for max_partitions_contributed.
-          2. = Bound(lower=None, upper=10) means numbers till 10.
-          3. = None means no restriction
-          4. = 3 means no tuning, max_partitions_contributed=3.
-    """
-    max_partitions_contributed: Optional[Union[int, Bounds[int]]] = None
-    max_contributions_per_partition: Optional[Union[int, Bounds[int]]] = None
-    min_sum_per_partition: Optional[Union[float, Bounds[float]]] = None
-    max_sum_per_partition: Optional[Union[float, Bounds[float]]] = None
-
-    def __post_init__(self):
-
-        def check_int_attribute(value, name: str):
-            if value is None:
-                return
-            if isinstance(value, int):
-                if value <= 0:
-                    raise ValueError(f"{name} must be >0, but {name}={value}")
-            elif isinstance(value, Bounds):
-                if value.lower <= 0:
-                    raise ValueError(
-                        f"{name} lower bound must be >0, but {name}.lower={value}"
-                    )
-
-        check_int_attribute(self.max_partitions_contributed,
-                            "max_partitions_contributed")
-        check_int_attribute(self.max_contributions_per_partition,
-                            "max_contributions_per_partition")
+        if not any(dataclasses.asdict(self).values()):
+            raise ValueError("ParametersToTune must have at least 1 parameter "
+                             "to tune.")
 
 
 @dataclass
@@ -291,14 +278,17 @@ class TuneOptions:
         function_to_minimize: which function of the error to minimize. In case
           if this argument is a callable, it should take 1 argument of type
           AggregateErrorMetrics and return float.
-        parameters_to_tune: specifies which parameters are tunable and with
-          optional restrictions on their values.
+        parameters_to_tune: specifies which parameters.
     """
     epsilon: float
     delta: float
     aggregate_params: pipeline_dp.AggregateParams
     function_to_minimize: Union[MinimizingFunction, Callable]
-    parameters_to_tune: TunedParameters
+    parameters_to_tune: ParametersToTune
+
+    def __post_init__(self):
+        input_validators._validate_epsilon_delta(self.epsilon, self.delta,
+                                                 "TuneOptions")
 
 
 @dataclass
@@ -321,21 +311,91 @@ class TuneResult:
     utility_analysis_runs: List[UtilityAnalysisRun]
 
 
-def tune_parameters(col,
-                    contribution_histograms: ContributionHistograms,
-                    options: TuneOptions,
-                    data_extractors: pipeline_dp.DataExtractors,
-                    public_partitions=None) -> TuneResult:
+def _find_values(values: List[Tuple[int, float]],
+                 targets: List[float]):  # todo better name
+    result = []
+    i_target = len(targets) - 1
+    for num, val in values:  # todo names
+        if val < targets[i_target]:
+            result.append(num)
+            i_target -= 1
+            if i_target < 0:
+                break
+    return result[::-1]
+
+
+def _find_candidate_parameters(
+    contribution_histograms: ContributionHistograms, options: TuneOptions
+) -> utility_analysis_new.dp_engine.MultiParameterConfiguration:
+    QUANTILES_TO_USE = [0.9, 0.95, 0.98, 0.99, 0.995]
+    l0_quantiles = linf_quantiles = None
+
+    if options.parameters_to_tune.tune_max_partitions_contributed:
+        l0_quantiles = _find_values(
+            contribution_histograms.cross_partition_histogram.quantiles,
+            QUANTILES_TO_USE)
+
+    if options.parameters_to_tune.tune_max_contributions_per_partition:
+        linf_quantiles = _find_values(
+            contribution_histograms.per_partition_histogram.quantiles,
+            QUANTILES_TO_USE)
+
+    l0_bounds = linf_bounds = None
+
+    if l0_quantiles and linf_quantiles:
+        l0_bounds, linf_bounds = [], []
+        for l0 in l0_quantiles:
+            for linf in linf_quantiles:
+                l0_bounds.append(l0)
+                linf_bounds.append(linf)
+    elif l0_quantiles:
+        l0_bounds = l0_quantiles
+    elif linf_quantiles:
+        linf_bounds = linf_quantiles
+    else:
+        assert False, "Nothing to tune."
+
+    return utility_analysis_new.dp_engine.MultiParameterConfiguration(
+        max_partitions_contributed=l0_bounds,
+        max_contributions_per_partition=linf_bounds)
+
+
+def tune(col,
+         backend: pipeline_backend.PipelineBackend,
+         contribution_histograms: ContributionHistograms,
+         options: TuneOptions,
+         data_extractors: pipeline_dp.DataExtractors,
+         public_partitions=None) -> TuneResult:
     """Tunes parameters.
 
     Args:
         col: collection where all elements are of the same type.
           contribution_histograms:
+        backend: PipelineBackend with which the utility analysis will be run.
         options: options for tuning.
         data_extractors: functions that extract needed pieces of information
           from elements of 'col'.
         public_partitions: A collection of partition keys that will be present
           in the result. If not provided, tuning will be performed assuming
           private partition selection is used.
+    Returns:
+        1 element collection which contains TuneResult.
     """
-    raise NotImplementedError("tune_parameters is not yet implemented.")
+    _check_tune_args(options)
+
+    candidates = _find_candidate_parameters(contribution_histograms, options)
+
+    utility_analysis_options = utility_analysis.UtilityAnalysisOptions(
+        options.epsilon,
+        options.delta,
+        options.aggregate_params,
+        multi_param_configuration=candidates)
+    return utility_analysis.perform_utility_analysis(col, backend,
+                                                     utility_analysis_options,
+                                                     data_extractors,
+                                                     public_partitions)
+
+
+def _check_tune_args(options: TuneOptions):
+    if options.aggregate_params.metrics != [pipeline_dp.Metrics.COUNT]:
+        raise NotImplementedError("Tuning only for count is supported.")
