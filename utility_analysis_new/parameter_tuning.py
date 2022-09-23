@@ -53,30 +53,35 @@ class Histogram:
     def max_value(self):
         return self.bins[-1].max
 
-    def bin_quantiles(self) -> List[Tuple[int, float]]:
-        """Computes bin"""
-        result = [(self.max_value, 1)]
-        count_larger = 0
-        total_count = self.total_count()
+    def quantiles(self, q: List[float]) -> List[int]:
+        """Computes approximate quantiles over datasets.
 
+        The output quantiles are chosen only from lower bounds of bins in
+        this histogram. For each target quantile q it returns the lower bound of
+        the first bin, such that all bins from the left contain not more than
+        q part of the data.
+        E.g. for quantile 0.8, the returned value is bin.lower for the first
+        bin such that ratio of data in bins to left from 'bin' is <= 0.8.
+
+        Args:
+            q: quantiles to compute. It must be sorted in ascending order.
+
+        Returns:
+            A list of computed quantiles. In the same order as in q.
+        """
+        assert sorted(q) == q, "Quantiles to compute must be sorted."
+
+        result = []
+        total_count = count_smaller = self.total_count()
+        i_q = len(q) - 1
         for bin in self.bins[::-1]:
-            count_larger += bin.count
-            result.append((bin.lower, 1 - count_larger / total_count))
-        return result[::-1]
-
-    def ratio_dropped(self) -> List[Tuple[int, float]]:
-        result = [(self.max_value, 0.0)]
-        total_count, total_sum = self.total_count(), self.total_sum()
-        previous_value = self.max_value
-        dropped = count_larger = 0
-
-        for bin in self.bins[::-1]:
-            current_value = bin.lower
-            dropped += count_larger * (previous_value - current_value) + (
-                bin.sum - bin.count * current_value)
-            result.append((current_value, 1 - dropped / total_sum))
-            previous_value = current_value
-
+            count_smaller -= bin.count
+            ratio_smaller = count_smaller / total_count
+            while i_q >= 0 and q[i_q] >= ratio_smaller:
+                result.append(bin.lower)
+                i_q -= 1
+        while i_q >= 0:
+            result.append(bin[0].lower)
         return result[::-1]
 
 

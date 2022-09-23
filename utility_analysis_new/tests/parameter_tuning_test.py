@@ -241,16 +241,27 @@ class ParameterTuning(parameterized.TestCase):
                              histograms.per_partition_histogram.bins)
 
     @parameterized.named_parameters(
-        dict(testcase_name='3 bins histogram',
+        dict(testcase_name='1 bins histogram',
+             bins=[
+                 FrequencyBin(lower=1000, count=10, sum=10100, max=1009),
+             ],
+             q=[0.05, 0.1, 0.5, 0.8, 0.9],
+             expected_quantiles=[1000, 1000, 1000, 1000, 1000]),
+        dict(testcase_name='6 bins histogram',
              bins=[
                  FrequencyBin(lower=1, count=2, sum=2, max=1),
                  FrequencyBin(lower=2, count=1, sum=2, max=2),
-                 FrequencyBin(lower=3, count=1, sum=3, max=3)
+                 FrequencyBin(lower=3, count=1, sum=3, max=3),
+                 FrequencyBin(lower=4, count=2, sum=8, max=4),
+                 FrequencyBin(lower=5, count=2, sum=10, max=5),
+                 FrequencyBin(lower=6, count=1, sum=6, max=6),
+                 FrequencyBin(lower=10, count=1, sum=11, max=11)
              ],
-             expected_quantiles=[(1, 0.0), (2, 0), (3, 0)]))
-    def test_quantile_contributions(self, bins, expected_quantiles):
+             q=[0.001, 0.05, 0.1, 0.5, 0.8, 0.9],
+             expected_quantiles=[1, 1, 1, 4, 6, 10]))
+    def test_quantile_contributions(self, bins, q, expected_quantiles):
         histogram = parameter_tuning.Histogram("name", bins)
-        output = histogram.bin_quantiles()
+        output = histogram.quantiles(q)
         self.assertListEqual(expected_quantiles, output)
 
 
