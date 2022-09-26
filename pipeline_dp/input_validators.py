@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Helper function for validating input arguments."""
+"""Helper functions for validating input arguments."""
 
 
 def validate_epsilon_delta(epsilon: float, delta: float, obj_name: str):
