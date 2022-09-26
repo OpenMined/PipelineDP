@@ -61,22 +61,22 @@ class Histogram:
         the first bin, such that all bins from the left contain not more than
         q part of the data.
         E.g. for quantile 0.8, the returned value is bin.lower for the first
-        bin such that ratio of data in bins to left from 'bin' is <= 0.8.
+        bin such that the ratio of data in bins to left from 'bin' is <= 0.8.
 
         Args:
-            q: quantiles to compute. It must be sorted in ascending order.
+            q: a list of quantiles to compute. It must be sorted in ascending order.
 
         Returns:
-            A list of computed quantiles. In the same order as in q.
+            A list of computed quantiles in the same order as in q.
         """
         assert sorted(q) == q, "Quantiles to compute must be sorted."
 
         result = []
-        total_count = count_smaller = self.total_count()
+        total_count_up_to_current_bin = count_smaller = self.total_count()
         i_q = len(q) - 1
         for bin in self.bins[::-1]:
             count_smaller -= bin.count
-            ratio_smaller = count_smaller / total_count
+            ratio_smaller = count_smaller / total_count_up_to_current_bin
             while i_q >= 0 and q[i_q] >= ratio_smaller:
                 result.append(bin.lower)
                 i_q -= 1
