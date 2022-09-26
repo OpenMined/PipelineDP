@@ -63,21 +63,6 @@ class Histogram:
             result.append((bin.lower, 1 - count_larger / total_count))
         return result[::-1]
 
-    def ratio_dropped(self) -> List[Tuple[int, float]]:
-        result = [(self.max_value, 0.0)]
-        total_count, total_sum = self.total_count(), self.total_sum()
-        previous_value = self.max_value
-        dropped = count_larger = 0
-
-        for bin in self.bins[::-1]:
-            current_value = bin.lower
-            dropped += count_larger * (previous_value - current_value) + (
-                bin.sum - bin.count * current_value)
-            result.append((current_value, 1 - dropped / total_sum))
-            previous_value = current_value
-
-        return result[::-1]
-
 
 @dataclass
 class ContributionHistograms:
@@ -278,7 +263,7 @@ class TuneOptions:
         function_to_minimize: which function of the error to minimize. In case
           if this argument is a callable, it should take 1 argument of type
           AggregateErrorMetrics and return float.
-        parameters_to_tune: specifies which parameters.
+        parameters_to_tune: specifies which parameters to tune.
     """
     epsilon: float
     delta: float

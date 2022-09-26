@@ -49,7 +49,7 @@ class UtilityAnalysis(parameterized.TestCase):
             col=col,
             backend=pipeline_dp.LocalBackend(),
             options=utility_analysis.UtilityAnalysisOptions(
-                eps=2, delta=0.9, aggregate_params=aggregate_params),
+                epsilon=2, delta=0.9, aggregate_params=aggregate_params),
             data_extractors=data_extractors)
 
         col = list(col)
@@ -103,7 +103,7 @@ class UtilityAnalysis(parameterized.TestCase):
             col=col,
             backend=pipeline_dp.LocalBackend(),
             options=utility_analysis.UtilityAnalysisOptions(
-                eps=2, delta=1e-10, aggregate_params=aggregator_params),
+                epsilon=2, delta=1e-10, aggregate_params=aggregator_params),
             data_extractors=data_extractor,
             public_partitions=public_partitions)
 
@@ -149,7 +149,7 @@ class UtilityAnalysis(parameterized.TestCase):
             col=input,
             backend=pipeline_dp.LocalBackend(),
             options=utility_analysis.UtilityAnalysisOptions(
-                eps=2,
+                epsilon=2,
                 delta=1e-10,
                 aggregate_params=aggregate_params,
                 multi_param_configuration=multi_param),
