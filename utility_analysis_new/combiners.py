@@ -502,6 +502,9 @@ class AggregateErrorMetrics:
     rel_error_variance: float
     rel_error_quantiles: List[float]
 
+    def absolute_rmse(self) -> float:
+        return math.sqrt(self.abs_error_expected**2 + self.abs_error_variance)
+
 
 @dataclass
 class PartitionSelectionMetrics:

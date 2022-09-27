@@ -2,13 +2,15 @@ import pipeline_dp
 import utility_analysis_new.dp_engine
 from pipeline_dp import pipeline_backend
 from pipeline_dp import input_validators
+from utility_analysis_new import combiners
+from utility_analysis_new import utility_analysis
+
 import dataclasses
 from dataclasses import dataclass
 import operator
 from typing import Callable, List, Optional, Tuple, Union
-from utility_analysis_new import combiners
-from utility_analysis_new import utility_analysis
 from enum import Enum
+import numpy as np
 
 
 @dataclass
@@ -298,63 +300,76 @@ class TuneResult:
           feasible.
         options: input options for tuning.
         contribution_histograms: histograms of privacy id contributions.
-        utility_analysis_runs: the results of all utility analysis runs that
+        utility_analysis_results: the results of all utility analysis runs that
           were performed during the tuning process.
     """
     recommended_params: pipeline_dp.AggregateParams
     options: TuneOptions
     contribution_histograms: ContributionHistograms
-    utility_analysis_runs: List[UtilityAnalysisRun]
+    index_best: int
+    run_configurations: utility_analysis_new.dp_engine.MultiParameterConfiguration
 
-
-def _find_values(values: List[Tuple[int, float]],
-                 targets: List[float]):  # todo better name
-    result = []
-    i_target = len(targets) - 1
-    for num, val in values[::-1]:  # todo names
-        if val <= targets[i_target]:
-            result.append(num)
-            while i_target >= 0 and val <= targets[i_target]:
-                i_target -= 1
-            if i_target < 0:
-                break
-    return result[::-1]
+    utility_analysis_results: List[combiners.AggregateErrorMetrics]
 
 
 def _find_candidate_parameters(
-    contribution_histograms: ContributionHistograms, options: TuneOptions
+    histograms: ContributionHistograms, options: TuneOptions
 ) -> utility_analysis_new.dp_engine.MultiParameterConfiguration:
-    QUANTILES_TO_USE = [0.9, 0.95, 0.98, 0.99, 0.995, 1]
-    l0_quantiles = linf_quantiles = None
+    QUANTILES_TO_USE = [0.9, 0.95, 0.98, 0.99, 0.995]
+    l0_candidates = linf_candidates = None
+
+    def _find_candidates(histogram: Histogram) -> List:
+        candidates = histogram.quantiles(QUANTILES_TO_USE)
+        candidates.append(histogram.max_value)
+        candidates = list(set(candidates))  # remove duplicates
+        candidates.sort()
+        return candidates
 
     if options.parameters_to_tune.tune_max_partitions_contributed:
-        l0_quantiles = _find_values(
-            contribution_histograms.cross_partition_histogram.quantiles(),
-            QUANTILES_TO_USE)
+        l0_candidates = _find_candidates(histograms.cross_partition_histogram)
 
     if options.parameters_to_tune.tune_max_contributions_per_partition:
-        linf_quantiles = _find_values(
-            contribution_histograms.per_partition_histogram.quantiles(),
-            QUANTILES_TO_USE)
+        linf_candidates = _find_candidates(histograms.per_partition_histogram)
 
     l0_bounds = linf_bounds = None
 
-    if l0_quantiles and linf_quantiles:
+    if l0_candidates and linf_candidates:
         l0_bounds, linf_bounds = [], []
-        for l0 in l0_quantiles:
-            for linf in linf_quantiles:
+        for l0 in l0_candidates:
+            for linf in linf_candidates:
                 l0_bounds.append(l0)
                 linf_bounds.append(linf)
-    elif l0_quantiles:
-        l0_bounds = l0_quantiles
-    elif linf_quantiles:
-        linf_bounds = linf_quantiles
+    elif l0_candidates:
+        l0_bounds = l0_candidates
+    elif linf_candidates:
+        linf_bounds = linf_candidates
     else:
         assert False, "Nothing to tune."
 
     return utility_analysis_new.dp_engine.MultiParameterConfiguration(
         max_partitions_contributed=l0_bounds,
         max_contributions_per_partition=linf_bounds)
+
+
+def _utility_analysis_to_tune_result(
+        utility_analysis_result: Tuple, tune_options: TuneOptions,
+        run_configurations: utility_analysis_new.dp_engine.
+    MultiParameterConfiguration, is_public_partitions: bool,
+        contribution_histograms: ContributionHistograms) -> TuneResult:
+
+    aggregate_errors = utility_analysis_result[
+        1::2] if is_public_partitions else utility_analysis_result
+    assert len(aggregate_errors) == run_configurations.size
+
+    assert tune_options.function_to_minimize == MinimizingFunction.ABSOLUTE_ERROR
+    index_best = np.argmin([ae.absolute_rmse() for ae in aggregate_errors])
+    recommended_params = run_configurations.get_aggregate_params(
+        tune_options.aggregate_params, index_best)
+
+    return TuneResult(
+        recommended_params, tune_options, contribution_histograms, index_best,
+        run_configurations,
+        utility_analysis_new.dp_engine.MultiParameterConfiguration)
 
 
 def tune(col,
@@ -387,10 +402,15 @@ def tune(col,
         options.delta,
         options.aggregate_params,
         multi_param_configuration=candidates)
-    return utility_analysis.perform_utility_analysis(col, backend,
-                                                     utility_analysis_options,
-                                                     data_extractors,
-                                                     public_partitions)
+    utility_analysis_result = utility_analysis.perform_utility_analysis(
+        col, backend, utility_analysis_options, data_extractors,
+        public_partitions)
+    is_public_partitions = public_partitions is not None,
+    return backend.map(
+        utility_analysis_result,
+        lambda result: _utility_analysis_to_tune_result(
+            result, options, candidates, is_public_partitions,
+            contribution_histograms), "To Tune result")
 
 
 def _check_tune_args(options: TuneOptions):
