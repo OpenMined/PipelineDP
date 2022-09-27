@@ -2,13 +2,15 @@ import pipeline_dp
 import utility_analysis_new.dp_engine
 from pipeline_dp import pipeline_backend
 from pipeline_dp import input_validators
+from utility_analysis_new import combiners
+from utility_analysis_new import utility_analysis
+
 import dataclasses
 from dataclasses import dataclass
 import operator
 from typing import Callable, List, Optional, Tuple, Union
-from utility_analysis_new import combiners
-from utility_analysis_new import utility_analysis
 from enum import Enum
+import numpy as np
 
 
 @dataclass
@@ -55,17 +57,14 @@ class Histogram:
 
     def quantiles(self, q: List[float]) -> List[int]:
         """Computes approximate quantiles over datasets.
-
         The output quantiles are chosen only from lower bounds of bins in
         this histogram. For each target quantile q it returns the lower bound of
         the first bin, such that all bins from the left contain not more than
         q part of the data.
         E.g. for quantile 0.8, the returned value is bin.lower for the first
         bin such that the ratio of data in bins to left from 'bin' is <= 0.8.
-
         Args:
             q: a list of quantiles to compute. It must be sorted in ascending order.
-
         Returns:
             A list of computed quantiles in the same order as in q.
         """
@@ -252,10 +251,10 @@ class MinimizingFunction(Enum):
 @dataclass
 class ParametersToTune:
     """Contains parameters to tune."""
-    tune_max_partitions_contributed: bool = False
-    tune_max_contributions_per_partition: bool = False
-    tune_min_sum_per_partition: bool = False
-    tune_max_sum_per_partition: bool = False
+    max_partitions_contributed: bool = False
+    max_contributions_per_partition: bool = False
+    min_sum_per_partition: bool = False
+    max_sum_per_partition: bool = False
 
     def __post_init__(self):
         if not any(dataclasses.asdict(self).values()):
@@ -301,13 +300,92 @@ class TuneResult:
           feasible.
         options: input options for tuning.
         contribution_histograms: histograms of privacy id contributions.
-        utility_analysis_runs: the results of all utility analysis runs that
+        utility_analysis_parameters: contains tune parameter values for which
+        utility analysis ran.
+        index_best: index of the recommended (best) configuration in
+        utility_analysis_parameters.
+        utility_analysis_results: the results of all utility analysis runs that
           were performed during the tuning process.
     """
     recommended_params: pipeline_dp.AggregateParams
     options: TuneOptions
     contribution_histograms: ContributionHistograms
-    utility_analysis_runs: List[UtilityAnalysisRun]
+    utility_analysis_parameters: utility_analysis_new.dp_engine.MultiParameterConfiguration
+    index_best: int
+    utility_analysis_results: List[combiners.AggregateErrorMetrics]
+
+
+def _find_candidate_parameters(
+    histograms: ContributionHistograms, parameters_to_tune: ParametersToTune
+) -> utility_analysis_new.dp_engine.MultiParameterConfiguration:
+    """Uses some heuristics to find (hopefully) good enough parameters."""
+    # TODO: decide where to put QUANTILES_TO_USE, maybe TuneOptions?
+    QUANTILES_TO_USE = [0.9, 0.95, 0.98, 0.99, 0.995]
+    l0_candidates = linf_candidates = None
+
+    def _find_candidates(histogram: Histogram) -> List:
+        candidates = histogram.quantiles(QUANTILES_TO_USE)
+        candidates.append(histogram.max_value)
+        candidates = list(set(candidates))  # remove duplicates
+        candidates.sort()
+        return candidates
+
+    if parameters_to_tune.max_partitions_contributed:
+        l0_candidates = _find_candidates(histograms.cross_partition_histogram)
+
+    if parameters_to_tune.max_contributions_per_partition:
+        linf_candidates = _find_candidates(histograms.per_partition_histogram)
+
+    l0_bounds = linf_bounds = None
+
+    if l0_candidates and linf_candidates:
+        l0_bounds, linf_bounds = [], []
+        for l0 in l0_candidates:
+            for linf in linf_candidates:
+                l0_bounds.append(l0)
+                linf_bounds.append(linf)
+    elif l0_candidates:
+        l0_bounds = l0_candidates
+    elif linf_candidates:
+        linf_bounds = linf_candidates
+    else:
+        assert False, "Nothing to tune."
+
+    return utility_analysis_new.dp_engine.MultiParameterConfiguration(
+        max_partitions_contributed=l0_bounds,
+        max_contributions_per_partition=linf_bounds)
+
+
+def _convert_utility_analysis_to_tune_result(
+        utility_analysis_result: Tuple, tune_options: TuneOptions,
+        run_configurations: utility_analysis_new.dp_engine.
+    MultiParameterConfiguration, use_public_partitions: bool,
+        contribution_histograms: ContributionHistograms) -> TuneResult:
+
+    # Get only error metrics, ignore partition selection for now.
+    # TODO: Make the output of the utility analysis 1 dataclass per 1 run.
+    if use_public_partitions:
+        # utility_analysis_result contains only error metrics.
+        aggregate_errors = utility_analysis_result
+    else:
+        # utility_analysis_result contains partition_selection_metrics,
+        # aggregate_errors for each utility run. Extract only aggregate_errors.
+        aggregate_errors = utility_analysis_result[1::2]
+
+    assert len(aggregate_errors) == run_configurations.size
+    # TODO(dvadym): implement relative error.
+    # TODO(dvadym): take into consideration partition selection from private
+    # partition selection.
+    assert tune_options.function_to_minimize == MinimizingFunction.ABSOLUTE_ERROR
+
+    index_best = np.argmin([ae.absolute_rmse() for ae in aggregate_errors])
+    recommended_params = run_configurations.get_aggregate_params(
+        tune_options.aggregate_params, index_best)
+
+    return TuneResult(
+        recommended_params, tune_options, contribution_histograms,
+        run_configurations, index_best,
+        utility_analysis_new.dp_engine.MultiParameterConfiguration)
 
 
 def tune(col,
@@ -318,10 +396,22 @@ def tune(col,
          public_partitions=None) -> TuneResult:
     """Tunes parameters.
 
+    It works in the following way:
+        1. Based on quantiles of privacy id contributions, candidates for
+        contribution bounding parameters chosen.
+        2. Utility analysis run for those parameters.
+        3. The best parameter set is chosen according to
+          options.minimizing_function.
+
+    The result contains output metrics for all utility analysis which were
+    performed.
+
     Args:
         col: collection where all elements are of the same type.
           contribution_histograms:
         backend: PipelineBackend with which the utility analysis will be run.
+        contribution_histograms: contribution histograms that should be
+         computed with compute_contribution_histograms().
         options: options for tuning.
         data_extractors: functions that extract needed pieces of information
           from elements of 'col'.
@@ -333,9 +423,29 @@ def tune(col,
     """
     _check_tune_args(options)
 
-    raise NotImplementedError("tune() is not yet implemented.")
+    candidates = _find_candidate_parameters(contribution_histograms,
+                                            options.parameters_to_tune)
+
+    utility_analysis_options = utility_analysis.UtilityAnalysisOptions(
+        options.epsilon,
+        options.delta,
+        options.aggregate_params,
+        multi_param_configuration=candidates)
+    utility_analysis_result = utility_analysis.perform_utility_analysis(
+        col, backend, utility_analysis_options, data_extractors,
+        public_partitions)
+    use_public_partitions = public_partitions is not None
+    return backend.map(
+        utility_analysis_result,
+        lambda result: _convert_utility_analysis_to_tune_result(
+            result, options, candidates, use_public_partitions,
+            contribution_histograms), "To Tune result")
 
 
 def _check_tune_args(options: TuneOptions):
     if options.aggregate_params.metrics != [pipeline_dp.Metrics.COUNT]:
-        raise NotImplementedError("Tuning only for count is supported.")
+        raise NotImplementedError("Tuning is supported only for Count.")
+
+    if options.function_to_minimize != MinimizingFunction.ABSOLUTE_ERROR:
+        raise NotImplementedError(
+            f"Only {MinimizingFunction.ABSOLUTE_ERROR} is implemented.")
