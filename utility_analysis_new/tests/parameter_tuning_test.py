@@ -15,10 +15,21 @@
 
 from absl.testing import absltest
 from absl.testing import parameterized
+from unittest import mock
+from typing import List
 
 import pipeline_dp
 from utility_analysis_new import parameter_tuning
 from utility_analysis_new.parameter_tuning import FrequencyBin
+
+
+def _get_aggregate_params():
+    # Limit contributions to 1 per partition, contribution error will be half of the count.
+    return pipeline_dp.AggregateParams(
+        noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+        metrics=[pipeline_dp.Metrics.COUNT],
+        max_partitions_contributed=1,
+        max_contributions_per_partition=1)
 
 
 class ParameterTuning(parameterized.TestCase):
@@ -278,6 +289,66 @@ class ParameterTuning(parameterized.TestCase):
         histogram = parameter_tuning.Histogram("name", bins)
         output = histogram.quantiles(q)
         self.assertListEqual(expected_quantiles, output)
+
+    @parameterized.parameters(
+        (True, True, [1, 1, 2, 2, 6, 6], [3, 6, 3, 6, 3, 6]),
+        (False, True, None, [3, 6]), (True, False, [1, 2, 6], None))
+    def test_find_candidate_parameters(
+        self,
+        tune_max_partitions_contributed: bool,
+        tune_max_contributions_per_partition: bool,
+        expected_max_partitions_contributed: List,
+        expected_max_contributions_per_partition: List,
+    ):
+        mock_l0_histogram = parameter_tuning.Histogram(None, None)
+        mock_l0_histogram.quantiles = mock.Mock(return_value=[1, 1, 2])
+        setattr(mock_l0_histogram.__class__, 'max_value', 6)
+        mock_linf_histogram = parameter_tuning.Histogram(None, None)
+        mock_linf_histogram.quantiles = mock.Mock(return_value=[3, 6, 6])
+
+        mock_histograms = parameter_tuning.ContributionHistograms(
+            mock_l0_histogram, mock_linf_histogram)
+        parameters_to_tune = parameter_tuning.ParametersToTune(
+            max_partitions_contributed=tune_max_partitions_contributed,
+            max_contributions_per_partition=tune_max_contributions_per_partition
+        )
+
+        candidates = parameter_tuning._find_candidate_parameters(
+            mock_histograms, parameters_to_tune)
+        self.assertEqual(expected_max_partitions_contributed,
+                         candidates.max_partitions_contributed)
+        self.assertEqual(expected_max_contributions_per_partition,
+                         candidates.max_contributions_per_partition)
+
+    def test_tune(self):
+        input = [(i % 10, f"pk{i/10}") for i in range(10)]
+        public_partitions = [f"pk{i}" for i in range(10)]
+        data_extractors = pipeline_dp.DataExtractors(
+            privacy_id_extractor=lambda x: x[0],
+            partition_extractor=lambda x: x[1],
+            value_extractor=lambda x: None)
+
+        contribution_histograms = list(
+            parameter_tuning.compute_contribution_histograms(
+                input, data_extractors, pipeline_dp.LocalBackend()))[0]
+
+        tune_options = parameter_tuning.TuneOptions(
+            epsilon=1,
+            delta=1e-10,
+            aggregate_params=_get_aggregate_params(),
+            function_to_minimize=parameter_tuning.MinimizingFunction.
+            ABSOLUTE_ERROR,
+            parameters_to_tune=parameter_tuning.ParametersToTune(True, True))
+        tune_result = list(
+            parameter_tuning.tune(input, pipeline_dp.LocalBackend(),
+                                  contribution_histograms, tune_options,
+                                  data_extractors, public_partitions))[0]
+
+        self.assertEqual(tune_options, tune_result.options)
+        self.assertEqual(contribution_histograms,
+                         tune_result.contribution_histograms)
+        self.assertEqual(_get_aggregate_params(),
+                         tune_result.recommended_params)
 
 
 if __name__ == '__main__':

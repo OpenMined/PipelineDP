@@ -492,7 +492,7 @@ class UtilityAnalysisPrivacyIdCountCombiner(pipeline_dp.Combiner):
 class AggregateErrorMetrics:
     """Stores aggregate metrics for utility analysis.
 
-    All fields in this dataclass are averages across partitions.
+    All attributes in this dataclass are averages across partitions.
     """
 
     abs_error_expected: float
@@ -502,8 +502,13 @@ class AggregateErrorMetrics:
     rel_error_variance: float
     rel_error_quantiles: List[float]
 
+    # RMSE = sqrt(bias**2 + variance), more details in
+    # https://en.wikipedia.org/wiki/Bias-variance_tradeoff.
     def absolute_rmse(self) -> float:
         return math.sqrt(self.abs_error_expected**2 + self.abs_error_variance)
+
+    def relative_rmse(self) -> float:
+        return math.sqrt(self.rel_error_expected**2 + self.rel_error_variance)
 
 
 @dataclass
