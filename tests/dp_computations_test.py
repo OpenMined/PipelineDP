@@ -551,6 +551,7 @@ class DPComputationsTest(parameterized.TestCase):
             2)
 
         scale = dp_computations.compute_dp_count_noise_std(params)
+
         self.assertAlmostEqual(scale, expected_std, delta=1e-10)
 
     @parameterized.parameters(
@@ -582,6 +583,77 @@ class DPComputationsTest(parameterized.TestCase):
             noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)
 
         scale = dp_computations.compute_dp_count_noise_std(params)
+
+        self.assertAlmostEqual(scale, expected_std)
+
+    @parameterized.parameters(
+        {
+            "eps": 2.0,
+            "max_partitions_contributed": 10,
+            "min_sum_per_partition": 0,
+            "max_sum_per_partition": 3,
+            "expected_std": np.sqrt(2) * (3 * 10) / 2.0
+        }, {
+            "eps": 3.5,
+            "max_partitions_contributed": 100,
+            "min_sum_per_partition": -15,
+            "max_sum_per_partition": 10,
+            "expected_std": np.sqrt(2) * (15 * 100) / 3.5
+        })
+    def test_compute_dp_sum_noise_std_laplace(self, eps: float,
+                                              max_partitions_contributed: int,
+                                              min_sum_per_partition: float,
+                                              max_sum_per_partition: float,
+                                              expected_std: float):
+        params = dp_computations.ScalarNoiseParams(
+            eps=eps,
+            delta=0,
+            min_value=None,
+            max_value=None,
+            max_contributions_per_partition=None,
+            min_sum_per_partition=min_sum_per_partition,
+            max_sum_per_partition=max_sum_per_partition,
+            max_partitions_contributed=max_partitions_contributed,
+            noise_kind=pipeline_dp.NoiseKind.LAPLACE)
+
+        std = dp_computations.compute_dp_sum_noise_std(params)
+
+        self.assertAlmostEqual(std, expected_std, delta=1e-10)
+
+    @parameterized.parameters(
+        {
+            "eps": 2.0,
+            "delta": 1e-8,
+            "max_partitions_contributed": 2,
+            "min_sum_per_partition": 5,
+            "max_sum_per_partition": 10,
+            "expected_std": 37.53742639189524
+        }, {
+            "eps": 1,
+            "delta": 1e-5,
+            "max_partitions_contributed": 1,
+            "min_sum_per_partition": -5,
+            "max_sum_per_partition": 0,
+            "expected_std": 18.662109375
+        })
+    def test_compute_dp_sum_noise_std_gaussian(self, eps: float, delta: float,
+                                               max_partitions_contributed: int,
+                                               min_sum_per_partition: float,
+                                               max_sum_per_partition: float,
+                                               expected_std: float):
+        params = dp_computations.ScalarNoiseParams(
+            eps=eps,
+            delta=delta,
+            min_value=None,
+            max_value=None,
+            max_contributions_per_partition=None,
+            min_sum_per_partition=min_sum_per_partition,
+            max_sum_per_partition=max_sum_per_partition,
+            max_partitions_contributed=max_partitions_contributed,
+            noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)
+
+        scale = dp_computations.compute_dp_sum_noise_std(params)
+
         self.assertAlmostEqual(scale, expected_std)
 
 
