@@ -42,7 +42,7 @@ class ScalarNoiseParams:
             self.max_sum_per_partition is None
         ), "min_sum_per_partition and max_sum_per_partition should be or both set or both None."
 
-    def l0_sensitivity(self):
+    def l0_sensitivity(self) -> int:
         """"Returns the L0 sensitivity of the parameters."""
         return self.max_partitions_contributed
 
@@ -459,19 +459,30 @@ def compute_dp_var(count: int, normalized_sum: float,
     return dp_count, dp_mean * dp_count, dp_mean, dp_var
 
 
-def compute_dp_count_noise_std(dp_params: ScalarNoiseParams) -> float:
-    """Computes noise standard deviation for DP count."""
-    l0_sensitivity = dp_params.l0_sensitivity()
-    linf_sensitivity = dp_params.max_contributions_per_partition
-
+def _compute_noise_std(linf_sensitivity: float,
+                       dp_params: ScalarNoiseParams) -> float:
+    """Computes noise standard deviation using the specified linf sensitivity."""
     if dp_params.noise_kind == pipeline_dp.NoiseKind.LAPLACE:
-        l1_sensitivity = compute_l1_sensitivity(l0_sensitivity,
+        l1_sensitivity = compute_l1_sensitivity(dp_params.l0_sensitivity(),
                                                 linf_sensitivity)
         mechanism = dp_mechanisms.LaplaceMechanism(epsilon=dp_params.eps,
                                                    sensitivity=l1_sensitivity)
         return mechanism.diversity * np.sqrt(2)
     if dp_params.noise_kind == pipeline_dp.NoiseKind.GAUSSIAN:
-        l2_sensitivity = compute_l2_sensitivity(l0_sensitivity,
+        l2_sensitivity = compute_l2_sensitivity(dp_params.l0_sensitivity(),
                                                 linf_sensitivity)
         return compute_sigma(dp_params.eps, dp_params.delta, l2_sensitivity)
     assert "Only Laplace and Gaussian noise is supported."
+
+
+def compute_dp_count_noise_std(dp_params: ScalarNoiseParams) -> float:
+    """Computes noise standard deviation for DP count."""
+    linf_sensitivity = dp_params.max_contributions_per_partition
+    return _compute_noise_std(linf_sensitivity, dp_params)
+
+
+def compute_dp_sum_noise_std(dp_params: ScalarNoiseParams) -> float:
+    """Computes noise standard deviation for DP sum."""
+    linf_sensitivity = max(abs(dp_params.min_sum_per_partition),
+                           abs(dp_params.max_sum_per_partition))
+    return _compute_noise_std(linf_sensitivity, dp_params)
