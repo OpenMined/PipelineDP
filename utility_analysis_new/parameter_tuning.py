@@ -8,7 +8,7 @@ from utility_analysis_new import utility_analysis
 import dataclasses
 from dataclasses import dataclass
 import operator
-from typing import Callable, List, Optional, Tuple, Union
+from typing import Callable, List, Tuple, Union
 from enum import Enum
 import numpy as np
 
