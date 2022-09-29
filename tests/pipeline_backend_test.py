@@ -111,7 +111,7 @@ class BeamBackendTest(parameterized.TestCase):
             data = p | beam.Create([(1, 2), (1, 5), (2, 1), (1, 4), (3, 8),
                                     (2, 3)])
             col = self.backend.reduce_per_key(data, lambda x, y: x + y,
-                                              "Combine")
+                                              "Reduce")
             beam_util.assert_that(col,
                                   beam_util.equal_to([(1, 11), (2, 4), (3, 8)]))
 
@@ -483,7 +483,7 @@ class LocalBackendTest(unittest.TestCase):
 
     def test_local_combine_accumulators_per_key(self):
         data = [(1, 2), (2, 1), (1, 4), (3, 8), (2, 3)]
-        col = self.backend.reduce_per_key(data, lambda x, y: x + y, "Combine")
+        col = self.backend.reduce_per_key(data, lambda x, y: x + y, "Reduce")
         result = list(col)
         self.assertEqual(result, [(1, 6), (2, 4), (3, 8)])
 
