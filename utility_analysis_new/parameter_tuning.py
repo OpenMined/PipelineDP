@@ -1,5 +1,5 @@
 import pipeline_dp
-import utility_analysis_new.dp_engine
+import utility_analysis_new
 from pipeline_dp import pipeline_backend
 from pipeline_dp import input_validators
 from utility_analysis_new import combiners
@@ -8,7 +8,7 @@ from utility_analysis_new import utility_analysis
 import dataclasses
 from dataclasses import dataclass
 import operator
-from typing import Callable, List, Optional, Tuple, Union
+from typing import Callable, List, Tuple, Union
 from enum import Enum
 import numpy as np
 
@@ -129,7 +129,7 @@ def _compute_frequency_histogram(col, backend: pipeline_backend.PipelineBackend,
         "To FrequencyBin")
 
     # (lower_bin_value, FrequencyBin)
-    col = backend.combine_per_key(col, operator.add, "Combine FrequencyBins")
+    col = backend.reduce_per_key(col, operator.add, "Combine FrequencyBins")
     # (lower_bin_value, FrequencyBin)
     col = backend.values(col, "To FrequencyBin")
     # (FrequencyBin)
@@ -294,20 +294,17 @@ class TuneResult:
     """Represents tune results.
 
     Attributes:
-        recommended_params: recommended parameters to use, according to
-          minimizing function. Note, that those parameters might not necessarily
-          be optimal, since finding the optimal parameters is not always
-          feasible.
         options: input options for tuning.
         contribution_histograms: histograms of privacy id contributions.
         utility_analysis_parameters: contains tune parameter values for which
         utility analysis ran.
-        index_best: index of the recommended (best) configuration in
-        utility_analysis_parameters.
+        index_best: index of the recommended according to minimizing function
+         (best) configuration in utility_analysis_parameters. Note, that those
+          parameters might not necessarily be optimal, since finding the optimal
+          parameters is not always feasible.
         utility_analysis_results: the results of all utility analysis runs that
           were performed during the tuning process.
     """
-    recommended_params: pipeline_dp.AggregateParams
     options: TuneOptions
     contribution_histograms: ContributionHistograms
     utility_analysis_parameters: utility_analysis_new.dp_engine.MultiParameterConfiguration
@@ -379,13 +376,9 @@ def _convert_utility_analysis_to_tune_result(
     assert tune_options.function_to_minimize == MinimizingFunction.ABSOLUTE_ERROR
 
     index_best = np.argmin([ae.absolute_rmse() for ae in aggregate_errors])
-    recommended_params = run_configurations.get_aggregate_params(
-        tune_options.aggregate_params, index_best)
 
-    return TuneResult(
-        recommended_params, tune_options, contribution_histograms,
-        run_configurations, index_best,
-        utility_analysis_new.dp_engine.MultiParameterConfiguration)
+    return TuneResult(tune_options, contribution_histograms, run_configurations,
+                      index_best, aggregate_errors)
 
 
 def tune(col,
