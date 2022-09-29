@@ -1,5 +1,5 @@
 import pipeline_dp
-import utility_analysis_new.dp_engine
+import utility_analysis_new
 from pipeline_dp import pipeline_backend
 from pipeline_dp import input_validators
 from utility_analysis_new import combiners
@@ -129,7 +129,7 @@ def _compute_frequency_histogram(col, backend: pipeline_backend.PipelineBackend,
         "To FrequencyBin")
 
     # (lower_bin_value, FrequencyBin)
-    col = backend.combine_per_key(col, operator.add, "Combine FrequencyBins")
+    col = backend.reduce_per_key(col, operator.add, "Combine FrequencyBins")
     # (lower_bin_value, FrequencyBin)
     col = backend.values(col, "To FrequencyBin")
     # (FrequencyBin)

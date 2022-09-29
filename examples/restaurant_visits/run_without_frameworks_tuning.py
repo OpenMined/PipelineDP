@@ -87,8 +87,7 @@ def tune_parameters():
 
     minimizing_function = parameter_tuning.MinimizingFunction.ABSOLUTE_ERROR
     parameters_to_tune = parameter_tuning.ParametersToTune(
-        tune_max_partitions_contributed=True,
-        tune_max_contributions_per_partition=True)
+        max_partitions_contributed=True, max_contributions_per_partition=True)
     tune_options = parameter_tuning.TuneOptions(
         epsilon=1,
         delta=1e-5,
