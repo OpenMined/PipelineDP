@@ -609,9 +609,9 @@ class CountAggregateErrorMetricsCombiner(pipeline_dp.Combiner):
 
         # Relative error metrics
         if metrics.count == 0:  # For empty public partitions, to avoid division by 0
-            rel_error_expected = float('inf')
-            rel_error_variance = float('inf')
-            rel_error_quantiles = [float('inf')] * len(self._error_quantiles)
+            rel_error_expected = 0
+            rel_error_variance = 0
+            rel_error_quantiles = [0] * len(self._error_quantiles)
         else:
             rel_error_expected = abs_error_expected / metrics.count
             rel_error_variance = abs_error_variance / (metrics.count**2)
