@@ -120,8 +120,8 @@ class UtilityAnalysis(parameterized.TestCase):
         # Relative errors are infinity due to the empty partition.
         self.assertAlmostEqual(col[0][0].abs_error_expected, 0, delta=1e-2)
         self.assertAlmostEqual(col[0][0].abs_error_variance, 9.1648, delta=1e-2)
-        self.assertEqual(col[0][0].rel_error_expected, float('inf'))
-        self.assertEqual(col[0][0].rel_error_variance, float('inf'))
+        self.assertEqual(col[0][0].rel_error_expected, 0)
+        self.assertEqual(col[0][0].rel_error_variance, 6.109873453776042)
 
     def test_multi_parameters(self):
         # Arrange
