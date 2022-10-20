@@ -288,27 +288,9 @@ class SumUtilityAnalysisMetrics:
     noise_kind: pipeline_dp.NoiseKind
 
 
-@dataclass
-class UtilityAnalysisSumAccumulator:
-    sum: float
-    per_partition_error_min: float
-    per_partition_error_max: float
-    expected_cross_partition_error: float
-    var_cross_partition_error: float
-
-    def __add__(self, other):
-        return UtilityAnalysisSumAccumulator(
-            self.sum + other.sum,
-            self.per_partition_error_min + other.per_partition_error_min,
-            self.per_partition_error_max + other.per_partition_error_max,
-            self.expected_cross_partition_error +
-            other.expected_cross_partition_error,
-            self.var_cross_partition_error + other.var_cross_partition_error)
-
-
 class UtilityAnalysisSumCombiner(pipeline_dp.Combiner):
     """A combiner for utility analysis sums."""
-    AccumulatorType = UtilityAnalysisSumAccumulator
+    AccumulatorType = Tuple[float, float, float, float, float]
 
     def __init__(self, params: pipeline_dp.combiners.CombinerParams):
         self._params = params
@@ -324,7 +306,7 @@ class UtilityAnalysisSumCombiner(pipeline_dp.Combiner):
             An accumulator with the sum of contributions and the contribution error.
         """
         if not data or not data[0]:
-            return UtilityAnalysisSumAccumulator(0, 0, 0, 0, 0)
+            return (0, 0, 0, 0, 0)
         values, n_partitions = data
         max_partitions = self._params.aggregate_params.max_partitions_contributed
         prob_keep_partition = min(1, max_partitions /
@@ -345,27 +327,25 @@ class UtilityAnalysisSumCombiner(pipeline_dp.Combiner):
         var_cross_partition_error = per_partition_contribution**2 * prob_keep_partition * (
             1 - prob_keep_partition)
 
-        return UtilityAnalysisSumAccumulator(partition_sum,
-                                             per_partition_error_min,
-                                             per_partition_error_max,
-                                             expected_cross_partition_error,
-                                             var_cross_partition_error)
+        return (partition_sum, per_partition_error_min, per_partition_error_max,
+                expected_cross_partition_error, var_cross_partition_error)
 
     def merge_accumulators(self, acc1: AccumulatorType, acc2: AccumulatorType):
         """Merges two accumulators together additively."""
-        return acc1 + acc2
+        return tuple(a + b for a, b in zip(acc1, acc2))
 
     def compute_metrics(self,
                         acc: AccumulatorType) -> SumUtilityAnalysisMetrics:
         """Computes metrics based on the accumulator properties."""
+        partition_sum, per_partition_error_min, per_partition_error_max, expected_cross_partition_error, var_cross_partition_error = acc
         std_noise = dp_computations.compute_dp_count_noise_std(
             self._params.scalar_noise_params)
         return SumUtilityAnalysisMetrics(
-            sum=acc.sum,
-            per_partition_error_min=acc.per_partition_error_min,
-            per_partition_error_max=acc.per_partition_error_max,
-            expected_cross_partition_error=acc.expected_cross_partition_error,
-            std_cross_partition_error=np.sqrt(acc.var_cross_partition_error),
+            sum=partition_sum,
+            per_partition_error_min=per_partition_error_min,
+            per_partition_error_max=per_partition_error_max,
+            expected_cross_partition_error=expected_cross_partition_error,
+            std_cross_partition_error=np.sqrt(var_cross_partition_error),
             std_noise=std_noise,
             noise_kind=self._params.aggregate_params.noise_kind)
 
@@ -398,23 +378,9 @@ class PrivacyIdCountUtilityAnalysisMetrics:
     noise_kind: pipeline_dp.NoiseKind
 
 
-@dataclass
-class UtilityAnalysisPrivacyIdCountAccumulator:
-    privacy_id_count: int
-    expected_cross_partition_error: float
-    var_cross_partition_error: float
-
-    def __add__(self, other):
-        return UtilityAnalysisPrivacyIdCountAccumulator(
-            self.privacy_id_count + other.privacy_id_count,
-            self.expected_cross_partition_error +
-            other.expected_cross_partition_error,
-            self.var_cross_partition_error + other.var_cross_partition_error)
-
-
 class UtilityAnalysisPrivacyIdCountCombiner(pipeline_dp.Combiner):
     """A combiner for utility analysis privacy ID counts."""
-    AccumulatorType = UtilityAnalysisPrivacyIdCountAccumulator
+    AccumulatorType = Tuple[int, float, float]
 
     def __init__(self, params: pipeline_dp.combiners.CombinerParams):
         self._params = params
@@ -430,7 +396,7 @@ class UtilityAnalysisPrivacyIdCountCombiner(pipeline_dp.Combiner):
             An accumulator with the privacy ID count of partitions and the contribution error.
         """
         if not data:
-            return UtilityAnalysisPrivacyIdCountAccumulator(0, 0, 0)
+            return (0, 0, 0)
         values, n_partitions = data
         privacy_id_count = 1 if values else 0
         max_partitions = self._params.aggregate_params.max_partitions_contributed
@@ -440,23 +406,23 @@ class UtilityAnalysisPrivacyIdCountCombiner(pipeline_dp.Combiner):
         var_cross_partition_error = prob_keep_partition * (1 -
                                                            prob_keep_partition)
 
-        return UtilityAnalysisPrivacyIdCountAccumulator(
-            privacy_id_count, expected_cross_partition_error,
-            var_cross_partition_error)
+        return (privacy_id_count, expected_cross_partition_error,
+                var_cross_partition_error)
 
     def merge_accumulators(self, acc1: AccumulatorType, acc2: AccumulatorType):
         """Merges two accumulators together additively."""
-        return acc1 + acc2
+        return tuple(a + b for a, b in zip(acc1, acc2))
 
     def compute_metrics(
             self, acc: AccumulatorType) -> PrivacyIdCountUtilityAnalysisMetrics:
         """Computes metrics based on the accumulator properties."""
+        privacy_id_count, expected_cross_partition_error, var_cross_partition_error = acc
         std_noise = dp_computations.compute_dp_count_noise_std(
             self._params.scalar_noise_params)
         return PrivacyIdCountUtilityAnalysisMetrics(
-            privacy_id_count=acc.privacy_id_count,
-            expected_cross_partition_error=acc.expected_cross_partition_error,
-            std_cross_partition_error=np.sqrt(acc.var_cross_partition_error),
+            privacy_id_count=privacy_id_count,
+            expected_cross_partition_error=expected_cross_partition_error,
+            std_cross_partition_error=np.sqrt(var_cross_partition_error),
             std_noise=std_noise,
             noise_kind=self._params.aggregate_params.noise_kind)
 
