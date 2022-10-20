@@ -20,13 +20,39 @@ import math
 import logging
 
 
-class Metrics(Enum):
-    COUNT = 'count'
-    PRIVACY_ID_COUNT = 'privacy_id_count'
-    SUM = 'sum'
-    MEAN = 'mean'
-    VARIANCE = 'variance'
-    VECTOR_SUM = 'vector_sum'
+class Metric:
+
+    def __init__(self, name: str, parameter: Optional[Any] = None):
+        self.name = name
+        self.parameter = parameter
+
+    def __eq__(self, other: 'Metric') -> bool:
+        return self.name == other.name and self.parameter == other.parameter
+
+    def __str__(self):
+        if self.parameter is None:
+            return self.name
+        return f'{self.name}({self.parameter})'
+
+    def __repr__(self):
+        return self.__str__()
+
+    @property
+    def is_percentile(self):
+        return self.name == 'PERCENTILE'
+
+
+class Metrics:
+    COUNT = Metric('COUNT')
+    PRIVACY_ID_COUNT = Metric('PRIVACY_ID_COUNT')
+    SUM = Metric('SUM')
+    MEAN = Metric('MEAN')
+    VARIANCE = Metric('VARIANCE')
+    VECTOR_SUM = Metric('VECTOR_SUM')
+
+    @classmethod
+    def PERCENTILE(cls, value: float):
+        return Metric('PERCENTILE', value)
 
 
 class NoiseKind(Enum):

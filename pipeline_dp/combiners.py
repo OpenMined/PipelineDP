@@ -20,6 +20,8 @@ from pipeline_dp import dp_computations
 from pipeline_dp import budget_accounting
 import numpy as np
 import collections
+import pydp
+from pydp.algorithms import quantile_tree
 
 ArrayLike = Union[np.ndarray, List[float]]
 ExplainComputationReport = Union[Callable, str, List[Union[Callable, str]]]
@@ -390,6 +392,63 @@ class VarianceCombiner(Combiner):
         return lambda: f"Computed variance with (eps={self._params.eps} delta={self._params.delta})"
 
 
+class QuantileCombiner(Combiner):
+
+    def __init__(self, params):
+        self._params = params
+        self._quantiles = [0.5, 0.9]  # todo
+
+    def create_accumulator(self, values):
+        # double lower, double upper,
+        # int tree_height,
+        # int branching_factor
+        tree = self._create_empty_quantile_tree()
+        for value in values:
+            tree.add_entry(value)
+        s = tree.serialize().to_bytes()
+        return s
+
+    def merge_accumulators(self, accumulator1, accumulator2):
+        tree = self._create_empty_quantile_tree()
+
+        accumulator1 = pydp._pydp.bytes_to_summary(accumulator1)
+        tree.merge(accumulator1)
+        accumulator2 = pydp._pydp.bytes_to_summary(accumulator2)
+        tree.merge(accumulator2)
+        s = tree.serialize().to_bytes()
+        return s
+
+    def compute_metrics(self, accumulator):
+        tree = self._create_empty_quantile_tree()
+
+        accumulator = pydp._pydp.bytes_to_summary(accumulator)
+        tree.merge(accumulator)
+        noise_type = 'laplace'
+        quantiles = tree.compute_quantiles(
+            self._params.eps, self._params.delta,
+            self._params.aggregate_params.max_partitions_contributed,
+            self._params.aggregate_params.max_contributions_per_partition,
+            self._quantiles, noise_type)
+
+        return {"percentile_50": quantiles[0], "percentile_90": quantiles[1]}
+
+    def metrics_names(self) -> List[str]:
+        return ["percentile_50", "percentile_90"]  # todo
+
+    def explain_computation(self) -> ExplainComputationReport:
+        pass
+
+    def _create_empty_quantile_tree(self):
+        # The default tree parameters taken from
+        # https://github.com/google/differential-privacy/blob/605ec87bcbd4a536995b611132dbf4d341d2e91d/cc/algorithms/quantile-tree.h#L47
+        DEFAULT_TREE_HEIGHT = 4
+        DEFAULT_BRANCHING_FACTOR = 16
+        return quantile_tree.QuantileTree(
+            self._params.aggregate_params.min_value,
+            self._params.aggregate_params.max_value, DEFAULT_TREE_HEIGHT,
+            DEFAULT_BRANCHING_FACTOR)
+
+
 # Cache for namedtuple types. It should be used only in
 # '_get_or_create_named_tuple()' function.
 _named_tuple_cache = {}
@@ -615,6 +674,16 @@ def create_compound_combiner(
         combiners.append(
             VectorSumCombiner(
                 CombinerParams(budget_vector_sum, aggregate_params)))
+
+    percentile_metrics = [
+        metric for metric in aggregate_params.metrics if metric.is_percentile
+    ]
+    if percentile_metrics:
+        budget_percentile = budget_accountant.request_budget(
+            mechanism_type, weight=aggregate_params.budget_weight)
+        combiners.append(
+            QuantileCombiner(CombinerParams(budget_percentile,
+                                            aggregate_params)))
 
     return CompoundCombiner(combiners, return_named_tuple=True)
 
