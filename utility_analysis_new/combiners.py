@@ -13,6 +13,7 @@
 # limitations under the License.
 """Utility Analysis Combiners."""
 
+import abc
 from dataclasses import dataclass
 from typing import List, Optional, Sequence, Sized, Tuple
 import numpy as np
@@ -26,6 +27,29 @@ from utility_analysis_new import poisson_binomial
 from pipeline_dp import partition_selection
 
 MAX_PROBABILITIES_IN_ACCUMULATOR = 100
+
+
+class UtilityAnalysisCombiner(pipeline_dp.Combiner):
+
+    @abc.abstractmethod
+    def create_accumulator(self, data: Tuple[Sized, int]):
+        """Creates an accumulator for data.
+
+        Args:
+            data is a Tuple containing:
+              1) a list of the user's contributions for a single partition
+              2) the total number of partitions a user contributed to.
+
+        Returns:
+            A tuple which is accumulator.
+        """
+
+    def merge_accumulators(self, acc1: Tuple, acc2: Tuple):
+        """Merges two tuples together additively."""
+        return tuple(a + b for a, b in zip(acc1, acc2))
+
+    def explain_computation(self):
+        """No-op."""
 
 
 @dataclass
@@ -201,7 +225,7 @@ class CountUtilityAnalysisMetrics:
     noise_kind: pipeline_dp.NoiseKind
 
 
-class UtilityAnalysisCountCombiner(pipeline_dp.Combiner):
+class UtilityAnalysisCountCombiner(UtilityAnalysisCombiner):
     """A combiner for utility analysis counts."""
     AccumulatorType = Tuple[int, int, float, float]
 
@@ -240,9 +264,6 @@ class UtilityAnalysisCountCombiner(pipeline_dp.Combiner):
         return (count, per_partition_error, expected_cross_partition_error,
                 var_cross_partition_error)
 
-    def merge_accumulators(self, acc1: AccumulatorType, acc2: AccumulatorType):
-        return tuple(a + b for a, b in zip(acc1, acc2))
-
     def compute_metrics(self,
                         acc: AccumulatorType) -> CountUtilityAnalysisMetrics:
         count, per_partition_error, expected_cross_partition_error, var_cross_partition_error = acc
@@ -261,9 +282,6 @@ class UtilityAnalysisCountCombiner(pipeline_dp.Combiner):
             'count', 'per_partition_error', 'expected_cross_partition_error',
             'std_cross_partition_error', 'std_noise', 'noise_kind'
         ]
-
-    def explain_computation(self):
-        pass
 
 
 @dataclass
@@ -288,7 +306,7 @@ class SumUtilityAnalysisMetrics:
     noise_kind: pipeline_dp.NoiseKind
 
 
-class UtilityAnalysisSumCombiner(pipeline_dp.Combiner):
+class UtilityAnalysisSumCombiner(UtilityAnalysisCombiner):
     """A combiner for utility analysis sums."""
     AccumulatorType = Tuple[float, float, float, float, float]
 
@@ -296,15 +314,6 @@ class UtilityAnalysisSumCombiner(pipeline_dp.Combiner):
         self._params = params
 
     def create_accumulator(self, data: Tuple[Sequence, int]) -> AccumulatorType:
-        """Creates an accumulator for data.
-
-        Args:
-            data is a Tuple containing; 1) a list of the user's contributions for a single partition, and 2) the total
-            number of partitions a user contributed to.
-
-        Returns:
-            An accumulator with the sum of contributions and the contribution error.
-        """
         if not data or not data[0]:
             return (0, 0, 0, 0, 0)
         values, n_partitions = data
@@ -330,10 +339,6 @@ class UtilityAnalysisSumCombiner(pipeline_dp.Combiner):
         return (partition_sum, per_partition_error_min, per_partition_error_max,
                 expected_cross_partition_error, var_cross_partition_error)
 
-    def merge_accumulators(self, acc1: AccumulatorType, acc2: AccumulatorType):
-        """Merges two accumulators together additively."""
-        return tuple(a + b for a, b in zip(acc1, acc2))
-
     def compute_metrics(self,
                         acc: AccumulatorType) -> SumUtilityAnalysisMetrics:
         """Computes metrics based on the accumulator properties."""
@@ -356,9 +361,6 @@ class UtilityAnalysisSumCombiner(pipeline_dp.Combiner):
             'std_noise', 'noise_kind'
         ]
 
-    def explain_computation(self):
-        pass
-
 
 @dataclass
 class PrivacyIdCountUtilityAnalysisMetrics:
@@ -378,7 +380,7 @@ class PrivacyIdCountUtilityAnalysisMetrics:
     noise_kind: pipeline_dp.NoiseKind
 
 
-class UtilityAnalysisPrivacyIdCountCombiner(pipeline_dp.Combiner):
+class UtilityAnalysisPrivacyIdCountCombiner(UtilityAnalysisCombiner):
     """A combiner for utility analysis privacy ID counts."""
     AccumulatorType = Tuple[int, float, float]
 
@@ -386,15 +388,6 @@ class UtilityAnalysisPrivacyIdCountCombiner(pipeline_dp.Combiner):
         self._params = params
 
     def create_accumulator(self, data: Tuple[Sized, int]) -> AccumulatorType:
-        """Creates an accumulator for data.
-
-        Args:
-            data is a Tuple containing; 1) a list of the user's contributions for a single partition, and 2) the total
-            number of partitions a user contributed to.
-
-        Returns:
-            An accumulator with the privacy ID count of partitions and the contribution error.
-        """
         if not data:
             return (0, 0, 0)
         values, n_partitions = data
@@ -408,10 +401,6 @@ class UtilityAnalysisPrivacyIdCountCombiner(pipeline_dp.Combiner):
 
         return (privacy_id_count, expected_cross_partition_error,
                 var_cross_partition_error)
-
-    def merge_accumulators(self, acc1: AccumulatorType, acc2: AccumulatorType):
-        """Merges two accumulators together additively."""
-        return tuple(a + b for a, b in zip(acc1, acc2))
 
     def compute_metrics(
             self, acc: AccumulatorType) -> PrivacyIdCountUtilityAnalysisMetrics:
@@ -431,9 +420,6 @@ class UtilityAnalysisPrivacyIdCountCombiner(pipeline_dp.Combiner):
             'privacy_id_count', 'expected_cross_partition_error',
             'std_cross_partition_error', 'std_noise', 'noise_kind'
         ]
-
-    def explain_computation(self):
-        pass
 
 
 @dataclass
