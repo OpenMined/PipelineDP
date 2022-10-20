@@ -15,7 +15,6 @@
 
 from absl.testing import absltest
 from absl.testing import parameterized
-import unittest
 from unittest.mock import patch
 
 import pipeline_dp

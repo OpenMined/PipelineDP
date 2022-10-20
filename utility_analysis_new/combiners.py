@@ -23,6 +23,7 @@ import pipeline_dp
 from pipeline_dp import dp_computations
 from pipeline_dp import combiners
 from utility_analysis_new import poisson_binomial
+from utility_analysis_new import probability_computations
 from pipeline_dp import partition_selection
 
 MAX_PROBABILITIES_IN_ACCUMULATOR = 100
@@ -595,16 +596,21 @@ class CountAggregateErrorMetricsCombiner(pipeline_dp.Combiner):
             metrics.expected_cross_partition_error)
         abs_error_variance = probability_to_keep * (
             metrics.std_cross_partition_error**2 + metrics.std_noise**2)
-        # TODO: Implement Laplace Noise
-        assert metrics.noise_kind == pipeline_dp.NoiseKind.GAUSSIAN, "Laplace noise for utility analysis not implemented yet"
         loc_cpe_ne = metrics.expected_cross_partition_error
         std_cpe_ne = math.sqrt(metrics.std_cross_partition_error**2 +
                                metrics.std_noise**2)
         abs_error_quantiles = []
-        for quantile in self._error_quantiles:
-            error_at_quantile = probability_to_keep * (scipy.stats.norm.ppf(
-                q=1 - quantile, loc=loc_cpe_ne,
-                scale=std_cpe_ne) + metrics.per_partition_error)
+        if metrics.noise_kind == pipeline_dp.NoiseKind.GAUSSIAN:
+            error_distribution_quantiles = scipy.stats.norm.ppf(
+                q=self._error_quantiles, loc=loc_cpe_ne, scale=std_cpe_ne)
+        else:
+            error_distribution_quantiles = probability_computations.compute_sum_laplace_gaussian_quantiles(
+                laplace_b=metrics.std_noise / np.sqrt(2),
+                gaussian_sigma=metrics.std_cross_partition_error,
+                quantiles=self._error_quantiles)
+        for quantile in error_distribution_quantiles:
+            error_at_quantile = probability_to_keep * (
+                quantile + metrics.per_partition_error)
             abs_error_quantiles.append(error_at_quantile)
 
         # Relative error metrics
