@@ -584,7 +584,9 @@ class CountAggregateErrorMetricsCombiner(pipeline_dp.Combiner):
     def __init__(self, params: pipeline_dp.combiners.CombinerParams,
                  error_quantiles: List[float]):
         self._params = params
-        self._error_quantiles = error_quantiles
+        # q = 0.5 assumed to be smaller error, then q = 0.9. Contribution
+        # bounding error is negative, quantiles should be reverted (0.9-0.1).
+        self._error_quantiles = [(1 - q) for q in error_quantiles]
 
     def create_accumulator(self,
                            metrics: CountUtilityAnalysisMetrics,
