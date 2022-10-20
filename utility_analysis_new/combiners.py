@@ -201,25 +201,9 @@ class CountUtilityAnalysisMetrics:
     noise_kind: pipeline_dp.NoiseKind
 
 
-@dataclass
-class UtilityAnalysisCountAccumulator:
-    count: int
-    per_partition_error: int
-    expected_cross_partition_error: float
-    var_cross_partition_error: float
-
-    def __add__(self, other):
-        return UtilityAnalysisCountAccumulator(
-            self.count + other.count,
-            self.per_partition_error + other.per_partition_error,
-            self.expected_cross_partition_error +
-            other.expected_cross_partition_error,
-            self.var_cross_partition_error + other.var_cross_partition_error)
-
-
 class UtilityAnalysisCountCombiner(pipeline_dp.Combiner):
     """A combiner for utility analysis counts."""
-    AccumulatorType = UtilityAnalysisCountAccumulator
+    AccumulatorType = Tuple[int, int, float, float]
 
     def __init__(self, params: pipeline_dp.combiners.CombinerParams):
         self._params = params
@@ -239,7 +223,7 @@ class UtilityAnalysisCountCombiner(pipeline_dp.Combiner):
             An accumulator with the count of contributions and the contribution error.
         """
         if not data:
-            return UtilityAnalysisCountAccumulator(0, 0, 0, 0)
+            return (0, 0, 0, 0)
         values, n_partitions = data
         count = len(values)
         max_per_partition = self._params.aggregate_params.max_contributions_per_partition
@@ -253,24 +237,22 @@ class UtilityAnalysisCountCombiner(pipeline_dp.Combiner):
         var_cross_partition_error = per_partition_contribution**2 * prob_keep_partition * (
             1 - prob_keep_partition)
 
-        return UtilityAnalysisCountAccumulator(count, per_partition_error,
-                                               expected_cross_partition_error,
-                                               var_cross_partition_error)
+        return (count, per_partition_error, expected_cross_partition_error,
+                var_cross_partition_error)
 
     def merge_accumulators(self, acc1: AccumulatorType, acc2: AccumulatorType):
-        """Merges two accumulators together additively."""
-        return acc1 + acc2
+        return tuple(a + b for a, b in zip(acc1, acc2))
 
     def compute_metrics(self,
                         acc: AccumulatorType) -> CountUtilityAnalysisMetrics:
-        """Computes metrics based on the accumulator properties."""
+        count, per_partition_error, expected_cross_partition_error, var_cross_partition_error = acc
         std_noise = dp_computations.compute_dp_count_noise_std(
             self._params.scalar_noise_params)
         return CountUtilityAnalysisMetrics(
-            count=acc.count,
-            per_partition_error=acc.per_partition_error,
-            expected_cross_partition_error=acc.expected_cross_partition_error,
-            std_cross_partition_error=np.sqrt(acc.var_cross_partition_error),
+            count=count,
+            per_partition_error=per_partition_error,
+            expected_cross_partition_error=expected_cross_partition_error,
+            std_cross_partition_error=np.sqrt(var_cross_partition_error),
             std_noise=std_noise,
             noise_kind=self._params.aggregate_params.noise_kind)
 

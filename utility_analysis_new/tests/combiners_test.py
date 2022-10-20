@@ -86,23 +86,12 @@ class UtilityAnalysisCountCombinerTest(parameterized.TestCase):
     def test_merge(self):
         utility_analysis_combiner = combiners.UtilityAnalysisCountCombiner(
             _create_combiner_params_for_count())
-        test_acc1 = utility_analysis_combiner.create_accumulator(((2, 3, 4), 1))
-        test_acc2 = utility_analysis_combiner.create_accumulator(((6, 7, 8), 5))
+        test_acc1 = [1, 2, 3, -4]
+        test_acc2 = [5, 10, -5, 100]
         merged_acc = utility_analysis_combiner.merge_accumulators(
             test_acc1, test_acc2)
 
-        self.assertEqual(test_acc1.count + test_acc2.count, merged_acc.count)
-        self.assertEqual(
-            test_acc1.per_partition_error + test_acc2.per_partition_error,
-            merged_acc.per_partition_error)
-        self.assertEqual(
-            test_acc1.expected_cross_partition_error +
-            test_acc2.expected_cross_partition_error,
-            merged_acc.expected_cross_partition_error)
-        self.assertEqual(
-            test_acc1.var_cross_partition_error +
-            test_acc2.var_cross_partition_error,
-            merged_acc.var_cross_partition_error)
+        self.assertSequenceEqual((6, 12, -2, 96), merged_acc)
 
 
 class PartitionSelectionTest(parameterized.TestCase):
