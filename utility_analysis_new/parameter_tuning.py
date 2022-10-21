@@ -103,7 +103,7 @@ class TuneResult:
 
 
 def _find_candidate_parameters(
-    histograms: histograms.ContributionHistograms,
+    hist: histograms.ContributionHistograms,
     parameters_to_tune: ParametersToTune
 ) -> utility_analysis_new.dp_engine.MultiParameterConfiguration:
     """Uses some heuristics to find (hopefully) good enough parameters."""
@@ -119,10 +119,10 @@ def _find_candidate_parameters(
         return candidates
 
     if parameters_to_tune.max_partitions_contributed:
-        l0_candidates = _find_candidates(histograms.cross_partition_histogram)
+        l0_candidates = _find_candidates(hist.cross_partition_histogram)
 
     if parameters_to_tune.max_contributions_per_partition:
-        linf_candidates = _find_candidates(histograms.per_partition_histogram)
+        linf_candidates = _find_candidates(hist.per_partition_histogram)
 
     l0_bounds = linf_bounds = None
 

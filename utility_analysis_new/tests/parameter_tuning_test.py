@@ -21,6 +21,7 @@ from typing import List
 import pipeline_dp
 from utility_analysis_new import combiners
 from utility_analysis_new import parameter_tuning
+from utility_analysis_new import histograms as hist
 
 
 def _get_aggregate_params():
@@ -44,13 +45,13 @@ class ParameterTuning(parameterized.TestCase):
         expected_max_partitions_contributed: List,
         expected_max_contributions_per_partition: List,
     ):
-        mock_l0_histogram = parameter_tuning.Histogram(None, None)
+        mock_l0_histogram = hist.Histogram(None, None)
         mock_l0_histogram.quantiles = mock.Mock(return_value=[1, 1, 2])
         setattr(mock_l0_histogram.__class__, 'max_value', 6)
-        mock_linf_histogram = parameter_tuning.Histogram(None, None)
+        mock_linf_histogram = hist.Histogram(None, None)
         mock_linf_histogram.quantiles = mock.Mock(return_value=[3, 6, 6])
 
-        mock_histograms = parameter_tuning.ContributionHistograms(
+        mock_histograms = hist.ContributionHistograms(
             mock_l0_histogram, mock_linf_histogram)
         parameters_to_tune = parameter_tuning.ParametersToTune(
             max_partitions_contributed=tune_max_partitions_contributed,
@@ -73,7 +74,7 @@ class ParameterTuning(parameterized.TestCase):
             value_extractor=lambda x: None)
 
         contribution_histograms = list(
-            parameter_tuning.compute_contribution_histograms(
+            hist.compute_contribution_histograms(
                 input, data_extractors, pipeline_dp.LocalBackend()))[0]
 
         tune_options = parameter_tuning.TuneOptions(
