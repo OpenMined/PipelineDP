@@ -179,8 +179,6 @@ class PartitionSelectionCombiner(pipeline_dp.Combiner):
         pass
 
 
-
-
 @dataclass
 class UtilityAnalysisCountAccumulator:
     count: int
@@ -241,8 +239,8 @@ class UtilityAnalysisCountCombiner(pipeline_dp.Combiner):
         """Merges two accumulators together additively."""
         return acc1 + acc2
 
-    def compute_metrics(self,
-                        acc: AccumulatorType) -> metrics.CountUtilityAnalysisMetrics:
+    def compute_metrics(
+            self, acc: AccumulatorType) -> metrics.CountUtilityAnalysisMetrics:
         """Computes metrics based on the accumulator properties."""
         std_noise = dp_computations.compute_dp_count_noise_std(
             self._params.scalar_noise_params)
@@ -331,8 +329,8 @@ class UtilityAnalysisSumCombiner(pipeline_dp.Combiner):
         """Merges two accumulators together additively."""
         return acc1 + acc2
 
-    def compute_metrics(self,
-                        acc: AccumulatorType) -> metrics.SumUtilityAnalysisMetrics:
+    def compute_metrics(
+            self, acc: AccumulatorType) -> metrics.SumUtilityAnalysisMetrics:
         """Computes metrics based on the accumulator properties."""
         std_noise = dp_computations.compute_dp_count_noise_std(
             self._params.scalar_noise_params)
@@ -407,7 +405,8 @@ class UtilityAnalysisPrivacyIdCountCombiner(pipeline_dp.Combiner):
         return acc1 + acc2
 
     def compute_metrics(
-            self, acc: AccumulatorType) -> metrics.PrivacyIdCountUtilityAnalysisMetrics:
+            self, acc: AccumulatorType
+    ) -> metrics.PrivacyIdCountUtilityAnalysisMetrics:
         """Computes metrics based on the accumulator properties."""
         std_noise = dp_computations.compute_dp_count_noise_std(
             self._params.scalar_noise_params)
@@ -541,24 +540,26 @@ class CountAggregateErrorMetricsCombiner(pipeline_dp.Combiner):
         """Merges two accumulators together additively."""
         return acc1 + acc2
 
-    def compute_metrics(self, acc: AccumulatorType) -> metrics.AggregateErrorMetrics:
+    def compute_metrics(self,
+                        acc: AccumulatorType) -> metrics.AggregateErrorMetrics:
         """Computes metrics based on the accumulator properties."""
-        return metrics.AggregateErrorMetrics(abs_error_expected=acc.abs_error_expected /
-                                     acc.kept_partitions_expected,
-                                     abs_error_variance=acc.abs_error_variance /
-                                     acc.kept_partitions_expected,
-                                     abs_error_quantiles=[
-                                         sum / acc.kept_partitions_expected
-                                         for sum in acc.abs_error_quantiles
-                                     ],
-                                     rel_error_expected=acc.rel_error_expected /
-                                     acc.kept_partitions_expected,
-                                     rel_error_variance=acc.rel_error_variance /
-                                     acc.kept_partitions_expected,
-                                     rel_error_quantiles=[
-                                         sum / acc.kept_partitions_expected
-                                         for sum in acc.rel_error_quantiles
-                                     ])
+        return metrics.AggregateErrorMetrics(
+            abs_error_expected=acc.abs_error_expected /
+            acc.kept_partitions_expected,
+            abs_error_variance=acc.abs_error_variance /
+            acc.kept_partitions_expected,
+            abs_error_quantiles=[
+                sum / acc.kept_partitions_expected
+                for sum in acc.abs_error_quantiles
+            ],
+            rel_error_expected=acc.rel_error_expected /
+            acc.kept_partitions_expected,
+            rel_error_variance=acc.rel_error_variance /
+            acc.kept_partitions_expected,
+            rel_error_quantiles=[
+                sum / acc.kept_partitions_expected
+                for sum in acc.rel_error_quantiles
+            ])
 
     def metrics_names(self) -> List[str]:
         return [
@@ -588,8 +589,8 @@ class PrivatePartitionSelectionAggregateErrorMetricsCombiner(
         """Merges two accumulators together additively."""
         return acc1 + acc2
 
-    def compute_metrics(self,
-                        acc: AccumulatorType) -> metrics.PartitionSelectionMetrics:
+    def compute_metrics(
+            self, acc: AccumulatorType) -> metrics.PartitionSelectionMetrics:
         """Computes metrics based on the accumulator properties."""
         if acc.moments is None:
             acc.moments = _probabilities_to_moments(acc.probabilities)

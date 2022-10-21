@@ -15,12 +15,13 @@
 
 import pipeline_dp
 from dataclasses import dataclass
-from typing import List
+from typing import List, Optional
 import math
+
 
 @dataclass
 class CountUtilityAnalysisMetrics:
-  """Stores metrics for the count utility analysis.
+    """Stores metrics for the count utility analysis.
 
   Args:
       count: actual count of contributions per partition.
@@ -33,16 +34,17 @@ class CountUtilityAnalysisMetrics:
       std_noise: the noise standard deviation.
       noise_kind: the type of noise used.
   """
-  count: int
-  per_partition_error: int
-  expected_cross_partition_error: float
-  std_cross_partition_error: float
-  std_noise: float
-  noise_kind: pipeline_dp.NoiseKind
+    count: int
+    per_partition_error: int
+    expected_cross_partition_error: float
+    std_cross_partition_error: float
+    std_noise: float
+    noise_kind: pipeline_dp.NoiseKind
+
 
 @dataclass
 class SumUtilityAnalysisMetrics:
-  """Stores metrics for the sum utility analysis.
+    """Stores metrics for the sum utility analysis.
 
   Args:
       sum: actual sum of contributions per partition.
@@ -53,18 +55,18 @@ class SumUtilityAnalysisMetrics:
       std_noise: the noise standard deviation.
       noise_kind: the type of noise used.
   """
-  sum: float
-  per_partition_error_min: float
-  per_partition_error_max: float
-  expected_cross_partition_error: float
-  std_cross_partition_error: float
-  std_noise: float
-  noise_kind: pipeline_dp.NoiseKind
+    sum: float
+    per_partition_error_min: float
+    per_partition_error_max: float
+    expected_cross_partition_error: float
+    std_cross_partition_error: float
+    std_noise: float
+    noise_kind: pipeline_dp.NoiseKind
 
 
 @dataclass
 class PrivacyIdCountUtilityAnalysisMetrics:
-  """Stores metrics for the privacy ID count utility analysis.
+    """Stores metrics for the privacy ID count utility analysis.
 
   Args:
       privacy_id_count: actual count of privacy id in a partition.
@@ -73,40 +75,47 @@ class PrivacyIdCountUtilityAnalysisMetrics:
       std_noise: the noise standard deviation for DP count.
       noise_kind: the type of noise used.
   """
-  privacy_id_count: int
-  expected_cross_partition_error: float
-  std_cross_partition_error: float
-  std_noise: float
-  noise_kind: pipeline_dp.NoiseKind
-
-
-@dataclass
-class AggregateErrorMetrics:
-  """Stores aggregate metrics for utility analysis.
-
-  All attributes in this dataclass are averages across partitions.
-  """
-
-  abs_error_expected: float
-  abs_error_variance: float
-  abs_error_quantiles: List[float]
-  rel_error_expected: float
-  rel_error_variance: float
-  rel_error_quantiles: List[float]
-
-  # RMSE = sqrt(bias**2 + variance), more details in
-  # https://en.wikipedia.org/wiki/Bias-variance_tradeoff.
-  def absolute_rmse(self) -> float:
-    return math.sqrt(self.abs_error_expected**2 + self.abs_error_variance)
-
-  def relative_rmse(self) -> float:
-    return math.sqrt(self.rel_error_expected**2 + self.rel_error_variance)
+    privacy_id_count: int
+    expected_cross_partition_error: float
+    std_cross_partition_error: float
+    std_noise: float
+    noise_kind: pipeline_dp.NoiseKind
 
 
 @dataclass
 class PartitionSelectionMetrics:
-  """Stores aggregate metrics about partition selection."""
+    """Stores aggregate metrics about partition selection."""
 
-  num_partitions: float
-  dropped_partitions_expected: float
-  dropped_partitions_variance: float
+    num_partitions: float
+    dropped_partitions_expected: float
+    dropped_partitions_variance: float
+
+
+@dataclass
+class AggregateErrorMetrics:
+    """Stores aggregate error metrics for utility analysis.
+
+  All attributes in this dataclass are averages across partitions.
+  """
+
+    abs_error_expected: float
+    abs_error_variance: float
+    abs_error_quantiles: List[float]
+    rel_error_expected: float
+    rel_error_variance: float
+    rel_error_quantiles: List[float]
+
+    # RMSE = sqrt(bias**2 + variance), more details in
+    # https://en.wikipedia.org/wiki/Bias-variance_tradeoff.
+    def absolute_rmse(self) -> float:
+        return math.sqrt(self.abs_error_expected**2 + self.abs_error_variance)
+
+    def relative_rmse(self) -> float:
+        return math.sqrt(self.rel_error_expected**2 + self.rel_error_variance)
+
+
+@dataclass
+class AggregateMetrics:
+    """Stores aggregate metrics for utility analysis."""
+    aggregate_error_metrics: AggregateErrorMetrics
+    partition_selection_metrics: Optional[PartitionSelectionMetrics]

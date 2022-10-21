@@ -20,6 +20,7 @@ from pipeline_dp import combiners
 from pipeline_dp import pipeline_backend
 from pipeline_dp import input_validators
 from utility_analysis_new import dp_engine
+from utility_analysis_new import metrics
 import utility_analysis_new.combiners as utility_analysis_combiners
 
 
@@ -89,12 +90,30 @@ def perform_utility_analysis(col,
     aggregates = backend.combine_accumulators_per_key(
         accumulators, aggregate_error_combiners,
         "Combine aggregate metrics from per-partition error metrics")
-    # accumulators : (None, (accumulator))
-    aggregates = backend.map_values(aggregates,
-                                    aggregate_error_combiners.compute_metrics,
-                                    "Compute aggregate metrics")
+    # aggregates : (None, (accumulator))
+
+    aggregates = backend.values(aggregates, "Drop key")
+    # aggregates: (accumulator)
+
+    aggregates = backend.map(aggregates,
+                             aggregate_error_combiners.compute_metrics,
+                             "Compute aggregate metrics")
+
     # accumulators : (None, aggregate_metrics)
-    return backend.values(aggregates, "Drop key")
+
+    def pack_metrics(aggregate_metrics):
+        if public_partitions is None:
+            return [
+                metrics.AggregateMetrics(aggregate_metrics[i + 1],
+                                         aggregate_metrics[i])
+                for i in range(0, len(aggregate_metrics), 2)
+            ]
+        else:
+            return [metrics.AggregateMetrics(m) for m in aggregate_metrics]
+
+    return backend.map(aggregates, pack_metrics,
+                       "Pack metrics from the same run")
+    # (aggregate_metrics)
 
 
 def _create_aggregate_error_compound_combiner(
