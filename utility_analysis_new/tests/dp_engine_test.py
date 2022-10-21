@@ -19,7 +19,7 @@ import copy
 import pipeline_dp
 from pipeline_dp import budget_accounting
 from utility_analysis_new import dp_engine
-from utility_analysis_new.combiners import CountUtilityAnalysisMetrics
+from utility_analysis_new.metrics import CountUtilityAnalysisMetrics
 import utility_analysis_new
 
 

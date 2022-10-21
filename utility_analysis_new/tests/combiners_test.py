@@ -20,6 +20,7 @@ from unittest.mock import patch
 
 import pipeline_dp
 from utility_analysis_new import combiners
+from utility_analysis_new import metrics
 
 
 def _create_combiner_params_for_count() -> pipeline_dp.combiners.CombinerParams:
@@ -45,7 +46,7 @@ class UtilityAnalysisCountCombinerTest(parameterized.TestCase):
              num_partitions=0,
              contribution_values=(),
              params=_create_combiner_params_for_count(),
-             expected_metrics=combiners.CountUtilityAnalysisMetrics(
+             expected_metrics=metrics.CountUtilityAnalysisMetrics(
                  count=0,
                  per_partition_error=0,
                  expected_cross_partition_error=0,
@@ -56,7 +57,7 @@ class UtilityAnalysisCountCombinerTest(parameterized.TestCase):
              num_partitions=1,
              contribution_values=(1, 2),
              params=_create_combiner_params_for_count(),
-             expected_metrics=combiners.CountUtilityAnalysisMetrics(
+             expected_metrics=metrics.CountUtilityAnalysisMetrics(
                  count=2,
                  per_partition_error=0,
                  expected_cross_partition_error=0,
@@ -67,7 +68,7 @@ class UtilityAnalysisCountCombinerTest(parameterized.TestCase):
              num_partitions=4,
              contribution_values=(1, 2, 3, 4),
              params=_create_combiner_params_for_count(),
-             expected_metrics=combiners.CountUtilityAnalysisMetrics(
+             expected_metrics=metrics.CountUtilityAnalysisMetrics(
                  count=4,
                  per_partition_error=-2,
                  expected_cross_partition_error=-1.5,
@@ -228,7 +229,7 @@ class UtilityAnalysisSumCombinerTest(parameterized.TestCase):
              num_partitions=0,
              contribution_values=(),
              params=_create_combiner_params_for_sum(0, 0),
-             expected_metrics=combiners.SumUtilityAnalysisMetrics(
+             expected_metrics=metrics.SumUtilityAnalysisMetrics(
                  sum=0,
                  per_partition_error_min=0,
                  per_partition_error_max=0,
@@ -240,7 +241,7 @@ class UtilityAnalysisSumCombinerTest(parameterized.TestCase):
              num_partitions=1,
              contribution_values=(1.1, 2.2),
              params=_create_combiner_params_for_sum(0, 3.4),
-             expected_metrics=combiners.SumUtilityAnalysisMetrics(
+             expected_metrics=metrics.SumUtilityAnalysisMetrics(
                  sum=3.3,
                  per_partition_error_min=0,
                  per_partition_error_max=0,
@@ -252,7 +253,7 @@ class UtilityAnalysisSumCombinerTest(parameterized.TestCase):
              num_partitions=4,
              contribution_values=(1.1, 2.2, 3.3, 4.4),
              params=_create_combiner_params_for_sum(0, 5.5),
-             expected_metrics=combiners.SumUtilityAnalysisMetrics(
+             expected_metrics=metrics.SumUtilityAnalysisMetrics(
                  sum=11.0,
                  per_partition_error_min=0,
                  per_partition_error_max=5.5,
@@ -264,7 +265,7 @@ class UtilityAnalysisSumCombinerTest(parameterized.TestCase):
              num_partitions=4,
              contribution_values=(0.1, 0.2, 0.3, 0.4),
              params=_create_combiner_params_for_sum(2, 20),
-             expected_metrics=combiners.SumUtilityAnalysisMetrics(
+             expected_metrics=metrics.SumUtilityAnalysisMetrics(
                  sum=1.0,
                  per_partition_error_min=-1,
                  per_partition_error_max=0,
@@ -342,7 +343,7 @@ class UtilityAnalysisPrivacyIdCountCombinerTest(parameterized.TestCase):
              num_partitions=0,
              contribution_values=(),
              params=_create_combiner_params_for_privacy_id_count(),
-             expected_metrics=combiners.PrivacyIdCountUtilityAnalysisMetrics(
+             expected_metrics=metrics.PrivacyIdCountUtilityAnalysisMetrics(
                  privacy_id_count=0,
                  std_noise=10.556883272246033,
                  expected_cross_partition_error=-1,
@@ -352,7 +353,7 @@ class UtilityAnalysisPrivacyIdCountCombinerTest(parameterized.TestCase):
              num_partitions=4,
              contribution_values=(2),
              params=_create_combiner_params_for_privacy_id_count(),
-             expected_metrics=combiners.PrivacyIdCountUtilityAnalysisMetrics(
+             expected_metrics=metrics.PrivacyIdCountUtilityAnalysisMetrics(
                  privacy_id_count=1,
                  expected_cross_partition_error=-0.5,
                  std_cross_partition_error=0.5,
@@ -362,7 +363,7 @@ class UtilityAnalysisPrivacyIdCountCombinerTest(parameterized.TestCase):
              num_partitions=4,
              contribution_values=(2, 2, 2, 2),
              params=_create_combiner_params_for_privacy_id_count(),
-             expected_metrics=combiners.PrivacyIdCountUtilityAnalysisMetrics(
+             expected_metrics=metrics.PrivacyIdCountUtilityAnalysisMetrics(
                  privacy_id_count=1,
                  expected_cross_partition_error=-0.5,
                  std_cross_partition_error=0.5,
@@ -372,7 +373,7 @@ class UtilityAnalysisPrivacyIdCountCombinerTest(parameterized.TestCase):
              num_partitions=1,
              contribution_values=(2, 2),
              params=_create_combiner_params_for_privacy_id_count(),
-             expected_metrics=combiners.PrivacyIdCountUtilityAnalysisMetrics(
+             expected_metrics=metrics.PrivacyIdCountUtilityAnalysisMetrics(
                  privacy_id_count=1,
                  expected_cross_partition_error=0,
                  std_cross_partition_error=0,

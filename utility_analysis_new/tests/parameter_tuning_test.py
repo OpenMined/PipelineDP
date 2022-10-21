@@ -19,9 +19,9 @@ from unittest import mock
 from typing import List
 
 import pipeline_dp
-from utility_analysis_new import combiners
-from utility_analysis_new import parameter_tuning
 from utility_analysis_new import histograms
+from utility_analysis_new import metrics
+from utility_analysis_new import parameter_tuning
 
 
 def _get_aggregate_params():
@@ -93,7 +93,7 @@ class ParameterTuning(parameterized.TestCase):
         self.assertEqual(contribution_histograms,
                          tune_result.contribution_histograms)
         self.assertIsInstance(tune_result.utility_analysis_results[0],
-                              combiners.AggregateErrorMetrics)
+                              metrics.AggregateErrorMetrics)
 
 
 if __name__ == '__main__':
