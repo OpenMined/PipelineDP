@@ -237,15 +237,7 @@ class UtilityAnalysisCountCombiner(UtilityAnalysisCombiner):
         return self._partition_selection_budget is None
 
     def create_accumulator(self, data: Tuple[Sized, int]) -> AccumulatorType:
-        """Creates an accumulator for data.
-
-        Args:
-            data is a Tuple containing; 1) a list of the user's contributions for a single partition, and 2) the total
-            number of partitions a user contributed to.
-
-        Returns:
-            An accumulator with the count of contributions and the contribution error.
-        """
+        """Creates an accumulator for data."""
         if not data:
             return (0, 0, 0, 0)
         values, n_partitions = data
