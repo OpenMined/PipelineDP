@@ -21,7 +21,7 @@ from typing import List
 
 @dataclass
 class FrequencyBin:
-    """Represents 1 bin of the histogram.
+    """Represents 1 bin of a histogram.
 
   The bin represents integers between 'lower' (inclusive) and 'upper'
    (exclusive, not stored in this class, but uniquely determined by 'lower').
@@ -30,7 +30,8 @@ class FrequencyBin:
       lower: the lower bound of the bin.
       count: the number of elements in the bin.
       sum: the sum of elements in the bin.
-      max: the maximum element in the bin (which might be smaller than upper-1).
+      max: the maximum element in the bin, which is smaller or equal to the
+       upper-1.
   """
     lower: int
     count: int
