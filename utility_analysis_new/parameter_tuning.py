@@ -26,6 +26,7 @@ from typing import Callable, List, Tuple, Union
 from enum import Enum
 import numpy as np
 
+
 @dataclass
 class UtilityAnalysisRun:
     params: utility_analysis.UtilityAnalysisOptions
@@ -102,14 +103,15 @@ class TuneResult:
 
 
 def _find_candidate_parameters(
-    histograms: histograms.ContributionHistograms, parameters_to_tune: ParametersToTune
+    histograms: histograms.ContributionHistograms,
+    parameters_to_tune: ParametersToTune
 ) -> utility_analysis_new.dp_engine.MultiParameterConfiguration:
     """Uses some heuristics to find (hopefully) good enough parameters."""
     # TODO: decide where to put QUANTILES_TO_USE, maybe TuneOptions?
     QUANTILES_TO_USE = [0.9, 0.95, 0.98, 0.99, 0.995]
     l0_candidates = linf_candidates = None
 
-    def _find_candidates(histogram: Histogram) -> List:
+    def _find_candidates(histogram: histograms.Histogram) -> List:
         candidates = histogram.quantiles(QUANTILES_TO_USE)
         candidates.append(histogram.max_value)
         candidates = list(set(candidates))  # remove duplicates
@@ -146,7 +148,8 @@ def _convert_utility_analysis_to_tune_result(
         utility_analysis_result: Tuple, tune_options: TuneOptions,
         run_configurations: utility_analysis_new.dp_engine.
     MultiParameterConfiguration, use_public_partitions: bool,
-        contribution_histograms: histograms.ContributionHistograms) -> TuneResult:
+        contribution_histograms: histograms.ContributionHistograms
+) -> TuneResult:
 
     # Get only error metrics, ignore partition selection for now.
     # TODO: Make the output of the utility analysis 1 dataclass per 1 run.

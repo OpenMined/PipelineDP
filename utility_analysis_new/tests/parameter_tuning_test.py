@@ -22,6 +22,7 @@ import pipeline_dp
 from utility_analysis_new import combiners
 from utility_analysis_new import parameter_tuning
 
+
 def _get_aggregate_params():
     # Limit contributions to 1 per partition, contribution error will be half of the count.
     return pipeline_dp.AggregateParams(
@@ -32,8 +33,6 @@ def _get_aggregate_params():
 
 
 class ParameterTuning(parameterized.TestCase):
-
-
 
     @parameterized.parameters(
         (True, True, [1, 1, 2, 2, 6, 6], [3, 6, 3, 6, 3, 6]),
