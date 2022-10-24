@@ -11,6 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""Combiners for computing DP aggregations."""
+
 import abc
 import copy
 from typing import Callable, Iterable, Sized, Tuple, List, Union
@@ -109,7 +111,7 @@ class CustomCombiner(Combiner, abc.ABC):
 
     def set_aggregate_params(self,
                              aggregate_params: pipeline_dp.AggregateParams):
-        """Sets aggregate parameters
+        """Sets aggregate parameters.
 
         The custom combiner can optionally use it for own DP parameter
         computations.
@@ -117,9 +119,9 @@ class CustomCombiner(Combiner, abc.ABC):
         self._aggregate_params = aggregate_params
 
     def metrics_names(self) -> List[str]:
-        """Metrics that self computes.
+        """Metrics that 'self' computes.
 
-        By default returns class name.
+        It returns the class name by default.
         """
         return self.__class__.__name__
 
