@@ -23,6 +23,7 @@ from absl import flags
 import pipeline_dp
 import pandas as pd
 
+from utility_analysis_new import histograms
 from utility_analysis_new import parameter_tuning
 
 FLAGS = flags.FLAGS
@@ -81,9 +82,9 @@ def tune_parameters():
     public_partitions = list(range(1, 8)) if FLAGS.public_partitions else None
     backend = pipeline_dp.LocalBackend()
 
-    histograms = parameter_tuning.compute_contribution_histograms(
+    hist = histograms.compute_contribution_histograms(
         restaurant_visits_rows, data_extractors, backend)
-    histograms = list(histograms)[0]
+    hist = list(hist)[0]
 
     minimizing_function = parameter_tuning.MinimizingFunction.ABSOLUTE_ERROR
     parameters_to_tune = parameter_tuning.ParametersToTune(
@@ -94,7 +95,7 @@ def tune_parameters():
         aggregate_params=aggregate_params,
         function_to_minimize=minimizing_function,
         parameters_to_tune=parameters_to_tune)
-    result = parameter_tuning.tune(restaurant_visits_rows, backend, histograms,
+    result = parameter_tuning.tune(restaurant_visits_rows, backend, hist,
                                    tune_options, data_extractors,
                                    public_partitions)
 
