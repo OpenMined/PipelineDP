@@ -83,7 +83,7 @@ def _probabilities_to_moments(
 
 @dataclass
 class PartitionSelectionCalculator:
-    """Stores data needed for computing probability of keeping the partition.
+    """Computes probability of keeping the partition.
 
     Args:
         probabilities: probabilities that each specific user contributes to the
