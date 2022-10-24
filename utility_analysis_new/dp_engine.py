@@ -159,20 +159,19 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
                 budget = self._budget_accountant.request_budget(
                     mechanism_type, weight=aggregate_params.budget_weight)
                 internal_combiners.append(
-                    utility_analysis_combiners.UtilityAnalysisCountCombiner(
+                    utility_analysis_combiners.CountCombiner(
                         combiners.CombinerParams(budget, params)))
             if pipeline_dp.Metrics.SUM in aggregate_params.metrics:
                 budget = self._budget_accountant.request_budget(
                     mechanism_type, weight=aggregate_params.budget_weight)
                 internal_combiners.append(
-                    utility_analysis_combiners.UtilityAnalysisSumCombiner(
+                    utility_analysis_combiners.SumCombiner(
                         combiners.CombinerParams(budget, params)))
             if pipeline_dp.Metrics.PRIVACY_ID_COUNT in aggregate_params.metrics:
                 budget = self._budget_accountant.request_budget(
                     mechanism_type, weight=aggregate_params.budget_weight)
                 internal_combiners.append(
-                    utility_analysis_combiners.
-                    UtilityAnalysisPrivacyIdCountCombiner(
+                    utility_analysis_combiners.PrivacyIdCountCombiner(
                         combiners.CombinerParams(budget, params)))
         return combiners.CompoundCombiner(internal_combiners,
                                           return_named_tuple=False)
