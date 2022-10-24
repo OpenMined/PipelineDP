@@ -41,7 +41,7 @@ class UtilityAnalysisCombiner(pipeline_dp.Combiner):
               2) the total number of partitions a user contributed to.
 
         Returns:
-            A tuple which is accumulator.
+            A tuple which is an accumulator.
         """
 
     def merge_accumulators(self, acc1: Tuple, acc2: Tuple):
@@ -227,6 +227,8 @@ class CountUtilityAnalysisMetrics:
 
 class UtilityAnalysisCountCombiner(UtilityAnalysisCombiner):
     """A combiner for utility analysis counts."""
+    # (count, per_partition_error, expected_cross_partition_error,
+    # var_cross_partition_error)
     AccumulatorType = Tuple[int, int, float, float]
 
     def __init__(self, params: pipeline_dp.combiners.CombinerParams):
@@ -300,6 +302,8 @@ class SumUtilityAnalysisMetrics:
 
 class UtilityAnalysisSumCombiner(UtilityAnalysisCombiner):
     """A combiner for utility analysis sums."""
+    # (partition_sum, per_partition_error_min, per_partition_error_max,
+    # expected_cross_partition_error, var_cross_partition_error)
     AccumulatorType = Tuple[float, float, float, float, float]
 
     def __init__(self, params: pipeline_dp.combiners.CombinerParams):
@@ -374,6 +378,8 @@ class PrivacyIdCountUtilityAnalysisMetrics:
 
 class UtilityAnalysisPrivacyIdCountCombiner(UtilityAnalysisCombiner):
     """A combiner for utility analysis privacy ID counts."""
+    # (privacy_id_count, expected_cross_partition_error,
+    # var_cross_partition_error)
     AccumulatorType = Tuple[int, float, float]
 
     def __init__(self, params: pipeline_dp.combiners.CombinerParams):
