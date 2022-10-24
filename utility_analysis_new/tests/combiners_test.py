@@ -104,26 +104,26 @@ class PartitionSelectionTest(parameterized.TestCase):
         self.assertAlmostEqual(0.168, moments.third_central_moment)
 
     def test_add_accumulators_both_probabilities(self):
-        acc1 = combiners.PartitionSelectionAccumulator([0.1, 0.2])
-        acc2 = combiners.PartitionSelectionAccumulator([0.3])
+        acc1 = combiners.PartitionSelectionCalculator([0.1, 0.2])
+        acc2 = combiners.PartitionSelectionCalculator([0.3])
         acc = acc1 + acc2
         # Test that the result has probabilities.
         self.assertSequenceEqual([0.1, 0.2, 0.3], acc.probabilities)
         self.assertIsNone(acc.moments)
 
-        acc3 = combiners.PartitionSelectionAccumulator([0.5] * 99)
+        acc3 = combiners.PartitionSelectionCalculator([0.5] * 99)
         acc = acc1 + acc3
         # Test that the result has moments.
         self.assertIsNone(acc.probabilities)
         self.assertEqual(101, acc.moments.count)
 
     def test_add_accumulators_probabilities_moments(self):
-        acc1 = combiners.PartitionSelectionAccumulator([0.1, 0.2])
+        acc1 = combiners.PartitionSelectionCalculator([0.1, 0.2])
         moments = combiners.SumOfRandomVariablesMoments(count=10,
                                                         expectation=5,
                                                         variance=50,
                                                         third_central_moment=1)
-        acc2 = combiners.PartitionSelectionAccumulator(moments=moments)
+        acc2 = combiners.PartitionSelectionCalculator(moments=moments)
         acc = acc1 + acc2
 
         # Test that the result has moments.
@@ -135,8 +135,8 @@ class PartitionSelectionTest(parameterized.TestCase):
                                                         expectation=5,
                                                         variance=50,
                                                         third_central_moment=1)
-        acc1 = combiners.PartitionSelectionAccumulator(moments=moments)
-        acc2 = combiners.PartitionSelectionAccumulator(moments=moments)
+        acc1 = combiners.PartitionSelectionCalculator(moments=moments)
+        acc2 = combiners.PartitionSelectionCalculator(moments=moments)
         acc = acc1 + acc2
 
         # Test that the result has moments.
@@ -165,7 +165,7 @@ class PartitionSelectionTest(parameterized.TestCase):
     )
     def test_partition_selection_accumulator_compute_probability(
             self, eps, delta, probabilities, expected_probability_to_keep):
-        acc = combiners.PartitionSelectionAccumulator(probabilities)
+        acc = combiners.PartitionSelectionCalculator(probabilities)
         prob_to_keep = acc.compute_probability_to_keep(
             pipeline_dp.PartitionSelectionStrategy.TRUNCATED_GEOMETRIC,
             eps,

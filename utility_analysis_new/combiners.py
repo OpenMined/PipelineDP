@@ -82,7 +82,7 @@ def _probabilities_to_moments(
 
 
 @dataclass
-class PartitionSelectionAccumulator:
+class PartitionSelectionCalculator:
     """Stores data needed for computing probability of keeping the partition.
 
     Args:
@@ -106,23 +106,6 @@ class PartitionSelectionAccumulator:
             self.moments is
             None), "Only one of probabilities and moments must be set."
 
-    def __add__(self, other):
-        probs_self = self.probabilities
-        probs_other = other.probabilities
-        if probs_self and probs_other and len(probs_self) + len(
-                probs_other) <= MAX_PROBABILITIES_IN_ACCUMULATOR:
-            return PartitionSelectionAccumulator(probs_self + probs_other)
-        moments_self = self.moments
-        if moments_self is None:
-            moments_self = _probabilities_to_moments(probs_self)
-
-        moments_other = other.moments
-        if moments_other is None:
-            moments_other = _probabilities_to_moments(probs_other)
-
-        return PartitionSelectionAccumulator(moments=moments_self +
-                                             moments_other)
-
     def compute_probability_to_keep(self,
                                     partition_selection_strategy: pipeline_dp.
                                     PartitionSelectionStrategy, eps: float,
@@ -133,7 +116,7 @@ class PartitionSelectionAccumulator:
         If self.probabilities is set, then the computed probability is exact,
         otherwise it is an approximation computed from self.moments.
         """
-        pmf = self.compute_pmf()
+        pmf = self._compute_pmf()
         ps_strategy = partition_selection.create_partition_selection_strategy(
             partition_selection_strategy, eps, delta,
             max_partitions_contributed)
@@ -142,7 +125,8 @@ class PartitionSelectionAccumulator:
             probability += prob * ps_strategy.probability_of_keep(i)
         return probability
 
-    def compute_pmf(self) -> np.ndarray:
+    def _compute_pmf(self) -> np.ndarray:
+        """Computes the pmf of privacy id count in this partition after contribution bounding."""
         if self.probabilities:
             pmf = poisson_binomial.compute_pmf(self.probabilities)
         else:
@@ -158,48 +142,64 @@ class PartitionSelectionAccumulator:
         return pmf
 
 
-class PartitionSelectionCombiner(pipeline_dp.Combiner):
+# PartitionSelectionAccumulator = (probabilities, moments). They are mutually
+# exclusive:
+# If len(probabilities) <= MAX_PROBABILITIES_IN_ACCUMULATOR then 'probabilities'
+# are used otherwise 'moments'. For more details see docstring to
+# PartitionSelectionCalculator.
+PartitionSelectionAccumulator = Tuple[Optional[Tuple[float]],
+                                      Optional[SumOfRandomVariablesMoments]]
+
+
+def _merge_partition_selection_accumulators(
+        acc1: PartitionSelectionAccumulator,
+        acc2: PartitionSelectionAccumulator) -> PartitionSelectionAccumulator:
+    probs1, moments1 = acc1
+    probs2, moments2 = acc2
+    if probs1 and probs2 and len(probs1) + len(
+            probs2) <= MAX_PROBABILITIES_IN_ACCUMULATOR:
+        return (probs1 + probs2, None)
+
+    if moments1 is None:
+        moments1 = _probabilities_to_moments(probs1)
+    if moments2 is None:
+        moments2 = _probabilities_to_moments(probs2)
+
+    return (None, moments1 + moments2)
+
+
+class PartitionSelectionCombiner(UtilityAnalysisCombiner):
     """A combiner for utility analysis counts."""
-    AccumulatorType = PartitionSelectionAccumulator
 
     def __init__(self, params: pipeline_dp.combiners.CombinerParams):
         self._params = params
 
-    def create_accumulator(self, data: Tuple[Sized, int]) -> AccumulatorType:
-        """Creates an accumulator for data.
-
-        Args:
-            data is a Tuple containing; 1) a list of the user's contributions
-            for a single partition, and 2) the total number of partitions a user
-            contributed to.
-
-        Returns:
-            An accumulator for computing probability of selecting partition.
-        """
+    def create_accumulator(
+            self, data: Tuple[Sized, int]) -> PartitionSelectionAccumulator:
         values, n_partitions = data
         max_partitions = self._params.aggregate_params.max_partitions_contributed
         prob_keep_contribution = min(1, max_partitions /
                                      n_partitions) if n_partitions > 0 else 0
 
-        return PartitionSelectionAccumulator(
-            probabilities=[prob_keep_contribution])
+        return ((prob_keep_contribution,), None)
 
-    def merge_accumulators(self, acc1: AccumulatorType, acc2: AccumulatorType):
-        """Merges two accumulators together additively."""
-        return acc1 + acc2
+    def merge_accumulators(
+            self, acc1: PartitionSelectionAccumulator,
+            acc2: PartitionSelectionAccumulator
+    ) -> PartitionSelectionAccumulator:
+        return _merge_partition_selection_accumulators(acc1, acc2)
 
-    def compute_metrics(self, acc: AccumulatorType) -> float:
-        """Computes metrics based on the accumulator properties."""
+    def compute_metrics(self, acc: PartitionSelectionAccumulator) -> float:
+        """Computes the probability that the partition kept."""
+        probs, moments = acc
         params = self._params
-        return acc.compute_probability_to_keep(
+        calculator = PartitionSelectionCalculator(probs, moments)
+        return calculator.compute_probability_to_keep(
             params.aggregate_params.partition_selection_strategy, params.eps,
             params.delta, params.aggregate_params.max_partitions_contributed)
 
     def metrics_names(self) -> List[str]:
         return ['probability_to_keep']
-
-    def explain_computation(self):
-        pass
 
 
 @dataclass
@@ -601,22 +601,28 @@ class PrivatePartitionSelectionAggregateErrorMetricsCombiner(
         self._params = params
         self._error_quantiles = error_quantiles
 
-    def create_accumulator(self, prob_to_keep: float) -> AccumulatorType:
+    def create_accumulator(
+            self, prob_to_keep: float) -> PartitionSelectionAccumulator:
         """Creates an accumulator for metrics."""
-        return PartitionSelectionAccumulator(probabilities=[prob_to_keep])
+        return ((prob_to_keep,), None)
 
-    def merge_accumulators(self, acc1: AccumulatorType, acc2: AccumulatorType):
+    def merge_accumulators(
+            self, acc1: PartitionSelectionAccumulator,
+            acc2: PartitionSelectionAccumulator
+    ) -> PartitionSelectionAccumulator:
         """Merges two accumulators together additively."""
-        return acc1 + acc2
+        return _merge_partition_selection_accumulators(acc1, acc2)
 
-    def compute_metrics(self,
-                        acc: AccumulatorType) -> PartitionSelectionMetrics:
+    def compute_metrics(
+            self,
+            acc: PartitionSelectionAccumulator) -> PartitionSelectionMetrics:
         """Computes metrics based on the accumulator properties."""
-        if acc.moments is None:
-            acc.moments = _probabilities_to_moments(acc.probabilities)
-        kept_partitions_expected = acc.moments.expectation
-        kept_partitions_variance = acc.moments.variance
-        num_partitions = acc.moments.count
+        probs, moments = acc
+        if moments is None:
+            moments = _probabilities_to_moments(probs)
+        kept_partitions_expected = moments.expectation
+        kept_partitions_variance = moments.variance
+        num_partitions = moments.count
         return PartitionSelectionMetrics(
             num_partitions=num_partitions,
             dropped_partitions_expected=num_partitions -
