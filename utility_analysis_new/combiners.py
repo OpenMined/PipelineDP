@@ -38,9 +38,9 @@ class UtilityAnalysisCombiner(pipeline_dp.Combiner):
 
         Args:
             data is a Tuple containing:
-              1) a count of the user's contributions for a single partition
-              2) a sum of the user's contributions for the single partition
-              2) the total number of partitions a user contributed to.
+              1) the count of the user's contributions for a single partition
+              2) the sum of the user's contributions for the same partition
+              3) the total number of partitions a user contributed to.
 
         Returns:
             A tuple which is an accumulator.
@@ -362,9 +362,9 @@ class PrivacyIdCountCombiner(UtilityAnalysisCombiner):
 class CompoundCombiner(pipeline_dp.combiners.CompoundCombiner):
     """Compound combiner for Utility analysis per partition metrics."""
 
-    # For improving memory usage the cacompound accumulator has 2 modes:
+    # For improving memory usage the compound accumulator has 2 modes:
     # 1. Sparse mode (for small datasets): which contains information about each
-    # privacy id contributions.
+    # privacy id aggregated contributions per partition.
     # 2. Dense mode (for large datasets): which contains underlying accumulators
     # from internal combiners.
     # Since the utility analysis can be run for many configurations, there can
@@ -405,8 +405,13 @@ class CompoundCombiner(pipeline_dp.combiners.CompoundCombiner):
         sparse2, dense2 = acc2
         if sparse1 and sparse2:
             sparse1.extend(sparse2)
-            if len(sparse1) <= 5 * len(self._combiners):
+            # Computes heuristically that the sparse representation is less
+            # than dense. For this assume that 1 accumulator is on overage
+            # has a size of aggregated contributions from 2 privacy ids.
+            is_sparse_less_dense = len(sparse1) <= 2 * len(self._combiners)
+            if is_sparse_less_dense:
                 return (sparse1, None)
+            # Dense is smaller, convert to dense.
             return (None, self._to_dense(sparse1))
         dense1 = self._to_dense(sparse1) if sparse1 else dense1
         dense2 = self._to_dense(sparse2) if sparse2 else dense2
