@@ -48,7 +48,7 @@ class SamplingCrossAndPerPartitionContributionBounder(
             privacy_id, partition_values = pid_pk_v_values
             num_partitions_contributed = len(partition_values)
             for partition_key, values in partition_values:
-                yield (privacy_id, partition_key), (values,
+                yield (privacy_id, partition_key), (len(values), sum(values),
                                                     num_partitions_contributed)
 
         # Unnest the list per privacy id.
