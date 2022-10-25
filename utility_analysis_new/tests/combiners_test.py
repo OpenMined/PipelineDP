@@ -95,6 +95,9 @@ class UtilityAnalysisCountCombinerTest(parameterized.TestCase):
 
 class PartitionSelectionTest(parameterized.TestCase):
 
+    def _create_accumulator(self, probabilities, moments):
+        return (probabilities, moments)
+
     def test_probabilities_to_moments(self):
         probabilities = [0.1, 0.5, 0.5, 0.2]
         moments = combiners._probabilities_to_moments(probabilities)
@@ -103,48 +106,52 @@ class PartitionSelectionTest(parameterized.TestCase):
         self.assertAlmostEqual(0.75, moments.variance)
         self.assertAlmostEqual(0.168, moments.third_central_moment)
 
-    def test_add_accumulators_both_probabilities(self):
-        acc1 = combiners.PartitionSelectionAccumulator([0.1, 0.2])
-        acc2 = combiners.PartitionSelectionAccumulator([0.3])
-        acc = acc1 + acc2
+    def test_merge_accumulators_both_probabilities(self):
+        acc1 = self._create_accumulator(probabilities=(0.1, 0.2), moments=None)
+        acc2 = self._create_accumulator(probabilities=(0.3,), moments=None)
+        acc = combiners._merge_partition_selection_accumulators(acc1, acc2)
         # Test that the result has probabilities.
-        self.assertSequenceEqual([0.1, 0.2, 0.3], acc.probabilities)
-        self.assertIsNone(acc.moments)
+        probabilities, moments = acc
+        self.assertSequenceEqual([0.1, 0.2, 0.3], probabilities)
+        self.assertIsNone(moments)
 
-        acc3 = combiners.PartitionSelectionAccumulator([0.5] * 99)
-        acc = acc1 + acc3
+        acc3 = self._create_accumulator(probabilities=(0.5,) * 99, moments=None)
+        acc = combiners._merge_partition_selection_accumulators(acc1, acc3)
         # Test that the result has moments.
-        self.assertIsNone(acc.probabilities)
-        self.assertEqual(101, acc.moments.count)
+        probabilities, moments = acc
+        self.assertIsNone(probabilities)
+        self.assertEqual(101, moments.count)
 
     def test_add_accumulators_probabilities_moments(self):
-        acc1 = combiners.PartitionSelectionAccumulator([0.1, 0.2])
+        acc1 = self._create_accumulator(probabilities=(0.1, 0.2), moments=None)
         moments = combiners.SumOfRandomVariablesMoments(count=10,
                                                         expectation=5,
                                                         variance=50,
                                                         third_central_moment=1)
-        acc2 = combiners.PartitionSelectionAccumulator(moments=moments)
-        acc = acc1 + acc2
+        acc2 = self._create_accumulator(probabilities=None, moments=moments)
+        acc = combiners._merge_partition_selection_accumulators(acc1, acc2)
 
         # Test that the result has moments.
-        self.assertIsNone(acc.probabilities)
-        self.assertEqual(12, acc.moments.count)
+        probabilities, moments = acc
+        self.assertIsNone(probabilities)
+        self.assertEqual(12, moments.count)
 
     def test_add_accumulators_moments(self):
         moments = combiners.SumOfRandomVariablesMoments(count=10,
                                                         expectation=5,
                                                         variance=50,
                                                         third_central_moment=1)
-        acc1 = combiners.PartitionSelectionAccumulator(moments=moments)
-        acc2 = combiners.PartitionSelectionAccumulator(moments=moments)
-        acc = acc1 + acc2
+        acc1 = (None, moments)
+        acc2 = (None, moments)
+        acc = combiners._merge_partition_selection_accumulators(acc1, acc2)
 
         # Test that the result has moments.
-        self.assertIsNone(acc.probabilities)
-        self.assertEqual(20, acc.moments.count)
-        self.assertEqual(10, acc.moments.expectation)
-        self.assertEqual(100, acc.moments.variance)
-        self.assertEqual(2, acc.moments.third_central_moment)
+        probabilities, moments = acc
+        self.assertIsNone(probabilities)
+        self.assertEqual(20, moments.count)
+        self.assertEqual(10, moments.expectation)
+        self.assertEqual(100, moments.variance)
+        self.assertEqual(2, moments.third_central_moment)
 
     @parameterized.named_parameters(
         dict(testcase_name='Large eps delta',
@@ -165,7 +172,7 @@ class PartitionSelectionTest(parameterized.TestCase):
     )
     def test_partition_selection_accumulator_compute_probability(
             self, eps, delta, probabilities, expected_probability_to_keep):
-        acc = combiners.PartitionSelectionAccumulator(probabilities)
+        acc = combiners.PartitionSelectionCalculator(probabilities)
         prob_to_keep = acc.compute_probability_to_keep(
             pipeline_dp.PartitionSelectionStrategy.TRUNCATED_GEOMETRIC,
             eps,
@@ -176,15 +183,16 @@ class PartitionSelectionTest(parameterized.TestCase):
                                delta=1e-10)
 
     @patch(
-        'utility_analysis_new.combiners.PartitionSelectionAccumulator.compute_probability_to_keep'
+        'utility_analysis_new.combiners.PartitionSelectionCalculator.compute_probability_to_keep'
     )
     def test_partition_selection_combiner(self,
                                           mock_compute_probability_to_keep):
         params = _create_combiner_params_for_count()
         combiner = combiners.PartitionSelectionCombiner(params)
         acc = combiner.create_accumulator(([1, 2, 3], 8))
-        self.assertLen(acc.probabilities, 1)
-        self.assertEqual(1 / 8, acc.probabilities[0])
+        probabilities, moments = acc
+        self.assertLen(probabilities, 1)
+        self.assertEqual(1 / 8, probabilities[0])
         mock_compute_probability_to_keep.assert_not_called()
         combiner.compute_metrics(acc)
         mock_compute_probability_to_keep.assert_called_with(
