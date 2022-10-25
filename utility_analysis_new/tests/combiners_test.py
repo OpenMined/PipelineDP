@@ -434,7 +434,7 @@ class UtilityAnalysisCompoundCombinerTest(parameterized.TestCase):
         dict(testcase_name='empty',
              num_partitions=0,
              contribution_values=(),
-             expected_metrics=combiners.CountMetrics(
+             expected_metrics=metrics.CountMetrics(
                  count=0,
                  per_partition_error=0,
                  expected_cross_partition_error=0,
@@ -444,7 +444,7 @@ class UtilityAnalysisCompoundCombinerTest(parameterized.TestCase):
         dict(testcase_name='one_partition_zero_error',
              num_partitions=1,
              contribution_values=(1, 2),
-             expected_metrics=combiners.CountMetrics(
+             expected_metrics=metrics.CountMetrics(
                  count=2,
                  per_partition_error=0,
                  expected_cross_partition_error=0,
@@ -454,7 +454,7 @@ class UtilityAnalysisCompoundCombinerTest(parameterized.TestCase):
         dict(testcase_name='4_partitions_4_contributions_keep_half',
              num_partitions=4,
              contribution_values=(1, 2, 3, 4),
-             expected_metrics=combiners.CountMetrics(
+             expected_metrics=metrics.CountMetrics(
                  count=4,
                  per_partition_error=-2,
                  expected_cross_partition_error=-1.5,
@@ -467,7 +467,7 @@ class UtilityAnalysisCompoundCombinerTest(parameterized.TestCase):
         acc = combiner.create_accumulator((contribution_values, num_partitions))
         self.assertEqual(expected_metrics, combiner.compute_metrics(acc)[0])
 
-    def test_two_internal_combiner(self):
+    def test_two_internal_combiners(self):
         count_combiner = combiners.CountCombiner(
             _create_combiner_params_for_count())
         sum_combiner = combiners.SumCombiner(
@@ -479,9 +479,11 @@ class UtilityAnalysisCompoundCombinerTest(parameterized.TestCase):
         acc = combiner.create_accumulator((data, n_partitions))
 
         acc = combiner.merge_accumulators(acc, acc)
+        self.assertEqual(([(3, 6, 100), (3, 6, 100)], None), acc)
 
-        metrics = combiner.compute_metrics(acc)
-        # self.assertIsInstance(metrics[0], )
+        utility_metrics = combiner.compute_metrics(acc)
+        self.assertIsInstance(utility_metrics[0], metrics.CountMetrics)
+        self.assertIsInstance(utility_metrics[1], metrics.SumMetrics)
 
 
 if __name__ == '__main__':
