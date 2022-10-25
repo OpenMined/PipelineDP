@@ -15,7 +15,7 @@
 
 import abc
 from dataclasses import dataclass
-from typing import List, Optional, Sequence, Sized, Tuple
+from typing import Any, List, Optional, Tuple
 import numpy as np
 import math
 import scipy
@@ -637,3 +637,49 @@ class PrivatePartitionSelectionAggregateErrorMetricsCombiner(
 
     def explain_computation(self):
         pass
+
+
+class CompoundCombiner(pipeline_dp.combiners.CompoundCombiner):
+    """"""
+    #
+    AccumulatorType = Tuple[Optional[Tuple[Tuple]], Optional[List[Any]]]
+
+    def create_accumulator(self, data) -> AccumulatorType:
+        if not data:
+            return ((0, 0, 0), None)
+
+        values, n_partitions = data
+        sum_ = sum((v for v in values if v is not None))
+        return ([(len(values), sum_, n_partitions)], None)
+
+    def _to_dense(self, sparse_acc):
+        result = None
+        for count_sum_n_partitions in sparse_acc:
+            compound_acc = (1, [
+                combiner.create_accumulator(count_sum_n_partitions)
+                for combiner in self._combiners
+            ])
+            if result is None:
+                result = compound_acc
+            else:
+                result = super().merge_accumulators(result, compound_acc)
+        return result
+
+    def merge_accumulators(self, acc1: AccumulatorType, acc2: AccumulatorType):
+        sparse1, dense1 = acc1
+        sparse2, dense2 = acc2
+        if sparse1 and sparse2:
+            sparse1.extend(sparse2)
+            if len(sparse1) <= 5 * len(self._combiners):
+                return (sparse1, None)
+            return (None, self._to_dense(sparse1))
+        dense1 = self._to_dense(sparse1) if sparse1 else dense1
+        dense2 = self._to_dense(sparse2) if sparse2 else dense2
+        merged_dense = super().merge_accumulators(dense1, dense2)
+        return (None, merged_dense)
+
+    def compute_metrics(self, acc: AccumulatorType):
+        sparse, dense = acc
+        if sparse:
+            dense = self._to_dense(sparse)
+        return super().compute_metrics(dense)

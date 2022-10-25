@@ -78,7 +78,7 @@ class UtilityAnalysisCountCombinerTest(parameterized.TestCase):
                              expected_metrics):
         utility_analysis_combiner = combiners.CountCombiner(params)
         test_acc = utility_analysis_combiner.create_accumulator(
-            (contribution_values, num_partitions))
+            (len(contribution_values), 0, num_partitions))
         self.assertEqual(expected_metrics,
                          utility_analysis_combiner.compute_metrics(test_acc))
 
@@ -189,7 +189,8 @@ class PartitionSelectionTest(parameterized.TestCase):
                                           mock_compute_probability_to_keep):
         params = _create_combiner_params_for_count()
         combiner = combiners.PartitionSelectionCombiner(params)
-        acc = combiner.create_accumulator(([1, 2, 3], 8))
+        data = [1, 2, 3]
+        acc = combiner.create_accumulator((len(data), sum(data), 8))
         probabilities, moments = acc
         self.assertLen(probabilities, 1)
         self.assertEqual(1 / 8, probabilities[0])
@@ -272,7 +273,8 @@ class UtilityAnalysisSumCombinerTest(parameterized.TestCase):
                              expected_metrics):
         utility_analysis_combiner = combiners.SumCombiner(params)
         test_acc = utility_analysis_combiner.create_accumulator(
-            (contribution_values, num_partitions))
+            (len(contribution_values), sum(contribution_values),
+             num_partitions))
         actual_metrics = utility_analysis_combiner.compute_metrics(test_acc)
         self.assertAlmostEqual(expected_metrics.sum, actual_metrics.sum)
         self.assertAlmostEqual(expected_metrics.per_partition_error_min,
@@ -327,7 +329,7 @@ class UtilityAnalysisPrivacyIdCountCombinerTest(parameterized.TestCase):
                  noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)),
         dict(testcase_name='single_contribution_keep_half',
              num_partitions=4,
-             contribution_values=(2),
+             contribution_values=(2,),
              params=_create_combiner_params_for_privacy_id_count(),
              expected_metrics=combiners.PrivacyIdCountMetrics(
                  privacy_id_count=1,
@@ -359,7 +361,8 @@ class UtilityAnalysisPrivacyIdCountCombinerTest(parameterized.TestCase):
                              expected_metrics):
         utility_analysis_combiner = combiners.PrivacyIdCountCombiner(params)
         test_acc = utility_analysis_combiner.create_accumulator(
-            (contribution_values, num_partitions))
+            (len(contribution_values), sum(contribution_values),
+             num_partitions))
         actual_metrics = utility_analysis_combiner.compute_metrics(test_acc)
         self.assertAlmostEqual(expected_metrics.privacy_id_count,
                                actual_metrics.privacy_id_count)
