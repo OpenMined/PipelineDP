@@ -18,6 +18,7 @@ from pipeline_dp import pipeline_backend
 from pipeline_dp import input_validators
 from utility_analysis_new import combiners
 from utility_analysis_new import histograms
+from utility_analysis_new import metrics
 from utility_analysis_new import utility_analysis
 
 import dataclasses
@@ -30,7 +31,7 @@ import numpy as np
 @dataclass
 class UtilityAnalysisRun:
     params: utility_analysis.UtilityAnalysisOptions
-    result: combiners.AggregateErrorMetrics
+    result: metrics.AggregateErrorMetrics
 
 
 class MinimizingFunction(Enum):
@@ -99,7 +100,7 @@ class TuneResult:
     contribution_histograms: histograms.ContributionHistograms
     utility_analysis_parameters: utility_analysis_new.dp_engine.MultiParameterConfiguration
     index_best: int
-    utility_analysis_results: List[combiners.AggregateErrorMetrics]
+    utility_analysis_results: List[metrics.AggregateErrorMetrics]
 
 
 def _find_candidate_parameters(

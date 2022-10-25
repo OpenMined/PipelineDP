@@ -23,6 +23,7 @@ import scipy
 import pipeline_dp
 from pipeline_dp import dp_computations
 from pipeline_dp import combiners
+from utility_analysis_new import metrics
 from utility_analysis_new import poisson_binomial
 from pipeline_dp import partition_selection
 
@@ -202,29 +203,6 @@ class PartitionSelectionCombiner(UtilityAnalysisCombiner):
         return ['probability_to_keep']
 
 
-@dataclass
-class CountMetrics:
-    """Stores metrics for the count utility analysis.
-
-    Args:
-        count: actual count of contributions per partition.
-        per_partition_error: the amount of error due to per-partition
-        contribution bounding.
-        expected_cross_partition_error: the expected amount of error due to
-        cross-partition contribution bounding.
-        std_cross_partition_error: the standard deviation of the error due to
-        cross-partition contribution bounding.
-        std_noise: the noise standard deviation.
-        noise_kind: the type of noise used.
-    """
-    count: int
-    per_partition_error: int
-    expected_cross_partition_error: float
-    std_cross_partition_error: float
-    std_noise: float
-    noise_kind: pipeline_dp.NoiseKind
-
-
 class CountCombiner(UtilityAnalysisCombiner):
     """A combiner for utility analysis counts."""
     # (count, per_partition_error, expected_cross_partition_error,
@@ -258,11 +236,11 @@ class CountCombiner(UtilityAnalysisCombiner):
         return (count, per_partition_error, expected_cross_partition_error,
                 var_cross_partition_error)
 
-    def compute_metrics(self, acc: AccumulatorType) -> CountMetrics:
+    def compute_metrics(self, acc: AccumulatorType) -> metrics.CountMetrics:
         count, per_partition_error, expected_cross_partition_error, var_cross_partition_error = acc
         std_noise = dp_computations.compute_dp_count_noise_std(
             self._params.scalar_noise_params)
-        return CountMetrics(
+        return metrics.CountMetrics(
             count=count,
             per_partition_error=per_partition_error,
             expected_cross_partition_error=expected_cross_partition_error,
@@ -275,28 +253,6 @@ class CountCombiner(UtilityAnalysisCombiner):
             'count', 'per_partition_error', 'expected_cross_partition_error',
             'std_cross_partition_error', 'std_noise', 'noise_kind'
         ]
-
-
-@dataclass
-class SumMetrics:
-    """Stores metrics for the sum utility analysis.
-
-    Args:
-        sum: actual sum of contributions per partition.
-        per_partition_error_min: the amount of error due to contribution min clipping.
-        per_partition_error_max: the amount of error due to contribution max clipping.
-        expected_cross_partition_error: the expected amount of error due to cross-partition contribution bounding.
-        std_cross_partition_error: the standard deviation of the error due to cross-partition contribution bounding.
-        std_noise: the noise standard deviation.
-        noise_kind: the type of noise used.
-    """
-    sum: float
-    per_partition_error_min: float
-    per_partition_error_max: float
-    expected_cross_partition_error: float
-    std_cross_partition_error: float
-    std_noise: float
-    noise_kind: pipeline_dp.NoiseKind
 
 
 class SumCombiner(UtilityAnalysisCombiner):
@@ -334,12 +290,12 @@ class SumCombiner(UtilityAnalysisCombiner):
         return (partition_sum, per_partition_error_min, per_partition_error_max,
                 expected_cross_partition_error, var_cross_partition_error)
 
-    def compute_metrics(self, acc: AccumulatorType) -> SumMetrics:
+    def compute_metrics(self, acc: AccumulatorType) -> metrics.SumMetrics:
         """Computes metrics based on the accumulator properties."""
         partition_sum, per_partition_error_min, per_partition_error_max, expected_cross_partition_error, var_cross_partition_error = acc
         std_noise = dp_computations.compute_dp_count_noise_std(
             self._params.scalar_noise_params)
-        return SumMetrics(
+        return metrics.SumMetrics(
             sum=partition_sum,
             per_partition_error_min=per_partition_error_min,
             per_partition_error_max=per_partition_error_max,
@@ -354,24 +310,6 @@ class SumCombiner(UtilityAnalysisCombiner):
             'expected_cross_partition_error', 'std_cross_partition_error',
             'std_noise', 'noise_kind'
         ]
-
-
-@dataclass
-class PrivacyIdCountMetrics:
-    """Stores metrics for the privacy ID count utility analysis.
-
-    Args:
-        privacy_id_count: actual count of privacy id in a partition.
-        expected_cross_partition_error: the estimated amount of error across partitions.
-        std_cross_partition_error: the standard deviation of the contribution bounding error.
-        std_noise: the noise standard deviation for DP count.
-        noise_kind: the type of noise used.
-    """
-    privacy_id_count: int
-    expected_cross_partition_error: float
-    std_cross_partition_error: float
-    std_noise: float
-    noise_kind: pipeline_dp.NoiseKind
 
 
 class PrivacyIdCountCombiner(UtilityAnalysisCombiner):
@@ -398,12 +336,13 @@ class PrivacyIdCountCombiner(UtilityAnalysisCombiner):
         return (privacy_id_count, expected_cross_partition_error,
                 var_cross_partition_error)
 
-    def compute_metrics(self, acc: AccumulatorType) -> PrivacyIdCountMetrics:
+    def compute_metrics(self,
+                        acc: AccumulatorType) -> metrics.PrivacyIdCountMetrics:
         """Computes metrics based on the accumulator properties."""
         privacy_id_count, expected_cross_partition_error, var_cross_partition_error = acc
         std_noise = dp_computations.compute_dp_count_noise_std(
             self._params.scalar_noise_params)
-        return PrivacyIdCountMetrics(
+        return metrics.PrivacyIdCountMetrics(
             privacy_id_count=privacy_id_count,
             expected_cross_partition_error=expected_cross_partition_error,
             std_cross_partition_error=np.sqrt(var_cross_partition_error),
@@ -415,38 +354,6 @@ class PrivacyIdCountCombiner(UtilityAnalysisCombiner):
             'privacy_id_count', 'expected_cross_partition_error',
             'std_cross_partition_error', 'std_noise', 'noise_kind'
         ]
-
-
-@dataclass
-class AggregateErrorMetrics:
-    """Stores aggregate metrics for utility analysis.
-
-    All attributes in this dataclass are averages across partitions.
-    """
-
-    abs_error_expected: float
-    abs_error_variance: float
-    abs_error_quantiles: List[float]
-    rel_error_expected: float
-    rel_error_variance: float
-    rel_error_quantiles: List[float]
-
-    # RMSE = sqrt(bias**2 + variance), more details in
-    # https://en.wikipedia.org/wiki/Bias-variance_tradeoff.
-    def absolute_rmse(self) -> float:
-        return math.sqrt(self.abs_error_expected**2 + self.abs_error_variance)
-
-    def relative_rmse(self) -> float:
-        return math.sqrt(self.rel_error_expected**2 + self.rel_error_variance)
-
-
-@dataclass
-class PartitionSelectionMetrics:
-    """Stores aggregate metrics about partition selection."""
-
-    num_partitions: float
-    dropped_partitions_expected: float
-    dropped_partitions_variance: float
 
 
 @dataclass
@@ -515,7 +422,7 @@ class CountAggregateErrorMetricsCombiner(pipeline_dp.Combiner):
         self._error_quantiles = error_quantiles
 
     def create_accumulator(self,
-                           metrics: CountMetrics,
+                           metrics: metrics.CountMetrics,
                            probability_to_keep: float = 1) -> AccumulatorType:
         """Creates an accumulator for metrics."""
         # Absolute error metrics
@@ -562,24 +469,26 @@ class CountAggregateErrorMetricsCombiner(pipeline_dp.Combiner):
         """Merges two accumulators together additively."""
         return acc1 + acc2
 
-    def compute_metrics(self, acc: AccumulatorType) -> AggregateErrorMetrics:
+    def compute_metrics(self,
+                        acc: AccumulatorType) -> metrics.AggregateErrorMetrics:
         """Computes metrics based on the accumulator properties."""
-        return AggregateErrorMetrics(abs_error_expected=acc.abs_error_expected /
-                                     acc.kept_partitions_expected,
-                                     abs_error_variance=acc.abs_error_variance /
-                                     acc.kept_partitions_expected,
-                                     abs_error_quantiles=[
-                                         sum / acc.kept_partitions_expected
-                                         for sum in acc.abs_error_quantiles
-                                     ],
-                                     rel_error_expected=acc.rel_error_expected /
-                                     acc.kept_partitions_expected,
-                                     rel_error_variance=acc.rel_error_variance /
-                                     acc.kept_partitions_expected,
-                                     rel_error_quantiles=[
-                                         sum / acc.kept_partitions_expected
-                                         for sum in acc.rel_error_quantiles
-                                     ])
+        return metrics.AggregateErrorMetrics(
+            abs_error_expected=acc.abs_error_expected /
+            acc.kept_partitions_expected,
+            abs_error_variance=acc.abs_error_variance /
+            acc.kept_partitions_expected,
+            abs_error_quantiles=[
+                sum / acc.kept_partitions_expected
+                for sum in acc.abs_error_quantiles
+            ],
+            rel_error_expected=acc.rel_error_expected /
+            acc.kept_partitions_expected,
+            rel_error_variance=acc.rel_error_variance /
+            acc.kept_partitions_expected,
+            rel_error_quantiles=[
+                sum / acc.kept_partitions_expected
+                for sum in acc.rel_error_quantiles
+            ])
 
     def metrics_names(self) -> List[str]:
         return [
@@ -614,8 +523,8 @@ class PrivatePartitionSelectionAggregateErrorMetricsCombiner(
         return _merge_partition_selection_accumulators(acc1, acc2)
 
     def compute_metrics(
-            self,
-            acc: PartitionSelectionAccumulator) -> PartitionSelectionMetrics:
+        self, acc: PartitionSelectionAccumulator
+    ) -> metrics.PartitionSelectionMetrics:
         """Computes metrics based on the accumulator properties."""
         probs, moments = acc
         if moments is None:
@@ -623,7 +532,7 @@ class PrivatePartitionSelectionAggregateErrorMetricsCombiner(
         kept_partitions_expected = moments.expectation
         kept_partitions_variance = moments.variance
         num_partitions = moments.count
-        return PartitionSelectionMetrics(
+        return metrics.PartitionSelectionMetrics(
             num_partitions=num_partitions,
             dropped_partitions_expected=num_partitions -
             kept_partitions_expected,
