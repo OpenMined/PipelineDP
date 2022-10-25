@@ -142,7 +142,7 @@ class PartitionSelectionCalculator:
         return pmf
 
 
-# PartitionSelectionAccumulator = (probabilities, moments). They are mutually
+# PartitionSelectionAccumulator = (probabilities, moments). These two elements
 # exclusive:
 # If len(probabilities) <= MAX_PROBABILITIES_IN_ACCUMULATOR then 'probabilities'
 # are used otherwise 'moments'. For more details see docstring to
