@@ -112,3 +112,10 @@ class PartitionSelectionMetrics:
     num_partitions: float
     dropped_partitions_expected: float
     dropped_partitions_variance: float
+
+
+@dataclass
+class AggregateMetrics:
+    """Stores aggregate metrics for utility analysis."""
+    aggregate_error_metrics: AggregateErrorMetrics
+    partition_selection_metrics: Optional[PartitionSelectionMetrics]
