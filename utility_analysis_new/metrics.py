@@ -23,7 +23,7 @@ import math
 class CountMetrics:
     """Stores metrics for the count utility analysis.
 
-  Args:
+  Attributes:
       count: actual count of contributions per partition.
       per_partition_error: the amount of error due to per-partition
       contribution bounding.
@@ -46,7 +46,7 @@ class CountMetrics:
 class SumMetrics:
     """Stores metrics for the sum utility analysis.
 
-  Args:
+  Attributes:
       sum: actual sum of contributions per partition.
       per_partition_error_min: the amount of error due to contribution min clipping.
       per_partition_error_max: the amount of error due to contribution max clipping.
@@ -68,7 +68,7 @@ class SumMetrics:
 class PrivacyIdCountMetrics:
     """Stores metrics for the privacy ID count utility analysis.
 
-  Args:
+  Attributes:
       privacy_id_count: actual count of privacy id in a partition.
       expected_cross_partition_error: the estimated amount of error across partitions.
       std_cross_partition_error: the standard deviation of the contribution bounding error.
