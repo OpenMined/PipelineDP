@@ -14,7 +14,7 @@
 """DPEngine for utility analysis."""
 import copy
 import dataclasses
-from typing import Iterable, Optional, Sequence
+from typing import Any, Iterable, List, Optional, Sequence, Tuple
 
 import pipeline_dp
 from pipeline_dp import budget_accounting
@@ -173,8 +173,8 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
                 internal_combiners.append(
                     utility_analysis_combiners.PrivacyIdCountCombiner(
                         combiners.CombinerParams(budget, params)))
-        return combiners.CompoundCombiner(internal_combiners,
-                                          return_named_tuple=False)
+        return UtilityAnalysisCompoundCombiner(internal_combiners,
+                                               return_named_tuple=False)
 
     def _get_aggregate_params(
         self, params: pipeline_dp.AggregateParams
@@ -215,3 +215,44 @@ def _check_utility_analysis_params(params: pipeline_dp.AggregateParams,
         raise NotImplementedError(
             "utility analysis when contribution bounds are already enforced is "
             "not supported")
+
+
+class UtilityAnalysisCompoundCombiner(pipeline_dp.combiners.CompoundCombiner):
+    AccumulatorType = Tuple[List[Tuple], List[Any]]
+
+    def create_accumulator(self, data) -> AccumulatorType:
+        values, n_partitions = data
+        return ([(len(values), sum(values), n_partitions)], None)
+
+    def to_dense(self, sparse_acc):
+        # compound_acc = (1, [combiner.create_accumulator([None, n_partitions, count, sum_]) for combiner in self._combiners])
+        result = None
+        for count_sum_n_partitions in sparse_acc:
+            compound_acc = (1, [
+                combiner.create_accumulator(count_sum_n_partitions)
+                for combiner in self._combiners
+            ])
+            if result is None:
+                result = compound_acc
+            else:
+                result = super().merge_accumulators(result, compound_acc)
+        return result
+
+    def merge_accumulators(self, acc1: AccumulatorType, acc2: AccumulatorType):
+        sparse1, dense1 = acc1
+        sparse2, dense2 = acc2
+        if sparse1 and sparse2:
+            sparse1.extend(sparse2)
+            if len(sparse1) <= 5 * len(self._combiners):
+                return (sparse1, None)
+            return (None, self.to_dense(sparse1))
+        dense1 = self.to_dense(sparse1) if sparse1 else dense1
+        dense2 = self.to_dense(sparse2) if sparse2 else dense2
+        merged_dense = super().merge_accumulators(dense1, dense2)
+        return (None, merged_dense)
+
+    def compute_metrics(self, acc: AccumulatorType):
+        sparse, dense = acc
+        if sparse:
+            dense = self.to_dense(dense)
+        return super().compute_metrics(dense)

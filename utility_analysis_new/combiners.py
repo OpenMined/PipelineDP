@@ -176,7 +176,8 @@ class PartitionSelectionCombiner(UtilityAnalysisCombiner):
         self._params = params
 
     def create_accumulator(
-            self, data: Tuple[int, float, int]) -> PartitionSelectionAccumulator:
+            self, data: Tuple[int, float,
+                              int]) -> PartitionSelectionAccumulator:
         count, sum_, n_partitions = data
         max_partitions = self._params.aggregate_params.max_partitions_contributed
         prob_keep_contribution = min(1, max_partitions /
@@ -239,7 +240,8 @@ class CountCombiner(UtilityAnalysisCombiner):
     def _is_public_partitions(self):
         return self._partition_selection_budget is None
 
-    def create_accumulator(self, data: Tuple[int, float, int]) -> AccumulatorType:
+    def create_accumulator(self, data: Tuple[int, float,
+                                             int]) -> AccumulatorType:
         """Creates an accumulator for data."""
         if not data:
             return (0, 0, 0, 0)
@@ -308,7 +310,8 @@ class SumCombiner(UtilityAnalysisCombiner):
     def __init__(self, params: pipeline_dp.combiners.CombinerParams):
         self._params = params
 
-    def create_accumulator(self, data: Tuple[int, float, int]) -> AccumulatorType:
+    def create_accumulator(self, data: Tuple[int, float,
+                                             int]) -> AccumulatorType:
         if not data or not data[0]:
             return (0, 0, 0, 0, 0)
         count, partition_sum, n_partitions = data
@@ -382,7 +385,8 @@ class PrivacyIdCountCombiner(UtilityAnalysisCombiner):
     def __init__(self, params: pipeline_dp.combiners.CombinerParams):
         self._params = params
 
-    def create_accumulator(self, data: Tuple[int, float, int]) -> AccumulatorType:
+    def create_accumulator(self, data: Tuple[int, float,
+                                             int]) -> AccumulatorType:
         if not data:
             return (0, 0, 0)
         count, sum_, n_partitions = data
