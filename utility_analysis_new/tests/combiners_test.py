@@ -384,5 +384,105 @@ class UtilityAnalysisPrivacyIdCountCombinerTest(parameterized.TestCase):
         self.assertSequenceEqual((6, 12, -2), merged_acc)
 
 
+class UtilityAnalysisCompoundCombinerTest(parameterized.TestCase):
+
+    def _create_combiner(self) -> combiners.CompoundCombiner:
+        count_combiner = combiners.CountCombiner(
+            _create_combiner_params_for_count())
+        return combiners.CompoundCombiner([count_combiner],
+                                          return_named_tuple=False)
+
+    def test_create_accumulator(self):
+        combiner = self._create_combiner()
+        data = [1, 2, 3]
+        n_partitions = 500
+        sparse, dense = combiner.create_accumulator((data, n_partitions))
+        self.assertEqual(sparse, [(len(data), sum(data), n_partitions)])
+        self.assertIsNone(dense)
+
+    def test_to_dense(self):
+        combiner = self._create_combiner()
+        sparse_acc = [(1, 10, 100), (3, 20, 200)]
+        dense = combiner._to_dense(sparse_acc)
+        num_privacy_ids, (count_acc,) = dense
+        self.assertEqual(2, num_privacy_ids)
+        self.assertSequenceEqual(count_acc, (4, -1, -2.98, 0.0298))
+
+    def test_merge_sparse(self):
+        combiner = self._create_combiner()
+        sparse_acc1 = [(1, 10, 100), (3, 20, 200)]
+        acc1 = (sparse_acc1, None)
+        sparse_acc2 = [(11, 2, 300)]
+        acc2 = (sparse_acc2, None)
+        sparse, dense = combiner.merge_accumulators(acc1, acc2)
+        self.assertSequenceEqual(sparse, [(1, 10, 100), (3, 20, 200),
+                                          (11, 2, 300)])
+        self.assertIsNone(dense)
+
+    def test_merge_dense(self):
+        combiner = self._create_combiner()
+        dense_count_acc1 = (0, 1, 2, 3)
+        acc1 = (None, (1, (dense_count_acc1,)))
+        dense_count_acc2 = (0.5, 0.5, 0, -4)
+        acc2 = (None, (3, (dense_count_acc2,)))
+        sparse, dense = combiner.merge_accumulators(acc1, acc2)
+
+        self.assertIsNone(sparse)
+        self.assertEqual(dense, (4, ((0.5, 1.5, 2, -1),)))
+
+    @parameterized.named_parameters(
+        dict(testcase_name='empty',
+             num_partitions=0,
+             contribution_values=(),
+             expected_metrics=combiners.CountMetrics(
+                 count=0,
+                 per_partition_error=0,
+                 expected_cross_partition_error=0,
+                 std_cross_partition_error=0,
+                 std_noise=7.46484375,
+                 noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)),
+        dict(testcase_name='one_partition_zero_error',
+             num_partitions=1,
+             contribution_values=(1, 2),
+             expected_metrics=combiners.CountMetrics(
+                 count=2,
+                 per_partition_error=0,
+                 expected_cross_partition_error=0,
+                 std_cross_partition_error=0,
+                 std_noise=7.46484375,
+                 noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)),
+        dict(testcase_name='4_partitions_4_contributions_keep_half',
+             num_partitions=4,
+             contribution_values=(1, 2, 3, 4),
+             expected_metrics=combiners.CountMetrics(
+                 count=4,
+                 per_partition_error=-2,
+                 expected_cross_partition_error=-1.5,
+                 std_cross_partition_error=0.8660254037844386,
+                 std_noise=7.46484375,
+                 noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)))
+    def test_compute_metrics(self, num_partitions, contribution_values,
+                             expected_metrics):
+        combiner = self._create_combiner()
+        acc = combiner.create_accumulator((contribution_values, num_partitions))
+        self.assertEqual(expected_metrics, combiner.compute_metrics(acc)[0])
+
+    def test_two_internal_combiner(self):
+        count_combiner = combiners.CountCombiner(
+            _create_combiner_params_for_count())
+        sum_combiner = combiners.SumCombiner(
+            _create_combiner_params_for_sum(0, 5))
+        combiner = combiners.CompoundCombiner([count_combiner, sum_combiner],
+                                              return_named_tuple=False)
+
+        data, n_partitions = [1, 2, 3], 100
+        acc = combiner.create_accumulator((data, n_partitions))
+
+        acc = combiner.merge_accumulators(acc, acc)
+
+        metrics = combiner.compute_metrics(acc)
+        # self.assertIsInstance(metrics[0], )
+
+
 if __name__ == '__main__':
     absltest.main()
