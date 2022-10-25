@@ -57,29 +57,34 @@ class UtilityAnalysis(parameterized.TestCase):
         # Assert
         # Assert a singleton is returned
         self.assertLen(col, 1)
-        # Assert there are 2 AggregateErrorMetrics, one for private partition
-        # selection and 1 for count.
-        self.assertEqual(len(col[0]), 2)
+        self.assertLen(col[0], 1)
+        output = col[0][0]
         # Assert partition selection metrics are reasonable.
         # partition_kept_probability = 0.4311114 for each partition
-        self.assertEqual(col[0][0].num_partitions, 10)
-        self.assertAlmostEqual(col[0][0].dropped_partitions_expected,
-                               5.68885,
-                               delta=1e-5)
-        self.assertAlmostEqual(col[0][0].dropped_partitions_variance,
-                               2.45254,
-                               delta=1e-5)
+        self.assertEqual(output.partition_selection_metrics.num_partitions, 10)
+        self.assertAlmostEqual(
+            output.partition_selection_metrics.dropped_partitions_expected,
+            5.68885,
+            delta=1e-5)
+        self.assertAlmostEqual(
+            output.partition_selection_metrics.dropped_partitions_variance,
+            2.45254,
+            delta=1e-5)
         # Assert count metrics are reasonable.
-        self.assertAlmostEqual(col[0][1].abs_error_expected, -28, delta=1e-5)
-        self.assertAlmostEqual(col[0][1].abs_error_variance,
-                               4.789888954162597,
-                               delta=1e-5)
-        self.assertAlmostEqual(col[0][1].rel_error_expected,
-                               -0.933333333333333,
-                               delta=1e-5)
-        self.assertAlmostEqual(col[0][1].rel_error_variance,
-                               0.005322098837958442,
-                               delta=1e-5)
+        self.assertAlmostEqual(
+            output.aggregate_error_metrics.abs_error_expected, -28, delta=1e-5)
+        self.assertAlmostEqual(
+            output.aggregate_error_metrics.abs_error_variance,
+            4.789888954162597,
+            delta=1e-5)
+        self.assertAlmostEqual(
+            output.aggregate_error_metrics.rel_error_expected,
+            -0.933333333333333,
+            delta=1e-5)
+        self.assertAlmostEqual(
+            output.aggregate_error_metrics.rel_error_variance,
+            0.005322098837958442,
+            delta=1e-5)
 
     def test_w_public_partitions(self):
         # Arrange
@@ -118,10 +123,16 @@ class UtilityAnalysis(parameterized.TestCase):
         self.assertLen(col[0], 1)
         # Assert count metrics are reasonable.
         # Relative errors are infinity due to the empty partition.
-        self.assertAlmostEqual(col[0][0].abs_error_expected, 0, delta=1e-2)
-        self.assertAlmostEqual(col[0][0].abs_error_variance, 9.1648, delta=1e-2)
-        self.assertEqual(col[0][0].rel_error_expected, 0)
-        self.assertEqual(col[0][0].rel_error_variance, 6.109873453776042)
+        self.assertAlmostEqual(
+            col[0][0].aggregate_error_metrics.abs_error_expected, 0, delta=1e-2)
+        self.assertAlmostEqual(
+            col[0][0].aggregate_error_metrics.abs_error_variance,
+            9.1648,
+            delta=1e-2)
+        self.assertEqual(col[0][0].aggregate_error_metrics.rel_error_expected,
+                         0)
+        self.assertEqual(col[0][0].aggregate_error_metrics.rel_error_variance,
+                         6.109873453776042)
 
     def test_multi_parameters(self):
         # Arrange
@@ -165,8 +176,10 @@ class UtilityAnalysis(parameterized.TestCase):
         # Assert there are 2 AggregateErrorMetrics returned
         self.assertLen(output[0], 2)
         # Assert abs_error_expected is correct.
-        self.assertAlmostEqual(output[0][0].abs_error_expected, -1)
-        self.assertAlmostEqual(output[0][1].abs_error_expected, 0)
+        self.assertAlmostEqual(
+            output[0][0].aggregate_error_metrics.abs_error_expected, -1)
+        self.assertAlmostEqual(
+            output[0][1].aggregate_error_metrics.abs_error_expected, 0)
 
 
 if __name__ == '__main__':

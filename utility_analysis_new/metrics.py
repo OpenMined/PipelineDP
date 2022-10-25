@@ -118,4 +118,4 @@ class PartitionSelectionMetrics:
 class AggregateMetrics:
     """Stores aggregate metrics for utility analysis."""
     aggregate_error_metrics: AggregateErrorMetrics
-    partition_selection_metrics: Optional[PartitionSelectionMetrics]
+    partition_selection_metrics: Optional[PartitionSelectionMetrics] = None
