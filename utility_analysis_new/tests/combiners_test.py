@@ -410,14 +410,24 @@ class UtilityAnalysisCompoundCombinerTest(parameterized.TestCase):
 
     def test_merge_sparse(self):
         combiner = self._create_combiner()
+        sparse_acc1 = [(1, 10, 100)]
+        acc1 = (sparse_acc1, None)
+        sparse_acc2 = [(11, 2, 300)]
+        acc2 = (sparse_acc2, None)
+        sparse, dense = combiner.merge_accumulators(acc1, acc2)
+        self.assertSequenceEqual(sparse, [(1, 10, 100), (11, 2, 300)])
+        self.assertIsNone(dense)
+
+    def test_merge_sparse_result_dense(self):
+        combiner = self._create_combiner()
         sparse_acc1 = [(1, 10, 100), (3, 20, 200)]
         acc1 = (sparse_acc1, None)
         sparse_acc2 = [(11, 2, 300)]
         acc2 = (sparse_acc2, None)
         sparse, dense = combiner.merge_accumulators(acc1, acc2)
-        self.assertSequenceEqual(sparse, [(1, 10, 100), (3, 20, 200),
-                                          (11, 2, 300)])
-        self.assertIsNone(dense)
+        self.assertIsNone(sparse)
+        self.assertEqual(
+            dense, (3, ((15, -10, -4.973333333333334, 0.04308888888888889),)))
 
     def test_merge_dense(self):
         combiner = self._create_combiner()
