@@ -14,6 +14,7 @@
 """UtilityAnalysisEngine Test"""
 from absl.testing import absltest
 from absl.testing import parameterized
+from unittest.mock import patch
 import copy
 
 import pipeline_dp
@@ -91,13 +92,16 @@ class DpEngine(parameterized.TestCase):
             value_extractor=lambda x: x,
         )
 
+    def _get_default_aggregate_params(self) -> pipeline_dp.AggregateParams:
+        return pipeline_dp.AggregateParams(
+            noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+            metrics=[pipeline_dp.Metrics.COUNT],
+            max_partitions_contributed=1,
+            max_contributions_per_partition=1)
+
     def test_utility_analysis_params(self):
         default_extractors = self._get_default_extractors()
-        default_params = pipeline_dp.AggregateParams(
-            noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
-            max_partitions_contributed=1,
-            max_contributions_per_partition=1,
-            metrics=[pipeline_dp.Metrics.COUNT])
+        default_params = self._get_default_aggregate_params()
         params_with_custom_combiners = copy.copy(default_params)
         params_with_custom_combiners.custom_combiners = sum
         params_with_unsupported_metric = copy.copy(default_params)
@@ -144,11 +148,7 @@ class DpEngine(parameterized.TestCase):
 
     def test_aggregate_public_partition_e2e(self):
         # Arrange
-        aggregator_params = pipeline_dp.AggregateParams(
-            noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
-            metrics=[pipeline_dp.Metrics.COUNT],
-            max_partitions_contributed=1,
-            max_contributions_per_partition=1)
+        aggregator_params = self._get_default_aggregate_params()
 
         budget_accountant = pipeline_dp.NaiveBudgetAccountant(total_epsilon=1,
                                                               total_delta=1e-10)
@@ -300,6 +300,31 @@ class DpEngine(parameterized.TestCase):
 
         self.assertSequenceEqual(expected_pk0, output[0][1])
         self.assertSequenceEqual(expected_pk1, output[1][1])
+
+    @patch('pipeline_dp.sampling_utils.DeterministicSampler.__init__')
+    def test_partition_sampling(self, mock_sampler_init):
+        # Arrange
+        mock_sampler_init.return_value = None
+        aggregator_params = self._get_default_aggregate_params()
+
+        budget_accountant = pipeline_dp.NaiveBudgetAccountant(total_epsilon=1,
+                                                              total_delta=1e-10)
+
+        data_extractor = pipeline_dp.DataExtractors(
+            privacy_id_extractor=lambda x: x,
+            partition_extractor=lambda x: f"pk{x}",
+            value_extractor=lambda x: None)
+
+        engine = dp_engine.UtilityAnalysisEngine(
+            budget_accountant=budget_accountant,
+            backend=pipeline_dp.LocalBackend())
+
+        partitions_sampling_prob = 0.25
+        engine.aggregate(col=[1, 2, 3],
+                         params=aggregator_params,
+                         data_extractors=data_extractor,
+                         partitions_sampling_prob=partitions_sampling_prob)
+        mock_sampler_init.assert_called_once_with(partitions_sampling_prob)
 
 
 if __name__ == '__main__':

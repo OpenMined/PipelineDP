@@ -25,10 +25,8 @@ class SamplingL0LinfContributionBounder(
     different data points are kept under per-partition (Linf) and
     cross-partition (L0) contribution bounding.
 
-    If partitions_sampling_prob < 1.0, it samples partitions. The sampling is
-    performed by rule: keep partition_key iff
-      hash(partition_key) < partitions_sampling_prob*MAX_HASH_VALUE.
-
+    If partitions_sampling_prob < 1.0, partitions are subsampled. This sampling
+    is deterministic and depends on partition key.
 
     Only works for count at the moment.
     """
