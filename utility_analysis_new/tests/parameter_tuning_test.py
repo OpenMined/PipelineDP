@@ -92,8 +92,9 @@ class ParameterTuning(parameterized.TestCase):
         self.assertEqual(tune_options, tune_result.options)
         self.assertEqual(contribution_histograms,
                          tune_result.contribution_histograms)
+        self.assertLen(tune_result.utility_analysis_results, 4)
         self.assertIsInstance(tune_result.utility_analysis_results[0],
-                              metrics.AggregateErrorMetrics)
+                              metrics.AggregateMetrics)
 
 
 if __name__ == '__main__':
