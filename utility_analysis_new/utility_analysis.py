@@ -73,7 +73,8 @@ def perform_utility_analysis(col,
         params=options.aggregate_params,
         data_extractors=data_extractors,
         public_partitions=public_partitions,
-        multi_param_configuration=options.multi_param_configuration)
+        multi_param_configuration=options.multi_param_configuration,
+        partitions_sampling_prob=options.partitions_sampling_prob)
     budget_accountant.compute_budgets()
     # result : (partition_key, per_partition_metrics)
 
