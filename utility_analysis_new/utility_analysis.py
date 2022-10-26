@@ -101,7 +101,7 @@ def perform_utility_analysis(col,
 
     # accumulators : (aggregate_metrics)
 
-    def pack_metrics(aggregate_metrics):
+    def pack_metrics(aggregate_metrics) -> List[metrics.AggregateMetrics]:
         if public_partitions is None:
             # aggregate_metrics has format  [PartitionSelectionMetrics,
             # AggregateErrorMetrics, PartitionSelectionMetrics ...]
@@ -113,7 +113,10 @@ def perform_utility_analysis(col,
                                          aggregate_metrics[i])
                 for i in range(0, len(aggregate_metrics), 2)
             ]
-        return [metrics.AggregateMetrics(m) for m in aggregate_metrics]
+        return [
+            metrics.AggregateMetrics(aggregate_error_metrics)
+            for aggregate_error_metrics in aggregate_metrics
+        ]
 
     return backend.map(aggregates, pack_metrics,
                        "Pack metrics from the same run")
