@@ -81,10 +81,26 @@ class UtilityAnalysis(parameterized.TestCase):
                                0.005322098837958442,
                                delta=1e-5)
 
-    def test_w_public_partitions(self):
+    @parameterized.named_parameters(
+        dict(testcase_name="Gaussian noise",
+             noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+             abs_error_expected=0,
+             abs_error_variance=9.164810180664068,
+             rel_error_expected=0,
+             rel_error_variance=6.109873453776042),
+        dict(testcase_name="Laplace noise",
+             noise_kind=pipeline_dp.NoiseKind.LAPLACE,
+             abs_error_expected=0,
+             abs_error_variance=0.5,
+             rel_error_expected=0,
+             rel_error_variance=0.3333333333333334),
+    )
+    def test_w_public_partitions(self, noise_kind, abs_error_expected,
+                                 abs_error_variance, rel_error_expected,
+                                 rel_error_variance):
         # Arrange
         aggregator_params = pipeline_dp.AggregateParams(
-            noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+            noise_kind=noise_kind,
             metrics=[pipeline_dp.Metrics.COUNT],
             max_partitions_contributed=1,
             max_contributions_per_partition=1)
@@ -118,10 +134,10 @@ class UtilityAnalysis(parameterized.TestCase):
         self.assertLen(col[0], 1)
         # Assert count metrics are reasonable.
         # Relative errors are infinity due to the empty partition.
-        self.assertAlmostEqual(col[0][0].abs_error_expected, 0, delta=1e-2)
-        self.assertAlmostEqual(col[0][0].abs_error_variance, 9.1648, delta=1e-2)
-        self.assertEqual(col[0][0].rel_error_expected, 0)
-        self.assertEqual(col[0][0].rel_error_variance, 6.109873453776042)
+        self.assertAlmostEqual(col[0][0].abs_error_expected, abs_error_expected)
+        self.assertAlmostEqual(col[0][0].abs_error_variance, abs_error_variance)
+        self.assertEqual(col[0][0].rel_error_expected, rel_error_expected)
+        self.assertEqual(col[0][0].rel_error_variance, rel_error_variance)
 
     def test_multi_parameters(self):
         # Arrange

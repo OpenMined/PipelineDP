@@ -21,6 +21,9 @@ from utility_analysis_new import probability_computations
 
 class ProbabilityComputationsTest(parameterized.TestCase):
 
+    # Expected quantiles are computed with the analytical approach with
+    # precision 1e-10. Unfortunetely the analytical apprach is too slow to be
+    # used in production.
     @parameterized.parameters(
         (1.0, 2.0, [0.1, 0.5, 0.9], [-3.08740234375, 0, 3.08740234375]),
         (1.01, 0.55, [0.5, 0.6, 0.7, 0.8, 0.9, 0.99], [

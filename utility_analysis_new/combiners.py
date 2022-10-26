@@ -584,8 +584,10 @@ class CountAggregateErrorMetricsCombiner(pipeline_dp.Combiner):
     def __init__(self, params: pipeline_dp.combiners.CombinerParams,
                  error_quantiles: List[float]):
         self._params = params
-        # q = 0.5 assumed to be smaller error, then q = 0.9. Contribution
-        # bounding error is negative, quantiles should be reverted (0.9-0.1).
+        # The contribution bounding error is negative, so quantiles <0.5 for the
+        # error distribution (which is the sum of the noise and the contribution
+        # bounding error) should be used to come up with the worst error
+        # quantiles.
         self._error_quantiles = [(1 - q) for q in error_quantiles]
 
     def create_accumulator(self,
@@ -609,7 +611,8 @@ class CountAggregateErrorMetricsCombiner(pipeline_dp.Combiner):
             error_distribution_quantiles = probability_computations.compute_sum_laplace_gaussian_quantiles(
                 laplace_b=metrics.std_noise / np.sqrt(2),
                 gaussian_sigma=metrics.std_cross_partition_error,
-                quantiles=self._error_quantiles)
+                quantiles=self._error_quantiles,
+                num_samples=10**3)
         for quantile in error_distribution_quantiles:
             error_at_quantile = probability_to_keep * (
                 quantile + metrics.per_partition_error)
