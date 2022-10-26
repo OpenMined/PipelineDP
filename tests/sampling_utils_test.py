@@ -51,6 +51,33 @@ class SamplingUtilsTest(parameterized.TestCase):
                 a, sample_size)
             self.assertTrue(self._check_is_subset(sample, a))
 
+    @parameterized.parameters(
+        {
+            "p": 0.5,
+            "values": list(range(1000)),
+            "expected_kept": 481
+        },
+        {
+            "p": 0.3,
+            "values": list(range(1000)),
+            "expected_kept": 298
+        },
+        {
+            "p": 0.8,
+            "values": list(range(10000)),
+            "expected_kept": 8074
+        },
+        {
+            "p": 0.5,
+            "values": list(map(str, range(1000))),  # strings
+            "expected_kept": 497
+        },
+    )
+    def test_deterministic_sampler(self, p, values, expected_kept):
+        sampler = sampling_utils.DeterministicSampler(p)
+        kept = sum([sampler.keep(v) for v in values])
+        self.assertEqual(expected_kept, kept)
+
 
 if __name__ == '__main__':
     absltest.main()
