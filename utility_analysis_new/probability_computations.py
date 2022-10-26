@@ -25,7 +25,7 @@ def compute_sum_laplace_gaussian_quantiles(laplace_b: float,
     # There are exact formulas for computing Laplace+Gaussian cdf, but
     # it turned out that their Python implementation is too slow.
     # That is why the Monte-Carlo method is used. The Monte-Carlo method is also
-    # pretty slow
+    # pretty slow.
     # num_samples = 10**3, 4500 calls/sec
     # num_samples = 10**4, 800 calls/sec
 

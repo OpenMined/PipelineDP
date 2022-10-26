@@ -87,17 +87,19 @@ class UtilityAnalysis(parameterized.TestCase):
              abs_error_expected=0,
              abs_error_variance=9.164810180664068,
              rel_error_expected=0,
-             rel_error_variance=6.109873453776042),
+             rel_error_variance=6.109873453776042,
+             median_error=0),
         dict(testcase_name="Laplace noise",
              noise_kind=pipeline_dp.NoiseKind.LAPLACE,
              abs_error_expected=0,
              abs_error_variance=0.5,
              rel_error_expected=0,
-             rel_error_variance=0.3333333333333334),
+             rel_error_variance=0.3333333333333334,
+             median_error=0),
     )
     def test_w_public_partitions(self, noise_kind, abs_error_expected,
                                  abs_error_variance, rel_error_expected,
-                                 rel_error_variance):
+                                 rel_error_variance, median_error):
         # Arrange
         aggregator_params = pipeline_dp.AggregateParams(
             noise_kind=noise_kind,
@@ -136,6 +138,9 @@ class UtilityAnalysis(parameterized.TestCase):
         # Relative errors are infinity due to the empty partition.
         self.assertAlmostEqual(col[0][0].abs_error_expected, abs_error_expected)
         self.assertAlmostEqual(col[0][0].abs_error_variance, abs_error_variance)
+        self.assertAlmostEqual(col[0][0].abs_error_quantiles[1],
+                               median_error,
+                               delta=0.1)
         self.assertEqual(col[0][0].rel_error_expected, rel_error_expected)
         self.assertEqual(col[0][0].rel_error_variance, rel_error_variance)
 
