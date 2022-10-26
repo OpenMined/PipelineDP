@@ -151,27 +151,19 @@ def _convert_utility_analysis_to_tune_result(
     MultiParameterConfiguration, use_public_partitions: bool,
         contribution_histograms: histograms.ContributionHistograms
 ) -> TuneResult:
-
-    # Get only error metrics, ignore partition selection for now.
-    # TODO: Make the output of the utility analysis 1 dataclass per 1 run.
-    if use_public_partitions:
-        # utility_analysis_result contains only error metrics.
-        aggregate_errors = utility_analysis_result
-    else:
-        # utility_analysis_result contains partition_selection_metrics,
-        # aggregate_errors for each utility run. Extract only aggregate_errors.
-        aggregate_errors = utility_analysis_result[1::2]
-
-    assert len(aggregate_errors) == run_configurations.size
+    assert len(utility_analysis_result) == run_configurations.size
     # TODO(dvadym): implement relative error.
     # TODO(dvadym): take into consideration partition selection from private
     # partition selection.
     assert tune_options.function_to_minimize == MinimizingFunction.ABSOLUTE_ERROR
 
-    index_best = np.argmin([ae.absolute_rmse() for ae in aggregate_errors])
+    index_best = np.argmin([
+        ae.aggregate_error_metrics.absolute_rmse()
+        for ae in utility_analysis_result
+    ])
 
     return TuneResult(tune_options, contribution_histograms, run_configurations,
-                      index_best, aggregate_errors)
+                      index_best, utility_analysis_result)
 
 
 def tune(col,
