@@ -36,10 +36,10 @@ def _compute_64bit_hash(v) -> int:
 
 
 class DeterministicSampler:
-    """Hash based sampler.
+    """Deterministic value sampler.
 
     For a value it returns whether this value should be kept. The keeping
-    decision is deterministic for fixed value. On average the decision to keep
+    decision is deterministic for a fixed value. On average the decision to keep
     happens in sampling_rate cases.
     """
 
