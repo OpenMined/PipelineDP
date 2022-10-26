@@ -31,6 +31,7 @@ class UtilityAnalysisOptions:
     aggregate_params: pipeline_dp.AggregateParams
     multi_param_configuration: Optional[
         dp_engine.MultiParameterConfiguration] = None
+    sampling_probability: float = 1
 
     def __post_init__(self):
         input_validators.validate_epsilon_delta(self.epsilon, self.delta,

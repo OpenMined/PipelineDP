@@ -14,6 +14,14 @@
 """ContributionBounder for utility analysis."""
 from pipeline_dp import contribution_bounders
 
+import hashlib
+
+
+def _compute_64bit_hach(v) -> int:
+    m = hashlib.sha1()
+    m.update(repr(v).encode())
+    return int(m.hexdigest()[:16], 16)
+
 
 class SamplingCrossAndPerPartitionContributionBounder(
         contribution_bounders.ContributionBounder):
@@ -26,6 +34,10 @@ class SamplingCrossAndPerPartitionContributionBounder(
 
     Only works for count at the moment.
     """
+
+    def __init__(self, sampling_probability: float):
+        super().__init__()
+        self._sampling_probability = sampling_probability
 
     def bound_contributions(self, col, params, backend, report_generator,
                             aggregate_fn):
@@ -44,10 +56,17 @@ class SamplingCrossAndPerPartitionContributionBounder(
 
         # Rekey by (privacy_id, partition_key) and unnest values along with the
         # number of partitions contributed per privacy_id.
+        # Sample by partition key if sampling_prob != 1.
+        if self._sampling_probability < 1:
+            sample_bound = int(round(2**64 * self._sampling_probability))
+
         def rekey_per_privacy_id_per_partition_key_and_unnest(pid_pk_v_values):
             privacy_id, partition_values = pid_pk_v_values
             num_partitions_contributed = len(partition_values)
             for partition_key, values in partition_values:
+                if self._sampling_probability < 1:
+                    if _compute_64bit_hach(partition_key) >= sample_bound:
+                        continue
                 yield (privacy_id, partition_key), (values,
                                                     num_partitions_contributed)
 

@@ -99,15 +99,16 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
                  backend: pipeline_backend.PipelineBackend):
         super().__init__(budget_accountant, backend)
         self._is_public_partitions = None
+        self._sampling_probability = 1.0
 
-    def aggregate(
-        self,
-        col,
-        params: pipeline_dp.AggregateParams,
-        data_extractors: pipeline_dp.DataExtractors,
-        public_partitions=None,
-        multi_param_configuration: Optional[MultiParameterConfiguration] = None
-    ):
+    def aggregate(self,
+                  col,
+                  params: pipeline_dp.AggregateParams,
+                  data_extractors: pipeline_dp.DataExtractors,
+                  public_partitions=None,
+                  multi_param_configuration: Optional[
+                      MultiParameterConfiguration] = None,
+                  sampling_probability: float = 1.0):
         """Performs utility analysis for DP aggregations per partition.
 
         Args:
@@ -123,6 +124,7 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
             blue-print and non-None attributes from 'multi_param_configuration'
             are used for creating multiple AggregateParams. See docstring for
             MultiParameterConfiguration for more details.
+          sampling_probability: todo
 
         Returns:
             A collection with elements (pk, utility analysis metrics).
@@ -130,10 +132,12 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
         _check_utility_analysis_params(params, public_partitions)
         self._is_public_partitions = public_partitions is not None
         self._multi_run_configuration = multi_param_configuration
+        self._sampling_probability = sampling_probability
         result = super().aggregate(col, params, data_extractors,
                                    public_partitions)
         self._is_public_partitions = None
         self._multi_run_configuration = None
+        self._sampling_probability = 1.0
         return result
 
     def _create_contribution_bounder(
@@ -141,7 +145,7 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
     ) -> contribution_bounders.ContributionBounder:
         """Creates ContributionBounder for utility analysis."""
         return utility_contribution_bounders.SamplingCrossAndPerPartitionContributionBounder(
-        )
+            self._sampling_probability)
 
     def _create_compound_combiner(
         self, aggregate_params: pipeline_dp.AggregateParams
