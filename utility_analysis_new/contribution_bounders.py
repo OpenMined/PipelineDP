@@ -23,21 +23,26 @@ def _compute_64bit_hach(v) -> int:
     return int(m.hexdigest()[:16], 16)
 
 
-class SamplingCrossAndPerPartitionContributionBounder(
+class SamplingL0LinfContributionBounder(
         contribution_bounders.ContributionBounder):
     """'Bounds' the contribution by privacy_id per and cross partitions.
 
     Because this is for Utility Analysis, it doesn't actually ensure that
     contribution bounds are enforced. Instead, it keeps track of probabilities
-    different data points are kept under per-partition and cross-partition
-    contribution bounding.
+    different data points are kept under per-partition (Linf) and
+    cross-partition (L0) contribution bounding.
+
+    If partitions_sampling_prob < 1.0, it samples partitions. The sampling is
+    performed by rule: keep partition_key iff
+      hash(partition_key) < partitions_sampling_prob*MAX_HASH_VALUE.
+
 
     Only works for count at the moment.
     """
 
-    def __init__(self, sampling_probability: float):
+    def __init__(self, partitions_sampling_prob: float):
         super().__init__()
-        self._sampling_probability = sampling_probability
+        self._sampling_probability = partitions_sampling_prob
 
     def bound_contributions(self, col, params, backend, report_generator,
                             aggregate_fn):
@@ -56,17 +61,17 @@ class SamplingCrossAndPerPartitionContributionBounder(
 
         # Rekey by (privacy_id, partition_key) and unnest values along with the
         # number of partitions contributed per privacy_id.
-        # Sample by partition key if sampling_prob != 1.
-        if self._sampling_probability < 1:
+        # Sample by partition key if sampling_prob < 1.
+        if self._sampling_probability < 1.0:
             sample_bound = int(round(2**64 * self._sampling_probability))
 
         def rekey_per_privacy_id_per_partition_key_and_unnest(pid_pk_v_values):
             privacy_id, partition_values = pid_pk_v_values
             num_partitions_contributed = len(partition_values)
             for partition_key, values in partition_values:
-                if self._sampling_probability < 1:
-                    if _compute_64bit_hach(partition_key) >= sample_bound:
-                        continue
+                if self._sampling_probability < 1 and _compute_64bit_hach(
+                        partition_key) >= sample_bound:
+                    continue
                 yield (privacy_id, partition_key), (values,
                                                     num_partitions_contributed)
 

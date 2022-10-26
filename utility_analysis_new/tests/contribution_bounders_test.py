@@ -37,13 +37,16 @@ def _create_report_generator():
 class SamplingCrossAndPerPartitionContributionBounderTest(
         parameterized.TestCase):
 
-    def _run_contribution_bounding(self, input, max_partitions_contributed,
-                                   max_contributions_per_partition):
+    def _run_contribution_bounding(self,
+                                   input,
+                                   max_partitions_contributed,
+                                   max_contributions_per_partition,
+                                   partitions_sampling_prob: float = 1.0):
         params = CrossAndPerPartitionContributionParams(
             max_partitions_contributed, max_contributions_per_partition)
 
-        bounder = contribution_bounders.SamplingCrossAndPerPartitionContributionBounder(
-        )
+        bounder = contribution_bounders.SamplingL0LinfContributionBounder(
+            partitions_sampling_prob)
         return list(
             bounder.bound_contributions(input, params,
                                         pipeline_dp.LocalBackend(),
