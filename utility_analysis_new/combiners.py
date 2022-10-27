@@ -25,6 +25,7 @@ from pipeline_dp import dp_computations
 from pipeline_dp import combiners
 from utility_analysis_new import metrics
 from utility_analysis_new import poisson_binomial
+from utility_analysis_new import probability_computations
 from pipeline_dp import partition_selection
 
 MAX_PROBABILITIES_IN_ACCUMULATOR = 100
@@ -488,7 +489,11 @@ class CountAggregateErrorMetricsCombiner(pipeline_dp.Combiner):
     def __init__(self, params: pipeline_dp.combiners.CombinerParams,
                  error_quantiles: List[float]):
         self._params = params
-        self._error_quantiles = error_quantiles
+        # The contribution bounding error is negative, so quantiles <0.5 for the
+        # error distribution (which is the sum of the noise and the contribution
+        # bounding error) should be used to come up with the worst error
+        # quantiles.
+        self._error_quantiles = [(1 - q) for q in error_quantiles]
 
     def create_accumulator(self,
                            metrics: metrics.CountMetrics,
@@ -500,16 +505,22 @@ class CountAggregateErrorMetricsCombiner(pipeline_dp.Combiner):
             metrics.expected_cross_partition_error)
         abs_error_variance = probability_to_keep * (
             metrics.std_cross_partition_error**2 + metrics.std_noise**2)
-        # TODO: Implement Laplace Noise
-        assert metrics.noise_kind == pipeline_dp.NoiseKind.GAUSSIAN, "Laplace noise for utility analysis not implemented yet"
         loc_cpe_ne = metrics.expected_cross_partition_error
         std_cpe_ne = math.sqrt(metrics.std_cross_partition_error**2 +
                                metrics.std_noise**2)
         abs_error_quantiles = []
-        for quantile in self._error_quantiles:
-            error_at_quantile = probability_to_keep * (scipy.stats.norm.ppf(
-                q=1 - quantile, loc=loc_cpe_ne,
-                scale=std_cpe_ne) + metrics.per_partition_error)
+        if metrics.noise_kind == pipeline_dp.NoiseKind.GAUSSIAN:
+            error_distribution_quantiles = scipy.stats.norm.ppf(
+                q=self._error_quantiles, loc=loc_cpe_ne, scale=std_cpe_ne)
+        else:
+            error_distribution_quantiles = probability_computations.compute_sum_laplace_gaussian_quantiles(
+                laplace_b=metrics.std_noise / np.sqrt(2),
+                gaussian_sigma=metrics.std_cross_partition_error,
+                quantiles=self._error_quantiles,
+                num_samples=10**3)
+        for quantile in error_distribution_quantiles:
+            error_at_quantile = probability_to_keep * (
+                quantile + metrics.per_partition_error)
             abs_error_quantiles.append(error_at_quantile)
 
         # Relative error metrics
