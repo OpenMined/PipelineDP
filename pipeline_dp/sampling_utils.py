@@ -35,7 +35,7 @@ def _compute_64bit_hash(v) -> int:
     return int(m.hexdigest()[:16], 16)
 
 
-class DeterministicSampler:
+class ValueSampler:
     """Deterministic value sampler.
 
     For a value it returns whether this value should be kept. The keeping

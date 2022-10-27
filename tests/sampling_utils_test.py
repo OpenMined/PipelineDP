@@ -74,7 +74,7 @@ class SamplingUtilsTest(parameterized.TestCase):
         },
     )
     def test_deterministic_sampler(self, p, values, expected_kept):
-        sampler = sampling_utils.DeterministicSampler(p)
+        sampler = sampling_utils.ValueSampler(p)
         kept = sum([sampler.keep(v) for v in values])
         self.assertEqual(expected_kept, kept)
 

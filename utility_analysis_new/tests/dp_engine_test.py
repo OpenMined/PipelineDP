@@ -301,7 +301,7 @@ class DpEngine(parameterized.TestCase):
         self.assertSequenceEqual(expected_pk0, output[0][1])
         self.assertSequenceEqual(expected_pk1, output[1][1])
 
-    @patch('pipeline_dp.sampling_utils.DeterministicSampler.__init__')
+    @patch('pipeline_dp.sampling_utils.ValueSampler.__init__')
     def test_partition_sampling(self, mock_sampler_init):
         # Arrange
         mock_sampler_init.return_value = None
