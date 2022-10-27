@@ -15,7 +15,7 @@
 
 import abc
 from dataclasses import dataclass
-from typing import List, Optional, Sequence, Sized, Tuple
+from typing import Any, List, Optional, Sequence, Tuple
 import numpy as np
 import math
 import scipy
@@ -34,13 +34,17 @@ MAX_PROBABILITIES_IN_ACCUMULATOR = 100
 class UtilityAnalysisCombiner(pipeline_dp.Combiner):
 
     @abc.abstractmethod
-    def create_accumulator(self, data: Tuple[Sized, int]):
+    def create_accumulator(self, data: Tuple[int, float, int]):
         """Creates an accumulator for data.
 
         Args:
             data is a Tuple containing:
-              1) a list of the user's contributions for a single partition
-              2) the total number of partitions a user contributed to.
+              1) the count of the user's contributions for a single partition
+              2) the sum of the user's contributions for the same partition
+              3) the total number of partitions a user contributed to.
+
+            Only COUNT, PRIVACY_ID_COUNT, SUM metrics can be supported with the
+            current format of data.
 
         Returns:
             A tuple which is an accumulator.
@@ -177,8 +181,9 @@ class PartitionSelectionCombiner(UtilityAnalysisCombiner):
         self._params = params
 
     def create_accumulator(
-            self, data: Tuple[Sized, int]) -> PartitionSelectionAccumulator:
-        values, n_partitions = data
+            self, data: Tuple[int, float,
+                              int]) -> PartitionSelectionAccumulator:
+        count, sum_, n_partitions = data
         max_partitions = self._params.aggregate_params.max_partitions_contributed
         prob_keep_contribution = min(1, max_partitions /
                                      n_partitions) if n_partitions > 0 else 0
@@ -217,12 +222,10 @@ class CountCombiner(UtilityAnalysisCombiner):
     def _is_public_partitions(self):
         return self._partition_selection_budget is None
 
-    def create_accumulator(self, data: Tuple[Sized, int]) -> AccumulatorType:
+    def create_accumulator(self, data: Tuple[int, float,
+                                             int]) -> AccumulatorType:
         """Creates an accumulator for data."""
-        if not data:
-            return (0, 0, 0, 0)
-        values, n_partitions = data
-        count = len(values)
+        count, sum_, n_partitions = data
         max_per_partition = self._params.aggregate_params.max_contributions_per_partition
         max_partitions = self._params.aggregate_params.max_partitions_contributed
         prob_keep_partition = min(1, max_partitions /
@@ -265,14 +268,12 @@ class SumCombiner(UtilityAnalysisCombiner):
     def __init__(self, params: pipeline_dp.combiners.CombinerParams):
         self._params = params
 
-    def create_accumulator(self, data: Tuple[Sequence, int]) -> AccumulatorType:
-        if not data or not data[0]:
-            return (0, 0, 0, 0, 0)
-        values, n_partitions = data
+    def create_accumulator(self, data: Tuple[int, float,
+                                             int]) -> AccumulatorType:
+        count, partition_sum, n_partitions = data
         max_partitions = self._params.aggregate_params.max_partitions_contributed
         prob_keep_partition = min(1, max_partitions /
                                   n_partitions) if n_partitions > 0 else 0
-        partition_sum = np.sum(values)
         per_partition_contribution = np.clip(
             partition_sum, self._params.aggregate_params.min_sum_per_partition,
             self._params.aggregate_params.max_sum_per_partition)
@@ -322,11 +323,10 @@ class PrivacyIdCountCombiner(UtilityAnalysisCombiner):
     def __init__(self, params: pipeline_dp.combiners.CombinerParams):
         self._params = params
 
-    def create_accumulator(self, data: Tuple[Sized, int]) -> AccumulatorType:
-        if not data:
-            return (0, 0, 0)
-        values, n_partitions = data
-        privacy_id_count = 1 if values else 0
+    def create_accumulator(self, data: Tuple[int, float,
+                                             int]) -> AccumulatorType:
+        count, sum_, n_partitions = data
+        privacy_id_count = 1 if count > 0 else 0
         max_partitions = self._params.aggregate_params.max_partitions_contributed
         prob_keep_partition = min(1, max_partitions /
                                   n_partitions) if n_partitions > 0 else 0
@@ -355,6 +355,72 @@ class PrivacyIdCountCombiner(UtilityAnalysisCombiner):
             'privacy_id_count', 'expected_cross_partition_error',
             'std_cross_partition_error', 'std_noise', 'noise_kind'
         ]
+
+
+class CompoundCombiner(pipeline_dp.combiners.CompoundCombiner):
+    """Compound combiner for Utility analysis per partition metrics."""
+
+    # For improving memory usage the compound accumulator has 2 modes:
+    # 1. Sparse mode (for small datasets): which contains information about each
+    # privacy id's aggregated contributions per partition.
+    # 2. Dense mode (for large datasets): which contains underlying accumulators
+    # from internal combiners.
+    # Since the utility analysis can be run for many configurations, there can
+    # be hundreds of the internal combiners, as a result the compound
+    # accumulator can contain hundreds accumulators. Converting each privacy id
+    # contribution to such accumulators leads to memory usage blow-up. That is
+    # why sparse mode introduced - until the number of privacy id contributions
+    # is small, they are saved instead of creating accumulators.
+    SparseAccumulatorType = List[Tuple[int, float, int]]
+    DenseAccumulatorType = List[Any]
+    AccumulatorType = Tuple[Optional[SparseAccumulatorType],
+                            Optional[DenseAccumulatorType]]
+
+    def create_accumulator(self, data: Tuple[Sequence, int]) -> AccumulatorType:
+        if not data:
+            # This is empty partition, added because of public partitions.
+            return ([(0, 0, 0)], None)
+        values, n_partitions = data
+        sum_ = sum((v for v in values if v is not None))
+        return ([(len(values), sum_, n_partitions)], None)
+
+    def _to_dense(self,
+                  sparse_acc: SparseAccumulatorType) -> DenseAccumulatorType:
+        result = None
+        for count_sum_n_partitions in sparse_acc:
+            compound_acc = (1, [
+                combiner.create_accumulator(count_sum_n_partitions)
+                for combiner in self._combiners
+            ])
+            if result is None:
+                result = compound_acc
+            else:
+                result = super().merge_accumulators(result, compound_acc)
+        return result
+
+    def merge_accumulators(self, acc1: AccumulatorType, acc2: AccumulatorType):
+        sparse1, dense1 = acc1
+        sparse2, dense2 = acc2
+        if sparse1 and sparse2:
+            sparse1.extend(sparse2)
+            # Computes heuristically that the sparse representation is less
+            # than dense. For this assume that 1 accumulator is on average
+            # has a size of aggregated contributions from 2 privacy ids.
+            is_sparse_less_dense = len(sparse1) <= 2 * len(self._combiners)
+            if is_sparse_less_dense:
+                return (sparse1, None)
+            # Dense is smaller, convert to dense.
+            return (None, self._to_dense(sparse1))
+        dense1 = self._to_dense(sparse1) if sparse1 else dense1
+        dense2 = self._to_dense(sparse2) if sparse2 else dense2
+        merged_dense = super().merge_accumulators(dense1, dense2)
+        return (None, merged_dense)
+
+    def compute_metrics(self, acc: AccumulatorType):
+        sparse, dense = acc
+        if sparse:
+            dense = self._to_dense(sparse)
+        return super().compute_metrics(dense)
 
 
 @dataclass
