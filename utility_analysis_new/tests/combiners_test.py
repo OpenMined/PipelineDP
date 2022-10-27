@@ -392,6 +392,12 @@ class UtilityAnalysisCompoundCombinerTest(parameterized.TestCase):
         return combiners.CompoundCombiner([count_combiner],
                                           return_named_tuple=False)
 
+    def test_create_accumulator_empty_data(self):
+        combiner = self._create_combiner()
+        sparse, dense = self._create_combiner().create_accumulator(())
+        self.assertEqual(sparse, [(0, 0, 0)])
+        self.assertIsNone(dense)
+
     def test_create_accumulator(self):
         combiner = self._create_combiner()
         data = [1, 2, 3]

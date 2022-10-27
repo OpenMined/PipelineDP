@@ -43,6 +43,9 @@ class UtilityAnalysisCombiner(pipeline_dp.Combiner):
               2) the sum of the user's contributions for the same partition
               3) the total number of partitions a user contributed to.
 
+            Only COUNT, PRIVACY_ID_COUNT, SUM metrics can be supported with the
+            current format of data.
+
         Returns:
             A tuple which is an accumulator.
         """
@@ -222,8 +225,6 @@ class CountCombiner(UtilityAnalysisCombiner):
     def create_accumulator(self, data: Tuple[int, float,
                                              int]) -> AccumulatorType:
         """Creates an accumulator for data."""
-        if not data:
-            return (0, 0, 0, 0)
         count, sum_, n_partitions = data
         max_per_partition = self._params.aggregate_params.max_contributions_per_partition
         max_partitions = self._params.aggregate_params.max_partitions_contributed
@@ -269,8 +270,6 @@ class SumCombiner(UtilityAnalysisCombiner):
 
     def create_accumulator(self, data: Tuple[int, float,
                                              int]) -> AccumulatorType:
-        if not data or not data[0]:
-            return (0, 0, 0, 0, 0)
         count, partition_sum, n_partitions = data
         max_partitions = self._params.aggregate_params.max_partitions_contributed
         prob_keep_partition = min(1, max_partitions /
@@ -326,8 +325,6 @@ class PrivacyIdCountCombiner(UtilityAnalysisCombiner):
 
     def create_accumulator(self, data: Tuple[int, float,
                                              int]) -> AccumulatorType:
-        if not data:
-            return (0, 0, 0)
         count, sum_, n_partitions = data
         privacy_id_count = 1 if count > 0 else 0
         max_partitions = self._params.aggregate_params.max_partitions_contributed
@@ -365,7 +362,7 @@ class CompoundCombiner(pipeline_dp.combiners.CompoundCombiner):
 
     # For improving memory usage the compound accumulator has 2 modes:
     # 1. Sparse mode (for small datasets): which contains information about each
-    # privacy id aggregated contributions per partition.
+    # privacy id's aggregated contributions per partition.
     # 2. Dense mode (for large datasets): which contains underlying accumulators
     # from internal combiners.
     # Since the utility analysis can be run for many configurations, there can
@@ -381,8 +378,8 @@ class CompoundCombiner(pipeline_dp.combiners.CompoundCombiner):
 
     def create_accumulator(self, data: Tuple[Sequence, int]) -> AccumulatorType:
         if not data:
-            return ((0, 0, 0), None)
-
+            # This is empty partition, added because of public partitions.
+            return ([(0, 0, 0)], None)
         values, n_partitions = data
         sum_ = sum((v for v in values if v is not None))
         return ([(len(values), sum_, n_partitions)], None)
@@ -407,7 +404,7 @@ class CompoundCombiner(pipeline_dp.combiners.CompoundCombiner):
         if sparse1 and sparse2:
             sparse1.extend(sparse2)
             # Computes heuristically that the sparse representation is less
-            # than dense. For this assume that 1 accumulator is on overage
+            # than dense. For this assume that 1 accumulator is on average
             # has a size of aggregated contributions from 2 privacy ids.
             is_sparse_less_dense = len(sparse1) <= 2 * len(self._combiners)
             if is_sparse_less_dense:
