@@ -47,10 +47,17 @@ class FrequencyBin:
         return self.lower == other.lower and self.count == other.count and self.sum == other.sum and self.max == other.max
 
 
+class HistogramType(enum.Enum):
+    L0_CONTRIBUTIONS = 'l0_contributions'
+    LINF_CONTRIBUTIONS = 'linf_contributions'
+    COUNT_PER_PARTITION = 'count_per_partition'
+    COUNT_PRIVACY_ID_PER_PARTITION = 'privacy_id_per_partition_count'
+
+
 @dataclass
 class Histogram:
     """Represents a histogram over integers."""
-    name: str
+    name: HistogramType
     bins: List[FrequencyBin]
 
     def total_count(self):
@@ -92,20 +99,13 @@ class Histogram:
         return result[::-1]
 
 
-class HistogramType(enum.Enum):
-    L0_CONTRIBUTIONS = 'l0_contributions'
-    LINF_CONTRIBUTIONS = 'linf_contributions'
-    COUNT_PER_PARTITION_COUNT = 'count_per_partition_count'
-    PRIVACY_ID_PER_PARTITION_COUNT = 'privacy_id_per_partition_count'
-
-
 @dataclass
 class ContributionHistograms:  # todo: another name?
     """Histograms of privacy id contributions."""
-    cross_partition_histogram: Histogram
-    per_partition_histogram: Histogram
-    count_per_partition_count: Histogram
-    privacy_id_per_partition_count: Histogram
+    l0_contributions_histogram: Histogram
+    linf_contributions_histogram: Histogram
+    count_per_partition_histogram: Histogram
+    count_privacy_id_per_partition: Histogram
 
 
 def _to_bin_lower(n: int) -> int:
@@ -124,16 +124,16 @@ def _to_bin_lower(n: int) -> int:
 
 
 def _compute_frequency_histogram(col, backend: pipeline_backend.PipelineBackend,
-                                 name: str):
+                                 name: HistogramType):
     """Computes histogram of element frequencies in collection.
 
-  Args:
+    Args:
       col: collection with positive integers.
       backend: PipelineBackend to run operations on the collection.
       name: name which is assigned to the computed histogram.
-  Returns:
+    Returns:
       1 element collection which contains Histogram.
-  """
+    """
 
     col = backend.count_per_element(col, "Frequency of elements")
 
@@ -169,9 +169,9 @@ def _list_to_contribution_histograms(
             l0_contributions = histogram
         elif histogram.name == HistogramType.LINF_CONTRIBUTIONS:
             linf_contributions = histogram
-        elif histogram.name == HistogramType.COUNT_PER_PARTITION_COUNT:
+        elif histogram.name == HistogramType.COUNT_PER_PARTITION:
             count_per_partition = histogram
-        elif histogram.name == HistogramType.PRIVACY_ID_PER_PARTITION_COUNT:
+        elif histogram.name == HistogramType.COUNT_PRIVACY_ID_PER_PARTITION:
             privacy_id_per_partition_count = histogram
     return ContributionHistograms(l0_contributions, linf_contributions,
                                   count_per_partition,
@@ -205,7 +205,8 @@ def _compute_cross_partition_histogram(
     col = backend.values(col, "Drop privacy id")
     # col: (int)
 
-    return _compute_frequency_histogram(col, backend, "CrossPartitionHistogram")
+    return _compute_frequency_histogram(col, backend,
+                                        HistogramType.L0_CONTRIBUTIONS)
 
 
 def _compute_per_partition_histogram(col,
@@ -229,7 +230,8 @@ def _compute_per_partition_histogram(col,
     col = backend.values(col, "Drop privacy id")
     # col: (int)
 
-    return _compute_frequency_histogram(col, backend, "PerPartitionHistogram")
+    return _compute_frequency_histogram(col, backend,
+                                        HistogramType.LINF_CONTRIBUTIONS)
 
 
 def _compute_partition_count_histogram(
@@ -256,7 +258,8 @@ def _compute_partition_count_histogram(
     col = backend.values(col, "Drop partition key")
     # col: (count)
 
-    return _compute_frequency_histogram(col, backend, "PartitionCountHistogram")
+    return _compute_frequency_histogram(col, backend,
+                                        HistogramType.COUNT_PER_PARTITION)
 
 
 def _compute_partition_privacy_id_count_histogram(
@@ -286,8 +289,8 @@ def _compute_partition_privacy_id_count_histogram(
     col = backend.values(col, "Drop partition key")
     # col: (int)
 
-    return _compute_frequency_histogram(col, backend,
-                                        "PartitionPrivacyIdCountHistogram")
+    return _compute_frequency_histogram(
+        col, backend, HistogramType.COUNT_PRIVACY_ID_PER_PARTITION)
 
 
 def compute_contribution_histograms(

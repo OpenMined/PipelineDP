@@ -120,10 +120,10 @@ def _find_candidate_parameters(
         return candidates
 
     if parameters_to_tune.max_partitions_contributed:
-        l0_candidates = _find_candidates(hist.cross_partition_histogram)
+        l0_candidates = _find_candidates(hist.l0_contributions_histogram)
 
     if parameters_to_tune.max_contributions_per_partition:
-        linf_candidates = _find_candidates(hist.per_partition_histogram)
+        linf_candidates = _find_candidates(hist.linf_contributions_histogram)
 
     l0_bounds = linf_bounds = None
 
