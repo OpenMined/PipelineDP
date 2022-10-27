@@ -302,7 +302,7 @@ class DPEngine:
             (partition_key, aggregator_fn([])), "Build empty accumulators")
 
         return self._backend.flatten(
-            col, empty_accumulators,
+            (col, empty_accumulators),
             "Join public partitions with partitions from data")
 
     def _select_private_partitions_internal(

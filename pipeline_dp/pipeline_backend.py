@@ -160,8 +160,8 @@ class PipelineBackend(abc.ABC):
         """
 
     @abc.abstractmethod
-    def flatten(self, col1, col2, stage_name: str):
-        """Returns a collection that contains all values from col1 and col2."""
+    def flatten(self, cols: Iterable, stage_name: str):
+        """Returns a collection that contains all values from collections from cols."""
 
     @abc.abstractmethod
     def distinct(self, col, stage_name: str):
@@ -329,8 +329,8 @@ class BeamBackend(PipelineBackend):
         return col | self._ulg.unique(stage_name) >> beam.CombinePerKey(
             combine_fn)
 
-    def flatten(self, col1, col2, stage_name: str):
-        return (col1, col2) | self._ulg.unique(stage_name) >> beam.Flatten()
+    def flatten(self, cols, stage_name: str):
+        return cols | self._ulg.unique(stage_name) >> beam.Flatten()
 
     def distinct(self, col, stage_name: str):
         return col | self._ulg.unique(stage_name) >> beam.Distinct()
@@ -430,8 +430,8 @@ class SparkRDDBackend(PipelineBackend):
     def reduce_per_key(self, rdd, fn: Callable, stage_name: str):
         return rdd.reduceByKey(fn)
 
-    def flatten(self, col1, col2, stage_name: str = None):
-        return col1.union(col2)
+    def flatten(self, cols, stage_name: str = None):
+        return self._sc.union(cols)
 
     def distinct(self, col, stage_name: str):
         return col.distinct()
@@ -523,8 +523,8 @@ class LocalBackend(PipelineBackend):
         combine_fn = lambda elements: functools.reduce(fn, elements)
         return self.map_values(self.group_by_key(col), combine_fn)
 
-    def flatten(self, col1, col2, stage_name: str = None):
-        return itertools.chain(col1, col2)
+    def flatten(self, cols, stage_name: str = None):
+        return itertools.chain(*cols)
 
     def distinct(self, col, stage_name: str):
 

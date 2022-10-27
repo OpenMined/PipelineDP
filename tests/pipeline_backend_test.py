@@ -355,7 +355,7 @@ class SparkRDDBackendTest(parameterized.TestCase):
         dist_data2 = self.sc.parallelize(data2)
 
         self.assertEqual(
-            self.backend.flatten(dist_data1, dist_data2).collect(),
+            self.backend.flatten((dist_data1, dist_data2)).collect(),
             [1, 2, 3, 4, 5, 6, 7, 8])
 
     def test_distinct(self):
@@ -570,6 +570,12 @@ class LocalBackendTest(unittest.TestCase):
         self.assertEqual(list(self.backend.group_by_key(some_dict)),
                          [("cheese", ["brie", "swiss"]),
                           ("bread", ["sourdough"])])
+
+    def test_flatten(self):
+        data1, data2, data3 = [1, 2, 3, 4], [5, 6, 7, 8], [9, 10]
+
+        self.assertEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+                         list(self.backend.flatten((data1, data2, data3))))
 
     def test_distinct(self):
         input = [3, 2, 1, 3, 5, 4, 1, 1, 2]

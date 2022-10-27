@@ -15,6 +15,7 @@
 import pipeline_dp
 from pipeline_dp import pipeline_backend
 from dataclasses import dataclass
+import enum
 import operator
 from typing import List
 
@@ -91,11 +92,20 @@ class Histogram:
         return result[::-1]
 
 
+class HistogramType(enum.Enum):
+    L0_CONTRIBUTIONS = 'l0_contributions'
+    LINF_CONTRIBUTIONS = 'linf_contributions'
+    COUNT_PER_PARTITION_COUNT = 'count_per_partition_count'
+    PRIVACY_ID_PER_PARTITION_COUNT = 'privacy_id_per_partition_count'
+
+
 @dataclass
-class ContributionHistograms:
+class ContributionHistograms:  # todo: another name?
     """Histograms of privacy id contributions."""
     cross_partition_histogram: Histogram
     per_partition_histogram: Histogram
+    count_per_partition_count: Histogram
+    privacy_id_per_partition_count: Histogram
 
 
 def _to_bin_lower(n: int) -> int:
@@ -155,12 +165,17 @@ def _list_to_contribution_histograms(
         histograms: List[Histogram]) -> ContributionHistograms:
     """Packs histograms from a list to ContributionHistograms."""
     for histogram in histograms:
-        if histogram.name == "CrossPartitionHistogram":
-            cross_partition_histogram = histogram
-        else:
-            per_partition_histogram = histogram
-    return ContributionHistograms(cross_partition_histogram,
-                                  per_partition_histogram)
+        if histogram.name == HistogramType.L0_CONTRIBUTIONS:
+            l0_contributions = histogram
+        elif histogram.name == HistogramType.LINF_CONTRIBUTIONS:
+            linf_contributions = histogram
+        elif histogram.name == HistogramType.COUNT_PER_PARTITION_COUNT:
+            count_per_partition = histogram
+        elif histogram.name == HistogramType.PRIVACY_ID_PER_PARTITION_COUNT:
+            privacy_id_per_partition_count = histogram
+    return ContributionHistograms(l0_contributions, linf_contributions,
+                                  count_per_partition,
+                                  privacy_id_per_partition_count)
 
 
 def _compute_cross_partition_histogram(
@@ -217,6 +232,64 @@ def _compute_per_partition_histogram(col,
     return _compute_frequency_histogram(col, backend, "PerPartitionHistogram")
 
 
+def _compute_partition_count_histogram(
+        col, backend: pipeline_backend.PipelineBackend):
+    """Computes histogram of cross partition privacy id contributions.
+
+    This histogram contains: number of privacy ids which contributes to 1 partition,
+    to 2 partitions etc.
+
+    Args:
+      col: collection with elements (privacy_id, partition_key).
+      backend: PipelineBackend to run operations on the collection.
+
+    Returns:
+      1 element collection, which contains computed Histogram.
+    """
+
+    col = backend.values(col, "Drop privacy keys")
+    # col: (pk)
+
+    col = backend.count_per_element(col, "Count per partition")
+    # col: (pk, count)
+
+    col = backend.values(col, "Drop partition key")
+    # col: (count)
+
+    return _compute_frequency_histogram(col, backend, "PartitionCountHistogram")
+
+
+def _compute_partition_privacy_id_count_histogram(
+        col, backend: pipeline_backend.PipelineBackend):
+    """Computes histogram of cross partition privacy id contributions.
+
+    This histogram contains: number of privacy ids which contributes to 1 partition,
+    to 2 partitions etc.
+
+    Args:
+      col: collection with elements (privacy_id, partition_key).
+      backend: PipelineBackend to run operations on the collection.
+
+    Returns:
+      1 element collection, which contains computed Histogram.
+    """
+
+    col = backend.distinct(col, "Distinct (privacy_id, partition_key)")
+    # col: (pid, pk)
+
+    col = backend.values(col, "Drop privacy key")
+    # col: (pk)
+
+    col = backend.count_per_element(col, "Compute partitions per privacy id")
+    # col: (pk, count_pid_per_pk)
+
+    col = backend.values(col, "Drop partition key")
+    # col: (int)
+
+    return _compute_frequency_histogram(col, backend,
+                                        "PartitionPrivacyIdCountHistogram")
+
+
 def compute_contribution_histograms(
         col, data_extractors: pipeline_dp.DataExtractors,
         backend: pipeline_backend.PipelineBackend) -> ContributionHistograms:
@@ -232,10 +305,15 @@ def compute_contribution_histograms(
     cross_partition_histogram = _compute_cross_partition_histogram(col, backend)
     # 1 element collection: ContributionHistogram
     per_partition_histogram = _compute_per_partition_histogram(col, backend)
+
+    partition_count_histogram = _compute_partition_count_histogram(col, backend)
+    partition_privacy_id_count_histogram = _compute_partition_privacy_id_count_histogram(
+        col, backend)
     # 1 element collection: ContributionHistogram
-    histograms = backend.flatten(cross_partition_histogram,
-                                 per_partition_histogram,
-                                 "Histograms to one collection")
+    histograms = backend.flatten(
+        (cross_partition_histogram, per_partition_histogram,
+         partition_count_histogram, partition_privacy_id_count_histogram),
+        "Histograms to one collection")
     # 2 elements (ContributionHistogram)
     histograms = backend.to_list(histograms, "Histograms to List")
     # 1 element collection: [ContributionHistogram]
