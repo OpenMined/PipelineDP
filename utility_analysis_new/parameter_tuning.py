@@ -100,7 +100,7 @@ class TuneResult:
     contribution_histograms: histograms.ContributionHistograms
     utility_analysis_parameters: utility_analysis_new.dp_engine.MultiParameterConfiguration
     index_best: int
-    utility_analysis_results: List[metrics.AggregateErrorMetrics]
+    utility_analysis_results: List[metrics.AggregateMetrics]
 
 
 def _find_candidate_parameters(
