@@ -173,6 +173,94 @@ class ParameterTuning(parameterized.TestCase):
         self.assertListEqual(expected, histogram.bins)
 
     @parameterized.named_parameters(
+        dict(testcase_name='empty', input=[], expected=[]),
+        dict(
+            testcase_name='small_histogram',
+            input=[(1, 1), (1, 2), (2, 1), (1, 1)],  # (privacy_id, partition)
+            expected=[
+                FrequencyBin(lower=1, count=1, sum=1, max=1),
+                FrequencyBin(lower=3, count=1, sum=3, max=3)
+            ]),
+        dict(
+            testcase_name='Each privacy id, 1 contribution',
+            input=[(i, i) for i in range(100)],  # (privacy_id, partition)
+            expected=[
+                FrequencyBin(lower=1, count=100, sum=100, max=1),
+            ]),
+        dict(
+            testcase_name='1 privacy id many contributions to 1 partition',
+            input=[(0, 0)] * 100,  # (privacy_id, partition)
+            expected=[
+                FrequencyBin(lower=100, count=1, sum=100, max=100),
+            ]),
+        dict(
+            testcase_name='1 privacy id many contributions to many partitions',
+            input=[(0, i) for i in range(1234)],  # (privacy_id, partition)
+            expected=[
+                FrequencyBin(lower=1, count=1234, sum=1234, max=1),
+            ]),
+        dict(
+            testcase_name='2 privacy ids, same partitions contributed',
+            input=[(0, i) for i in range(15)] +
+            [(1, i) for i in range(10, 25)],  # (privacy_id, partition)
+            expected=[
+                FrequencyBin(lower=1, count=20, sum=20, max=1),
+                FrequencyBin(lower=2, count=5, sum=10, max=2),
+            ]),
+    )
+    def test_compute_partitions_count_histogram(self, input, expected):
+        histogram = hist._compute_partition_count_histogram(
+            input, pipeline_dp.LocalBackend())
+        histogram = list(histogram)[0]
+        self.assertEqual(hist.HistogramType.COUNT_PER_PARTITION, histogram.name)
+        self.assertListEqual(expected, histogram.bins)
+
+    @parameterized.named_parameters(
+        dict(testcase_name='empty', input=[], expected=[]),
+        dict(
+            testcase_name='small_histogram',
+            input=[(1, 1), (1, 2), (2, 1), (1, 1)],  # (privacy_id, partition)
+            expected=[
+                FrequencyBin(lower=1, count=1, sum=1, max=1),
+                FrequencyBin(lower=2, count=1, sum=2, max=2)
+            ]),
+        dict(
+            testcase_name='Each privacy id, 1 contribution',
+            input=[(i, i) for i in range(100)],  # (privacy_id, partition)
+            expected=[
+                FrequencyBin(lower=1, count=100, sum=100, max=1),
+            ]),
+        dict(
+            testcase_name='1 privacy id many contributions to 1 partition',
+            input=[(0, 0)] * 100,  # (privacy_id, partition)
+            expected=[
+                FrequencyBin(lower=1, count=1, sum=1, max=1),
+            ]),
+        dict(
+            testcase_name='1 privacy id many contributions to many partitions',
+            input=[(0, i) for i in range(1234)],  # (privacy_id, partition)
+            expected=[
+                FrequencyBin(lower=1, count=1234, sum=1234, max=1),
+            ]),
+        dict(
+            testcase_name='2 privacy ids, same partitions contributed',
+            input=[(0, i) for i in range(15)] +
+            [(1, i) for i in range(10, 25)],  # (privacy_id, partition)
+            expected=[
+                FrequencyBin(lower=1, count=20, sum=20, max=1),
+                FrequencyBin(lower=2, count=5, sum=10, max=2),
+            ]),
+    )
+    def test_compute_partitions_privacy_id_count_histogram(
+            self, input, expected):
+        histogram = hist._compute_partition_privacy_id_count_histogram(
+            input, pipeline_dp.LocalBackend())
+        histogram = list(histogram)[0]
+        self.assertEqual(hist.HistogramType.COUNT_PRIVACY_ID_PER_PARTITION,
+                         histogram.name)
+        self.assertListEqual(expected, histogram.bins)
+
+    @parameterized.named_parameters(
         dict(testcase_name='empty',
              input=[],
              expected_cross_partition=[],
