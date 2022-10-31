@@ -48,7 +48,8 @@ def perform_utility_analysis(col,
                              backend: pipeline_backend.PipelineBackend,
                              options: UtilityAnalysisOptions,
                              data_extractors: pipeline_dp.DataExtractors,
-                             public_partitions=None):
+                             public_partitions=None,
+                             return_per_partition: bool = False):
     """Performs utility analysis for DP aggregations.
 
     Args:
@@ -60,6 +61,7 @@ def perform_utility_analysis(col,
       public_partitions: A collection of partition keys that will be present
             in the result. If not provided, the utility analysis with private
             partition selection will be performed.
+      return_per_partition: todo
     Returns:
       1 element collection which contains utility analysis metrics.
     """
@@ -67,20 +69,23 @@ def perform_utility_analysis(col,
         total_epsilon=options.epsilon, total_delta=options.delta)
     engine = dp_engine.UtilityAnalysisEngine(
         budget_accountant=budget_accountant, backend=backend)
-    result = engine.aggregate(
+    per_partition_analysis_result = engine.aggregate(
         col,
         params=options.aggregate_params,
         data_extractors=data_extractors,
         public_partitions=public_partitions,
         multi_param_configuration=options.multi_param_configuration)
     budget_accountant.compute_budgets()
-    # result : (partition_key, per_partition_metrics)
+    # per_partition_analysis_result : (partition_key, per_partition_metrics)
+    per_partition_analysis_result = backend.to_multi_transformable_collection(
+        per_partition_analysis_result)
 
     aggregate_error_combiners = _create_aggregate_error_compound_combiner(
         options.aggregate_params, [0.1, 0.5, 0.9, 0.99], public_partitions,
         options.n_parameters)
     # TODO: Implement combine_accumulators (w/o per_key)
-    keyed_by_same_key = backend.map(result, lambda v: (None, v[1]),
+    keyed_by_same_key = backend.map(per_partition_analysis_result, lambda v:
+                                    (None, v[1]),
                                     "Rekey partitions by the same key")
     # keyed_by_same_key : (None, per_partition_metrics)
     accumulators = backend.map_values(
@@ -99,7 +104,7 @@ def perform_utility_analysis(col,
                              aggregate_error_combiners.compute_metrics,
                              "Compute aggregate metrics")
 
-    # accumulators : (aggregate_metrics)
+    # aggregates : (aggregate_metrics)
 
     def pack_metrics(aggregate_metrics) -> List[metrics.AggregateMetrics]:
         if public_partitions is None:
@@ -118,9 +123,12 @@ def perform_utility_analysis(col,
             for aggregate_error_metrics in aggregate_metrics
         ]
 
-    return backend.map(aggregates, pack_metrics,
-                       "Pack metrics from the same run")
-    # (aggregate_metrics)
+    result = backend.map(aggregates, pack_metrics,
+                         "Pack metrics from the same run")
+    # result: (aggregate_metrics)
+    if return_per_partition:
+        return result, per_partition_analysis_result
+    return result
 
 
 def _create_aggregate_error_compound_combiner(

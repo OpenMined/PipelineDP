@@ -30,8 +30,11 @@ FLAGS = flags.FLAGS
 flags.DEFINE_string('input_file', 'restaurants_week_data.csv',
                     'The file with the restaurant visits data')
 flags.DEFINE_string('output_file', None, 'Output file')
+flags.DEFINE_string('output_file_per_partition_analysis', None,
+                    'Output file for per partition example')
 flags.DEFINE_boolean('public_partitions', False,
                      'Whether public partitions are used')
+flags.DEFINE_boolean('return_utility_analysis_per_partition', False, 'If true')
 
 
 def write_to_file(col, filename):
@@ -95,9 +98,17 @@ def tune_parameters():
         aggregate_params=aggregate_params,
         function_to_minimize=minimizing_function,
         parameters_to_tune=parameters_to_tune)
-    result = parameter_tuning.tune(restaurant_visits_rows, backend, hist,
-                                   tune_options, data_extractors,
-                                   public_partitions)
+    if FLAGS.return_utility_analysis_per_partition:
+        result, per_partition = parameter_tuning.tune(restaurant_visits_rows,
+                                                      backend, hist,
+                                                      tune_options,
+                                                      data_extractors,
+                                                      public_partitions, True)
+        write_to_file(per_partition, FLAGS.output_file_per_partition_analysis)
+    else:
+        result = parameter_tuning.tune(restaurant_visits_rows, backend, hist,
+                                       tune_options, data_extractors,
+                                       public_partitions, False)
 
     # Here's where the lazy iterator initiates computations and gets transformed
     # into actual results
