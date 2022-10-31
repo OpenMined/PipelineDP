@@ -173,8 +173,8 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
                 internal_combiners.append(
                     utility_analysis_combiners.PrivacyIdCountCombiner(
                         combiners.CombinerParams(budget, params)))
-        return combiners.CompoundCombiner(internal_combiners,
-                                          return_named_tuple=False)
+        return utility_analysis_combiners.CompoundCombiner(
+            internal_combiners, return_named_tuple=False)
 
     def _get_aggregate_params(
         self, params: pipeline_dp.AggregateParams
