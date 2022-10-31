@@ -111,8 +111,8 @@ class ParameterTuning(parameterized.TestCase):
                 FrequencyBin(lower=15, count=2, sum=30, max=15),
             ]),
     )
-    def test_compute_cross_partition_histogram(self, input, expected):
-        histogram = hist._compute_cross_partition_histogram(
+    def test_compute_l0_contributions_histogram(self, input, expected):
+        histogram = hist._compute_l0_contributions_histogram(
             input, pipeline_dp.LocalBackend())
         histogram = list(histogram)[0]
         self.assertEqual(hist.HistogramType.L0_CONTRIBUTIONS, histogram.name)
@@ -162,8 +162,8 @@ class ParameterTuning(parameterized.TestCase):
                 FrequencyBin(lower=3, count=1, sum=3, max=3),
             ]),
     )
-    def test_compute_per_partition_histogram(self, input, expected):
-        histogram = hist._compute_per_partition_histogram(
+    def test_compute_linf_contributions_histogram(self, input, expected):
+        histogram = hist._compute_linf_contributions_histogram(
             input, pipeline_dp.LocalBackend())
 
         histogram = list(histogram)
