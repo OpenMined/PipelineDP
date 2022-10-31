@@ -65,7 +65,8 @@ class ParameterTuning(parameterized.TestCase):
         self.assertEqual(expected_max_contributions_per_partition,
                          candidates.max_contributions_per_partition)
 
-    def test_tune(self):
+    @parameterized.parameters(False, True)
+    def test_tune(self, return_utility_analysis_per_partition: bool):
         input = [(i % 10, f"pk{i/10}") for i in range(10)]
         public_partitions = [f"pk{i}" for i in range(10)]
         data_extractors = pipeline_dp.DataExtractors(
@@ -84,10 +85,16 @@ class ParameterTuning(parameterized.TestCase):
             function_to_minimize=parameter_tuning.MinimizingFunction.
             ABSOLUTE_ERROR,
             parameters_to_tune=parameter_tuning.ParametersToTune(True, True))
-        tune_result = list(
-            parameter_tuning.tune(input, pipeline_dp.LocalBackend(),
-                                  contribution_histograms, tune_options,
-                                  data_extractors, public_partitions))[0]
+        result = parameter_tuning.tune(input, pipeline_dp.LocalBackend(),
+                                       contribution_histograms, tune_options,
+                                       data_extractors, public_partitions,
+                                       return_utility_analysis_per_partition)
+        if return_utility_analysis_per_partition:
+            tune_result, per_partition_utility_anlaysis = result
+            self.assertLen(per_partition_utility_anlaysis, 10)
+        else:
+            tune_result = result
+        tune_result = list(tune_result)[0]
 
         self.assertEqual(tune_options, tune_result.options)
         self.assertEqual(contribution_histograms,

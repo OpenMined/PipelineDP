@@ -197,7 +197,8 @@ def tune(col,
         public_partitions: A collection of partition keys that will be present
           in the result. If not provided, tuning will be performed assuming
           private partition selection is used.
-        return_utility_analysis_per_partition: todo
+        return_per_partition: if true, it returns tuple, with the 2nd element
+          utility analysis per partitions.
     Returns:
         1 element collection which contains TuneResult.
     """
