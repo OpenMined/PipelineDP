@@ -37,6 +37,9 @@ class Metric:
     def __repr__(self):
         return self.__str__()
 
+    def __hash__(self):
+        return hash(str(self))
+
     @property
     def is_percentile(self):
         return self.name == 'PERCENTILE'
