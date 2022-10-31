@@ -19,7 +19,7 @@ import copy
 import pipeline_dp
 from pipeline_dp import budget_accounting
 from utility_analysis_new import dp_engine
-from utility_analysis_new.combiners import CountUtilityAnalysisMetrics
+from utility_analysis_new import metrics
 import utility_analysis_new
 
 
@@ -270,36 +270,32 @@ class DpEngine(parameterized.TestCase):
         [self.assertLen(partition_metrics, 2) for partition_metrics in output]
 
         expected_pk0 = [
-            CountUtilityAnalysisMetrics(
-                count=1,
-                per_partition_error=0,
-                expected_cross_partition_error=-0.5,
-                std_cross_partition_error=0.5,
-                std_noise=11.6640625,
-                noise_kind=pipeline_dp.NoiseKind.GAUSSIAN),
-            CountUtilityAnalysisMetrics(
-                count=1,
-                per_partition_error=0,
-                expected_cross_partition_error=0,
-                std_cross_partition_error=0.0,
-                std_noise=32.99095075973487,
-                noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)
+            metrics.CountMetrics(count=1,
+                                 per_partition_error=0,
+                                 expected_cross_partition_error=-0.5,
+                                 std_cross_partition_error=0.5,
+                                 std_noise=11.6640625,
+                                 noise_kind=pipeline_dp.NoiseKind.GAUSSIAN),
+            metrics.CountMetrics(count=1,
+                                 per_partition_error=0,
+                                 expected_cross_partition_error=0,
+                                 std_cross_partition_error=0.0,
+                                 std_noise=32.99095075973487,
+                                 noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)
         ]
         expected_pk1 = [
-            CountUtilityAnalysisMetrics(
-                count=2,
-                per_partition_error=-1,
-                expected_cross_partition_error=-0.5,
-                std_cross_partition_error=0.5,
-                std_noise=11.6640625,
-                noise_kind=pipeline_dp.NoiseKind.GAUSSIAN),
-            CountUtilityAnalysisMetrics(
-                count=2,
-                per_partition_error=0,
-                expected_cross_partition_error=0,
-                std_cross_partition_error=0.0,
-                std_noise=32.99095075973487,
-                noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)
+            metrics.CountMetrics(count=2,
+                                 per_partition_error=-1,
+                                 expected_cross_partition_error=-0.5,
+                                 std_cross_partition_error=0.5,
+                                 std_noise=11.6640625,
+                                 noise_kind=pipeline_dp.NoiseKind.GAUSSIAN),
+            metrics.CountMetrics(count=2,
+                                 per_partition_error=0,
+                                 expected_cross_partition_error=0,
+                                 std_cross_partition_error=0.0,
+                                 std_noise=32.99095075973487,
+                                 noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)
         ]
 
         self.assertSequenceEqual(expected_pk0, output[0][1])

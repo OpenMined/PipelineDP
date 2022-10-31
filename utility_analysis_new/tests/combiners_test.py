@@ -15,11 +15,11 @@
 
 from absl.testing import absltest
 from absl.testing import parameterized
-import unittest
 from unittest.mock import patch
 
 import pipeline_dp
 from utility_analysis_new import combiners
+from utility_analysis_new import metrics
 
 
 def _create_combiner_params_for_count() -> pipeline_dp.combiners.CombinerParams:
@@ -45,7 +45,7 @@ class UtilityAnalysisCountCombinerTest(parameterized.TestCase):
              num_partitions=0,
              contribution_values=(),
              params=_create_combiner_params_for_count(),
-             expected_metrics=combiners.CountUtilityAnalysisMetrics(
+             expected_metrics=metrics.CountMetrics(
                  count=0,
                  per_partition_error=0,
                  expected_cross_partition_error=0,
@@ -56,7 +56,7 @@ class UtilityAnalysisCountCombinerTest(parameterized.TestCase):
              num_partitions=1,
              contribution_values=(1, 2),
              params=_create_combiner_params_for_count(),
-             expected_metrics=combiners.CountUtilityAnalysisMetrics(
+             expected_metrics=metrics.CountMetrics(
                  count=2,
                  per_partition_error=0,
                  expected_cross_partition_error=0,
@@ -67,7 +67,7 @@ class UtilityAnalysisCountCombinerTest(parameterized.TestCase):
              num_partitions=4,
              contribution_values=(1, 2, 3, 4),
              params=_create_combiner_params_for_count(),
-             expected_metrics=combiners.CountUtilityAnalysisMetrics(
+             expected_metrics=metrics.CountMetrics(
                  count=4,
                  per_partition_error=-2,
                  expected_cross_partition_error=-1.5,
@@ -76,36 +76,27 @@ class UtilityAnalysisCountCombinerTest(parameterized.TestCase):
                  noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)))
     def test_compute_metrics(self, num_partitions, contribution_values, params,
                              expected_metrics):
-        utility_analysis_combiner = combiners.UtilityAnalysisCountCombiner(
-            params)
+        utility_analysis_combiner = combiners.CountCombiner(params)
         test_acc = utility_analysis_combiner.create_accumulator(
-            (contribution_values, num_partitions))
+            (len(contribution_values), 0, num_partitions))
         self.assertEqual(expected_metrics,
                          utility_analysis_combiner.compute_metrics(test_acc))
 
     def test_merge(self):
-        utility_analysis_combiner = combiners.UtilityAnalysisCountCombiner(
+        utility_analysis_combiner = combiners.CountCombiner(
             _create_combiner_params_for_count())
-        test_acc1 = utility_analysis_combiner.create_accumulator(((2, 3, 4), 1))
-        test_acc2 = utility_analysis_combiner.create_accumulator(((6, 7, 8), 5))
+        test_acc1 = [1, 2, 3, -4]
+        test_acc2 = [5, 10, -5, 100]
         merged_acc = utility_analysis_combiner.merge_accumulators(
             test_acc1, test_acc2)
 
-        self.assertEqual(test_acc1.count + test_acc2.count, merged_acc.count)
-        self.assertEqual(
-            test_acc1.per_partition_error + test_acc2.per_partition_error,
-            merged_acc.per_partition_error)
-        self.assertEqual(
-            test_acc1.expected_cross_partition_error +
-            test_acc2.expected_cross_partition_error,
-            merged_acc.expected_cross_partition_error)
-        self.assertEqual(
-            test_acc1.var_cross_partition_error +
-            test_acc2.var_cross_partition_error,
-            merged_acc.var_cross_partition_error)
+        self.assertSequenceEqual((6, 12, -2, 96), merged_acc)
 
 
 class PartitionSelectionTest(parameterized.TestCase):
+
+    def _create_accumulator(self, probabilities, moments):
+        return (probabilities, moments)
 
     def test_probabilities_to_moments(self):
         probabilities = [0.1, 0.5, 0.5, 0.2]
@@ -115,48 +106,52 @@ class PartitionSelectionTest(parameterized.TestCase):
         self.assertAlmostEqual(0.75, moments.variance)
         self.assertAlmostEqual(0.168, moments.third_central_moment)
 
-    def test_add_accumulators_both_probabilities(self):
-        acc1 = combiners.PartitionSelectionAccumulator([0.1, 0.2])
-        acc2 = combiners.PartitionSelectionAccumulator([0.3])
-        acc = acc1 + acc2
+    def test_merge_accumulators_both_probabilities(self):
+        acc1 = self._create_accumulator(probabilities=(0.1, 0.2), moments=None)
+        acc2 = self._create_accumulator(probabilities=(0.3,), moments=None)
+        acc = combiners._merge_partition_selection_accumulators(acc1, acc2)
         # Test that the result has probabilities.
-        self.assertSequenceEqual([0.1, 0.2, 0.3], acc.probabilities)
-        self.assertIsNone(acc.moments)
+        probabilities, moments = acc
+        self.assertSequenceEqual([0.1, 0.2, 0.3], probabilities)
+        self.assertIsNone(moments)
 
-        acc3 = combiners.PartitionSelectionAccumulator([0.5] * 99)
-        acc = acc1 + acc3
+        acc3 = self._create_accumulator(probabilities=(0.5,) * 99, moments=None)
+        acc = combiners._merge_partition_selection_accumulators(acc1, acc3)
         # Test that the result has moments.
-        self.assertIsNone(acc.probabilities)
-        self.assertEqual(101, acc.moments.count)
+        probabilities, moments = acc
+        self.assertIsNone(probabilities)
+        self.assertEqual(101, moments.count)
 
     def test_add_accumulators_probabilities_moments(self):
-        acc1 = combiners.PartitionSelectionAccumulator([0.1, 0.2])
+        acc1 = self._create_accumulator(probabilities=(0.1, 0.2), moments=None)
         moments = combiners.SumOfRandomVariablesMoments(count=10,
                                                         expectation=5,
                                                         variance=50,
                                                         third_central_moment=1)
-        acc2 = combiners.PartitionSelectionAccumulator(moments=moments)
-        acc = acc1 + acc2
+        acc2 = self._create_accumulator(probabilities=None, moments=moments)
+        acc = combiners._merge_partition_selection_accumulators(acc1, acc2)
 
         # Test that the result has moments.
-        self.assertIsNone(acc.probabilities)
-        self.assertEqual(12, acc.moments.count)
+        probabilities, moments = acc
+        self.assertIsNone(probabilities)
+        self.assertEqual(12, moments.count)
 
     def test_add_accumulators_moments(self):
         moments = combiners.SumOfRandomVariablesMoments(count=10,
                                                         expectation=5,
                                                         variance=50,
                                                         third_central_moment=1)
-        acc1 = combiners.PartitionSelectionAccumulator(moments=moments)
-        acc2 = combiners.PartitionSelectionAccumulator(moments=moments)
-        acc = acc1 + acc2
+        acc1 = (None, moments)
+        acc2 = (None, moments)
+        acc = combiners._merge_partition_selection_accumulators(acc1, acc2)
 
         # Test that the result has moments.
-        self.assertIsNone(acc.probabilities)
-        self.assertEqual(20, acc.moments.count)
-        self.assertEqual(10, acc.moments.expectation)
-        self.assertEqual(100, acc.moments.variance)
-        self.assertEqual(2, acc.moments.third_central_moment)
+        probabilities, moments = acc
+        self.assertIsNone(probabilities)
+        self.assertEqual(20, moments.count)
+        self.assertEqual(10, moments.expectation)
+        self.assertEqual(100, moments.variance)
+        self.assertEqual(2, moments.third_central_moment)
 
     @parameterized.named_parameters(
         dict(testcase_name='Large eps delta',
@@ -177,7 +172,7 @@ class PartitionSelectionTest(parameterized.TestCase):
     )
     def test_partition_selection_accumulator_compute_probability(
             self, eps, delta, probabilities, expected_probability_to_keep):
-        acc = combiners.PartitionSelectionAccumulator(probabilities)
+        acc = combiners.PartitionSelectionCalculator(probabilities)
         prob_to_keep = acc.compute_probability_to_keep(
             pipeline_dp.PartitionSelectionStrategy.TRUNCATED_GEOMETRIC,
             eps,
@@ -188,15 +183,17 @@ class PartitionSelectionTest(parameterized.TestCase):
                                delta=1e-10)
 
     @patch(
-        'utility_analysis_new.combiners.PartitionSelectionAccumulator.compute_probability_to_keep'
+        'utility_analysis_new.combiners.PartitionSelectionCalculator.compute_probability_to_keep'
     )
     def test_partition_selection_combiner(self,
                                           mock_compute_probability_to_keep):
         params = _create_combiner_params_for_count()
         combiner = combiners.PartitionSelectionCombiner(params)
-        acc = combiner.create_accumulator(([1, 2, 3], 8))
-        self.assertLen(acc.probabilities, 1)
-        self.assertEqual(1 / 8, acc.probabilities[0])
+        data = [1, 2, 3]
+        acc = combiner.create_accumulator((len(data), sum(data), 8))
+        probabilities, moments = acc
+        self.assertLen(probabilities, 1)
+        self.assertEqual(1 / 8, probabilities[0])
         mock_compute_probability_to_keep.assert_not_called()
         combiner.compute_metrics(acc)
         mock_compute_probability_to_keep.assert_called_with(
@@ -228,7 +225,7 @@ class UtilityAnalysisSumCombinerTest(parameterized.TestCase):
              num_partitions=0,
              contribution_values=(),
              params=_create_combiner_params_for_sum(0, 0),
-             expected_metrics=combiners.SumUtilityAnalysisMetrics(
+             expected_metrics=metrics.SumMetrics(
                  sum=0,
                  per_partition_error_min=0,
                  per_partition_error_max=0,
@@ -240,7 +237,7 @@ class UtilityAnalysisSumCombinerTest(parameterized.TestCase):
              num_partitions=1,
              contribution_values=(1.1, 2.2),
              params=_create_combiner_params_for_sum(0, 3.4),
-             expected_metrics=combiners.SumUtilityAnalysisMetrics(
+             expected_metrics=metrics.SumMetrics(
                  sum=3.3,
                  per_partition_error_min=0,
                  per_partition_error_max=0,
@@ -252,7 +249,7 @@ class UtilityAnalysisSumCombinerTest(parameterized.TestCase):
              num_partitions=4,
              contribution_values=(1.1, 2.2, 3.3, 4.4),
              params=_create_combiner_params_for_sum(0, 5.5),
-             expected_metrics=combiners.SumUtilityAnalysisMetrics(
+             expected_metrics=metrics.SumMetrics(
                  sum=11.0,
                  per_partition_error_min=0,
                  per_partition_error_max=5.5,
@@ -264,7 +261,7 @@ class UtilityAnalysisSumCombinerTest(parameterized.TestCase):
              num_partitions=4,
              contribution_values=(0.1, 0.2, 0.3, 0.4),
              params=_create_combiner_params_for_sum(2, 20),
-             expected_metrics=combiners.SumUtilityAnalysisMetrics(
+             expected_metrics=metrics.SumMetrics(
                  sum=1.0,
                  per_partition_error_min=-1,
                  per_partition_error_max=0,
@@ -274,9 +271,10 @@ class UtilityAnalysisSumCombinerTest(parameterized.TestCase):
                  noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)))
     def test_compute_metrics(self, num_partitions, contribution_values, params,
                              expected_metrics):
-        utility_analysis_combiner = combiners.UtilityAnalysisSumCombiner(params)
+        utility_analysis_combiner = combiners.SumCombiner(params)
         test_acc = utility_analysis_combiner.create_accumulator(
-            (contribution_values, num_partitions))
+            (len(contribution_values), sum(contribution_values),
+             num_partitions))
         actual_metrics = utility_analysis_combiner.compute_metrics(test_acc)
         self.assertAlmostEqual(expected_metrics.sum, actual_metrics.sum)
         self.assertAlmostEqual(expected_metrics.per_partition_error_min,
@@ -292,32 +290,13 @@ class UtilityAnalysisSumCombinerTest(parameterized.TestCase):
         self.assertEqual(expected_metrics.noise_kind, actual_metrics.noise_kind)
 
     def test_merge(self):
-        utility_analysis_combiner = combiners.UtilityAnalysisSumCombiner(
+        utility_analysis_combiner = combiners.SumCombiner(
             _create_combiner_params_for_sum(0, 20))
-        test_acc1 = utility_analysis_combiner.create_accumulator(
-            ((2.2, 3.3, 4.4), 1))
-        test_acc2 = utility_analysis_combiner.create_accumulator(
-            ((6.6, 7.7, 8.8), 5))
+        test_acc1 = (0.125, 1.5, -2, -3.5, 1000)
+        test_acc2 = (1, 0, -20, 3.5, 1)
         merged_acc = utility_analysis_combiner.merge_accumulators(
             test_acc1, test_acc2)
-
-        self.assertEqual(test_acc1.sum + test_acc2.sum, merged_acc.sum)
-        self.assertEqual(
-            test_acc1.per_partition_error_min +
-            test_acc2.per_partition_error_min,
-            merged_acc.per_partition_error_min)
-        self.assertEqual(
-            test_acc1.per_partition_error_max +
-            test_acc2.per_partition_error_max,
-            merged_acc.per_partition_error_max)
-        self.assertEqual(
-            test_acc1.expected_cross_partition_error +
-            test_acc2.expected_cross_partition_error,
-            merged_acc.expected_cross_partition_error)
-        self.assertEqual(
-            test_acc1.var_cross_partition_error +
-            test_acc2.var_cross_partition_error,
-            merged_acc.var_cross_partition_error)
+        self.assertSequenceEqual((1.125, 1.5, -22, 0, 1001), merged_acc)
 
 
 def _create_combiner_params_for_privacy_id_count(
@@ -342,7 +321,7 @@ class UtilityAnalysisPrivacyIdCountCombinerTest(parameterized.TestCase):
              num_partitions=0,
              contribution_values=(),
              params=_create_combiner_params_for_privacy_id_count(),
-             expected_metrics=combiners.PrivacyIdCountUtilityAnalysisMetrics(
+             expected_metrics=metrics.PrivacyIdCountMetrics(
                  privacy_id_count=0,
                  std_noise=10.556883272246033,
                  expected_cross_partition_error=-1,
@@ -350,9 +329,9 @@ class UtilityAnalysisPrivacyIdCountCombinerTest(parameterized.TestCase):
                  noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)),
         dict(testcase_name='single_contribution_keep_half',
              num_partitions=4,
-             contribution_values=(2),
+             contribution_values=(2,),
              params=_create_combiner_params_for_privacy_id_count(),
-             expected_metrics=combiners.PrivacyIdCountUtilityAnalysisMetrics(
+             expected_metrics=metrics.PrivacyIdCountMetrics(
                  privacy_id_count=1,
                  expected_cross_partition_error=-0.5,
                  std_cross_partition_error=0.5,
@@ -362,7 +341,7 @@ class UtilityAnalysisPrivacyIdCountCombinerTest(parameterized.TestCase):
              num_partitions=4,
              contribution_values=(2, 2, 2, 2),
              params=_create_combiner_params_for_privacy_id_count(),
-             expected_metrics=combiners.PrivacyIdCountUtilityAnalysisMetrics(
+             expected_metrics=metrics.PrivacyIdCountMetrics(
                  privacy_id_count=1,
                  expected_cross_partition_error=-0.5,
                  std_cross_partition_error=0.5,
@@ -372,7 +351,7 @@ class UtilityAnalysisPrivacyIdCountCombinerTest(parameterized.TestCase):
              num_partitions=1,
              contribution_values=(2, 2),
              params=_create_combiner_params_for_privacy_id_count(),
-             expected_metrics=combiners.PrivacyIdCountUtilityAnalysisMetrics(
+             expected_metrics=metrics.PrivacyIdCountMetrics(
                  privacy_id_count=1,
                  expected_cross_partition_error=0,
                  std_cross_partition_error=0,
@@ -380,10 +359,10 @@ class UtilityAnalysisPrivacyIdCountCombinerTest(parameterized.TestCase):
                  noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)))
     def test_compute_metrics(self, num_partitions, contribution_values, params,
                              expected_metrics):
-        utility_analysis_combiner = combiners.UtilityAnalysisPrivacyIdCountCombiner(
-            params)
+        utility_analysis_combiner = combiners.PrivacyIdCountCombiner(params)
         test_acc = utility_analysis_combiner.create_accumulator(
-            (contribution_values, num_partitions))
+            (len(contribution_values), sum(contribution_values),
+             num_partitions))
         actual_metrics = utility_analysis_combiner.compute_metrics(test_acc)
         self.assertAlmostEqual(expected_metrics.privacy_id_count,
                                actual_metrics.privacy_id_count)
@@ -396,23 +375,131 @@ class UtilityAnalysisPrivacyIdCountCombinerTest(parameterized.TestCase):
         self.assertEqual(expected_metrics.noise_kind, actual_metrics.noise_kind)
 
     def test_merge(self):
-        utility_analysis_combiner = combiners.UtilityAnalysisPrivacyIdCountCombiner(
+        utility_analysis_combiner = combiners.PrivacyIdCountCombiner(
             _create_combiner_params_for_count())
-        test_acc1 = utility_analysis_combiner.create_accumulator(((1, 1, 1), 2))
-        test_acc2 = utility_analysis_combiner.create_accumulator(((2, 2, 2), 2))
+        test_acc1 = [1, 2, 3]
+        test_acc2 = [5, 10, -5]
         merged_acc = utility_analysis_combiner.merge_accumulators(
             test_acc1, test_acc2)
+        self.assertSequenceEqual((6, 12, -2), merged_acc)
+
+
+class UtilityAnalysisCompoundCombinerTest(parameterized.TestCase):
+
+    def _create_combiner(self) -> combiners.CompoundCombiner:
+        count_combiner = combiners.CountCombiner(
+            _create_combiner_params_for_count())
+        return combiners.CompoundCombiner([count_combiner],
+                                          return_named_tuple=False)
+
+    def test_create_accumulator_empty_data(self):
+        combiner = self._create_combiner()
+        sparse, dense = self._create_combiner().create_accumulator(())
+        self.assertEqual(sparse, [(0, 0, 0)])
+        self.assertIsNone(dense)
+
+    def test_create_accumulator(self):
+        combiner = self._create_combiner()
+        data = [1, 2, 3]
+        n_partitions = 500
+        sparse, dense = combiner.create_accumulator((data, n_partitions))
+        self.assertEqual(sparse, [(len(data), sum(data), n_partitions)])
+        self.assertIsNone(dense)
+
+    def test_to_dense(self):
+        combiner = self._create_combiner()
+        sparse_acc = [(1, 10, 100), (3, 20, 200)]
+        dense = combiner._to_dense(sparse_acc)
+        num_privacy_ids, (count_acc,) = dense
+        self.assertEqual(2, num_privacy_ids)
+        self.assertSequenceEqual(count_acc, (4, -1, -2.98, 0.0298))
+
+    def test_merge_sparse(self):
+        combiner = self._create_combiner()
+        sparse_acc1 = [(1, 10, 100)]
+        acc1 = (sparse_acc1, None)
+        sparse_acc2 = [(11, 2, 300)]
+        acc2 = (sparse_acc2, None)
+        sparse, dense = combiner.merge_accumulators(acc1, acc2)
+        self.assertSequenceEqual(sparse, [(1, 10, 100), (11, 2, 300)])
+        self.assertIsNone(dense)
+
+    def test_merge_sparse_result_dense(self):
+        combiner = self._create_combiner()
+        sparse_acc1 = [(1, 10, 100), (3, 20, 200)]
+        acc1 = (sparse_acc1, None)
+        sparse_acc2 = [(11, 2, 300)]
+        acc2 = (sparse_acc2, None)
+        sparse, dense = combiner.merge_accumulators(acc1, acc2)
+        self.assertIsNone(sparse)
         self.assertEqual(
-            test_acc1.privacy_id_count + test_acc2.privacy_id_count,
-            merged_acc.privacy_id_count)
-        self.assertAlmostEqual(
-            test_acc1.expected_cross_partition_error +
-            test_acc2.expected_cross_partition_error,
-            merged_acc.expected_cross_partition_error)
-        self.assertAlmostEqual(
-            test_acc1.var_cross_partition_error +
-            test_acc2.var_cross_partition_error,
-            merged_acc.var_cross_partition_error)
+            dense, (3, ((15, -10, -4.973333333333334, 0.04308888888888889),)))
+
+    def test_merge_dense(self):
+        combiner = self._create_combiner()
+        dense_count_acc1 = (0, 1, 2, 3)
+        acc1 = (None, (1, (dense_count_acc1,)))
+        dense_count_acc2 = (0.5, 0.5, 0, -4)
+        acc2 = (None, (3, (dense_count_acc2,)))
+        sparse, dense = combiner.merge_accumulators(acc1, acc2)
+
+        self.assertIsNone(sparse)
+        self.assertEqual(dense, (4, ((0.5, 1.5, 2, -1),)))
+
+    @parameterized.named_parameters(
+        dict(testcase_name='empty',
+             num_partitions=0,
+             contribution_values=(),
+             expected_metrics=metrics.CountMetrics(
+                 count=0,
+                 per_partition_error=0,
+                 expected_cross_partition_error=0,
+                 std_cross_partition_error=0,
+                 std_noise=7.46484375,
+                 noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)),
+        dict(testcase_name='one_partition_zero_error',
+             num_partitions=1,
+             contribution_values=(1, 2),
+             expected_metrics=metrics.CountMetrics(
+                 count=2,
+                 per_partition_error=0,
+                 expected_cross_partition_error=0,
+                 std_cross_partition_error=0,
+                 std_noise=7.46484375,
+                 noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)),
+        dict(testcase_name='4_partitions_4_contributions_keep_half',
+             num_partitions=4,
+             contribution_values=(1, 2, 3, 4),
+             expected_metrics=metrics.CountMetrics(
+                 count=4,
+                 per_partition_error=-2,
+                 expected_cross_partition_error=-1.5,
+                 std_cross_partition_error=0.8660254037844386,
+                 std_noise=7.46484375,
+                 noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)))
+    def test_compute_metrics(self, num_partitions, contribution_values,
+                             expected_metrics):
+        combiner = self._create_combiner()
+        acc = combiner.create_accumulator((contribution_values, num_partitions))
+        self.assertEqual(expected_metrics, combiner.compute_metrics(acc)[0])
+
+    def test_two_internal_combiners(self):
+        count_combiner = combiners.CountCombiner(
+            _create_combiner_params_for_count())
+        sum_combiner = combiners.SumCombiner(
+            _create_combiner_params_for_sum(0, 5))
+        combiner = combiners.CompoundCombiner([count_combiner, sum_combiner],
+                                              return_named_tuple=False)
+
+        data, n_partitions = [1, 2, 3], 100
+        acc = combiner.create_accumulator((data, n_partitions))
+
+        acc = combiner.merge_accumulators(acc, acc)
+        self.assertEqual(([(3, 6, 100), (3, 6, 100)], None), acc)
+
+        utility_metrics = combiner.compute_metrics(acc)
+        self.assertIsInstance(utility_metrics[0], metrics.CountMetrics)
+        self.assertIsInstance(utility_metrics[1], metrics.SumMetrics)
 
 
 if __name__ == '__main__':
