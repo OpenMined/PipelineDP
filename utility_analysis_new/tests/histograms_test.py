@@ -63,12 +63,18 @@ class ParameterTuning(parameterized.TestCase):
         self.assertListEqual(expected, histogram.bins)
 
     def test_list_to_contribution_histograms(self):
-        histogram1 = hist.Histogram("CrossPartitionHistogram", None)
-        histogram2 = hist.Histogram("PerPartitionHistogram", None)
+        histogram1 = hist.Histogram(hist.HistogramType.L0_CONTRIBUTIONS, None)
+        histogram2 = hist.Histogram(hist.HistogramType.LINF_CONTRIBUTIONS, None)
+        histogram3 = hist.Histogram(hist.HistogramType.COUNT_PER_PARTITION,
+                                    None)
+        histogram4 = hist.Histogram(
+            hist.HistogramType.COUNT_PRIVACY_ID_PER_PARTITION, None)
         histograms = hist._list_to_contribution_histograms(
-            [histogram2, histogram1])
+            [histogram2, histogram1, histogram3, histogram4])
         self.assertEqual(histogram1, histograms.l0_contributions_histogram)
         self.assertEqual(histogram2, histograms.linf_contributions_histogram)
+        self.assertEqual(histogram3, histograms.count_per_partition_histogram)
+        self.assertEqual(histogram4, histograms.count_privacy_id_per_partition)
 
     @parameterized.named_parameters(
         dict(testcase_name='empty', input=[], expected=[]),
@@ -109,7 +115,7 @@ class ParameterTuning(parameterized.TestCase):
         histogram = hist._compute_cross_partition_histogram(
             input, pipeline_dp.LocalBackend())
         histogram = list(histogram)[0]
-        self.assertEqual("CrossPartitionHistogram", histogram.name)
+        self.assertEqual(hist.HistogramType.L0_CONTRIBUTIONS, histogram.name)
         self.assertListEqual(expected, histogram.bins)
 
     @parameterized.named_parameters(
@@ -163,7 +169,7 @@ class ParameterTuning(parameterized.TestCase):
         histogram = list(histogram)
         self.assertLen(histogram, 1)
         histogram = histogram[0]
-        self.assertEqual("PerPartitionHistogram", histogram.name)
+        self.assertEqual(hist.HistogramType.LINF_CONTRIBUTIONS, histogram.name)
         self.assertListEqual(expected, histogram.bins)
 
     @parameterized.named_parameters(
@@ -245,11 +251,11 @@ class ParameterTuning(parameterized.TestCase):
         self.assertLen(histograms, 1)
         histograms = histograms[0]
 
-        self.assertEqual("CrossPartitionHistogram",
+        self.assertEqual(hist.HistogramType.L0_CONTRIBUTIONS,
                          histograms.l0_contributions_histogram.name)
         self.assertListEqual(expected_cross_partition,
                              histograms.l0_contributions_histogram.bins)
-        self.assertEqual("PerPartitionHistogram",
+        self.assertEqual(hist.HistogramType.LINF_CONTRIBUTIONS,
                          histograms.linf_contributions_histogram.name)
         self.assertListEqual(expected_per_partition,
                              histograms.linf_contributions_histogram.bins)
