@@ -101,15 +101,7 @@ class Histogram:
 
 @dataclass
 class DatasetHistograms:
-    """Contains histograms useful for parameter tuning.
-
-    Attributes:
-        l0_contributions_histogram:
-        linf_contributions_histogram:
-        count_per_partition_histogram:
-        count_privacy_id_per_partition
-
-    """
+    """Contains histograms useful for parameter tuning."""
     l0_contributions_histogram: Histogram
     linf_contributions_histogram: Histogram
     count_per_partition_histogram: Histogram
@@ -190,16 +182,16 @@ def _compute_l0_contributions_histogram(
         col, backend: pipeline_backend.PipelineBackend):
     """Computes histogram of cross partition privacy id contributions.
 
-  This histogram contains: number of privacy ids which contributes to 1 partition,
-  to 2 partitions etc.
+    This histogram contains: number of privacy ids which contributes to 1
+    partition, to 2 partitions etc.
 
-  Args:
+    Args:
       col: collection with elements (privacy_id, partition_key).
       backend: PipelineBackend to run operations on the collection.
 
-  Returns:
+    Returns:
       1 element collection, which contains the computed Histogram.
-  """
+    """
 
     col = backend.distinct(col, "Distinct (privacy_id, partition_key)")
     # col: (pid, pk)
@@ -221,16 +213,16 @@ def _compute_linf_contributions_histogram(
         col, backend: pipeline_backend.PipelineBackend):
     """Computes histogram of per partition privacy id contributions.
 
-  This histogram contains: number of tuple (privacy id, partition_key) which
-  have 1 row in datasets, 2 rows etc.
+    This histogram contains: number of tuple (privacy id, partition_key) which
+    have 1 row in datasets, 2 rows etc.
 
-  Args:
+    Args:
       col: collection with elements (privacy_id, partition_key).
       backend: PipelineBackend to run operations on the collection.
 
-  Returns:
+    Returns:
       1 element collection, which contains the computed Histogram.
-  """
+    """
     col = backend.count_per_element(
         col, "Contributions per (privacy_id, partition)")
     # col: ((pid, pk), n)
