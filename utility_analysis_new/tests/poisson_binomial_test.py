@@ -32,7 +32,7 @@ class PoissonBinomialTest(parameterized.TestCase):
         ]))
     def test_compute_pmf(self, probabilities, expected_pmf):
         pmf = poisson_binomial.compute_pmf(probabilities)
-        self.assertSequenceAlmostEqual(expected_pmf, pmf)
+        self.assertSequenceAlmostEqual(expected_pmf, pmf.probabilities)
 
     @parameterized.parameters(
         ([0, 0.5], [0.5, 0.5, 0]),
@@ -46,12 +46,19 @@ class PoissonBinomialTest(parameterized.TestCase):
     @parameterized.parameters(([0.5] * 20, 1e-3), ([0.3] * 100, 2e-4),
                               (np.linspace(0.1, 0.9, num=50), 2e-4))
     def test_compute_pmf_approximation(self, probabilities, delta):
-        exact_pmf = poisson_binomial.compute_pmf(probabilities)
+        exact_probabilities = poisson_binomial.compute_pmf(
+            probabilities).probabilities
         mean, std, skewness = poisson_binomial.compute_exp_std_skewness(
             probabilities)
         approximate_pmf = poisson_binomial.compute_pmf_approximation(
             mean, std, skewness, len(probabilities))
-        self.assertSequenceAlmostEqual(exact_pmf, approximate_pmf, delta=delta)
+        approximate_probabilities = approximate_pmf.probabilities
+        exact_probabilities = exact_probabilities[
+            approximate_pmf.start:approximate_pmf.start +
+            len(approximate_probabilities)]
+        self.assertSequenceAlmostEqual(exact_probabilities,
+                                       approximate_probabilities,
+                                       delta=delta)
 
 
 if __name__ == '__main__':

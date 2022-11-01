@@ -127,25 +127,20 @@ class PartitionSelectionCalculator:
             partition_selection_strategy, eps, delta,
             max_partitions_contributed)
         probability = 0
-        for i, prob in enumerate(pmf):
+        for i, prob in enumerate(pmf.probabilities, pmf.start):
             probability += prob * ps_strategy.probability_of_keep(i)
         return probability
 
-    def _compute_pmf(self) -> np.ndarray:
+    def _compute_pmf(self) -> poisson_binomial.PMF:
         """Computes the pmf of privacy id count in this partition after contribution bounding."""
         if self.probabilities:
-            pmf = poisson_binomial.compute_pmf(self.probabilities)
-        else:
-            moments = self.moments
-            std = math.sqrt(moments.variance)
-            if std == 0:  # this is a constant random variable
-                pmf = np.zeros(moments.count + 1)
-                pmf[int(moments.expectation)] = 1
-            else:
-                skewness = moments.third_central_moment / std**3
-                pmf = poisson_binomial.compute_pmf_approximation(
-                    moments.expectation, std, skewness, moments.count)
-        return pmf
+            return poisson_binomial.compute_pmf(self.probabilities)
+
+        moments = self.moments
+        std = math.sqrt(moments.variance)
+        skewness = 0 if std == 0 else moments.third_central_moment / std**3
+        return poisson_binomial.compute_pmf_approximation(
+            moments.expectation, std, skewness, moments.count)
 
 
 # PartitionSelectionAccumulator = (probabilities, moments). These two elements
