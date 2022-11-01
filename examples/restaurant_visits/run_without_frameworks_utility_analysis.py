@@ -35,8 +35,6 @@ flags.DEFINE_boolean('public_partitions', False,
 flags.DEFINE_boolean(
     'per_partitions_metrics', False,
     'Whether per partition or aggregate utility analysis is computed')
-flags.DEFINE_boolean('select_partitions', False,
-                     'Utility analysis of select_partitions.')
 flags.DEFINE_boolean(
     'multi_parameters', False, 'Whether utility analysis is performed for '
     'multiple parameters simultaneously')
@@ -99,7 +97,7 @@ def per_partition_utility_analysis():
     backend = pipeline_dp.LocalBackend()
 
     # Define the privacy budget available for our computation.
-    budget_accountant = pipeline_dp.NaiveBudgetAccountant(total_epsilon=0.1,
+    budget_accountant = pipeline_dp.NaiveBudgetAccountant(total_epsilon=1,
                                                           total_delta=1e-6)
 
     restaurant_visits_rows = load_data(FLAGS.input_file)
@@ -120,41 +118,6 @@ def per_partition_utility_analysis():
 
     budget_accountant.compute_budgets()
 
-    # Here's where the lazy iterator initiates computations and gets transformed
-    # into actual results
-    result = list(result)
-
-    # Save the results
-    write_to_file(result, FLAGS.output_file)
-
-
-def per_partition_select_partition_utility_analysis():
-    # Here, we use a local backend for computations. This does not depend on
-    # any pipeline framework and it is implemented in pure Python in
-    # PipelineDP. It keeps all data in memory and is not optimized for large data.
-    # For datasets smaller than ~tens of megabytes, local execution without any
-    # framework is faster than local mode with Beam or Spark.
-    backend = pipeline_dp.LocalBackend()
-
-    budget_accountant = pipeline_dp.NaiveBudgetAccountant(total_epsilon=0.1 / 2,
-                                                          total_delta=1e-6 / 2)
-
-    restaurant_visits_rows = load_data(FLAGS.input_file)
-
-    # Create a UtilityAnalysisEngine instance.
-    utility_analysis_engine = UtilityAnalysisEngine(budget_accountant, backend)
-
-    params = pipeline_dp.SelectPartitionsParams(max_partitions_contributed=2)
-    data_extractors = get_data_extractors()
-
-    # Run Utility analysis.
-    result = utility_analysis_engine.select_partitions(
-        restaurant_visits_rows,
-        params,
-        data_extractors=data_extractors,
-        multi_param_configuration=get_multi_params())
-
-    budget_accountant.compute_budgets()
     # Here's where the lazy iterator initiates computations and gets transformed
     # into actual results
     result = list(result)
@@ -188,10 +151,7 @@ def aggregate_utility_analysis():
 
 def main(unused_args):
     if FLAGS.per_partitions_metrics:
-        if FLAGS.select_partitions:
-            per_partition_select_partition_utility_analysis()
-        else:
-            per_partition_utility_analysis()
+        per_partition_utility_analysis()
     else:
         aggregate_utility_analysis()
     return 0

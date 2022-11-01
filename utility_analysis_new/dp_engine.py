@@ -136,30 +136,6 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
         self._multi_run_configuration = None
         return result
 
-    def select_partitions(
-        self,
-        col,
-        params: pipeline_dp.SelectPartitionsParams,
-        data_extractors: pipeline_dp.DataExtractors,
-        multi_param_configuration: Optional[MultiParameterConfiguration] = None
-    ):
-        # self._multi_run_configuration = multi_param_configuration
-        # self._is_public_partitions = False
-        # result = super().select_partitions(col, params, data_extractors)
-        # self._is_public_partitions = None
-        # self._multi_run_configuration = None
-        # return result
-        aggregate_params = pipeline_dp.AggregateParams(
-            max_partitions_contributed=params.max_partitions_contributed,
-            partition_selection_strategy=params.partition_selection_strategy,
-            max_contributions_per_partition=1,
-            metrics=[])
-        return self.aggregate(
-            col,
-            aggregate_params,
-            data_extractors,
-            multi_param_configuration=multi_param_configuration)
-
     def _create_contribution_bounder(
         self, params: pipeline_dp.AggregateParams
     ) -> contribution_bounders.ContributionBounder:
