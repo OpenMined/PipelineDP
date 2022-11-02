@@ -49,7 +49,8 @@ def main(unused_argv):
             pipeline_dp.Metrics.SUM,
             pipeline_dp.Metrics.PRIVACY_ID_COUNT,
             pipeline_dp.Metrics.PERCENTILE(50),
-            pipeline_dp.Metrics.PERCENTILE(90)
+            pipeline_dp.Metrics.PERCENTILE(90),
+            pipeline_dp.Metrics.PERCENTILE(99)
         ],
         # Limits to how much one user can contribute:
         # .. at most two movies rated per user

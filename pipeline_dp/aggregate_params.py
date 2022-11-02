@@ -20,11 +20,17 @@ import math
 import logging
 
 
+@dataclass
 class Metric:
+    """Represents DP metrics.
 
-    def __init__(self, name: str, parameter: Optional[Any] = None):
-        self.name = name
-        self.parameter = parameter
+    Attributes:
+        name: the name of the metric, like 'COUNT', 'PERCENTILE'.
+        parameter: parameter of the metric, e.g. for 90th percentile,
+          parameter = 90.
+    """
+    name: str
+    parameter: Optional[float] = None
 
     def __eq__(self, other: 'Metric') -> bool:
         return self.name == other.name and self.parameter == other.parameter
@@ -46,6 +52,7 @@ class Metric:
 
 
 class Metrics:
+    """Contains all supported DP metrics."""
     COUNT = Metric('COUNT')
     PRIVACY_ID_COUNT = Metric('PRIVACY_ID_COUNT')
     SUM = Metric('SUM')
