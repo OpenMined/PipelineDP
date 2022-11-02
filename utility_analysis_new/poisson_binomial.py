@@ -69,8 +69,12 @@ def compute_pmf_approximation(mean: float, sigma: float, skewness: float,
     if sigma == 0:
         return PMF(int(round(mean)), np.array([1]))
     G = lambda x: (norm.cdf(x) + skewness * (1 - x * x) * norm.pdf(x) / 6)
+    # n can be large. Assuming that the output distribution is close to the
+    # normal, for all i further than 8*sigma contributes less than 10^(-15).
+    # So compute probabilities for (mean-8*sigma, mean+8*sigma).
     start = max(0, int(np.floor(mean - 8 * sigma)))
     end = min(n, int(np.round(mean + 8 * sigma)))
+
     xs = np.arange(start - 1, end + 1)
     cdf_values = G((xs + 0.5 - mean) / sigma)
     cdf_values = np.clip(cdf_values, 0, 1)
