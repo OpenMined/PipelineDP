@@ -20,13 +20,49 @@ import math
 import logging
 
 
-class Metrics(Enum):
-    COUNT = 'count'
-    PRIVACY_ID_COUNT = 'privacy_id_count'
-    SUM = 'sum'
-    MEAN = 'mean'
-    VARIANCE = 'variance'
-    VECTOR_SUM = 'vector_sum'
+@dataclass
+class Metric:
+    """Represents a DP metric.
+
+    Attributes:
+        name: the name of the metric, like 'COUNT', 'PERCENTILE'.
+        parameter: an optional parameter of the metric, e.g. for 90th
+        percentile, parameter = 90.
+    """
+    name: str
+    parameter: Optional[float] = None
+
+    def __eq__(self, other: 'Metric') -> bool:
+        return self.name == other.name and self.parameter == other.parameter
+
+    def __str__(self):
+        if self.parameter is None:
+            return self.name
+        return f'{self.name}({self.parameter})'
+
+    def __repr__(self):
+        return self.__str__()
+
+    def __hash__(self):
+        return hash(str(self))
+
+    @property
+    def is_percentile(self):
+        return self.name == 'PERCENTILE'
+
+
+class Metrics:
+    """Contains all supported DP metrics."""
+    COUNT = Metric('COUNT')
+    PRIVACY_ID_COUNT = Metric('PRIVACY_ID_COUNT')
+    SUM = Metric('SUM')
+    MEAN = Metric('MEAN')
+    VARIANCE = Metric('VARIANCE')
+    VECTOR_SUM = Metric('VECTOR_SUM')
+
+    @classmethod
+    def PERCENTILE(cls, percentile_to_compute: float):
+        return Metric('PERCENTILE', percentile_to_compute)
 
 
 class NoiseKind(Enum):
@@ -122,7 +158,7 @@ class AggregateParams:
     def metrics_str(self) -> str:
         if self.custom_combiners:
             return f"custom combiners={[c.metrics_names() for c in self.custom_combiners]}"
-        return f"metrics={[m.value for m in self.metrics]}"
+        return f"metrics={[str(m) for m in self.metrics]}"
 
     @property
     def bounds_per_contribution_are_set(self) -> bool:
