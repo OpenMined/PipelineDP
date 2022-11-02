@@ -454,7 +454,8 @@ class QuantileCombinerTest(parameterized.TestCase):
         mechanism_spec = _create_mechanism_spec(no_noise)
         aggregate_params = _create_aggregate_params(max_value=1000)
         params = dp_combiners.CombinerParams(mechanism_spec, aggregate_params)
-        return dp_combiners.QuantileCombiner(params, percentiles=percentiles)
+        return dp_combiners.QuantileCombiner(params,
+                                             percentiles_to_compute=percentiles)
 
     def test_create_accumulator(self):
         combiner = self._create_combiner(no_noise=False)

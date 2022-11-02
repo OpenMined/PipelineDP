@@ -412,10 +412,10 @@ class QuantileCombiner(Combiner):
 
     AccumulatorType = str
 
-    def __init__(self, params, percentiles: List[float]):
+    def __init__(self, params, percentiles_to_compute: List[float]):
         self._params = params
-        self._percentiles = percentiles
-        self._quantiles = [p / 100 for p in percentiles]
+        self._percentiles = percentiles_to_compute
+        self._quantiles_to_compute = [p / 100 for p in percentiles_to_compute]
 
     def create_accumulator(self, values) -> AccumulatorType:
         tree = self._create_empty_quantile_tree()
@@ -439,7 +439,7 @@ class QuantileCombiner(Combiner):
             self._params.eps, self._params.delta,
             self._params.aggregate_params.max_partitions_contributed,
             self._params.aggregate_params.max_contributions_per_partition,
-            self._quantiles, self._noise_type())
+            self._quantiles_to_compute, self._noise_type())
 
         return dict([(name, value)
                      for name, value in zip(self.metrics_names(), quantiles)])
@@ -470,7 +470,12 @@ class QuantileCombiner(Combiner):
             DEFAULT_BRANCHING_FACTOR)
 
     def _noise_type(self) -> str:
-        return "laplace" if self._params.aggregate_params.noise_kind == pipeline_dp.NoiseKind.LAPLACE else "gaussian"
+        noise_kind = self._params.aggregate_params.noise_kind
+        if noise_kind == pipeline_dp.NoiseKind.LAPLACE:
+            return "laplace"
+        if noise_kind == pipeline_dp.NoiseKind.GAUSSIAN:
+            return "gaussian"
+        assert False, f"{noise_kind} is not support by PyDP quantile tree."
 
 
 # Cache for namedtuple types. It should be used only in

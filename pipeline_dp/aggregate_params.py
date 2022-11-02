@@ -22,12 +22,12 @@ import logging
 
 @dataclass
 class Metric:
-    """Represents DP metrics.
+    """Represents a DP metric.
 
     Attributes:
         name: the name of the metric, like 'COUNT', 'PERCENTILE'.
-        parameter: parameter of the metric, e.g. for 90th percentile,
-          parameter = 90.
+        parameter: an optional parameter of the metric, e.g. for 90th
+        percentile, parameter = 90.
     """
     name: str
     parameter: Optional[float] = None
@@ -61,8 +61,8 @@ class Metrics:
     VECTOR_SUM = Metric('VECTOR_SUM')
 
     @classmethod
-    def PERCENTILE(cls, value: float):
-        return Metric('PERCENTILE', value)
+    def PERCENTILE(cls, percentile_to_compute: float):
+        return Metric('PERCENTILE', percentile_to_compute)
 
 
 class NoiseKind(Enum):
