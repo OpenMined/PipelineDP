@@ -172,7 +172,7 @@ class DPEngine:
         # Compute DP metrics.
         self._add_report_stages(combiner.explain_computation())
         col = self._backend.map_values(col, combiner.compute_metrics,
-                                       "Compute DP` metrics")
+                                       "Compute DP metrics")
 
         return col
 
