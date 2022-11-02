@@ -24,6 +24,14 @@ from dataclasses import dataclass
 
 @dataclass
 class PMF:
+    """Represents probability mass function of finite integer value distribution.
+
+    Attributes:
+        start: the minimmum value of
+        probabilities: the i-th element represents the probability that the
+         distribution attains value i+start.
+
+    """
     start: int
     probabilities: np.ndarray
 
