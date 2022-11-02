@@ -158,7 +158,7 @@ class AggregateParams:
     def metrics_str(self) -> str:
         if self.custom_combiners:
             return f"custom combiners={[c.metrics_names() for c in self.custom_combiners]}"
-        return f"metrics={[m.value for m in self.metrics]}"
+        return f"metrics={[str(m) for m in self.metrics]}"
 
     @property
     def bounds_per_contribution_are_set(self) -> bool:

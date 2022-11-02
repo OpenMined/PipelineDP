@@ -175,7 +175,7 @@ class DpEngineTest(parameterized.TestCase):
             engine._report_generators[0].report(),
             [
                 "DPEngine method: aggregate",
-                "metrics=['privacy_id_count', 'count', 'mean']",
+                "metrics=['PRIVACY_ID_COUNT', 'COUNT', 'MEAN']",
                 " noise_kind=gaussian", "max_value=5",
                 "Partition selection: private partitions",
                 "Cross-partition contribution bounding: for each privacy id randomly select max(actual_partition_contributed, 3)",
@@ -186,7 +186,7 @@ class DpEngineTest(parameterized.TestCase):
         self._check_string_contains_strings(
             engine._report_generators[1].report(),
             [
-                "metrics=['sum', 'mean']", " noise_kind=gaussian",
+                "metrics=['SUM', 'MEAN']", " noise_kind=gaussian",
                 "max_value=5", "Partition selection: public partitions",
                 "Per-partition contribution bounding: for each privacy_id and eachpartition, randomly select max(actual_contributions_per_partition, 3)",
                 "Adding empty partitions for public partitions that are missing in data"
