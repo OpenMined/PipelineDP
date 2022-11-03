@@ -226,11 +226,11 @@ class CountCombiner(UtilityAnalysisCombiner):
     def create_accumulator(self, data: Tuple[int, float,
                                              int]) -> AccumulatorType:
         """Creates an accumulator for data."""
-        count, sum_, n_partitions = data # each is np.array
+        count, sum_, n_partitions = data  # each is np.array
         max_per_partition = self._params.aggregate_params.max_contributions_per_partition
         max_partitions = self._params.aggregate_params.max_partitions_contributed
         prob_keep_partition = np.minimum(1, max_partitions / n_partitions)
-            # if n_partitions > 0 else 0
+        # if n_partitions > 0 else 0
         per_partition_contribution = np.minimum(max_per_partition, count)
         per_partition_error = per_partition_contribution - count
         expected_cross_partition_error = -per_partition_contribution * (
@@ -238,8 +238,9 @@ class CountCombiner(UtilityAnalysisCombiner):
         var_cross_partition_error = per_partition_contribution**2 * prob_keep_partition * (
             1 - prob_keep_partition)
 
-        result = (np.sum(count).item(), np.sum(per_partition_error).item(), np.sum(expected_cross_partition_error).item(),
-                np.sum(var_cross_partition_error).item())
+        result = (np.sum(count).item(), np.sum(per_partition_error).item(),
+                  np.sum(expected_cross_partition_error).item(),
+                  np.sum(var_cross_partition_error).item())
         return result
 
     def compute_metrics(self, acc: AccumulatorType) -> metrics.CountMetrics:
@@ -392,9 +393,9 @@ class CompoundCombiner(pipeline_dp.combiners.CompoundCombiner):
         sums = np.array([t[1] for t in sparse_acc])
         n_partitions = np.array([t[2] for t in sparse_acc])
         result = (len(sparse_acc), [
-                combiner.create_accumulator((counts, sums, n_partitions))
-                for combiner in self._combiners
-            ])
+            combiner.create_accumulator((counts, sums, n_partitions))
+            for combiner in self._combiners
+        ])
         return result
 
     def merge_accumulators(self, acc1: AccumulatorType, acc2: AccumulatorType):
