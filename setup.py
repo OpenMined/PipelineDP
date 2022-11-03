@@ -10,7 +10,7 @@ package_data = \
 
 install_requires = \
 ['numpy>=1.20.1,<2.0.0',
- 'python-dp>=1.1.1,<2.0.0',
+ 'python-dp>=1.1.3rc2',
  'scipy>=1.7.3,<2.0.0']
 
 
