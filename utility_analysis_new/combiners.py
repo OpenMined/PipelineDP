@@ -183,7 +183,6 @@ class PartitionSelectionCombiner(UtilityAnalysisCombiner):
     def create_accumulator(
             self, data: Tuple[int, float,
                               int]) -> PartitionSelectionAccumulator:
-        return ((0.5,), None)
         count, sum_, n_partitions = data
         max_partitions = self._params.aggregate_params.max_partitions_contributed
         prob_keep_contribution = min(1, max_partitions /
@@ -226,22 +225,20 @@ class CountCombiner(UtilityAnalysisCombiner):
     def create_accumulator(self, data: Tuple[int, float,
                                              int]) -> AccumulatorType:
         """Creates an accumulator for data."""
-        count, sum_, n_partitions = data  # each is np.array
+        count, sum_, n_partitions = data
         max_per_partition = self._params.aggregate_params.max_contributions_per_partition
         max_partitions = self._params.aggregate_params.max_partitions_contributed
-        prob_keep_partition = np.minimum(1, max_partitions / n_partitions)
-        # if n_partitions > 0 else 0
-        per_partition_contribution = np.minimum(max_per_partition, count)
+        prob_keep_partition = min(1, max_partitions /
+                                  n_partitions) if n_partitions > 0 else 0
+        per_partition_contribution = min(max_per_partition, count)
         per_partition_error = per_partition_contribution - count
         expected_cross_partition_error = -per_partition_contribution * (
             1 - prob_keep_partition)
         var_cross_partition_error = per_partition_contribution**2 * prob_keep_partition * (
             1 - prob_keep_partition)
 
-        result = (np.sum(count).item(), np.sum(per_partition_error).item(),
-                  np.sum(expected_cross_partition_error).item(),
-                  np.sum(var_cross_partition_error).item())
-        return result
+        return (count, per_partition_error, expected_cross_partition_error,
+                var_cross_partition_error)
 
     def compute_metrics(self, acc: AccumulatorType) -> metrics.CountMetrics:
         count, per_partition_error, expected_cross_partition_error, var_cross_partition_error = acc
@@ -389,13 +386,16 @@ class CompoundCombiner(pipeline_dp.combiners.CompoundCombiner):
 
     def _to_dense(self,
                   sparse_acc: SparseAccumulatorType) -> DenseAccumulatorType:
-        counts = np.array([t[0] for t in sparse_acc])
-        sums = np.array([t[1] for t in sparse_acc])
-        n_partitions = np.array([t[2] for t in sparse_acc])
-        result = (len(sparse_acc), [
-            combiner.create_accumulator((counts, sums, n_partitions))
-            for combiner in self._combiners
-        ])
+        result = None
+        for count_sum_n_partitions in sparse_acc:
+            compound_acc = (1, [
+                combiner.create_accumulator(count_sum_n_partitions)
+                for combiner in self._combiners
+            ])
+            if result is None:
+                result = compound_acc
+            else:
+                result = super().merge_accumulators(result, compound_acc)
         return result
 
     def merge_accumulators(self, acc1: AccumulatorType, acc2: AccumulatorType):
