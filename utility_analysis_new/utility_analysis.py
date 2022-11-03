@@ -108,14 +108,12 @@ def perform_utility_analysis(col,
             # [AggregateErrorMetrics, AggregateErrorMetrics ...] depending on
             # whether public_partitions is used.
             # Each AggregateErrorMetrics correspond to a different aggregation.
-            range_start = 0
             packed_metrics = metrics.AggregateMetrics()
             if public_partitions is None:
-                partition_selection_metrics = aggregate_metrics[0]
-                packed_metrics.partition_selection_metrics = partition_selection_metrics
-                range_start = 1
-            for i in range(range_start, len(aggregate_metrics)):
-                _populate_packed_metric(packed_metrics, aggregate_metrics[i])
+                packed_metrics = metrics.AggregateMetrics()
+                _populate_packed_metrics(packed_metrics, aggregate_metrics[0])
+            for i in range(1, len(aggregate_metrics)):
+                _populate_packed_metrics(packed_metrics, aggregate_metrics[i])
             return [packed_metrics]
         if public_partitions is None:
             # aggregate_metrics has format [PartitionSelectionMetrics,
@@ -129,8 +127,8 @@ def perform_utility_analysis(col,
             while i < len(aggregate_metrics):
                 if isinstance(aggregate_metrics[i],
                               metrics.PartitionSelectionMetrics):
-                    packed_metrics = metrics.AggregateMetrics(
-                        partition_selection_metrics=aggregate_metrics[i])
+                    packed_metrics = metrics.AggregateMetrics()
+                    _populate_packed_metrics(aggregate_metrics[i])
                     j = i + 1
                     while j < len(aggregate_metrics):
                         if isinstance(aggregate_metrics[j],
@@ -138,8 +136,8 @@ def perform_utility_analysis(col,
                             return_list.append(packed_metrics)
                             i = j
                             break
-                        _populate_packed_metric(packed_metrics,
-                                                aggregate_metrics[j])
+                        _populate_packed_metrics(packed_metrics,
+                                                 aggregate_metrics[j])
                         j = j + 1
             return return_list
         # aggregate_metrics has format [
@@ -155,14 +153,14 @@ def perform_utility_analysis(col,
         while i < len(aggregate_metrics):
             if aggregate_metrics[i].metric_type == first_metric_type:
                 packed_metrics = metrics.AggregateMetrics()
-                _populate_packed_metric(packed_metrics, aggregate_metrics[i])
+                _populate_packed_metrics(packed_metrics, aggregate_metrics[i])
                 j = i + 1
                 while j < len(aggregate_metrics):
                     if aggregate_metrics[j].metric_type == first_metric_type:
                         # We stop when encounter the next configuration tuple.
                         break
-                    _populate_packed_metric(packed_metrics,
-                                            aggregate_metrics[j])
+                    _populate_packed_metrics(packed_metrics,
+                                             aggregate_metrics[j])
                     j = j + 1
                 return_list.append(packed_metrics)
                 i = j
@@ -173,12 +171,15 @@ def perform_utility_analysis(col,
     # (aggregate_metrics)
 
 
-def _populate_packed_metric(
-        packed_metrics: metrics.AggregateMetrics,
-        aggregate_error_metric: metrics.AggregateErrorMetrics):
-    if aggregate_error_metric.metric_type == metrics.AggregateMetricType.PRIVACY_ID_COUNT:
+# Sets the appropriate field of packed_metrics with aggregate_error_metric
+# according to the type of aggregate_error_metric.
+def _populate_packed_metrics(packed_metrics: metrics.AggregateMetrics,
+                             aggregate_error_metric):
+    if isinstance(aggregate_error_metric, metrics.PartitionSelectionMetrics):
+        packed_metrics.partition_selection_metrics = aggregate_error_metric
+    elif aggregate_error_metric.metric_type == metrics.AggregateMetricType.PRIVACY_ID_COUNT:
         packed_metrics.privacy_id_count_metrics = aggregate_error_metric
-    if aggregate_error_metric.metric_type == metrics.AggregateMetricType.COUNT:
+    elif aggregate_error_metric.metric_type == metrics.AggregateMetricType.COUNT:
         packed_metrics.count_metrics = aggregate_error_metric
 
 
