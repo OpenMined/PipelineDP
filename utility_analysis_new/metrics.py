@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Dataclasses with Utility Analysis result metrics."""
+from enum import Enum
 
 import pipeline_dp
 from dataclasses import dataclass
@@ -82,13 +83,18 @@ class PrivacyIdCountMetrics:
     noise_kind: pipeline_dp.NoiseKind
 
 
+class AggregateMetricType(Enum):
+    PRIVACY_ID_COUNT = 1
+    COUNT = 2
+
+
 @dataclass
 class AggregateErrorMetrics:
     """Stores aggregate metrics for utility analysis.
 
   All attributes in this dataclass are averages across partitions.
   """
-
+    metric_type: AggregateMetricType
     abs_error_expected: float
     abs_error_variance: float
     abs_error_quantiles: List[float]
@@ -117,5 +123,6 @@ class PartitionSelectionMetrics:
 @dataclass
 class AggregateMetrics:
     """Stores aggregate metrics for utility analysis."""
-    aggregate_error_metrics: AggregateErrorMetrics
+    count_metrics: Optional[AggregateErrorMetrics] = None
+    privacy_id_count_metrics: Optional[AggregateErrorMetrics] = None
     partition_selection_metrics: Optional[PartitionSelectionMetrics] = None

@@ -13,14 +13,14 @@
 # limitations under the License.
 
 import pipeline_dp
-import pydp.algorithms.partition_selection as partition_selection
+#import pydp.algorithms.partition_selection as partition_selection
 
 
 def create_partition_selection_strategy(
         strategy: pipeline_dp.PartitionSelectionStrategy, epsilon: float,
         delta: float,
         max_partitions_contributed: int) -> "PartitionSelectionStrategy":
-
+    return None
     if strategy == pipeline_dp.PartitionSelectionStrategy.TRUNCATED_GEOMETRIC:
         create_strategy = partition_selection.create_truncated_geometric_partition_strategy
     elif strategy == pipeline_dp.PartitionSelectionStrategy.LAPLACE_THRESHOLDING:

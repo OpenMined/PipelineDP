@@ -102,25 +102,84 @@ def perform_utility_analysis(col,
     # accumulators : (aggregate_metrics)
 
     def pack_metrics(aggregate_metrics) -> List[metrics.AggregateMetrics]:
+        if options.multi_param_configuration is None:
+            # aggregate_metrics has format [PartitionSelectionMetrics,
+            # AggregateErrorMetrics, AggregateErrorMetrics ...] or
+            # [AggregateErrorMetrics, AggregateErrorMetrics ...] depending on
+            # whether public_partitions is used.
+            # Each AggregateErrorMetrics correspond to a different aggregation.
+            range_start = 0
+            packed_metrics = metrics.AggregateMetrics()
+            if public_partitions is None:
+                partition_selection_metrics = aggregate_metrics[0]
+                packed_metrics.partition_selection_metrics = partition_selection_metrics
+                range_start = 1
+            for i in range(range_start, len(aggregate_metrics)):
+                _populate_packed_metric(packed_metrics, aggregate_metrics[i])
+            return [packed_metrics]
         if public_partitions is None:
-            # aggregate_metrics has format  [PartitionSelectionMetrics,
-            # AggregateErrorMetrics, PartitionSelectionMetrics ...]
+            # aggregate_metrics has format [PartitionSelectionMetrics,
+            # AggregateErrorMetrics, AggregateErrorMetrics ...,
+            # PartitionSelectionMetrics ...]
             # Each consecutive pair PartitionSelectionMetrics and
             # AggregateErrorMetrics correspond to one Utility Analysis
             # configuration.
-            return [
-                metrics.AggregateMetrics(aggregate_metrics[i + 1],
-                                         aggregate_metrics[i])
-                for i in range(0, len(aggregate_metrics), 2)
-            ]
-        return [
-            metrics.AggregateMetrics(aggregate_error_metrics)
-            for aggregate_error_metrics in aggregate_metrics
-        ]
+            i = 0
+            return_list = []
+            while i < len(aggregate_metrics):
+                if isinstance(aggregate_metrics[i],
+                              metrics.PartitionSelectionMetrics):
+                    packed_metrics = metrics.AggregateMetrics(
+                        partition_selection_metrics=aggregate_metrics[i])
+                    j = i + 1
+                    while j < len(aggregate_metrics):
+                        if isinstance(aggregate_metrics[j],
+                                      metrics.PartitionSelectionMetrics):
+                            return_list.append(packed_metrics)
+                            i = j
+                            break
+                        _populate_packed_metric(packed_metrics,
+                                                aggregate_metrics[j])
+                        j = j + 1
+            return return_list
+        # aggregate_metrics has format [
+        # AggregateErrorMetrics_1, AggregateErrorMetrics_1 ...,
+        # AggregateErrorMetrics_2, AggregateErrorMetrics_2 ...,
+        # AggregateErrorMetrics_n, Aggregate_ErrorMetrics_n]
+        # With n tuples of AggregateErrorMetrics, where each element in each
+        # tuple correspond to a different aggregation and each tuple corresponds
+        # to one Utility Analysis configuration.
+        i = 0
+        return_list = []
+        first_metric_type = aggregate_metrics[i].metric_type
+        while i < len(aggregate_metrics):
+            if aggregate_metrics[i].metric_type == first_metric_type:
+                packed_metrics = metrics.AggregateMetrics()
+                _populate_packed_metric(packed_metrics, aggregate_metrics[i])
+                j = i + 1
+                while j < len(aggregate_metrics):
+                    if aggregate_metrics[j].metric_type == first_metric_type:
+                        # We stop when encounter the next configuration tuple.
+                        break
+                    _populate_packed_metric(packed_metrics,
+                                            aggregate_metrics[j])
+                    j = j + 1
+                return_list.append(packed_metrics)
+                i = j
+        return return_list
 
     return backend.map(aggregates, pack_metrics,
                        "Pack metrics from the same run")
     # (aggregate_metrics)
+
+
+def _populate_packed_metric(
+        packed_metrics: metrics.AggregateMetrics,
+        aggregate_error_metric: metrics.AggregateErrorMetrics):
+    if aggregate_error_metric.metric_type == metrics.AggregateMetricType.PRIVACY_ID_COUNT:
+        packed_metrics.privacy_id_count_metrics = aggregate_error_metric
+    if aggregate_error_metric.metric_type == metrics.AggregateMetricType.COUNT:
+        packed_metrics.count_metrics = aggregate_error_metric
 
 
 def _create_aggregate_error_compound_combiner(
@@ -134,9 +193,16 @@ def _create_aggregate_error_compound_combiner(
                 utility_analysis_combiners.
                 PrivatePartitionSelectionAggregateErrorMetricsCombiner(
                     None, error_quantiles))
+        # WARNING: The order here needs to follow the order in
+        # UtilityAnalysisEngine._create_compound_combiner().
         if pipeline_dp.Metrics.COUNT in aggregate_params.metrics:
             internal_combiners.append(
                 utility_analysis_combiners.CountAggregateErrorMetricsCombiner(
+                    None, error_quantiles))
+        if pipeline_dp.Metrics.PRIVACY_ID_COUNT in aggregate_params.metrics:
+            internal_combiners.append(
+                utility_analysis_combiners.
+                PrivacyIdCountAggregateErrorMetricsCombiner(
                     None, error_quantiles))
     return utility_analysis_combiners.AggregateErrorMetricsCompoundCombiner(
         internal_combiners, return_named_tuple=False)
