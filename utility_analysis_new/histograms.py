@@ -277,9 +277,6 @@ def _compute_partition_privacy_id_count_histogram(
       1 element collection, which contains the computed Histogram.
     """
 
-    col = backend.distinct(col, "Distinct (privacy_id, partition_key)")
-    # col: (pid, pk)
-
     col = backend.values(col, "Drop privacy key")
     # col: (pk)
 
