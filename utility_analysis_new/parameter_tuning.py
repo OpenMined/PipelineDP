@@ -97,15 +97,14 @@ class TuneResult:
           were performed during the tuning process.
     """
     options: TuneOptions
-    contribution_histograms: histograms.ContributionHistograms
+    contribution_histograms: histograms.DatasetHistograms
     utility_analysis_parameters: utility_analysis_new.dp_engine.MultiParameterConfiguration
     index_best: int
     utility_analysis_results: List[metrics.AggregateMetrics]
 
 
 def _find_candidate_parameters(
-    hist: histograms.ContributionHistograms,
-    parameters_to_tune: ParametersToTune
+    hist: histograms.DatasetHistograms, parameters_to_tune: ParametersToTune
 ) -> utility_analysis_new.dp_engine.MultiParameterConfiguration:
     """Uses some heuristics to find (hopefully) good enough parameters."""
     # TODO: decide where to put QUANTILES_TO_USE, maybe TuneOptions?
@@ -120,10 +119,10 @@ def _find_candidate_parameters(
         return candidates
 
     if parameters_to_tune.max_partitions_contributed:
-        l0_candidates = _find_candidates(hist.cross_partition_histogram)
+        l0_candidates = _find_candidates(hist.l0_contributions_histogram)
 
     if parameters_to_tune.max_contributions_per_partition:
-        linf_candidates = _find_candidates(hist.per_partition_histogram)
+        linf_candidates = _find_candidates(hist.linf_contributions_histogram)
 
     l0_bounds = linf_bounds = None
 
@@ -149,8 +148,7 @@ def _convert_utility_analysis_to_tune_result(
         utility_analysis_result: Tuple, tune_options: TuneOptions,
         run_configurations: utility_analysis_new.dp_engine.
     MultiParameterConfiguration, use_public_partitions: bool,
-        contribution_histograms: histograms.ContributionHistograms
-) -> TuneResult:
+        contribution_histograms: histograms.DatasetHistograms) -> TuneResult:
     assert len(utility_analysis_result) == run_configurations.size
     # TODO(dvadym): implement relative error.
     # TODO(dvadym): take into consideration partition selection from private
@@ -168,7 +166,7 @@ def _convert_utility_analysis_to_tune_result(
 
 def tune(col,
          backend: pipeline_backend.PipelineBackend,
-         contribution_histograms: histograms.ContributionHistograms,
+         contribution_histograms: histograms.DatasetHistograms,
          options: TuneOptions,
          data_extractors: pipeline_dp.DataExtractors,
          public_partitions=None,

@@ -121,6 +121,14 @@ class BeamBackendTest(parameterized.TestCase):
             col = self.backend.to_list(data, "To list")
             beam_util.assert_that(col, beam_util.equal_to([[1, 2, 3, 4, 5]]))
 
+    def test_flatten(self):
+        with test_pipeline.TestPipeline() as p:
+            data1 = p | "data1" >> beam.Create([1, 2, 3, 4])
+            data2 = p | "data2" >> beam.Create([5, 6, 7, 8])
+            col = self.backend.flatten((data1, data2), "flatten")
+            beam_util.assert_that(col,
+                                  beam_util.equal_to([1, 2, 3, 4, 5, 6, 7, 8]))
+
     def test_distinct(self):
         with test_pipeline.TestPipeline() as p:
             input = p | beam.Create([3, 2, 1, 3, 5, 4, 1, 1, 2])
@@ -349,13 +357,11 @@ class SparkRDDBackendTest(parameterized.TestCase):
                                                                  ("b", 8)])
 
     def test_flatten(self):
-        data1 = [1, 2, 3, 4]
-        dist_data1 = self.sc.parallelize(data1)
-        data2 = [5, 6, 7, 8]
-        dist_data2 = self.sc.parallelize(data2)
+        data1 = self.sc.parallelize([1, 2, 3, 4])
+        data2 = self.sc.parallelize([5, 6, 7, 8])
 
         self.assertEqual(
-            self.backend.flatten(dist_data1, dist_data2).collect(),
+            self.backend.flatten((data1, data2)).collect(),
             [1, 2, 3, 4, 5, 6, 7, 8])
 
     def test_distinct(self):
@@ -570,6 +576,12 @@ class LocalBackendTest(unittest.TestCase):
         self.assertEqual(list(self.backend.group_by_key(some_dict)),
                          [("cheese", ["brie", "swiss"]),
                           ("bread", ["sourdough"])])
+
+    def test_flatten(self):
+        data1, data2, data3 = [1, 2, 3, 4], [5, 6, 7, 8], [9, 10]
+
+        self.assertEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+                         list(self.backend.flatten((data1, data2, data3))))
 
     def test_distinct(self):
         input = [3, 2, 1, 3, 5, 4, 1, 1, 2]

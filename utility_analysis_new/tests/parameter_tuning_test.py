@@ -51,8 +51,9 @@ class ParameterTuning(parameterized.TestCase):
         mock_linf_histogram = histograms.Histogram(None, None)
         mock_linf_histogram.quantiles = mock.Mock(return_value=[3, 6, 6])
 
-        mock_histograms = histograms.ContributionHistograms(
-            mock_l0_histogram, mock_linf_histogram)
+        mock_histograms = histograms.DatasetHistograms(mock_l0_histogram,
+                                                       mock_linf_histogram,
+                                                       None, None)
         parameters_to_tune = parameter_tuning.ParametersToTune(
             max_partitions_contributed=tune_max_partitions_contributed,
             max_contributions_per_partition=tune_max_contributions_per_partition
