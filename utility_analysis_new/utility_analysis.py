@@ -37,7 +37,7 @@ class UtilityAnalysisOptions:
     def __post_init__(self):
         input_validators.validate_epsilon_delta(self.epsilon, self.delta,
                                                 "UtilityAnalysisOptions")
-        if self.partitions_sampling_prob or self.partitions_sampling_prob > 1:
+        if self.partitions_sampling_prob <= 0 or self.partitions_sampling_prob > 1:
             raise ValueError(
                 f"partitions_sampling_prob must be in the interval"
                 f" (0, 1], but {self.partitions_sampling_prob} given.")
