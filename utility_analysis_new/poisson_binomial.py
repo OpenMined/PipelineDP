@@ -19,6 +19,21 @@ More details on Poisson binomial distribution https://en.wikipedia.org/wiki/Pois
 import numpy as np
 from scipy.stats import norm
 from typing import Sequence, Tuple
+from dataclasses import dataclass
+
+
+@dataclass
+class PMF:
+    """Represents probability mass function of a finite integer value distribution.
+
+    Attributes:
+        start: the minimal value that this distribution can produce.
+        probabilities: the i-th element represents the probability that the
+         distribution attains value i+start.
+
+    """
+    start: int
+    probabilities: np.ndarray
 
 
 def compute_pmf(probabilities: Sequence[float]) -> np.ndarray:
@@ -32,7 +47,7 @@ def compute_pmf(probabilities: Sequence[float]) -> np.ndarray:
         next_poisson_bin_probs[:-1] = poisson_bin_probs * (1 - p)
         next_poisson_bin_probs[1:] += poisson_bin_probs * p
         poisson_bin_probs = next_poisson_bin_probs
-    return poisson_bin_probs
+    return PMF(0, poisson_bin_probs)
 
 
 def compute_exp_std_skewness(
@@ -50,9 +65,19 @@ def compute_pmf_approximation(mean: float, sigma: float, skewness: float,
 
     The computation is based on paper chapter 3.3 (refined normal approximation)
     https://www.researchgate.net/publication/257017356_On_computing_the_distribution_function_for_the_Poisson_binomial_distribution
+
+    The tails of probability <10^(-15) are dropped.
     """
+    if sigma == 0:
+        return PMF(int(round(mean)), np.array([1]))
     G = lambda x: (norm.cdf(x) + skewness * (1 - x * x) * norm.pdf(x) / 6)
-    xs = np.arange(-1, n + 1)
+    # n can be large. Assuming that the output distribution is close to the
+    # normal, for all i further than 8*sigma contributes less than 10^(-15).
+    # So compute probabilities for (mean-8*sigma, mean+8*sigma).
+    start = max(0, int(np.floor(mean - 8 * sigma)))
+    end = min(n, int(np.round(mean + 8 * sigma)))
+
+    xs = np.arange(start - 1, end + 1)
     cdf_values = G((xs + 0.5 - mean) / sigma)
     cdf_values = np.clip(cdf_values, 0, 1)
-    return np.diff(cdf_values)
+    return PMF(start, np.diff(cdf_values))
