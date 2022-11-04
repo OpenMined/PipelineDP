@@ -34,16 +34,18 @@ def _create_report_generator():
     return pipeline_dp.report_generator.ReportGenerator(None, "test")
 
 
-class SamplingCrossAndPerPartitionContributionBounderTest(
-        parameterized.TestCase):
+class SamplingL0LinfContributionBounderTest(parameterized.TestCase):
 
-    def _run_contribution_bounding(self, input, max_partitions_contributed,
-                                   max_contributions_per_partition):
+    def _run_contribution_bounding(self,
+                                   input,
+                                   max_partitions_contributed,
+                                   max_contributions_per_partition,
+                                   partitions_sampling_prob: float = 1.0):
         params = CrossAndPerPartitionContributionParams(
             max_partitions_contributed, max_contributions_per_partition)
 
-        bounder = contribution_bounders.SamplingCrossAndPerPartitionContributionBounder(
-        )
+        bounder = contribution_bounders.SamplingL0LinfContributionBounder(
+            partitions_sampling_prob)
         return list(
             bounder.bound_contributions(input, params,
                                         pipeline_dp.LocalBackend(),
@@ -93,6 +95,25 @@ class SamplingCrossAndPerPartitionContributionBounderTest(
         expected_result = [(('pid1', 'pk1'), 2), (('pid1', 'pk2'), 3),
                            (('pid1', 'pk3'), 1), (('pid1', 'pk4'), 1),
                            (('pid2', 'pk4'), 1)]
+        # Check per- and cross-partition contribution limits are not enforced.
+        self.assertEqual(set(expected_result), set(bound_result))
+
+    def test_contribution_bounding_cross_partition_bounding_and_sampling(self):
+        input = [("pid1", 'pk1', 1), ("pid1", 'pk1', 2), ("pid1", 'pk2', 3),
+                 ("pid1", 'pk2', 4), ("pid1", 'pk2', 5), ("pid1", 'pk3', 6),
+                 ("pid1", 'pk4', 7), ("pid2", 'pk4', 8)]
+        max_partitions_contributed = 3
+        max_contributions_per_partition = 5
+
+        bound_result = self._run_contribution_bounding(
+            input,
+            max_partitions_contributed,
+            max_contributions_per_partition,
+            partitions_sampling_prob=0.7)
+
+        # 'pk1' and 'pk2' are dropped by subsampling.
+        expected_result = [(('pid2', 'pk4'), 1), (('pid1', 'pk3'), 1),
+                           (('pid1', 'pk4'), 1)]
         # Check per- and cross-partition contribution limits are not enforced.
         self.assertEqual(set(expected_result), set(bound_result))
 

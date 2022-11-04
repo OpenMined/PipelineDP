@@ -38,6 +38,8 @@ flags.DEFINE_boolean(
 flags.DEFINE_boolean(
     'multi_parameters', False, 'Whether utility analysis is performed for '
     'multiple parameters simultaneously')
+flags.DEFINE_float('partition_sampling_probability', 1.0,
+                   'Partition sampling probability')
 
 
 def write_to_file(col, filename):
@@ -110,11 +112,10 @@ def per_partition_utility_analysis():
     data_extractors = get_data_extractors()
     public_partitions = list(range(1, 8)) if FLAGS.public_partitions else None
 
-    result = utility_analysis_engine.aggregate(restaurant_visits_rows,
-                                               aggregate_params,
-                                               data_extractors,
-                                               public_partitions,
-                                               get_multi_params())
+    result = utility_analysis_engine.aggregate(
+        restaurant_visits_rows, aggregate_params, data_extractors,
+        public_partitions, get_multi_params(),
+        FLAGS.partition_sampling_probability)
 
     budget_accountant.compute_budgets()
 

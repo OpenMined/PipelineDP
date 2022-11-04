@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import numpy as np
+import hashlib
 
 
 def choose_from_list_without_replacement(a: list, size: int) -> list:
@@ -26,3 +27,25 @@ def choose_from_list_without_replacement(a: list, size: int) -> list:
     sampled_indices = np.random.choice(np.arange(len(a)), size, replace=False)
 
     return [a[i] for i in sampled_indices]
+
+
+def _compute_64bit_hash(v) -> int:
+    m = hashlib.sha1()
+    m.update(repr(v).encode())
+    return int(m.hexdigest()[:16], 16)
+
+
+class ValueSampler:
+    """Deterministic value sampler.
+
+    For a value it returns whether this value should be kept. The keeping
+    decision is deterministic for a fixed value. For a randomly chosen value the
+    decision to keep happens with probability sampling_rate.
+    """
+
+    def __init__(self, sampling_rate: float):
+        self._sample_bound = int(round(2**64 * sampling_rate))
+
+    def keep(self, value) -> bool:
+        """Returns true if the value should be kept."""
+        return _compute_64bit_hash(value) < self._sample_bound

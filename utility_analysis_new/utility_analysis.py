@@ -32,10 +32,15 @@ class UtilityAnalysisOptions:
     aggregate_params: pipeline_dp.AggregateParams
     multi_param_configuration: Optional[
         dp_engine.MultiParameterConfiguration] = None
+    partitions_sampling_prob: float = 1
 
     def __post_init__(self):
         input_validators.validate_epsilon_delta(self.epsilon, self.delta,
                                                 "UtilityAnalysisOptions")
+        if self.partitions_sampling_prob <= 0 or self.partitions_sampling_prob > 1:
+            raise ValueError(
+                f"partitions_sampling_prob must be in the interval"
+                f" (0, 1], but {self.partitions_sampling_prob} given.")
 
     @property
     def n_parameters(self):
@@ -75,7 +80,8 @@ def perform_utility_analysis(col,
         params=options.aggregate_params,
         data_extractors=data_extractors,
         public_partitions=public_partitions,
-        multi_param_configuration=options.multi_param_configuration)
+        multi_param_configuration=options.multi_param_configuration,
+        partitions_sampling_prob=options.partitions_sampling_prob)
     budget_accountant.compute_budgets()
     # per_partition_analysis_result : (partition_key, per_partition_metrics)
     per_partition_analysis_result = backend.to_multi_transformable_collection(
