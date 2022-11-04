@@ -21,6 +21,7 @@ from pipeline_dp.aggregate_params import PartitionSelectionStrategy
 from pipeline_dp.aggregate_params import PrivacyIdCountParams
 from pipeline_dp.aggregate_params import SelectPartitionsParams
 from pipeline_dp.aggregate_params import SumParams
+from pipeline_dp.budget_accounting import BudgetAccountant
 from pipeline_dp.budget_accounting import NaiveBudgetAccountant
 from pipeline_dp.combiners import Combiner
 from pipeline_dp.combiners import CustomCombiner
@@ -30,4 +31,4 @@ from pipeline_dp.pipeline_backend import BeamBackend
 from pipeline_dp.pipeline_backend import LocalBackend
 from pipeline_dp.pipeline_backend import SparkRDDBackend
 
-__version__ = '0.2.0'
+__version__ = '0.2.1rc1'
