@@ -126,7 +126,8 @@ class BeamBackendTest(parameterized.TestCase):
             data1 = p | "data1" >> beam.Create([1, 2, 3, 4])
             data2 = p | "data2" >> beam.Create([5, 6, 7, 8])
             col = self.backend.flatten((data1, data2), "flatten")
-            beam_util.assert_that(col, beam_util.equal_to([1, 2, 3, 4, 5, 6, 7, 8]))
+            beam_util.assert_that(col,
+                                  beam_util.equal_to([1, 2, 3, 4, 5, 6, 7, 8]))
 
     def test_distinct(self):
         with test_pipeline.TestPipeline() as p:
@@ -356,7 +357,7 @@ class SparkRDDBackendTest(parameterized.TestCase):
                                                                  ("b", 8)])
 
     def test_flatten(self):
-        data1 = self.sc.parallelize( [1, 2, 3, 4])
+        data1 = self.sc.parallelize([1, 2, 3, 4])
         data2 = self.sc.parallelize([5, 6, 7, 8])
 
         self.assertEqual(

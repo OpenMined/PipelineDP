@@ -195,6 +195,9 @@ def _compute_l0_contributions_histogram(
     Returns:
       1 element collection, which contains the computed Histogram.
     """
+    col = backend.keys(col, "Drop partition id")
+    # col: (pid)
+
     col = backend.count_per_element(col, "Compute partitions per privacy id")
     # col: (pid, num_pk)
 
