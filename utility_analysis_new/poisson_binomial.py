@@ -24,10 +24,10 @@ from dataclasses import dataclass
 
 @dataclass
 class PMF:
-    """Represents probability mass function of finite integer value distribution.
+    """Represents probability mass function of a finite integer value distribution.
 
     Attributes:
-        start: the minimmum value of
+        start: the minimal value that this distribution can produce.
         probabilities: the i-th element represents the probability that the
          distribution attains value i+start.
 
@@ -65,6 +65,8 @@ def compute_pmf_approximation(mean: float, sigma: float, skewness: float,
 
     The computation is based on paper chapter 3.3 (refined normal approximation)
     https://www.researchgate.net/publication/257017356_On_computing_the_distribution_function_for_the_Poisson_binomial_distribution
+
+    The tails of probability <10^(-15) are dropped.
     """
     if sigma == 0:
         return PMF(int(round(mean)), np.array([1]))
