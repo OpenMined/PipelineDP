@@ -29,7 +29,7 @@ class ReportGeneratorTest(unittest.TestCase):
         expected_report = (
             "DPEngine method: test_method\n"
             "AggregateParams:\n"
-            " metrics=['privacy_id_count', 'count', 'mean', 'sum']\n"
+            " metrics=['PRIVACY_ID_COUNT', 'COUNT', 'MEAN', 'SUM']\n"
             " noise_kind=gaussian\n"
             " budget_weight=1\n"
             " Contribution bounding:\n"
