@@ -39,8 +39,8 @@ class ValueSampler:
     """Deterministic value sampler.
 
     For a value it returns whether this value should be kept. The keeping
-    decision is deterministic for a fixed value. On average the decision to keep
-    happens in sampling_rate cases.
+    decision is deterministic for a fixed value. For randomly chosen value the
+    decision to keep happens with probability sampling_rate.
     """
 
     def __init__(self, sampling_rate: float):

@@ -50,7 +50,7 @@ class SamplingL0LinfContributionBounder(
 
         # (privacy_id, [(partition_key, [value])])
 
-        # Rekey by (privacy_id, partition_key) and unnest val_coues along with the
+        # Rekey by (privacy_id, partition_key) and unnest values along with the
         # number of partitions contributed per privacy_id.
         # Sample by partition key if sampling_prob < 1.
         sampler = sampling_utils.ValueSampler(
