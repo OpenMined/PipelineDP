@@ -14,7 +14,7 @@
 
 from utility_analysis_new.dp_engine import MultiParameterConfiguration
 from utility_analysis_new.histograms import compute_contribution_histograms
-from utility_analysis_new.histograms import ContributionHistograms
+from utility_analysis_new.histograms import DatasetHistograms
 from utility_analysis_new.metrics import AggregateMetrics
 from utility_analysis_new.parameter_tuning import tune
 from utility_analysis_new.parameter_tuning import MinimizingFunction
