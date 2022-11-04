@@ -100,7 +100,7 @@ class TuneResult:
     contribution_histograms: histograms.DatasetHistograms
     utility_analysis_parameters: utility_analysis_new.dp_engine.MultiParameterConfiguration
     index_best: int
-    utility_analysis_results: List[metrics.AggregateErrorMetrics]
+    utility_analysis_results: List[metrics.AggregateMetrics]
 
 
 def _find_candidate_parameters(
@@ -169,7 +169,8 @@ def tune(col,
          contribution_histograms: histograms.DatasetHistograms,
          options: TuneOptions,
          data_extractors: pipeline_dp.DataExtractors,
-         public_partitions=None) -> TuneResult:
+         public_partitions=None,
+         return_utility_analysis_per_partition: bool = False) -> TuneResult:
     """Tunes parameters.
 
     It works in the following way:
@@ -194,6 +195,8 @@ def tune(col,
         public_partitions: A collection of partition keys that will be present
           in the result. If not provided, tuning will be performed assuming
           private partition selection is used.
+        return_per_partition: if true, it returns tuple, with the 2nd element
+          utility analysis per partitions.
     Returns:
         1 element collection which contains TuneResult.
     """
@@ -207,15 +210,22 @@ def tune(col,
         options.delta,
         options.aggregate_params,
         multi_param_configuration=candidates)
-    utility_analysis_result = utility_analysis.perform_utility_analysis(
+    result = utility_analysis.perform_utility_analysis(
         col, backend, utility_analysis_options, data_extractors,
-        public_partitions)
+        public_partitions, return_utility_analysis_per_partition)
+    if return_utility_analysis_per_partition:
+        utility_analysis_result, utility_analysis_result_per_partition = result
+    else:
+        utility_analysis_result = result
     use_public_partitions = public_partitions is not None
-    return backend.map(
+    utility_analysis_result = backend.map(
         utility_analysis_result,
         lambda result: _convert_utility_analysis_to_tune_result(
             result, options, candidates, use_public_partitions,
             contribution_histograms), "To Tune result")
+    if return_utility_analysis_per_partition:
+        return utility_analysis_result, utility_analysis_result_per_partition
+    return utility_analysis_result
 
 
 def _check_tune_args(options: TuneOptions):

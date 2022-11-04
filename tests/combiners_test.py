@@ -95,6 +95,12 @@ class CreateCompoundCombinersTest(parameterized.TestCase):
         dict(testcase_name='vector_sum',
              metrics=[pipeline_dp.Metrics.VECTOR_SUM],
              expected_combiner_types=[dp_combiners.VectorSumCombiner]),
+        dict(testcase_name='percentiles',
+             metrics=[
+                 pipeline_dp.Metrics.PERCENTILE(10),
+                 pipeline_dp.Metrics.PERCENTILE(90)
+             ],
+             expected_combiner_types=[dp_combiners.QuantileCombiner]),
     )
     def test_create_compound_combiner(self, metrics, expected_combiner_types):
         # Arrange.
@@ -438,6 +444,65 @@ class VarianceCombinerTest(parameterized.TestCase):
         self.assertAlmostEqual(variance, np.mean(noisy_variances), delta=20)
         self.assertGreater(np.var(noisy_variances),
                            1)  # check that noise is added
+
+
+class QuantileCombinerTest(parameterized.TestCase):
+
+    def _create_combiner(self,
+                         no_noise: bool,
+                         percentiles: typing.List[int] = [10, 90]):
+        mechanism_spec = _create_mechanism_spec(no_noise)
+        aggregate_params = _create_aggregate_params(max_value=1000)
+        params = dp_combiners.CombinerParams(mechanism_spec, aggregate_params)
+        return dp_combiners.QuantileCombiner(params,
+                                             percentiles_to_compute=percentiles)
+
+    def test_create_accumulator(self):
+        combiner = self._create_combiner(no_noise=False)
+        quantile_tree = combiner._create_empty_quantile_tree()
+        self.assertEqual(16, quantile_tree.branching_factor)  # default value
+        self.assertEqual(4, quantile_tree.height)  # default value
+
+    def test_compute_metrics_without_merge(self):
+        # Arrange.
+        combiner = self._create_combiner(no_noise=True,
+                                         percentiles=[10, 50, 90])
+
+        # Act.
+        # Add values 0, ... 1000.
+        acc = combiner.create_accumulator(list(range(1001)))
+        metrics = combiner.compute_metrics(acc)
+
+        # Assert.
+        self.assertLen(metrics, 3)
+
+        # The budget is high, so computed percentiles should be close to actual.
+        self.assertAlmostEqual(100, metrics['percentile_10'], delta=1e-1)
+        self.assertAlmostEqual(500, metrics['percentile_50'], delta=1e-1)
+        self.assertAlmostEqual(900, metrics['percentile_90'], delta=1e-1)
+
+    def test_compute_metrics_with_merge(self):
+        # Arrange.
+        combiner = self._create_combiner(no_noise=True,
+                                         percentiles=[10, 50, 90])
+
+        # Act.
+        # Add values 0, ... 1000, each value for a separate acc and merge them.
+        result_acc = None
+        for i in range(1001):
+            acc = combiner.create_accumulator([i])
+            result_acc = acc if i == 0 else combiner.merge_accumulators(
+                acc, result_acc)
+
+        metrics = combiner.compute_metrics(result_acc)
+
+        # Assert.
+        self.assertLen(metrics, 3)
+
+        # The budget is high, so computed percentiles should be close to actual.
+        self.assertAlmostEqual(100, metrics['percentile_10'], delta=1e-1)
+        self.assertAlmostEqual(500, metrics['percentile_50'], delta=1e-1)
+        self.assertAlmostEqual(900, metrics['percentile_90'], delta=1e-1)
 
 
 class CompoundCombinerTest(parameterized.TestCase):
