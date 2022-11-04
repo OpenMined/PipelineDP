@@ -80,7 +80,7 @@ class ParameterTuning(parameterized.TestCase):
         dict(testcase_name='empty', input=[], expected=[]),
         dict(
             testcase_name='small_histogram',
-            input=[(1, 1), (1, 2), (2, 1), (1, 1)],  # (privacy_id, partition)
+            input=[(1, 1), (1, 2), (2, 1)],  # (privacy_id, partition)
             expected=[
                 FrequencyBin(lower=1, count=1, sum=1, max=1),
                 FrequencyBin(lower=2, count=1, sum=2, max=2)
@@ -93,7 +93,7 @@ class ParameterTuning(parameterized.TestCase):
             ]),
         dict(
             testcase_name='1 privacy id many contributions to 1 partition',
-            input=[(0, 0)] * 100,  # (privacy_id, partition)
+            input=[(0, 0)],  # (privacy_id, partition)
             expected=[
                 FrequencyBin(lower=1, count=1, sum=1, max=1),
             ]),
@@ -219,7 +219,7 @@ class ParameterTuning(parameterized.TestCase):
         dict(testcase_name='empty', input=[], expected=[]),
         dict(
             testcase_name='small_histogram',
-            input=[(1, 1), (1, 2), (2, 1), (1, 1)],  # (privacy_id, partition)
+            input=[(1, 1), (1, 2), (2, 1)],  # (privacy_id, partition)
             expected=[
                 FrequencyBin(lower=1, count=1, sum=1, max=1),
                 FrequencyBin(lower=2, count=1, sum=2, max=2)
@@ -232,7 +232,7 @@ class ParameterTuning(parameterized.TestCase):
             ]),
         dict(
             testcase_name='1 privacy id many contributions to 1 partition',
-            input=[(0, 0)] * 100,  # (privacy_id, partition)
+            input=[(0, 0)],  # (privacy_id, partition)
             expected=[
                 FrequencyBin(lower=1, count=1, sum=1, max=1),
             ]),
