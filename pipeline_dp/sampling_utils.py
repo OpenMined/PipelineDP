@@ -39,7 +39,7 @@ class ValueSampler:
     """Deterministic value sampler.
 
     For a value it returns whether this value should be kept. The keeping
-    decision is deterministic for a fixed value. For randomly chosen value the
+    decision is deterministic for a fixed value. For a randomly chosen value the
     decision to keep happens with probability sampling_rate.
     """
 
