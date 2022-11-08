@@ -17,7 +17,7 @@ import numpy as np
 from typing import Optional
 import pipeline_dp
 from dataclasses import dataclass
-# from pydp.algorithms import numerical_mechanisms as dp_mechanisms
+from pydp.algorithms import numerical_mechanisms as dp_mechanisms
 
 
 @dataclass
@@ -105,7 +105,7 @@ def compute_sigma(eps: float, delta: float, l2_sensitivity: float):
     """
     # TODO: use named arguments, when argument names are added in PyDP on PR
     # https://github.com/OpenMined/PyDP/pull/398.
-    # DO-NOT-SUBMIT
+    return dp_mechanisms.GaussianMechanism(eps, delta, l2_sensitivity).std
     return 1
 
 
@@ -466,9 +466,9 @@ def _compute_noise_std(linf_sensitivity: float,
     if dp_params.noise_kind == pipeline_dp.NoiseKind.LAPLACE:
         l1_sensitivity = compute_l1_sensitivity(dp_params.l0_sensitivity(),
                                                 linf_sensitivity)
-        #mechanism = dp_mechanisms.LaplaceMechanism(epsilon=dp_params.eps,
-        #                                           sensitivity=l1_sensitivity)
-        return np.sqrt(2)
+        mechanism = dp_mechanisms.LaplaceMechanism(epsilon=dp_params.eps,
+                                                   sensitivity=l1_sensitivity)
+        return mechanism.diversity * np.sqrt(2)
     if dp_params.noise_kind == pipeline_dp.NoiseKind.GAUSSIAN:
         l2_sensitivity = compute_l2_sensitivity(dp_params.l0_sensitivity(),
                                                 linf_sensitivity)

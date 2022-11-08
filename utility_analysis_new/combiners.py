@@ -128,8 +128,7 @@ class PartitionSelectionCalculator:
             max_partitions_contributed)
         probability = 0
         for i, prob in enumerate(pmf):
-            # DO-NOT-SUBMIT
-            probability += prob * 0.5
+            probability += prob * ps_strategy.probability_of_keep(i)
         return probability
 
     def _compute_pmf(self) -> np.ndarray:
@@ -323,9 +322,10 @@ class PrivacyIdCountCombiner(CountCombiner):
 
     def create_accumulator(self, data: Tuple[int, float,
                                              int]) -> AccumulatorType:
-        accumulator = list(super().create_accumulator(data))
-        accumulator[1] = 0  # per_partition_error is always 0
-        return tuple(accumulator)
+        count, _sum, n_partitions = data
+        count = 1 if count > 0 else 0
+        data = count, _sum, n_partitions
+        return super().create_accumulator(data)
 
 
 class CompoundCombiner(pipeline_dp.combiners.CompoundCombiner):

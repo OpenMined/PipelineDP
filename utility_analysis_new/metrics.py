@@ -84,8 +84,8 @@ class PrivacyIdCountMetrics:
 
 
 class AggregateMetricType(Enum):
-    PRIVACY_ID_COUNT = 1
-    COUNT = 2
+    PRIVACY_ID_COUNT = 'privacy_id_count'
+    COUNT = 'count'
 
 
 @dataclass

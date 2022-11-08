@@ -325,7 +325,7 @@ class UtilityAnalysisPrivacyIdCountCombinerTest(parameterized.TestCase):
                  count=0,
                  per_partition_error=0,
                  std_noise=10.556883272246033,
-                 expected_cross_partition_error=-1,
+                 expected_cross_partition_error=0,
                  std_cross_partition_error=0,
                  noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)),
         dict(testcase_name='single_contribution_keep_half',

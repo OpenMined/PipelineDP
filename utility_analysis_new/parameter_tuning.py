@@ -157,10 +157,8 @@ def _convert_utility_analysis_to_tune_result(
     # partition selection.
     assert tune_options.function_to_minimize == MinimizingFunction.ABSOLUTE_ERROR
 
-    index_best = np.argmin([
-        ae.aggregate_error_metrics.absolute_rmse()
-        for ae in utility_analysis_result
-    ])
+    index_best = np.argmin(
+        [ae.count_metrics.absolute_rmse() for ae in utility_analysis_result])
 
     return TuneResult(tune_options, contribution_histograms, run_configurations,
                       index_best, utility_analysis_result)
