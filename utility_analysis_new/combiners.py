@@ -315,48 +315,17 @@ class SumCombiner(UtilityAnalysisCombiner):
         ]
 
 
-class PrivacyIdCountCombiner(UtilityAnalysisCombiner):
+class PrivacyIdCountCombiner(CountCombiner):
     """A combiner for utility analysis privacy ID counts."""
-    # (privacy_id_count, expected_cross_partition_error,
+    # (count, per_partition_error, expected_cross_partition_error,
     # var_cross_partition_error)
-    AccumulatorType = Tuple[int, float, float]
-
-    def __init__(self, params: pipeline_dp.combiners.CombinerParams):
-        self._params = params
+    AccumulatorType = Tuple[int, int, float, float]
 
     def create_accumulator(self, data: Tuple[int, float,
                                              int]) -> AccumulatorType:
-        count, sum_, n_partitions = data
-        privacy_id_count = 1 if count > 0 else 0
-        max_partitions = self._params.aggregate_params.max_partitions_contributed
-        prob_keep_partition = min(1, max_partitions /
-                                  n_partitions) if n_partitions > 0 else 0
-        expected_cross_partition_error = -(
-            1 - prob_keep_partition) if n_partitions > 0 else 0
-        var_cross_partition_error = prob_keep_partition * (1 -
-                                                           prob_keep_partition)
-
-        return (privacy_id_count, expected_cross_partition_error,
-                var_cross_partition_error)
-
-    def compute_metrics(self,
-                        acc: AccumulatorType) -> metrics.PrivacyIdCountMetrics:
-        """Computes metrics based on the accumulator properties."""
-        privacy_id_count, expected_cross_partition_error, var_cross_partition_error = acc
-        std_noise = dp_computations.compute_dp_count_noise_std(
-            self._params.scalar_noise_params)
-        return metrics.PrivacyIdCountMetrics(
-            privacy_id_count=privacy_id_count,
-            expected_cross_partition_error=expected_cross_partition_error,
-            std_cross_partition_error=np.sqrt(var_cross_partition_error),
-            std_noise=std_noise,
-            noise_kind=self._params.aggregate_params.noise_kind)
-
-    def metrics_names(self) -> List[str]:
-        return [
-            'privacy_id_count', 'expected_cross_partition_error',
-            'std_cross_partition_error', 'std_noise', 'noise_kind'
-        ]
+        accumulator = list(super().create_accumulator(data))
+        accumulator[1] = 0  # per_partition_error is always 0
+        return tuple(accumulator)
 
 
 class CompoundCombiner(pipeline_dp.combiners.CompoundCombiner):
@@ -551,8 +520,13 @@ class CountAggregateErrorMetricsCombiner(pipeline_dp.Combiner):
     def compute_metrics(self,
                         acc: AccumulatorType) -> metrics.AggregateErrorMetrics:
         """Computes metrics based on the accumulator properties."""
+        return self._compute_metrics(acc, metrics.AggregateMetricType.COUNT)
+
+    def _compute_metrics(self, acc: AccumulatorType,
+                         metric_type) -> metrics.AggregateErrorMetrics:
+        """Internal implementation of compute_metrics based on metric_type"""
         return metrics.AggregateErrorMetrics(
-            metric_type=metrics.AggregateMetricType.COUNT,
+            metric_type=metric_type,
             abs_error_expected=acc.abs_error_expected /
             acc.kept_partitions_expected,
             abs_error_variance=acc.abs_error_variance /
@@ -572,110 +546,25 @@ class CountAggregateErrorMetricsCombiner(pipeline_dp.Combiner):
 
     def metrics_names(self) -> List[str]:
         return [
-            'abs_error_expected', 'abs_error_variance', 'abs_error_quantiles',
-            'rel_error_expected', 'rel_error_variance', 'rel_error_quantiles'
+            'metric_type', 'abs_error_expected', 'abs_error_variance',
+            'abs_error_quantiles', 'rel_error_expected', 'rel_error_variance',
+            'rel_error_quantiles'
         ]
 
     def explain_computation(self):
         pass
 
 
-class PrivacyIdCountAggregateErrorMetricsCombiner(pipeline_dp.Combiner):
+class PrivacyIdCountAggregateErrorMetricsCombiner(
+        CountAggregateErrorMetricsCombiner):
     """A combiner for aggregating errors across partitions for PrivacyIdCount"""
     AccumulatorType = AggregateErrorMetricsAccumulator
-
-    def __init__(self, params: pipeline_dp.combiners.CombinerParams,
-                 error_quantiles: List[float]):
-        self._params = params
-        # The contribution bounding error is negative, so quantiles <0.5 for the
-        # error distribution (which is the sum of the noise and the contribution
-        # bounding error) should be used to come up with the worst error
-        # quantiles.
-        self._error_quantiles = [(1 - q) for q in error_quantiles]
-
-    def create_accumulator(self,
-                           metrics: metrics.PrivacyIdCountMetrics,
-                           probability_to_keep: float = 1) -> AccumulatorType:
-        """Creates an accumulator for metrics."""
-        # Absolute error metrics
-        abs_error_expected = probability_to_keep * metrics.expected_cross_partition_error
-        abs_error_variance = probability_to_keep * (
-            metrics.std_cross_partition_error**2 + metrics.std_noise**2)
-        loc_cpe_ne = metrics.expected_cross_partition_error
-        std_cpe_ne = math.sqrt(metrics.std_cross_partition_error**2 +
-                               metrics.std_noise**2)
-        abs_error_quantiles = []
-        if metrics.noise_kind == pipeline_dp.NoiseKind.GAUSSIAN:
-            error_distribution_quantiles = scipy.stats.norm.ppf(
-                q=self._error_quantiles, loc=loc_cpe_ne, scale=std_cpe_ne)
-        else:
-            error_distribution_quantiles = probability_computations.compute_sum_laplace_gaussian_quantiles(
-                laplace_b=metrics.std_noise / np.sqrt(2),
-                gaussian_sigma=metrics.std_cross_partition_error,
-                quantiles=self._error_quantiles,
-                num_samples=10**3)
-        for quantile in error_distribution_quantiles:
-            error_at_quantile = probability_to_keep * quantile
-            abs_error_quantiles.append(error_at_quantile)
-
-        # Relative error metrics
-        if metrics.privacy_id_count == 0:  # For empty public partitions, to avoid division by 0
-            rel_error_expected = 0
-            rel_error_variance = 0
-            rel_error_quantiles = [0] * len(self._error_quantiles)
-        else:
-            rel_error_expected = abs_error_expected / metrics.privacy_id_count
-            rel_error_variance = abs_error_variance / (metrics.privacy_id_count
-                                                       **2)
-            rel_error_quantiles = [
-                error / metrics.privacy_id_count
-                for error in abs_error_quantiles
-            ]
-
-        return AggregateErrorMetricsAccumulator(
-            kept_partitions_expected=probability_to_keep,
-            abs_error_expected=abs_error_expected,
-            abs_error_variance=abs_error_variance,
-            abs_error_quantiles=abs_error_quantiles,
-            rel_error_expected=rel_error_expected,
-            rel_error_variance=rel_error_variance,
-            rel_error_quantiles=rel_error_quantiles,
-        )
-
-    def merge_accumulators(self, acc1: AccumulatorType, acc2: AccumulatorType):
-        """Merges two accumulators together additively."""
-        return acc1 + acc2
 
     def compute_metrics(self,
                         acc: AccumulatorType) -> metrics.AggregateErrorMetrics:
         """Computes metrics based on the accumulator properties."""
-        return metrics.AggregateErrorMetrics(
-            metric_type=metrics.AggregateMetricType.PRIVACY_ID_COUNT,
-            abs_error_expected=acc.abs_error_expected /
-            acc.kept_partitions_expected,
-            abs_error_variance=acc.abs_error_variance /
-            acc.kept_partitions_expected,
-            abs_error_quantiles=[
-                sum / acc.kept_partitions_expected
-                for sum in acc.abs_error_quantiles
-            ],
-            rel_error_expected=acc.rel_error_expected /
-            acc.kept_partitions_expected,
-            rel_error_variance=acc.rel_error_variance /
-            acc.kept_partitions_expected,
-            rel_error_quantiles=[
-                sum / acc.kept_partitions_expected
-                for sum in acc.rel_error_quantiles
-            ])
-
-    def metrics_names(self) -> List[str]:
-        return [
-            'abs_error_expected', 'abs_error_variance', 'abs_error_quantiles',
-            'rel_error_expected', 'rel_error_variance', 'rel_error_quantiles'
-        ]
-
-    def explain_computation(self):
-        pass
+        return super()._compute_metrics(
+            acc, metrics.AggregateMetricType.PRIVACY_ID_COUNT)
 
 
 class PrivatePartitionSelectionAggregateErrorMetricsCombiner(

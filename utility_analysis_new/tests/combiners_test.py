@@ -321,8 +321,9 @@ class UtilityAnalysisPrivacyIdCountCombinerTest(parameterized.TestCase):
              num_partitions=0,
              contribution_values=(),
              params=_create_combiner_params_for_privacy_id_count(),
-             expected_metrics=metrics.PrivacyIdCountMetrics(
-                 privacy_id_count=0,
+             expected_metrics=metrics.CountMetrics(
+                 count=0,
+                 per_partition_error=0,
                  std_noise=10.556883272246033,
                  expected_cross_partition_error=-1,
                  std_cross_partition_error=0,
@@ -331,8 +332,9 @@ class UtilityAnalysisPrivacyIdCountCombinerTest(parameterized.TestCase):
              num_partitions=4,
              contribution_values=(2,),
              params=_create_combiner_params_for_privacy_id_count(),
-             expected_metrics=metrics.PrivacyIdCountMetrics(
-                 privacy_id_count=1,
+             expected_metrics=metrics.CountMetrics(
+                 count=1,
+                 per_partition_error=0,
                  expected_cross_partition_error=-0.5,
                  std_cross_partition_error=0.5,
                  std_noise=10.556883272246033,
@@ -341,8 +343,9 @@ class UtilityAnalysisPrivacyIdCountCombinerTest(parameterized.TestCase):
              num_partitions=4,
              contribution_values=(2, 2, 2, 2),
              params=_create_combiner_params_for_privacy_id_count(),
-             expected_metrics=metrics.PrivacyIdCountMetrics(
-                 privacy_id_count=1,
+             expected_metrics=metrics.CountMetrics(
+                 count=1,
+                 per_partition_error=0,
                  expected_cross_partition_error=-0.5,
                  std_cross_partition_error=0.5,
                  std_noise=10.556883272246033,
@@ -351,8 +354,9 @@ class UtilityAnalysisPrivacyIdCountCombinerTest(parameterized.TestCase):
              num_partitions=1,
              contribution_values=(2, 2),
              params=_create_combiner_params_for_privacy_id_count(),
-             expected_metrics=metrics.PrivacyIdCountMetrics(
-                 privacy_id_count=1,
+             expected_metrics=metrics.CountMetrics(
+                 count=1,
+                 per_partition_error=0,
                  expected_cross_partition_error=0,
                  std_cross_partition_error=0,
                  std_noise=10.556883272246033,
@@ -364,8 +368,7 @@ class UtilityAnalysisPrivacyIdCountCombinerTest(parameterized.TestCase):
             (len(contribution_values), sum(contribution_values),
              num_partitions))
         actual_metrics = utility_analysis_combiner.compute_metrics(test_acc)
-        self.assertAlmostEqual(expected_metrics.privacy_id_count,
-                               actual_metrics.privacy_id_count)
+        self.assertAlmostEqual(expected_metrics.count, actual_metrics.count)
         self.assertAlmostEqual(expected_metrics.expected_cross_partition_error,
                                actual_metrics.expected_cross_partition_error)
         self.assertAlmostEqual(expected_metrics.std_cross_partition_error,
