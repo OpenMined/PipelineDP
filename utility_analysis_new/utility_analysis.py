@@ -141,17 +141,17 @@ def _create_aggregate_error_compound_combiner(
             internal_combiners.append(
                 utility_analysis_combiners.
                 PrivatePartitionSelectionAggregateErrorMetricsCombiner(
-                    None, error_quantiles))
+                    error_quantiles))
         # WARNING: The order here needs to follow the order in
         # UtilityAnalysisEngine._create_compound_combiner().
         if pipeline_dp.Metrics.COUNT in aggregate_params.metrics:
             internal_combiners.append(
                 utility_analysis_combiners.CountAggregateErrorMetricsCombiner(
-                    None, error_quantiles))
+                    metrics.AggregateMetricType.COUNT, error_quantiles))
         if pipeline_dp.Metrics.PRIVACY_ID_COUNT in aggregate_params.metrics:
             internal_combiners.append(
-                utility_analysis_combiners.
-                PrivacyIdCountAggregateErrorMetricsCombiner(
-                    None, error_quantiles))
+                utility_analysis_combiners.CountAggregateErrorMetricsCombiner(
+                    metrics.AggregateMetricType.PRIVACY_ID_COUNT,
+                    error_quantiles))
     return utility_analysis_combiners.AggregateErrorMetricsCompoundCombiner(
         internal_combiners, return_named_tuple=False)

@@ -454,9 +454,9 @@ class CountAggregateErrorMetricsCombiner(pipeline_dp.Combiner):
     """A combiner for aggregating errors across partitions for Count"""
     AccumulatorType = AggregateErrorMetricsAccumulator
 
-    def __init__(self, params: pipeline_dp.combiners.CombinerParams,
+    def __init__(self, metric_type: metrics.AggregateMetricType,
                  error_quantiles: List[float]):
-        self._params = params
+        self._metric_type = metric_type
         # The contribution bounding error is negative, so quantiles <0.5 for the
         # error distribution (which is the sum of the noise and the contribution
         # bounding error) should be used to come up with the worst error
@@ -520,13 +520,8 @@ class CountAggregateErrorMetricsCombiner(pipeline_dp.Combiner):
     def compute_metrics(self,
                         acc: AccumulatorType) -> metrics.AggregateErrorMetrics:
         """Computes metrics based on the accumulator properties."""
-        return self._compute_metrics(acc, metrics.AggregateMetricType.COUNT)
-
-    def _compute_metrics(self, acc: AccumulatorType,
-                         metric_type) -> metrics.AggregateErrorMetrics:
-        """Internal implementation of compute_metrics based on metric_type"""
         return metrics.AggregateErrorMetrics(
-            metric_type=metric_type,
+            metric_type=self._metric_type,
             abs_error_expected=acc.abs_error_expected /
             acc.kept_partitions_expected,
             abs_error_variance=acc.abs_error_variance /
@@ -555,26 +550,12 @@ class CountAggregateErrorMetricsCombiner(pipeline_dp.Combiner):
         pass
 
 
-class PrivacyIdCountAggregateErrorMetricsCombiner(
-        CountAggregateErrorMetricsCombiner):
-    """A combiner for aggregating errors across partitions for PrivacyIdCount"""
-    AccumulatorType = AggregateErrorMetricsAccumulator
-
-    def compute_metrics(self,
-                        acc: AccumulatorType) -> metrics.AggregateErrorMetrics:
-        """Computes metrics based on the accumulator properties."""
-        return super()._compute_metrics(
-            acc, metrics.AggregateMetricType.PRIVACY_ID_COUNT)
-
-
 class PrivatePartitionSelectionAggregateErrorMetricsCombiner(
         pipeline_dp.Combiner):
     """A combiner for aggregating errors across partitions for private partition selection"""
     AccumulatorType = PartitionSelectionAccumulator
 
-    def __init__(self, params: pipeline_dp.combiners.CombinerParams,
-                 error_quantiles: List[float]):
-        self._params = params
+    def __init__(self, error_quantiles: List[float]):
         self._error_quantiles = error_quantiles
 
     def create_accumulator(

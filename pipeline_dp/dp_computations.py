@@ -106,7 +106,6 @@ def compute_sigma(eps: float, delta: float, l2_sensitivity: float):
     # TODO: use named arguments, when argument names are added in PyDP on PR
     # https://github.com/OpenMined/PyDP/pull/398.
     return dp_mechanisms.GaussianMechanism(eps, delta, l2_sensitivity).std
-    return 1
 
 
 def apply_laplace_mechanism(value: float, eps: float, l1_sensitivity: float):
