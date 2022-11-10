@@ -33,7 +33,9 @@ class UtilityAnalysis(parameterized.TestCase):
         # Arrange
         aggregate_params = pipeline_dp.AggregateParams(
             noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
-            metrics=[pipeline_dp.Metrics.COUNT],
+            metrics=[
+                pipeline_dp.Metrics.COUNT, pipeline_dp.Metrics.PRIVACY_ID_COUNT
+            ],
             max_partitions_contributed=1,
             max_contributions_per_partition=2)
 
@@ -64,42 +66,40 @@ class UtilityAnalysis(parameterized.TestCase):
         self.assertEqual(output.partition_selection_metrics.num_partitions, 10)
         self.assertAlmostEqual(
             output.partition_selection_metrics.dropped_partitions_expected,
-            5.68885,
+            6.59654,
             delta=1e-5)
         self.assertAlmostEqual(
             output.partition_selection_metrics.dropped_partitions_variance,
-            2.45254,
+            2.24510,
             delta=1e-5)
         # Assert count metrics are reasonable.
-        self.assertAlmostEqual(
-            output.aggregate_error_metrics.abs_error_expected, -28, delta=1e-5)
-        self.assertAlmostEqual(
-            output.aggregate_error_metrics.abs_error_variance,
-            4.789888954162597,
-            delta=1e-5)
-        self.assertAlmostEqual(
-            output.aggregate_error_metrics.rel_error_expected,
-            -0.933333333333333,
-            delta=1e-5)
-        self.assertAlmostEqual(
-            output.aggregate_error_metrics.rel_error_variance,
-            0.005322098837958442,
-            delta=1e-5)
+        self.assertAlmostEqual(output.count_metrics.abs_error_expected,
+                               -28,
+                               delta=1e-5)
+        self.assertAlmostEqual(output.count_metrics.abs_error_variance,
+                               6.12449,
+                               delta=1e-5)
+        self.assertAlmostEqual(output.count_metrics.rel_error_expected,
+                               -0.933333333333333,
+                               delta=1e-5)
+        self.assertAlmostEqual(output.count_metrics.rel_error_variance,
+                               0.0068049,
+                               delta=1e-5)
 
     @parameterized.named_parameters(
         dict(testcase_name="Gaussian noise",
              noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
              abs_error_expected=0,
-             abs_error_variance=9.164810180664068,
+             abs_error_variance=35.71929,
              rel_error_expected=0,
-             rel_error_variance=6.109873453776042,
+             rel_error_variance=23.81286,
              median_error=0),
         dict(testcase_name="Laplace noise",
              noise_kind=pipeline_dp.NoiseKind.LAPLACE,
              abs_error_expected=0,
-             abs_error_variance=0.5,
+             abs_error_variance=2.0,
              rel_error_expected=0,
-             rel_error_variance=0.3333333333333334,
+             rel_error_variance=1.3333333333333334,
              median_error=0),
     )
     def test_w_public_partitions(self, noise_kind, abs_error_expected,
@@ -108,7 +108,9 @@ class UtilityAnalysis(parameterized.TestCase):
         # Arrange
         aggregator_params = pipeline_dp.AggregateParams(
             noise_kind=noise_kind,
-            metrics=[pipeline_dp.Metrics.COUNT],
+            metrics=[
+                pipeline_dp.Metrics.COUNT, pipeline_dp.Metrics.PRIVACY_ID_COUNT
+            ],
             max_partitions_contributed=1,
             max_contributions_per_partition=1)
 
@@ -136,24 +138,26 @@ class UtilityAnalysis(parameterized.TestCase):
         # Assert
         # Assert a singleton is returned
         self.assertLen(col, 1)
-        # Assert there is only a single AggregateErrorMetrics & no metrics for
+        # Assert there is only a single AggregateMetrics & no metrics for
         # partition selection are returned.
         self.assertLen(col[0], 1)
-        # Assert count metrics are reasonable.
-        self.assertAlmostEqual(
-            col[0][0].aggregate_error_metrics.abs_error_expected,
-            abs_error_expected)
-        self.assertAlmostEqual(
-            col[0][0].aggregate_error_metrics.abs_error_variance,
-            abs_error_variance)
-        self.assertAlmostEqual(
-            col[0][0].aggregate_error_metrics.abs_error_quantiles[1],
-            median_error,
-            delta=0.1)
-        self.assertEqual(col[0][0].aggregate_error_metrics.rel_error_expected,
-                         rel_error_expected)
-        self.assertEqual(col[0][0].aggregate_error_metrics.rel_error_variance,
-                         rel_error_variance)
+
+        # Assert privacy id count metrics are reasonable.
+        def check_metric(metrics):
+            self.assertEqual(metrics.abs_error_expected, abs_error_expected)
+            self.assertAlmostEqual(metrics.abs_error_variance,
+                                   abs_error_variance,
+                                   delta=1e-5)
+            self.assertAlmostEqual(metrics.abs_error_quantiles[1],
+                                   median_error,
+                                   delta=0.1)
+            self.assertEqual(metrics.rel_error_expected, rel_error_expected)
+            self.assertAlmostEqual(metrics.rel_error_variance,
+                                   rel_error_variance,
+                                   delta=1e-5)
+
+        check_metric(col[0][0].privacy_id_count_metrics)
+        check_metric(col[0][0].count_metrics)
 
     def test_multi_parameters(self):
         # Arrange
@@ -194,13 +198,12 @@ class UtilityAnalysis(parameterized.TestCase):
         # Assert
         # Assert a singleton is returned
         self.assertLen(output, 1)
-        # Assert there are 2 AggregateErrorMetrics returned
+        # Assert there are 2 AggregateMetrics returned
         self.assertLen(output[0], 2)
         # Assert abs_error_expected is correct.
-        self.assertAlmostEqual(
-            output[0][0].aggregate_error_metrics.abs_error_expected, -1)
-        self.assertAlmostEqual(
-            output[0][1].aggregate_error_metrics.abs_error_expected, 0)
+        self.assertAlmostEqual(output[0][0].count_metrics.abs_error_expected,
+                               -1)
+        self.assertAlmostEqual(output[0][1].count_metrics.abs_error_expected, 0)
 
 
 if __name__ == '__main__':

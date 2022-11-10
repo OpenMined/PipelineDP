@@ -43,7 +43,7 @@ class UtilityAnalysisOptions:
                 f" (0, 1], but {self.partitions_sampling_prob} given.")
 
     @property
-    def n_parameters(self):
+    def n_configurations(self):
         if self.multi_param_configuration is None:
             return 1
         return self.multi_param_configuration.size
@@ -89,7 +89,7 @@ def perform_utility_analysis(col,
 
     aggregate_error_combiners = _create_aggregate_error_compound_combiner(
         options.aggregate_params, [0.1, 0.5, 0.9, 0.99], public_partitions,
-        options.n_parameters)
+        options.n_configurations)
     # TODO: Implement combine_accumulators (w/o per_key)
     keyed_by_same_key = backend.map(per_partition_analysis_result, lambda v:
                                     (None, v[1]),
@@ -114,21 +114,19 @@ def perform_utility_analysis(col,
     # aggregates : (aggregate_metrics)
 
     def pack_metrics(aggregate_metrics) -> List[metrics.AggregateMetrics]:
-        if public_partitions is None:
-            # aggregate_metrics has format  [PartitionSelectionMetrics,
-            # AggregateErrorMetrics, PartitionSelectionMetrics ...]
-            # Each consecutive pair PartitionSelectionMetrics and
-            # AggregateErrorMetrics correspond to one Utility Analysis
-            # configuration.
-            return [
-                metrics.AggregateMetrics(aggregate_metrics[i + 1],
-                                         aggregate_metrics[i])
-                for i in range(0, len(aggregate_metrics), 2)
-            ]
-        return [
-            metrics.AggregateMetrics(aggregate_error_metrics)
-            for aggregate_error_metrics in aggregate_metrics
-        ]
+        # aggregate_metrics is a flat list of PartitionSelectionMetrics and
+        # AggregateErrorMetrics with options.n_configurations sequential
+        # configurations of metrics. Each AggregateErrorMetrics within a
+        # configuration correspond to a different aggregation.
+        metrics_per_config = len(aggregate_metrics) // options.n_configurations
+        return_list = []
+        for i in range(options.n_configurations):
+            packed_metrics = metrics.AggregateMetrics()
+            for j in range(i * metrics_per_config,
+                           (i + 1) * metrics_per_config):
+                _populate_packed_metrics(packed_metrics, aggregate_metrics[j])
+            return_list.append(packed_metrics)
+        return return_list
 
     result = backend.map(aggregates, pack_metrics,
                          "Pack metrics from the same run")
@@ -138,20 +136,37 @@ def perform_utility_analysis(col,
     return result
 
 
+def _populate_packed_metrics(packed_metrics: metrics.AggregateMetrics, metric):
+    """Sets the appropriate packed_metrics field with 'metric' according to 'metric' type."""
+    if isinstance(metric, metrics.PartitionSelectionMetrics):
+        packed_metrics.partition_selection_metrics = metric
+    elif metric.metric_type == metrics.AggregateMetricType.PRIVACY_ID_COUNT:
+        packed_metrics.privacy_id_count_metrics = metric
+    elif metric.metric_type == metrics.AggregateMetricType.COUNT:
+        packed_metrics.count_metrics = metric
+
+
 def _create_aggregate_error_compound_combiner(
         aggregate_params: pipeline_dp.AggregateParams,
         error_quantiles: List[float], public_partitions: bool,
-        n_parameters: int) -> combiners.CompoundCombiner:
+        n_configurations: int) -> combiners.CompoundCombiner:
     internal_combiners = []
-    for i in range(n_parameters):
+    for i in range(n_configurations):
         if not public_partitions:
             internal_combiners.append(
                 utility_analysis_combiners.
                 PrivatePartitionSelectionAggregateErrorMetricsCombiner(
-                    None, error_quantiles))
+                    error_quantiles))
+        # WARNING: The order here needs to follow the order in
+        # UtilityAnalysisEngine._create_compound_combiner().
         if pipeline_dp.Metrics.COUNT in aggregate_params.metrics:
             internal_combiners.append(
                 utility_analysis_combiners.CountAggregateErrorMetricsCombiner(
-                    None, error_quantiles))
+                    metrics.AggregateMetricType.COUNT, error_quantiles))
+        if pipeline_dp.Metrics.PRIVACY_ID_COUNT in aggregate_params.metrics:
+            internal_combiners.append(
+                utility_analysis_combiners.CountAggregateErrorMetricsCombiner(
+                    metrics.AggregateMetricType.PRIVACY_ID_COUNT,
+                    error_quantiles))
     return utility_analysis_combiners.AggregateErrorMetricsCompoundCombiner(
         internal_combiners, return_named_tuple=False)
