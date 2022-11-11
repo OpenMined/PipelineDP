@@ -65,24 +65,6 @@ class SumMetrics:
     noise_kind: pipeline_dp.NoiseKind
 
 
-@dataclass
-class PrivacyIdCountMetrics:
-    """Stores metrics for the privacy ID count utility analysis.
-
-  Attributes:
-      privacy_id_count: actual count of privacy id in a partition.
-      expected_cross_partition_error: the estimated amount of error across partitions.
-      std_cross_partition_error: the standard deviation of the contribution bounding error.
-      std_noise: the noise standard deviation for DP count.
-      noise_kind: the type of noise used.
-  """
-    privacy_id_count: int
-    expected_cross_partition_error: float
-    std_cross_partition_error: float
-    std_noise: float
-    noise_kind: pipeline_dp.NoiseKind
-
-
 class AggregateMetricType(Enum):
     PRIVACY_ID_COUNT = 'privacy_id_count'
     COUNT = 'count'
@@ -95,10 +77,19 @@ class AggregateErrorMetrics:
   All attributes in this dataclass are averages across partitions.
   """
     metric_type: AggregateMetricType
+    ratio_data_dropped_l0: float
+    ratio_data_dropped_linf: float
+    ratio_data_dropped_partition_selection: float
+    abs_error_l0_expected: float
+    abs_error_linf_expected: float
     abs_error_expected: float
+    abs_error_l0_variance: float
     abs_error_variance: float
     abs_error_quantiles: List[float]
+    rel_error_l0_expected: float
+    rel_error_linf_expected: float
     rel_error_expected: float
+    rel_error_l0_variance: float
     rel_error_variance: float
     rel_error_quantiles: List[float]
 

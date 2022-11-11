@@ -395,11 +395,20 @@ class AggregateErrorMetricsAccumulator:
 
     All fields in this dataclass are sums across partitions"""
     kept_partitions_expected: float
+    total_aggregate: float  # sum, count, privacy_id_count across partitions
 
-    abs_error_expected: float
+    data_dropped_l0: float
+    data_dropped_linf: float
+    data_dropped_partition_selection: float
+
+    abs_error_l0_expected: float
+    abs_error_linf_expected: float
+    abs_error_l0_variance: float
     abs_error_variance: float
     abs_error_quantiles: List[float]
-    rel_error_expected: float
+    rel_error_l0_expected: float
+    rel_error_linf_expected: float
+    rel_error_l0_expected: float
     rel_error_variance: float
     rel_error_quantiles: List[float]
 
@@ -407,16 +416,30 @@ class AggregateErrorMetricsAccumulator:
         return AggregateErrorMetricsAccumulator(
             kept_partitions_expected=self.kept_partitions_expected +
             other.kept_partitions_expected,
-            abs_error_expected=self.abs_error_expected +
-            other.abs_error_expected,
+            total_aggregate=self.total_aggregate + other.total_aggregate,
+            data_dropped_l0=self.data_dropped_l0 + other.data_dropped_l0,
+            data_dropped_linf=self.data_dropped_linf + other.data_dropped_linf,
+            data_dropped_partition_selection=self.
+            data_dropped_partition_selection +
+            other.ata_dropped_partition_selection,
+            abs_error_l0_expected=self.abs_error_l0_expected +
+            other.abs_error_l0_expected,
+            abs_error_linf_expected=self.abs_error_linf_expected +
+            other.abs_error_linf_expected,
+            abs_error_l0_variance=self.abs_error_l0_variance +
+            other.abs_error_l0_variance,
             abs_error_variance=self.abs_error_variance +
             other.abs_error_variance,
             abs_error_quantiles=[
                 s1 + s2 for (s1, s2) in zip(self.abs_error_quantiles,
                                             other.abs_error_quantiles)
             ],
-            rel_error_expected=self.rel_error_expected +
-            other.rel_error_expected,
+            rel_error_l0_expected=self.rel_error_l0_expected +
+            other.rel_error_l0_expected,
+            rel_error_linf_expected=self.rel_error_linf_expected +
+            other.rel_error_linf_expected,
+            rel_error_l0_variance=self.rel_error_l0_variance +
+            other.rel_error_l0_variance,
             rel_error_variance=self.rel_error_variance +
             other.rel_error_variance,
             rel_error_quantiles=[
@@ -462,10 +485,18 @@ class CountAggregateErrorMetricsCombiner(pipeline_dp.Combiner):
                            metrics: metrics.CountMetrics,
                            probability_to_keep: float = 1) -> AccumulatorType:
         """Creates an accumulator for metrics."""
+        # Data drop ratio metrics
+        total_aggregate = metrics.count
+        data_dropped_l0 = metrics.expected_cross_partition_error
+        data_dropped_linf = metrics.per_partition_error
+        data_dropped_partition_selection = (1 - probability_to_keep) * (
+            metrics.count + metrics.expected_cross_partition_error +
+            metrics.per_partition_error)
+
         # Absolute error metrics
-        abs_error_expected = probability_to_keep * (
-            metrics.per_partition_error +
-            metrics.expected_cross_partition_error)
+        abs_error_l0_expected = probability_to_keep * metrics.expected_cross_partition_error
+        abs_error_linf_expected = probability_to_keep * metrics.per_partition_error
+        abs_error_l0_variance = probability_to_keep * metrics.std_cross_partition_error
         abs_error_variance = probability_to_keep * (
             metrics.std_cross_partition_error**2 + metrics.std_noise**2)
         loc_cpe_ne = metrics.expected_cross_partition_error
@@ -488,11 +519,15 @@ class CountAggregateErrorMetricsCombiner(pipeline_dp.Combiner):
 
         # Relative error metrics
         if metrics.count == 0:  # For empty public partitions, to avoid division by 0
-            rel_error_expected = 0
+            rel_error_l0_expected = 0
+            rel_error_linf_expected = 0
+            rel_error_l0_variance = 0
             rel_error_variance = 0
             rel_error_quantiles = [0] * len(self._error_quantiles)
         else:
-            rel_error_expected = abs_error_expected / metrics.count
+            rel_error_l0_expected = abs_error_l0_expected / metrics.count
+            rel_error_linf_expected = abs_error_l0_expected / metrics.count
+            rel_error_l0_variance = abs_error_l0_variance / (metrics.count**2)
             rel_error_variance = abs_error_variance / (metrics.count**2)
             rel_error_quantiles = [
                 error / metrics.count for error in abs_error_quantiles
@@ -500,10 +535,18 @@ class CountAggregateErrorMetricsCombiner(pipeline_dp.Combiner):
 
         return AggregateErrorMetricsAccumulator(
             kept_partitions_expected=probability_to_keep,
-            abs_error_expected=abs_error_expected,
+            total_aggregate=total_aggregate,
+            data_dropped_l0=data_dropped_l0,
+            data_dropped_linf=data_dropped_linf,
+            data_dropped_partition_selection=data_dropped_partition_selection,
+            abs_error_l0_expected=abs_error_l0_expected,
+            abs_error_linf_expected=abs_error_linf_expected,
+            abs_error_l0_variance=abs_error_l0_variance,
             abs_error_variance=abs_error_variance,
             abs_error_quantiles=abs_error_quantiles,
-            rel_error_expected=rel_error_expected,
+            rel_error_l0_expected=rel_error_l0_expected,
+            rel_error_linf_expected=rel_error_linf_expected,
+            rel_error_l0_variance=rel_error_l0_variance,
             rel_error_variance=rel_error_variance,
             rel_error_quantiles=rel_error_quantiles,
         )
@@ -515,9 +558,20 @@ class CountAggregateErrorMetricsCombiner(pipeline_dp.Combiner):
     def compute_metrics(self,
                         acc: AccumulatorType) -> metrics.AggregateErrorMetrics:
         """Computes metrics based on the accumulator properties."""
+        abs_error_l0_expected = acc.abs_error_l0_expected / acc.kept_partitions_expected
+        abs_error_linf_expected = acc.abs_error_linf_expected / acc.kept_partitions_expected
+        rel_error_l0_expected = acc.rel_error_l0_expected / acc.kept_partitions_expected
+        rel_error_linf_expected = acc.rel_error_linf_expected / acc.kept_partitions_expected
         return metrics.AggregateErrorMetrics(
             metric_type=self._metric_type,
-            abs_error_expected=acc.abs_error_expected /
+            ratio_data_dropped_l0=acc.data_dropped_l0 / acc.total_aggregate,
+            ratio_data_dropped_linf=acc.data_dropped_linf / acc.total_aggregate,
+            ratio_data_dropped_partition_selection=acc.
+            data_dropped_partition_selection / acc.total_aggregate,
+            abs_error_l0_expected=abs_error_l0_expected,
+            abs_error_linf_expected=abs_error_linf_expected,
+            abs_error_expected=abs_error_l0_expected + abs_error_linf_expected,
+            abs_error_l0_variance=acc.abs_error_l0_variance /
             acc.kept_partitions_expected,
             abs_error_variance=acc.abs_error_variance /
             acc.kept_partitions_expected,
@@ -525,7 +579,10 @@ class CountAggregateErrorMetricsCombiner(pipeline_dp.Combiner):
                 sum / acc.kept_partitions_expected
                 for sum in acc.abs_error_quantiles
             ],
-            rel_error_expected=acc.rel_error_expected /
+            rel_error_l0_expected=rel_error_l0_expected,
+            rel_error_linf_expected=rel_error_linf_expected,
+            rel_error_expected=rel_error_l0_expected + rel_error_linf_expected,
+            rel_error_l0_variance=acc.rel_error_l0_variance /
             acc.kept_partitions_expected,
             rel_error_variance=acc.rel_error_variance /
             acc.kept_partitions_expected,
@@ -536,9 +593,11 @@ class CountAggregateErrorMetricsCombiner(pipeline_dp.Combiner):
 
     def metrics_names(self) -> List[str]:
         return [
-            'metric_type', 'abs_error_expected', 'abs_error_variance',
-            'abs_error_quantiles', 'rel_error_expected', 'rel_error_variance',
-            'rel_error_quantiles'
+            'metric_type', 'abs_error_l0_expected', 'abs_error_linf_expected',
+            'abs_error_expected', 'abs_error_l0_variance', 'abs_error_variance',
+            'abs_error_quantiles', 'rel_error_l0_expected',
+            'rel_error_linf_expected', 'rel_error_expected',
+            'rel_error_l0_variance', 'rel_error_variance', 'rel_error_quantiles'
         ]
 
     def explain_computation(self):
