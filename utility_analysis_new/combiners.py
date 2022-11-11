@@ -593,8 +593,10 @@ class CountAggregateErrorMetricsCombiner(pipeline_dp.Combiner):
 
     def metrics_names(self) -> List[str]:
         return [
-            'metric_type', 'abs_error_l0_expected', 'abs_error_linf_expected',
-            'abs_error_expected', 'abs_error_l0_variance', 'abs_error_variance',
+            'metric_type', 'ratio_data_dropped_l0', 'ratio_data_dropped_linf',
+            'ratio_data_dropped_partition_selection', 'abs_error_l0_expected',
+            'abs_error_linf_expected', 'abs_error_expected',
+            'abs_error_l0_variance', 'abs_error_variance',
             'abs_error_quantiles', 'rel_error_l0_expected',
             'rel_error_linf_expected', 'rel_error_expected',
             'rel_error_l0_variance', 'rel_error_variance', 'rel_error_quantiles'
