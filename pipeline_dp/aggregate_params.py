@@ -134,7 +134,7 @@ class AggregateParams:
         partition_selection_strategy: which strategy to use for private
          partition selection. It is ignored when public partitions are used.
     """
-    metrics: List[Metrics]
+    metrics: List[Metric]
     noise_kind: NoiseKind = NoiseKind.LAPLACE
     max_partitions_contributed: Optional[int] = None
     max_contributions_per_partition: Optional[int] = None
