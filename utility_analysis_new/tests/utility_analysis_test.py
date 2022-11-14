@@ -73,38 +73,88 @@ class UtilityAnalysis(parameterized.TestCase):
             2.24510,
             delta=1e-5)
         # Assert count metrics are reasonable.
+        self.assertAlmostEqual(output.count_metrics.ratio_data_dropped_l0,
+                               0.6,
+                               delta=1e-5)
+        self.assertAlmostEqual(output.count_metrics.ratio_data_dropped_linf,
+                               0.33333,
+                               delta=1e-5)
+        self.assertAlmostEqual(
+            output.count_metrics.ratio_data_dropped_partition_selection,
+            0.04397,
+            delta=1e-5)
+        self.assertAlmostEqual(output.count_metrics.abs_error_l0_expected,
+                               -18,
+                               delta=1e-5)
+        self.assertAlmostEqual(output.count_metrics.abs_error_linf_expected,
+                               -10,
+                               delta=1e-5)
         self.assertAlmostEqual(output.count_metrics.abs_error_expected,
                                -28,
+                               delta=1e-5)
+        self.assertAlmostEqual(output.count_metrics.abs_error_l0_variance,
+                               1.89736,
                                delta=1e-5)
         self.assertAlmostEqual(output.count_metrics.abs_error_variance,
                                6.12449,
                                delta=1e-5)
+        self.assertAlmostEqual(output.count_metrics.rel_error_l0_expected,
+                               -0.6,
+                               delta=1e-5)
+        self.assertAlmostEqual(output.count_metrics.rel_error_linf_expected,
+                               -0.33333,
+                               delta=1e-5)
         self.assertAlmostEqual(output.count_metrics.rel_error_expected,
-                               -0.933333333333333,
+                               -0.93333,
+                               delta=1e-5)
+        self.assertAlmostEqual(output.count_metrics.rel_error_l0_variance,
+                               0.00210,
                                delta=1e-5)
         self.assertAlmostEqual(output.count_metrics.rel_error_variance,
-                               0.0068049,
+                               0.00680,
                                delta=1e-5)
 
     @parameterized.named_parameters(
         dict(testcase_name="Gaussian noise",
              noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+             ratio_data_dropped_l0=0,
+             ratio_data_dropped_linf=0,
+             ratio_data_dropped_partition_selection=0,
+             abs_error_l0_expected=0,
+             abs_error_linf_expected=0,
              abs_error_expected=0,
+             abs_error_l0_variance=0.0,
              abs_error_variance=35.71929,
+             rel_error_l0_expected=0,
+             rel_error_linf_expected=0,
              rel_error_expected=0,
+             rel_error_l0_variance=0.0,
              rel_error_variance=23.81286,
              median_error=0),
         dict(testcase_name="Laplace noise",
              noise_kind=pipeline_dp.NoiseKind.LAPLACE,
+             ratio_data_dropped_l0=0,
+             ratio_data_dropped_linf=0,
+             ratio_data_dropped_partition_selection=0,
+             abs_error_l0_expected=0,
+             abs_error_linf_expected=0,
              abs_error_expected=0,
+             abs_error_l0_variance=0.0,
              abs_error_variance=2.0,
+             rel_error_l0_expected=0,
+             rel_error_linf_expected=0,
              rel_error_expected=0,
+             rel_error_l0_variance=0.0,
              rel_error_variance=1.3333333333333334,
              median_error=0),
     )
-    def test_w_public_partitions(self, noise_kind, abs_error_expected,
-                                 abs_error_variance, rel_error_expected,
-                                 rel_error_variance, median_error):
+    def test_w_public_partitions(
+            self, noise_kind, ratio_data_dropped_l0, ratio_data_dropped_linf,
+            ratio_data_dropped_partition_selection, abs_error_l0_expected,
+            abs_error_linf_expected, abs_error_expected, abs_error_l0_variance,
+            abs_error_variance, rel_error_l0_expected, rel_error_linf_expected,
+            rel_error_expected, rel_error_l0_variance, rel_error_variance,
+            median_error):
         # Arrange
         aggregator_params = pipeline_dp.AggregateParams(
             noise_kind=noise_kind,
@@ -144,14 +194,28 @@ class UtilityAnalysis(parameterized.TestCase):
 
         # Assert privacy id count metrics are reasonable.
         def check_metric(metrics):
+            self.assertEqual(metrics.abs_error_l0_expected,
+                             abs_error_l0_expected)
+            self.assertEqual(metrics.abs_error_l0_expected,
+                             abs_error_linf_expected)
             self.assertEqual(metrics.abs_error_expected, abs_error_expected)
+            self.assertAlmostEqual(metrics.abs_error_l0_variance,
+                                   abs_error_l0_variance,
+                                   delta=1e-5)
             self.assertAlmostEqual(metrics.abs_error_variance,
                                    abs_error_variance,
                                    delta=1e-5)
             self.assertAlmostEqual(metrics.abs_error_quantiles[1],
                                    median_error,
                                    delta=0.1)
+            self.assertEqual(metrics.rel_error_l0_expected,
+                             rel_error_l0_expected)
+            self.assertEqual(metrics.rel_error_linf_expected,
+                             rel_error_linf_expected)
             self.assertEqual(metrics.rel_error_expected, rel_error_expected)
+            self.assertAlmostEqual(metrics.rel_error_l0_variance,
+                                   rel_error_l0_variance,
+                                   delta=1e-5)
             self.assertAlmostEqual(metrics.rel_error_variance,
                                    rel_error_variance,
                                    delta=1e-5)

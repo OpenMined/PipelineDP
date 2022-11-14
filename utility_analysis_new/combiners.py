@@ -408,7 +408,7 @@ class AggregateErrorMetricsAccumulator:
     abs_error_quantiles: List[float]
     rel_error_l0_expected: float
     rel_error_linf_expected: float
-    rel_error_l0_expected: float
+    rel_error_l0_variance: float
     rel_error_variance: float
     rel_error_quantiles: List[float]
 
@@ -421,7 +421,7 @@ class AggregateErrorMetricsAccumulator:
             data_dropped_linf=self.data_dropped_linf + other.data_dropped_linf,
             data_dropped_partition_selection=self.
             data_dropped_partition_selection +
-            other.ata_dropped_partition_selection,
+            other.data_dropped_partition_selection,
             abs_error_l0_expected=self.abs_error_l0_expected +
             other.abs_error_l0_expected,
             abs_error_linf_expected=self.abs_error_linf_expected +
@@ -487,8 +487,8 @@ class CountAggregateErrorMetricsCombiner(pipeline_dp.Combiner):
         """Creates an accumulator for metrics."""
         # Data drop ratio metrics
         total_aggregate = metrics.count
-        data_dropped_l0 = metrics.expected_cross_partition_error
-        data_dropped_linf = metrics.per_partition_error
+        data_dropped_l0 = -metrics.expected_cross_partition_error
+        data_dropped_linf = -metrics.per_partition_error
         data_dropped_partition_selection = (1 - probability_to_keep) * (
             metrics.count + metrics.expected_cross_partition_error +
             metrics.per_partition_error)
@@ -526,7 +526,7 @@ class CountAggregateErrorMetricsCombiner(pipeline_dp.Combiner):
             rel_error_quantiles = [0] * len(self._error_quantiles)
         else:
             rel_error_l0_expected = abs_error_l0_expected / metrics.count
-            rel_error_linf_expected = abs_error_l0_expected / metrics.count
+            rel_error_linf_expected = abs_error_linf_expected / metrics.count
             rel_error_l0_variance = abs_error_l0_variance / (metrics.count**2)
             rel_error_variance = abs_error_variance / (metrics.count**2)
             rel_error_quantiles = [
@@ -562,6 +562,7 @@ class CountAggregateErrorMetricsCombiner(pipeline_dp.Combiner):
         abs_error_linf_expected = acc.abs_error_linf_expected / acc.kept_partitions_expected
         rel_error_l0_expected = acc.rel_error_l0_expected / acc.kept_partitions_expected
         rel_error_linf_expected = acc.rel_error_linf_expected / acc.kept_partitions_expected
+        acc.total_aggregate = max(1.0, acc.total_aggregate)
         return metrics.AggregateErrorMetrics(
             metric_type=self._metric_type,
             ratio_data_dropped_l0=acc.data_dropped_l0 / acc.total_aggregate,

@@ -74,11 +74,14 @@ class AggregateMetricType(Enum):
 class AggregateErrorMetrics:
     """Stores aggregate metrics for utility analysis.
 
-  All attributes in this dataclass are averages across partitions.
+  All attributes in this dataclass are averages across partitions; except for
+  ratio_* attributes, which are simply the ratios of total data dropped
+  aggregated across partitions.
   """
     metric_type: AggregateMetricType
     ratio_data_dropped_l0: float
     ratio_data_dropped_linf: float
+    # This can't be
     ratio_data_dropped_partition_selection: float
     abs_error_l0_expected: float
     abs_error_linf_expected: float
