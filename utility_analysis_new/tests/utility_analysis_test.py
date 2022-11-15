@@ -93,7 +93,7 @@ class UtilityAnalysis(parameterized.TestCase):
                                -28,
                                delta=1e-5)
         self.assertAlmostEqual(output.count_metrics.abs_error_l0_variance,
-                               1.89736,
+                               3.6,
                                delta=1e-5)
         self.assertAlmostEqual(output.count_metrics.abs_error_variance,
                                6.12449,
@@ -108,7 +108,7 @@ class UtilityAnalysis(parameterized.TestCase):
                                -0.93333,
                                delta=1e-5)
         self.assertAlmostEqual(output.count_metrics.rel_error_l0_variance,
-                               0.00210,
+                               0.004,
                                delta=1e-5)
         self.assertAlmostEqual(output.count_metrics.rel_error_variance,
                                0.00680,

@@ -81,7 +81,7 @@ class AggregateErrorMetrics:
     metric_type: AggregateMetricType
     ratio_data_dropped_l0: float
     ratio_data_dropped_linf: float
-    # This can't be
+    # This cannot be computed at PartitionSelectionMetrics and needs to be computed for each aggregation separately, since it takes into account data drop from contribution bounding and that is aggregation-specific.
     ratio_data_dropped_partition_selection: float
     abs_error_l0_expected: float
     abs_error_linf_expected: float

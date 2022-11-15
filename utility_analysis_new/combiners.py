@@ -496,7 +496,7 @@ class CountAggregateErrorMetricsCombiner(pipeline_dp.Combiner):
         # Absolute error metrics
         abs_error_l0_expected = probability_to_keep * metrics.expected_cross_partition_error
         abs_error_linf_expected = probability_to_keep * metrics.per_partition_error
-        abs_error_l0_variance = probability_to_keep * metrics.std_cross_partition_error
+        abs_error_l0_variance = probability_to_keep * metrics.std_cross_partition_error**2
         abs_error_variance = probability_to_keep * (
             metrics.std_cross_partition_error**2 + metrics.std_noise**2)
         loc_cpe_ne = metrics.expected_cross_partition_error
