@@ -243,7 +243,7 @@ class CountCombiner(UtilityAnalysisCombiner):
             count=count,
             per_partition_error=per_partition_error,
             expected_cross_partition_error=expected_cross_partition_error,
-            std_cross_partition_error=np.sqrt(var_cross_partition_error),
+            std_cross_partition_error=math.sqrt(var_cross_partition_error),
             std_noise=std_noise,
             noise_kind=self._params.aggregate_params.noise_kind)
 
@@ -297,7 +297,7 @@ class SumCombiner(UtilityAnalysisCombiner):
             per_partition_error_min=per_partition_error_min,
             per_partition_error_max=per_partition_error_max,
             expected_cross_partition_error=expected_cross_partition_error,
-            std_cross_partition_error=np.sqrt(var_cross_partition_error),
+            std_cross_partition_error=math.sqrt(var_cross_partition_error),
             std_noise=std_noise,
             noise_kind=self._params.aggregate_params.noise_kind)
 
@@ -508,13 +508,13 @@ class CountAggregateErrorMetricsCombiner(pipeline_dp.Combiner):
                 q=self._error_quantiles, loc=loc_cpe_ne, scale=std_cpe_ne)
         else:
             error_distribution_quantiles = probability_computations.compute_sum_laplace_gaussian_quantiles(
-                laplace_b=metrics.std_noise / np.sqrt(2),
+                laplace_b=metrics.std_noise / math.sqrt(2),
                 gaussian_sigma=metrics.std_cross_partition_error,
                 quantiles=self._error_quantiles,
                 num_samples=10**3)
         for quantile in error_distribution_quantiles:
             error_at_quantile = probability_to_keep * (
-                quantile + metrics.per_partition_error)
+                float(quantile) + metrics.per_partition_error)
             abs_error_quantiles.append(error_at_quantile)
 
         # Relative error metrics
