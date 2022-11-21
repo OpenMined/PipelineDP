@@ -271,7 +271,7 @@ class SumCombiner(UtilityAnalysisCombiner):
                                   n_partitions) if n_partitions > 0 else 0
         per_partition_contribution = np.clip(
             partition_sum, self._params.aggregate_params.min_sum_per_partition,
-            self._params.aggregate_params.max_sum_per_partition)
+            self._params.aggregate_params.max_sum_per_partition).item()
         per_partition_error_min = 0
         per_partition_error_max = 0
         per_partition_error = partition_sum - per_partition_contribution
