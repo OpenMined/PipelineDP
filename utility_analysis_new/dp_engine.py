@@ -101,14 +101,14 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
         self._is_public_partitions = None
         self._sampling_probability = 1.0
 
-    def aggregate(self,
-                  col,
-                  params: pipeline_dp.AggregateParams,
-                  data_extractors: pipeline_dp.DataExtractors,
-                  public_partitions=None,
-                  multi_param_configuration: Optional[
-                      MultiParameterConfiguration] = None,
-                  partitions_sampling_prob: float = 1.0):
+    def analyze(self,
+                col,
+                params: pipeline_dp.AggregateParams,
+                data_extractors: pipeline_dp.DataExtractors,
+                public_partitions=None,
+                multi_param_configuration: Optional[
+                    MultiParameterConfiguration] = None,
+                partitions_sampling_prob: float = 1.0):
         """Performs utility analysis for DP aggregations per partition.
 
         Args:
@@ -133,11 +133,13 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
         self._is_public_partitions = public_partitions is not None
         self._multi_run_configuration = multi_param_configuration
         self._sampling_probability = partitions_sampling_prob
+        self._is_aggregated_data = True
         result = super().aggregate(col, params, data_extractors,
                                    public_partitions)
         self._is_public_partitions = None
         self._multi_run_configuration = None
         self._sampling_probability = 1.0
+        self._is_aggregated_data = False
         return result
 
     def _create_contribution_bounder(

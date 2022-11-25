@@ -22,7 +22,10 @@ from absl import app
 from absl import flags
 import pipeline_dp
 import pandas as pd
+import collections
+import itertools
 
+import utility_analysis_new
 from utility_analysis_new import histograms
 from utility_analysis_new import parameter_tuning
 
@@ -35,6 +38,10 @@ flags.DEFINE_string(
     'If set, partition utility analysis is output to this file')
 flags.DEFINE_boolean('public_partitions', False,
                      'Whether public partitions are used')
+flags.DEFINE_float('partition_sampling_probability', 1.0,
+                   'Partition sampling probability')
+flags.DEFINE_boolean('run_on_preaggregated_data', False,
+                     'If true, the data is preaggregated before tuning')
 
 
 def write_to_file(col, filename):
@@ -76,6 +83,30 @@ def get_data_extractors():
         value_extractor=lambda row: row.spent_money)
 
 
+def preaggregate(col: list, data_extractors: pipeline_dp.DataExtractors):
+    """Returns collection with elements (pk, (count, sum, n_partitions))"""
+    pid_pk = set((data_extractors.privacy_id_extractor(row),
+                  data_extractors.partition_extractor(row)) for row in col)
+    # (pid, pk)
+    pid = [kv[0] for kv in pid_pk]
+    # (pid,)
+    pid_n_partitions = collections.Counter(pid)
+
+    key_fn = lambda row: (data_extractors.partition_extractor(row),
+                          data_extractors.privacy_id_extractor(row))
+
+    def preaggregate(kv):
+        (pk, pid), values = kv
+        c = s = 0
+        for v in values:
+            c += 1
+            s += data_extractors.value_extractor(v)
+        return (c, s, pid_n_partitions[pid])
+
+    res = list(map(preaggregate, itertools.groupby(col, key_fn)))
+    return res
+
+
 def tune_parameters():
     # Load data
     restaurant_visits_rows = load_data(FLAGS.input_file)
@@ -97,10 +128,16 @@ def tune_parameters():
         delta=1e-5,
         aggregate_params=aggregate_params,
         function_to_minimize=minimizing_function,
-        parameters_to_tune=parameters_to_tune)
+        parameters_to_tune=parameters_to_tune,
+        pre_aggregated_data=FLAGS.run_on_preaggregated_data)
+    if FLAGS.run_on_preaggregated_data:
+        input = preaggregate(restaurant_visits_rows, data_extractors)
+        data_extractors = utility_analysis_new.PreAggregateExtractors(
+            lambda row: row[0], lambda row: row[1])
+    else:
+        input = restaurant_visits_rows
     if FLAGS.output_file_per_partition_analysis:
-        result, per_partition = parameter_tuning.tune(restaurant_visits_rows,
-                                                      backend, hist,
+        result, per_partition = parameter_tuning.tune(input, backend, hist,
                                                       tune_options,
                                                       data_extractors,
                                                       public_partitions, True)

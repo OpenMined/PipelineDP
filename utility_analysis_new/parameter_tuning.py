@@ -74,6 +74,7 @@ class TuneOptions:
     aggregate_params: pipeline_dp.AggregateParams
     function_to_minimize: Union[MinimizingFunction, Callable]
     parameters_to_tune: ParametersToTune
+    pre_aggregated_data: bool = False
 
     def __post_init__(self):
         input_validators.validate_epsilon_delta(self.epsilon, self.delta,

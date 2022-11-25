@@ -13,7 +13,7 @@
 # limitations under the License.
 """Public API for performing utility analysis."""
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import Callable, List, Optional, Union
 
 import pipeline_dp
 from pipeline_dp import combiners
@@ -25,6 +25,12 @@ import utility_analysis_new.combiners as utility_analysis_combiners
 
 
 @dataclass
+class PreAggregateExtractors:
+    partition_extractor: Callable
+    preaggregate_extractor: Callable
+
+
+@dataclass
 class UtilityAnalysisOptions:
     """Options for the utility analysis."""
     epsilon: float
@@ -33,6 +39,7 @@ class UtilityAnalysisOptions:
     multi_param_configuration: Optional[
         dp_engine.MultiParameterConfiguration] = None
     partitions_sampling_prob: float = 1
+    pre_aggregated_data: bool = False
 
     def __post_init__(self):
         input_validators.validate_epsilon_delta(self.epsilon, self.delta,
@@ -52,7 +59,8 @@ class UtilityAnalysisOptions:
 def perform_utility_analysis(col,
                              backend: pipeline_backend.PipelineBackend,
                              options: UtilityAnalysisOptions,
-                             data_extractors: pipeline_dp.DataExtractors,
+                             data_extractors: Union[pipeline_dp.DataExtractors,
+                                                    PreAggregateExtractors],
                              public_partitions=None,
                              return_per_partition: bool = False):
     """Performs utility analysis for DP aggregations.
@@ -71,11 +79,12 @@ def perform_utility_analysis(col,
     Returns:
       1 element collection which contains utility analysis metrics.
     """
+    # todo add validation: data_extractors and pre-aggregated data.
     budget_accountant = pipeline_dp.NaiveBudgetAccountant(
         total_epsilon=options.epsilon, total_delta=options.delta)
     engine = dp_engine.UtilityAnalysisEngine(
         budget_accountant=budget_accountant, backend=backend)
-    per_partition_analysis_result = engine.aggregate(
+    per_partition_analysis_result = engine.analyze(
         col,
         params=options.aggregate_params,
         data_extractors=data_extractors,

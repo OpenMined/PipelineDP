@@ -112,7 +112,7 @@ def per_partition_utility_analysis():
     data_extractors = get_data_extractors()
     public_partitions = list(range(1, 8)) if FLAGS.public_partitions else None
 
-    result = utility_analysis_engine.aggregate(
+    result = utility_analysis_engine.analyze(
         restaurant_visits_rows, aggregate_params, data_extractors,
         public_partitions, get_multi_params(),
         FLAGS.partition_sampling_probability)
