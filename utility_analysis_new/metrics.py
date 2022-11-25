@@ -79,10 +79,14 @@ class AggregateErrorMetrics:
   aggregated across partitions.
   """
     metric_type: AggregateMetricType
+
     ratio_data_dropped_l0: float
     ratio_data_dropped_linf: float
-    # This cannot be computed at PartitionSelectionMetrics and needs to be computed for each aggregation separately, since it takes into account data drop from contribution bounding and that is aggregation-specific.
+    # This cannot be computed at PartitionSelectionMetrics and needs to be
+    # computed for each aggregation separately, since it takes into account data
+    # drop from contribution bounding and that is aggregation-specific.
     ratio_data_dropped_partition_selection: float
+
     abs_error_l0_expected: float
     abs_error_linf_expected: float
     abs_error_expected: float
@@ -95,6 +99,24 @@ class AggregateErrorMetrics:
     rel_error_l0_variance: float
     rel_error_variance: float
     rel_error_quantiles: List[float]
+
+    # These metrics take into account loss due to dropping partitions when
+    # computing expectation.
+    #
+    # When public partitions are used, these will be exactly equal to
+    # abs/rel_error_expected.
+    #
+    # When private partitions are used, see the following example with a single
+    # partition on how they are different:
+    #
+    # Given 1 partition with probability_to_keep=0.4, actual_count=100,
+    # abs_error_expected=-50;
+    # -> abs_error_expected = (0.4*-50)/0.4=-50
+    # -> abs_error_expected_w_dropped_partitions = 0.4*-50+0.6*-100=-80
+    abs_error_expected_w_dropped_partitions: float
+    rel_error_expected_w_dropped_partitions: float
+
+    noise_variance: float
 
     # RMSE = sqrt(bias**2 + variance), more details in
     # https://en.wikipedia.org/wiki/Bias-variance_tradeoff.
