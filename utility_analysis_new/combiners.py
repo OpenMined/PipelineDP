@@ -393,7 +393,9 @@ class CompoundCombiner(pipeline_dp.combiners.CompoundCombiner):
 class AggregateErrorMetricsAccumulator:
     """ Accumulator for AggregateErrorMetrics.
 
-    All fields in this dataclass are sums across partitions"""
+    All fields in this dataclass are sums across partitions, except for
+    noise_variance."""
+    num_partitions: int
     kept_partitions_expected: float
     total_aggregate: float  # sum, count, privacy_id_count across partitions
 
@@ -412,8 +414,15 @@ class AggregateErrorMetricsAccumulator:
     rel_error_variance: float
     rel_error_quantiles: List[float]
 
+    abs_error_expected_w_dropped_partitions: float
+    rel_error_expected_w_dropped_partitions: float
+
+    noise_std: float
+
     def __add__(self, other):
+        assert self.noise_std == other.noise_std, "Two AggregateErrorMetricsAccumulators have to have the same noise_std to be mergeable"
         return AggregateErrorMetricsAccumulator(
+            num_partitions=self.num_partitions + other.num_partitions,
             kept_partitions_expected=self.kept_partitions_expected +
             other.kept_partitions_expected,
             total_aggregate=self.total_aggregate + other.total_aggregate,
@@ -445,7 +454,14 @@ class AggregateErrorMetricsAccumulator:
             rel_error_quantiles=[
                 s1 + s2 for (s1, s2) in zip(self.rel_error_quantiles,
                                             other.rel_error_quantiles)
-            ])
+            ],
+            abs_error_expected_w_dropped_partitions=self.
+            abs_error_expected_w_dropped_partitions +
+            other.abs_error_expected_w_dropped_partitions,
+            rel_error_expected_w_dropped_partitions=self.
+            rel_error_expected_w_dropped_partitions +
+            other.rel_error_expected_w_dropped_partitions,
+            noise_std=self.noise_std)
 
 
 class AggregateErrorMetricsCompoundCombiner(combiners.CompoundCombiner):
@@ -517,6 +533,10 @@ class CountAggregateErrorMetricsCombiner(pipeline_dp.Combiner):
                 float(quantile) + metrics.per_partition_error)
             abs_error_quantiles.append(error_at_quantile)
 
+        abs_error_expected_w_dropped_partitions = probability_to_keep * (
+            metrics.expected_cross_partition_error + metrics.per_partition_error
+        ) + (1 - probability_to_keep) * -metrics.count
+
         # Relative error metrics
         if metrics.count == 0:  # For empty public partitions, to avoid division by 0
             rel_error_l0_expected = 0
@@ -524,6 +544,7 @@ class CountAggregateErrorMetricsCombiner(pipeline_dp.Combiner):
             rel_error_l0_variance = 0
             rel_error_variance = 0
             rel_error_quantiles = [0] * len(self._error_quantiles)
+            rel_error_expected_w_dropped_partitions = 0
         else:
             rel_error_l0_expected = abs_error_l0_expected / metrics.count
             rel_error_linf_expected = abs_error_linf_expected / metrics.count
@@ -532,8 +553,13 @@ class CountAggregateErrorMetricsCombiner(pipeline_dp.Combiner):
             rel_error_quantiles = [
                 error / metrics.count for error in abs_error_quantiles
             ]
+            rel_error_expected_w_dropped_partitions = abs_error_expected_w_dropped_partitions / metrics.count
+
+        # Noise metrics
+        noise_variance = metrics.std_noise**2
 
         return AggregateErrorMetricsAccumulator(
+            num_partitions=1,
             kept_partitions_expected=probability_to_keep,
             total_aggregate=total_aggregate,
             data_dropped_l0=data_dropped_l0,
@@ -549,6 +575,11 @@ class CountAggregateErrorMetricsCombiner(pipeline_dp.Combiner):
             rel_error_l0_variance=rel_error_l0_variance,
             rel_error_variance=rel_error_variance,
             rel_error_quantiles=rel_error_quantiles,
+            abs_error_expected_w_dropped_partitions=
+            abs_error_expected_w_dropped_partitions,
+            rel_error_expected_w_dropped_partitions=
+            rel_error_expected_w_dropped_partitions,
+            noise_std=noise_variance,
         )
 
     def merge_accumulators(self, acc1: AccumulatorType, acc2: AccumulatorType):
@@ -590,7 +621,12 @@ class CountAggregateErrorMetricsCombiner(pipeline_dp.Combiner):
             rel_error_quantiles=[
                 sum / acc.kept_partitions_expected
                 for sum in acc.rel_error_quantiles
-            ])
+            ],
+            abs_error_expected_w_dropped_partitions=acc.
+            abs_error_expected_w_dropped_partitions / acc.num_partitions,
+            rel_error_expected_w_dropped_partitions=acc.
+            rel_error_expected_w_dropped_partitions / acc.num_partitions,
+            noise_std=acc.noise_std)
 
     def metrics_names(self) -> List[str]:
         return [
@@ -600,7 +636,8 @@ class CountAggregateErrorMetricsCombiner(pipeline_dp.Combiner):
             'abs_error_l0_variance', 'abs_error_variance',
             'abs_error_quantiles', 'rel_error_l0_expected',
             'rel_error_linf_expected', 'rel_error_expected',
-            'rel_error_l0_variance', 'rel_error_variance', 'rel_error_quantiles'
+            'rel_error_l0_variance', 'rel_error_variance',
+            'rel_error_quantiles', 'noise_std'
         ]
 
     def explain_computation(self):
