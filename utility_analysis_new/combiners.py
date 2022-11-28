@@ -417,10 +417,10 @@ class AggregateErrorMetricsAccumulator:
     abs_error_expected_w_dropped_partitions: float
     rel_error_expected_w_dropped_partitions: float
 
-    noise_variance: float
+    noise_std: float
 
     def __add__(self, other):
-        assert self.noise_variance == other.noise_variance, "Two AggregateErrorMetricsAccumulators have to have the same noise variance to be mergeable"
+        assert self.noise_std == other.noise_std, "Two AggregateErrorMetricsAccumulators have to have the same noise_std to be mergeable"
         return AggregateErrorMetricsAccumulator(
             num_partitions=self.num_partitions + other.num_partitions,
             kept_partitions_expected=self.kept_partitions_expected +
@@ -461,7 +461,7 @@ class AggregateErrorMetricsAccumulator:
             rel_error_expected_w_dropped_partitions=self.
             rel_error_expected_w_dropped_partitions +
             other.rel_error_expected_w_dropped_partitions,
-            noise_variance=self.noise_variance)
+            noise_std=self.noise_std)
 
 
 class AggregateErrorMetricsCompoundCombiner(combiners.CompoundCombiner):
@@ -579,7 +579,7 @@ class CountAggregateErrorMetricsCombiner(pipeline_dp.Combiner):
             abs_error_expected_w_dropped_partitions,
             rel_error_expected_w_dropped_partitions=
             rel_error_expected_w_dropped_partitions,
-            noise_variance=noise_variance,
+            noise_std=noise_variance,
         )
 
     def merge_accumulators(self, acc1: AccumulatorType, acc2: AccumulatorType):
@@ -626,7 +626,7 @@ class CountAggregateErrorMetricsCombiner(pipeline_dp.Combiner):
             abs_error_expected_w_dropped_partitions / acc.num_partitions,
             rel_error_expected_w_dropped_partitions=acc.
             rel_error_expected_w_dropped_partitions / acc.num_partitions,
-            noise_variance=acc.noise_variance)
+            noise_std=acc.noise_std)
 
     def metrics_names(self) -> List[str]:
         return [
@@ -637,7 +637,7 @@ class CountAggregateErrorMetricsCombiner(pipeline_dp.Combiner):
             'abs_error_quantiles', 'rel_error_l0_expected',
             'rel_error_linf_expected', 'rel_error_expected',
             'rel_error_l0_variance', 'rel_error_variance',
-            'rel_error_quantiles', 'noise_variance'
+            'rel_error_quantiles', 'noise_std'
         ]
 
     def explain_computation(self):
