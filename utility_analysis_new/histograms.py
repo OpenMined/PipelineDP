@@ -290,10 +290,18 @@ def _compute_partition_privacy_id_count_histogram(
         col, backend, HistogramType.COUNT_PRIVACY_ID_PER_PARTITION)
 
 
-def compute_contribution_histograms(
-        col, data_extractors: pipeline_dp.DataExtractors,
-        backend: pipeline_backend.PipelineBackend) -> DatasetHistograms:
-    """Computes privacy id contribution histograms."""
+def compute_dataset_histograms(col, data_extractors: pipeline_dp.DataExtractors,
+                               backend: pipeline_backend.PipelineBackend):
+    """Computes dataset histograms.
+
+    Args:
+      col: collection with elements of the same type.
+      backend: PipelineBackend to run operations on the collection.
+
+    Returns:
+      1 element collection, which contains a DatasetHistograms object.
+    """
+
     # Extract the columns.
     col = backend.map(
         col, lambda row: (data_extractors.privacy_id_extractor(row),
