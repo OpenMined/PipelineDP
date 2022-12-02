@@ -14,7 +14,7 @@
 """DPEngine for utility analysis."""
 import copy
 import dataclasses
-from typing import Iterable, Optional, Sequence
+from typing import Callable, Iterable, Optional, Sequence, Union
 
 import pipeline_dp
 from pipeline_dp import budget_accounting
@@ -23,6 +23,12 @@ from pipeline_dp import contribution_bounders
 from pipeline_dp import pipeline_backend
 import utility_analysis_new.contribution_bounders as utility_contribution_bounders
 import utility_analysis_new.combiners as utility_analysis_combiners
+
+
+@dataclasses.dataclass
+class PreAggregateExtractors:
+    partition_extractor: Callable
+    preaggregate_extractor: Callable
 
 
 @dataclasses.dataclass
@@ -104,7 +110,8 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
     def analyze(self,
                 col,
                 params: pipeline_dp.AggregateParams,
-                data_extractors: pipeline_dp.DataExtractors,
+                data_extractors: Union[pipeline_dp.DataExtractors,
+                                       PreAggregateExtractors],
                 public_partitions=None,
                 multi_param_configuration: Optional[
                     MultiParameterConfiguration] = None,
