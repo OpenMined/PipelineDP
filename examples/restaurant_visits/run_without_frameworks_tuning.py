@@ -85,8 +85,8 @@ def tune_parameters():
     public_partitions = list(range(1, 8)) if FLAGS.public_partitions else None
     backend = pipeline_dp.LocalBackend()
 
-    hist = histograms.compute_contribution_histograms(restaurant_visits_rows,
-                                                      data_extractors, backend)
+    hist = histograms.compute_dataset_histograms(restaurant_visits_rows,
+                                                 data_extractors, backend)
     hist = list(hist)[0]
 
     minimizing_function = parameter_tuning.MinimizingFunction.ABSOLUTE_ERROR
