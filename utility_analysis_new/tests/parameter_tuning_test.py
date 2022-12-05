@@ -76,7 +76,7 @@ class ParameterTuning(parameterized.TestCase):
             value_extractor=lambda x: None)
 
         contribution_histograms = list(
-            histograms.compute_contribution_histograms(
+            histograms.compute_dataset_histograms(
                 input, data_extractors, pipeline_dp.LocalBackend()))[0]
 
         tune_options = parameter_tuning.TuneOptions(

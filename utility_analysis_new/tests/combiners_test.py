@@ -12,7 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """UtilityAnalysisCountCombinerTest."""
+import dataclasses
 
+import numpy as np
 from absl.testing import absltest
 from absl.testing import parameterized
 from unittest.mock import patch
@@ -36,6 +38,12 @@ def _create_combiner_params_for_count() -> pipeline_dp.combiners.CombinerParams:
             noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
             metrics=[pipeline_dp.Metrics.COUNT],
         ))
+
+
+def _check_none_are_np_float64(t) -> bool:
+    if not isinstance(t, tuple):
+        t = dataclasses.astuple(t)
+    return all(not isinstance(v, np.float64) for v in t)
 
 
 class UtilityAnalysisCountCombinerTest(parameterized.TestCase):
@@ -79,8 +87,9 @@ class UtilityAnalysisCountCombinerTest(parameterized.TestCase):
         utility_analysis_combiner = combiners.CountCombiner(params)
         test_acc = utility_analysis_combiner.create_accumulator(
             (len(contribution_values), 0, num_partitions))
-        self.assertEqual(expected_metrics,
-                         utility_analysis_combiner.compute_metrics(test_acc))
+        got_metrics = utility_analysis_combiner.compute_metrics(test_acc)
+        self.assertEqual(expected_metrics, got_metrics)
+        self.assertTrue(_check_none_are_np_float64(got_metrics))
 
     def test_merge(self):
         utility_analysis_combiner = combiners.CountCombiner(
@@ -91,6 +100,7 @@ class UtilityAnalysisCountCombinerTest(parameterized.TestCase):
             test_acc1, test_acc2)
 
         self.assertSequenceEqual((6, 12, -2, 96), merged_acc)
+        self.assertTrue(_check_none_are_np_float64(merged_acc))
 
 
 class PartitionSelectionTest(parameterized.TestCase):
@@ -122,6 +132,9 @@ class PartitionSelectionTest(parameterized.TestCase):
         self.assertIsNone(probabilities)
         self.assertEqual(101, moments.count)
 
+        # Test that no type is np.float64
+        self.assertTrue(_check_none_are_np_float64(acc))
+
     def test_add_accumulators_probabilities_moments(self):
         acc1 = self._create_accumulator(probabilities=(0.1, 0.2), moments=None)
         moments = combiners.SumOfRandomVariablesMoments(count=10,
@@ -135,6 +148,9 @@ class PartitionSelectionTest(parameterized.TestCase):
         probabilities, moments = acc
         self.assertIsNone(probabilities)
         self.assertEqual(12, moments.count)
+
+        # Test that no type is np.float64
+        self.assertTrue(_check_none_are_np_float64(acc))
 
     def test_add_accumulators_moments(self):
         moments = combiners.SumOfRandomVariablesMoments(count=10,
@@ -152,6 +168,9 @@ class PartitionSelectionTest(parameterized.TestCase):
         self.assertEqual(10, moments.expectation)
         self.assertEqual(100, moments.variance)
         self.assertEqual(2, moments.third_central_moment)
+
+        # Test that no type is np.float64
+        self.assertTrue(_check_none_are_np_float64(acc))
 
     @parameterized.named_parameters(
         dict(testcase_name='Large eps delta',
@@ -289,6 +308,9 @@ class UtilityAnalysisSumCombinerTest(parameterized.TestCase):
                                actual_metrics.std_noise)
         self.assertEqual(expected_metrics.noise_kind, actual_metrics.noise_kind)
 
+        # Test that no type is np.float64
+        self.assertTrue(_check_none_are_np_float64(actual_metrics))
+
     def test_merge(self):
         utility_analysis_combiner = combiners.SumCombiner(
             _create_combiner_params_for_sum(0, 20))
@@ -297,6 +319,9 @@ class UtilityAnalysisSumCombinerTest(parameterized.TestCase):
         merged_acc = utility_analysis_combiner.merge_accumulators(
             test_acc1, test_acc2)
         self.assertSequenceEqual((1.125, 1.5, -22, 0, 1001), merged_acc)
+
+        # Test that no type is np.float64
+        self.assertTrue(_check_none_are_np_float64(merged_acc))
 
 
 def _create_combiner_params_for_privacy_id_count(
@@ -377,6 +402,9 @@ class UtilityAnalysisPrivacyIdCountCombinerTest(parameterized.TestCase):
                                actual_metrics.std_noise)
         self.assertEqual(expected_metrics.noise_kind, actual_metrics.noise_kind)
 
+        # Test that no type is np.float64
+        self.assertTrue(_check_none_are_np_float64(actual_metrics))
+
     def test_merge(self):
         utility_analysis_combiner = combiners.PrivacyIdCountCombiner(
             _create_combiner_params_for_count())
@@ -385,6 +413,9 @@ class UtilityAnalysisPrivacyIdCountCombinerTest(parameterized.TestCase):
         merged_acc = utility_analysis_combiner.merge_accumulators(
             test_acc1, test_acc2)
         self.assertSequenceEqual((6, 12, -2), merged_acc)
+
+        # Test that no type is np.float64
+        self.assertTrue(_check_none_are_np_float64(merged_acc))
 
 
 class UtilityAnalysisCompoundCombinerTest(parameterized.TestCase):
@@ -509,6 +540,7 @@ class AggregateErrorMetricsAccumulatorTest(parameterized.TestCase):
 
     def test_add(self):
         acc = combiners.AggregateErrorMetricsAccumulator(
+            num_partitions=1,
             kept_partitions_expected=0.5,
             total_aggregate=5.0,
             data_dropped_l0=1.0,
@@ -524,8 +556,12 @@ class AggregateErrorMetricsAccumulatorTest(parameterized.TestCase):
             rel_error_l0_variance=0.08,
             rel_error_variance=0.12,
             rel_error_quantiles=[-0.4],
+            abs_error_expected_w_dropped_partitions=-3.5,
+            rel_error_expected_w_dropped_partitions=-0.7,
+            noise_std=1.0,
         )
         expected = combiners.AggregateErrorMetricsAccumulator(
+            num_partitions=2,
             kept_partitions_expected=1.0,
             total_aggregate=10.0,
             data_dropped_l0=2.0,
@@ -541,9 +577,15 @@ class AggregateErrorMetricsAccumulatorTest(parameterized.TestCase):
             rel_error_l0_variance=0.16,
             rel_error_variance=0.24,
             rel_error_quantiles=[-0.8],
+            abs_error_expected_w_dropped_partitions=-7,
+            rel_error_expected_w_dropped_partitions=-1.4,
+            noise_std=1.0,
         )
         acc_sum = acc + acc
         self.assertEqual(expected, acc_sum)
+
+        # Test that no type is np.float64
+        self.assertTrue(_check_none_are_np_float64(acc_sum))
 
 
 class CountAggregateErrorMetricsCombinerTest(parameterized.TestCase):
@@ -561,6 +603,7 @@ class CountAggregateErrorMetricsCombinerTest(parameterized.TestCase):
                  noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
              ),
              expected=combiners.AggregateErrorMetricsAccumulator(
+                 num_partitions=1,
                  kept_partitions_expected=0.5,
                  total_aggregate=5.0,
                  data_dropped_l0=2.0,
@@ -576,8 +619,11 @@ class CountAggregateErrorMetricsCombinerTest(parameterized.TestCase):
                  rel_error_l0_variance=0.08,
                  rel_error_variance=0.1,
                  rel_error_quantiles=[-0.4],
+                 abs_error_expected_w_dropped_partitions=-4.5,
+                 rel_error_expected_w_dropped_partitions=-0.9,
+                 noise_std=1.0,
              )),
-        dict(testcase_name='Count w public partitions',
+        dict(testcase_name='Count w/ public partitions',
              metric_type=metrics.AggregateMetricType.COUNT,
              probability_to_keep=1.0,
              metric=metrics.CountMetrics(
@@ -589,11 +635,12 @@ class CountAggregateErrorMetricsCombinerTest(parameterized.TestCase):
                  noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
              ),
              expected=combiners.AggregateErrorMetricsAccumulator(
+                 num_partitions=1,
                  kept_partitions_expected=1.0,
                  total_aggregate=5.0,
                  data_dropped_l0=2.0,
                  data_dropped_linf=2.0,
-                 data_dropped_partition_selection=0,
+                 data_dropped_partition_selection=0.0,
                  abs_error_l0_expected=-2.0,
                  abs_error_linf_expected=-2.0,
                  abs_error_l0_variance=4.0,
@@ -604,62 +651,73 @@ class CountAggregateErrorMetricsCombinerTest(parameterized.TestCase):
                  rel_error_l0_variance=0.16,
                  rel_error_variance=0.2,
                  rel_error_quantiles=[-0.8],
+                 abs_error_expected_w_dropped_partitions=-4.0,
+                 rel_error_expected_w_dropped_partitions=-0.8,
+                 noise_std=1.0,
              )),
         dict(testcase_name='PrivacyIdCount w/o public partitions',
              metric_type=metrics.AggregateMetricType.PRIVACY_ID_COUNT,
              probability_to_keep=0.5,
              metric=metrics.CountMetrics(
                  count=5.0,
-                 per_partition_error=0,
+                 per_partition_error=0.0,
                  expected_cross_partition_error=-2.0,
                  std_cross_partition_error=2.0,
                  std_noise=1.0,
                  noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
              ),
              expected=combiners.AggregateErrorMetricsAccumulator(
+                 num_partitions=1,
                  kept_partitions_expected=0.5,
                  total_aggregate=5.0,
                  data_dropped_l0=2.0,
-                 data_dropped_linf=0,
+                 data_dropped_linf=0.0,
                  data_dropped_partition_selection=1.5,
                  abs_error_l0_expected=-1.0,
-                 abs_error_linf_expected=0,
+                 abs_error_linf_expected=0.0,
                  abs_error_l0_variance=2.0,
                  abs_error_variance=2.5,
                  abs_error_quantiles=[-1.0],
                  rel_error_l0_expected=-0.2,
-                 rel_error_linf_expected=0,
+                 rel_error_linf_expected=0.0,
                  rel_error_l0_variance=0.08,
                  rel_error_variance=0.1,
                  rel_error_quantiles=[-0.2],
+                 abs_error_expected_w_dropped_partitions=-3.5,
+                 rel_error_expected_w_dropped_partitions=-0.7,
+                 noise_std=1.0,
              )),
         dict(testcase_name='PrivacyIdCount w/ public partitions',
              metric_type=metrics.AggregateMetricType.PRIVACY_ID_COUNT,
              probability_to_keep=1.0,
              metric=metrics.CountMetrics(
                  count=5.0,
-                 per_partition_error=0,
+                 per_partition_error=0.0,
                  expected_cross_partition_error=-2.0,
                  std_cross_partition_error=2.0,
                  std_noise=1.0,
                  noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
              ),
              expected=combiners.AggregateErrorMetricsAccumulator(
+                 num_partitions=1,
                  kept_partitions_expected=1.0,
                  total_aggregate=5.0,
                  data_dropped_l0=2.0,
                  data_dropped_linf=0,
-                 data_dropped_partition_selection=0,
+                 data_dropped_partition_selection=0.0,
                  abs_error_l0_expected=-2.0,
-                 abs_error_linf_expected=0,
+                 abs_error_linf_expected=0.0,
                  abs_error_l0_variance=4.0,
                  abs_error_variance=5.0,
                  abs_error_quantiles=[-2.0],
                  rel_error_l0_expected=-0.4,
-                 rel_error_linf_expected=0,
+                 rel_error_linf_expected=0.0,
                  rel_error_l0_variance=0.16,
                  rel_error_variance=0.2,
                  rel_error_quantiles=[-0.4],
+                 abs_error_expected_w_dropped_partitions=-2.0,
+                 rel_error_expected_w_dropped_partitions=-0.4,
+                 noise_std=1.0,
              )),
     )
     def test_create_accumulator(self, metric_type, probability_to_keep, metric,
@@ -669,14 +727,18 @@ class CountAggregateErrorMetricsCombinerTest(parameterized.TestCase):
         acc = combiner.create_accumulator(metric, probability_to_keep)
         self.assertEqual(expected, acc)
 
+        # Test that no type is np.float64
+        self.assertTrue(_check_none_are_np_float64(acc))
+
     @parameterized.named_parameters(
         dict(testcase_name='Count w/o public partitions',
              metric_type=metrics.AggregateMetricType.COUNT,
              acc=combiners.AggregateErrorMetricsAccumulator(
+                 num_partitions=1,
                  kept_partitions_expected=0.5,
                  total_aggregate=5.0,
-                 data_dropped_l0=1.0,
-                 data_dropped_linf=1.0,
+                 data_dropped_l0=2.0,
+                 data_dropped_linf=2.0,
                  data_dropped_partition_selection=1.5,
                  abs_error_l0_expected=-1.0,
                  abs_error_linf_expected=-1.0,
@@ -688,11 +750,14 @@ class CountAggregateErrorMetricsCombinerTest(parameterized.TestCase):
                  rel_error_l0_variance=0.08,
                  rel_error_variance=0.12,
                  rel_error_quantiles=[-0.4],
+                 abs_error_expected_w_dropped_partitions=-3.5,
+                 rel_error_expected_w_dropped_partitions=-0.7,
+                 noise_std=1.0,
              ),
              expected=metrics.AggregateErrorMetrics(
                  metric_type=metrics.AggregateMetricType.COUNT,
-                 ratio_data_dropped_l0=0.2,
-                 ratio_data_dropped_linf=0.2,
+                 ratio_data_dropped_l0=0.4,
+                 ratio_data_dropped_linf=0.4,
                  ratio_data_dropped_partition_selection=0.3,
                  abs_error_l0_expected=-2.0,
                  abs_error_linf_expected=-2.0,
@@ -706,10 +771,14 @@ class CountAggregateErrorMetricsCombinerTest(parameterized.TestCase):
                  rel_error_l0_variance=0.16,
                  rel_error_variance=0.24,
                  rel_error_quantiles=[-0.8],
+                 abs_error_expected_w_dropped_partitions=-3.5,
+                 rel_error_expected_w_dropped_partitions=-0.7,
+                 noise_std=1.0,
              )),
         dict(testcase_name='Count w/ public partitions',
              metric_type=metrics.AggregateMetricType.COUNT,
              acc=combiners.AggregateErrorMetricsAccumulator(
+                 num_partitions=1,
                  kept_partitions_expected=1.0,
                  total_aggregate=5.0,
                  data_dropped_l0=1.0,
@@ -725,6 +794,9 @@ class CountAggregateErrorMetricsCombinerTest(parameterized.TestCase):
                  rel_error_l0_variance=0.08,
                  rel_error_variance=0.12,
                  rel_error_quantiles=[-0.4],
+                 abs_error_expected_w_dropped_partitions=-2.0,
+                 rel_error_expected_w_dropped_partitions=-0.4,
+                 noise_std=1.0,
              ),
              expected=metrics.AggregateErrorMetrics(
                  metric_type=metrics.AggregateMetricType.COUNT,
@@ -743,13 +815,17 @@ class CountAggregateErrorMetricsCombinerTest(parameterized.TestCase):
                  rel_error_l0_variance=0.08,
                  rel_error_variance=0.12,
                  rel_error_quantiles=[-0.4],
+                 abs_error_expected_w_dropped_partitions=-2.0,
+                 rel_error_expected_w_dropped_partitions=-0.4,
+                 noise_std=1.0,
              )),
         dict(testcase_name='PrivacyIdCount w/o public partitions',
              metric_type=metrics.AggregateMetricType.PRIVACY_ID_COUNT,
              acc=combiners.AggregateErrorMetricsAccumulator(
+                 num_partitions=1,
                  kept_partitions_expected=0.5,
                  total_aggregate=5.0,
-                 data_dropped_l0=1.0,
+                 data_dropped_l0=2.0,
                  data_dropped_linf=0,
                  data_dropped_partition_selection=1.5,
                  abs_error_l0_expected=-1.0,
@@ -762,14 +838,17 @@ class CountAggregateErrorMetricsCombinerTest(parameterized.TestCase):
                  rel_error_l0_variance=0.08,
                  rel_error_variance=0.12,
                  rel_error_quantiles=[-0.2],
+                 abs_error_expected_w_dropped_partitions=-3.5,
+                 rel_error_expected_w_dropped_partitions=-0.7,
+                 noise_std=1.0,
              ),
              expected=metrics.AggregateErrorMetrics(
                  metric_type=metrics.AggregateMetricType.PRIVACY_ID_COUNT,
-                 ratio_data_dropped_l0=0.2,
+                 ratio_data_dropped_l0=0.4,
                  ratio_data_dropped_linf=0.0,
                  ratio_data_dropped_partition_selection=0.3,
                  abs_error_l0_expected=-2.0,
-                 abs_error_linf_expected=0,
+                 abs_error_linf_expected=0.0,
                  abs_error_expected=-2.0,
                  abs_error_l0_variance=4.0,
                  abs_error_variance=6.0,
@@ -780,10 +859,14 @@ class CountAggregateErrorMetricsCombinerTest(parameterized.TestCase):
                  rel_error_l0_variance=0.16,
                  rel_error_variance=0.24,
                  rel_error_quantiles=[-0.4],
+                 abs_error_expected_w_dropped_partitions=-3.5,
+                 rel_error_expected_w_dropped_partitions=-0.7,
+                 noise_std=1.0,
              )),
         dict(testcase_name='PrivacyIdCount w/ public partitions',
              metric_type=metrics.AggregateMetricType.PRIVACY_ID_COUNT,
              acc=combiners.AggregateErrorMetricsAccumulator(
+                 num_partitions=1,
                  kept_partitions_expected=1.0,
                  total_aggregate=5.0,
                  data_dropped_l0=1.0,
@@ -799,6 +882,9 @@ class CountAggregateErrorMetricsCombinerTest(parameterized.TestCase):
                  rel_error_l0_variance=0.08,
                  rel_error_variance=0.12,
                  rel_error_quantiles=[-0.2],
+                 abs_error_expected_w_dropped_partitions=-1.0,
+                 rel_error_expected_w_dropped_partitions=-0.1,
+                 noise_std=1.0,
              ),
              expected=metrics.AggregateErrorMetrics(
                  metric_type=metrics.AggregateMetricType.PRIVACY_ID_COUNT,
@@ -817,6 +903,9 @@ class CountAggregateErrorMetricsCombinerTest(parameterized.TestCase):
                  rel_error_l0_variance=0.08,
                  rel_error_variance=0.12,
                  rel_error_quantiles=[-0.2],
+                 abs_error_expected_w_dropped_partitions=-1.0,
+                 rel_error_expected_w_dropped_partitions=-0.1,
+                 noise_std=1.0,
              )),
     )
     def test_compute_metrics(self, metric_type, acc, expected):
@@ -824,6 +913,9 @@ class CountAggregateErrorMetricsCombinerTest(parameterized.TestCase):
             metric_type, [0.5])
         metric = combiner.compute_metrics(acc)
         self.assertEqual(expected, metric)
+
+        # Test that no type is np.float64
+        self.assertTrue(_check_none_are_np_float64(acc))
 
 
 if __name__ == '__main__':

@@ -333,8 +333,8 @@ class ParameterTuning(parameterized.TestCase):
             privacy_id_extractor=lambda x: x[0],
             partition_extractor=lambda x: x[1],
         )
-        histograms = hist.compute_contribution_histograms(
-            input, data_extractors, pipeline_dp.LocalBackend())
+        histograms = hist.compute_dataset_histograms(input, data_extractors,
+                                                     pipeline_dp.LocalBackend())
         histograms = list(histograms)
         self.assertLen(histograms, 1)
         histograms = histograms[0]
