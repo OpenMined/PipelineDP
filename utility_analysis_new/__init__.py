@@ -12,7 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from utility_analysis_new.dp_engine import MultiParameterConfiguration
+from utility_analysis_new.data_structures import MultiParameterConfiguration
+from utility_analysis_new.data_structures import PreAggregateExtractors
+from utility_analysis_new.data_structures import UtilityAnalysisOptions
 from utility_analysis_new.histograms import compute_dataset_histograms
 from utility_analysis_new.histograms import DatasetHistograms
 from utility_analysis_new.metrics import AggregateMetrics
@@ -23,5 +25,3 @@ from utility_analysis_new.parameter_tuning import TuneOptions
 from utility_analysis_new.parameter_tuning import TuneResult
 from utility_analysis_new.parameter_tuning import UtilityAnalysisRun
 from utility_analysis_new.utility_analysis import perform_utility_analysis
-from utility_analysis_new.utility_analysis import PreAggregateExtractors
-from utility_analysis_new.utility_analysis import UtilityAnalysisOptions

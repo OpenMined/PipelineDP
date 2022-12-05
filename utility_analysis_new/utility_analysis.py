@@ -18,43 +18,16 @@ from typing import List, Optional, Union
 import pipeline_dp
 from pipeline_dp import combiners
 from pipeline_dp import pipeline_backend
-from pipeline_dp import input_validators
 import utility_analysis_new
 from utility_analysis_new import dp_engine
 from utility_analysis_new import metrics
 import utility_analysis_new.combiners as utility_analysis_combiners
 
 
-@dataclass
-class UtilityAnalysisOptions:
-    """Options for the utility analysis."""
-    epsilon: float
-    delta: float
-    aggregate_params: pipeline_dp.AggregateParams
-    multi_param_configuration: Optional[
-        dp_engine.MultiParameterConfiguration] = None
-    partitions_sampling_prob: float = 1
-    pre_aggregated_data: bool = False
-
-    def __post_init__(self):
-        input_validators.validate_epsilon_delta(self.epsilon, self.delta,
-                                                "UtilityAnalysisOptions")
-        if self.partitions_sampling_prob <= 0 or self.partitions_sampling_prob > 1:
-            raise ValueError(
-                f"partitions_sampling_prob must be in the interval"
-                f" (0, 1], but {self.partitions_sampling_prob} given.")
-
-    @property
-    def n_configurations(self):
-        if self.multi_param_configuration is None:
-            return 1
-        return self.multi_param_configuration.size
-
-
 def perform_utility_analysis(
         col,
         backend: pipeline_backend.PipelineBackend,
-        options: UtilityAnalysisOptions,
+        options: utility_analysis_new.UtilityAnalysisOptions,
         data_extractors: Union[pipeline_dp.DataExtractors,
                                utility_analysis_new.PreAggregateExtractors],
         public_partitions=None,
@@ -82,11 +55,9 @@ def perform_utility_analysis(
         budget_accountant=budget_accountant, backend=backend)
     per_partition_analysis_result = engine.analyze(
         col,
-        params=options.aggregate_params,
+        options=options,
         data_extractors=data_extractors,
-        public_partitions=public_partitions,
-        multi_param_configuration=options.multi_param_configuration,
-        partitions_sampling_prob=options.partitions_sampling_prob)
+        public_partitions=public_partitions)
     budget_accountant.compute_budgets()
     # per_partition_analysis_result : (partition_key, per_partition_metrics)
     per_partition_analysis_result = backend.to_multi_transformable_collection(

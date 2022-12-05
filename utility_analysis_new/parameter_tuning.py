@@ -30,7 +30,7 @@ import numpy as np
 
 @dataclass
 class UtilityAnalysisRun:
-    params: utility_analysis.UtilityAnalysisOptions
+    params: utility_analysis_new.UtilityAnalysisOptions
     result: metrics.AggregateErrorMetrics
 
 
@@ -99,14 +99,14 @@ class TuneResult:
     """
     options: TuneOptions
     contribution_histograms: histograms.DatasetHistograms
-    utility_analysis_parameters: utility_analysis_new.dp_engine.MultiParameterConfiguration
+    utility_analysis_parameters: utility_analysis_new.MultiParameterConfiguration
     index_best: int
     utility_analysis_results: List[metrics.AggregateMetrics]
 
 
 def _find_candidate_parameters(
     hist: histograms.DatasetHistograms, parameters_to_tune: ParametersToTune
-) -> utility_analysis_new.dp_engine.MultiParameterConfiguration:
+) -> utility_analysis_new.MultiParameterConfiguration:
     """Uses some heuristics to find (hopefully) good enough parameters."""
     # TODO: decide where to put QUANTILES_TO_USE, maybe TuneOptions?
     QUANTILES_TO_USE = [0.9, 0.95, 0.98, 0.99, 0.995]
@@ -140,15 +140,15 @@ def _find_candidate_parameters(
     else:
         assert False, "Nothing to tune."
 
-    return utility_analysis_new.dp_engine.MultiParameterConfiguration(
+    return utility_analysis_new.MultiParameterConfiguration(
         max_partitions_contributed=l0_bounds,
         max_contributions_per_partition=linf_bounds)
 
 
 def _convert_utility_analysis_to_tune_result(
         utility_analysis_result: Tuple, tune_options: TuneOptions,
-        run_configurations: utility_analysis_new.dp_engine.
-    MultiParameterConfiguration, use_public_partitions: bool,
+        run_configurations: utility_analysis_new.MultiParameterConfiguration,
+        use_public_partitions: bool,
         contribution_histograms: histograms.DatasetHistograms) -> TuneResult:
     assert len(utility_analysis_result) == run_configurations.size
     # TODO(dvadym): implement relative error.
@@ -205,7 +205,7 @@ def tune(col,
     candidates = _find_candidate_parameters(contribution_histograms,
                                             options.parameters_to_tune)
 
-    utility_analysis_options = utility_analysis.UtilityAnalysisOptions(
+    utility_analysis_options = utility_analysis_new.UtilityAnalysisOptions(
         options.epsilon,
         options.delta,
         options.aggregate_params,

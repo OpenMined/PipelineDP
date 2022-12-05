@@ -388,8 +388,8 @@ def _check_aggregate_params(col, params: pipeline_dp.AggregateParams,
         raise TypeError("params must be set to a valid AggregateParams")
     if data_extractors is None:
         raise ValueError("data_extractors must be set to a DataExtractors")
-    if not isinstance(data_extractors, pipeline_dp.DataExtractors):
-        raise TypeError("data_extractors must be set to a DataExtractors")
+    # if not isinstance(data_extractors, pipeline_dp.DataExtractors): todo
+    #     raise TypeError("data_extractors must be set to a DataExtractors")
     if params.contribution_bounds_already_enforced:
         if data_extractors.privacy_id_extractor:
             raise ValueError("privacy_id_extractor should be set iff "
