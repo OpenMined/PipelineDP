@@ -19,42 +19,19 @@ import pipeline_dp
 from pipeline_dp import combiners
 from pipeline_dp import pipeline_backend
 from pipeline_dp import input_validators
+import utility_analysis_new
 from utility_analysis_new import dp_engine
 from utility_analysis_new import metrics
 import utility_analysis_new.combiners as utility_analysis_combiners
 
 
-@dataclass
-class UtilityAnalysisOptions:
-    """Options for the utility analysis."""
-    epsilon: float
-    delta: float
-    aggregate_params: pipeline_dp.AggregateParams
-    multi_param_configuration: Optional[
-        dp_engine.MultiParameterConfiguration] = None
-    partitions_sampling_prob: float = 1
-
-    def __post_init__(self):
-        input_validators.validate_epsilon_delta(self.epsilon, self.delta,
-                                                "UtilityAnalysisOptions")
-        if self.partitions_sampling_prob <= 0 or self.partitions_sampling_prob > 1:
-            raise ValueError(
-                f"partitions_sampling_prob must be in the interval"
-                f" (0, 1], but {self.partitions_sampling_prob} given.")
-
-    @property
-    def n_configurations(self):
-        if self.multi_param_configuration is None:
-            return 1
-        return self.multi_param_configuration.size
-
-
-def perform_utility_analysis(col,
-                             backend: pipeline_backend.PipelineBackend,
-                             options: UtilityAnalysisOptions,
-                             data_extractors: pipeline_dp.DataExtractors,
-                             public_partitions=None,
-                             return_per_partition: bool = False):
+def perform_utility_analysis(
+        col,
+        backend: pipeline_backend.PipelineBackend,
+        options: utility_analysis_new.UtilityAnalysisOptions,
+        data_extractors: pipeline_dp.DataExtractors,
+        public_partitions=None,
+        return_per_partition: bool = False):
     """Performs utility analysis for DP aggregations.
 
     Args:
