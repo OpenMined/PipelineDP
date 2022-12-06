@@ -112,10 +112,14 @@ def per_partition_utility_analysis():
     data_extractors = get_data_extractors()
     public_partitions = list(range(1, 8)) if FLAGS.public_partitions else None
 
-    result = utility_analysis_engine.analyze(
-        restaurant_visits_rows, aggregate_params, data_extractors,
-        public_partitions, get_multi_params(),
-        FLAGS.partition_sampling_probability)
+    options = utility_analysis_new.UtilityAnalysisOptions(
+        1,
+        1e-6,
+        aggregate_params,
+        multi_param_configuration=get_multi_params(),
+        partitions_sampling_prob=FLAGS.partition_sampling_probability)
+    result = utility_analysis_engine.analyze(restaurant_visits_rows, options,
+                                             data_extractors, public_partitions)
 
     budget_accountant.compute_budgets()
 
