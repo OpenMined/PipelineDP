@@ -140,11 +140,10 @@ class DpEngine(parameterized.TestCase):
                     budget_accountant=budget_accountant,
                     backend=pipeline_dp.LocalBackend())
                 col = [0, 1, 2]
-                engine.aggregate(
-                    col,
-                    test_case["params"],
-                    test_case["data_extractor"],
-                    public_partitions=test_case["public_partitions"])
+                engine.analyze(col,
+                               test_case["params"],
+                               test_case["data_extractor"],
+                               public_partitions=test_case["public_partitions"])
 
     def test_aggregate_public_partition_e2e(self):
         # Arrange
@@ -167,10 +166,10 @@ class DpEngine(parameterized.TestCase):
             budget_accountant=budget_accountant,
             backend=pipeline_dp.LocalBackend())
 
-        col = engine.aggregate(col=col,
-                               params=aggregator_params,
-                               data_extractors=data_extractor,
-                               public_partitions=public_partitions)
+        col = engine.analyze(col=col,
+                             params=aggregator_params,
+                             data_extractors=data_extractor,
+                             public_partitions=public_partitions)
         budget_accountant.compute_budgets()
 
         col = list(col)
@@ -202,9 +201,9 @@ class DpEngine(parameterized.TestCase):
             budget_accountant=budget_accountant,
             backend=pipeline_dp.LocalBackend())
 
-        col = engine.aggregate(col=col,
-                               params=aggregator_params,
-                               data_extractors=data_extractor)
+        col = engine.analyze(col=col,
+                             params=aggregator_params,
+                             data_extractors=data_extractor)
         budget_accountant.compute_budgets()
 
         col = list(col)
@@ -257,11 +256,11 @@ class DpEngine(parameterized.TestCase):
 
         public_partitions = ["pk0", "pk1"]
 
-        output = engine.aggregate(input,
-                                  aggregate_params,
-                                  data_extractors,
-                                  public_partitions=public_partitions,
-                                  multi_param_configuration=multi_param)
+        output = engine.analyze(input,
+                                aggregate_params,
+                                data_extractors,
+                                public_partitions=public_partitions,
+                                multi_param_configuration=multi_param)
         budget_accountant.compute_budgets()
 
         output = list(output)
@@ -320,10 +319,10 @@ class DpEngine(parameterized.TestCase):
             backend=pipeline_dp.LocalBackend())
 
         partitions_sampling_prob = 0.25
-        engine.aggregate(col=[1, 2, 3],
-                         params=aggregator_params,
-                         data_extractors=data_extractor,
-                         partitions_sampling_prob=partitions_sampling_prob)
+        engine.analyze(col=[1, 2, 3],
+                       params=aggregator_params,
+                       data_extractors=data_extractor,
+                       partitions_sampling_prob=partitions_sampling_prob)
         mock_sampler_init.assert_called_once_with(partitions_sampling_prob)
 
 
