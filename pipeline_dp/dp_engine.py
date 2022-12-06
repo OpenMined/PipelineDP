@@ -117,12 +117,7 @@ class DPEngine:
             col = self._drop_not_public_partitions(col, public_partitions,
                                                    data_extractors)
         if not params.contribution_bounds_already_enforced:
-            # Extract the columns.
-            col = self._backend.map(
-                col, lambda row: (data_extractors.privacy_id_extractor(row),
-                                  data_extractors.partition_extractor(row),
-                                  data_extractors.value_extractor(row)),
-                "Extract (privacy_id, partition_key, value))")
+            col = self._extract_columns(col, data_extractors)
             # col : (privacy_id, partition_key, value)
             contribution_bounder = self._create_contribution_bounder(params)
             col = contribution_bounder.bound_contributions(
@@ -374,6 +369,14 @@ class DPEngine:
         else:
             return contribution_bounders.SamplingCrossAndPerPartitionContributionBounder(
             )
+
+    def _extract_columns(self, col, data_extractors: DataExtractors):
+        """todo"""
+        return self._backend.map(
+            col, lambda row: (data_extractors.privacy_id_extractor(row),
+                              data_extractors.partition_extractor(row),
+                              data_extractors.value_extractor(row)),
+            "Extract (privacy_id, partition_key, value))")
 
 
 def _check_aggregate_params(col, params: pipeline_dp.AggregateParams,

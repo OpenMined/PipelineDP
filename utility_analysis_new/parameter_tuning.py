@@ -67,6 +67,7 @@ class TuneOptions:
         function_to_minimize: which function of the error to minimize. In case
           if this argument is a callable, it should take 1 argument of type
           AggregateErrorMetrics and return float.
+        partitions_sampling_prob: todo
         parameters_to_tune: specifies which parameters to tune.
     """
     epsilon: float
@@ -74,6 +75,7 @@ class TuneOptions:
     aggregate_params: pipeline_dp.AggregateParams
     function_to_minimize: Union[MinimizingFunction, Callable]
     parameters_to_tune: ParametersToTune
+    partitions_sampling_prob: float = 1
     pre_aggregated_data: bool = False
 
     def __post_init__(self):
@@ -206,10 +208,12 @@ def tune(col,
                                             options.parameters_to_tune)
 
     utility_analysis_options = utility_analysis_new.UtilityAnalysisOptions(
-        options.epsilon,
-        options.delta,
-        options.aggregate_params,
-        multi_param_configuration=candidates)
+        epsilon=options.epsilon,
+        delta=options.delta,
+        aggregate_params=options.aggregate_params,
+        multi_param_configuration=candidates,
+        partitions_sampling_prob=options.partitions_sampling_prob,
+        pre_aggregated_data=options.pre_aggregated_data)
     result = utility_analysis.perform_utility_analysis(
         col, backend, utility_analysis_options, data_extractors,
         public_partitions, return_utility_analysis_per_partition)

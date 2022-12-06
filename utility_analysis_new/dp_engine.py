@@ -68,6 +68,8 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
         self, params: pipeline_dp.AggregateParams
     ) -> contribution_bounders.ContributionBounder:
         """Creates ContributionBounder for utility analysis."""
+        if self._options.pre_aggregated_data:
+            return utility_contribution_bounders.NoOpContributionBounder()
         return utility_contribution_bounders.SamplingL0LinfContributionBounder(
             self._sampling_probability)
 
@@ -122,6 +124,19 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
         # corresponding combiners (unlike actual DP computations). So this
         # function is no-op.
         return col
+
+    def _extract_columns(
+        self, col,
+        data_extractors: Union[pipeline_dp.DataExtractors,
+                               utility_analysis_new.PreAggregateExtractors]):
+        """todo"""
+        if self._options.pre_aggregated_data:
+            # todo: check data_extractors is PreAggregateExtractors
+            return self._backend.map(
+                col, lambda row: (data_extractors.partition_extractor(row),
+                                  data_extractors.preaggregate_extractor(row)),
+                "Extract (partition_key, preaggregate_data))")
+        return super()._extract_columns(col, data_extractors)
 
 
 def _check_utility_analysis_params(params: pipeline_dp.AggregateParams,

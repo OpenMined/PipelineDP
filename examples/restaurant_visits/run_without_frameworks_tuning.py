@@ -101,7 +101,7 @@ def preaggregate(col: list, data_extractors: pipeline_dp.DataExtractors):
         for v in values:
             c += 1
             s += data_extractors.value_extractor(v)
-        return (c, s, pid_n_partitions[pid])
+        return (pk, (c, s, pid_n_partitions[pid]))
 
     res = list(map(preaggregate, itertools.groupby(col, key_fn)))
     return res

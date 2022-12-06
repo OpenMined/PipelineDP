@@ -344,11 +344,9 @@ class CompoundCombiner(pipeline_dp.combiners.CompoundCombiner):
 
     def create_accumulator(self, data: Tuple[Sequence, int]) -> AccumulatorType:
         if not data:
-            # This is empty partition, added because of public partitions.
+            # This is an empty partition, added because of public partitions.
             return ([(0, 0, 0)], None)
-        values, n_partitions = data
-        sum_ = sum((v for v in values if v is not None))
-        return ([(len(values), sum_, n_partitions)], None)
+        return ([data], None)
 
     def _to_dense(self,
                   sparse_acc: SparseAccumulatorType) -> DenseAccumulatorType:
