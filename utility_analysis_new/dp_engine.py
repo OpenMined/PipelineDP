@@ -33,7 +33,6 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
                  backend: pipeline_backend.PipelineBackend):
         super().__init__(budget_accountant, backend)
         self._is_public_partitions = None
-        self._sampling_probability = 1.0
 
     def analyze(self,
                 col,
@@ -69,7 +68,7 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
     ) -> contribution_bounders.ContributionBounder:
         """Creates ContributionBounder for utility analysis."""
         return utility_contribution_bounders.SamplingL0LinfContributionBounder(
-            self._sampling_probability)
+            self._options.partitions_sampling_prob)
 
     def _create_compound_combiner(
         self, aggregate_params: pipeline_dp.AggregateParams
@@ -126,7 +125,6 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
 
 def _check_utility_analysis_params(params: pipeline_dp.AggregateParams,
                                    public_partitions=None):
-
     if params.custom_combiners is not None:
         raise NotImplementedError("custom combiners are not supported")
     if not (set(params.metrics).issubset({

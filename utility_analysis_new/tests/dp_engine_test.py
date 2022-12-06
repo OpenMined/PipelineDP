@@ -337,7 +337,7 @@ class DpEngine(parameterized.TestCase):
         engine.analyze(col=[1, 2, 3],
                        options=options,
                        data_extractors=data_extractor)
-        # mock_sampler_init.assert_called_once_with(partitions_sampling_prob)
+        mock_sampler_init.assert_called_once_with(0.25)
 
 
 if __name__ == '__main__':
