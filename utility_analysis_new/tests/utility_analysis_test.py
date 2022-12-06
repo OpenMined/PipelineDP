@@ -47,10 +47,10 @@ class UtilityAnalysis(parameterized.TestCase):
             partition_extractor=lambda x: f"pk{x[1]}",
             value_extractor=lambda x: None)
 
-        col = utility_analysis.perform_utility_analysis(
+        col = utility_analysis_new.perform_utility_analysis(
             col=col,
             backend=pipeline_dp.LocalBackend(),
-            options=utility_analysis.UtilityAnalysisOptions(
+            options=utility_analysis_new.UtilityAnalysisOptions(
                 epsilon=2, delta=0.9, aggregate_params=aggregate_params),
             data_extractors=data_extractors)
 
@@ -174,10 +174,10 @@ class UtilityAnalysis(parameterized.TestCase):
             partition_extractor=lambda x: f"pk{x}",
             value_extractor=lambda x: None)
 
-        col = utility_analysis.perform_utility_analysis(
+        col = utility_analysis_new.perform_utility_analysis(
             col=col,
             backend=pipeline_dp.LocalBackend(),
-            options=utility_analysis.UtilityAnalysisOptions(
+            options=utility_analysis_new.UtilityAnalysisOptions(
                 epsilon=2, delta=1e-10, aggregate_params=aggregator_params),
             data_extractors=data_extractor,
             public_partitions=public_partitions)
@@ -245,10 +245,10 @@ class UtilityAnalysis(parameterized.TestCase):
 
         public_partitions = ["pk0", "pk1"]
 
-        output = utility_analysis.perform_utility_analysis(
+        output = utility_analysis_new.perform_utility_analysis(
             col=input,
             backend=pipeline_dp.LocalBackend(),
-            options=utility_analysis.UtilityAnalysisOptions(
+            options=utility_analysis_new.UtilityAnalysisOptions(
                 epsilon=2,
                 delta=1e-10,
                 aggregate_params=aggregate_params,
