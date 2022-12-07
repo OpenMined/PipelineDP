@@ -113,9 +113,9 @@ def per_partition_utility_analysis():
     public_partitions = list(range(1, 8)) if FLAGS.public_partitions else None
 
     options = utility_analysis_new.UtilityAnalysisOptions(
-        1,
-        1e-6,
-        aggregate_params,
+        epsilon=1,
+        delta=1e-6,
+        aggregate_params=aggregate_params,
         multi_param_configuration=get_multi_params(),
         partitions_sampling_prob=FLAGS.partition_sampling_probability)
     result = utility_analysis_engine.analyze(restaurant_visits_rows, options,
