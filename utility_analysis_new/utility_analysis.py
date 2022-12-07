@@ -13,7 +13,7 @@
 # limitations under the License.
 """Public API for performing utility analysis."""
 from dataclasses import dataclass
-from typing import List, Optional, Union
+from typing import List, Union
 
 import pipeline_dp
 from pipeline_dp import combiners

@@ -151,7 +151,7 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
         self, col,
         data_extractors: Union[pipeline_dp.DataExtractors,
                                utility_analysis_new.PreAggregateExtractors]):
-        """todo"""
+        """Extract columns using data_extractors."""
         if self._options.pre_aggregated_data:
             # todo: check data_extractors is PreAggregateExtractors
             return self._backend.map(

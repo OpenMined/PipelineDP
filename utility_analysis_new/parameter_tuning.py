@@ -66,8 +66,12 @@ class TuneOptions:
         function_to_minimize: which function of the error to minimize. In case
           if this argument is a callable, it should take 1 argument of type
           AggregateErrorMetrics and return float.
-        partitions_sampling_prob: todo
         parameters_to_tune: specifies which parameters to tune.
+        partitions_sampling_prob: the probability with which each partition
+        will be sampled before running tuning. It is useful for speed-up
+        computations on the large dataset.
+        pre_aggregated_data: when True the input data is already pre-aggregated,
+        otherwise the input data are raw.
     """
     epsilon: float
     delta: float

@@ -371,7 +371,7 @@ class DPEngine:
             )
 
     def _extract_columns(self, col, data_extractors: DataExtractors):
-        """todo"""
+        """Extract columns using data_extractors."""
         return self._backend.map(
             col, lambda row: (data_extractors.privacy_id_extractor(row),
                               data_extractors.partition_extractor(row),

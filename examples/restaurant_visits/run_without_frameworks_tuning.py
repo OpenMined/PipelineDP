@@ -23,7 +23,6 @@ from absl import flags
 import pipeline_dp
 import pandas as pd
 import collections
-import itertools
 
 import utility_analysis_new
 from utility_analysis_new import histograms
@@ -106,7 +105,6 @@ def preaggregate(col: list, data_extractors: pipeline_dp.DataExtractors):
     backend = pipeline_dp.LocalBackend()
     col = backend.map(col, lambda x: (key_fn(x), x))
     res = list(backend.map(backend.group_by_key(col), preaggregate))
-    # res = list(map(preaggregate, pipeline_dp.(col, key_fn)))
     return res
 
 
@@ -121,6 +119,7 @@ def tune_parameters():
 
     hist = histograms.compute_dataset_histograms(restaurant_visits_rows,
                                                  data_extractors, backend)
+    # Hist is 1-element iterable and the single element is a computed histogram.
     hist = list(hist)[0]
 
     minimizing_function = parameter_tuning.MinimizingFunction.ABSOLUTE_ERROR

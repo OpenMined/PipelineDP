@@ -79,6 +79,7 @@ class NoOpContributionBounder(contribution_bounders.ContributionBounder):
 
     def bound_contributions(self, col, params, backend, report_generator,
                             aggregate_fn):
+        """Returns a collection with element in the correct format."""
         # Dummy privacy_id = None is added, since the caller code expects that
         # privacy id is available. TODO, maybe better solution?
         return backend.map_tuple(
