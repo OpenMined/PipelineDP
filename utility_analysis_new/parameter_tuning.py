@@ -13,10 +13,9 @@
 # limitations under the License.
 
 import pipeline_dp
-import utility_analysis_new
 from pipeline_dp import pipeline_backend
 from pipeline_dp import input_validators
-from utility_analysis_new import combiners
+import utility_analysis_new
 from utility_analysis_new import histograms
 from utility_analysis_new import metrics
 from utility_analysis_new import utility_analysis

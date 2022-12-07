@@ -136,6 +136,8 @@ class DpEngine(parameterized.TestCase):
                                         expected_regex=test_case["desc"]):
                 budget_accountant = budget_accounting.NaiveBudgetAccountant(
                     total_epsilon=1, total_delta=1e-10)
+                options = utility_analysis_new.UtilityAnalysisOptions(
+                    epsilon=1, delta=0, aggregate_params=test_case["params"])
                 engine = dp_engine.UtilityAnalysisEngine(
                     budget_accountant=budget_accountant,
                     backend=pipeline_dp.LocalBackend())
@@ -166,8 +168,10 @@ class DpEngine(parameterized.TestCase):
             budget_accountant=budget_accountant,
             backend=pipeline_dp.LocalBackend())
 
+        options = utility_analysis_new.UtilityAnalysisOptions(
+            epsilon=1, delta=0, aggregate_params=aggregator_params)
         col = engine.analyze(col=col,
-                             params=aggregator_params,
+                             options=options,
                              data_extractors=data_extractor,
                              public_partitions=public_partitions)
         budget_accountant.compute_budgets()
@@ -192,7 +196,7 @@ class DpEngine(parameterized.TestCase):
         # Input collection has 10 privacy ids where each privacy id
         # contributes to the same 10 partitions, three times in each partition.
         col = [(i, j) for i in range(10) for j in range(10)] * 3
-        data_extractor = pipeline_dp.DataExtractors(
+        data_extractors = pipeline_dp.DataExtractors(
             privacy_id_extractor=lambda x: x[0],
             partition_extractor=lambda x: f"pk{x[1]}",
             value_extractor=lambda x: None)
@@ -201,9 +205,11 @@ class DpEngine(parameterized.TestCase):
             budget_accountant=budget_accountant,
             backend=pipeline_dp.LocalBackend())
 
+        options = utility_analysis_new.UtilityAnalysisOptions(
+            epsilon=1, delta=0, aggregate_params=aggregator_params)
         col = engine.analyze(col=col,
-                             params=aggregator_params,
-                             data_extractors=data_extractor)
+                             options=options,
+                             data_extractors=data_extractors)
         budget_accountant.compute_budgets()
 
         col = list(col)
@@ -256,11 +262,16 @@ class DpEngine(parameterized.TestCase):
 
         public_partitions = ["pk0", "pk1"]
 
+        options = utility_analysis_new.UtilityAnalysisOptions(
+            epsilon=1,
+            delta=0,
+            aggregate_params=aggregate_params,
+            multi_param_configuration=multi_param)
         output = engine.analyze(input,
-                                aggregate_params,
-                                data_extractors,
-                                public_partitions=public_partitions,
-                                multi_param_configuration=multi_param)
+                                options=options,
+                                data_extractors=data_extractors,
+                                public_partitions=public_partitions)
+
         budget_accountant.compute_budgets()
 
         output = list(output)
@@ -318,12 +329,15 @@ class DpEngine(parameterized.TestCase):
             budget_accountant=budget_accountant,
             backend=pipeline_dp.LocalBackend())
 
-        partitions_sampling_prob = 0.25
+        options = utility_analysis_new.UtilityAnalysisOptions(
+            epsilon=1,
+            delta=0,
+            aggregate_params=aggregator_params,
+            partitions_sampling_prob=0.25)
         engine.analyze(col=[1, 2, 3],
-                       params=aggregator_params,
-                       data_extractors=data_extractor,
-                       partitions_sampling_prob=partitions_sampling_prob)
-        mock_sampler_init.assert_called_once_with(partitions_sampling_prob)
+                       options=options,
+                       data_extractors=data_extractor)
+        mock_sampler_init.assert_called_once_with(0.25)
 
 
 if __name__ == '__main__':

@@ -12,7 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """DPEngine for utility analysis."""
-from typing import Iterable, Union
+
+import copy
+import dataclasses
+from typing import Iterable, Optional, Union
 
 import pipeline_dp
 from pipeline_dp import budget_accounting
@@ -25,13 +28,28 @@ import utility_analysis_new.combiners as utility_analysis_combiners
 
 
 class UtilityAnalysisEngine(pipeline_dp.DPEngine):
-    """Performs utility analysis for DP aggregations."""
+    """Performs utility analysis for DP aggregations.
+
+    This class reuses the computation graph from the DP computation code by
+    subclassing from pipeline_dp.DPEngine and by replacing some nodes of the
+    computational graph from DP computation to analysis.
+    """
 
     def __init__(self, budget_accountant: budget_accounting.BudgetAccountant,
                  backend: pipeline_backend.PipelineBackend):
         super().__init__(budget_accountant, backend)
         self._is_public_partitions = None
-        self._sampling_probability = 1.0
+
+    def aggregate(self,
+                  col,
+                  params: pipeline_dp.AggregateParams,
+                  data_extractors: pipeline_dp.DataExtractors,
+                  public_partitions=None):
+        raise ValueError("UtilityAnalysisEngine.aggregate can't be called.\n"
+                         "If you like to perform utility analysis use "
+                         "UtilityAnalysisEngine.aggregate.\n"
+                         "If you like to perform DP computations use "
+                         "DPEngine.aggregate.")
 
     def analyze(
             self,
@@ -52,14 +70,18 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
             partition selection will be performed.
 
         Returns:
-            A collection with elements (pk, utility analysis metrics).
+          A collection with elements (partition_key, utility analysis metrics).
         """
         _check_utility_analysis_params(options.aggregate_params,
-                                       public_partitions)  # todo
-        self._is_public_partitions = public_partitions is not None
+                                       public_partitions)
         self._options = options
+        self._is_public_partitions = public_partitions is not None
+
+        # Build the computation graph from the parent class by calling
+        # aggregate().
         result = super().aggregate(col, options.aggregate_params,
                                    data_extractors, public_partitions)
+
         self._is_public_partitions = None
         self._options = None
         return result
@@ -71,7 +93,7 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
         if self._options.pre_aggregated_data:
             return utility_contribution_bounders.NoOpContributionBounder()
         return utility_contribution_bounders.SamplingL0LinfContributionBounder(
-            self._sampling_probability)
+            self._options.partitions_sampling_prob)
 
     def _create_compound_combiner(
         self, aggregate_params: pipeline_dp.AggregateParams
