@@ -27,51 +27,60 @@ import utility_analysis_new.combiners as utility_analysis_combiners
 
 
 class UtilityAnalysisEngine(pipeline_dp.DPEngine):
-    """Performs utility analysis for DP aggregations."""
+    """Performs utility analysis for DP aggregations.
+
+    This class reuses the computation graph from the DP computation code by
+    subclassing from pipeline_dp.DPEngine and by replacing some nodes of the
+    computational graph from DP computation to analysis.
+    """
 
     def __init__(self, budget_accountant: budget_accounting.BudgetAccountant,
                  backend: pipeline_backend.PipelineBackend):
         super().__init__(budget_accountant, backend)
         self._is_public_partitions = None
-        self._sampling_probability = 1.0
 
     def aggregate(self,
                   col,
                   params: pipeline_dp.AggregateParams,
                   data_extractors: pipeline_dp.DataExtractors,
-                  public_partitions=None,
-                  multi_param_configuration: Optional[
-                      utility_analysis_new.MultiParameterConfiguration] = None,
-                  partitions_sampling_prob: float = 1.0):
+                  public_partitions=None):
+        raise ValueError("UtilityAnalysisEngine.aggregate can't be called.\n"
+                         "If you like to perform utility analysis use "
+                         "UtilityAnalysisEngine.aggregate.\n"
+                         "If you like to perform DP computations use "
+                         "DPEngine.aggregate.")
+
+    def analyze(self,
+                col,
+                options: utility_analysis_new.UtilityAnalysisOptions,
+                data_extractors: pipeline_dp.DataExtractors,
+                public_partitions=None):
         """Performs utility analysis for DP aggregations per partition.
 
         Args:
           col: collection where all elements are of the same type.
-          params: specifies which metrics to compute and computation parameters.
+          options: options for utility analysis.
           data_extractors: functions that extract needed pieces of information
             from elements of 'col'.
           public_partitions: A collection of partition keys that will be present
             in the result. If not provided, the utility analysis with private
             partition selection will be performed.
-          multi_param_configuration: if provided the utility analysis for
-            multiple parameters will be performed: 'params' is used as
-            blue-print and non-None attributes from 'multi_param_configuration'
-            are used for creating multiple AggregateParams. See docstring for
-            MultiParameterConfiguration for more details.
-          partitions_sampling_prob: todo
 
         Returns:
-            A collection with elements (pk, utility analysis metrics).
+          A collection with elements (partition_key, utility analysis metrics).
         """
-        _check_utility_analysis_params(params, public_partitions)
+        _check_utility_analysis_params(options.aggregate_params,
+                                       public_partitions)
+        self._options = options
         self._is_public_partitions = public_partitions is not None
-        self._multi_run_configuration = multi_param_configuration
-        self._sampling_probability = partitions_sampling_prob
-        result = super().aggregate(col, params, data_extractors,
-                                   public_partitions)
+
+        # Build the computation graph from the parent class by calling
+        # aggregate().
+        result = super().aggregate(col, options.aggregate_params,
+                                   data_extractors, public_partitions)
+
         self._is_public_partitions = None
-        self._multi_run_configuration = None
-        self._sampling_probability = 1.0
+        self._options = None
         return result
 
     def _create_contribution_bounder(
@@ -79,7 +88,7 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
     ) -> contribution_bounders.ContributionBounder:
         """Creates ContributionBounder for utility analysis."""
         return utility_contribution_bounders.SamplingL0LinfContributionBounder(
-            self._sampling_probability)
+            self._options.partitions_sampling_prob)
 
     def _create_compound_combiner(
         self, aggregate_params: pipeline_dp.AggregateParams
@@ -117,12 +126,12 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
     def _get_aggregate_params(
         self, params: pipeline_dp.AggregateParams
     ) -> Iterable[pipeline_dp.AggregateParams]:
-        if self._multi_run_configuration is None:
+        multi_run_configuration = self._options.multi_param_configuration
+        if multi_run_configuration is None:
             yield params
         else:
-            for i in range(self._multi_run_configuration.size):
-                yield self._multi_run_configuration.get_aggregate_params(
-                    params, i)
+            for i in range(multi_run_configuration.size):
+                yield multi_run_configuration.get_aggregate_params(params, i)
 
     def _select_private_partitions_internal(
             self, col, max_partitions_contributed: int,

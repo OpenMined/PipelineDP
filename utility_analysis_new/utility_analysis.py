@@ -52,13 +52,11 @@ def perform_utility_analysis(
         total_epsilon=options.epsilon, total_delta=options.delta)
     engine = dp_engine.UtilityAnalysisEngine(
         budget_accountant=budget_accountant, backend=backend)
-    per_partition_analysis_result = engine.aggregate(
+    per_partition_analysis_result = engine.analyze(
         col,
-        params=options.aggregate_params,
+        options=options,
         data_extractors=data_extractors,
-        public_partitions=public_partitions,
-        multi_param_configuration=options.multi_param_configuration,
-        partitions_sampling_prob=options.partitions_sampling_prob)
+        public_partitions=public_partitions)
     budget_accountant.compute_budgets()
     # per_partition_analysis_result : (partition_key, per_partition_metrics)
     per_partition_analysis_result = backend.to_multi_transformable_collection(
