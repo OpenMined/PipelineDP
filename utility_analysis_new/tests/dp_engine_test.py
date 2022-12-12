@@ -83,7 +83,7 @@ class MultiParameterConfiguration(parameterized.TestCase):
             self.assertEqual(params, ith_params)
 
 
-class DpEngine(parameterized.TestCase):
+class UtilityAnalysisEngineTest(parameterized.TestCase):
 
     def _get_default_extractors(self) -> pipeline_dp.DataExtractors:
         return pipeline_dp.DataExtractors(
@@ -91,6 +91,12 @@ class DpEngine(parameterized.TestCase):
             partition_extractor=lambda x: x,
             value_extractor=lambda x: x,
         )
+
+    def _get_default_pre_aggregated_extractors(
+            self) -> utility_analysis_new.PreAggregateExtractors:
+        return utility_analysis_new.PreAggregateExtractors(
+            partition_extractor=lambda x: x[0],
+            preaggregate_extractor=lambda x: x[1])
 
     def _get_default_aggregate_params(self) -> pipeline_dp.AggregateParams:
         return pipeline_dp.AggregateParams(
@@ -106,29 +112,39 @@ class DpEngine(parameterized.TestCase):
         params_with_custom_combiners.custom_combiners = sum
         params_with_unsupported_metric = copy.copy(default_params)
         params_with_unsupported_metric.metrics = [pipeline_dp.Metrics.MEAN]
-        params_with_contribution_bounds_already_enforced = default_params
+        params_with_contribution_bounds_already_enforced = copy.copy(
+            default_params)
         params_with_contribution_bounds_already_enforced.contribution_bounds_already_enforced = True
 
-        test_cases = [
-            {
-                "desc": "custom combiners",
-                "params": params_with_custom_combiners,
-                "data_extractor": default_extractors,
-                "public_partitions": [1]
-            },
-            {
-                "desc": "unsupported metric in metrics",
-                "params": params_with_unsupported_metric,
-                "data_extractor": default_extractors,
-                "public_partitions": [1]
-            },
-            {
-                "desc": "contribution bounds are already enforced",
-                "params": params_with_contribution_bounds_already_enforced,
-                "data_extractor": default_extractors,
-                "public_partitions": [1]
-            },
-        ]
+        test_cases = [{
+            "desc": "custom combiners",
+            "params": params_with_custom_combiners,
+            "data_extractor": default_extractors,
+            "public_partitions": [1],
+            "pre_aggregated": False
+        }, {
+            "desc": "unsupported metric in metrics",
+            "params": params_with_unsupported_metric,
+            "data_extractor": default_extractors,
+            "public_partitions": [1],
+            "pre_aggregated": False
+        }, {
+            "desc": "contribution bounds are already enforced",
+            "params": params_with_contribution_bounds_already_enforced,
+            "data_extractor": default_extractors,
+            "public_partitions": [1],
+            "pre_aggregated": False
+        }, {
+            "desc":
+                "PreAggregateExtractors should be specified for pre-aggregated data",
+            "params":
+                default_params,
+            "data_extractor":
+                default_extractors,
+            "public_partitions": [1],
+            "pre_aggregated":
+                True
+        }]
 
         for test_case in test_cases:
 
@@ -137,7 +153,10 @@ class DpEngine(parameterized.TestCase):
                 budget_accountant = budget_accounting.NaiveBudgetAccountant(
                     total_epsilon=1, total_delta=1e-10)
                 options = utility_analysis_new.UtilityAnalysisOptions(
-                    epsilon=1, delta=0, aggregate_params=test_case["params"])
+                    epsilon=1,
+                    delta=0,
+                    aggregate_params=test_case["params"],
+                    pre_aggregated_data=test_case["pre_aggregated"])
                 engine = dp_engine.UtilityAnalysisEngine(
                     budget_accountant=budget_accountant,
                     backend=pipeline_dp.LocalBackend())
@@ -182,7 +201,8 @@ class DpEngine(parameterized.TestCase):
         self.assertLen(col, 3)
         self.assertTrue(any(v[0] == 'pk101' for v in col))
 
-    def test_aggregate_error_metrics(self):
+    @parameterized.parameters(False, True)
+    def test_aggregate_error_metrics(self, pre_aggregated: bool):
         # Arrange
         aggregator_params = pipeline_dp.AggregateParams(
             noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
@@ -195,18 +215,28 @@ class DpEngine(parameterized.TestCase):
 
         # Input collection has 10 privacy ids where each privacy id
         # contributes to the same 10 partitions, three times in each partition.
-        col = [(i, j) for i in range(10) for j in range(10)] * 3
-        data_extractors = pipeline_dp.DataExtractors(
-            privacy_id_extractor=lambda x: x[0],
-            partition_extractor=lambda x: f"pk{x[1]}",
-            value_extractor=lambda x: 0)
+        if not pre_aggregated:
+            col = [(i, j) for i in range(10) for j in range(10)] * 3
+        else:
+            col = [(i, (3, 0, 10)) for i in range(10)] * 10
+
+        if pre_aggregated:
+            data_extractors = self._get_default_pre_aggregated_extractors()
+        else:
+            data_extractors = pipeline_dp.DataExtractors(
+                privacy_id_extractor=lambda x: x[0],
+                partition_extractor=lambda x: f"pk{x[1]}",
+                value_extractor=lambda x: 0)
 
         engine = dp_engine.UtilityAnalysisEngine(
             budget_accountant=budget_accountant,
             backend=pipeline_dp.LocalBackend())
 
         options = utility_analysis_new.UtilityAnalysisOptions(
-            epsilon=1, delta=0, aggregate_params=aggregator_params)
+            epsilon=1,
+            delta=0,
+            aggregate_params=aggregator_params,
+            pre_aggregated_data=pre_aggregated)
         col = engine.analyze(col=col,
                              options=options,
                              data_extractors=data_extractors)
