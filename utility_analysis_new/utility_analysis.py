@@ -48,7 +48,6 @@ def perform_utility_analysis(
     Returns:
       1 element collection which contains utility analysis metrics.
     """
-    # todo add validation: data_extractors and pre-aggregated data.
     budget_accountant = pipeline_dp.NaiveBudgetAccountant(
         total_epsilon=options.epsilon, total_delta=options.delta)
     engine = dp_engine.UtilityAnalysisEngine(

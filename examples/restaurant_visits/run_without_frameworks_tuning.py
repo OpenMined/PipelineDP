@@ -97,8 +97,9 @@ def preaggregate(col: list, data_extractors: pipeline_dp.DataExtractors):
     # (pid,)
     pid_n_partitions = collections.Counter(pid)
 
-    def preaggregate(kv):
-        (pk, pid), rows = kv
+    def preaggregate(pk_pid_rows):
+        """Aggregates per (partition_key, privacy_id)."""
+        (pk, pid), rows = pk_pid_rows
         c = s = 0
         for row in rows:
             c += 1

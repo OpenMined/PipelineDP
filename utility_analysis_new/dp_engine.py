@@ -64,7 +64,9 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
           col: collection where all elements are of the same type.
           options: options for utility analysis.
           data_extractors: functions that extract needed pieces of information
-            from elements of 'col'.
+            from elements of 'col'. In case if the analysis performed on
+            pre-aggregated data, it should have type PreAggregateExtractors
+            otherwise DataExtractors.
           public_partitions: A collection of partition keys that will be present
             in the result. If not provided, the utility analysis with private
             partition selection will be performed.
@@ -72,8 +74,7 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
         Returns:
           A collection with elements (partition_key, utility analysis metrics).
         """
-        _check_utility_analysis_params(options.aggregate_params,
-                                       public_partitions)
+        _check_utility_analysis_params(options, data_extractors)
         self._options = options
         self._is_public_partitions = public_partitions is not None
 
@@ -153,16 +154,41 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
                                utility_analysis_new.PreAggregateExtractors]):
         """Extract columns using data_extractors."""
         if self._options.pre_aggregated_data:
-            # todo: check data_extractors is PreAggregateExtractors
             return self._backend.map(
                 col, lambda row: (data_extractors.partition_extractor(row),
                                   data_extractors.preaggregate_extractor(row)),
                 "Extract (partition_key, preaggregate_data))")
         return super()._extract_columns(col, data_extractors)
 
+    def _check_aggregate_params(
+        self, col, params: pipeline_dp.AggregateParams,
+        data_extractors: Union[pipeline_dp.DataExtractors,
+                               utility_analysis_new.PreAggregateExtractors]):
+        # Do not check data_extractors. It is already checked in the base class
+        # does not support PreAggregateExtractors.
+        super()._check_aggregate_params(col,
+                                        params,
+                                        data_extractors=None,
+                                        check_data_extractors=False)
 
-def _check_utility_analysis_params(params: pipeline_dp.AggregateParams,
-                                   public_partitions=None):
+
+def _check_utility_analysis_params(
+    options: utility_analysis_new.UtilityAnalysisOptions,
+    data_extractors: Union[pipeline_dp.DataExtractors,
+                           utility_analysis_new.PreAggregateExtractors]):
+    # Check correctness of data extractors.
+    if options.pre_aggregated_data:
+        if not isinstance(data_extractors,
+                          utility_analysis_new.PreAggregateExtractors):
+            raise ValueError(
+                "utility_analysis_new.PreAggregateExtractors should be specified for pre-aggregated data."
+            )
+    elif not isinstance(data_extractors, pipeline_dp.DataExtractors):
+        raise ValueError(
+            "pipeline_dp.DataExtractors should be specified for raw data.")
+
+    # Check aggregate_params.
+    params = options.aggregate_params
     if params.custom_combiners is not None:
         raise NotImplementedError("custom combiners are not supported")
     if not (set(params.metrics).issubset({

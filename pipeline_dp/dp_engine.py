@@ -85,7 +85,7 @@ class DPEngine:
           Keys of 'result_dictionary' correspond to computed metrics, e.g.
           'count' for COUNT metrics etc.
         """
-        _check_aggregate_params(col, params, data_extractors)
+        self._check_aggregate_params(col, params, data_extractors)
 
         with self._budget_accountant.scope(weight=params.budget_weight):
             self._report_generators.append(
@@ -378,25 +378,32 @@ class DPEngine:
                               data_extractors.value_extractor(row)),
             "Extract (privacy_id, partition_key, value))")
 
-
-def _check_aggregate_params(col, params: pipeline_dp.AggregateParams,
-                            data_extractors: DataExtractors):
-    if params.max_contributions is not None:
-        raise NotImplementedError("max_contributions is not supported yet.")
-    if col is None or not col:
-        raise ValueError("col must be non-empty")
-    if params is None:
-        raise ValueError("params must be set to a valid AggregateParams")
-    if not isinstance(params, pipeline_dp.AggregateParams):
-        raise TypeError("params must be set to a valid AggregateParams")
-    if data_extractors is None:
-        raise ValueError("data_extractors must be set to a DataExtractors")
-    # if not isinstance(data_extractors, pipeline_dp.DataExtractors): todo
-    #     raise TypeError("data_extractors must be set to a DataExtractors")
-    if params.contribution_bounds_already_enforced:
-        if data_extractors.privacy_id_extractor:
-            raise ValueError("privacy_id_extractor should be set iff "
-                             "contribution_bounds_already_enforced is False")
-        if pipeline_dp.Metrics.PRIVACY_ID_COUNT in params.metrics:
-            raise ValueError("PRIVACY_ID_COUNT can not be computed when "
-                             "contribution_bounds_already_enforced is True.")
+    def _check_aggregate_params(self,
+                                col,
+                                params: pipeline_dp.AggregateParams,
+                                data_extractors: DataExtractors,
+                                check_data_extractors: bool = True):
+        if params.max_contributions is not None:
+            raise NotImplementedError("max_contributions is not supported yet.")
+        if col is None or not col:
+            raise ValueError("col must be non-empty")
+        if params is None:
+            raise ValueError("params must be set to a valid AggregateParams")
+        if not isinstance(params, pipeline_dp.AggregateParams):
+            raise TypeError("params must be set to a valid AggregateParams")
+        if check_data_extractors:
+            if data_extractors is None:
+                raise ValueError(
+                    "data_extractors must be set to a DataExtractors")
+            if not isinstance(data_extractors, pipeline_dp.DataExtractors):
+                raise TypeError(
+                    "data_extractors must be set to a DataExtractors")
+        if params.contribution_bounds_already_enforced:
+            if data_extractors.privacy_id_extractor:
+                raise ValueError(
+                    "privacy_id_extractor should be set iff "
+                    "contribution_bounds_already_enforced is False")
+            if pipeline_dp.Metrics.PRIVACY_ID_COUNT in params.metrics:
+                raise ValueError(
+                    "PRIVACY_ID_COUNT can not be computed when "
+                    "contribution_bounds_already_enforced is True.")

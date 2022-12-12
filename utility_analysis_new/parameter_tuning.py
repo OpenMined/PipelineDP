@@ -71,7 +71,8 @@ class TuneOptions:
         will be sampled before running tuning. It is useful for speed-up
         computations on the large dataset.
         pre_aggregated_data: when True the input data is already pre-aggregated,
-        otherwise the input data are raw.
+        otherwise the input data are raw. Preaggregated data also can be
+        sampled.
     """
     epsilon: float
     delta: float
