@@ -436,7 +436,8 @@ class UtilityAnalysisCompoundCombinerTest(parameterized.TestCase):
         combiner = self._create_combiner()
         data = [1, 2, 3]
         n_partitions = 500
-        sparse, dense = combiner.create_accumulator((data, n_partitions))
+        sparse, dense = combiner.create_accumulator(
+            (len(data), sum(data), n_partitions))
         self.assertEqual(sparse, [(len(data), sum(data), n_partitions)])
         self.assertIsNone(dense)
 
@@ -514,7 +515,9 @@ class UtilityAnalysisCompoundCombinerTest(parameterized.TestCase):
     def test_compute_metrics(self, num_partitions, contribution_values,
                              expected_metrics):
         combiner = self._create_combiner()
-        acc = combiner.create_accumulator((contribution_values, num_partitions))
+        acc = combiner.create_accumulator(
+            (len(contribution_values), sum(contribution_values),
+             num_partitions))
         self.assertEqual(expected_metrics, combiner.compute_metrics(acc)[0])
 
     def test_two_internal_combiners(self):
@@ -526,7 +529,7 @@ class UtilityAnalysisCompoundCombinerTest(parameterized.TestCase):
                                               return_named_tuple=False)
 
         data, n_partitions = [1, 2, 3], 100
-        acc = combiner.create_accumulator((data, n_partitions))
+        acc = combiner.create_accumulator((len(data), sum(data), n_partitions))
 
         acc = combiner.merge_accumulators(acc, acc)
         self.assertEqual(([(3, 6, 100), (3, 6, 100)], None), acc)

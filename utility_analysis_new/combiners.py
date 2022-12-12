@@ -30,6 +30,10 @@ from pipeline_dp import partition_selection
 
 MAX_PROBABILITIES_IN_ACCUMULATOR = 100
 
+# It corresponds to the aggregating per (privacy_id, partition_key).
+# (count, sum, num_partition_privacy_id_contributes).
+PreaggregatedData = Tuple[int, float, int]
+
 
 class UtilityAnalysisCombiner(pipeline_dp.Combiner):
 
@@ -217,8 +221,7 @@ class CountCombiner(UtilityAnalysisCombiner):
     def _is_public_partitions(self):
         return self._partition_selection_budget is None
 
-    def create_accumulator(self, data: Tuple[int, float,
-                                             int]) -> AccumulatorType:
+    def create_accumulator(self, data: PreaggregatedData) -> AccumulatorType:
         """Creates an accumulator for data."""
         count, sum_, n_partitions = data
         max_per_partition = self._params.aggregate_params.max_contributions_per_partition
@@ -263,8 +266,7 @@ class SumCombiner(UtilityAnalysisCombiner):
     def __init__(self, params: pipeline_dp.combiners.CombinerParams):
         self._params = params
 
-    def create_accumulator(self, data: Tuple[int, float,
-                                             int]) -> AccumulatorType:
+    def create_accumulator(self, data: PreaggregatedData) -> AccumulatorType:
         count, partition_sum, n_partitions = data
         max_partitions = self._params.aggregate_params.max_partitions_contributed
         prob_keep_partition = min(1, max_partitions /
@@ -315,8 +317,7 @@ class PrivacyIdCountCombiner(CountCombiner):
     # var_cross_partition_error)
     AccumulatorType = Tuple[int, int, float, float]
 
-    def create_accumulator(self, data: Tuple[int, float,
-                                             int]) -> AccumulatorType:
+    def create_accumulator(self, data: PreaggregatedData) -> AccumulatorType:
         count, _sum, n_partitions = data
         count = 1 if count > 0 else 0
         data = count, _sum, n_partitions
@@ -337,12 +338,12 @@ class CompoundCombiner(pipeline_dp.combiners.CompoundCombiner):
     # contribution to such accumulators leads to memory usage blow-up. That is
     # why sparse mode introduced - until the number of privacy id contributions
     # is small, they are saved instead of creating accumulators.
-    SparseAccumulatorType = List[Tuple[int, float, int]]
+    SparseAccumulatorType = List[PreaggregatedData]
     DenseAccumulatorType = List[Any]
     AccumulatorType = Tuple[Optional[SparseAccumulatorType],
                             Optional[DenseAccumulatorType]]
 
-    def create_accumulator(self, data: Tuple[Sequence, int]) -> AccumulatorType:
+    def create_accumulator(self, data: PreaggregatedData) -> AccumulatorType:
         if not data:
             # This is an empty partition, what is None assigned to. It was added
             # because of public partitions.
