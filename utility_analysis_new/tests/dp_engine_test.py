@@ -166,7 +166,8 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
                                test_case["data_extractor"],
                                public_partitions=test_case["public_partitions"])
 
-    def test_aggregate_public_partition_e2e(self):
+    @parameterized.parameters(False, True)
+    def test_aggregate_public_partition_e2e(self, pre_aggregated: bool):
         # Arrange
         aggregator_params = self._get_default_aggregate_params()
 
@@ -178,20 +179,29 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
         # Input collection has 100 elements, such that each privacy id
         # contributes 1 time and each partition has 1 element.
         col = list(range(100))
-        data_extractor = pipeline_dp.DataExtractors(
-            privacy_id_extractor=lambda x: x,
-            partition_extractor=lambda x: f"pk{x}",
-            value_extractor=lambda x: 0)
+
+        if not pre_aggregated:
+            data_extractors = pipeline_dp.DataExtractors(
+                privacy_id_extractor=lambda x: x,
+                partition_extractor=lambda x: f"pk{x}",
+                value_extractor=lambda x: 0)
+        else:
+            data_extractors = utility_analysis_new.PreAggregateExtractors(
+                partition_extractor=lambda x: f"pk{x}",
+                preaggregate_extractor=lambda x: (1, 0, 1))
 
         engine = dp_engine.UtilityAnalysisEngine(
             budget_accountant=budget_accountant,
             backend=pipeline_dp.LocalBackend())
 
         options = utility_analysis_new.UtilityAnalysisOptions(
-            epsilon=1, delta=0, aggregate_params=aggregator_params)
+            epsilon=1,
+            delta=0,
+            aggregate_params=aggregator_params,
+            pre_aggregated_data=pre_aggregated)
         col = engine.analyze(col=col,
                              options=options,
-                             data_extractors=data_extractor,
+                             data_extractors=data_extractors,
                              public_partitions=public_partitions)
         budget_accountant.compute_budgets()
 
@@ -218,6 +228,10 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
         if not pre_aggregated:
             col = [(i, j) for i in range(10) for j in range(10)] * 3
         else:
+            # This is pre-agregated dataset, namely each element has a format
+            # (partition_key, (count, sum, num_partition_contributed).
+            # And each element is in one-to-one correspondence to pairs
+            # (privacy_id, partition_key) from the dataset.
             col = [(i, (3, 0, 10)) for i in range(10)] * 10
 
         if pre_aggregated:

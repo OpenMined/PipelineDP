@@ -39,7 +39,9 @@ def perform_utility_analysis(
       backend: PipelineBackend with which the utility analysis will be run.
       options: options for utility analysis.
       data_extractors: functions that extract needed pieces of information
-        from elements of 'col'.
+        from elements of 'col'. In case if the analysis performed on
+        pre-aggregated data, it should have type PreAggregateExtractors
+        otherwise DataExtractors.
       public_partitions: A collection of partition keys that will be present
         in the result. If not provided, the utility analysis with private
         partition selection will be performed.

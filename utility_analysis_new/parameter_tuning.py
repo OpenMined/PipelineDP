@@ -197,7 +197,9 @@ def tune(col,
          computed with compute_contribution_histograms().
         options: options for tuning.
         data_extractors: functions that extract needed pieces of information
-          from elements of 'col'.
+          from elements of 'col'. In case if the analysis performed on
+          pre-aggregated data, it should have type PreAggregateExtractors
+          otherwise DataExtractors.
         public_partitions: A collection of partition keys that will be present
           in the result. If not provided, tuning will be performed assuming
           private partition selection is used.
