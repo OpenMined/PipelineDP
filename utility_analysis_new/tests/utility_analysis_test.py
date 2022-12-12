@@ -45,7 +45,7 @@ class UtilityAnalysis(parameterized.TestCase):
         data_extractors = pipeline_dp.DataExtractors(
             privacy_id_extractor=lambda x: x[0],
             partition_extractor=lambda x: f"pk{x[1]}",
-            value_extractor=lambda x: None)
+            value_extractor=lambda x: 0)
 
         col = utility_analysis_new.perform_utility_analysis(
             col=col,
@@ -172,7 +172,7 @@ class UtilityAnalysis(parameterized.TestCase):
         data_extractor = pipeline_dp.DataExtractors(
             privacy_id_extractor=lambda x: x,
             partition_extractor=lambda x: f"pk{x}",
-            value_extractor=lambda x: None)
+            value_extractor=lambda x: 0)
 
         col = utility_analysis_new.perform_utility_analysis(
             col=col,
@@ -241,7 +241,7 @@ class UtilityAnalysis(parameterized.TestCase):
         data_extractors = pipeline_dp.DataExtractors(
             privacy_id_extractor=lambda x: x[0],
             partition_extractor=lambda x: x[1],
-            value_extractor=lambda x: None)
+            value_extractor=lambda x: 0)
 
         public_partitions = ["pk0", "pk1"]
 

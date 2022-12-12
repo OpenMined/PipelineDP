@@ -143,7 +143,7 @@ class DpEngine(parameterized.TestCase):
                     backend=pipeline_dp.LocalBackend())
                 col = [0, 1, 2]
                 engine.analyze(col,
-                               test_case["params"],
+                               options,
                                test_case["data_extractor"],
                                public_partitions=test_case["public_partitions"])
 
@@ -162,7 +162,7 @@ class DpEngine(parameterized.TestCase):
         data_extractor = pipeline_dp.DataExtractors(
             privacy_id_extractor=lambda x: x,
             partition_extractor=lambda x: f"pk{x}",
-            value_extractor=lambda x: None)
+            value_extractor=lambda x: 0)
 
         engine = dp_engine.UtilityAnalysisEngine(
             budget_accountant=budget_accountant,
@@ -199,7 +199,7 @@ class DpEngine(parameterized.TestCase):
         data_extractors = pipeline_dp.DataExtractors(
             privacy_id_extractor=lambda x: x[0],
             partition_extractor=lambda x: f"pk{x[1]}",
-            value_extractor=lambda x: None)
+            value_extractor=lambda x: 0)
 
         engine = dp_engine.UtilityAnalysisEngine(
             budget_accountant=budget_accountant,
@@ -258,7 +258,7 @@ class DpEngine(parameterized.TestCase):
         data_extractors = pipeline_dp.DataExtractors(
             privacy_id_extractor=lambda x: x[0],
             partition_extractor=lambda x: x[1],
-            value_extractor=lambda x: None)
+            value_extractor=lambda x: 0)
 
         public_partitions = ["pk0", "pk1"]
 
