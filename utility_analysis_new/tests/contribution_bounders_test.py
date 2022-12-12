@@ -26,8 +26,8 @@ CrossAndPerPartitionContributionParams = collections.namedtuple(
     "CrossAndPerPartitionContributionParams",
     ["max_partitions_contributed", "max_contributions_per_partition"])
 
-# input_values is a tuple (value, num_partitions_contributed)
-aggregate_fn = lambda input_value: len(input_value[0])
+# input_values is a tuple (count, sum, num_partitions_contributed)
+aggregate_fn = lambda input_value: input_value[0]
 
 
 def _create_report_generator():
@@ -116,6 +116,21 @@ class SamplingL0LinfContributionBounderTest(parameterized.TestCase):
                            (('pid1', 'pk4'), 1)]
         # Check per- and cross-partition contribution limits are not enforced.
         self.assertEqual(set(expected_result), set(bound_result))
+
+
+class SamplingL0LinfContributionBounderTest(parameterized.TestCase):
+
+    def test_contribution_bounding(self):
+        input = [('pk1', (1, 2, 3)), ('pk2', (2, 3, 4)), ('pk1', (10, 11, 12)),
+                 ("pk3", (100, 101, 102))]
+
+        bounder = contribution_bounders.NoOpContributionBounder()
+        bound_result = list(
+            bounder.bound_contributions(input, None, pipeline_dp.LocalBackend(),
+                                        None, aggregate_fn))
+        expected_result = [((None, 'pk1'), 1), ((None, 'pk2'), 2),
+                           ((None, 'pk1'), 10), ((None, 'pk3'), 100)]
+        self.assertSequenceEqual(set(expected_result), set(bound_result))
 
 
 if __name__ == '__main__':
