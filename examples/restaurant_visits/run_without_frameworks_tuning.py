@@ -37,8 +37,6 @@ flags.DEFINE_string(
     'If set, partition utility analysis is output to this file')
 flags.DEFINE_boolean('public_partitions', False,
                      'Whether public partitions are used')
-flags.DEFINE_float('partition_sampling_probability', 1.0,
-                   'Partition sampling probability')
 flags.DEFINE_boolean('run_on_preaggregated_data', False,
                      'If true, the data is preaggregated before tuning')
 
@@ -83,7 +81,15 @@ def get_data_extractors():
 
 
 def preaggregate(col: list, data_extractors: pipeline_dp.DataExtractors):
-    """Returns collection with elements (pk, (count, sum, n_partitions))"""
+    """Preaggregates a collection col.
+
+    The output is a collection with elements
+    (partition_key, (count, sum, n_partitions)).
+    Each element corresponds to each (privacy_key, partition_key) which is
+    present in dataset. count and sum correspond to count and sum of values
+    which correspoinds to (privacy_key, partition_key). n_partitions is the
+    number of partitions which privacy_key contributes.
+    """
     pid_pk = set((data_extractors.privacy_id_extractor(row),
                   data_extractors.partition_extractor(row)) for row in col)
     # (pid, pk)
@@ -91,18 +97,17 @@ def preaggregate(col: list, data_extractors: pipeline_dp.DataExtractors):
     # (pid,)
     pid_n_partitions = collections.Counter(pid)
 
-    key_fn = lambda row: (data_extractors.partition_extractor(row),
-                          data_extractors.privacy_id_extractor(row))
-
     def preaggregate(kv):
-        (pk, pid), values = kv
+        (pk, pid), rows = kv
         c = s = 0
-        for v in values:
+        for row in rows:
             c += 1
-            s += data_extractors.value_extractor(v)
+            s += data_extractors.value_extractor(row)
         return (pk, (c, s, pid_n_partitions[pid]))
 
     backend = pipeline_dp.LocalBackend()
+    key_fn = lambda row: (data_extractors.partition_extractor(row),
+                          data_extractors.privacy_id_extractor(row))
     col = backend.map(col, lambda x: (key_fn(x), x))
     res = list(backend.map(backend.group_by_key(col), preaggregate))
     return res
@@ -135,14 +140,19 @@ def tune_parameters():
     if FLAGS.run_on_preaggregated_data:
         input = preaggregate(restaurant_visits_rows, data_extractors)
         data_extractors = utility_analysis_new.PreAggregateExtractors(
-            lambda row: row[0], lambda row: row[1])
+            partition_extractor=lambda row: row[0],
+            preaggregate_extractor=lambda row: row[1])
     else:
         input = restaurant_visits_rows
     if FLAGS.output_file_per_partition_analysis:
-        result, per_partition = parameter_tuning.tune(input, backend, hist,
-                                                      tune_options,
-                                                      data_extractors,
-                                                      public_partitions, True)
+        result, per_partition = parameter_tuning.tune(
+            input,
+            backend,
+            hist,
+            tune_options,
+            data_extractors,
+            public_partitions,
+            return_utility_analysis_per_partition=True)
         write_to_file(per_partition, FLAGS.output_file_per_partition_analysis)
     else:
         result = parameter_tuning.tune(restaurant_visits_rows, backend, hist,

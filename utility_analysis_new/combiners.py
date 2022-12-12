@@ -344,7 +344,8 @@ class CompoundCombiner(pipeline_dp.combiners.CompoundCombiner):
 
     def create_accumulator(self, data: Tuple[Sequence, int]) -> AccumulatorType:
         if not data:
-            # This is an empty partition, added because of public partitions.
+            # This is an empty partition, what is None assigned to. It was added
+            # because of public partitions.
             return ([(0, 0, 0)], None)
         return ([data], None)
 
