@@ -27,7 +27,7 @@ CrossAndPerPartitionContributionParams = collections.namedtuple(
     ["max_partitions_contributed", "max_contributions_per_partition"])
 
 # input_values is a tuple (count, sum, num_partitions_contributed)
-aggregate_fn = lambda input_value: input_value[0]
+count_aggregate_fn = lambda input_value: input_value[0]  # returns count
 
 
 def _create_report_generator():
@@ -50,7 +50,7 @@ class SamplingL0LinfContributionBounderTest(parameterized.TestCase):
             bounder.bound_contributions(input, params,
                                         pipeline_dp.LocalBackend(),
                                         _create_report_generator(),
-                                        aggregate_fn))
+                                        count_aggregate_fn))
 
     def test_contribution_bounding_empty_col(self):
         input = []
@@ -121,13 +121,21 @@ class SamplingL0LinfContributionBounderTest(parameterized.TestCase):
 class SamplingL0LinfContributionBounderTest(parameterized.TestCase):
 
     def test_contribution_bounding(self):
+        # Arrange.
+        # input has format (partition_key, (count, sum, num_partitions_contributed)).
         input = [('pk1', (1, 2, 3)), ('pk2', (2, 3, 4)), ('pk1', (10, 11, 12)),
                  ("pk3", (100, 101, 102))]
-
         bounder = contribution_bounders.NoOpContributionBounder()
+
+        # Act.
         bound_result = list(
-            bounder.bound_contributions(input, None, pipeline_dp.LocalBackend(),
-                                        None, aggregate_fn))
+            bounder.bound_contributions(input,
+                                        params=None,
+                                        backend=pipeline_dp.LocalBackend(),
+                                        report_generator=None,
+                                        aggregate_fn=count_aggregate_fn))
+
+        # Assert.
         expected_result = [((None, 'pk1'), 1), ((None, 'pk2'), 2),
                            ((None, 'pk1'), 10), ((None, 'pk3'), 100)]
         self.assertSequenceEqual(set(expected_result), set(bound_result))

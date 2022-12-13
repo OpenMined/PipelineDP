@@ -405,5 +405,5 @@ class DPEngine:
                     "contribution_bounds_already_enforced is False")
             if pipeline_dp.Metrics.PRIVACY_ID_COUNT in params.metrics:
                 raise ValueError(
-                    "PRIVACY_ID_COUNT can not be computed when "
+                    "PRIVACY_ID_COUNT cannot be computed when "
                     "contribution_bounds_already_enforced is True.")

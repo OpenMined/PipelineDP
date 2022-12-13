@@ -105,7 +105,7 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
             max_partitions_contributed=1,
             max_contributions_per_partition=1)
 
-    def test_utility_analysis_params(self):
+    def test_invalid_utility_analysis_params_throws_exception(self):
         default_extractors = self._get_default_extractors()
         default_params = self._get_default_aggregate_params()
         params_with_custom_combiners = copy.copy(default_params)
@@ -117,29 +117,29 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
         params_with_contribution_bounds_already_enforced.contribution_bounds_already_enforced = True
 
         test_cases = [{
-            "desc": "custom combiners",
+            "error_message": "custom combiners",
             "params": params_with_custom_combiners,
-            "data_extractor": default_extractors,
+            "data_extractors": default_extractors,
             "public_partitions": [1],
             "pre_aggregated": False
         }, {
-            "desc": "unsupported metric in metrics",
+            "error_message": "unsupported metric in metrics",
             "params": params_with_unsupported_metric,
-            "data_extractor": default_extractors,
+            "data_extractors": default_extractors,
             "public_partitions": [1],
             "pre_aggregated": False
         }, {
-            "desc": "contribution bounds are already enforced",
+            "error_message": "contribution bounds are already enforced",
             "params": params_with_contribution_bounds_already_enforced,
-            "data_extractor": default_extractors,
+            "data_extractors": default_extractors,
             "public_partitions": [1],
             "pre_aggregated": False
         }, {
-            "desc":
+            "error_message":
                 "PreAggregateExtractors should be specified for pre-aggregated data",
             "params":
                 default_params,
-            "data_extractor":
+            "data_extractors":
                 default_extractors,
             "public_partitions": [1],
             "pre_aggregated":
@@ -147,38 +147,36 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
         }]
 
         for test_case in test_cases:
-
-            with self.assertRaisesRegex(Exception,
-                                        expected_regex=test_case["desc"]):
-                budget_accountant = budget_accounting.NaiveBudgetAccountant(
-                    total_epsilon=1, total_delta=1e-10)
-                options = utility_analysis_new.UtilityAnalysisOptions(
-                    epsilon=1,
-                    delta=0,
-                    aggregate_params=test_case["params"],
-                    pre_aggregated_data=test_case["pre_aggregated"])
-                engine = dp_engine.UtilityAnalysisEngine(
-                    budget_accountant=budget_accountant,
-                    backend=pipeline_dp.LocalBackend())
-                col = [0, 1, 2]
-                engine.analyze(col,
+            budget_accountant = budget_accounting.NaiveBudgetAccountant(
+                total_epsilon=1, total_delta=1e-10)
+            options = utility_analysis_new.UtilityAnalysisOptions(
+                epsilon=1,
+                delta=0,
+                aggregate_params=test_case["params"],
+                pre_aggregated_data=test_case["pre_aggregated"])
+            engine = dp_engine.UtilityAnalysisEngine(
+                budget_accountant=budget_accountant,
+                backend=pipeline_dp.LocalBackend())
+            with self.assertRaisesRegex(
+                    Exception, expected_regex=test_case["error_message"]):
+                engine.analyze([0, 1, 2],
                                options,
-                               test_case["data_extractor"],
+                               test_case["data_extractors"],
                                public_partitions=test_case["public_partitions"])
 
     @parameterized.parameters(False, True)
-    def test_aggregate_public_partition_e2e(self, pre_aggregated: bool):
+    def test_analyze_applies_public_partitions(self, pre_aggregated: bool):
         # Arrange
         aggregator_params = self._get_default_aggregate_params()
 
         budget_accountant = pipeline_dp.NaiveBudgetAccountant(total_epsilon=1,
                                                               total_delta=1e-10)
 
-        public_partitions = ["pk0", "pk1", "pk101"]
+        public_partitions = ["pk0", "pk1", "empty_public_partition"]
 
         # Input collection has 100 elements, such that each privacy id
         # contributes 1 time and each partition has 1 element.
-        col = list(range(100))
+        input = list(range(100))
 
         if not pre_aggregated:
             data_extractors = pipeline_dp.DataExtractors(
@@ -199,20 +197,21 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
             delta=0,
             aggregate_params=aggregator_params,
             pre_aggregated_data=pre_aggregated)
-        col = engine.analyze(col=col,
-                             options=options,
-                             data_extractors=data_extractors,
-                             public_partitions=public_partitions)
+        # Act.
+        output = engine.analyze(col=input,
+                                options=options,
+                                data_extractors=data_extractors,
+                                public_partitions=public_partitions)
         budget_accountant.compute_budgets()
 
-        col = list(col)
+        output = list(output)
 
         # Assert public partitions are applied.
-        self.assertLen(col, 3)
-        self.assertTrue(any(v[0] == 'pk101' for v in col))
+        self.assertLen(output, 3)
+        self.assertTrue(any(v[0] == 'empty_public_partition' for v in output))
 
     @parameterized.parameters(False, True)
-    def test_aggregate_error_metrics(self, pre_aggregated: bool):
+    def test_per_partition_error_metrics(self, pre_aggregated: bool):
         # Arrange
         aggregator_params = pipeline_dp.AggregateParams(
             noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
@@ -226,13 +225,13 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
         # Input collection has 10 privacy ids where each privacy id
         # contributes to the same 10 partitions, three times in each partition.
         if not pre_aggregated:
-            col = [(i, j) for i in range(10) for j in range(10)] * 3
+            input = [(i, j) for i in range(10) for j in range(10)] * 3
         else:
             # This is pre-agregated dataset, namely each element has a format
             # (partition_key, (count, sum, num_partition_contributed).
             # And each element is in one-to-one correspondence to pairs
             # (privacy_id, partition_key) from the dataset.
-            col = [(i, (3, 0, 10)) for i in range(10)] * 10
+            input = [(i, (3, 0, 10)) for i in range(10)] * 10
 
         if pre_aggregated:
             data_extractors = self._get_default_pre_aggregated_extractors()
@@ -251,30 +250,30 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
             delta=0,
             aggregate_params=aggregator_params,
             pre_aggregated_data=pre_aggregated)
-        col = engine.analyze(col=col,
-                             options=options,
-                             data_extractors=data_extractors)
+        output = engine.analyze(col=input,
+                                options=options,
+                                data_extractors=data_extractors)
         budget_accountant.compute_budgets()
 
-        col = list(col)
+        output = list(output)
 
         # Assert
-        self.assertLen(col, 10)
+        self.assertLen(output, 10)
         # Assert count metrics are correct.
-        [self.assertTrue(v[1][1].per_partition_error == -10) for v in col]
+        [self.assertTrue(v[1][1].per_partition_error == -10) for v in output]
         [
             self.assertAlmostEqual(v[1][1].expected_cross_partition_error,
                                    -18.0,
-                                   delta=1e-5) for v in col
+                                   delta=1e-5) for v in output
         ]
         [
             self.assertAlmostEqual(v[1][1].std_cross_partition_error,
                                    1.89736,
-                                   delta=1e-5) for v in col
+                                   delta=1e-5) for v in output
         ]
         [
             self.assertAlmostEqual(v[1][1].std_noise, 11.95312, delta=1e-5)
-            for v in col
+            for v in output
         ]
 
     def test_multi_parameters(self):
@@ -364,7 +363,7 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
         budget_accountant = pipeline_dp.NaiveBudgetAccountant(total_epsilon=1,
                                                               total_delta=1e-10)
 
-        data_extractor = pipeline_dp.DataExtractors(
+        data_extractors = pipeline_dp.DataExtractors(
             privacy_id_extractor=lambda x: x,
             partition_extractor=lambda x: f"pk{x}",
             value_extractor=lambda x: None)
@@ -380,7 +379,7 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
             partitions_sampling_prob=0.25)
         engine.analyze(col=[1, 2, 3],
                        options=options,
-                       data_extractors=data_extractor)
+                       data_extractors=data_extractors)
         mock_sampler_init.assert_called_once_with(0.25)
 
 

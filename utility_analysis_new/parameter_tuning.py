@@ -69,7 +69,7 @@ class TuneOptions:
         parameters_to_tune: specifies which parameters to tune.
         partitions_sampling_prob: the probability with which each partition
         will be sampled before running tuning. It is useful for speed-up
-        computations on the large dataset.
+        computations on the large datasets.
         pre_aggregated_data: when True the input data is already pre-aggregated,
         otherwise the input data are raw. Preaggregated data also can be
         sampled.
