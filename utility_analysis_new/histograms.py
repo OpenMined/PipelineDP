@@ -124,19 +124,26 @@ def _to_bin_lower(n: int) -> int:
     return n // round_base * round_base
 
 
-def _compute_frequency_histogram(col, backend: pipeline_backend.PipelineBackend,
-                                 name: HistogramType):
+def _compute_frequency_histogram(col,
+                                 backend: pipeline_backend.PipelineBackend,
+                                 name: HistogramType,
+                                 normalize: bool = False):
     """Computes histogram of element frequencies in collection.
 
     Args:
       col: collection with positive integers.
       backend: PipelineBackend to run operations on the collection.
       name: name which is assigned to the computed histogram.
+      normalize: todo better name
     Returns:
       1 element collection which contains Histogram.
     """
 
     col = backend.count_per_element(col, "Frequency of elements")
+    if normalize:
+        # todo: polish
+        col = backend.map_tuple(col, lambda n, f: int(round(f / n)),
+                                "Normalize")
 
     # Combiner elements to histogram buckets of increasing sizes. Having buckets
     # of width = 1 is not scalable.
@@ -291,6 +298,19 @@ def _compute_partition_privacy_id_count_histogram(
         col, backend, HistogramType.COUNT_PRIVACY_ID_PER_PARTITION)
 
 
+def _to_dataset_histograms(histogram_list,
+                           backend: pipeline_backend.PipelineBackend):
+    # Combine histograms to DatasetHistograms.
+    histograms = backend.flatten(histogram_list, "Histograms to one collection")
+    # histograms: 4 elements collection with elements ContributionHistogram
+
+    histograms = backend.to_list(histograms, "Histograms to List")
+    # 1 element collection: [ContributionHistogram]
+    return backend.map(histograms, _list_to_contribution_histograms,
+                       "To ContributionHistograms")
+    # 1 element collection: (DatasetHistograms)
+
+
 def compute_dataset_histograms(col, data_extractors: pipeline_dp.DataExtractors,
                                backend: pipeline_backend.PipelineBackend):
     """Computes dataset histograms.
@@ -320,9 +340,9 @@ def compute_dataset_histograms(col, data_extractors: pipeline_dp.DataExtractors,
     # col: (pid, pk)
 
     # Compute histograms.
-    cross_partition_histogram = _compute_l0_contributions_histogram(
+    l0_contributions_histogram = _compute_l0_contributions_histogram(
         col_distinct, backend)
-    per_partition_histogram = _compute_linf_contributions_histogram(
+    linf_contributions_histogram = _compute_linf_contributions_histogram(
         col, backend)
     partition_count_histogram = _compute_partition_count_histogram(col, backend)
     partition_privacy_id_count_histogram = _compute_partition_privacy_id_count_histogram(
@@ -330,17 +350,10 @@ def compute_dataset_histograms(col, data_extractors: pipeline_dp.DataExtractors,
     # all histograms are 1 element collections which contains ContributionHistogram
 
     # Combine histograms to DatasetHistograms.
-    histograms = backend.flatten(
-        (cross_partition_histogram, per_partition_histogram,
-         partition_count_histogram, partition_privacy_id_count_histogram),
-        "Histograms to one collection")
-    # histograms: 4 elements collection with elements ContributionHistogram
-
-    histograms = backend.to_list(histograms, "Histograms to List")
-    # 1 element collection: [ContributionHistogram]
-    return backend.map(histograms, _list_to_contribution_histograms,
-                       "To ContributionHistograms")
-    # 1 element collection: (DatasetHistograms)
+    return _to_dataset_histograms([
+        l0_contributions_histogram, linf_contributions_histogram,
+        partition_count_histogram, partition_privacy_id_count_histogram
+    ], backend)
 
 
 def compute_dataset_histograms_on_preaggregted(
@@ -360,14 +373,32 @@ def compute_dataset_histograms_on_preaggregted(
     # col: (pid, pk)
 
     # Compute L0 contribution histogram.
+    linf = backend.map(col,
+                       lambda x: data_extractors.preaggregate_extractor(x)[2],
+                       "Extract l0")
+    l0_contributions_histogram = _compute_frequency_histogram(
+        linf, backend, HistogramType.L0_CONTRIBUTIONS, normalize=True)
+
     # Compute Linf contribution histogram.
-    linf = backend.map(col, lambda x: data_extractors.preaggregate_extractor[1],
+    linf = backend.map(col,
+                       lambda x: data_extractors.preaggregate_extractor(x)[0],
                        "Extract linf")
     # linf: (int,)
-    per_partition_histogram = _compute_frequency_histogram(
+    linf_contributions_histogram = _compute_frequency_histogram(
         linf, backend, HistogramType.LINF_CONTRIBUTIONS)
 
     # Compute partition count histogram.
+    pks_n = backend.map(
+        col, lambda x: (data_extractors.partition_extractor(x),
+                        data_extractors.preaggregate_extractor(x)[1]),
+        "Extract partition and linf")
+    # pks_n: (pk, int)
+    pks_n = backend.sum_per_key(pks_n, "Sum per partition")
+    # pks_n: (pk, int)
+    ns = backend.values(pks_n, "Drop Partitions")
+    # ns: (int,
+    partition_count_histogram = _compute_frequency_histogram(
+        ns, backend, HistogramType.COUNT_PER_PARTITION)
 
     # Compute partition privacy id count histogram.
     pks = backend.map(col, data_extractors.partition_extractor,
@@ -379,3 +410,9 @@ def compute_dataset_histograms_on_preaggregted(
 
     partition_privacy_id_count_histogram = _compute_frequency_histogram(
         ns, backend, HistogramType.COUNT_PRIVACY_ID_PER_PARTITION)
+
+    # Combine histograms to DatasetHistograms.
+    return _to_dataset_histograms([
+        l0_contributions_histogram, linf_contributions_histogram,
+        partition_count_histogram, partition_privacy_id_count_histogram
+    ], backend)
