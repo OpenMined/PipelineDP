@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import pipeline_dp
+import utility_analysis_new
 from pipeline_dp import pipeline_backend
 from dataclasses import dataclass
 import enum
@@ -340,3 +341,41 @@ def compute_dataset_histograms(col, data_extractors: pipeline_dp.DataExtractors,
     return backend.map(histograms, _list_to_contribution_histograms,
                        "To ContributionHistograms")
     # 1 element collection: (DatasetHistograms)
+
+
+def compute_dataset_histograms_on_preaggregted(
+        col, data_extractors: utility_analysis_new.PreAggregateExtractors,
+        backend: pipeline_backend.PipelineBackend):
+    """Computes dataset histograms.
+
+    Args:
+      col: collection with elements of the same type.
+      backend: PipelineBackend to run operations on the collection.
+
+    Returns:
+      1 element collection, which contains a DatasetHistograms object.
+    """
+
+    col = backend.to_multi_transformable_collection(col)
+    # col: (pid, pk)
+
+    # Compute L0 contribution histogram.
+    # Compute Linf contribution histogram.
+    linf = backend.map(col, lambda x: data_extractors.preaggregate_extractor[1],
+                       "Extract linf")
+    # linf: (int,)
+    per_partition_histogram = _compute_frequency_histogram(
+        linf, backend, HistogramType.LINF_CONTRIBUTIONS)
+
+    # Compute partition count histogram.
+
+    # Compute partition privacy id count histogram.
+    pks = backend.map(col, data_extractors.partition_extractor,
+                      "Extract partitions")
+    # pks: (pk)
+    pks_n = backend.count_per_element(pks, "Count partitions")
+    # pks: (pk, n)
+    ns = backend.values(pks_n, "Drop partitions")
+
+    partition_privacy_id_count_histogram = _compute_frequency_histogram(
+        ns, backend, HistogramType.COUNT_PRIVACY_ID_PER_PARTITION)

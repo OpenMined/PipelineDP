@@ -25,6 +25,7 @@ import pipeline_dp.combiners as dp_combiners
 import typing
 import collections
 import itertools
+import operator
 
 try:
     import apache_beam as beam
@@ -127,6 +128,10 @@ class PipelineBackend(abc.ABC):
 
     @abc.abstractmethod
     def count_per_element(self, col, stage_name: str):
+        pass
+
+    @abc.abstractmethod
+    def sum_per_key(self, col, stage_name: str):
         pass
 
     @abc.abstractmethod
@@ -309,6 +314,9 @@ class BeamBackend(PipelineBackend):
         return col | self._ulg.unique(
             stage_name) >> combiners.Count.PerElement()
 
+    def sum_per_key(self, col, stage_name: str):
+        return col | self._ulg.unique(stage_name) >> beam.CombinePerKey(sum)
+
     def combine_accumulators_per_key(self, col, combiner: dp_combiners.Combiner,
                                      stage_name: str):
 
@@ -420,6 +428,9 @@ class SparkRDDBackend(PipelineBackend):
     def count_per_element(self, rdd, stage_name: str = None):
         return rdd.map(lambda x: (x, 1)).reduceByKey(lambda x, y: (x + y))
 
+    def sum_per_key(self, rdd, stage_name: str = None):
+        rdd.reduceByKey(operator.add)
+
     def combine_accumulators_per_key(self,
                                      rdd,
                                      combiner: dp_combiners.Combiner,
@@ -506,6 +517,9 @@ class LocalBackend(PipelineBackend):
 
     def count_per_element(self, col, stage_name: typing.Optional[str] = None):
         yield from collections.Counter(col).items()
+
+    def sum_per_key(self, col, stage_name: typing.Optional[str] = None):
+        return self.map_values(self.group_by_key(col), sum)
 
     def combine_accumulators_per_key(self,
                                      col,
