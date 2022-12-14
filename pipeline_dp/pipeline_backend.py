@@ -223,6 +223,10 @@ class BeamBackend(PipelineBackend):
         super().__init__()
         self._ulg = UniqueLabelsGenerator(suffix)
 
+    @property
+    def unique_lable_generator(self) -> UniqueLabelsGenerator:
+        return self._ulg
+
     def to_collection(self, collection_or_iterable, col, stage_name: str):
         if isinstance(collection_or_iterable, beam.PCollection):
             return collection_or_iterable

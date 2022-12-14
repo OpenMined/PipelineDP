@@ -85,4 +85,4 @@ class NoOpContributionBounder(contribution_bounders.ContributionBounder):
         return backend.map_tuple(
             col, lambda pk, val: ((None, pk), aggregate_fn(val)),
             "Apply aggregate_fn")
-        # ((privacy_id, privacy_key), accumulator)
+        # ((privacy_id, partition_key), accumulator)

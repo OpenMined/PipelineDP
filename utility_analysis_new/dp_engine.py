@@ -164,8 +164,8 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
         self, col, params: pipeline_dp.AggregateParams,
         data_extractors: Union[pipeline_dp.DataExtractors,
                                utility_analysis_new.PreAggregateExtractors]):
-        # Do not check data_extractors. It is already checked in the base class
-        # does not support PreAggregateExtractors.
+        # Do not check data_extractors. The parent implementation does not
+        # support PreAggregateExtractors.
         super()._check_aggregate_params(col,
                                         params,
                                         data_extractors=None,
@@ -181,8 +181,9 @@ def _check_utility_analysis_params(
         if not isinstance(data_extractors,
                           utility_analysis_new.PreAggregateExtractors):
             raise ValueError(
-                "utility_analysis_new.PreAggregateExtractors should be specified for pre-aggregated data."
-            )
+                "options.pre_aggregated_data is set to true but "
+                "PreAggregateExtractors aren't provided. PreAggregateExtractors"
+                " should be specified for pre-aggregated data.")
     elif not isinstance(data_extractors, pipeline_dp.DataExtractors):
         raise ValueError(
             "pipeline_dp.DataExtractors should be specified for raw data.")
