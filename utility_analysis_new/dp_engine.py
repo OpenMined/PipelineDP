@@ -87,6 +87,17 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
         self._options = None
         return result
 
+    def preaggregate(self, col, data_extractors: pipeline_dp.DataExtractors,
+                     partitions_sampling_prob: float):
+        col = super()._extract_columns(col, data_extractors)
+        bounder = utility_contribution_bounders.SamplingL0LinfContributionBounder(
+            partitions_sampling_prob)
+        return bounder.bound_contributions(col,
+                                           params=None,
+                                           backend=self._backend,
+                                           report_generator=None,
+                                           aggregate_fn=lambda x: x)
+
     def _create_contribution_bounder(
         self, params: pipeline_dp.AggregateParams
     ) -> contribution_bounders.ContributionBounder:

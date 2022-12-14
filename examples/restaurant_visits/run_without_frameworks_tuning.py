@@ -118,12 +118,21 @@ def tune_parameters():
     restaurant_visits_rows = load_data(FLAGS.input_file)
     # Create aggregate_params, data_extractors and public partitions.
     aggregate_params = get_aggregate_params()
-    data_extractors = get_data_extractors()
     public_partitions = list(range(1, 8)) if FLAGS.public_partitions else None
     backend = pipeline_dp.LocalBackend()
 
-    hist = histograms.compute_dataset_histograms(restaurant_visits_rows,
-                                                 data_extractors, backend)
+    if FLAGS.run_on_preaggregated_data:
+        input = preaggregate(restaurant_visits_rows, get_data_extractors())
+        data_extractors = utility_analysis_new.PreAggregateExtractors(
+            partition_extractor=lambda row: row[0],
+            preaggregate_extractor=lambda row: row[1])
+        hist = histograms.compute_dataset_histograms_on_preaggregted(
+            input, data_extractors, backend)
+    else:
+        input = restaurant_visits_rows
+        data_extractors = get_data_extractors()
+        hist = histograms.compute_dataset_histograms(input, data_extractors,
+                                                     backend)
     # Hist is 1-element iterable and the single element is a computed histogram.
     hist = list(hist)[0]
 
@@ -137,13 +146,7 @@ def tune_parameters():
         function_to_minimize=minimizing_function,
         parameters_to_tune=parameters_to_tune,
         pre_aggregated_data=FLAGS.run_on_preaggregated_data)
-    if FLAGS.run_on_preaggregated_data:
-        input = preaggregate(restaurant_visits_rows, data_extractors)
-        data_extractors = utility_analysis_new.PreAggregateExtractors(
-            partition_extractor=lambda row: row[0],
-            preaggregate_extractor=lambda row: row[1])
-    else:
-        input = restaurant_visits_rows
+
     if FLAGS.output_file_per_partition_analysis:
         result, per_partition = parameter_tuning.tune(
             input,

@@ -142,7 +142,7 @@ def _compute_frequency_histogram(col,
     col = backend.count_per_element(col, "Frequency of elements")
     if normalize:
         # todo: polish
-        col = backend.map_tuple(col, lambda n, f: int(round(f / n)),
+        col = backend.map_tuple(col, lambda n, f: (n, int(round(f / n))),
                                 "Normalize")
 
     # Combiner elements to histogram buckets of increasing sizes. Having buckets
@@ -390,7 +390,7 @@ def compute_dataset_histograms_on_preaggregted(
     # Compute partition count histogram.
     pks_n = backend.map(
         col, lambda x: (data_extractors.partition_extractor(x),
-                        data_extractors.preaggregate_extractor(x)[1]),
+                        data_extractors.preaggregate_extractor(x)[0]),
         "Extract partition and linf")
     # pks_n: (pk, int)
     pks_n = backend.sum_per_key(pks_n, "Sum per partition")
