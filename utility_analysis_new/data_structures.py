@@ -22,10 +22,18 @@ from pipeline_dp import input_validators
 
 
 @dataclasses.dataclass
+class PreAggregateExtractors:
+    partition_extractor: Callable
+    preaggregate_extractor: Callable
+
+
+@dataclasses.dataclass
 class MultiParameterConfiguration:
     """Specifies parameters for multi-parameter Utility Analysis.
+
     All MultiParameterConfiguration attributes corresponds to attributes in
     pipeline_dp.AggregateParams.
+
     UtilityAnalysisEngine can perform utility analysis for multiple sets of
     parameters simultaneously. API for this is the following:
     1. Specify blue-print AggregateParams instance.
@@ -34,9 +42,11 @@ class MultiParameterConfiguration:
     analysis will be run. All attributes that have non-None values must have
     the same length.
     3. Pass the created objects to UtilityAnalysisEngine.aggregate().
+
     Example:
         max_partitions_contributed = [1, 2]
         max_contributions_per_partition = [10, 11]
+
         Then the utility analysis will be performed for
           AggregateParams(max_partitions_contributed=1, max_contributions_per_partition=10)
           AggregateParams(max_partitions_contributed=2, max_contributions_per_partition=11)

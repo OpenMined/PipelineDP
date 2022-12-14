@@ -22,7 +22,9 @@ from absl import app
 from absl import flags
 import pipeline_dp
 import pandas as pd
+import collections
 
+import utility_analysis_new
 from utility_analysis_new import histograms
 from utility_analysis_new import parameter_tuning
 
@@ -35,6 +37,8 @@ flags.DEFINE_string(
     'If set, partition utility analysis is output to this file')
 flags.DEFINE_boolean('public_partitions', False,
                      'Whether public partitions are used')
+flags.DEFINE_boolean('run_on_preaggregated_data', False,
+                     'If true, the data is preaggregated before tuning')
 
 
 def write_to_file(col, filename):
@@ -76,6 +80,40 @@ def get_data_extractors():
         value_extractor=lambda row: row.spent_money)
 
 
+def preaggregate(col: list, data_extractors: pipeline_dp.DataExtractors):
+    """Preaggregates a collection col.
+
+    The output is a collection with elements
+    (partition_key, (count, sum, n_partitions)).
+    Each element corresponds to each (privacy_id, partition_key) which is
+    present in the dataset. count and sum correspond to count and sum of values
+    contributed by the privacy_key to the partition_key. n_partitions is the
+    number of partitions which privacy_id contributes.
+    """
+    pid_pk = set((data_extractors.privacy_id_extractor(row),
+                  data_extractors.partition_extractor(row)) for row in col)
+    # (pid, pk)
+    pid = [kv[0] for kv in pid_pk]
+    # (pid,)
+    pid_n_partitions = collections.Counter(pid)
+
+    def preaggregate_fn(pk_pid_rows):
+        """Aggregates rows per (partition_key, privacy_id)."""
+        (pk, pid), rows = pk_pid_rows
+        c = s = 0
+        for row in rows:
+            c += 1
+            s += data_extractors.value_extractor(row)
+        return (pk, (c, s, pid_n_partitions[pid]))
+
+    backend = pipeline_dp.LocalBackend()
+    key_fn = lambda row: (data_extractors.partition_extractor(row),
+                          data_extractors.privacy_id_extractor(row))
+    col = backend.map(col, lambda x: (key_fn(x), x))
+    res = list(backend.map(backend.group_by_key(col), preaggregate_fn))
+    return res
+
+
 def tune_parameters():
     # Load data
     restaurant_visits_rows = load_data(FLAGS.input_file)
@@ -87,6 +125,7 @@ def tune_parameters():
 
     hist = histograms.compute_dataset_histograms(restaurant_visits_rows,
                                                  data_extractors, backend)
+    # Hist is 1-element iterable and the single element is a computed histogram.
     hist = list(hist)[0]
 
     minimizing_function = parameter_tuning.MinimizingFunction.ABSOLUTE_ERROR
@@ -97,13 +136,24 @@ def tune_parameters():
         delta=1e-5,
         aggregate_params=aggregate_params,
         function_to_minimize=minimizing_function,
-        parameters_to_tune=parameters_to_tune)
+        parameters_to_tune=parameters_to_tune,
+        pre_aggregated_data=FLAGS.run_on_preaggregated_data)
+    if FLAGS.run_on_preaggregated_data:
+        input = preaggregate(restaurant_visits_rows, data_extractors)
+        data_extractors = utility_analysis_new.PreAggregateExtractors(
+            partition_extractor=lambda row: row[0],
+            preaggregate_extractor=lambda row: row[1])
+    else:
+        input = restaurant_visits_rows
     if FLAGS.output_file_per_partition_analysis:
-        result, per_partition = parameter_tuning.tune(restaurant_visits_rows,
-                                                      backend, hist,
-                                                      tune_options,
-                                                      data_extractors,
-                                                      public_partitions, True)
+        result, per_partition = parameter_tuning.tune(
+            input,
+            backend,
+            hist,
+            tune_options,
+            data_extractors,
+            public_partitions,
+            return_utility_analysis_per_partition=True)
         write_to_file(per_partition, FLAGS.output_file_per_partition_analysis)
     else:
         result = parameter_tuning.tune(restaurant_visits_rows, backend, hist,

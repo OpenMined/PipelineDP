@@ -67,12 +67,20 @@ class TuneOptions:
           if this argument is a callable, it should take 1 argument of type
           AggregateErrorMetrics and return float.
         parameters_to_tune: specifies which parameters to tune.
+        partitions_sampling_prob: the probability with which each partition
+        will be sampled before running tuning. It is useful for speed-up
+        computations on the large datasets.
+        pre_aggregated_data: when True the input data is already pre-aggregated,
+        otherwise the input data are raw. Preaggregated data also can be
+        sampled.
     """
     epsilon: float
     delta: float
     aggregate_params: pipeline_dp.AggregateParams
     function_to_minimize: Union[MinimizingFunction, Callable]
     parameters_to_tune: ParametersToTune
+    partitions_sampling_prob: float = 1
+    pre_aggregated_data: bool = False
 
     def __post_init__(self):
         input_validators.validate_epsilon_delta(self.epsilon, self.delta,
@@ -165,7 +173,8 @@ def tune(col,
          backend: pipeline_backend.PipelineBackend,
          contribution_histograms: histograms.DatasetHistograms,
          options: TuneOptions,
-         data_extractors: pipeline_dp.DataExtractors,
+         data_extractors: Union[pipeline_dp.DataExtractors,
+                                utility_analysis_new.PreAggregateExtractors],
          public_partitions=None,
          return_utility_analysis_per_partition: bool = False) -> TuneResult:
     """Tunes parameters.
@@ -188,7 +197,9 @@ def tune(col,
          computed with compute_contribution_histograms().
         options: options for tuning.
         data_extractors: functions that extract needed pieces of information
-          from elements of 'col'.
+          from elements of 'col'. In case if the analysis performed on
+          pre-aggregated data, it should have type PreAggregateExtractors
+          otherwise DataExtractors.
         public_partitions: A collection of partition keys that will be present
           in the result. If not provided, tuning will be performed assuming
           private partition selection is used.
@@ -203,10 +214,12 @@ def tune(col,
                                             options.parameters_to_tune)
 
     utility_analysis_options = utility_analysis_new.UtilityAnalysisOptions(
-        options.epsilon,
-        options.delta,
-        options.aggregate_params,
-        multi_param_configuration=candidates)
+        epsilon=options.epsilon,
+        delta=options.delta,
+        aggregate_params=options.aggregate_params,
+        multi_param_configuration=candidates,
+        partitions_sampling_prob=options.partitions_sampling_prob,
+        pre_aggregated_data=options.pre_aggregated_data)
     result = utility_analysis.perform_utility_analysis(
         col, backend, utility_analysis_options, data_extractors,
         public_partitions, return_utility_analysis_per_partition)

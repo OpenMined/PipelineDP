@@ -13,12 +13,11 @@
 # limitations under the License.
 """Public API for performing utility analysis."""
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import List, Union
 
 import pipeline_dp
 from pipeline_dp import combiners
 from pipeline_dp import pipeline_backend
-from pipeline_dp import input_validators
 import utility_analysis_new
 from utility_analysis_new import dp_engine
 from utility_analysis_new import metrics
@@ -29,7 +28,8 @@ def perform_utility_analysis(
         col,
         backend: pipeline_backend.PipelineBackend,
         options: utility_analysis_new.UtilityAnalysisOptions,
-        data_extractors: pipeline_dp.DataExtractors,
+        data_extractors: Union[pipeline_dp.DataExtractors,
+                               utility_analysis_new.PreAggregateExtractors],
         public_partitions=None,
         return_per_partition: bool = False):
     """Performs utility analysis for DP aggregations.
@@ -39,7 +39,9 @@ def perform_utility_analysis(
       backend: PipelineBackend with which the utility analysis will be run.
       options: options for utility analysis.
       data_extractors: functions that extract needed pieces of information
-        from elements of 'col'.
+        from elements of 'col'. In case if the analysis performed on
+        pre-aggregated data, it should have type PreAggregateExtractors
+        otherwise DataExtractors.
       public_partitions: A collection of partition keys that will be present
         in the result. If not provided, the utility analysis with private
         partition selection will be performed.

@@ -13,6 +13,7 @@
 # limitations under the License.
 
 from utility_analysis_new.data_structures import MultiParameterConfiguration
+from utility_analysis_new.data_structures import PreAggregateExtractors
 from utility_analysis_new.data_structures import UtilityAnalysisOptions
 from utility_analysis_new.histograms import compute_dataset_histograms
 from utility_analysis_new.histograms import DatasetHistograms

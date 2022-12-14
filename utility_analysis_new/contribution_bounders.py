@@ -38,6 +38,7 @@ class SamplingL0LinfContributionBounder(
     def bound_contributions(self, col, params, backend, report_generator,
                             aggregate_fn):
         """See docstrings for this class and the base class."""
+
         col = backend.map_tuple(
             col, lambda pid, pk, v: (pid, (pk, v)),
             "Rekey to ((privacy_id), (partition_key, value))")
@@ -63,7 +64,7 @@ class SamplingL0LinfContributionBounder(
             for partition_key, values in partition_values:
                 if sampler is not None and not sampler.keep(partition_key):
                     continue
-                yield (privacy_id, partition_key), (values,
+                yield (privacy_id, partition_key), (len(values), sum(values),
                                                     num_partitions_contributed)
 
         # Unnest the list per privacy id.
@@ -71,6 +72,17 @@ class SamplingL0LinfContributionBounder(
             col, rekey_per_privacy_id_per_partition_key_and_unnest,
             "Unnest per-privacy_id")
 
-        return backend.map_values(
-            col, aggregate_fn,
-            "Apply aggregate_fn with num_partitions_contributed as input")
+        return backend.map_values(col, aggregate_fn, "Apply aggregate_fn")
+
+
+class NoOpContributionBounder(contribution_bounders.ContributionBounder):
+
+    def bound_contributions(self, col, params, backend, report_generator,
+                            aggregate_fn):
+        """Returns a collection with element in the correct format."""
+        # Dummy privacy_id = None is added, since the caller code expects that
+        # privacy id is available.
+        return backend.map_tuple(
+            col, lambda pk, val: ((None, pk), aggregate_fn(val)),
+            "Apply aggregate_fn")
+        # ((privacy_id, partition_key), accumulator)

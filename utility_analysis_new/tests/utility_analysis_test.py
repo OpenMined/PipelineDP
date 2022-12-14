@@ -17,7 +17,6 @@ from absl.testing import parameterized
 
 import pipeline_dp
 import utility_analysis_new
-from utility_analysis_new import utility_analysis
 
 
 class UtilityAnalysis(parameterized.TestCase):
@@ -29,7 +28,8 @@ class UtilityAnalysis(parameterized.TestCase):
             value_extractor=lambda x: x,
         )
 
-    def test_wo_public_partitions(self):
+    @parameterized.parameters(False, True)
+    def test_wo_public_partitions(self, pre_aggregated: bool):
         # Arrange
         aggregate_params = pipeline_dp.AggregateParams(
             noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
@@ -41,17 +41,33 @@ class UtilityAnalysis(parameterized.TestCase):
 
         # Input collection has 10 privacy ids where each privacy id
         # contributes to the same 10 partitions, three times in each partition.
-        col = [(i, j) for i in range(10) for j in range(10)] * 3
-        data_extractors = pipeline_dp.DataExtractors(
-            privacy_id_extractor=lambda x: x[0],
-            partition_extractor=lambda x: f"pk{x[1]}",
-            value_extractor=lambda x: None)
+        if not pre_aggregated:
+            col = [(i, j) for i in range(10) for j in range(10)] * 3
+        else:
+            # This is pre-agregated dataset, namely each element has a format
+            # (partition_key, (count, sum, num_partition_contributed).
+            # And each element is in one-to-one correspondence to pairs
+            # (privacy_id, partition_key) from the dataset.
+            col = [(i, (3, 0, 10)) for i in range(10)] * 10
+
+        if not pre_aggregated:
+            data_extractors = pipeline_dp.DataExtractors(
+                privacy_id_extractor=lambda x: x[0],
+                partition_extractor=lambda x: f"pk{x[1]}",
+                value_extractor=lambda x: 0)
+        else:
+            data_extractors = utility_analysis_new.PreAggregateExtractors(
+                partition_extractor=lambda x: f"pk{x[0]}",
+                preaggregate_extractor=lambda x: x[1])
 
         col = utility_analysis_new.perform_utility_analysis(
             col=col,
             backend=pipeline_dp.LocalBackend(),
             options=utility_analysis_new.UtilityAnalysisOptions(
-                epsilon=2, delta=0.9, aggregate_params=aggregate_params),
+                epsilon=2,
+                delta=0.9,
+                aggregate_params=aggregate_params,
+                pre_aggregated_data=pre_aggregated),
             data_extractors=data_extractors)
 
         col = list(col)
@@ -172,7 +188,7 @@ class UtilityAnalysis(parameterized.TestCase):
         data_extractor = pipeline_dp.DataExtractors(
             privacy_id_extractor=lambda x: x,
             partition_extractor=lambda x: f"pk{x}",
-            value_extractor=lambda x: None)
+            value_extractor=lambda x: 0)
 
         col = utility_analysis_new.perform_utility_analysis(
             col=col,
@@ -241,7 +257,7 @@ class UtilityAnalysis(parameterized.TestCase):
         data_extractors = pipeline_dp.DataExtractors(
             privacy_id_extractor=lambda x: x[0],
             partition_extractor=lambda x: x[1],
-            value_extractor=lambda x: None)
+            value_extractor=lambda x: 0)
 
         public_partitions = ["pk0", "pk1"]
 
