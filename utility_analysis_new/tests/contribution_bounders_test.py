@@ -120,7 +120,7 @@ class SamplingL0LinfContributionBounderTest(parameterized.TestCase):
 
 class SamplingL0LinfContributionBounderTest(parameterized.TestCase):
 
-    def test_contribution_bounding(self):
+    def test_contribution_bounding_doesnt_drop_contributions(self):
         # Arrange.
         # input has format (partition_key, (count, sum, num_partitions_contributed)).
         input = [('pk1', (1, 2, 3)), ('pk2', (2, 3, 4)), ('pk1', (10, 11, 12)),

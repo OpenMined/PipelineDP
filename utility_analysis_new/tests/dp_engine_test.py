@@ -106,6 +106,7 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
             max_contributions_per_partition=1)
 
     def test_invalid_utility_analysis_params_throws_exception(self):
+        # Arrange.
         default_extractors = self._get_default_extractors()
         default_params = self._get_default_aggregate_params()
         params_with_custom_combiners = copy.copy(default_params)
@@ -157,6 +158,7 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
             engine = dp_engine.UtilityAnalysisEngine(
                 budget_accountant=budget_accountant,
                 backend=pipeline_dp.LocalBackend())
+            # Act and assert.
             with self.assertRaisesRegex(
                     Exception, expected_regex=test_case["error_message"]):
                 engine.analyze([0, 1, 2],
