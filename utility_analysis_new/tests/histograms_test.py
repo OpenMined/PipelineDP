@@ -16,8 +16,10 @@ from absl.testing import absltest
 from absl.testing import parameterized
 
 import pipeline_dp
+import utility_analysis_new
 from utility_analysis_new import histograms as hist
 from utility_analysis_new.histograms import FrequencyBin
+from utility_analysis_new import pre_aggregation
 
 
 class ParameterTuning(parameterized.TestCase):
@@ -333,16 +335,22 @@ class ParameterTuning(parameterized.TestCase):
                                              expected_cross_partition,
                                              expected_per_partition,
                                              pre_aggregated):
-        backend = pipeline_dp.LocalBackend()
-        # if pre_aggregated:
-        #     input =
         data_extractors = pipeline_dp.DataExtractors(
             privacy_id_extractor=lambda x: x[0],
             partition_extractor=lambda x: x[1],
-        )
-        histograms = hist.compute_dataset_histograms(input, data_extractors,
-                                                     backend)
-        histograms = list(histograms)
+            value_extractor=lambda x: 0)
+        backend = pipeline_dp.LocalBackend()
+        if pre_aggregated:
+            input = pre_aggregation.preaggregate(input, backend,
+                                                 data_extractors)
+            data_extractors = utility_analysis_new.PreAggregateExtractors(
+                partition_extractor=lambda x: x[0],
+                preaggregate_extractor=lambda x: x[1])
+            compute_histograms = hist.compute_dataset_histograms_on_preaggregted
+        else:
+            compute_histograms = hist.compute_dataset_histograms
+
+        histograms = list(compute_histograms(input, data_extractors, backend))
         self.assertLen(histograms, 1)
         histograms = histograms[0]
 
