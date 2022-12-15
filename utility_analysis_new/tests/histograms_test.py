@@ -260,81 +260,88 @@ class ParameterTuning(parameterized.TestCase):
                          histogram.name)
         self.assertListEqual(expected, histogram.bins)
 
-    @parameterized.named_parameters(
-        dict(testcase_name='empty',
-             input=[],
-             expected_cross_partition=[],
-             expected_per_partition=[]),
-        dict(
-            testcase_name='small_histogram',
-            input=[(1, 1), (1, 2), (2, 1), (1, 1)],  # (privacy_id, partition)
-            expected_cross_partition=[
-                FrequencyBin(lower=1, count=1, sum=1, max=1),
-                FrequencyBin(lower=2, count=1, sum=2, max=2)
-            ],
-            expected_per_partition=[
-                FrequencyBin(lower=1, count=2, sum=2, max=1),
-                FrequencyBin(lower=2, count=1, sum=2, max=2)
-            ]),
-        dict(
-            testcase_name='Each privacy id, 1 contribution',
-            input=[(i, i) for i in range(100)],  # (privacy_id, partition)
-            expected_cross_partition=[
-                FrequencyBin(lower=1, count=100, sum=100, max=1),
-            ],
-            expected_per_partition=[
-                FrequencyBin(lower=1, count=100, sum=100, max=1),
-            ]),
-        dict(
-            testcase_name='1 privacy id many contributions to 1 partition',
-            input=[(0, 0)] * 100,  # (privacy_id, partition)
-            expected_cross_partition=[
-                FrequencyBin(lower=1, count=1, sum=1, max=1),
-            ],
-            expected_per_partition=[
-                FrequencyBin(lower=100, count=1, sum=100, max=100),
-            ]),
-        dict(
-            testcase_name='1 privacy id many contributions to many partition',
-            input=[(0, i) for i in range(1234)],  # (privacy_id, partition)
-            expected_cross_partition=[
-                FrequencyBin(lower=1230, count=1, sum=1234, max=1234),
-            ],
-            expected_per_partition=[
-                FrequencyBin(lower=1, count=1234, sum=1234, max=1),
-            ]),
-        dict(
-            testcase_name='2 privacy ids, same partitions contributed',
-            input=[(0, i) for i in range(15)] +
-            [(1, i) for i in range(10, 25)],  # (privacy_id, partition)
-            expected_cross_partition=[
-                FrequencyBin(lower=15, count=2, sum=30, max=15),
-            ],
-            expected_per_partition=[
-                FrequencyBin(lower=1, count=30, sum=30, max=1),
-            ]),
-        dict(
-            testcase_name='2 privacy ids',
-            input=[(0, 0), (0, 0), (0, 1), (1, 0), (1, 0), (1, 0),
-                   (1, 2)],  # (privacy_id, partition)
-            expected_cross_partition=[
-                FrequencyBin(lower=2, count=2, sum=4, max=2),
-            ],
-            expected_per_partition=[
-                FrequencyBin(lower=1, count=2, sum=2, max=1),
-                FrequencyBin(lower=2, count=1, sum=2, max=2),
-                FrequencyBin(lower=3, count=1, sum=3, max=3),
-            ]),
-    )
-    def test_compute_contribution_histograms(self, input,
+    @parameterized.product(
+        (
+            dict(testcase_name='empty',
+                 input=[],
+                 expected_cross_partition=[],
+                 expected_per_partition=[]),
+            dict(
+                testcase_name='small_histogram',
+                input=[(1, 1), (1, 2), (2, 1),
+                       (1, 1)],  # (privacy_id, partition)
+                expected_cross_partition=[
+                    FrequencyBin(lower=1, count=1, sum=1, max=1),
+                    FrequencyBin(lower=2, count=1, sum=2, max=2)
+                ],
+                expected_per_partition=[
+                    FrequencyBin(lower=1, count=2, sum=2, max=1),
+                    FrequencyBin(lower=2, count=1, sum=2, max=2)
+                ]),
+            dict(
+                testcase_name='Each privacy id, 1 contribution',
+                input=[(i, i) for i in range(100)],  # (privacy_id, partition)
+                expected_cross_partition=[
+                    FrequencyBin(lower=1, count=100, sum=100, max=1),
+                ],
+                expected_per_partition=[
+                    FrequencyBin(lower=1, count=100, sum=100, max=1),
+                ]),
+            dict(
+                testcase_name='1 privacy id many contributions to 1 partition',
+                input=[(0, 0)] * 100,  # (privacy_id, partition)
+                expected_cross_partition=[
+                    FrequencyBin(lower=1, count=1, sum=1, max=1),
+                ],
+                expected_per_partition=[
+                    FrequencyBin(lower=100, count=1, sum=100, max=100),
+                ]),
+            dict(
+                testcase_name=
+                '1 privacy id many contributions to many partition',
+                input=[(0, i) for i in range(1234)],  # (privacy_id, partition)
+                expected_cross_partition=[
+                    FrequencyBin(lower=1230, count=1, sum=1234, max=1234),
+                ],
+                expected_per_partition=[
+                    FrequencyBin(lower=1, count=1234, sum=1234, max=1),
+                ]),
+            dict(
+                testcase_name='2 privacy ids, same partitions contributed',
+                input=[(0, i) for i in range(15)] +
+                [(1, i) for i in range(10, 25)],  # (privacy_id, partition)
+                expected_cross_partition=[
+                    FrequencyBin(lower=15, count=2, sum=30, max=15),
+                ],
+                expected_per_partition=[
+                    FrequencyBin(lower=1, count=30, sum=30, max=1),
+                ]),
+            dict(
+                testcase_name='2 privacy ids',
+                input=[(0, 0), (0, 0), (0, 1), (1, 0), (1, 0), (1, 0),
+                       (1, 2)],  # (privacy_id, partition)
+                expected_cross_partition=[
+                    FrequencyBin(lower=2, count=2, sum=4, max=2),
+                ],
+                expected_per_partition=[
+                    FrequencyBin(lower=1, count=2, sum=2, max=1),
+                    FrequencyBin(lower=2, count=1, sum=2, max=2),
+                    FrequencyBin(lower=3, count=1, sum=3, max=3),
+                ])),
+        pre_aggregated=(False, True))
+    def test_compute_contribution_histograms(self, testcase_name, input,
                                              expected_cross_partition,
-                                             expected_per_partition):
+                                             expected_per_partition,
+                                             pre_aggregated):
+        backend = pipeline_dp.LocalBackend()
+        # if pre_aggregated:
+        #     input =
         data_extractors = pipeline_dp.DataExtractors(
             privacy_id_extractor=lambda x: x[0],
             partition_extractor=lambda x: x[1],
         )
         histograms = hist.compute_dataset_histograms(input, data_extractors,
-                                                     pipeline_dp.LocalBackend())
+                                                     backend)
         histograms = list(histograms)
         self.assertLen(histograms, 1)
         histograms = histograms[0]
