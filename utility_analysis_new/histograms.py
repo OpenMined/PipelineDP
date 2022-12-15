@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import abc
 from dataclasses import dataclass
 import enum
 import operator
@@ -136,7 +135,9 @@ def _compute_frequency_histogram(col,
       col: collection with positive integers.
       backend: PipelineBackend to run operations on the collection.
       name: name which is assigned to the computed histogram.
-      normalize: todo better name
+      normalize: if true, it is assumed that each number n in collection is
+      duplicated n times, and this is taking into consideration on dataset
+      computation.
     Returns:
       1 element collection which contains Histogram.
     """
@@ -203,7 +204,7 @@ def _to_dataset_histograms(histogram_list,
     # 1 element collection: (DatasetHistograms)
 
 
-############## Computing histograms on raw dataset #############################
+############## Computing histograms on raw datasets ##########################
 def _compute_l0_contributions_histogram(
         col, backend: pipeline_backend.PipelineBackend):
     """Computes histogram of cross partition privacy id contributions.
@@ -213,7 +214,7 @@ def _compute_l0_contributions_histogram(
 
     Args:
       col: collection with elements (privacy_id, partition_key).
-        Assumption: 'col' contains different elements!
+        Assumption: 'col' contains distinct elements!
       backend: PipelineBackend to run operations on the collection.
 
     Returns:
@@ -294,7 +295,7 @@ def _compute_partition_privacy_id_count_histogram(
 
     Args:
       col: collection with elements (privacy_id, partition_key).
-       Assumption: 'col' contains different elements!
+       Assumption: 'col' contains distinct elements!
       backend: PipelineBackend to run operations on the collection.
 
     Returns:
@@ -359,7 +360,11 @@ def compute_dataset_histograms(col, data_extractors: pipeline_dp.DataExtractors,
     ], backend)
 
 
-########### Computing histograms on pre-aggregated dataset #####################
+########## Computing histograms on pre-aggregated datasets ####################
+# More details on pre-aggregate datatests are in docstring of function
+# pre_aggregation.preaggregate.
+
+
 def _compute_l0_contributions_histogram_on_preaggregted(
         col, backend: pipeline_backend.PipelineBackend):
     """Computes histogram of cross partition privacy id contributions.
@@ -368,8 +373,8 @@ def _compute_l0_contributions_histogram_on_preaggregted(
     partition, to 2 partitions etc.
 
     Args:
-      col: collection with elements (privacy_id, partition_key).
-        Assumption: 'col' contains different elements!
+      col: collection with a pre-aggregated dataset, each element is
+      (partition_key, (count, sum, n_partitions)).
       backend: PipelineBackend to run operations on the collection.
 
     Returns:
@@ -395,7 +400,8 @@ def _compute_linf_contributions_histogram_on_preaggregted(
     have 1 row in datasets, 2 rows etc.
 
     Args:
-      col: collection with elements (privacy_id, partition_key).
+      col: collection with a pre-aggregated dataset, each element is
+      (partition_key, (count, sum, n_partitions)).
       backend: PipelineBackend to run operations on the collection.
 
     Returns:
@@ -419,7 +425,8 @@ def _compute_partition_count_histogram_on_preaggregted(
     count=2 etc.
 
     Args:
-      col: collection with elements (privacy_id, partition_key).
+      col: collection with a pre-aggregated dataset, each element is
+      (partition_key, (count, sum, n_partitions)).
       backend: PipelineBackend to run operations on the collection.
 
     Returns:
@@ -447,8 +454,8 @@ def _compute_partition_privacy_id_count_histogram_on_preaggregted(
     with privacy_id_count=2 etc.
 
     Args:
-      col: collection with elements (privacy_id, partition_key).
-       Assumption: 'col' contains different elements!
+      col:collection with a pre-aggregated dataset, each element is
+        (partition_key, (count, sum, n_partitions)).
       backend: PipelineBackend to run operations on the collection.
 
     Returns:
@@ -471,7 +478,8 @@ def compute_dataset_histograms_on_preaggregted(
     """Computes dataset histograms on pre-aggregated dataset.
 
     Args:
-      col: collection with elements of the same type.
+      col: collection with a pre-aggregated dataset, each element is
+        (partition_key, (count, sum, n_partitions)).
       backend: PipelineBackend to run operations on the collection.
 
     Returns:
