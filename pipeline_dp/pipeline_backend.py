@@ -758,6 +758,10 @@ class MultiProcLocalBackend(PipelineBackend):
         return _LazyMultiProcCountIterator(col, self.chunksize, self.n_jobs,
                                            **self.pool_kwargs)
 
+    def sum_per_key(self, rdd, stage_name: str = None):
+        raise NotImplementedError(
+            "sum_per_key is not implemented for MultiProcLocalBackend")
+
     def combine_accumulators_per_key(self, col, combiner: dp_combiners.Combiner,
                                      stage_name: str):
         raise NotImplementedError(
