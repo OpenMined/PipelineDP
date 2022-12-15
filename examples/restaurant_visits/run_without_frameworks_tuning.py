@@ -27,6 +27,7 @@ import collections
 import utility_analysis_new
 from utility_analysis_new import histograms
 from utility_analysis_new import parameter_tuning
+from utility_analysis_new import pre_aggregation
 
 FLAGS = flags.FLAGS
 flags.DEFINE_string('input_file', 'restaurants_week_data.csv',
@@ -122,7 +123,12 @@ def tune_parameters():
     backend = pipeline_dp.LocalBackend()
 
     if FLAGS.run_on_preaggregated_data:
-        input = preaggregate(restaurant_visits_rows, get_data_extractors())
+        # input = preaggregate(restaurant_visits_rows, get_data_extractors())
+        input = list(
+            pre_aggregation.preaggregate(restaurant_visits_rows,
+                                         backend,
+                                         get_data_extractors(),
+                                         partitions_sampling_prob=1))
         data_extractors = utility_analysis_new.PreAggregateExtractors(
             partition_extractor=lambda row: row[0],
             preaggregate_extractor=lambda row: row[1])
