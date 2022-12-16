@@ -127,7 +127,7 @@ class ParameterTuning(parameterized.TestCase):
                     privacy_id_extractor=lambda x: x[0],
                     partition_extractor=lambda x: x[1],
                     value_extractor=lambda x: 0))
-            compute_histograms = hist._compute_l0_contributions_histogram_on_preaggregted
+            compute_histograms = hist._compute_l0_contributions_histogram_on_preaggregated_data
         else:
             compute_histograms = hist._compute_l0_contributions_histogram
         histogram = list(compute_histograms(input, backend))[0]
@@ -193,7 +193,7 @@ class ParameterTuning(parameterized.TestCase):
                     privacy_id_extractor=lambda x: x[0],
                     partition_extractor=lambda x: x[1],
                     value_extractor=lambda x: 0))
-            compute_histograms = hist._compute_linf_contributions_histogram_on_preaggregted
+            compute_histograms = hist._compute_linf_contributions_histogram_on_preaggregated_data
         else:
             compute_histograms = hist._compute_linf_contributions_histogram
         histogram = list(compute_histograms(input, backend))
@@ -253,7 +253,7 @@ class ParameterTuning(parameterized.TestCase):
                     privacy_id_extractor=lambda x: x[0],
                     partition_extractor=lambda x: x[1],
                     value_extractor=lambda x: 0))
-            compute_histograms = hist._compute_partition_count_histogram_on_preaggregted
+            compute_histograms = hist._compute_partition_count_histogram_on_preaggregated_data
         else:
             compute_histograms = hist._compute_partition_count_histogram
         histogram = list(compute_histograms(input, backend))[0]
@@ -310,7 +310,7 @@ class ParameterTuning(parameterized.TestCase):
                     privacy_id_extractor=lambda x: x[0],
                     partition_extractor=lambda x: x[1],
                     value_extractor=lambda x: 0))
-            compute_histograms = hist._compute_partition_privacy_id_count_histogram_on_preaggregted
+            compute_histograms = hist._compute_partition_privacy_id_count_histogram_on_preaggregated_data
         else:
             compute_histograms = hist._compute_partition_privacy_id_count_histogram
 
@@ -403,7 +403,7 @@ class ParameterTuning(parameterized.TestCase):
             data_extractors = utility_analysis_new.PreAggregateExtractors(
                 partition_extractor=lambda x: x[0],
                 preaggregate_extractor=lambda x: x[1])
-            compute_histograms = hist.compute_dataset_histograms_on_preaggregted
+            compute_histograms = hist.compute_dataset_histograms_on_preaggregated_data
         else:
             compute_histograms = hist.compute_dataset_histograms
 

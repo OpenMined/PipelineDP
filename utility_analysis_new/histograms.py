@@ -237,8 +237,8 @@ def _compute_linf_contributions_histogram(
         col, backend: pipeline_backend.PipelineBackend):
     """Computes histogram of per partition privacy id contributions.
 
-    This histogram contains: number of tuple (privacy id, partition_key) which
-    have 1 row in datasets, 2 rows etc.
+    This histogram contains: the number of (privacy id, partition_key)-pairs
+    which have 1 row in the datasets, 2 rows etc.
 
     Args:
       col: collection with elements (privacy_id, partition_key).
@@ -262,8 +262,8 @@ def _compute_partition_count_histogram(
         col, backend: pipeline_backend.PipelineBackend):
     """Computes histogram of counts per partition.
 
-    This histogram contains: the number of partitions with count=1, with
-    count=2 etc.
+    This histogram contains: the number of partitions with total count of
+    contributions = 1, 2 etc.
 
     Args:
       col: collection with elements (privacy_id, partition_key).
@@ -365,7 +365,7 @@ def compute_dataset_histograms(col, data_extractors: pipeline_dp.DataExtractors,
 # pre_aggregation.preaggregate.
 
 
-def _compute_l0_contributions_histogram_on_preaggregted(
+def _compute_l0_contributions_histogram_on_preaggregated_data(
         col, backend: pipeline_backend.PipelineBackend):
     """Computes histogram of the number of distinct partitions contributed by a privacy id.
 
@@ -392,7 +392,7 @@ def _compute_l0_contributions_histogram_on_preaggregted(
                                         normalize=True)
 
 
-def _compute_linf_contributions_histogram_on_preaggregted(
+def _compute_linf_contributions_histogram_on_preaggregated_data(
         col, backend: pipeline_backend.PipelineBackend):
     """Computes histogram of per partition privacy id contributions.
 
@@ -417,7 +417,7 @@ def _compute_linf_contributions_histogram_on_preaggregted(
                                         HistogramType.LINF_CONTRIBUTIONS)
 
 
-def _compute_partition_count_histogram_on_preaggregted(
+def _compute_partition_count_histogram_on_preaggregated_data(
         col, backend: pipeline_backend.PipelineBackend):
     """Computes histogram of counts per partition.
 
@@ -446,7 +446,7 @@ def _compute_partition_count_histogram_on_preaggregted(
                                         HistogramType.COUNT_PER_PARTITION)
 
 
-def _compute_partition_privacy_id_count_histogram_on_preaggregted(
+def _compute_partition_privacy_id_count_histogram_on_preaggregated_data(
         col, backend: pipeline_backend.PipelineBackend):
     """Computes a histogram of privacy id counts per partition.
 
@@ -472,7 +472,7 @@ def _compute_partition_privacy_id_count_histogram_on_preaggregted(
         col, backend, HistogramType.COUNT_PRIVACY_ID_PER_PARTITION)
 
 
-def compute_dataset_histograms_on_preaggregted(
+def compute_dataset_histograms_on_preaggregated_data(
         col, data_extractors: utility_analysis_new.PreAggregateExtractors,
         backend: pipeline_backend.PipelineBackend):
     """Computes dataset histograms on pre-aggregated dataset.
@@ -496,13 +496,13 @@ def compute_dataset_histograms_on_preaggregted(
     # col: (partition_key, (count, sum, n_partitions))
 
     # Compute histograms.
-    l0_contributions_histogram = _compute_l0_contributions_histogram_on_preaggregted(
+    l0_contributions_histogram = _compute_l0_contributions_histogram_on_preaggregated_data(
         col, backend)
-    linf_contributions_histogram = _compute_linf_contributions_histogram_on_preaggregted(
+    linf_contributions_histogram = _compute_linf_contributions_histogram_on_preaggregated_data(
         col, backend)
-    partition_count_histogram = _compute_partition_count_histogram_on_preaggregted(
+    partition_count_histogram = _compute_partition_count_histogram_on_preaggregated_data(
         col, backend)
-    partition_privacy_id_count_histogram = _compute_partition_privacy_id_count_histogram_on_preaggregted(
+    partition_privacy_id_count_histogram = _compute_partition_privacy_id_count_histogram_on_preaggregated_data(
         col, backend)
 
     # Combine histograms to DatasetHistograms.

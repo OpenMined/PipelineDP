@@ -126,7 +126,7 @@ def tune_parameters():
         data_extractors = utility_analysis_new.PreAggregateExtractors(
             partition_extractor=lambda row: row[0],
             preaggregate_extractor=lambda row: row[1])
-        hist = histograms.compute_dataset_histograms_on_preaggregted(
+        hist = histograms.compute_dataset_histograms_on_preaggregated_data(
             input, data_extractors, backend)
     else:
         input = restaurant_visits_rows
