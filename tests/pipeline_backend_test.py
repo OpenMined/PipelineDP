@@ -137,11 +137,11 @@ class BeamBackendTest(parameterized.TestCase):
 
     def test_sum_per_key(self):
         with test_pipeline.TestPipeline() as p:
-            data = p | beam.Create([(1, 2), (2, 1), (1, 4), (3, 8), (2, 3),
+            data = p | beam.Create([(1, 2), (2, 1), (1, 4), (3, 8), (2, -3),
                                     (10, 5)])
             result = self.backend.sum_per_key(data, "sum_per_key")
             beam_util.assert_that(
-                result, beam_util.equal_to([(1, 6), (2, 4), (3, 8), (10, 5)]))
+                result, beam_util.equal_to([(1, 6), (2, -2), (3, 8), (10, 5)]))
 
 
 class BeamBackendStageNameTest(unittest.TestCase):
@@ -325,10 +325,10 @@ class SparkRDDBackendTest(parameterized.TestCase):
         self.assertDictEqual(result, {'a': 2, 'b': 1})
 
     def test_sum_per_key(self):
-        data = self.sc.parallelize([(1, 2), (2, 1), (1, 4), (3, 8), (2, 3),
+        data = self.sc.parallelize([(1, 2), (2, 1), (1, 4), (3, 8), (2, -3),
                                     (10, 5)])
         result = self.backend.sum_per_key(data).collect()
-        self.assertEqual(result, [(1, 6), (2, 4), (3, 8), (10, 5)])
+        self.assertEqual(result, [(1, 6), (2, -2), (3, 8), (10, 5)])
 
     def test_combine_accumulators_per_key(self):
         data = self.sc.parallelize([(1, 2), (2, 1), (1, 4), (3, 8), (2, 3)])
@@ -492,9 +492,9 @@ class LocalBackendTest(unittest.TestCase):
         })
 
     def test_sum_per_key(self):
-        data = [(1, 2), (2, 1), (1, 4), (3, 8), (2, 3), (10, 5)]
+        data = [(1, 2), (2, 1), (1, 4), (3, 8), (2, -3), (10, 5)]
         result = list(self.backend.sum_per_key(data))
-        self.assertEqual(result, [(1, 6), (2, 4), (3, 8), (10, 5)])
+        self.assertEqual(result, [(1, 6), (2, -2), (3, 8), (10, 5)])
 
     def test_local_combine_accumulators_per_key(self):
         data = [(1, 2), (2, 1), (1, 4), (3, 8), (2, 3)]

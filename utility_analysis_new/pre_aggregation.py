@@ -26,17 +26,15 @@ def preaggregate(col,
       (partition_key, (count, sum, n_partitions)).
     Each element corresponds to each (privacy_id, partition_key) which is
     present in the dataset. count and sum correspond to count and sum of values
-    contributed by the privacy_key to the partition_key. n_partitions is the
-    number of partitions which privacy_id contributes.
+    contributed by the privacy_id to the partition_key. n_partitions is the
+    number of distinct partitions contributed by the privacy_id.
     If partitions_sampling_prob < 1, the output partitions will be sampled.
 
     Args:
         col: collection where all elements are of the same type.
         backend: PipelineBackend for performing transformations on collections.
         data_extractors: functions that extract needed pieces of information
-          from elements of 'col'. In case if the analysis performed on
-          pre-aggregated data, it should have type PreAggregateExtractors
-          otherwise DataExtractors.
+          from elements of 'col'.
         partitions_sampling_prob: the probability with which each partition
           will be sampled. It is useful for speed-up computations on the large
           datasets.

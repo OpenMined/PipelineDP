@@ -23,17 +23,20 @@ class PreaggregationTests(parameterized.TestCase):
 
     @parameterized.named_parameters(
         dict(testcase_name="Empty dataset", input=[], expected_output=[]),
-        dict(testcase_name="Small input dataset",
-             input=[
-                 ("pid0", "pk0", 1),
-                 ("pid0", "pk1", 10),
-                 ("pid0", "pk1", 5),
-             ],
-             expected_output=[('pk0', (1, 1, 2)), ('pk1', (2, 15, 2))]),
+        dict(
+            testcase_name="Small input dataset",
+            input=[
+                ("pid0", "pk0", 1),
+                ("pid0", "pk1", 10),
+                ("pid0", "pk1", 5),
+            ],
+            # element format (partition_key, (count, sum, n_partitions)
+            expected_output=[('pk0', (1, 1, 2)), ('pk1', (2, 15, 2))]),
         dict(
             testcase_name="10 privacy ids where each privacy id contributes to "
             "the same 10 partitions, 3 times in each partition",
             input=[(i, j, 0) for i in range(10) for j in range(10)] * 3,
+            # element format (partition_key, (count, sum, n_partitions)
             expected_output=[(i, (3, 0, 10)) for i in range(10)] * 10),
     )
     def test_preaggregate(self, input, expected_output):

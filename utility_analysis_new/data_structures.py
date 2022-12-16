@@ -29,14 +29,15 @@ class PreAggregateExtractors:
     (privacy_id, partition_key) which is present in the original dataset.
     Each row has
       1. count and sum, which correspond to count and sum of values
-    contributed by the privacy_key to the partition_key.
-      2. n_partitions is the number of partitions which privacy_id contributes.
+    contributed by the privacy_id to the partition_key.
+      2. n_partitions, which is the number of partitions contributed by
+    privacy_id.
 
     Attributes:
         partition_extractor: a callable, that takes a row of preaggraged data,
           and returns partition key.
-        preaggregate_extractor: a callable, that takes a record, and returns
-          (count, sum, n_partitions).
+        preaggregate_extractor: a callable, that takes a row of preaggraged
+        data, and returns (count, sum, n_partitions).
     """
     partition_extractor: Callable
     preaggregate_extractor: Callable
