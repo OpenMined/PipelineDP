@@ -430,7 +430,7 @@ class SparkRDDBackend(PipelineBackend):
             lambda x, y: random.sample(x + y, min(len(x) + len(y), n)))
 
     def count_per_element(self, rdd, stage_name: str = None):
-        return rdd.map(lambda x: (x, 1)).reduceByKey(lambda x, y: (x + y))
+        return rdd.map(lambda x: (x, 1)).reduceByKey(operator.add)
 
     def sum_per_key(self, rdd, stage_name: str = None):
         return rdd.reduceByKey(operator.add)
