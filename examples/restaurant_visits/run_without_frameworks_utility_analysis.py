@@ -24,7 +24,7 @@ import pipeline_dp
 import pandas as pd
 
 import analysis.utility_analysis
-from analysis.dp_engine import UtilityAnalysisEngine
+from analysis.utility_analysis_engine import UtilityAnalysisEngine
 
 FLAGS = flags.FLAGS
 flags.DEFINE_string('input_file', 'restaurants_week_data.csv',
