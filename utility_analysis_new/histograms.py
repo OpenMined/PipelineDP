@@ -128,25 +128,26 @@ def _to_bin_lower(n: int) -> int:
 def _compute_frequency_histogram(col,
                                  backend: pipeline_backend.PipelineBackend,
                                  name: HistogramType,
-                                 normalize: bool = False):
+                                 deduplicate: bool = False):
     """Computes histogram of element frequencies in collection.
 
     Args:
       col: collection with positive integers.
       backend: PipelineBackend to run operations on the collection.
       name: name which is assigned to the computed histogram.
-      normalize: if true, it is assumed that each number n in collection is
-      duplicated n times, and this is taking into consideration on dataset
-      computation.
+      deduplicate: performs deduplication of elements in the histogram. Namely,
+       if true, the histogram (n, count_n) is transformed to (n, count_n/n).
+       It should be used, when collection is generated in a way, that each
+       element n (col contains integers) duplicated n times.
     Returns:
       1 element collection which contains Histogram.
     """
 
     col = backend.count_per_element(col, "Frequency of elements")
-    if normalize:
-        # todo: polish
-        col = backend.map_tuple(col, lambda n, f: (n, int(round(f / n))),
-                                "Normalize")
+    if deduplicate:
+        col = backend.map_tuple(
+            col, lambda element, frequency:
+            (element, int(round(frequency / element))), "Deduplicate")
 
     # Combiner elements to histogram buckets of increasing sizes. Having buckets
     # of width = 1 is not scalable.
@@ -389,7 +390,7 @@ def _compute_l0_contributions_histogram_on_preaggregated_data(
     return _compute_frequency_histogram(col,
                                         backend,
                                         HistogramType.L0_CONTRIBUTIONS,
-                                        normalize=True)
+                                        deduplicate=True)
 
 
 def _compute_linf_contributions_histogram_on_preaggregated_data(
