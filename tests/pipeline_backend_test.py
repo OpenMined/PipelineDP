@@ -328,7 +328,7 @@ class SparkRDDBackendTest(parameterized.TestCase):
         data = self.sc.parallelize([(1, 2), (2, 1), (1, 4), (3, 8), (2, -3),
                                     (10, 5)])
         result = self.backend.sum_per_key(data).collect()
-        self.assertEqual(result, [(1, 6), (2, -2), (3, 8), (10, 5)])
+        self.assertEqual(set(result), set([(1, 6), (2, -2), (3, 8), (10, 5)]))
 
     def test_combine_accumulators_per_key(self):
         data = self.sc.parallelize([(1, 2), (2, 1), (1, 4), (3, 8), (2, 3)])
