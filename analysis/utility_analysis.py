@@ -19,7 +19,7 @@ import pipeline_dp
 from pipeline_dp import combiners
 from pipeline_dp import pipeline_backend
 import analysis
-from analysis import dp_engine
+from analysis import utility_analysis_engine
 from analysis import metrics
 import analysis.combiners as utility_analysis_combiners
 
@@ -52,7 +52,7 @@ def perform_utility_analysis(
     """
     budget_accountant = pipeline_dp.NaiveBudgetAccountant(
         total_epsilon=options.epsilon, total_delta=options.delta)
-    engine = dp_engine.UtilityAnalysisEngine(
+    engine = utility_analysis_engine.UtilityAnalysisEngine(
         budget_accountant=budget_accountant, backend=backend)
     per_partition_analysis_result = engine.analyze(
         col,

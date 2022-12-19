@@ -49,13 +49,12 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
                          "If you like to perform DP computations use "
                          "DPEngine.aggregate.")
 
-    def analyze(
-            self,
-            col,
-            options: analysis.UtilityAnalysisOptions,
-            data_extractors: Union[pipeline_dp.DataExtractors,
-                                   analysis.PreAggregateExtractors],
-            public_partitions=None):
+    def analyze(self,
+                col,
+                options: analysis.UtilityAnalysisOptions,
+                data_extractors: Union[pipeline_dp.DataExtractors,
+                                       analysis.PreAggregateExtractors],
+                public_partitions=None):
         """Performs utility analysis for DP aggregations per partition.
 
         Args:
@@ -147,9 +146,8 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
         return col
 
     def _extract_columns(
-        self, col,
-        data_extractors: Union[pipeline_dp.DataExtractors,
-                               analysis.PreAggregateExtractors]):
+        self, col, data_extractors: Union[pipeline_dp.DataExtractors,
+                                          analysis.PreAggregateExtractors]):
         """Extract columns using data_extractors."""
         if self._options.pre_aggregated_data:
             return self._backend.map(
@@ -176,8 +174,7 @@ def _check_utility_analysis_params(
                            analysis.PreAggregateExtractors]):
     # Check correctness of data extractors.
     if options.pre_aggregated_data:
-        if not isinstance(data_extractors,
-                          analysis.PreAggregateExtractors):
+        if not isinstance(data_extractors, analysis.PreAggregateExtractors):
             raise ValueError(
                 "options.pre_aggregated_data is set to true but "
                 "PreAggregateExtractors aren't provided. PreAggregateExtractors"

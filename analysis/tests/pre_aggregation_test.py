@@ -47,7 +47,7 @@ class PreaggregationTests(parameterized.TestCase):
 
         output = list(
             analysis.preaggregate(input, pipeline_dp.LocalBackend(),
-                                              data_extractors))
+                                  data_extractors))
 
         self.assertSequenceEqual(output, expected_output)
 

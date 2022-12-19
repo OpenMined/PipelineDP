@@ -19,7 +19,7 @@ import copy
 
 import pipeline_dp
 from pipeline_dp import budget_accounting
-from analysis import dp_engine
+from analysis import utility_analysis_engine
 from analysis import metrics
 import analysis
 
@@ -155,7 +155,7 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
                 delta=0,
                 aggregate_params=test_case["params"],
                 pre_aggregated_data=test_case["pre_aggregated"])
-            engine = dp_engine.UtilityAnalysisEngine(
+            engine = utility_analysis_engine.UtilityAnalysisEngine(
                 budget_accountant=budget_accountant,
                 backend=pipeline_dp.LocalBackend())
             # Act and assert.
@@ -190,7 +190,7 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
                 partition_extractor=lambda x: f"pk{x}",
                 preaggregate_extractor=lambda x: (1, 0, 1))
 
-        engine = dp_engine.UtilityAnalysisEngine(
+        engine = utility_analysis_engine.UtilityAnalysisEngine(
             budget_accountant=budget_accountant,
             backend=pipeline_dp.LocalBackend())
 
@@ -243,7 +243,7 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
                 partition_extractor=lambda x: f"pk{x[1]}",
                 value_extractor=lambda x: 0)
 
-        engine = dp_engine.UtilityAnalysisEngine(
+        engine = utility_analysis_engine.UtilityAnalysisEngine(
             budget_accountant=budget_accountant,
             backend=pipeline_dp.LocalBackend())
 
@@ -293,7 +293,7 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
         budget_accountant = pipeline_dp.NaiveBudgetAccountant(total_epsilon=1,
                                                               total_delta=1e-10)
 
-        engine = dp_engine.UtilityAnalysisEngine(
+        engine = utility_analysis_engine.UtilityAnalysisEngine(
             budget_accountant=budget_accountant,
             backend=pipeline_dp.LocalBackend())
 
@@ -370,7 +370,7 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
             partition_extractor=lambda x: f"pk{x}",
             value_extractor=lambda x: None)
 
-        engine = dp_engine.UtilityAnalysisEngine(
+        engine = utility_analysis_engine.UtilityAnalysisEngine(
             budget_accountant=budget_accountant,
             backend=pipeline_dp.LocalBackend())
 
