@@ -433,7 +433,7 @@ class SparkRDDBackend(PipelineBackend):
         return rdd.map(lambda x: (x, 1)).reduceByKey(lambda x, y: (x + y))
 
     def sum_per_key(self, rdd, stage_name: str = None):
-        rdd.reduceByKey(operator.add)
+        return rdd.reduceByKey(operator.add)
 
     def combine_accumulators_per_key(self,
                                      rdd,
