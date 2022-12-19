@@ -24,4 +24,5 @@ from utility_analysis_new.parameter_tuning import ParametersToTune
 from utility_analysis_new.parameter_tuning import TuneOptions
 from utility_analysis_new.parameter_tuning import TuneResult
 from utility_analysis_new.parameter_tuning import UtilityAnalysisRun
+from utility_analysis_new.pre_aggregation import preaggregate
 from utility_analysis_new.utility_analysis import perform_utility_analysis

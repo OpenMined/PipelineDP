@@ -135,6 +135,14 @@ class BeamBackendTest(parameterized.TestCase):
             output = self.backend.distinct(input, "distinct")
             beam_util.assert_that(output, beam_util.equal_to([1, 2, 3, 4, 5]))
 
+    def test_sum_per_key(self):
+        with test_pipeline.TestPipeline() as p:
+            data = p | beam.Create([(1, 2), (2, 1), (1, 4), (3, 8), (2, -3),
+                                    (10, 5)])
+            result = self.backend.sum_per_key(data, "sum_per_key")
+            beam_util.assert_that(
+                result, beam_util.equal_to([(1, 6), (2, -2), (3, 8), (10, 5)]))
+
 
 class BeamBackendStageNameTest(unittest.TestCase):
 
@@ -316,6 +324,12 @@ class SparkRDDBackendTest(parameterized.TestCase):
         result = dict(result)
         self.assertDictEqual(result, {'a': 2, 'b': 1})
 
+    def test_sum_per_key(self):
+        data = self.sc.parallelize([(1, 2), (2, 1), (1, 4), (3, 8), (2, -3),
+                                    (10, 5)])
+        result = self.backend.sum_per_key(data).collect()
+        self.assertEqual(set(result), set([(1, 6), (2, -2), (3, 8), (10, 5)]))
+
     def test_combine_accumulators_per_key(self):
         data = self.sc.parallelize([(1, 2), (2, 1), (1, 4), (3, 8), (2, 3)])
         rdd = self.backend.group_by_key(data)
@@ -477,6 +491,11 @@ class LocalBackendTest(unittest.TestCase):
             0: 1
         })
 
+    def test_sum_per_key(self):
+        data = [(1, 2), (2, 1), (1, 4), (3, 8), (2, -3), (10, 5)]
+        result = list(self.backend.sum_per_key(data))
+        self.assertEqual(result, [(1, 6), (2, -2), (3, 8), (10, 5)])
+
     def test_local_combine_accumulators_per_key(self):
         data = [(1, 2), (2, 1), (1, 4), (3, 8), (2, 3)]
         col = self.backend.group_by_key(data)
@@ -522,6 +541,7 @@ class LocalBackendTest(unittest.TestCase):
         assert_laziness(self.backend.values)
         assert_laziness(self.backend.keys)
         assert_laziness(self.backend.count_per_element)
+        assert_laziness(self.backend.sum_per_key)
         assert_laziness(self.backend.flat_map, str)
         assert_laziness(self.backend.sample_fixed_per_key, int)
         assert_laziness(self.backend.filter_by_key, list)

@@ -13,9 +13,7 @@
 # limitations under the License.
 """DPEngine for utility analysis."""
 
-import copy
-import dataclasses
-from typing import Iterable, Optional, Union
+from typing import Iterable, Union
 
 import pipeline_dp
 from pipeline_dp import budget_accounting
