@@ -20,9 +20,9 @@ from pipeline_dp import budget_accounting
 from pipeline_dp import combiners
 from pipeline_dp import contribution_bounders
 from pipeline_dp import pipeline_backend
-import utility_analysis_new
-import utility_analysis_new.contribution_bounders as utility_contribution_bounders
-import utility_analysis_new.combiners as utility_analysis_combiners
+import analysis
+import analysis.contribution_bounders as utility_contribution_bounders
+import analysis.combiners as utility_analysis_combiners
 
 
 class UtilityAnalysisEngine(pipeline_dp.DPEngine):
@@ -52,9 +52,9 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
     def analyze(
             self,
             col,
-            options: utility_analysis_new.UtilityAnalysisOptions,
+            options: analysis.UtilityAnalysisOptions,
             data_extractors: Union[pipeline_dp.DataExtractors,
-                                   utility_analysis_new.PreAggregateExtractors],
+                                   analysis.PreAggregateExtractors],
             public_partitions=None):
         """Performs utility analysis for DP aggregations per partition.
 
@@ -149,7 +149,7 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
     def _extract_columns(
         self, col,
         data_extractors: Union[pipeline_dp.DataExtractors,
-                               utility_analysis_new.PreAggregateExtractors]):
+                               analysis.PreAggregateExtractors]):
         """Extract columns using data_extractors."""
         if self._options.pre_aggregated_data:
             return self._backend.map(
@@ -161,7 +161,7 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
     def _check_aggregate_params(
         self, col, params: pipeline_dp.AggregateParams,
         data_extractors: Union[pipeline_dp.DataExtractors,
-                               utility_analysis_new.PreAggregateExtractors]):
+                               analysis.PreAggregateExtractors]):
         # Do not check data_extractors. The parent implementation does not
         # support PreAggregateExtractors.
         super()._check_aggregate_params(col,
@@ -171,13 +171,13 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
 
 
 def _check_utility_analysis_params(
-    options: utility_analysis_new.UtilityAnalysisOptions,
+    options: analysis.UtilityAnalysisOptions,
     data_extractors: Union[pipeline_dp.DataExtractors,
-                           utility_analysis_new.PreAggregateExtractors]):
+                           analysis.PreAggregateExtractors]):
     # Check correctness of data extractors.
     if options.pre_aggregated_data:
         if not isinstance(data_extractors,
-                          utility_analysis_new.PreAggregateExtractors):
+                          analysis.PreAggregateExtractors):
             raise ValueError(
                 "options.pre_aggregated_data is set to true but "
                 "PreAggregateExtractors aren't provided. PreAggregateExtractors"

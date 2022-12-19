@@ -17,7 +17,7 @@ from absl.testing import absltest
 from absl.testing import parameterized
 
 import numpy as np
-from utility_analysis_new import poisson_binomial
+from analysis import poisson_binomial
 
 
 class PoissonBinomialTest(parameterized.TestCase):

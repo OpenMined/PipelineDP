@@ -20,8 +20,8 @@ from absl.testing import parameterized
 from unittest.mock import patch
 
 import pipeline_dp
-from utility_analysis_new import combiners
-from utility_analysis_new import metrics
+from analysis import combiners
+from analysis import metrics
 
 
 def _create_combiner_params_for_count() -> pipeline_dp.combiners.CombinerParams:
@@ -202,7 +202,7 @@ class PartitionSelectionTest(parameterized.TestCase):
                                delta=1e-10)
 
     @patch(
-        'utility_analysis_new.combiners.PartitionSelectionCalculator.compute_probability_to_keep'
+        'analysis.combiners.PartitionSelectionCalculator.compute_probability_to_keep'
     )
     def test_partition_selection_combiner(self,
                                           mock_compute_probability_to_keep):

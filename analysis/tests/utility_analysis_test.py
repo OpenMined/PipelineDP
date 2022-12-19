@@ -16,7 +16,7 @@ from absl.testing import absltest
 from absl.testing import parameterized
 
 import pipeline_dp
-import utility_analysis_new
+import analysis
 
 
 class UtilityAnalysis(parameterized.TestCase):
@@ -56,14 +56,14 @@ class UtilityAnalysis(parameterized.TestCase):
                 partition_extractor=lambda x: f"pk{x[1]}",
                 value_extractor=lambda x: 0)
         else:
-            data_extractors = utility_analysis_new.PreAggregateExtractors(
+            data_extractors = analysis.PreAggregateExtractors(
                 partition_extractor=lambda x: f"pk{x[0]}",
                 preaggregate_extractor=lambda x: x[1])
 
-        col = utility_analysis_new.perform_utility_analysis(
+        col = analysis.perform_utility_analysis(
             col=col,
             backend=pipeline_dp.LocalBackend(),
-            options=utility_analysis_new.UtilityAnalysisOptions(
+            options=analysis.UtilityAnalysisOptions(
                 epsilon=2,
                 delta=0.9,
                 aggregate_params=aggregate_params,
@@ -190,10 +190,10 @@ class UtilityAnalysis(parameterized.TestCase):
             partition_extractor=lambda x: f"pk{x}",
             value_extractor=lambda x: 0)
 
-        col = utility_analysis_new.perform_utility_analysis(
+        col = analysis.perform_utility_analysis(
             col=col,
             backend=pipeline_dp.LocalBackend(),
-            options=utility_analysis_new.UtilityAnalysisOptions(
+            options=analysis.UtilityAnalysisOptions(
                 epsilon=2, delta=1e-10, aggregate_params=aggregator_params),
             data_extractors=data_extractor,
             public_partitions=public_partitions)
@@ -247,7 +247,7 @@ class UtilityAnalysis(parameterized.TestCase):
             max_partitions_contributed=1,
             max_contributions_per_partition=1)
 
-        multi_param = utility_analysis_new.MultiParameterConfiguration(
+        multi_param = analysis.MultiParameterConfiguration(
             max_partitions_contributed=[1, 2],
             max_contributions_per_partition=[1, 2])
 
@@ -261,10 +261,10 @@ class UtilityAnalysis(parameterized.TestCase):
 
         public_partitions = ["pk0", "pk1"]
 
-        output = utility_analysis_new.perform_utility_analysis(
+        output = analysis.perform_utility_analysis(
             col=input,
             backend=pipeline_dp.LocalBackend(),
-            options=utility_analysis_new.UtilityAnalysisOptions(
+            options=analysis.UtilityAnalysisOptions(
                 epsilon=2,
                 delta=1e-10,
                 aggregate_params=aggregate_params,

@@ -12,17 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from utility_analysis_new.data_structures import MultiParameterConfiguration
-from utility_analysis_new.data_structures import PreAggregateExtractors
-from utility_analysis_new.data_structures import UtilityAnalysisOptions
-from utility_analysis_new.histograms import compute_dataset_histograms
-from utility_analysis_new.histograms import DatasetHistograms
-from utility_analysis_new.metrics import AggregateMetrics
-from utility_analysis_new.parameter_tuning import tune
-from utility_analysis_new.parameter_tuning import MinimizingFunction
-from utility_analysis_new.parameter_tuning import ParametersToTune
-from utility_analysis_new.parameter_tuning import TuneOptions
-from utility_analysis_new.parameter_tuning import TuneResult
-from utility_analysis_new.parameter_tuning import UtilityAnalysisRun
-from utility_analysis_new.pre_aggregation import preaggregate
-from utility_analysis_new.utility_analysis import perform_utility_analysis
+from analysis.data_structures import MultiParameterConfiguration
+from analysis.data_structures import PreAggregateExtractors
+from analysis.data_structures import UtilityAnalysisOptions
+from analysis.histograms import compute_dataset_histograms
+from analysis.histograms import DatasetHistograms
+from analysis.metrics import AggregateMetrics
+from analysis.parameter_tuning import tune
+from analysis.parameter_tuning import MinimizingFunction
+from analysis.parameter_tuning import ParametersToTune
+from analysis.parameter_tuning import TuneOptions
+from analysis.parameter_tuning import TuneResult
+from analysis.parameter_tuning import UtilityAnalysisRun
+from analysis.pre_aggregation import preaggregate
+from analysis.utility_analysis import perform_utility_analysis

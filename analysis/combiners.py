@@ -23,9 +23,9 @@ import scipy
 import pipeline_dp
 from pipeline_dp import dp_computations
 from pipeline_dp import combiners
-from utility_analysis_new import metrics
-from utility_analysis_new import poisson_binomial
-from utility_analysis_new import probability_computations
+from analysis import metrics
+from analysis import poisson_binomial
+from analysis import probability_computations
 from pipeline_dp import partition_selection
 
 MAX_PROBABILITIES_IN_ACCUMULATOR = 100

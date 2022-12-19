@@ -19,9 +19,9 @@ import copy
 
 import pipeline_dp
 from pipeline_dp import budget_accounting
-from utility_analysis_new import dp_engine
-from utility_analysis_new import metrics
-import utility_analysis_new
+from analysis import dp_engine
+from analysis import metrics
+import analysis
 
 
 class MultiParameterConfiguration(parameterized.TestCase):
@@ -61,7 +61,7 @@ class MultiParameterConfiguration(parameterized.TestCase):
                         max_contributions_per_partition, min_sum_per_partition,
                         max_sum_per_partition):
         with self.assertRaisesRegex(ValueError, error_msg):
-            utility_analysis_new.MultiParameterConfiguration(
+            analysis.MultiParameterConfiguration(
                 max_partitions_contributed, max_contributions_per_partition,
                 min_sum_per_partition, max_sum_per_partition)
 
@@ -73,7 +73,7 @@ class MultiParameterConfiguration(parameterized.TestCase):
             max_contributions_per_partition=1)
 
         max_partitions_contributed = [10, 12, 15]
-        multi_params = utility_analysis_new.MultiParameterConfiguration(
+        multi_params = analysis.MultiParameterConfiguration(
             max_partitions_contributed=max_partitions_contributed)
         self.assertTrue(3, multi_params.size)
 
@@ -93,8 +93,8 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
         )
 
     def _get_default_pre_aggregated_extractors(
-            self) -> utility_analysis_new.PreAggregateExtractors:
-        return utility_analysis_new.PreAggregateExtractors(
+            self) -> analysis.PreAggregateExtractors:
+        return analysis.PreAggregateExtractors(
             partition_extractor=lambda x: x[0],
             preaggregate_extractor=lambda x: x[1])
 
@@ -150,7 +150,7 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
         for test_case in test_cases:
             budget_accountant = budget_accounting.NaiveBudgetAccountant(
                 total_epsilon=1, total_delta=1e-10)
-            options = utility_analysis_new.UtilityAnalysisOptions(
+            options = analysis.UtilityAnalysisOptions(
                 epsilon=1,
                 delta=0,
                 aggregate_params=test_case["params"],
@@ -186,7 +186,7 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
                 partition_extractor=lambda x: f"pk{x}",
                 value_extractor=lambda x: 0)
         else:
-            data_extractors = utility_analysis_new.PreAggregateExtractors(
+            data_extractors = analysis.PreAggregateExtractors(
                 partition_extractor=lambda x: f"pk{x}",
                 preaggregate_extractor=lambda x: (1, 0, 1))
 
@@ -194,7 +194,7 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
             budget_accountant=budget_accountant,
             backend=pipeline_dp.LocalBackend())
 
-        options = utility_analysis_new.UtilityAnalysisOptions(
+        options = analysis.UtilityAnalysisOptions(
             epsilon=1,
             delta=0,
             aggregate_params=aggregator_params,
@@ -247,7 +247,7 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
             budget_accountant=budget_accountant,
             backend=pipeline_dp.LocalBackend())
 
-        options = utility_analysis_new.UtilityAnalysisOptions(
+        options = analysis.UtilityAnalysisOptions(
             epsilon=1,
             delta=0,
             aggregate_params=aggregator_params,
@@ -286,7 +286,7 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
             max_partitions_contributed=1,
             max_contributions_per_partition=1)
 
-        multi_param = utility_analysis_new.MultiParameterConfiguration(
+        multi_param = analysis.MultiParameterConfiguration(
             max_partitions_contributed=[1, 2],
             max_contributions_per_partition=[1, 2])
 
@@ -307,7 +307,7 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
 
         public_partitions = ["pk0", "pk1"]
 
-        options = utility_analysis_new.UtilityAnalysisOptions(
+        options = analysis.UtilityAnalysisOptions(
             epsilon=1,
             delta=0,
             aggregate_params=aggregate_params,
@@ -374,7 +374,7 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
             budget_accountant=budget_accountant,
             backend=pipeline_dp.LocalBackend())
 
-        options = utility_analysis_new.UtilityAnalysisOptions(
+        options = analysis.UtilityAnalysisOptions(
             epsilon=1,
             delta=0,
             aggregate_params=aggregator_params,

@@ -16,7 +16,7 @@ from absl.testing import absltest
 from absl.testing import parameterized
 from typing import Sequence
 
-from utility_analysis_new import probability_computations
+from analysis import probability_computations
 
 
 class ProbabilityComputationsTest(parameterized.TestCase):
