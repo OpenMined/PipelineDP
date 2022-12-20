@@ -18,7 +18,7 @@ from absl.testing import absltest
 from absl.testing import parameterized
 
 import pipeline_dp
-import utility_analysis_new.contribution_bounders as contribution_bounders
+import analysis.contribution_bounders as contribution_bounders
 
 MaxContributionsParams = collections.namedtuple("MaxContributionParams",
                                                 ["max_contributions"])

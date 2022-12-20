@@ -19,9 +19,9 @@ from unittest import mock
 from typing import List
 
 import pipeline_dp
-from utility_analysis_new import metrics
-from utility_analysis_new import parameter_tuning
-from utility_analysis_new import histograms
+from analysis import metrics
+from analysis import parameter_tuning
+from analysis import histograms
 
 
 def _get_aggregate_params():

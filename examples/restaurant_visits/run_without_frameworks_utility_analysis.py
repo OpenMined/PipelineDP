@@ -23,8 +23,8 @@ from absl import flags
 import pipeline_dp
 import pandas as pd
 
-import utility_analysis_new.utility_analysis
-from utility_analysis_new.dp_engine import UtilityAnalysisEngine
+import analysis.utility_analysis
+from analysis.utility_analysis_engine import UtilityAnalysisEngine
 
 FLAGS = flags.FLAGS
 flags.DEFINE_string('input_file', 'restaurants_week_data.csv',
@@ -84,7 +84,7 @@ def get_data_extractors():
 def get_multi_params():
     multi_param = None
     if FLAGS.multi_parameters:
-        multi_param = utility_analysis_new.MultiParameterConfiguration(
+        multi_param = analysis.MultiParameterConfiguration(
             max_partitions_contributed=[1, 1, 2],
             max_contributions_per_partition=[1, 1, 2])
     return multi_param
@@ -112,7 +112,7 @@ def per_partition_utility_analysis():
     data_extractors = get_data_extractors()
     public_partitions = list(range(1, 8)) if FLAGS.public_partitions else None
 
-    options = utility_analysis_new.UtilityAnalysisOptions(
+    options = analysis.UtilityAnalysisOptions(
         epsilon=1,
         delta=1e-6,
         aggregate_params=aggregate_params,
@@ -139,10 +139,10 @@ def aggregate_utility_analysis():
     data_extractors = get_data_extractors()
     public_partitions = list(range(1, 8)) if FLAGS.public_partitions else None
 
-    options = utility_analysis_new.utility_analysis.UtilityAnalysisOptions(
+    options = analysis.utility_analysis.UtilityAnalysisOptions(
         1, 1e-5, aggregate_params, get_multi_params())
 
-    result = utility_analysis_new.utility_analysis.perform_utility_analysis(
+    result = analysis.utility_analysis.perform_utility_analysis(
         restaurant_visits_rows, pipeline_dp.LocalBackend(), options,
         data_extractors, public_partitions)
 

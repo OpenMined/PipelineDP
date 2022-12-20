@@ -18,18 +18,18 @@ from typing import List, Union
 import pipeline_dp
 from pipeline_dp import combiners
 from pipeline_dp import pipeline_backend
-import utility_analysis_new
-from utility_analysis_new import dp_engine
-from utility_analysis_new import metrics
-import utility_analysis_new.combiners as utility_analysis_combiners
+import analysis
+from analysis import utility_analysis_engine
+from analysis import metrics
+import analysis.combiners as utility_analysis_combiners
 
 
 def perform_utility_analysis(
         col,
         backend: pipeline_backend.PipelineBackend,
-        options: utility_analysis_new.UtilityAnalysisOptions,
+        options: analysis.UtilityAnalysisOptions,
         data_extractors: Union[pipeline_dp.DataExtractors,
-                               utility_analysis_new.PreAggregateExtractors],
+                               analysis.PreAggregateExtractors],
         public_partitions=None,
         return_per_partition: bool = False):
     """Performs utility analysis for DP aggregations.
@@ -52,7 +52,7 @@ def perform_utility_analysis(
     """
     budget_accountant = pipeline_dp.NaiveBudgetAccountant(
         total_epsilon=options.epsilon, total_delta=options.delta)
-    engine = dp_engine.UtilityAnalysisEngine(
+    engine = utility_analysis_engine.UtilityAnalysisEngine(
         budget_accountant=budget_accountant, backend=backend)
     per_partition_analysis_result = engine.analyze(
         col,

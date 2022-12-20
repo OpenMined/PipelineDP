@@ -15,10 +15,10 @@
 import pipeline_dp
 from pipeline_dp import pipeline_backend
 from pipeline_dp import input_validators
-import utility_analysis_new
-from utility_analysis_new import histograms
-from utility_analysis_new import metrics
-from utility_analysis_new import utility_analysis
+import analysis
+from analysis import histograms
+from analysis import metrics
+from analysis import utility_analysis
 
 import dataclasses
 from dataclasses import dataclass
@@ -29,7 +29,7 @@ import numpy as np
 
 @dataclass
 class UtilityAnalysisRun:
-    params: utility_analysis_new.UtilityAnalysisOptions
+    params: analysis.UtilityAnalysisOptions
     result: metrics.AggregateErrorMetrics
 
 
@@ -105,14 +105,14 @@ class TuneResult:
     """
     options: TuneOptions
     contribution_histograms: histograms.DatasetHistograms
-    utility_analysis_parameters: utility_analysis_new.MultiParameterConfiguration
+    utility_analysis_parameters: analysis.MultiParameterConfiguration
     index_best: int
     utility_analysis_results: List[metrics.AggregateMetrics]
 
 
 def _find_candidate_parameters(
     hist: histograms.DatasetHistograms, parameters_to_tune: ParametersToTune
-) -> utility_analysis_new.MultiParameterConfiguration:
+) -> analysis.MultiParameterConfiguration:
     """Uses some heuristics to find (hopefully) good enough parameters."""
     # TODO: decide where to put QUANTILES_TO_USE, maybe TuneOptions?
     QUANTILES_TO_USE = [0.9, 0.95, 0.98, 0.99, 0.995]
@@ -146,14 +146,14 @@ def _find_candidate_parameters(
     else:
         assert False, "Nothing to tune."
 
-    return utility_analysis_new.MultiParameterConfiguration(
+    return analysis.MultiParameterConfiguration(
         max_partitions_contributed=l0_bounds,
         max_contributions_per_partition=linf_bounds)
 
 
 def _convert_utility_analysis_to_tune_result(
         utility_analysis_result: Tuple, tune_options: TuneOptions,
-        run_configurations: utility_analysis_new.MultiParameterConfiguration,
+        run_configurations: analysis.MultiParameterConfiguration,
         use_public_partitions: bool,
         contribution_histograms: histograms.DatasetHistograms) -> TuneResult:
     assert len(utility_analysis_result) == run_configurations.size
@@ -174,7 +174,7 @@ def tune(col,
          contribution_histograms: histograms.DatasetHistograms,
          options: TuneOptions,
          data_extractors: Union[pipeline_dp.DataExtractors,
-                                utility_analysis_new.PreAggregateExtractors],
+                                analysis.PreAggregateExtractors],
          public_partitions=None,
          return_utility_analysis_per_partition: bool = False) -> TuneResult:
     """Tunes parameters.
@@ -213,7 +213,7 @@ def tune(col,
     candidates = _find_candidate_parameters(contribution_histograms,
                                             options.parameters_to_tune)
 
-    utility_analysis_options = utility_analysis_new.UtilityAnalysisOptions(
+    utility_analysis_options = analysis.UtilityAnalysisOptions(
         epsilon=options.epsilon,
         delta=options.delta,
         aggregate_params=options.aggregate_params,
