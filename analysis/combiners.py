@@ -226,14 +226,14 @@ class CountCombiner(UtilityAnalysisCombiner):
         count, sum_, n_partitions = data
         max_per_partition = self._params.aggregate_params.max_contributions_per_partition
         max_partitions = self._params.aggregate_params.max_partitions_contributed
-        prob_keep_partition = min(1, max_partitions /
-                                  n_partitions) if n_partitions > 0 else 0
+        l0_prob_keep_contribution = min(1, max_partitions /
+                                        n_partitions) if n_partitions > 0 else 0
         per_partition_contribution = min(max_per_partition, count)
         per_partition_error = per_partition_contribution - count
         expected_cross_partition_error = -per_partition_contribution * (
-            1 - prob_keep_partition)
-        var_cross_partition_error = per_partition_contribution**2 * prob_keep_partition * (
-            1 - prob_keep_partition)
+            1 - l0_prob_keep_contribution)
+        var_cross_partition_error = per_partition_contribution**2 * l0_prob_keep_contribution * (
+            1 - l0_prob_keep_contribution)
 
         return (count, per_partition_error, expected_cross_partition_error,
                 var_cross_partition_error)
@@ -268,23 +268,24 @@ class SumCombiner(UtilityAnalysisCombiner):
 
     def create_accumulator(self, data: PreaggregatedData) -> AccumulatorType:
         count, partition_sum, n_partitions = data
+        min_bound = self._params.aggregate_params.min_sum_per_partition
+        max_bound = self._params.aggregate_params.max_sum_per_partition
         max_partitions = self._params.aggregate_params.max_partitions_contributed
-        prob_keep_partition = min(1, max_partitions /
-                                  n_partitions) if n_partitions > 0 else 0
-        per_partition_contribution = np.clip(
-            partition_sum, self._params.aggregate_params.min_sum_per_partition,
-            self._params.aggregate_params.max_sum_per_partition).item()
+        l0_prob_keep_contribution = min(1, max_partitions /
+                                        n_partitions) if n_partitions > 0 else 0
+        per_partition_contribution = np.clip(partition_sum, min_bound,
+                                             max_bound).item()
         per_partition_error_min = 0
         per_partition_error_max = 0
-        per_partition_error = partition_sum - per_partition_contribution
-        if per_partition_error > 0:
-            per_partition_error_max = per_partition_error
-        elif per_partition_error < 0:
+        per_partition_error = per_partition_contribution - partition_sum
+        if partition_sum < min_bound:
             per_partition_error_min = per_partition_error
+        elif partition_sum > max_bound:
+            per_partition_error_max = per_partition_error
         expected_cross_partition_error = -per_partition_contribution * (
-            1 - prob_keep_partition)
-        var_cross_partition_error = per_partition_contribution**2 * prob_keep_partition * (
-            1 - prob_keep_partition)
+            1 - l0_prob_keep_contribution)
+        var_cross_partition_error = per_partition_contribution**2 * l0_prob_keep_contribution * (
+            1 - l0_prob_keep_contribution)
 
         return (partition_sum, per_partition_error_min, per_partition_error_max,
                 expected_cross_partition_error, var_cross_partition_error)
@@ -596,6 +597,169 @@ class CountAggregateErrorMetricsCombiner(pipeline_dp.Combiner):
         acc.total_aggregate = max(1.0, acc.total_aggregate)
         return metrics.AggregateErrorMetrics(
             metric_type=self._metric_type,
+            ratio_data_dropped_l0=acc.data_dropped_l0 / acc.total_aggregate,
+            ratio_data_dropped_linf=acc.data_dropped_linf / acc.total_aggregate,
+            ratio_data_dropped_partition_selection=acc.
+            data_dropped_partition_selection / acc.total_aggregate,
+            abs_error_l0_expected=abs_error_l0_expected,
+            abs_error_linf_expected=abs_error_linf_expected,
+            abs_error_expected=abs_error_l0_expected + abs_error_linf_expected,
+            abs_error_l0_variance=acc.abs_error_l0_variance /
+            acc.kept_partitions_expected,
+            abs_error_variance=acc.abs_error_variance /
+            acc.kept_partitions_expected,
+            abs_error_quantiles=[
+                sum / acc.kept_partitions_expected
+                for sum in acc.abs_error_quantiles
+            ],
+            rel_error_l0_expected=rel_error_l0_expected,
+            rel_error_linf_expected=rel_error_linf_expected,
+            rel_error_expected=rel_error_l0_expected + rel_error_linf_expected,
+            rel_error_l0_variance=acc.rel_error_l0_variance /
+            acc.kept_partitions_expected,
+            rel_error_variance=acc.rel_error_variance /
+            acc.kept_partitions_expected,
+            rel_error_quantiles=[
+                sum / acc.kept_partitions_expected
+                for sum in acc.rel_error_quantiles
+            ],
+            abs_error_expected_w_dropped_partitions=acc.
+            abs_error_expected_w_dropped_partitions / acc.num_partitions,
+            rel_error_expected_w_dropped_partitions=acc.
+            rel_error_expected_w_dropped_partitions / acc.num_partitions,
+            noise_std=acc.noise_std)
+
+    def metrics_names(self) -> List[str]:
+        return [
+            'metric_type', 'ratio_data_dropped_l0', 'ratio_data_dropped_linf',
+            'ratio_data_dropped_partition_selection', 'abs_error_l0_expected',
+            'abs_error_linf_expected', 'abs_error_expected',
+            'abs_error_l0_variance', 'abs_error_variance',
+            'abs_error_quantiles', 'rel_error_l0_expected',
+            'rel_error_linf_expected', 'rel_error_expected',
+            'rel_error_l0_variance', 'rel_error_variance',
+            'rel_error_quantiles', 'noise_std'
+        ]
+
+    def explain_computation(self):
+        pass
+
+
+class SumAggregateErrorMetricsCombiner(pipeline_dp.Combiner):
+    """A combiner for aggregating errors across partitions for Sum"""
+    AccumulatorType = AggregateErrorMetricsAccumulator
+
+    def __init__(self, error_quantiles: List[float]):
+        # The contribution bounding error is negative, so quantiles <0.5 for the
+        # error distribution (which is the sum of the noise and the contribution
+        # bounding error) should be used to come up with the worst error
+        # quantiles.
+        self._error_quantiles = [(1 - q) for q in error_quantiles]
+
+    def create_accumulator(self,
+                           metrics: metrics.SumMetrics,
+                           probability_to_keep: float = 1) -> AccumulatorType:
+        """Creates an accumulator for metrics."""
+        # Data drop ratio metrics
+        total_aggregate = metrics.sum
+        # TODO: Compute data_dropped metrics
+        data_dropped_l0 = 0
+        data_dropped_linf = 0
+        data_dropped_partition_selection = 0
+
+        # Absolute error metrics
+        abs_error_l0_expected = probability_to_keep * metrics.expected_cross_partition_error
+        abs_error_linf_expected = probability_to_keep * (
+            metrics.per_partition_error_min + metrics.per_partition_error_max)
+        abs_error_l0_variance = probability_to_keep * metrics.std_cross_partition_error**2
+        abs_error_variance = probability_to_keep * (
+            metrics.std_cross_partition_error**2 + metrics.std_noise**2)
+        loc_cpe_ne = metrics.expected_cross_partition_error
+        std_cpe_ne = math.sqrt(metrics.std_cross_partition_error**2 +
+                               metrics.std_noise**2)
+        abs_error_quantiles = []
+        if metrics.noise_kind == pipeline_dp.NoiseKind.GAUSSIAN:
+            error_distribution_quantiles = scipy.stats.norm.ppf(
+                q=self._error_quantiles, loc=loc_cpe_ne, scale=std_cpe_ne)
+        else:
+            error_distribution_quantiles = probability_computations.compute_sum_laplace_gaussian_quantiles(
+                laplace_b=metrics.std_noise / math.sqrt(2),
+                gaussian_sigma=metrics.std_cross_partition_error,
+                quantiles=self._error_quantiles,
+                num_samples=10**3)
+        for quantile in error_distribution_quantiles:
+            error_at_quantile = probability_to_keep * (
+                float(quantile) + metrics.per_partition_error_min +
+                metrics.per_partition_error_max)
+            abs_error_quantiles.append(error_at_quantile)
+
+        abs_error_expected_w_dropped_partitions = probability_to_keep * (
+            metrics.expected_cross_partition_error +
+            metrics.per_partition_error_min + metrics.per_partition_error_max
+        ) + (1 - probability_to_keep) * -metrics.sum
+
+        # Relative error metrics
+        if metrics.sum == 0:  # For empty public partitions & partitions with zero sum, to avoid division by 0
+            rel_error_l0_expected = 0
+            rel_error_linf_expected = 0
+            rel_error_l0_variance = 0
+            rel_error_variance = 0
+            rel_error_quantiles = [0] * len(self._error_quantiles)
+            rel_error_expected_w_dropped_partitions = 0
+        else:
+            # We take the absolute value of the denominator because it can be
+            # negative.
+            rel_error_l0_expected = abs_error_l0_expected / abs(metrics.sum)
+            rel_error_linf_expected = abs_error_linf_expected / abs(metrics.sum)
+            rel_error_l0_variance = abs_error_l0_variance / (metrics.sum**2)
+            rel_error_variance = abs_error_variance / (metrics.sum**2)
+            rel_error_quantiles = [
+                error / abs(metrics.sum) for error in abs_error_quantiles
+            ]
+            rel_error_expected_w_dropped_partitions = abs_error_expected_w_dropped_partitions / abs(
+                metrics.sum)
+
+        # Noise metrics
+        noise_variance = metrics.std_noise**2
+
+        return AggregateErrorMetricsAccumulator(
+            num_partitions=1,
+            kept_partitions_expected=probability_to_keep,
+            total_aggregate=total_aggregate,
+            data_dropped_l0=data_dropped_l0,
+            data_dropped_linf=data_dropped_linf,
+            data_dropped_partition_selection=data_dropped_partition_selection,
+            abs_error_l0_expected=abs_error_l0_expected,
+            abs_error_linf_expected=abs_error_linf_expected,
+            abs_error_l0_variance=abs_error_l0_variance,
+            abs_error_variance=abs_error_variance,
+            abs_error_quantiles=abs_error_quantiles,
+            rel_error_l0_expected=rel_error_l0_expected,
+            rel_error_linf_expected=rel_error_linf_expected,
+            rel_error_l0_variance=rel_error_l0_variance,
+            rel_error_variance=rel_error_variance,
+            rel_error_quantiles=rel_error_quantiles,
+            abs_error_expected_w_dropped_partitions=
+            abs_error_expected_w_dropped_partitions,
+            rel_error_expected_w_dropped_partitions=
+            rel_error_expected_w_dropped_partitions,
+            noise_std=noise_variance,
+        )
+
+    def merge_accumulators(self, acc1: AccumulatorType, acc2: AccumulatorType):
+        """Merges two accumulators together additively."""
+        return acc1 + acc2
+
+    def compute_metrics(self,
+                        acc: AccumulatorType) -> metrics.AggregateErrorMetrics:
+        """Computes metrics based on the accumulator properties."""
+        abs_error_l0_expected = acc.abs_error_l0_expected / acc.kept_partitions_expected
+        abs_error_linf_expected = acc.abs_error_linf_expected / acc.kept_partitions_expected
+        rel_error_l0_expected = acc.rel_error_l0_expected / acc.kept_partitions_expected
+        rel_error_linf_expected = acc.rel_error_linf_expected / acc.kept_partitions_expected
+        acc.total_aggregate = max(1.0, acc.total_aggregate)
+        return metrics.AggregateErrorMetrics(
+            metric_type=metrics.AggregateMetricType.SUM,
             ratio_data_dropped_l0=acc.data_dropped_l0 / acc.total_aggregate,
             ratio_data_dropped_linf=acc.data_dropped_linf / acc.total_aggregate,
             ratio_data_dropped_partition_selection=acc.

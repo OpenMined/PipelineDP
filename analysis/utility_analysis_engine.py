@@ -105,17 +105,17 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
                 internal_combiners.append(
                     utility_analysis_combiners.PartitionSelectionCombiner(
                         combiners.CombinerParams(budget, params)))
-            if pipeline_dp.Metrics.COUNT in aggregate_params.metrics:
-                budget = self._budget_accountant.request_budget(
-                    mechanism_type, weight=aggregate_params.budget_weight)
-                internal_combiners.append(
-                    utility_analysis_combiners.CountCombiner(
-                        combiners.CombinerParams(budget, params)))
             if pipeline_dp.Metrics.SUM in aggregate_params.metrics:
                 budget = self._budget_accountant.request_budget(
                     mechanism_type, weight=aggregate_params.budget_weight)
                 internal_combiners.append(
                     utility_analysis_combiners.SumCombiner(
+                        combiners.CombinerParams(budget, params)))
+            if pipeline_dp.Metrics.COUNT in aggregate_params.metrics:
+                budget = self._budget_accountant.request_budget(
+                    mechanism_type, weight=aggregate_params.budget_weight)
+                internal_combiners.append(
+                    utility_analysis_combiners.CountCombiner(
                         combiners.CombinerParams(budget, params)))
             if pipeline_dp.Metrics.PRIVACY_ID_COUNT in aggregate_params.metrics:
                 budget = self._budget_accountant.request_budget(

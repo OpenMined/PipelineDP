@@ -34,6 +34,10 @@ class CountMetrics:
       cross-partition contribution bounding.
       std_noise: the noise standard deviation.
       noise_kind: the type of noise used.
+
+  s.t. the following holds:
+  Ex(count_after_contribution_bounding) = count + Ex(error)
+  where Ex(error) = per_partition_error + expected_cross_partition_error
   """
     count: int
     per_partition_error: int
@@ -55,6 +59,10 @@ class SumMetrics:
       std_cross_partition_error: the standard deviation of the error due to cross-partition contribution bounding.
       std_noise: the noise standard deviation.
       noise_kind: the type of noise used.
+
+  s.t. the following holds:
+  Ex(sum_after_contribution_bounding) = sum + Ex(error)
+  where Ex(error) = per_partition_error_min + per_partition_error_max + expected_cross_partition_error
   """
     sum: float
     per_partition_error_min: float
@@ -68,6 +76,7 @@ class SumMetrics:
 class AggregateMetricType(Enum):
     PRIVACY_ID_COUNT = 'privacy_id_count'
     COUNT = 'count'
+    SUM = 'sum'
 
 
 @dataclass
