@@ -35,9 +35,9 @@ class CountMetrics:
       std_noise: the noise standard deviation.
       noise_kind: the type of noise used.
 
-  s.t. the following holds:
-  Ex(count_after_contribution_bounding) = count + Ex(error)
-  where Ex(error) = per_partition_error + expected_cross_partition_error
+  s.t. the following holds (where E stands for Expectation):
+  E(count_after_contribution_bounding) = count + E(error)
+  where E(error) = per_partition_error + expected_cross_partition_error
   """
     count: int
     per_partition_error: int
@@ -60,9 +60,9 @@ class SumMetrics:
       std_noise: the noise standard deviation.
       noise_kind: the type of noise used.
 
-  s.t. the following holds:
-  Ex(sum_after_contribution_bounding) = sum + Ex(error)
-  where Ex(error) = per_partition_error_min + per_partition_error_max + expected_cross_partition_error
+  s.t. the following holds (where E stands for Expectation):
+  E(sum_after_contribution_bounding) = sum + E(error)
+  where E(error) = per_partition_error_min + per_partition_error_max + expected_cross_partition_error
   """
     sum: float
     per_partition_error_min: float
@@ -96,12 +96,12 @@ class AggregateErrorMetrics:
     # drop from contribution bounding and that is aggregation-specific.
     ratio_data_dropped_partition_selection: float
 
-    abs_error_l0_expected: float
-    abs_error_linf_expected: float
-    abs_error_expected: float
-    abs_error_l0_variance: float
-    abs_error_variance: float
-    abs_error_quantiles: List[float]
+    error_l0_expected: float
+    error_linf_expected: float
+    error_expected: float
+    error_l0_variance: float
+    error_variance: float
+    error_quantiles: List[float]
     rel_error_l0_expected: float
     rel_error_linf_expected: float
     rel_error_expected: float
@@ -121,7 +121,7 @@ class AggregateErrorMetrics:
     #
     # When public partitions are used, these will be exactly equal to
     # abs/rel_error_expected.
-    abs_error_expected_w_dropped_partitions: float
+    error_expected_w_dropped_partitions: float
     rel_error_expected_w_dropped_partitions: float
 
     noise_std: float
@@ -129,7 +129,7 @@ class AggregateErrorMetrics:
     # RMSE = sqrt(bias**2 + variance), more details in
     # https://en.wikipedia.org/wiki/Bias-variance_tradeoff.
     def absolute_rmse(self) -> float:
-        return math.sqrt(self.abs_error_expected**2 + self.abs_error_variance)
+        return math.sqrt(self.error_expected**2 + self.error_variance)
 
     def relative_rmse(self) -> float:
         return math.sqrt(self.rel_error_expected**2 + self.rel_error_variance)

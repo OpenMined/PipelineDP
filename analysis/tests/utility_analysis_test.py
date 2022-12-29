@@ -102,19 +102,19 @@ class UtilityAnalysis(parameterized.TestCase):
             output.count_metrics.ratio_data_dropped_partition_selection,
             0.04725,
             delta=1e-5)
-        self.assertAlmostEqual(output.count_metrics.abs_error_l0_expected,
+        self.assertAlmostEqual(output.count_metrics.error_l0_expected,
                                -18,
                                delta=1e-5)
-        self.assertAlmostEqual(output.count_metrics.abs_error_linf_expected,
+        self.assertAlmostEqual(output.count_metrics.error_linf_expected,
                                -10,
                                delta=1e-5)
-        self.assertAlmostEqual(output.count_metrics.abs_error_expected,
+        self.assertAlmostEqual(output.count_metrics.error_expected,
                                -28,
                                delta=1e-5)
-        self.assertAlmostEqual(output.count_metrics.abs_error_l0_variance,
+        self.assertAlmostEqual(output.count_metrics.error_l0_variance,
                                3.6,
                                delta=1e-5)
-        self.assertAlmostEqual(output.count_metrics.abs_error_variance,
+        self.assertAlmostEqual(output.count_metrics.error_variance,
                                6.78678,
                                delta=1e-5)
         self.assertAlmostEqual(output.count_metrics.rel_error_l0_expected,
@@ -139,11 +139,11 @@ class UtilityAnalysis(parameterized.TestCase):
              ratio_data_dropped_l0=0,
              ratio_data_dropped_linf=0,
              ratio_data_dropped_partition_selection=0,
-             abs_error_l0_expected=0,
-             abs_error_linf_expected=0,
-             abs_error_expected=0,
-             abs_error_l0_variance=0.0,
-             abs_error_variance=35.71929,
+             error_l0_expected=0,
+             error_linf_expected=0,
+             error_expected=0,
+             error_l0_variance=0.0,
+             error_variance=35.71929,
              rel_error_l0_expected=0,
              rel_error_linf_expected=0,
              rel_error_expected=0,
@@ -155,11 +155,11 @@ class UtilityAnalysis(parameterized.TestCase):
              ratio_data_dropped_l0=0,
              ratio_data_dropped_linf=0,
              ratio_data_dropped_partition_selection=0,
-             abs_error_l0_expected=0,
-             abs_error_linf_expected=0,
-             abs_error_expected=0,
-             abs_error_l0_variance=0.0,
-             abs_error_variance=2.0,
+             error_l0_expected=0,
+             error_linf_expected=0,
+             error_expected=0,
+             error_l0_variance=0.0,
+             error_variance=2.0,
              rel_error_l0_expected=0,
              rel_error_linf_expected=0,
              rel_error_expected=0,
@@ -169,9 +169,9 @@ class UtilityAnalysis(parameterized.TestCase):
     )
     def test_w_public_partitions(
             self, noise_kind, ratio_data_dropped_l0, ratio_data_dropped_linf,
-            ratio_data_dropped_partition_selection, abs_error_l0_expected,
-            abs_error_linf_expected, abs_error_expected, abs_error_l0_variance,
-            abs_error_variance, rel_error_l0_expected, rel_error_linf_expected,
+            ratio_data_dropped_partition_selection, error_l0_expected,
+            error_linf_expected, error_expected, error_l0_variance,
+            error_variance, rel_error_l0_expected, rel_error_linf_expected,
             rel_error_expected, rel_error_l0_variance, rel_error_variance,
             median_error):
         # Arrange
@@ -203,7 +203,6 @@ class UtilityAnalysis(parameterized.TestCase):
 
         col = list(col)
 
-        # Simply assert pipeline can run for now.
         # Assert
         # Assert a singleton is returned
         self.assertLen(col, 1)
@@ -213,18 +212,16 @@ class UtilityAnalysis(parameterized.TestCase):
 
         # Assert privacy id count metrics are reasonable.
         def check_metric(metrics):
-            self.assertEqual(metrics.abs_error_l0_expected,
-                             abs_error_l0_expected)
-            self.assertEqual(metrics.abs_error_l0_expected,
-                             abs_error_linf_expected)
-            self.assertEqual(metrics.abs_error_expected, abs_error_expected)
-            self.assertAlmostEqual(metrics.abs_error_l0_variance,
-                                   abs_error_l0_variance,
+            self.assertEqual(metrics.error_l0_expected, error_l0_expected)
+            self.assertEqual(metrics.error_l0_expected, error_linf_expected)
+            self.assertEqual(metrics.error_expected, error_expected)
+            self.assertAlmostEqual(metrics.error_l0_variance,
+                                   error_l0_variance,
                                    delta=1e-5)
-            self.assertAlmostEqual(metrics.abs_error_variance,
-                                   abs_error_variance,
+            self.assertAlmostEqual(metrics.error_variance,
+                                   error_variance,
                                    delta=1e-5)
-            self.assertAlmostEqual(metrics.abs_error_quantiles[1],
+            self.assertAlmostEqual(metrics.error_quantiles[1],
                                    median_error,
                                    delta=0.1)
             self.assertEqual(metrics.rel_error_l0_expected,
@@ -283,10 +280,9 @@ class UtilityAnalysis(parameterized.TestCase):
         self.assertLen(output, 1)
         # Assert there are 2 AggregateMetrics returned
         self.assertLen(output[0], 2)
-        # Assert abs_error_expected is correct.
-        self.assertAlmostEqual(output[0][0].count_metrics.abs_error_expected,
-                               -1)
-        self.assertAlmostEqual(output[0][1].count_metrics.abs_error_expected, 0)
+        # Assert error_expected is correct.
+        self.assertAlmostEqual(output[0][0].count_metrics.error_expected, -1)
+        self.assertAlmostEqual(output[0][1].count_metrics.error_expected, 0)
 
 
 if __name__ == '__main__':
