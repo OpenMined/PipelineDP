@@ -489,7 +489,7 @@ class CountAggregateErrorMetricsCombiner(pipeline_dp.Combiner):
     def __init__(self, metric_type: metrics.AggregateMetricType,
                  error_quantiles: List[float]):
         self._metric_type = metric_type
-        self._error_quantiles = invert_error_quantiles(error_quantiles)
+        self._error_quantiles = _invert_error_quantiles(error_quantiles)
 
     def create_accumulator(self,
                            metrics: metrics.CountMetrics,
@@ -509,8 +509,8 @@ class CountAggregateErrorMetricsCombiner(pipeline_dp.Combiner):
         error_l0_variance = prob_to_keep * metrics.std_cross_partition_error**2
         error_variance = prob_to_keep * (metrics.std_cross_partition_error**2 +
                                          metrics.std_noise**2)
-        error_quantiles = compute_error_quantiles(self._error_quantiles,
-                                                  prob_to_keep, metrics)
+        error_quantiles = _compute_error_quantiles(self._error_quantiles,
+                                                   prob_to_keep, metrics)
         error_expected_w_dropped_partitions = prob_to_keep * (
             metrics.expected_cross_partition_error +
             metrics.per_partition_error) + (1 - prob_to_keep) * -metrics.count
@@ -625,7 +625,7 @@ class SumAggregateErrorMetricsCombiner(pipeline_dp.Combiner):
     AccumulatorType = AggregateErrorMetricsAccumulator
 
     def __init__(self, error_quantiles: List[float]):
-        self._error_quantiles = invert_error_quantiles(error_quantiles)
+        self._error_quantiles = _invert_error_quantiles(error_quantiles)
 
     def create_accumulator(self,
                            metrics: metrics.SumMetrics,
@@ -646,8 +646,8 @@ class SumAggregateErrorMetricsCombiner(pipeline_dp.Combiner):
         error_l0_variance = prob_to_keep * metrics.std_cross_partition_error**2
         error_variance = prob_to_keep * (metrics.std_cross_partition_error**2 +
                                          metrics.std_noise**2)
-        error_quantiles = compute_error_quantiles(self._error_quantiles,
-                                                  prob_to_keep, metrics)
+        error_quantiles = _compute_error_quantiles(self._error_quantiles,
+                                                   prob_to_keep, metrics)
         error_expected_w_dropped_partitions = prob_to_keep * (
             metrics.expected_cross_partition_error +
             metrics.per_partition_error_min +
@@ -804,7 +804,7 @@ class PrivatePartitionSelectionAggregateErrorMetricsCombiner(
         pass
 
 
-def invert_error_quantiles(quantiles: List[float]) -> List[float]:
+def _invert_error_quantiles(quantiles: List[float]) -> List[float]:
     # The contribution bounding error is negative, so quantiles <0.5 for the
     # error distribution (which is the sum of the noise and the contribution
     # bounding error) should be used to come up with the worst error
@@ -812,16 +812,16 @@ def invert_error_quantiles(quantiles: List[float]) -> List[float]:
     return [(1 - q) for q in quantiles]
 
 
-def compute_error_quantiles(quantiles: List[float], prob_to_keep: float,
-                            metric) -> List[float]:
-    loc_cpe_ne = metric.expected_cross_partition_error
-    std_cpe_ne = math.sqrt(metric.std_cross_partition_error**2 +
-                           metric.std_noise**2)
+def _compute_error_quantiles(quantiles: List[float], prob_to_keep: float,
+                             metric) -> List[float]:
+    """Computes quantiles of per partition errors for the sum of DP noise and contribution bounding error."""
+    error_expectation = metric.expected_cross_partition_error
+    error_std = math.sqrt(metric.std_cross_partition_error**2 +
+                          metric.std_noise**2)
     errors = []
     if metric.noise_kind == pipeline_dp.NoiseKind.GAUSSIAN:
-        error_distribution_quantiles = scipy.stats.norm.ppf(q=quantiles,
-                                                            loc=loc_cpe_ne,
-                                                            scale=std_cpe_ne)
+        error_distribution_quantiles = scipy.stats.norm.ppf(
+            q=quantiles, loc=error_expectation, scale=error_std)
     else:
         error_distribution_quantiles = probability_computations.compute_sum_laplace_gaussian_quantiles(
             laplace_b=metric.std_noise / math.sqrt(2),
