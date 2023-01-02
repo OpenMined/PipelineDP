@@ -99,23 +99,25 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
         mechanism_type = aggregate_params.noise_kind.convert_to_mechanism_type()
         internal_combiners = []
         for params in self._get_aggregate_params(aggregate_params):
+            # WARNING: Do not change the order here, _create_aggregate_error_compound_combiner()
+            # in utility_analysis.py depends on it.
             if not self._is_public_partitions:
                 budget = self._budget_accountant.request_budget(
                     mechanism_type=pipeline_dp.MechanismType.GENERIC)
                 internal_combiners.append(
                     utility_analysis_combiners.PartitionSelectionCombiner(
                         combiners.CombinerParams(budget, params)))
-            if pipeline_dp.Metrics.COUNT in aggregate_params.metrics:
-                budget = self._budget_accountant.request_budget(
-                    mechanism_type, weight=aggregate_params.budget_weight)
-                internal_combiners.append(
-                    utility_analysis_combiners.CountCombiner(
-                        combiners.CombinerParams(budget, params)))
             if pipeline_dp.Metrics.SUM in aggregate_params.metrics:
                 budget = self._budget_accountant.request_budget(
                     mechanism_type, weight=aggregate_params.budget_weight)
                 internal_combiners.append(
                     utility_analysis_combiners.SumCombiner(
+                        combiners.CombinerParams(budget, params)))
+            if pipeline_dp.Metrics.COUNT in aggregate_params.metrics:
+                budget = self._budget_accountant.request_budget(
+                    mechanism_type, weight=aggregate_params.budget_weight)
+                internal_combiners.append(
+                    utility_analysis_combiners.CountCombiner(
                         combiners.CombinerParams(budget, params)))
             if pipeline_dp.Metrics.PRIVACY_ID_COUNT in aggregate_params.metrics:
                 budget = self._budget_accountant.request_budget(

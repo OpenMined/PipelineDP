@@ -121,6 +121,8 @@ def _populate_packed_metrics(packed_metrics: metrics.AggregateMetrics, metric):
         packed_metrics.privacy_id_count_metrics = metric
     elif metric.metric_type == metrics.AggregateMetricType.COUNT:
         packed_metrics.count_metrics = metric
+    elif metric.metric_type == metrics.AggregateMetricType.SUM:
+        packed_metrics.sum_metrics = metric
 
 
 def _create_aggregate_error_compound_combiner(
@@ -136,6 +138,10 @@ def _create_aggregate_error_compound_combiner(
                     error_quantiles))
         # WARNING: The order here needs to follow the order in
         # UtilityAnalysisEngine._create_compound_combiner().
+        if pipeline_dp.Metrics.SUM in aggregate_params.metrics:
+            internal_combiners.append(
+                utility_analysis_combiners.SumAggregateErrorMetricsCombiner(
+                    error_quantiles))
         if pipeline_dp.Metrics.COUNT in aggregate_params.metrics:
             internal_combiners.append(
                 utility_analysis_combiners.CountAggregateErrorMetricsCombiner(
