@@ -262,7 +262,10 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
         # Assert
         self.assertLen(output, 10)
         # Assert count metrics are correct.
-        [self.assertTrue(v[1][1].per_partition_error == -10) for v in output]
+        [
+            self.assertTrue(v[1][1].per_partition_error_max == -10)
+            for v in output
+        ]
         [
             self.assertAlmostEqual(v[1][1].expected_cross_partition_error,
                                    -18.0,
@@ -325,32 +328,36 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
         [self.assertLen(partition_metrics, 2) for partition_metrics in output]
 
         expected_pk0 = [
-            metrics.CountMetrics(count=1,
-                                 per_partition_error=0,
-                                 expected_cross_partition_error=-0.5,
-                                 std_cross_partition_error=0.5,
-                                 std_noise=11.6640625,
-                                 noise_kind=pipeline_dp.NoiseKind.GAUSSIAN),
-            metrics.CountMetrics(count=1,
-                                 per_partition_error=0,
-                                 expected_cross_partition_error=0,
-                                 std_cross_partition_error=0.0,
-                                 std_noise=32.99095075973487,
-                                 noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)
+            metrics.SumMetrics(sum=1.0,
+                               per_partition_error_min=0.0,
+                               per_partition_error_max=0.0,
+                               expected_cross_partition_error=-0.5,
+                               std_cross_partition_error=0.5,
+                               std_noise=11.6640625,
+                               noise_kind=pipeline_dp.NoiseKind.GAUSSIAN),
+            metrics.SumMetrics(sum=1.0,
+                               per_partition_error_min=0.0,
+                               per_partition_error_max=0.0,
+                               expected_cross_partition_error=0,
+                               std_cross_partition_error=0.0,
+                               std_noise=32.99095075973487,
+                               noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)
         ]
         expected_pk1 = [
-            metrics.CountMetrics(count=2,
-                                 per_partition_error=-1,
-                                 expected_cross_partition_error=-0.5,
-                                 std_cross_partition_error=0.5,
-                                 std_noise=11.6640625,
-                                 noise_kind=pipeline_dp.NoiseKind.GAUSSIAN),
-            metrics.CountMetrics(count=2,
-                                 per_partition_error=0,
-                                 expected_cross_partition_error=0,
-                                 std_cross_partition_error=0.0,
-                                 std_noise=32.99095075973487,
-                                 noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)
+            metrics.SumMetrics(sum=2.0,
+                               per_partition_error_min=0.0,
+                               per_partition_error_max=-1.0,
+                               expected_cross_partition_error=-0.5,
+                               std_cross_partition_error=0.5,
+                               std_noise=11.6640625,
+                               noise_kind=pipeline_dp.NoiseKind.GAUSSIAN),
+            metrics.SumMetrics(sum=2.0,
+                               per_partition_error_min=0.0,
+                               per_partition_error_max=0.0,
+                               expected_cross_partition_error=0,
+                               std_cross_partition_error=0.0,
+                               std_noise=32.99095075973487,
+                               noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)
         ]
 
         self.assertSequenceEqual(expected_pk0, output[0][1])
