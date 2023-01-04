@@ -13,6 +13,8 @@
 # limitations under the License.
 """UtilityAnalysisCountCombinerTest."""
 import dataclasses
+import enum
+import typing
 
 import numpy as np
 from absl.testing import absltest
@@ -91,7 +93,7 @@ class UtilityAnalysisCountCombinerTest(parameterized.TestCase):
         test_acc = utility_analysis_combiner.create_accumulator(
             (len(contribution_values), 0, num_partitions))
         got_metrics = utility_analysis_combiner.compute_metrics(test_acc)
-        self.assertEqual(expected_metrics, got_metrics)
+        assert_dataclasses_are_equal(self, expected_metrics, got_metrics)
         self.assertTrue(_check_none_are_np_float64(got_metrics))
 
     def test_merge(self):
@@ -298,18 +300,7 @@ class UtilityAnalysisSumCombinerTest(parameterized.TestCase):
             (len(contribution_values), sum(contribution_values),
              num_partitions))
         actual_metrics = utility_analysis_combiner.compute_metrics(test_acc)
-        self.assertAlmostEqual(expected_metrics.sum, actual_metrics.sum)
-        self.assertAlmostEqual(expected_metrics.per_partition_error_min,
-                               actual_metrics.per_partition_error_min)
-        self.assertAlmostEqual(expected_metrics.per_partition_error_max,
-                               actual_metrics.per_partition_error_max)
-        self.assertAlmostEqual(expected_metrics.expected_cross_partition_error,
-                               actual_metrics.expected_cross_partition_error)
-        self.assertAlmostEqual(expected_metrics.std_cross_partition_error,
-                               actual_metrics.std_cross_partition_error)
-        self.assertAlmostEqual(expected_metrics.std_noise,
-                               actual_metrics.std_noise)
-        self.assertEqual(expected_metrics.noise_kind, actual_metrics.noise_kind)
+        assert_dataclasses_are_equal(self, expected_metrics, actual_metrics)
 
         # Test that no type is np.float64
         self.assertTrue(_check_none_are_np_float64(actual_metrics))
@@ -400,14 +391,7 @@ class UtilityAnalysisPrivacyIdCountCombinerTest(parameterized.TestCase):
             (len(contribution_values), sum(contribution_values),
              num_partitions))
         actual_metrics = utility_analysis_combiner.compute_metrics(test_acc)
-        self.assertAlmostEqual(expected_metrics.sum, actual_metrics.sum)
-        self.assertAlmostEqual(expected_metrics.expected_cross_partition_error,
-                               actual_metrics.expected_cross_partition_error)
-        self.assertAlmostEqual(expected_metrics.std_cross_partition_error,
-                               actual_metrics.std_cross_partition_error)
-        self.assertAlmostEqual(expected_metrics.std_noise,
-                               actual_metrics.std_noise)
-        self.assertEqual(expected_metrics.noise_kind, actual_metrics.noise_kind)
+        assert_dataclasses_are_equal(self, expected_metrics, actual_metrics)
 
         # Test that no type is np.float64
         self.assertTrue(_check_none_are_np_float64(actual_metrics))
@@ -609,9 +593,120 @@ class AggregateErrorMetricsAccumulatorTest(parameterized.TestCase):
         self.assertTrue(_check_none_are_np_float64(acc_sum))
 
 
-class CountAggregateErrorMetricsCombinerTest(parameterized.TestCase):
+class SumAggregateErrorMetricsCombinerTest(parameterized.TestCase):
 
     @parameterized.named_parameters(
+        dict(testcase_name='Sum without public partitions',
+             metric_type=metrics.AggregateMetricType.SUM,
+             probability_to_keep=0.5,
+             metric=metrics.SumMetrics(
+                 sum=5.0,
+                 per_partition_error_min=1.0,
+                 per_partition_error_max=-2.0,
+                 expected_cross_partition_error=-2.0,
+                 std_cross_partition_error=2.0,
+                 std_noise=1.0,
+                 noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+             ),
+             expected=combiners.AggregateErrorMetricsAccumulator(
+                 num_partitions=1,
+                 kept_partitions_expected=0.5,
+                 total_aggregate=5.0,
+                 data_dropped_l0=0.0,
+                 data_dropped_linf=0.0,
+                 data_dropped_partition_selection=0.0,
+                 error_l0_expected=-1.0,
+                 error_linf_expected=-0.5,
+                 error_linf_min_expected=0.5,
+                 error_linf_max_expected=-1.0,
+                 error_l0_variance=2.0,
+                 error_variance=2.5,
+                 error_quantiles=[-1.5],
+                 rel_error_l0_expected=-0.2,
+                 rel_error_linf_expected=-0.1,
+                 rel_error_linf_min_expected=0.1,
+                 rel_error_linf_max_expected=-0.2,
+                 rel_error_l0_variance=0.08,
+                 rel_error_variance=0.1,
+                 rel_error_quantiles=[-0.3],
+                 error_expected_w_dropped_partitions=-4.0,
+                 rel_error_expected_w_dropped_partitions=-0.8,
+                 noise_std=1.0,
+             )),
+        dict(testcase_name='Sum with public partitions',
+             metric_type=metrics.AggregateMetricType.SUM,
+             probability_to_keep=1.0,
+             metric=metrics.SumMetrics(
+                 sum=5.0,
+                 per_partition_error_min=2.0,
+                 per_partition_error_max=-1.0,
+                 expected_cross_partition_error=2.0,
+                 std_cross_partition_error=2.0,
+                 std_noise=1.0,
+                 noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+             ),
+             expected=combiners.AggregateErrorMetricsAccumulator(
+                 num_partitions=1,
+                 kept_partitions_expected=1.0,
+                 total_aggregate=5.0,
+                 data_dropped_l0=0.0,
+                 data_dropped_linf=0.0,
+                 data_dropped_partition_selection=0.0,
+                 error_l0_expected=2.0,
+                 error_linf_expected=1.0,
+                 error_linf_min_expected=2.0,
+                 error_linf_max_expected=-1.0,
+                 error_l0_variance=4.0,
+                 error_variance=5.0,
+                 error_quantiles=[3.0],
+                 rel_error_l0_expected=0.4,
+                 rel_error_linf_expected=0.2,
+                 rel_error_linf_min_expected=0.4,
+                 rel_error_linf_max_expected=-0.2,
+                 rel_error_l0_variance=0.16,
+                 rel_error_variance=0.2,
+                 rel_error_quantiles=[0.6],
+                 error_expected_w_dropped_partitions=3.0,
+                 rel_error_expected_w_dropped_partitions=0.6,
+                 noise_std=1.0,
+             )),
+        dict(testcase_name='Sum with public partitions and negative sum',
+             metric_type=metrics.AggregateMetricType.SUM,
+             probability_to_keep=1.0,
+             metric=metrics.SumMetrics(
+                 sum=-5.0,
+                 per_partition_error_min=2.0,
+                 per_partition_error_max=-1.0,
+                 expected_cross_partition_error=-2.0,
+                 std_cross_partition_error=2.0,
+                 std_noise=1.0,
+                 noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+             ),
+             expected=combiners.AggregateErrorMetricsAccumulator(
+                 num_partitions=1,
+                 kept_partitions_expected=1.0,
+                 total_aggregate=-5.0,
+                 data_dropped_l0=0.0,
+                 data_dropped_linf=0.0,
+                 data_dropped_partition_selection=0.0,
+                 error_l0_expected=-2.0,
+                 error_linf_expected=1.0,
+                 error_linf_min_expected=2.0,
+                 error_linf_max_expected=-1.0,
+                 error_l0_variance=4.0,
+                 error_variance=5.0,
+                 error_quantiles=[-1.0],
+                 rel_error_l0_expected=-0.4,
+                 rel_error_linf_expected=0.2,
+                 rel_error_linf_min_expected=0.4,
+                 rel_error_linf_max_expected=-0.2,
+                 rel_error_l0_variance=0.16,
+                 rel_error_variance=0.2,
+                 rel_error_quantiles=[-0.2],
+                 error_expected_w_dropped_partitions=-1.0,
+                 rel_error_expected_w_dropped_partitions=-0.2,
+                 noise_std=1.0,
+             )),
         dict(testcase_name='Count without public partitions',
              metric_type=metrics.AggregateMetricType.COUNT,
              probability_to_keep=0.5,
@@ -759,19 +854,122 @@ class CountAggregateErrorMetricsCombinerTest(parameterized.TestCase):
                  error_expected_w_dropped_partitions=-2.0,
                  rel_error_expected_w_dropped_partitions=-0.4,
                  noise_std=1.0,
-             )),
-    )
+             )))
     def test_create_accumulator(self, metric_type, probability_to_keep, metric,
                                 expected):
         combiner = combiners.SumAggregateErrorMetricsCombiner(
             metric_type, [0.5])
         acc = combiner.create_accumulator(metric, probability_to_keep)
-        self.assertEqual(expected, acc)
+        assert_dataclasses_are_equal(self, expected, acc)
 
         # Test that no type is np.float64
         self.assertTrue(_check_none_are_np_float64(acc))
 
     @parameterized.named_parameters(
+        dict(testcase_name='Sum with public partitions',
+             metric_type=metrics.AggregateMetricType.SUM,
+             acc=combiners.AggregateErrorMetricsAccumulator(
+                 num_partitions=1,
+                 kept_partitions_expected=0.5,
+                 total_aggregate=5.0,
+                 data_dropped_l0=0.0,
+                 data_dropped_linf=0.0,
+                 data_dropped_partition_selection=0.0,
+                 error_l0_expected=-1.0,
+                 error_linf_expected=-1.0,
+                 error_linf_min_expected=0.5,
+                 error_linf_max_expected=-1.5,
+                 error_l0_variance=2.0,
+                 error_variance=3.0,
+                 error_quantiles=[-2.0],
+                 rel_error_l0_expected=-0.2,
+                 rel_error_linf_expected=-0.2,
+                 rel_error_linf_min_expected=0.1,
+                 rel_error_linf_max_expected=-0.3,
+                 rel_error_l0_variance=0.08,
+                 rel_error_variance=0.12,
+                 rel_error_quantiles=[-0.4],
+                 error_expected_w_dropped_partitions=-3.5,
+                 rel_error_expected_w_dropped_partitions=-0.7,
+                 noise_std=1.0,
+             ),
+             expected=metrics.AggregateErrorMetrics(
+                 metric_type=metrics.AggregateMetricType.SUM,
+                 ratio_data_dropped_l0=0.0,
+                 ratio_data_dropped_linf=0.0,
+                 ratio_data_dropped_partition_selection=0.0,
+                 error_l0_expected=-2.0,
+                 error_linf_expected=-2.0,
+                 error_linf_min_expected=1.0,
+                 error_linf_max_expected=-3.0,
+                 error_expected=-4.0,
+                 error_l0_variance=4.0,
+                 error_variance=6.0,
+                 error_quantiles=[-4.0],
+                 rel_error_l0_expected=-0.4,
+                 rel_error_linf_expected=-0.4,
+                 rel_error_linf_min_expected=0.2,
+                 rel_error_linf_max_expected=-0.6,
+                 rel_error_expected=-0.8,
+                 rel_error_l0_variance=0.16,
+                 rel_error_variance=0.24,
+                 rel_error_quantiles=[-0.8],
+                 error_expected_w_dropped_partitions=-3.5,
+                 rel_error_expected_w_dropped_partitions=-0.7,
+                 noise_std=1.0,
+             )),
+        dict(testcase_name='Sum without public partitions',
+             metric_type=metrics.AggregateMetricType.SUM,
+             acc=combiners.AggregateErrorMetricsAccumulator(
+                 num_partitions=1,
+                 kept_partitions_expected=1.0,
+                 total_aggregate=5.0,
+                 data_dropped_l0=0.0,
+                 data_dropped_linf=0.0,
+                 data_dropped_partition_selection=0.0,
+                 error_l0_expected=-1.0,
+                 error_linf_expected=-1.0,
+                 error_linf_min_expected=0.5,
+                 error_linf_max_expected=-1.5,
+                 error_l0_variance=2.0,
+                 error_variance=3.0,
+                 error_quantiles=[-2.0],
+                 rel_error_l0_expected=-0.2,
+                 rel_error_linf_expected=-0.2,
+                 rel_error_linf_min_expected=0.1,
+                 rel_error_linf_max_expected=-0.3,
+                 rel_error_l0_variance=0.08,
+                 rel_error_variance=0.12,
+                 rel_error_quantiles=[-0.4],
+                 error_expected_w_dropped_partitions=-2.0,
+                 rel_error_expected_w_dropped_partitions=-0.4,
+                 noise_std=1.0,
+             ),
+             expected=metrics.AggregateErrorMetrics(
+                 metric_type=metrics.AggregateMetricType.SUM,
+                 ratio_data_dropped_l0=0.0,
+                 ratio_data_dropped_linf=0.0,
+                 ratio_data_dropped_partition_selection=0.0,
+                 error_l0_expected=-1.0,
+                 error_linf_expected=-1.0,
+                 error_linf_min_expected=0.5,
+                 error_linf_max_expected=-1.5,
+                 error_expected=-2.0,
+                 error_l0_variance=2.0,
+                 error_variance=3.0,
+                 error_quantiles=[-2.0],
+                 rel_error_l0_expected=-0.2,
+                 rel_error_linf_expected=-0.2,
+                 rel_error_linf_min_expected=0.1,
+                 rel_error_linf_max_expected=-0.3,
+                 rel_error_expected=-0.4,
+                 rel_error_l0_variance=0.08,
+                 rel_error_variance=0.12,
+                 rel_error_quantiles=[-0.4],
+                 error_expected_w_dropped_partitions=-2.0,
+                 rel_error_expected_w_dropped_partitions=-0.4,
+                 noise_std=1.0,
+             )),
         dict(testcase_name='Count without public partitions',
              metric_type=metrics.AggregateMetricType.COUNT,
              acc=combiners.AggregateErrorMetricsAccumulator(
@@ -985,397 +1183,45 @@ class CountAggregateErrorMetricsCombinerTest(parameterized.TestCase):
         combiner = combiners.SumAggregateErrorMetricsCombiner(
             metric_type, [0.5])
         metric = combiner.compute_metrics(acc)
-        self.assertEqual(expected, metric)
+        assert_dataclasses_are_equal(self, expected, metric)
 
         # Test that no type is np.float64
         self.assertTrue(_check_none_are_np_float64(acc))
 
 
-class SumAggregateErrorMetricsCombinerTest(parameterized.TestCase):
+def assert_dataclasses_are_equal(test, expected, actual):
+    test.assertEquals(type(expected), type(actual))
+    expected = dataclasses.asdict(expected)
+    actual = dataclasses.asdict(actual)
 
-    @parameterized.named_parameters(
-        dict(testcase_name='Sum without public partitions',
-             probability_to_keep=0.5,
-             metric=metrics.SumMetrics(
-                 sum=5.0,
-                 per_partition_error_min=1.0,
-                 per_partition_error_max=-2.0,
-                 expected_cross_partition_error=-2.0,
-                 std_cross_partition_error=2.0,
-                 std_noise=1.0,
-                 noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
-             ),
-             expected=combiners.AggregateErrorMetricsAccumulator(
-                 num_partitions=1,
-                 kept_partitions_expected=0.5,
-                 total_aggregate=5.0,
-                 data_dropped_l0=0.0,
-                 data_dropped_linf=0.0,
-                 data_dropped_partition_selection=0.0,
-                 error_l0_expected=-1.0,
-                 error_linf_expected=-0.5,
-                 error_linf_min_expected=0.5,
-                 error_linf_max_expected=-1.0,
-                 error_l0_variance=2.0,
-                 error_variance=2.5,
-                 error_quantiles=[-1.5],
-                 rel_error_l0_expected=-0.2,
-                 rel_error_linf_expected=-0.1,
-                 rel_error_linf_min_expected=0.1,
-                 rel_error_linf_max_expected=-0.2,
-                 rel_error_l0_variance=0.08,
-                 rel_error_variance=0.1,
-                 rel_error_quantiles=[-0.3],
-                 error_expected_w_dropped_partitions=-4.0,
-                 rel_error_expected_w_dropped_partitions=-0.8,
-                 noise_std=1.0,
-             )),
-        dict(testcase_name='Sum with public partitions',
-             probability_to_keep=1.0,
-             metric=metrics.SumMetrics(
-                 sum=5.0,
-                 per_partition_error_min=2.0,
-                 per_partition_error_max=-1.0,
-                 expected_cross_partition_error=2.0,
-                 std_cross_partition_error=2.0,
-                 std_noise=1.0,
-                 noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
-             ),
-             expected=combiners.AggregateErrorMetricsAccumulator(
-                 num_partitions=1,
-                 kept_partitions_expected=1.0,
-                 total_aggregate=5.0,
-                 data_dropped_l0=0.0,
-                 data_dropped_linf=0.0,
-                 data_dropped_partition_selection=0.0,
-                 error_l0_expected=2.0,
-                 error_linf_expected=1.0,
-                 error_linf_min_expected=2.0,
-                 error_linf_max_expected=-1.0,
-                 error_l0_variance=4.0,
-                 error_variance=5.0,
-                 error_quantiles=[3.0],
-                 rel_error_l0_expected=0.4,
-                 rel_error_linf_expected=0.2,
-                 rel_error_linf_min_expected=0.4,
-                 rel_error_linf_max_expected=-0.2,
-                 rel_error_l0_variance=0.16,
-                 rel_error_variance=0.2,
-                 rel_error_quantiles=[0.6],
-                 error_expected_w_dropped_partitions=3.0,
-                 rel_error_expected_w_dropped_partitions=0.6,
-                 noise_std=1.0,
-             )),
-        dict(testcase_name='Sum with public partitions and negative sum',
-             probability_to_keep=1.0,
-             metric=metrics.SumMetrics(
-                 sum=-5.0,
-                 per_partition_error_min=2.0,
-                 per_partition_error_max=-1.0,
-                 expected_cross_partition_error=-2.0,
-                 std_cross_partition_error=2.0,
-                 std_noise=1.0,
-                 noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
-             ),
-             expected=combiners.AggregateErrorMetricsAccumulator(
-                 num_partitions=1,
-                 kept_partitions_expected=1.0,
-                 total_aggregate=-5.0,
-                 data_dropped_l0=0.0,
-                 data_dropped_linf=0.0,
-                 data_dropped_partition_selection=0.0,
-                 error_l0_expected=-2.0,
-                 error_linf_expected=1.0,
-                 error_linf_min_expected=2.0,
-                 error_linf_max_expected=-1.0,
-                 error_l0_variance=4.0,
-                 error_variance=5.0,
-                 error_quantiles=[-1.0],
-                 rel_error_l0_expected=-0.4,
-                 rel_error_linf_expected=0.2,
-                 rel_error_linf_min_expected=0.4,
-                 rel_error_linf_max_expected=-0.2,
-                 rel_error_l0_variance=0.16,
-                 rel_error_variance=0.2,
-                 rel_error_quantiles=[-0.2],
-                 error_expected_w_dropped_partitions=-1.0,
-                 rel_error_expected_w_dropped_partitions=-0.2,
-                 noise_std=1.0,
-             )))
-    def test_create_accumulator(self, probability_to_keep, metric, expected):
-        combiner = combiners.SumAggregateErrorMetricsCombiner(
-            metrics.AggregateMetricType.SUM, [0.5])
-        acc = combiner.create_accumulator(metric, probability_to_keep)
-        assert_aggregate_error_metrics_accumulator_equals(self, expected, acc)
-
-        # Test that no type is np.float64
-        self.assertTrue(_check_none_are_np_float64(acc))
-
-    @parameterized.named_parameters(
-        dict(testcase_name='Sum with public partitions',
-             acc=combiners.AggregateErrorMetricsAccumulator(
-                 num_partitions=1,
-                 kept_partitions_expected=0.5,
-                 total_aggregate=5.0,
-                 data_dropped_l0=0.0,
-                 data_dropped_linf=0.0,
-                 data_dropped_partition_selection=0.0,
-                 error_l0_expected=-1.0,
-                 error_linf_expected=-1.0,
-                 error_linf_min_expected=0.5,
-                 error_linf_max_expected=-1.5,
-                 error_l0_variance=2.0,
-                 error_variance=3.0,
-                 error_quantiles=[-2.0],
-                 rel_error_l0_expected=-0.2,
-                 rel_error_linf_expected=-0.2,
-                 rel_error_linf_min_expected=0.1,
-                 rel_error_linf_max_expected=-0.3,
-                 rel_error_l0_variance=0.08,
-                 rel_error_variance=0.12,
-                 rel_error_quantiles=[-0.4],
-                 error_expected_w_dropped_partitions=-3.5,
-                 rel_error_expected_w_dropped_partitions=-0.7,
-                 noise_std=1.0,
-             ),
-             expected=metrics.AggregateErrorMetrics(
-                 metric_type=metrics.AggregateMetricType.SUM,
-                 ratio_data_dropped_l0=0.0,
-                 ratio_data_dropped_linf=0.0,
-                 ratio_data_dropped_partition_selection=0.0,
-                 error_l0_expected=-2.0,
-                 error_linf_expected=-2.0,
-                 error_linf_min_expected=1.0,
-                 error_linf_max_expected=-3.0,
-                 error_expected=-4.0,
-                 error_l0_variance=4.0,
-                 error_variance=6.0,
-                 error_quantiles=[-4.0],
-                 rel_error_l0_expected=-0.4,
-                 rel_error_linf_expected=-0.4,
-                 rel_error_linf_min_expected=0.2,
-                 rel_error_linf_max_expected=-0.6,
-                 rel_error_expected=-0.8,
-                 rel_error_l0_variance=0.16,
-                 rel_error_variance=0.24,
-                 rel_error_quantiles=[-0.8],
-                 error_expected_w_dropped_partitions=-3.5,
-                 rel_error_expected_w_dropped_partitions=-0.7,
-                 noise_std=1.0,
-             )),
-        dict(testcase_name='Sum without public partitions',
-             acc=combiners.AggregateErrorMetricsAccumulator(
-                 num_partitions=1,
-                 kept_partitions_expected=1.0,
-                 total_aggregate=5.0,
-                 data_dropped_l0=0.0,
-                 data_dropped_linf=0.0,
-                 data_dropped_partition_selection=0.0,
-                 error_l0_expected=-1.0,
-                 error_linf_expected=-1.0,
-                 error_linf_min_expected=0.5,
-                 error_linf_max_expected=-1.5,
-                 error_l0_variance=2.0,
-                 error_variance=3.0,
-                 error_quantiles=[-2.0],
-                 rel_error_l0_expected=-0.2,
-                 rel_error_linf_expected=-0.2,
-                 rel_error_linf_min_expected=0.1,
-                 rel_error_linf_max_expected=-0.3,
-                 rel_error_l0_variance=0.08,
-                 rel_error_variance=0.12,
-                 rel_error_quantiles=[-0.4],
-                 error_expected_w_dropped_partitions=-2.0,
-                 rel_error_expected_w_dropped_partitions=-0.4,
-                 noise_std=1.0,
-             ),
-             expected=metrics.AggregateErrorMetrics(
-                 metric_type=metrics.AggregateMetricType.SUM,
-                 ratio_data_dropped_l0=0.0,
-                 ratio_data_dropped_linf=0.0,
-                 ratio_data_dropped_partition_selection=0.0,
-                 error_l0_expected=-1.0,
-                 error_linf_expected=-1.0,
-                 error_linf_min_expected=0.5,
-                 error_linf_max_expected=-1.5,
-                 error_expected=-2.0,
-                 error_l0_variance=2.0,
-                 error_variance=3.0,
-                 error_quantiles=[-2.0],
-                 rel_error_l0_expected=-0.2,
-                 rel_error_linf_expected=-0.2,
-                 rel_error_linf_min_expected=0.1,
-                 rel_error_linf_max_expected=-0.3,
-                 rel_error_expected=-0.4,
-                 rel_error_l0_variance=0.08,
-                 rel_error_variance=0.12,
-                 rel_error_quantiles=[-0.4],
-                 error_expected_w_dropped_partitions=-2.0,
-                 rel_error_expected_w_dropped_partitions=-0.4,
-                 noise_std=1.0,
-             )),
-    )
-    def test_compute_metrics(self, acc, expected):
-        combiner = combiners.SumAggregateErrorMetricsCombiner(
-            metrics.AggregateMetricType.SUM, [0.5])
-        metric = combiner.compute_metrics(acc)
-        assert_aggregate_error_metrics_equals(self, expected, metric)
-
-        # Test that no type is np.float64
-        self.assertTrue(_check_none_are_np_float64(acc))
-
-
-def assert_aggregate_error_metrics_accumulator_equals(
-        test: parameterized.TestCase,
-        expected: combiners.AggregateErrorMetricsAccumulator,
-        actual: combiners.AggregateErrorMetricsAccumulator):
-    test.assertEqual(expected.num_partitions, actual.num_partitions)
-    test.assertAlmostEquals(expected.data_dropped_l0,
-                            actual.data_dropped_l0,
-                            delta=1e-5)
-    test.assertAlmostEquals(expected.data_dropped_linf,
-                            actual.data_dropped_linf,
-                            delta=1e-5)
-    test.assertAlmostEquals(expected.data_dropped_partition_selection,
-                            actual.data_dropped_partition_selection,
-                            delta=1e-5)
-    test.assertAlmostEquals(expected.error_l0_expected,
-                            actual.error_l0_expected,
-                            delta=1e-5)
-    test.assertAlmostEquals(expected.error_linf_expected,
-                            actual.error_linf_expected,
-                            delta=1e-5)
-    test.assertAlmostEquals(expected.error_linf_min_expected,
-                            actual.error_linf_min_expected,
-                            delta=1e-5)
-    test.assertAlmostEquals(expected.error_linf_max_expected,
-                            actual.error_linf_max_expected,
-                            delta=1e-5)
-    test.assertAlmostEquals(expected.error_l0_variance,
-                            actual.error_l0_variance,
-                            delta=1e-5)
-    test.assertAlmostEquals(expected.error_variance,
-                            actual.error_variance,
-                            delta=1e-5)
-    test.assertEqual(len(expected.error_quantiles), len(actual.error_quantiles))
-    [
-        test.assertAlmostEqual(expected.error_quantiles[i],
-                               actual.error_quantiles[i],
-                               delta=1e-5)
-        for i in range(len(expected.error_quantiles))
-    ]
-    test.assertAlmostEquals(expected.rel_error_l0_expected,
-                            actual.rel_error_l0_expected,
-                            delta=1e-5)
-    test.assertAlmostEquals(expected.rel_error_linf_expected,
-                            actual.rel_error_linf_expected,
-                            delta=1e-5)
-    test.assertAlmostEquals(expected.rel_error_linf_min_expected,
-                            actual.rel_error_linf_min_expected,
-                            delta=1e-5)
-    test.assertAlmostEquals(expected.rel_error_linf_max_expected,
-                            actual.rel_error_linf_max_expected,
-                            delta=1e-5)
-    test.assertAlmostEquals(expected.rel_error_l0_variance,
-                            actual.rel_error_l0_variance,
-                            delta=1e-5)
-    test.assertAlmostEquals(expected.rel_error_variance,
-                            actual.rel_error_variance,
-                            delta=1e-5)
-    test.assertEqual(len(expected.rel_error_quantiles),
-                     len(actual.rel_error_quantiles))
-    [
-        test.assertAlmostEqual(expected.rel_error_quantiles[i],
-                               actual.rel_error_quantiles[i],
-                               delta=1e-5)
-        for i in range(len(expected.rel_error_quantiles))
-    ]
-    test.assertAlmostEquals(expected.error_expected_w_dropped_partitions,
-                            actual.error_expected_w_dropped_partitions,
-                            delta=1e-5)
-    test.assertAlmostEquals(expected.rel_error_expected_w_dropped_partitions,
-                            actual.rel_error_expected_w_dropped_partitions,
-                            delta=1e-5)
-    test.assertAlmostEquals(expected.noise_std, actual.noise_std, delta=1e-5)
-
-
-def assert_aggregate_error_metrics_equals(
-        test: parameterized.TestCase, expected: metrics.AggregateMetrics,
-        actual: metrics.AggregateErrorMetrics):
-    test.assertEqual(expected.metric_type, actual.metric_type)
-    test.assertAlmostEquals(expected.ratio_data_dropped_l0,
-                            actual.ratio_data_dropped_l0,
-                            delta=1e-5)
-    test.assertAlmostEquals(expected.ratio_data_dropped_linf,
-                            actual.ratio_data_dropped_linf,
-                            delta=1e-5)
-    test.assertAlmostEquals(expected.ratio_data_dropped_partition_selection,
-                            actual.ratio_data_dropped_partition_selection,
-                            delta=1e-5)
-    test.assertAlmostEquals(expected.error_l0_expected,
-                            actual.error_l0_expected,
-                            delta=1e-5)
-    test.assertAlmostEquals(expected.error_linf_expected,
-                            actual.error_linf_expected,
-                            delta=1e-5)
-    test.assertAlmostEquals(expected.error_linf_min_expected,
-                            actual.error_linf_min_expected,
-                            delta=1e-5)
-    test.assertAlmostEquals(expected.error_linf_max_expected,
-                            actual.error_linf_max_expected,
-                            delta=1e-5)
-    test.assertAlmostEquals(expected.error_expected,
-                            actual.error_expected,
-                            delta=1e-5)
-    test.assertAlmostEquals(expected.error_l0_variance,
-                            actual.error_l0_variance,
-                            delta=1e-5)
-    test.assertAlmostEquals(expected.error_variance,
-                            actual.error_variance,
-                            delta=1e-5)
-    test.assertEqual(len(expected.error_quantiles), len(actual.error_quantiles))
-    [
-        test.assertAlmostEqual(expected.error_quantiles[i],
-                               actual.error_quantiles[i],
-                               delta=1e-5)
-        for i in range(len(expected.error_quantiles))
-    ]
-    test.assertAlmostEquals(expected.rel_error_l0_expected,
-                            actual.rel_error_l0_expected,
-                            delta=1e-5)
-    test.assertAlmostEquals(expected.rel_error_linf_expected,
-                            actual.rel_error_linf_expected,
-                            delta=1e-5)
-    test.assertAlmostEquals(expected.rel_error_linf_min_expected,
-                            actual.rel_error_linf_min_expected,
-                            delta=1e-5)
-    test.assertAlmostEquals(expected.rel_error_linf_max_expected,
-                            actual.rel_error_linf_max_expected,
-                            delta=1e-5)
-    test.assertAlmostEquals(expected.rel_error_expected,
-                            actual.rel_error_expected,
-                            delta=1e-5)
-    test.assertAlmostEquals(expected.rel_error_l0_variance,
-                            actual.rel_error_l0_variance,
-                            delta=1e-5)
-    test.assertAlmostEquals(expected.rel_error_variance,
-                            actual.rel_error_variance,
-                            delta=1e-5)
-    test.assertEqual(len(expected.rel_error_quantiles),
-                     len(actual.rel_error_quantiles))
-    [
-        test.assertAlmostEqual(expected.rel_error_quantiles[i],
-                               actual.rel_error_quantiles[i],
-                               delta=1e-5)
-        for i in range(len(expected.rel_error_quantiles))
-    ]
-    test.assertAlmostEquals(expected.error_expected_w_dropped_partitions,
-                            actual.error_expected_w_dropped_partitions,
-                            delta=1e-5)
-    test.assertAlmostEquals(expected.rel_error_expected_w_dropped_partitions,
-                            actual.rel_error_expected_w_dropped_partitions,
-                            delta=1e-5)
-    test.assertAlmostEquals(expected.noise_std, actual.noise_std, delta=1e-5)
+    for (f1, exp), (f2, act) in zip(expected.items(), actual.items()):
+        if isinstance(exp, int) or isinstance(exp, enum.Enum):
+            test.assertEquals(
+                exp,
+                act,
+                msg=f"expected= {exp} and actual= {act} differ in {f1}")
+        elif isinstance(exp, float):
+            test.assertAlmostEquals(
+                exp,
+                act,
+                delta=1e-5,
+                msg=f"expected= {exp} and actual= {act} differ in {f1}")
+        elif isinstance(exp, typing.List):
+            [
+                test.assertAlmostEquals(
+                    exp,
+                    act,
+                    delta=1e-5,
+                    msg=
+                    f"expected= {exp_i} and actual= {act_i} differ in {f1} at "
+                    f"index= {i}")
+                for i, (exp_i, act_i) in enumerate(zip(exp, act))
+            ]
+        else:
+            raise Exception(
+                f"assert_dataclasses_are_equal only supports dataclasses with "
+                f"int, float, List[int], List[float] or enum fields. Got "
+                f"f1={f1} with type={type(f1)} instead.")
 
 
 if __name__ == '__main__':

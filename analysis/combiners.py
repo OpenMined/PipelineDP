@@ -462,7 +462,7 @@ class SumAggregateErrorMetricsCombiner(pipeline_dp.Combiner):
     def __init__(self, metric_type: metrics.AggregateMetricType,
                  error_quantiles: List[float]):
         self._metric_type = metric_type
-        self._error_quantiles = _invert_error_quantiles(error_quantiles)
+        self._error_quantiles = self._invert_error_quantiles(error_quantiles)
 
     def create_accumulator(self,
                            m: metrics.SumMetrics,
@@ -489,8 +489,7 @@ class SumAggregateErrorMetricsCombiner(pipeline_dp.Combiner):
         error_l0_variance = prob_to_keep * m.std_cross_partition_error**2
         error_variance = prob_to_keep * (m.std_cross_partition_error**2 +
                                          m.std_noise**2)
-        error_quantiles = _compute_error_quantiles(self._error_quantiles,
-                                                   prob_to_keep, m)
+        error_quantiles = self._compute_error_quantiles(prob_to_keep, m)
         error_expected_w_dropped_partitions = prob_to_keep * (
             m.expected_cross_partition_error + m.per_partition_error_min +
             m.per_partition_error_max) + (1 - prob_to_keep) * -m.sum
@@ -605,18 +604,40 @@ class SumAggregateErrorMetricsCombiner(pipeline_dp.Combiner):
             noise_std=acc.noise_std)
 
     def metrics_names(self) -> List[str]:
-        return [
-            'metric_type', 'ratio_data_dropped_l0', 'ratio_data_dropped_linf',
-            'ratio_data_dropped_partition_selection', 'error_l0_expected',
-            'error_linf_expected', 'error_expected', 'error_l0_variance',
-            'error_variance', 'error_quantiles', 'rel_error_l0_expected',
-            'rel_error_linf_expected', 'rel_error_expected',
-            'rel_error_l0_variance', 'rel_error_variance',
-            'rel_error_quantiles', 'noise_std'
-        ]
+        """Not used for utility analysis combiners."""
+        return []
 
     def explain_computation(self):
         pass
+
+    def _invert_error_quantiles(self, quantiles: List[float]) -> List[float]:
+        # The contribution bounding error is negative, so quantiles <0.5 for the
+        # error distribution (which is the sum of the noise and the contribution
+        # bounding error) should be used to come up with the worst error
+        # quantiles.
+        return [(1 - q) for q in quantiles]
+
+    def _compute_error_quantiles(self, prob_to_keep: float,
+                                 metric: metrics.SumMetrics) -> List[float]:
+        """Computes quantiles of per partition errors for the sum of DP noise and contribution bounding error."""
+        error_expectation = metric.expected_cross_partition_error
+        error_std = math.sqrt(metric.std_cross_partition_error**2 +
+                              metric.std_noise**2)
+        errors = []
+        if metric.noise_kind == pipeline_dp.NoiseKind.GAUSSIAN:
+            error_distribution_quantiles = scipy.stats.norm.ppf(
+                q=self._error_quantiles, loc=error_expectation, scale=error_std)
+        else:
+            error_distribution_quantiles = probability_computations.compute_sum_laplace_gaussian_quantiles(
+                laplace_b=metric.std_noise / math.sqrt(2),
+                gaussian_sigma=metric.std_cross_partition_error,
+                quantiles=self._error_quantiles,
+                num_samples=10**3)
+        per_partition_error = metric.per_partition_error_min + metric.per_partition_error_max
+        for q in error_distribution_quantiles:
+            error_at_quantile = prob_to_keep * (float(q) + per_partition_error)
+            errors.append(error_at_quantile)
+        return errors
 
 
 class PrivatePartitionSelectionAggregateErrorMetricsCombiner(
@@ -656,38 +677,8 @@ class PrivatePartitionSelectionAggregateErrorMetricsCombiner(
             dropped_partitions_variance=kept_partitions_variance)
 
     def metrics_names(self) -> List[str]:
+        """Not used for utility analysis combiners."""
         return []
 
     def explain_computation(self):
         pass
-
-
-def _invert_error_quantiles(quantiles: List[float]) -> List[float]:
-    # The contribution bounding error is negative, so quantiles <0.5 for the
-    # error distribution (which is the sum of the noise and the contribution
-    # bounding error) should be used to come up with the worst error
-    # quantiles.
-    return [(1 - q) for q in quantiles]
-
-
-def _compute_error_quantiles(quantiles: List[float], prob_to_keep: float,
-                             metric) -> List[float]:
-    """Computes quantiles of per partition errors for the sum of DP noise and contribution bounding error."""
-    error_expectation = metric.expected_cross_partition_error
-    error_std = math.sqrt(metric.std_cross_partition_error**2 +
-                          metric.std_noise**2)
-    errors = []
-    if metric.noise_kind == pipeline_dp.NoiseKind.GAUSSIAN:
-        error_distribution_quantiles = scipy.stats.norm.ppf(
-            q=quantiles, loc=error_expectation, scale=error_std)
-    else:
-        error_distribution_quantiles = probability_computations.compute_sum_laplace_gaussian_quantiles(
-            laplace_b=metric.std_noise / math.sqrt(2),
-            gaussian_sigma=metric.std_cross_partition_error,
-            quantiles=quantiles,
-            num_samples=10**3)
-    per_partition_error = metric.per_partition_error_min + metric.per_partition_error_max
-    for q in error_distribution_quantiles:
-        error_at_quantile = prob_to_keep * (float(q) + per_partition_error)
-        errors.append(error_at_quantile)
-    return errors

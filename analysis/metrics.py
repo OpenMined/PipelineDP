@@ -22,23 +22,23 @@ import math
 
 @dataclass
 class SumMetrics:
-    """Stores metrics for the sum utility analysis.
+    """Stores per-partition metrics for SUM utility analysis.
 
-  Also used for count & privacy_id_count.
+    It is also used to store COUNT and PRIVACY_ID_COUNT per-partition metrics.
 
-  Attributes:
-      sum: actual sum of contributions per partition.
-      per_partition_error_min: the amount of error due to contribution min clipping.
-      per_partition_error_max: the amount of error due to contribution max clipping.
-      expected_cross_partition_error: the expected amount of error due to cross-partition contribution bounding.
-      std_cross_partition_error: the standard deviation of the error due to cross-partition contribution bounding.
-      std_noise: the noise standard deviation.
-      noise_kind: the type of noise used.
+    Attributes:
+        sum: actual sum of contributions per partition.
+        per_partition_error_min: the amount of error due to contribution min clipping.
+        per_partition_error_max: the amount of error due to contribution max clipping.
+        expected_cross_partition_error: the expected amount of error due to cross-partition contribution bounding.
+        std_cross_partition_error: the standard deviation of the error due to cross-partition contribution bounding.
+        std_noise: the noise standard deviation.
+        noise_kind: the type of noise used.
 
-  s.t. the following holds (where E stands for Expectation):
-  E(sum_after_contribution_bounding) = sum + E(error)
-  where E(error) = per_partition_error_min + per_partition_error_max + expected_cross_partition_error
-  """
+    s.t. the following holds (where E stands for Expectation):
+    E(sum_after_contribution_bounding) = sum + E(error)
+    where E(error) = per_partition_error_min + per_partition_error_max + expected_cross_partition_error
+    """
     sum: float
     per_partition_error_min: float
     per_partition_error_max: float
@@ -56,12 +56,12 @@ class AggregateMetricType(Enum):
 
 @dataclass
 class AggregateErrorMetrics:
-    """Stores aggregate metrics for utility analysis.
+    """Stores aggregate cross-partition metrics for utility analysis.
 
-  All attributes in this dataclass are averages across partitions; except for
-  ratio_* attributes, which are simply the ratios of total data dropped
-  aggregated across partitions.
-  """
+    All attributes in this dataclass are averages across partitions; except for
+    ratio_* attributes, which are simply the ratios of total data dropped
+    aggregated across partitions.
+    """
     metric_type: AggregateMetricType
 
     ratio_data_dropped_l0: float
