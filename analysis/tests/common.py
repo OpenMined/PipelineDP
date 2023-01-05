@@ -20,10 +20,10 @@ import typing
 from absl.testing import parameterized
 
 
-def _assert_dataclasses_are_equal(test: parameterized.TestCase,
-                                  expected,
-                                  actual,
-                                  delta=1e-5):
+def assert_dataclasses_are_equal(test: parameterized.TestCase,
+                                 expected,
+                                 actual,
+                                 delta=1e-5):
     """Asserts that input dataclasses are equal to one another.
 
   Only supports dataclasses with the following fields:

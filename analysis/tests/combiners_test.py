@@ -92,8 +92,7 @@ class UtilityAnalysisCountCombinerTest(parameterized.TestCase):
         test_acc = utility_analysis_combiner.create_accumulator(
             (len(contribution_values), 0, num_partitions))
         got_metrics = utility_analysis_combiner.compute_metrics(test_acc)
-        common._assert_dataclasses_are_equal(self, expected_metrics,
-                                             got_metrics)
+        common.assert_dataclasses_are_equal(self, expected_metrics, got_metrics)
         self.assertTrue(_check_none_are_np_float64(got_metrics))
 
     def test_merge(self):
@@ -300,8 +299,8 @@ class UtilityAnalysisSumCombinerTest(parameterized.TestCase):
             (len(contribution_values), sum(contribution_values),
              num_partitions))
         actual_metrics = utility_analysis_combiner.compute_metrics(test_acc)
-        common._assert_dataclasses_are_equal(self, expected_metrics,
-                                             actual_metrics)
+        common.assert_dataclasses_are_equal(self, expected_metrics,
+                                            actual_metrics)
 
         # Test that no type is np.float64
         self.assertTrue(_check_none_are_np_float64(actual_metrics))
@@ -392,8 +391,8 @@ class UtilityAnalysisPrivacyIdCountCombinerTest(parameterized.TestCase):
             (len(contribution_values), sum(contribution_values),
              num_partitions))
         actual_metrics = utility_analysis_combiner.compute_metrics(test_acc)
-        common._assert_dataclasses_are_equal(self, expected_metrics,
-                                             actual_metrics)
+        common.assert_dataclasses_are_equal(self, expected_metrics,
+                                            actual_metrics)
 
         # Test that no type is np.float64
         self.assertTrue(_check_none_are_np_float64(actual_metrics))
@@ -862,7 +861,7 @@ class SumAggregateErrorMetricsCombinerTest(parameterized.TestCase):
         combiner = combiners.SumAggregateErrorMetricsCombiner(
             metric_type, [0.5])
         acc = combiner.create_accumulator(metric, probability_to_keep)
-        common._assert_dataclasses_are_equal(self, expected, acc)
+        common.assert_dataclasses_are_equal(self, expected, acc)
 
         # Test that no type is np.float64
         self.assertTrue(_check_none_are_np_float64(acc))
@@ -1185,7 +1184,7 @@ class SumAggregateErrorMetricsCombinerTest(parameterized.TestCase):
         combiner = combiners.SumAggregateErrorMetricsCombiner(
             metric_type, [0.5])
         metric = combiner.compute_metrics(acc)
-        common._assert_dataclasses_are_equal(self, expected, metric)
+        common.assert_dataclasses_are_equal(self, expected, metric)
 
         # Test that no type is np.float64
         self.assertTrue(_check_none_are_np_float64(acc))

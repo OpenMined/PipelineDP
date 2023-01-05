@@ -88,7 +88,7 @@ class UtilityAnalysis(parameterized.TestCase):
             num_partitions=10,
             dropped_partitions_expected=7.08783,
             dropped_partitions_variance=2.06410)
-        common._assert_dataclasses_are_equal(
+        common.assert_dataclasses_are_equal(
             self, expected_partition_selection_metrics,
             output.partition_selection_metrics)
         # Assert count metrics are reasonable.
@@ -117,8 +117,8 @@ class UtilityAnalysis(parameterized.TestCase):
             rel_error_expected_w_dropped_partitions=-0.98058,
             noise_std=1.78515,
         )
-        common._assert_dataclasses_are_equal(self, expected_count_metrics,
-                                             output.count_metrics)
+        common.assert_dataclasses_are_equal(self, expected_count_metrics,
+                                            output.count_metrics)
 
     @parameterized.named_parameters(
         dict(
@@ -220,12 +220,12 @@ class UtilityAnalysis(parameterized.TestCase):
         # Assert count & privacy id count metrics are reasonable.
         # Using large delta because error quantiles for Laplace are not very
         # accurate.
-        common._assert_dataclasses_are_equal(self, expected,
-                                             col[0][0].count_metrics, 0.5)
+        common.assert_dataclasses_are_equal(self, expected,
+                                            col[0][0].count_metrics, 0.5)
         expected.metric_type = metrics.AggregateMetricType.PRIVACY_ID_COUNT
-        common._assert_dataclasses_are_equal(self, expected,
-                                             col[0][0].privacy_id_count_metrics,
-                                             0.5)
+        common.assert_dataclasses_are_equal(self, expected,
+                                            col[0][0].privacy_id_count_metrics,
+                                            0.5)
 
     def test_multi_parameters(self):
         # Arrange
