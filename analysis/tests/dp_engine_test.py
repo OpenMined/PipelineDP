@@ -262,10 +262,7 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
         # Assert
         self.assertLen(output, 10)
         # Assert count metrics are correct.
-        [
-            self.assertTrue(v[1][1].per_partition_error_max == -10)
-            for v in output
-        ]
+        [self.assertEqual(v[1][1].per_partition_error_max, -10) for v in output]
         [
             self.assertAlmostEqual(v[1][1].expected_cross_partition_error,
                                    -18.0,
