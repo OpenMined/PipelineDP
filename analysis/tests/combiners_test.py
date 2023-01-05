@@ -93,7 +93,7 @@ class UtilityAnalysisCountCombinerTest(parameterized.TestCase):
         test_acc = utility_analysis_combiner.create_accumulator(
             (len(contribution_values), 0, num_partitions))
         got_metrics = utility_analysis_combiner.compute_metrics(test_acc)
-        assert_dataclasses_are_equal(self, expected_metrics, got_metrics)
+        _assert_dataclasses_are_equal(self, expected_metrics, got_metrics)
         self.assertTrue(_check_none_are_np_float64(got_metrics))
 
     def test_merge(self):
@@ -300,7 +300,7 @@ class UtilityAnalysisSumCombinerTest(parameterized.TestCase):
             (len(contribution_values), sum(contribution_values),
              num_partitions))
         actual_metrics = utility_analysis_combiner.compute_metrics(test_acc)
-        assert_dataclasses_are_equal(self, expected_metrics, actual_metrics)
+        _assert_dataclasses_are_equal(self, expected_metrics, actual_metrics)
 
         # Test that no type is np.float64
         self.assertTrue(_check_none_are_np_float64(actual_metrics))
@@ -391,7 +391,7 @@ class UtilityAnalysisPrivacyIdCountCombinerTest(parameterized.TestCase):
             (len(contribution_values), sum(contribution_values),
              num_partitions))
         actual_metrics = utility_analysis_combiner.compute_metrics(test_acc)
-        assert_dataclasses_are_equal(self, expected_metrics, actual_metrics)
+        _assert_dataclasses_are_equal(self, expected_metrics, actual_metrics)
 
         # Test that no type is np.float64
         self.assertTrue(_check_none_are_np_float64(actual_metrics))
@@ -860,7 +860,7 @@ class SumAggregateErrorMetricsCombinerTest(parameterized.TestCase):
         combiner = combiners.SumAggregateErrorMetricsCombiner(
             metric_type, [0.5])
         acc = combiner.create_accumulator(metric, probability_to_keep)
-        assert_dataclasses_are_equal(self, expected, acc)
+        _assert_dataclasses_are_equal(self, expected, acc)
 
         # Test that no type is np.float64
         self.assertTrue(_check_none_are_np_float64(acc))
@@ -1183,45 +1183,61 @@ class SumAggregateErrorMetricsCombinerTest(parameterized.TestCase):
         combiner = combiners.SumAggregateErrorMetricsCombiner(
             metric_type, [0.5])
         metric = combiner.compute_metrics(acc)
-        assert_dataclasses_are_equal(self, expected, metric)
+        _assert_dataclasses_are_equal(self, expected, metric)
 
         # Test that no type is np.float64
         self.assertTrue(_check_none_are_np_float64(acc))
 
 
-def assert_dataclasses_are_equal(test, expected, actual):
-    test.assertEquals(type(expected), type(actual))
+def _assert_dataclasses_are_equal(test: parameterized.TestCase, expected,
+                                  actual):
+    """Asserts that input dataclasses are equal to one another.
+
+    Only supports dataclasses with the following fields:
+    - int
+    - float
+    - List[int]
+    - List[float]
+    - enum
+
+    For floats, it uses approximate equality with a delta of 1e-5.
+    """
+    test.assertEquals(type(expected),
+                      type(actual),
+                      msg=f"expected={type(expected)} and actual={type(actual)}"
+                      f"need to be the same type")
     expected = dataclasses.asdict(expected)
     actual = dataclasses.asdict(actual)
 
-    for (f1, exp), (f2, act) in zip(expected.items(), actual.items()):
+    for field_name in actual.keys():
+        exp = expected[field_name]
+        act = actual[field_name]
         if isinstance(exp, int) or isinstance(exp, enum.Enum):
             test.assertEquals(
                 exp,
                 act,
-                msg=f"expected= {exp} and actual= {act} differ in {f1}")
+                msg=f"expected= {exp} and actual= {act} differ in {field_name}")
         elif isinstance(exp, float):
             test.assertAlmostEquals(
                 exp,
                 act,
                 delta=1e-5,
-                msg=f"expected= {exp} and actual= {act} differ in {f1}")
+                msg=f"expected= {exp} and actual= {act} differ in {field_name}")
         elif isinstance(exp, typing.List):
             [
                 test.assertAlmostEquals(
-                    exp,
-                    act,
+                    exp_i,
+                    act_i,
                     delta=1e-5,
-                    msg=
-                    f"expected= {exp_i} and actual= {act_i} differ in {f1} at "
-                    f"index= {i}")
+                    msg=f"expected= {exp_i} and actual= {act_i} differ in"
+                    f"{field_name} at index= {i}")
                 for i, (exp_i, act_i) in enumerate(zip(exp, act))
             ]
         else:
             raise Exception(
                 f"assert_dataclasses_are_equal only supports dataclasses with "
                 f"int, float, List[int], List[float] or enum fields. Got "
-                f"f1={f1} with type={type(f1)} instead.")
+                f"f1={field_name} with type={type(exp)} instead")
 
 
 if __name__ == '__main__':
