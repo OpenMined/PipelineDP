@@ -21,49 +21,24 @@ import math
 
 
 @dataclass
-class CountMetrics:
-    """Stores metrics for the count utility analysis.
-
-  Attributes:
-      count: actual count of contributions per partition.
-      per_partition_error: the amount of error due to per-partition
-      contribution bounding.
-      expected_cross_partition_error: the expected amount of error due to
-      cross-partition contribution bounding.
-      std_cross_partition_error: the standard deviation of the error due to
-      cross-partition contribution bounding.
-      std_noise: the noise standard deviation.
-      noise_kind: the type of noise used.
-
-  s.t. the following holds (where E stands for Expectation):
-  E(count_after_contribution_bounding) = count + E(error)
-  where E(error) = per_partition_error + expected_cross_partition_error
-  """
-    count: int
-    per_partition_error: int
-    expected_cross_partition_error: float
-    std_cross_partition_error: float
-    std_noise: float
-    noise_kind: pipeline_dp.NoiseKind
-
-
-@dataclass
 class SumMetrics:
-    """Stores metrics for the sum utility analysis.
+    """Stores per-partition metrics for SUM utility analysis.
 
-  Attributes:
-      sum: actual sum of contributions per partition.
-      per_partition_error_min: the amount of error due to contribution min clipping.
-      per_partition_error_max: the amount of error due to contribution max clipping.
-      expected_cross_partition_error: the expected amount of error due to cross-partition contribution bounding.
-      std_cross_partition_error: the standard deviation of the error due to cross-partition contribution bounding.
-      std_noise: the noise standard deviation.
-      noise_kind: the type of noise used.
+    It is also used to store COUNT and PRIVACY_ID_COUNT per-partition metrics.
 
-  s.t. the following holds (where E stands for Expectation):
-  E(sum_after_contribution_bounding) = sum + E(error)
-  where E(error) = per_partition_error_min + per_partition_error_max + expected_cross_partition_error
-  """
+    Attributes:
+        sum: actual sum of contributions per partition.
+        per_partition_error_min: the amount of error due to contribution min clipping.
+        per_partition_error_max: the amount of error due to contribution max clipping.
+        expected_cross_partition_error: the expected amount of error due to cross-partition contribution bounding.
+        std_cross_partition_error: the standard deviation of the error due to cross-partition contribution bounding.
+        std_noise: the noise standard deviation.
+        noise_kind: the type of noise used.
+
+    s.t. the following holds (where E stands for Expectation):
+    E(sum_after_contribution_bounding) = sum + E(error)
+    where E(error) = per_partition_error_min + per_partition_error_max + expected_cross_partition_error
+    """
     sum: float
     per_partition_error_min: float
     per_partition_error_max: float
@@ -81,12 +56,12 @@ class AggregateMetricType(Enum):
 
 @dataclass
 class AggregateErrorMetrics:
-    """Stores aggregate metrics for utility analysis.
+    """Stores aggregate cross-partition metrics for utility analysis.
 
-  All attributes in this dataclass are averages across partitions; except for
-  ratio_* attributes, which are simply the ratios of total data dropped
-  aggregated across partitions.
-  """
+    All attributes in this dataclass are averages across partitions; except for
+    ratio_* attributes, which are simply the ratios of total data dropped
+    aggregated across partitions.
+    """
     metric_type: AggregateMetricType
 
     ratio_data_dropped_l0: float
@@ -98,12 +73,16 @@ class AggregateErrorMetrics:
 
     error_l0_expected: float
     error_linf_expected: float
+    error_linf_min_expected: float
+    error_linf_max_expected: float
     error_expected: float
     error_l0_variance: float
     error_variance: float
     error_quantiles: List[float]
     rel_error_l0_expected: float
     rel_error_linf_expected: float
+    rel_error_linf_min_expected: float
+    rel_error_linf_max_expected: float
     rel_error_expected: float
     rel_error_l0_variance: float
     rel_error_variance: float
