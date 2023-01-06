@@ -15,7 +15,7 @@
 
 import abc
 from dataclasses import dataclass
-from typing import Any, List, Optional, Sequence, Tuple
+from typing import Any, List, Optional, Tuple
 import numpy as np
 import math
 import scipy

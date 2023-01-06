@@ -17,6 +17,8 @@ from absl.testing import parameterized
 
 import pipeline_dp
 import analysis
+from analysis import metrics
+from analysis.tests import common
 
 
 class UtilityAnalysis(parameterized.TestCase):
@@ -82,98 +84,103 @@ class UtilityAnalysis(parameterized.TestCase):
         output = col[0][0]
         # Assert partition selection metrics are reasonable.
         # partition_kept_probability = 0.4311114 for each partition
-        self.assertEqual(output.partition_selection_metrics.num_partitions, 10)
-        self.assertAlmostEqual(
-            output.partition_selection_metrics.dropped_partitions_expected,
-            7.08783,
-            delta=1e-5)
-        self.assertAlmostEqual(
-            output.partition_selection_metrics.dropped_partitions_variance,
-            2.06410,
-            delta=1e-5)
+        expected_partition_selection_metrics = metrics.PartitionSelectionMetrics(
+            num_partitions=10,
+            dropped_partitions_expected=7.08783,
+            dropped_partitions_variance=2.06410)
+        common.assert_dataclasses_are_equal(
+            self, expected_partition_selection_metrics,
+            output.partition_selection_metrics)
         # Assert count metrics are reasonable.
-        self.assertAlmostEqual(output.count_metrics.ratio_data_dropped_l0,
-                               0.6,
-                               delta=1e-5)
-        self.assertAlmostEqual(output.count_metrics.ratio_data_dropped_linf,
-                               0.33333,
-                               delta=1e-5)
-        self.assertAlmostEqual(
-            output.count_metrics.ratio_data_dropped_partition_selection,
-            0.04725,
-            delta=1e-5)
-        self.assertAlmostEqual(output.count_metrics.error_l0_expected,
-                               -18,
-                               delta=1e-5)
-        self.assertAlmostEqual(output.count_metrics.error_linf_expected,
-                               -10,
-                               delta=1e-5)
-        self.assertAlmostEqual(output.count_metrics.error_expected,
-                               -28,
-                               delta=1e-5)
-        self.assertAlmostEqual(output.count_metrics.error_l0_variance,
-                               3.6,
-                               delta=1e-5)
-        self.assertAlmostEqual(output.count_metrics.error_variance,
-                               6.78678,
-                               delta=1e-5)
-        self.assertAlmostEqual(output.count_metrics.rel_error_l0_expected,
-                               -0.6,
-                               delta=1e-5)
-        self.assertAlmostEqual(output.count_metrics.rel_error_linf_expected,
-                               -0.33333,
-                               delta=1e-5)
-        self.assertAlmostEqual(output.count_metrics.rel_error_expected,
-                               -0.93333,
-                               delta=1e-5)
-        self.assertAlmostEqual(output.count_metrics.rel_error_l0_variance,
-                               0.004,
-                               delta=1e-5)
-        self.assertAlmostEqual(output.count_metrics.rel_error_variance,
-                               0.00754,
-                               delta=1e-5)
+        expected_count_metrics = metrics.AggregateErrorMetrics(
+            metric_type=metrics.AggregateMetricType.COUNT,
+            ratio_data_dropped_l0=0.6,
+            ratio_data_dropped_linf=0.33333,
+            ratio_data_dropped_partition_selection=0.04725,
+            error_l0_expected=-18.0,
+            error_linf_expected=-10.0,
+            error_linf_min_expected=0.0,
+            error_linf_max_expected=-10.0,
+            error_expected=-28.0,
+            error_l0_variance=3.6,
+            error_variance=6.78678,
+            error_quantiles=[-24.66137],
+            rel_error_l0_expected=-0.6,
+            rel_error_linf_expected=-0.33333,
+            rel_error_linf_min_expected=0.0,
+            rel_error_linf_max_expected=-0.33333,
+            rel_error_expected=-0.93333,
+            rel_error_l0_variance=0.004,
+            rel_error_variance=0.00754,
+            rel_error_quantiles=[-0.82204],
+            error_expected_w_dropped_partitions=-29.41756,
+            rel_error_expected_w_dropped_partitions=-0.98058,
+            noise_std=1.78515,
+        )
+        common.assert_dataclasses_are_equal(self, expected_count_metrics,
+                                            output.count_metrics)
 
     @parameterized.named_parameters(
-        dict(testcase_name="Gaussian noise",
-             noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
-             ratio_data_dropped_l0=0,
-             ratio_data_dropped_linf=0,
-             ratio_data_dropped_partition_selection=0,
-             error_l0_expected=0,
-             error_linf_expected=0,
-             error_expected=0,
-             error_l0_variance=0.0,
-             error_variance=35.71929,
-             rel_error_l0_expected=0,
-             rel_error_linf_expected=0,
-             rel_error_expected=0,
-             rel_error_l0_variance=0.0,
-             rel_error_variance=23.81286,
-             median_error=0),
-        dict(testcase_name="Laplace noise",
-             noise_kind=pipeline_dp.NoiseKind.LAPLACE,
-             ratio_data_dropped_l0=0,
-             ratio_data_dropped_linf=0,
-             ratio_data_dropped_partition_selection=0,
-             error_l0_expected=0,
-             error_linf_expected=0,
-             error_expected=0,
-             error_l0_variance=0.0,
-             error_variance=2.0,
-             rel_error_l0_expected=0,
-             rel_error_linf_expected=0,
-             rel_error_expected=0,
-             rel_error_l0_variance=0.0,
-             rel_error_variance=1.3333333333333334,
-             median_error=0),
+        dict(
+            testcase_name="Gaussian noise",
+            noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+            expected=metrics.AggregateErrorMetrics(
+                metric_type=metrics.AggregateMetricType.COUNT,
+                ratio_data_dropped_l0=0,
+                ratio_data_dropped_linf=0,
+                ratio_data_dropped_partition_selection=0,
+                error_l0_expected=0,
+                error_linf_expected=0,
+                error_linf_min_expected=0.0,
+                error_linf_max_expected=0.0,
+                error_expected=0,
+                error_l0_variance=0.0,
+                error_variance=35.71929,
+                error_quantiles=[7.65927, 0.0],
+                rel_error_l0_expected=0,
+                rel_error_linf_expected=0,
+                rel_error_linf_min_expected=0.0,
+                rel_error_linf_max_expected=0.0,
+                rel_error_expected=0,
+                rel_error_l0_variance=0.0,
+                rel_error_variance=23.81286,
+                rel_error_quantiles=[5.10618, 0.0],
+                error_expected_w_dropped_partitions=0.0,
+                rel_error_expected_w_dropped_partitions=0.0,
+                noise_std=5.97656,
+            ),
+        ),
+        dict(
+            testcase_name="Laplace noise",
+            noise_kind=pipeline_dp.NoiseKind.LAPLACE,
+            expected=metrics.AggregateErrorMetrics(
+                metric_type=metrics.AggregateMetricType.COUNT,
+                ratio_data_dropped_l0=0.0,
+                ratio_data_dropped_linf=0.0,
+                ratio_data_dropped_partition_selection=0.0,
+                error_l0_expected=0.0,
+                error_linf_expected=0.0,
+                error_linf_min_expected=0.0,
+                error_linf_max_expected=0.0,
+                error_expected=0.0,
+                error_l0_variance=0.0,
+                error_variance=2.0,
+                error_quantiles=[1.58, 0.0],
+                rel_error_l0_expected=0,
+                rel_error_linf_expected=0,
+                rel_error_linf_min_expected=0.0,
+                rel_error_linf_max_expected=0.0,
+                rel_error_expected=0.0,
+                rel_error_l0_variance=0.0,
+                rel_error_variance=1.3333333333333334,
+                rel_error_quantiles=[1.1, 0.0],
+                error_expected_w_dropped_partitions=0.0,
+                rel_error_expected_w_dropped_partitions=0.0,
+                noise_std=1.41421,
+            ),
+        ),
     )
-    def test_w_public_partitions(
-            self, noise_kind, ratio_data_dropped_l0, ratio_data_dropped_linf,
-            ratio_data_dropped_partition_selection, error_l0_expected,
-            error_linf_expected, error_expected, error_l0_variance,
-            error_variance, rel_error_l0_expected, rel_error_linf_expected,
-            rel_error_expected, rel_error_l0_variance, rel_error_variance,
-            median_error):
+    def test_w_public_partitions(self, noise_kind, expected):
         # Arrange
         aggregator_params = pipeline_dp.AggregateParams(
             noise_kind=noise_kind,
@@ -210,34 +217,15 @@ class UtilityAnalysis(parameterized.TestCase):
         # partition selection are returned.
         self.assertLen(col[0], 1)
 
-        # Assert privacy id count metrics are reasonable.
-        def check_metric(metrics):
-            self.assertEqual(metrics.error_l0_expected, error_l0_expected)
-            self.assertEqual(metrics.error_l0_expected, error_linf_expected)
-            self.assertEqual(metrics.error_expected, error_expected)
-            self.assertAlmostEqual(metrics.error_l0_variance,
-                                   error_l0_variance,
-                                   delta=1e-5)
-            self.assertAlmostEqual(metrics.error_variance,
-                                   error_variance,
-                                   delta=1e-5)
-            self.assertAlmostEqual(metrics.error_quantiles[1],
-                                   median_error,
-                                   delta=0.1)
-            self.assertEqual(metrics.rel_error_l0_expected,
-                             rel_error_l0_expected)
-            self.assertEqual(metrics.rel_error_linf_expected,
-                             rel_error_linf_expected)
-            self.assertEqual(metrics.rel_error_expected, rel_error_expected)
-            self.assertAlmostEqual(metrics.rel_error_l0_variance,
-                                   rel_error_l0_variance,
-                                   delta=1e-5)
-            self.assertAlmostEqual(metrics.rel_error_variance,
-                                   rel_error_variance,
-                                   delta=1e-5)
-
-        check_metric(col[0][0].privacy_id_count_metrics)
-        check_metric(col[0][0].count_metrics)
+        # Assert count & privacy id count metrics are reasonable.
+        # Using large delta because error quantiles for Laplace are not very
+        # accurate.
+        common.assert_dataclasses_are_equal(self, expected,
+                                            col[0][0].count_metrics, 0.5)
+        expected.metric_type = metrics.AggregateMetricType.PRIVACY_ID_COUNT
+        common.assert_dataclasses_are_equal(self, expected,
+                                            col[0][0].privacy_id_count_metrics,
+                                            0.5)
 
     def test_multi_parameters(self):
         # Arrange
