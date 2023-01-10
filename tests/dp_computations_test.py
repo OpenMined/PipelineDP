@@ -287,11 +287,11 @@ class DPComputationsTest(parameterized.TestCase):
             noise_kind=NoiseKind.LAPLACE)
         l0_sensitivity = params.l0_sensitivity()
         if bound_per_partition:
-            linf_sensitivity = params.max_contributions_per_partition * max(
-                params.min_sum_per_partition, params.max_sum_per_partition)
+          linf_sensitivity = max(abs(params.min_sum_per_partition),
+                                 abs(params.max_sum_per_partition))
         else:  # bound per contribution
-            linf_sensitivity = params.max_contributions_per_partition * max(
-                params.min_value, params.max_value)
+          linf_sensitivity = params.max_contributions_per_partition * max(
+              abs(params.min_value), abs(params.max_value))
 
         # Laplace Mechanism
         l1_sensitivity = dp_computations.compute_l1_sensitivity(
