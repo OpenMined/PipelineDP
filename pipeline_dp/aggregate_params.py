@@ -384,8 +384,15 @@ class VarianceParams:
         partition_extractor: A function for partition id extraction from a collection record.
         value_extractor: A function for extraction of value
             for which the sum will be calculated.
-
-  """
+        budget_weight: Relative weight of the privacy budget allocated to
+            partition selection.
+        noise_kind: The type of noise to use for the DP calculations.
+        contribution_bounds_already_enforced: assume that the input dataset
+            complies with the bounds provided in max_partitions_contributed and
+            max_contributions_per_partition. This option can be used if the
+            dataset does not contain any identifiers that can be used to enforce
+            contribution bounds automatically.
+    """
     max_partitions_contributed: int
     max_contributions_per_partition: int
     min_value: float
@@ -422,7 +429,15 @@ class MeanParams:
             the result.
         value_extractor: A function for extraction of value
             for which the sum will be calculated.
-  """
+        budget_weight: Relative weight of the privacy budget allocated to
+            partition selection.
+        noise_kind: The type of noise to use for the DP calculations.
+        contribution_bounds_already_enforced: assume that the input dataset
+            complies with the bounds provided in max_partitions_contributed and
+            max_contributions_per_partition. This option can be used if the
+            dataset does not contain any identifiers that can be used to enforce
+            contribution bounds automatically.
+    """
     max_partitions_contributed: int
     max_contributions_per_partition: int
     min_value: float
@@ -455,6 +470,11 @@ class CountParams:
         partition_extractor: A function which, given an input element, will return its partition id.
         budget_weight: Relative weight of the privacy budget allocated for this
             operation.
+        contribution_bounds_already_enforced: assume that the input dataset
+            complies with the bounds provided in max_partitions_contributed and
+            max_contributions_per_partition. This option can be used if the
+            dataset does not contain any identifiers that can be used to enforce
+            contribution bounds automatically.
     """
 
     noise_kind: NoiseKind
