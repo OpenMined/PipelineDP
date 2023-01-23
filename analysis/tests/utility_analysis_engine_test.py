@@ -330,14 +330,14 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
                                per_partition_error_max=0.0,
                                expected_cross_partition_error=-0.5,
                                std_cross_partition_error=0.5,
-                               std_noise=11.6640625,
+                               std_noise=5.87109375,
                                noise_kind=pipeline_dp.NoiseKind.GAUSSIAN),
             metrics.SumMetrics(sum=1.0,
                                per_partition_error_min=0.0,
                                per_partition_error_max=0.0,
                                expected_cross_partition_error=0,
                                std_cross_partition_error=0.0,
-                               std_noise=32.99095075973487,
+                               std_noise=16.60596081442783,
                                noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)
         ]
         expected_pk1 = [
@@ -346,19 +346,21 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
                                per_partition_error_max=-1.0,
                                expected_cross_partition_error=-0.5,
                                std_cross_partition_error=0.5,
-                               std_noise=11.6640625,
+                               std_noise=5.87109375,
                                noise_kind=pipeline_dp.NoiseKind.GAUSSIAN),
             metrics.SumMetrics(sum=2.0,
                                per_partition_error_min=0.0,
                                per_partition_error_max=0.0,
                                expected_cross_partition_error=0,
                                std_cross_partition_error=0.0,
-                               std_noise=32.99095075973487,
+                               std_noise=16.60596081442783,
                                noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)
         ]
 
         self.assertSequenceEqual(expected_pk0, output[0][1])
         self.assertSequenceEqual(expected_pk1, output[1][1])
+        # Check that the number of budget requests equal to number of metrics.
+        self.assertLen(budget_accountant._mechanisms, 1)
 
     @patch('pipeline_dp.sampling_utils.ValueSampler.__init__')
     def test_partition_sampling(self, mock_sampler_init):
