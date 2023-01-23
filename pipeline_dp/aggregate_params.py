@@ -322,15 +322,24 @@ class SumParams:
     """Specifies parameters for differentially-private sum calculation.
 
     Attributes:
-        noise_kind: The type of noise to use for the DP calculations.
-        max_partitions_contributed: A bounds on the number of partitions to which one
-            unit of privacy (e.g., a user) can contribute.
-        max_contributions_per_partition: A bound on the number of times one unit of
-            privacy (e.g. a user) can contribute to a partition.
+        max_partitions_contributed: A bounds on the number of partitions to
+            which one unit of privacy (e.g., a user) can contribute.
+        max_contributions_per_partition: A bound on the number of times one unit
+            of privacy (e.g. a user) can contribute to a partition.
         min_value: Lower bound on each value.
         max_value: Upper bound on each value.
-        partition_extractor: A function which, given an input element, will return its partition id.
-        value_extractor: A function which, given an input element, will return its value.
+        partition_extractor: A function which, given an input element, will
+            return its partition id.
+        value_extractor: A function which, given an input element, will return
+            its value.
+        budget_weight: Relative weight of the privacy budget allocated to
+            partition selection.
+        noise_kind: The type of noise to use for the DP calculations.
+        contribution_bounds_already_enforced: assume that the input dataset
+            complies with the bounds provided in max_partitions_contributed and
+            max_contributions_per_partition. This option can be used if the
+            dataset does not contain any identifiers that can be used to enforce
+            contribution bounds automatically.
     """
     max_partitions_contributed: int
     max_contributions_per_partition: int
@@ -342,6 +351,7 @@ class SumParams:
     high: float = None  # deprecated
     budget_weight: float = 1
     noise_kind: NoiseKind = NoiseKind.LAPLACE
+    contribution_bounds_already_enforced: bool = False
     public_partitions: Union[Iterable, 'PCollection',
                              'RDD'] = None  # deprecated
 
@@ -374,6 +384,7 @@ class VarianceParams:
         partition_extractor: A function for partition id extraction from a collection record.
         value_extractor: A function for extraction of value
             for which the sum will be calculated.
+
   """
     max_partitions_contributed: int
     max_contributions_per_partition: int
@@ -383,6 +394,7 @@ class VarianceParams:
     value_extractor: Callable
     budget_weight: float = 1
     noise_kind: NoiseKind = NoiseKind.LAPLACE
+    contribution_bounds_already_enforced: bool = False
     public_partitions: Union[Iterable, 'PCollection',
                              'RDD'] = None  # deprecated
 
@@ -419,6 +431,7 @@ class MeanParams:
     value_extractor: Callable
     budget_weight: float = 1
     noise_kind: NoiseKind = NoiseKind.LAPLACE
+    contribution_bounds_already_enforced: bool = False
     public_partitions: Union[Iterable, 'PCollection',
                              'RDD'] = None  # deprecated
 
@@ -449,6 +462,7 @@ class CountParams:
     max_contributions_per_partition: int
     partition_extractor: Callable
     budget_weight: float = 1
+    contribution_bounds_already_enforced: bool = False
     public_partitions: Union[Iterable, 'PCollection',
                              'RDD'] = None  # deprecated
 
@@ -476,6 +490,7 @@ class PrivacyIdCountParams:
     max_partitions_contributed: int
     partition_extractor: Callable
     budget_weight: float = 1
+    contribution_bounds_already_enforced: bool = False
     public_partitions: Union[Sequence, 'PCollection',
                              'RDD'] = None  # deprecated
 
