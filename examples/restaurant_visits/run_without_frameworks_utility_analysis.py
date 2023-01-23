@@ -84,9 +84,11 @@ def get_data_extractors():
 def get_multi_params():
     multi_param = None
     if FLAGS.multi_parameters:
+        max_partitions_contributed = list(range(1, 11))
+        max_contributions_per_partition = [1] * len(max_partitions_contributed)
         multi_param = analysis.MultiParameterConfiguration(
-            max_partitions_contributed=[1, 1, 2],
-            max_contributions_per_partition=[1, 1, 2])
+            max_partitions_contributed=max_partitions_contributed,
+            max_contributions_per_partition=max_contributions_per_partition)
     return multi_param
 
 
