@@ -97,35 +97,46 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
         self, aggregate_params: pipeline_dp.AggregateParams
     ) -> combiners.CompoundCombiner:
         mechanism_type = aggregate_params.noise_kind.convert_to_mechanism_type()
+        # Compute budgets
+        # 1. For private partition selection.
+        if not self._is_public_partitions:
+            private_partition_selection_budget = self._budget_accountant.request_budget(
+                pipeline_dp.MechanismType.GENERIC,
+                weight=aggregate_params.budget_weight)
+        # 2. For metrics.
+        budgets = {}
+        for metric in aggregate_params.metrics:
+            budgets[metric] = self._budget_accountant.request_budget(
+                mechanism_type, weight=aggregate_params.budget_weight)
+
+        # Create Utility analysis combiners.
         internal_combiners = []
         for params in self._get_aggregate_params(aggregate_params):
             # WARNING: Do not change the order here,
             # _create_aggregate_error_compound_combiner() in utility_analysis.py
             # depends on it.
             if not self._is_public_partitions:
-                budget = self._budget_accountant.request_budget(
-                    mechanism_type=pipeline_dp.MechanismType.GENERIC)
                 internal_combiners.append(
                     utility_analysis_combiners.PartitionSelectionCombiner(
-                        combiners.CombinerParams(budget, params)))
+                        combiners.CombinerParams(
+                            private_partition_selection_budget, params)))
             if pipeline_dp.Metrics.SUM in aggregate_params.metrics:
-                budget = self._budget_accountant.request_budget(
-                    mechanism_type, weight=aggregate_params.budget_weight)
                 internal_combiners.append(
                     utility_analysis_combiners.SumCombiner(
-                        combiners.CombinerParams(budget, params)))
+                        combiners.CombinerParams(
+                            budgets[pipeline_dp.Metrics.SUM], params)))
             if pipeline_dp.Metrics.COUNT in aggregate_params.metrics:
-                budget = self._budget_accountant.request_budget(
-                    mechanism_type, weight=aggregate_params.budget_weight)
                 internal_combiners.append(
                     utility_analysis_combiners.CountCombiner(
-                        combiners.CombinerParams(budget, params)))
+                        combiners.CombinerParams(
+                            budgets[pipeline_dp.Metrics.COUNT], params)))
             if pipeline_dp.Metrics.PRIVACY_ID_COUNT in aggregate_params.metrics:
-                budget = self._budget_accountant.request_budget(
-                    mechanism_type, weight=aggregate_params.budget_weight)
                 internal_combiners.append(
                     utility_analysis_combiners.PrivacyIdCountCombiner(
-                        combiners.CombinerParams(budget, params)))
+                        combiners.CombinerParams(
+                            budgets[pipeline_dp.Metrics.PRIVACY_ID_COUNT],
+                            params)))
+
         return utility_analysis_combiners.CompoundCombiner(
             internal_combiners, return_named_tuple=False)
 
