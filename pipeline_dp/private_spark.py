@@ -313,6 +313,8 @@ class PrivateRDD:
     def _get_privacy_id_extractor(self,
                                   contribution_bounds_already_enforced: bool):
         if contribution_bounds_already_enforced:
+            # Privacy ids are not needed when contribution bounding already
+            # enforced.
             return None
         return lambda x: x[0]
 
