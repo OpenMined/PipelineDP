@@ -463,11 +463,12 @@ class CountParams:
 
     Attributes:
         noise_kind: The type of noise to use for the DP calculations.
-        max_partitions_contributed: A bound on the number of partitions to which one
-            unit of privacy (e.g., a user) can contribute.
-        max_contributions_per_partition: A bound on the number of times one unit of
-            privacy (e.g. a user) can contribute to a partition.
-        partition_extractor: A function which, given an input element, will return its partition id.
+        max_partitions_contributed: A bound on the number of partitions to which
+            one unit of privacy (e.g., a user) can contribute.
+        max_contributions_per_partition: A bound on the number of times one unit
+            of privacy (e.g. a user) can contribute to a partition.
+        partition_extractor: A function which, given an input element, will
+            return its partition id.
         budget_weight: Relative weight of the privacy budget allocated for this
             operation.
         contribution_bounds_already_enforced: assume that the input dataset
@@ -499,11 +500,19 @@ class PrivacyIdCountParams:
 
     Attributes:
         noise_kind: The type of noise to use for the DP calculations.
-        max_partitions_contributed: A bound on the number of partitions to which one
-            unit of privacy (e.g., a user) can contribute.
+        max_partitions_contributed: A bound on the number of partitions to which
+            one unit of privacy (e.g., a user) can contribute.
         budget_weight: Relative weight of the privacy budget allocated for this
             operation.
-        partition_extractor: A function which, given an input element, will return its partition id.
+        partition_extractor: A function which, given an input element, will
+            return its partition id.
+        budget_weight: Relative weight of the privacy budget allocated for this
+            operation.
+        contribution_bounds_already_enforced: assume that the input dataset
+            complies with the bounds provided in max_partitions_contributed and
+            max_contributions_per_partition. This option can be used if the
+            dataset does not contain any identifiers that can be used to enforce
+            contribution bounds automatically.
     """
 
     noise_kind: NoiseKind

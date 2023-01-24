@@ -13,6 +13,7 @@
 # limitations under the License.
 import pyspark
 from pyspark import SparkContext
+from absl.testing import parameterized
 from unittest.mock import patch
 import unittest
 import sys
@@ -26,7 +27,7 @@ from pipeline_dp import budget_accounting, private_spark
     sys.platform == "win32" or
     (sys.version_info.minor <= 7 and sys.version_info.major == 3),
     "There are some problems with PySpark setup on older python and Windows")
-class PrivateRDDTest(unittest.TestCase):
+class PrivateRDDTest(parameterized.TestCase):
 
     @classmethod
     def setUpClass(cls):
@@ -78,8 +79,10 @@ class PrivateRDDTest(unittest.TestCase):
                                                  (2, (2, 24)), (2, (2, 25))])
         self.assertEqual(result._budget_accountant, prdd._budget_accountant)
 
+    @parameterized.parameters(True, False)
     @patch('pipeline_dp.dp_engine.DPEngine.aggregate')
-    def test_variance_calls_aggregate_with_correct_params(self, mock_aggregate):
+    def test_variance_calls_aggregate_with_correct_params(
+            self, contribution_bounds_already_enforced: bool, mock_aggregate):
         # Arrange
         dist_data = PrivateRDDTest.sc.parallelize([(1, 0.0, "pk1"),
                                                    (2, 10.0, "pk1")])
@@ -102,7 +105,9 @@ class PrivateRDDTest(unittest.TestCase):
             max_value=5.78,
             budget_weight=1.1,
             partition_extractor=lambda x: x[0],
-            value_extractor=lambda x: x)
+            value_extractor=lambda x: x,
+            contribution_bounds_already_enforced=
+            contribution_bounds_already_enforced)
 
         # Act
         actual_result = prdd.variance(variance_params)
@@ -124,7 +129,8 @@ class PrivateRDDTest(unittest.TestCase):
             min_value=variance_params.min_value,
             max_value=variance_params.max_value,
             budget_weight=variance_params.budget_weight,
-            public_partitions=variance_params.public_partitions)
+            contribution_bounds_already_enforced=
+            contribution_bounds_already_enforced)
         self.assertEqual(args[1], params)
 
         self.assertEqual(actual_result.collect(), [("pk1", 25.0)])
@@ -347,8 +353,10 @@ class PrivateRDDTest(unittest.TestCase):
                                                     expected_result_dict[pk],
                                                     0.1))
 
+    @parameterized.parameters(True, False)
     @patch('pipeline_dp.dp_engine.DPEngine.aggregate')
-    def test_sum_calls_aggregate_with_correct_params(self, mock_aggregate):
+    def test_sum_calls_aggregate_with_correct_params(
+            self, contribution_bounds_already_enforced: bool, mock_aggregate):
         # Arrange
         dist_data = PrivateRDDTest.sc.parallelize([(1, 1.0, "pk1"),
                                                    (2, 2.0, "pk1")])
@@ -370,7 +378,9 @@ class PrivateRDDTest(unittest.TestCase):
                                    max_value=2.7889,
                                    budget_weight=1.1,
                                    partition_extractor=lambda x: x[0],
-                                   value_extractor=lambda x: x)
+                                   value_extractor=lambda x: x,
+                                   contribution_bounds_already_enforced=
+                                   contribution_bounds_already_enforced)
 
         # Act
         actual_result = prdd.sum(sum_params)
@@ -390,7 +400,9 @@ class PrivateRDDTest(unittest.TestCase):
             max_contributions_per_partition,
             min_value=sum_params.min_value,
             max_value=sum_params.max_value,
-            budget_weight=sum_params.budget_weight)
+            budget_weight=sum_params.budget_weight,
+            contribution_bounds_already_enforced=
+            contribution_bounds_already_enforced)
         self.assertEqual(args[1], params)
 
         self.assertEqual(actual_result.collect(), [("pk1", 3.0)])
