@@ -47,7 +47,10 @@ def perform_utility_analysis(
       return_per_partition: if true, it returns tuple, with the 2nd element
         utility analysis per partitions.
     Returns:
-      1 element collection which contains utility analysis metrics.
+         if return_per_partition == False:
+            returns 1 element collection which contains TuneResult
+        else returns tuple (1 element collection which contains TuneResult,
+        a collection which contains utility analysis results per partition).
     """
     budget_accountant = pipeline_dp.NaiveBudgetAccountant(
         total_epsilon=options.epsilon, total_delta=options.delta)

@@ -155,7 +155,7 @@ def _convert_utility_analysis_to_tune_result(
         utility_analysis_result: Tuple, tune_options: TuneOptions,
         run_configurations: analysis.MultiParameterConfiguration,
         use_public_partitions: bool,
-        contribution_histograms: histograms.DatasetHistograms) -> TuneResult:
+        contribution_histograms: histograms.DatasetHistograms):
     assert len(utility_analysis_result) == run_configurations.size
     # TODO(dvadym): implement relative error.
     # TODO(dvadym): take into consideration partition selection from private
@@ -176,7 +176,7 @@ def tune(col,
          data_extractors: Union[pipeline_dp.DataExtractors,
                                 analysis.PreAggregateExtractors],
          public_partitions=None,
-         return_utility_analysis_per_partition: bool = False) -> TuneResult:
+         return_utility_analysis_per_partition: bool = False):
     """Tunes parameters.
 
     It works in the following way:
@@ -206,7 +206,10 @@ def tune(col,
         return_per_partition: if true, it returns tuple, with the 2nd element
           utility analysis per partitions.
     Returns:
-        1 element collection which contains TuneResult.
+        if return_per_partition == False:
+            returns 1 element collection which contains TuneResult
+        else returns tuple (1 element collection which contains TuneResult,
+        a collection which contains utility analysis results per partition).
     """
     _check_tune_args(options)
 
