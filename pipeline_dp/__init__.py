@@ -31,5 +31,6 @@ from pipeline_dp.pipeline_backend import BeamBackend
 from pipeline_dp.pipeline_backend import LocalBackend
 from pipeline_dp.pipeline_backend import PipelineBackend
 from pipeline_dp.pipeline_backend import SparkRDDBackend
+from pipeline_dp.report_generator import ExplainComputationReport
 
 __version__ = '0.2.1rc1'

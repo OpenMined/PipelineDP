@@ -62,3 +62,21 @@ class ReportGenerator:
             else:
                 result.append(f" {i+1}. {stage_str}")
         return "\n".join(result)
+
+
+class ExplainComputationReport:
+
+    def __init__(self):
+        self._report_generator = None
+
+    def _set_report_generator(self, report_generator: ReportGenerator):
+        self._report_generator = report_generator
+
+    def text(self) -> str:
+        if self._report_generator is None:
+            raise ValueError("Report is empty.")
+        try:
+            return self._report_generator.report()
+        except:
+            raise ValueError("Report failed to be generated. Is "
+                             "BudgetAccountant.compute_budget() called?")

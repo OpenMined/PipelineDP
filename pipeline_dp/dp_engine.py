@@ -14,7 +14,7 @@
 """DP aggregations."""
 import dataclasses
 import functools
-from typing import Any, Callable, Tuple
+from typing import Any, Callable, Optional, Tuple
 
 import pipeline_dp
 from pipeline_dp import combiners
@@ -67,7 +67,9 @@ class DPEngine:
                   col,
                   params: pipeline_dp.AggregateParams,
                   data_extractors: DataExtractors,
-                  public_partitions=None):
+                  public_partitions=None,
+                  out_explain_computaton_report: Optional[
+                      pipeline_dp.ExplainComputationReport] = None):
         """Computes DP aggregate metrics.
 
         Args:
@@ -91,6 +93,9 @@ class DPEngine:
             self._report_generators.append(
                 report_generator.ReportGenerator(params, "aggregate",
                                                  public_partitions is not None))
+            if out_explain_computaton_report is not None:
+                out_explain_computaton_report._set_report_generator(
+                    self._current_report_generator)
             col = self._aggregate(col, params, data_extractors,
                                   public_partitions)
             budget = self._budget_accountant._compute_budget_for_aggregation(

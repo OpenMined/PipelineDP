@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from pyspark import RDD
-from typing import Callable
+from typing import Callable, Optional
 
 import pipeline_dp
 from pipeline_dp import aggregate_params, budget_accounting
@@ -152,9 +152,13 @@ class PrivateRDD:
 
         return dp_result
 
-    def sum(self,
-            sum_params: aggregate_params.SumParams,
-            public_partitions=None) -> RDD:
+    def sum(
+        self,
+        sum_params: aggregate_params.SumParams,
+        public_partitions=None,
+        out_explain_computaton_report: Optional[
+            pipeline_dp.ExplainComputationReport] = None
+    ) -> RDD:
         """Computes a DP sum.
 
         Args:
@@ -185,8 +189,12 @@ class PrivateRDD:
                 params.contribution_bounds_already_enforced),
             value_extractor=lambda x: sum_params.value_extractor(x[1]))
 
-        dp_result = dp_engine.aggregate(self._rdd, params, data_extractors,
-                                        public_partitions)
+        dp_result = dp_engine.aggregate(
+            self._rdd,
+            params,
+            data_extractors,
+            public_partitions,
+            out_explain_computaton_report=out_explain_computaton_report)
         # dp_result : (partition_key, (sum=dp_sum))
 
         # aggregate() returns a namedtuple of metrics for each partition key.
