@@ -83,12 +83,16 @@ class PrivateRDD:
             max_contributions_per_partition,
             min_value=variance_params.min_value,
             max_value=variance_params.max_value,
-            budget_weight=variance_params.budget_weight)
+            budget_weight=variance_params.budget_weight,
+            contribution_bounds_already_enforced=variance_params.
+            contribution_bounds_already_enforced)
 
+        value_extractor_needed = not variance_params.contribution_bounds_already_enforced
         data_extractors = pipeline_dp.DataExtractors(
             partition_extractor=lambda x: variance_params.partition_extractor(x[
                 1]),
-            privacy_id_extractor=lambda x: x[0],
+            privacy_id_extractor=self._get_privacy_id_extractor(
+                params.contribution_bounds_already_enforced),
             value_extractor=lambda x: variance_params.value_extractor(x[1]))
 
         dp_result = dp_engine.aggregate(self._rdd, params, data_extractors,
@@ -126,11 +130,14 @@ class PrivateRDD:
             max_contributions_per_partition,
             min_value=mean_params.min_value,
             max_value=mean_params.max_value,
-            budget_weight=mean_params.budget_weight)
+            budget_weight=mean_params.budget_weight,
+            contribution_bounds_already_enforced=mean_params.
+            contribution_bounds_already_enforced)
 
         data_extractors = pipeline_dp.DataExtractors(
             partition_extractor=lambda x: mean_params.partition_extractor(x[1]),
-            privacy_id_extractor=lambda x: x[0],
+            privacy_id_extractor=self._get_privacy_id_extractor(
+                params.contribution_bounds_already_enforced),
             value_extractor=lambda x: mean_params.value_extractor(x[1]))
 
         dp_result = dp_engine.aggregate(self._rdd, params, data_extractors,
@@ -152,9 +159,9 @@ class PrivateRDD:
 
         Args:
             sum_params: parameters for calculation
-            public_partitions: A collection of partition keys that will be present in
-          the result. Optional. If not provided, partitions will be selected in a DP
-          manner.
+            public_partitions: A collection of partition keys that will be
+               present in the result. Optional. If not provided, partitions will
+               be selected in a DP manner.
         """
 
         backend = pipeline_dp.SparkRDDBackend(self._rdd.context)
@@ -168,11 +175,14 @@ class PrivateRDD:
             max_contributions_per_partition,
             min_value=sum_params.min_value,
             max_value=sum_params.max_value,
-            budget_weight=sum_params.budget_weight)
+            budget_weight=sum_params.budget_weight,
+            contribution_bounds_already_enforced=sum_params.
+            contribution_bounds_already_enforced)
 
         data_extractors = pipeline_dp.DataExtractors(
             partition_extractor=lambda x: sum_params.partition_extractor(x[1]),
-            privacy_id_extractor=lambda x: x[0],
+            privacy_id_extractor=self._get_privacy_id_extractor(
+                params.contribution_bounds_already_enforced),
             value_extractor=lambda x: sum_params.value_extractor(x[1]))
 
         dp_result = dp_engine.aggregate(self._rdd, params, data_extractors,
@@ -208,12 +218,15 @@ class PrivateRDD:
             max_partitions_contributed=count_params.max_partitions_contributed,
             max_contributions_per_partition=count_params.
             max_contributions_per_partition,
-            budget_weight=count_params.budget_weight)
+            budget_weight=count_params.budget_weight,
+            contribution_bounds_already_enforced=count_params.
+            contribution_bounds_already_enforced)
 
         data_extractors = pipeline_dp.DataExtractors(
             partition_extractor=lambda x: count_params.partition_extractor(x[1]
                                                                           ),
-            privacy_id_extractor=lambda x: x[0],
+            privacy_id_extractor=self._get_privacy_id_extractor(
+                params.contribution_bounds_already_enforced),
             value_extractor=lambda x: None)
 
         dp_result = dp_engine.aggregate(self._rdd, params, data_extractors,
@@ -249,12 +262,15 @@ class PrivateRDD:
             metrics=[pipeline_dp.Metrics.PRIVACY_ID_COUNT],
             max_partitions_contributed=privacy_id_count_params.
             max_partitions_contributed,
-            max_contributions_per_partition=1)
+            max_contributions_per_partition=1,
+            contribution_bounds_already_enforced=privacy_id_count_params.
+            contribution_bounds_already_enforced)
 
         data_extractors = pipeline_dp.DataExtractors(
             partition_extractor=lambda x: privacy_id_count_params.
             partition_extractor(x[1]),
-            privacy_id_extractor=lambda x: x[0],
+            privacy_id_extractor=self._get_privacy_id_extractor(
+                params.contribution_bounds_already_enforced),
             # PrivacyIdCount ignores values.
             value_extractor=lambda x: None)
 
@@ -293,6 +309,14 @@ class PrivateRDD:
             privacy_id_extractor=lambda x: x[0])
 
         return dp_engine.select_partitions(self._rdd, params, data_extractors)
+
+    def _get_privacy_id_extractor(self,
+                                  contribution_bounds_already_enforced: bool):
+        if contribution_bounds_already_enforced:
+            # Privacy ids are not needed when contribution bounding already
+            # enforced.
+            return None
+        return lambda x: x[0]
 
 
 def make_private(rdd: RDD,
