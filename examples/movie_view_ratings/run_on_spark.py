@@ -15,7 +15,7 @@
 
 For running:
 1. Install Python and run on the command line `pip install pipeline-dp pyspark absl-py`
-2. Run python python run_on_beam.py --input_file=<path to data.txt from 3> --output_file=<...>
+2. Run python run_on_beam.py --input_file=<path to data.txt from 3> --output_file=<...>
 """
 
 from absl import app
@@ -55,6 +55,7 @@ def main(unused_argv):
     private_movie_views = \
         make_private(movie_views, budget_accountant, lambda mv: mv.user_id)
 
+    explain_computation_report = pipeline_dp.ExplainComputationReport()
     # Calculate the private sum
     dp_result = private_movie_views.sum(
         SumParams(
@@ -70,10 +71,12 @@ def main(unused_argv):
             # The aggregation key: we're grouping by movies
             partition_extractor=lambda mv: mv.movie_id,
             # The value we're aggregating: we're summing up ratings
-            value_extractor=lambda mv: mv.rating))
+            value_extractor=lambda mv: mv.rating),
+        out_explain_computaton_report=explain_computation_report)
 
     budget_accountant.compute_budgets()
 
+    print(explain_computation_report.text())
     # Save the results
     dp_result.saveAsTextFile(FLAGS.output_file)
 

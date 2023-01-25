@@ -11,7 +11,16 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Generator for explaining DP computation reports."""
+"""Explain DP computation reports.
+
+An Explain Computation report contains a human readable description of a DP
+aggregation performed by PipelineDP. It includes
+1. The input parameters (i.e. pipeline_dp.AggregateParams)
+2. The main stages the computation graphs.
+
+E.g.
+
+"""
 
 from pipeline_dp import aggregate_params as agg
 
@@ -21,10 +30,10 @@ from typing import Optional, Union, Callable
 class ReportGenerator:
     """Generates a report based on the metrics and stages in the pipeline.
 
-  Each ReportGenerator corresponds to one aggregation which contains an
-  ordered set of stages. It collects information about the DP aggregation
-  and generates a report.
-  """
+    Each ReportGenerator corresponds to one aggregation which contains an
+    ordered set of stages. It collects information about the DP aggregation
+    and generates a report.
+    """
 
     def __init__(self,
                  params,
@@ -65,6 +74,11 @@ class ReportGenerator:
 
 
 class ExplainComputationReport:
+    """Generates explain computation report for 1 DP aggregation.
+
+    Explain computation reports contains configurations of the DP aggregations
+    and the main stages of the computation graphs.
+    """
 
     def __init__(self):
         self._report_generator = None
@@ -73,10 +87,17 @@ class ExplainComputationReport:
         self._report_generator = report_generator
 
     def text(self) -> str:
+        """Returns the text of the report.
+
+        Raises:
+            ValueError when this function is called before
+              BudgetAccountant.compute_budget().
+        """
         if self._report_generator is None:
-            raise ValueError("Report is empty.")
+            raise ValueError("The report_generator is not set.\nWas this object"
+                             " passed as an argument to DP aggregation method?")
         try:
             return self._report_generator.report()
         except:
-            raise ValueError("Report failed to be generated. Is "
-                             "BudgetAccountant.compute_budget() called?")
+            raise ValueError("Explain computation report failed to be generated"
+                             ".\nWas BudgetAccountant.compute_budget() called?")
