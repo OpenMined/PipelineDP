@@ -18,8 +18,24 @@ aggregation performed by PipelineDP. It includes
 1. The input parameters (i.e. pipeline_dp.AggregateParams)
 2. The main stages the computation graphs.
 
-E.g.
+Example of the report
 
+DPEngine method: aggregate
+AggregateParams:
+ metrics=['SUM']
+ noise_kind=laplace
+ budget_weight=1
+ Contribution bounding:
+  max_partitions_contributed=2
+  max_contributions_per_partition=1
+  min_value=1
+  max_value=5
+ Partition selection: private partitions
+Computation graph:
+ 1. Per-partition contribution bounding: for each privacy_id and eachpartition, randomly select max(actual_contributions_per_partition, 1) contributions.
+ 2. Cross-partition contribution bounding: for each privacy_id randomly select max(actual_partition_contributed, 2) partitions
+ 3. Private Partition selection: using Truncated Geometric method with (eps=0.5, delta=1e-06)
+ 4. Computed sum with (eps=0.5 delta=0)
 """
 
 from pipeline_dp import aggregate_params as agg
@@ -74,7 +90,7 @@ class ReportGenerator:
 
 
 class ExplainComputationReport:
-    """Generates explain computation report for 1 DP aggregation.
+    """Container explain computation report for 1 DP aggregation.
 
     Explain computation reports contains configurations of the DP aggregations
     and the main stages of the computation graphs.
@@ -98,6 +114,6 @@ class ExplainComputationReport:
                              " passed as an argument to DP aggregation method?")
         try:
             return self._report_generator.report()
-        except:
+        except e:
             raise ValueError("Explain computation report failed to be generated"
                              ".\nWas BudgetAccountant.compute_budget() called?")

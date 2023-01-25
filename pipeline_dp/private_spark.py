@@ -191,7 +191,6 @@ class PrivateRDD:
                the Explain Computation report for this aggregation. For
                more details see the docstring to report_generator.py.
         """
-
         backend = pipeline_dp.SparkRDDBackend(self._rdd.context)
         dp_engine = pipeline_dp.DPEngine(self._budget_accountant, backend)
 

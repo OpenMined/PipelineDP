@@ -76,7 +76,10 @@ def main(unused_argv):
 
     budget_accountant.compute_budgets()
 
+    # Generate the Explain Computation Report. It must be called after
+    # budget_accountant.compute_budgets().
     print(explain_computation_report.text())
+
     # Save the results
     dp_result.saveAsTextFile(FLAGS.output_file)
 

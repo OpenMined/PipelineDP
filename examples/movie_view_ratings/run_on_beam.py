@@ -58,6 +58,7 @@ def main(unused_argv):
                                    budget_accountant=budget_accountant,
                                    privacy_id_extractor=lambda mv: mv.user_id))
 
+        explain_computation_report = pipeline_dp.ExplainComputationReport()
         # Calculate the private sum
         dp_result = private_movie_views | "Private Sum" >> private_beam.Sum(
             SumParams(
@@ -75,6 +76,10 @@ def main(unused_argv):
                 # The value we're aggregating: we're summing up ratings
                 value_extractor=lambda mv: mv.rating))
         budget_accountant.compute_budgets()
+
+        # Generate the Explain Computation Report. It must be called after
+        # budget_accountant.compute_budgets().
+        print(explain_computation_report.text())
 
         # Save the results
         dp_result | beam.io.WriteToText(FLAGS.output_file)
