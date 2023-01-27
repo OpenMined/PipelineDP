@@ -73,7 +73,7 @@ class ExplainComputationReportTest(unittest.TestCase):
 
         report_generator.add_stage(lambda: stage_fn)
 
-        with self.assertRaisesRegex(ValueError, "failed to be generated"):
+        with self.assertRaisesRegex(ValueError, "report_generator is not set"):
             report.text()
 
     def test_generate(self):
