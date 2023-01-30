@@ -107,11 +107,12 @@ class Variance(PrivatePTransform):
          Args:
              variance_params: parameters for calculation
              public_partitions: A collection of partition keys that will be
-               present in the result. Optional. If not provided, partitions will be selected in a DP
-               manner.
-             out_explain_computaton_report: if specified, it will contain
-                the Explain Computation report for this aggregation. For
-                more details see the docstring to report_generator.py.
+               present in the result. Optional. If not provided, partitions will
+               be selected in a DP manner.
+             out_explain_computaton_report: an output argument, if specified,
+                it will contain the Explain Computation report for this
+                aggregation. For more details see the docstring to
+                report_generator.py.
          """
         super().__init__(return_anonymized=True, label=label)
         self._variance_params = variance_params
@@ -172,9 +173,10 @@ class Mean(PrivatePTransform):
             public_partitions: A collection of partition keys that will be
               present in the result. Optional. If not provided, partitions will
               be selected in a DP manner.
-            out_explain_computaton_report: if specified, it will contain
-               the Explain Computation report for this aggregation. For
-               more details see the docstring to report_generator.py.
+            out_explain_computaton_report: an output argument, if specified,
+              it will contain the Explain Computation report for this
+              aggregation. For more details see the docstring to
+              report_generator.py.
         """
         super().__init__(return_anonymized=True, label=label)
         self._mean_params = mean_params
@@ -234,9 +236,10 @@ class Sum(PrivatePTransform):
            public_partitions: A collection of partition keys that will be
               present in the result. Optional. If not provided, partitions will
               be selected in a DP manner.
-           out_explain_computaton_report: if specified, it will contain
-              the Explain Computation report for this aggregation. For
-              more details see the docstring to report_generator.py.
+           out_explain_computaton_report: an output argument, if specified,
+              it will contain the Explain Computation report for this
+              aggregation. For more details see the docstring to
+              report_generator.py.
         """
         super().__init__(return_anonymized=True, label=label)
         self._sum_params = sum_params
@@ -296,9 +299,10 @@ class Count(PrivatePTransform):
             public_partitions: A collection of partition keys that will be
               present in the result. Optional. If not provided, partitions will
               be selected in a DP manner.
-            out_explain_computaton_report: if specified, it will contain
-               the Explain Computation report for this aggregation. For
-               more details see the docstring to report_generator.py.
+            out_explain_computaton_report: an output argument, if specified,
+              it will contain the Explain Computation report for this
+              aggregation. For more details see the docstring to
+              report_generator.py.
         """
         super().__init__(return_anonymized=True, label=label)
         self._count_params = count_params
@@ -358,9 +362,10 @@ class PrivacyIdCount(PrivatePTransform):
             public_partitions: A collection of partition keys that will be
               present in the result. Optional. If not provided, partitions will
               be selected in a DP manner.
-            out_explain_computaton_report: if specified, it will contain
-               the Explain Computation report for this aggregation. For
-               more details see the docstring to report_generator.py.
+            out_explain_computaton_report: an output argument, if specified,
+              it will contain the Explain Computation report for this
+              aggregation. For more details see the docstring to
+              report_generator.py.
         """
         super().__init__(return_anonymized=True, label=label)
         self._privacy_id_count_params = privacy_id_count_params

@@ -80,8 +80,9 @@ class DPEngine:
           public_partitions: A collection of partition keys that will be present
             in the result. If not provided, partitions will be selected in a DP
             manner.
-          out_explain_computaton_report: if specified, it will contain
-            the Explain Computation report for this aggregation.
+          out_explain_computaton_report: an output argument, if specified,
+            it will contain the Explain Computation report for this aggregation.
+            For more details see the docstring to report_generator.py.
 
         Returns:
           Collection of (partition_key, result_dictionary), where

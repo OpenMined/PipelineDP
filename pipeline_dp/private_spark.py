@@ -73,9 +73,10 @@ class PrivateRDD:
             public_partitions: A collection of partition keys that will be
               present in the result. Optional. If not provided, partitions will be selected in a DP
               manner.
-            out_explain_computaton_report: if specified, it will contain
-               the Explain Computation report for this aggregation. For
-               more details see the docstring to report_generator.py.
+            out_explain_computaton_report: an output argument, if specified,
+              it will contain the Explain Computation report for this
+              aggregation. For more details see the docstring to
+              report_generator.py.
         """
 
         backend = pipeline_dp.SparkRDDBackend(self._rdd.context)
@@ -132,9 +133,10 @@ class PrivateRDD:
             public_partitions: A collection of partition keys that will be
               present in the result. Optional. If not provided, partitions will
               be selected in a DP manner.
-            out_explain_computaton_report: if specified, it will contain
-               the Explain Computation report for this aggregation. For
-               more details see the docstring to report_generator.py.
+            out_explain_computaton_report: an output argument, if specified,
+              it will contain the Explain Computation report for this
+              aggregation. For more details see the docstring to
+              report_generator.py.
         """
         backend = pipeline_dp.SparkRDDBackend(self._rdd.context)
         dp_engine = pipeline_dp.DPEngine(self._budget_accountant, backend)
@@ -187,9 +189,10 @@ class PrivateRDD:
             public_partitions: A collection of partition keys that will be
                present in the result. Optional. If not provided, partitions will
                be selected in a DP manner.
-            out_explain_computaton_report: if specified, it will contain
-               the Explain Computation report for this aggregation. For
-               more details see the docstring to report_generator.py.
+            out_explain_computaton_report: an output argument, if specified,
+              it will contain the Explain Computation report for this
+              aggregation. For more details see the docstring to
+              report_generator.py.
         """
         backend = pipeline_dp.SparkRDDBackend(self._rdd.context)
         dp_engine = pipeline_dp.DPEngine(self._budget_accountant, backend)
@@ -242,9 +245,10 @@ class PrivateRDD:
             public_partitions: A collection of partition keys that will be
               present in the result. Optional. If not provided, partitions will
               be selected in a DP manner.
-            out_explain_computaton_report: if specified, it will contain
-               the Explain Computation report for this aggregation. For
-               more details see the docstring to report_generator.py.
+            out_explain_computaton_report: an output argument, if specified,
+              it will contain the Explain Computation report for this
+              aggregation. For more details see the docstring to
+              report_generator.py.
         """
         backend = pipeline_dp.SparkRDDBackend(self._rdd.context)
         dp_engine = pipeline_dp.DPEngine(self._budget_accountant, backend)
@@ -296,9 +300,10 @@ class PrivateRDD:
             public_partitions: A collection of partition keys that will be
               present in the result. Optional. If not provided, partitions will
               be selected in a DP manner.
-            out_explain_computaton_report: if specified, it will contain
-               the Explain Computation report for this aggregation. For
-               more details see the docstring to report_generator.py.
+            out_explain_computaton_report: an output argument, if specified,
+              it will contain the Explain Computation report for this
+              aggregation. For more details see the docstring to
+              report_generator.py.
         """
         backend = pipeline_dp.SparkRDDBackend(self._rdd.context)
         dp_engine = pipeline_dp.DPEngine(self._budget_accountant, backend)

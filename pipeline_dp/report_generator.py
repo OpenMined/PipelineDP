@@ -20,22 +20,22 @@ aggregation performed by PipelineDP. It includes
 
 Example of the report
 
-DPEngine method: aggregate
-AggregateParams:
- metrics=['SUM']
- noise_kind=laplace
- budget_weight=1
- Contribution bounding:
-  max_partitions_contributed=2
-  max_contributions_per_partition=1
-  min_value=1
-  max_value=5
- Partition selection: private partitions
-Computation graph:
- 1. Per-partition contribution bounding: for each privacy_id and eachpartition, randomly select max(actual_contributions_per_partition, 1) contributions.
- 2. Cross-partition contribution bounding: for each privacy_id randomly select max(actual_partition_contributed, 2) partitions
- 3. Private Partition selection: using Truncated Geometric method with (eps=0.5, delta=1e-06)
- 4. Computed sum with (eps=0.5 delta=0)
+    DPEngine method: aggregate
+    AggregateParams:
+     metrics=['SUM']
+     noise_kind=laplace
+     budget_weight=1
+     Contribution bounding:
+      max_partitions_contributed=2
+      max_contributions_per_partition=10
+      min_value=1
+      max_value=5
+     Partition selection: private partitions
+    Computation graph:
+     1. Per-partition contribution bounding: for each privacy_id and each partition, randomly select max(actual_contributions_per_partition, 1) contributions.
+     2. Cross-partition contribution bounding: for each privacy_id randomly select max(actual_partition_contributed, 2) partitions
+     3. Private Partition selection: using Truncated Geometric method with (eps=0.5, delta=1e-06)
+     4. Computed sum with (eps=0.5 delta=0)
 """
 
 from pipeline_dp import aggregate_params as agg
@@ -90,11 +90,7 @@ class ReportGenerator:
 
 
 class ExplainComputationReport:
-    """Container explain computation report for 1 DP aggregation.
-
-    Explain computation reports contains configurations of the DP aggregations
-    and the main stages of the computation graphs.
-    """
+    """Container explain computation report for 1 DP aggregation."""
 
     def __init__(self):
         self._report_generator = None
