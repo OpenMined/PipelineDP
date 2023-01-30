@@ -55,5 +55,43 @@ class ReportGeneratorTest(unittest.TestCase):
         self.assertEqual(expected_report, report_generator.report())
 
 
+class ExplainComputationReportTest(unittest.TestCase):
+
+    def test_report_empty(self):
+        report = pipeline_dp.ExplainComputationReport()
+        with self.assertRaisesRegex(ValueError,
+                                    "The report_generator is not set"):
+            report.text()
+
+    def test_fail_to_generate(self):
+        report = pipeline_dp.ExplainComputationReport()
+        report_generator = ReportGenerator(None, "test_method")
+
+        # Simulate that one of the stages of report generation failed.
+        def stage_fn():
+            raise ValueError("Fail to generate")
+
+        report_generator.add_stage(lambda: stage_fn)
+
+        with self.assertRaisesRegex(ValueError, "report_generator is not set"):
+            report.text()
+
+    def test_generate(self):
+        report = pipeline_dp.ExplainComputationReport()
+        params = pipeline_dp.AggregateParams(
+            noise_kind=pipeline_dp.NoiseKind.LAPLACE,
+            metrics=[pipeline_dp.Metrics.COUNT],
+            max_partitions_contributed=2,
+            max_contributions_per_partition=1)
+        report_generator = ReportGenerator(params, "test_method")
+        report_generator.add_stage("stage 1")
+        report_generator.add_stage("stage 2")
+        report._set_report_generator(report_generator)
+
+        text = report.text()
+        self.assertTrue("stage 1" in text)
+        self.assertTrue("stage 2" in text)
+
+
 if __name__ == "__main__":
     unittest.main()
