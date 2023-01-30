@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from pipeline_dp.report_generator import ExplainComputationReport
 from pipeline_dp.aggregate_params import AggregateParams
 from pipeline_dp.aggregate_params import CountParams
 from pipeline_dp.aggregate_params import MechanismType
