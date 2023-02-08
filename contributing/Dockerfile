@@ -13,7 +13,7 @@ COPY . /code
 
 WORKDIR /code
 
-RUN pip install --no-cache-dir -r contributing/requirements.dev.txt
+RUN pip install --no-cache-dir -r requirements.dev.txt
 
 # Install PipelineDP in Development mode
 RUN pip install -e .
