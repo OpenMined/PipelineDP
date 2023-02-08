@@ -95,26 +95,7 @@ have pip pacakge. It might be possible to compile it from sources for Apple Sili
  
 ## Development
 
-To install the requirements for local development, run `make dev`.
-
-Please run `make precommit` to auto-format, lint check, and run tests.
-Individual targets are `format`, `lint`, `test`, `clean`, `dev`.
-
-### Style guide
-
-We use the [Google Python Style Guide](https://google.github.io/styleguide/pyguide.html).
-
-### Running end-to-end example
-When developing it is convenient to run an end-to-end example. To do this:
-
-1. Download Netflix prize dataset from https://www.kaggle.com/netflix-inc/netflix-prize-data and unpack it.
-
-2. The dataset itself is pretty big, to speed-up the run it's better to use a
-sample of it. Here's how to take a subset of the data in bash:
-
-   `head -10000 combined_data_1.txt > data.txt`
-
-3. Run `python run_all_frameworks.py --input_file=<path to data.txt from 2> --output_file=<...>`
+To setup a local environment and contribute with the development of PipelineDP, please see our guidelines in [CONTRIBUTING](https://github.com/OpenMined/PipelineDP/blob/main/contributing/CONTRIBUTING.md).
 
 ## Support and Community on Slack
 
