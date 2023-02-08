@@ -33,7 +33,7 @@ from absl import app
 from absl import flags
 from apache_beam.runners.portability import fn_api_runner
 import pyspark
-from examples.movie_view_ratings.common_utils import *
+from common_utils import *
 import pipeline_dp
 
 FLAGS = flags.FLAGS
