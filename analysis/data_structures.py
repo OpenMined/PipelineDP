@@ -138,6 +138,7 @@ class UtilityAnalysisOptions:
 def get_aggregate_params(
         options: UtilityAnalysisOptions
 ) -> Iterable[pipeline_dp.AggregateParams]:
+    """Returns AggregateParams which are specified by UtilityAnalysisOptions."""
     multi_param_configuration = options.multi_param_configuration
     if multi_param_configuration is None:
         yield options.aggregate_params

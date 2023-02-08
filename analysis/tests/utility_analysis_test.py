@@ -267,10 +267,19 @@ class UtilityAnalysis(parameterized.TestCase):
         # Assert a singleton is returned
         self.assertLen(output, 1)
         # Assert there are 2 AggregateMetrics returned
-        self.assertLen(output[0], 2)
+        metrics = output[0]
+        self.assertLen(metrics, 2)
         # Assert error_expected is correct.
-        self.assertAlmostEqual(output[0][0].count_metrics.error_expected, -1)
-        self.assertAlmostEqual(output[0][1].count_metrics.error_expected, 0)
+        self.assertAlmostEqual(metrics[0].count_metrics.error_expected, -1)
+        self.assertAlmostEqual(metrics[1].count_metrics.error_expected, 0)
+        # Assert that AggregateParams in output is correct.
+        for i in range(2):
+            self.assertEqual(
+                multi_param.max_partitions_contributed[i],
+                metrics[i].input_aggregate_params.max_partitions_contributed)
+            self.assertEqual(
+                multi_param.max_contributions_per_partition[i], metrics[i].
+                input_aggregate_params.max_contributions_per_partition)
 
 
 if __name__ == '__main__':
