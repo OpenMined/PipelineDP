@@ -131,7 +131,9 @@ class AggregateParams:
          max_contributions_per_partition. This option can be used if the dataset
          does not contain any identifiers that can be used to enforce
          contribution bounds automatically.
-        partitions_already_filtered: todo
+        partitions_already_filtered: if true, it is assumed that partitions are
+         already filtered and partitions are dropped. It is applied for both
+         public and private partitions.
         partition_selection_strategy: which strategy to use for private
          partition selection. It is ignored when public partitions are used.
     """
