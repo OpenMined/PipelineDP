@@ -125,7 +125,21 @@ class PartitionSelectionMetrics:
 
 @dataclass
 class AggregateMetrics:
-    """Stores aggregate metrics for utility analysis."""
+    """Stores result of the utility analysis for specific input parameters.
+
+    Attributes:
+        input_aggregate_params: input parameters for which this utility analysis
+          was computed.
+
+        count_metrics: utility analysis of count. It is non None, if Count
+          metric is in input_aggregate_params.metrics.
+        privacy_id_count_metrics: utility analysis of sum. It is non None, if
+          Sum  metric is in input_aggregate_params.metrics.
+        partition_selection_metrics: utility analysis of selected partition. It
+          is not None if the utility analysis is for private partition selection.
+    """
+    input_aggregate_params: pipeline_dp.AggregateParams
+
     count_metrics: Optional[AggregateErrorMetrics] = None
     privacy_id_count_metrics: Optional[AggregateErrorMetrics] = None
     partition_selection_metrics: Optional[PartitionSelectionMetrics] = None
