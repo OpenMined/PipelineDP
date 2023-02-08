@@ -131,6 +131,7 @@ class AggregateParams:
          max_contributions_per_partition. This option can be used if the dataset
          does not contain any identifiers that can be used to enforce
          contribution bounds automatically.
+        partitions_already_filtered: todo
         partition_selection_strategy: which strategy to use for private
          partition selection. It is ignored when public partitions are used.
     """
@@ -152,6 +153,7 @@ class AggregateParams:
     vector_max_norm: Optional[float] = None
     vector_size: Optional[int] = None
     contribution_bounds_already_enforced: bool = False
+    partitions_already_filtered: bool = False
     partition_selection_strategy: PartitionSelectionStrategy = PartitionSelectionStrategy.TRUNCATED_GEOMETRIC
 
     @property

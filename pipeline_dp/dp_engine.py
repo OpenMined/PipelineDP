@@ -121,7 +121,7 @@ class DPEngine:
         else:
             combiner = self._create_compound_combiner(params)
 
-        if public_partitions is not None:
+        if public_partitions is not None and not params.partitions_already_filtered:
             col = self._drop_not_public_partitions(col, public_partitions,
                                                    data_extractors)
         if not params.contribution_bounds_already_enforced:
@@ -158,7 +158,8 @@ class DPEngine:
             col, combiner, "Reduce accumulators per partition key")
         # col : (partition_key, accumulator)
 
-        if public_partitions is None:
+        if public_partitions is None and not params.partitions_already_filtered:
+            # Perform private partition selection.
             max_rows_per_privacy_id = 1
 
             if params.contribution_bounds_already_enforced:

@@ -206,8 +206,7 @@ class DpEngineTest(parameterized.TestCase):
     @patch(
         'pipeline_dp.contribution_bounders.SamplingCrossAndPerPartitionContributionBounder.bound_contributions'
     )
-    def test_aggregate_computation_graph_verification(self,
-                                                      mock_bound_contributions):
+    def test_aggregate_computation_graph(self, mock_bound_contributions):
         # Arrange
         aggregate_params = pipeline_dp.AggregateParams(
             noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
@@ -240,6 +239,56 @@ class DpEngineTest(parameterized.TestCase):
                                                     aggregate_params, backend,
                                                     unittest.mock.ANY,
                                                     unittest.mock.ANY)
+
+    @patch(
+        # 'pipeline_dp.dp_engine._select_private_partitions_internal',
+        'pipeline_dp.dp_engine.DPEngine._drop_not_public_partitions',)
+    def test_aggregate_no_partition_filtering_public_partitions(
+            self, mock_drop_not_public_partitions):
+        # Arrange
+        engine, accountant = self._create_dp_engine_default(
+            return_accountant=True)
+        params, _ = self._create_params_default()
+        params.partitions_already_filtered = True
+        params.metrics = [pipeline_dp.Metrics.COUNT]
+
+        # Act
+        result = engine.aggregate(
+            col=["pk0", "pk1"],
+            params=params,
+            data_extractors=self._get_default_extractors(),
+            public_partitions=["pk0", "pk2"])
+        accountant.compute_budgets()
+        result = list(result)
+
+        # Assert
+        mock_drop_not_public_partitions.assert_not_called()
+        partition_keys = [kv[0] for kv in result]  # extract partition keys
+        self.assertEqual(set(partition_keys), set(["pk0", "pk1", "pk2"]))
+
+    @patch(
+        'pipeline_dp.dp_engine.DPEngine._select_private_partitions_internal',)
+    def test_aggregate_no_partition_filtering_private_partitions(
+            self, mock_select_partitions):
+        # Arrange
+        engine, accountant = self._create_dp_engine_default(
+            return_accountant=True)
+        params, _ = self._create_params_default()
+        params.partitions_already_filtered = True
+        params.metrics = [pipeline_dp.Metrics.COUNT]
+
+        # Act
+        result = engine.aggregate(
+            col=["pk0", "pk1"],
+            params=params,
+            data_extractors=self._get_default_extractors())
+        accountant.compute_budgets()
+        result = list(result)
+
+        # Assert
+        mock_select_partitions.assert_not_called()
+        partition_keys = [kv[0] for kv in result]  # extract partition keys
+        self.assertEqual(set(partition_keys), set(["pk0", "pk1"]))
 
     @parameterized.named_parameters(
         dict(testcase_name='all_data_kept',
