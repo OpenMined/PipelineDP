@@ -83,7 +83,6 @@ def calc_dp_rating_metrics(movie_views, backend, public_partitions):
         max_contributions_per_partition=1,
         min_value=1,
         max_value=5,
-        partitions_already_filtered=True,
         contribution_bounds_already_enforced=FLAGS.
         contribution_bounds_already_enforced)
 

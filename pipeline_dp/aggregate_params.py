@@ -133,7 +133,7 @@ class AggregateParams:
          contribution bounds automatically.
         public_partitions_already_filtered: if true, it is assumed that records
          with partition_key which are not in public_partitions are already
-         removed from the dataset. It applies only for public partitions.
+         removed from the dataset. It can only be used with public partitions.
         partition_selection_strategy: which strategy to use for private
          partition selection. It is ignored when public partitions are used.
     """
