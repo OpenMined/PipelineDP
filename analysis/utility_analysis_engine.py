@@ -23,6 +23,7 @@ from pipeline_dp import pipeline_backend
 import analysis
 import analysis.contribution_bounders as utility_contribution_bounders
 import analysis.combiners as utility_analysis_combiners
+from analysis import data_structures
 
 
 class UtilityAnalysisEngine(pipeline_dp.DPEngine):
@@ -111,7 +112,7 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
 
         # Create Utility analysis combiners.
         internal_combiners = []
-        for params in self._get_aggregate_params(aggregate_params):
+        for params in data_structures.get_aggregate_params(self._options):
             # WARNING: Do not change the order here,
             # _create_aggregate_error_compound_combiner() in utility_analysis.py
             # depends on it.
@@ -139,16 +140,6 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
 
         return utility_analysis_combiners.CompoundCombiner(
             internal_combiners, return_named_tuple=False)
-
-    def _get_aggregate_params(
-        self, params: pipeline_dp.AggregateParams
-    ) -> Iterable[pipeline_dp.AggregateParams]:
-        multi_run_configuration = self._options.multi_param_configuration
-        if multi_run_configuration is None:
-            yield params
-        else:
-            for i in range(multi_run_configuration.size):
-                yield multi_run_configuration.get_aggregate_params(params, i)
 
     def _select_private_partitions_internal(
             self, col, max_partitions_contributed: int,

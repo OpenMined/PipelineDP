@@ -85,7 +85,7 @@ def get_multi_params():
     multi_param = None
     if FLAGS.multi_parameters:
         multi_param = analysis.MultiParameterConfiguration(
-            max_partitions_contributed=[1, 1, 2],
+            max_partitions_contributed=[1, 2, 2],
             max_contributions_per_partition=[1, 1, 2])
     return multi_param
 
@@ -139,12 +139,13 @@ def aggregate_utility_analysis():
     data_extractors = get_data_extractors()
     public_partitions = list(range(1, 8)) if FLAGS.public_partitions else None
 
-    options = analysis.utility_analysis.UtilityAnalysisOptions(
-        1, 1e-5, aggregate_params, get_multi_params())
+    options = analysis.UtilityAnalysisOptions(1, 1e-5, aggregate_params,
+                                              get_multi_params())
 
-    result = analysis.utility_analysis.perform_utility_analysis(
-        restaurant_visits_rows, pipeline_dp.LocalBackend(), options,
-        data_extractors, public_partitions)
+    result = analysis.perform_utility_analysis(restaurant_visits_rows,
+                                               pipeline_dp.LocalBackend(),
+                                               options, data_extractors,
+                                               public_partitions)
 
     # Here's where the lazy iterator initiates computations and gets transformed
     # into actual results
