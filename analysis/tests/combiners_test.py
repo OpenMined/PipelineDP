@@ -18,6 +18,7 @@ import numpy as np
 from absl.testing import absltest
 from absl.testing import parameterized
 from unittest.mock import patch
+from typing import Tuple
 
 import pipeline_dp
 from analysis import combiners
@@ -45,6 +46,14 @@ def _check_none_are_np_float64(t) -> bool:
     if not isinstance(t, tuple):
         t = dataclasses.astuple(t)
     return all(not isinstance(v, np.float64) for v in t)
+
+
+def _create_sparse_combiner_acc(
+        data, n_partitions) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    counts = np.array(list(map(len, data)))
+    sums = np.array(list(map(sum, data)))
+    n_partitions = np.array(n_partitions)
+    return (counts, sums, n_partitions)
 
 
 class UtilityAnalysisCountCombinerTest(parameterized.TestCase):
@@ -90,7 +99,8 @@ class UtilityAnalysisCountCombinerTest(parameterized.TestCase):
                              expected_metrics):
         utility_analysis_combiner = combiners.CountCombiner(params)
         test_acc = utility_analysis_combiner.create_accumulator(
-            (len(contribution_values), 0, num_partitions))
+            (np.array([len(contribution_values)]), np.array([0]),
+             np.array([num_partitions])))
         got_metrics = utility_analysis_combiner.compute_metrics(test_acc)
         common.assert_dataclasses_are_equal(self, expected_metrics, got_metrics)
         self.assertTrue(_check_none_are_np_float64(got_metrics))
@@ -121,16 +131,23 @@ class PartitionSelectionTest(parameterized.TestCase):
         self.assertAlmostEqual(0.168, moments.third_central_moment)
 
     def test_merge_accumulators_both_probabilities(self):
-        acc1 = self._create_accumulator(probabilities=(0.1, 0.2), moments=None)
-        acc2 = self._create_accumulator(probabilities=(0.3,), moments=None)
+        acc1 = self._create_accumulator(probabilities=[0.1, 0.2], moments=None)
+        acc2 = self._create_accumulator(probabilities=[
+            0.3,
+        ], moments=None)
         acc = combiners._merge_partition_selection_accumulators(acc1, acc2)
         # Test that the result has probabilities.
         probabilities, moments = acc
         self.assertSequenceEqual([0.1, 0.2, 0.3], probabilities)
         self.assertIsNone(moments)
 
-        acc3 = self._create_accumulator(probabilities=(0.5,) * 99, moments=None)
-        acc = combiners._merge_partition_selection_accumulators(acc1, acc3)
+        # Test that no type is np.float64
+        self.assertTrue(_check_none_are_np_float64(acc))
+
+    def test_merge_accumulators_both_probabilities_result_moments(self):
+        acc1 = self._create_accumulator(probabilities=[0.1, 0.2], moments=None)
+        acc2 = self._create_accumulator(probabilities=[0.5] * 99, moments=None)
+        acc = combiners._merge_partition_selection_accumulators(acc1, acc2)
         # Test that the result has moments.
         probabilities, moments = acc
         self.assertIsNone(probabilities)
@@ -212,8 +229,8 @@ class PartitionSelectionTest(parameterized.TestCase):
                                           mock_compute_probability_to_keep):
         params = _create_combiner_params_for_count()
         combiner = combiners.PartitionSelectionCombiner(params)
-        data = [1, 2, 3]
-        acc = combiner.create_accumulator((len(data), sum(data), 8))
+        sparse_acc = _create_sparse_combiner_acc(([1, 2, 3],), n_partitions=[8])
+        acc = combiner.create_accumulator(sparse_acc)
         probabilities, moments = acc
         self.assertLen(probabilities, 1)
         self.assertEqual(1 / 8, probabilities[0])
@@ -420,7 +437,7 @@ class UtilityAnalysisCompoundCombinerTest(parameterized.TestCase):
 
     def test_create_accumulator_empty_data(self):
         sparse, dense = self._create_combiner().create_accumulator(())
-        self.assertEqual(sparse, [(0, 0, 0)])
+        self.assertEqual(sparse, ([0], [0], [0]))
         self.assertIsNone(dense)
 
     def test_create_accumulator(self):
@@ -429,12 +446,12 @@ class UtilityAnalysisCompoundCombinerTest(parameterized.TestCase):
         n_partitions = 500
         sparse, dense = combiner.create_accumulator(
             (len(data), sum(data), n_partitions))
-        self.assertEqual(sparse, [(len(data), sum(data), n_partitions)])
+        self.assertEqual(([len(data)], [sum(data)], [n_partitions]), sparse)
         self.assertIsNone(dense)
 
     def test_to_dense(self):
         combiner = self._create_combiner()
-        sparse_acc = [(1, 10, 100), (3, 20, 200)]
+        sparse_acc = ([1, 3], [10, 20], [100, 200])
         dense = combiner._to_dense(sparse_acc)
         num_privacy_ids, (count_acc,) = dense
         self.assertEqual(2, num_privacy_ids)
@@ -442,19 +459,19 @@ class UtilityAnalysisCompoundCombinerTest(parameterized.TestCase):
 
     def test_merge_sparse(self):
         combiner = self._create_combiner()
-        sparse_acc1 = [(1, 10, 100)]
+        sparse_acc1 = ([1], [10], [100])
         acc1 = (sparse_acc1, None)
-        sparse_acc2 = [(11, 2, 300)]
+        sparse_acc2 = ([11], [2], [300])
         acc2 = (sparse_acc2, None)
         sparse, dense = combiner.merge_accumulators(acc1, acc2)
-        self.assertSequenceEqual(sparse, [(1, 10, 100), (11, 2, 300)])
+        self.assertSequenceEqual(sparse, ([1, 11], [10, 2], [100, 300]))
         self.assertIsNone(dense)
 
     def test_merge_sparse_result_dense(self):
         combiner = self._create_combiner()
-        sparse_acc1 = [(1, 10, 100), (3, 20, 200)]
+        sparse_acc1 = ([1, 3], [10, 20], [100, 200])
         acc1 = (sparse_acc1, None)
-        sparse_acc2 = [(11, 2, 300)]
+        sparse_acc2 = ([11], [2], [300])
         acc2 = (sparse_acc2, None)
         sparse, dense = combiner.merge_accumulators(acc1, acc2)
         self.assertIsNone(sparse)
@@ -527,7 +544,7 @@ class UtilityAnalysisCompoundCombinerTest(parameterized.TestCase):
         acc = combiner.create_accumulator((len(data), sum(data), n_partitions))
 
         acc = combiner.merge_accumulators(acc, acc)
-        self.assertEqual(([(3, 6, 100), (3, 6, 100)], None), acc)
+        self.assertEqual((([3, 3], [6, 6], [100, 100]), None), acc)
 
         utility_metrics = combiner.compute_metrics(acc)
         self.assertIsInstance(utility_metrics[0], metrics.SumMetrics)
