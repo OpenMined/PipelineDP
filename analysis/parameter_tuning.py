@@ -111,9 +111,9 @@ class TuneResult:
 
 
 def _find_candidate_parameters(
-    hist: histograms.DatasetHistograms, parameters_to_tune: ParametersToTune,
-    metric: pipeline_dp.Metrics.PRIVACY_ID_COUNT
-) -> analysis.MultiParameterConfiguration:
+        hist: histograms.DatasetHistograms,
+        parameters_to_tune: ParametersToTune,
+        metric: pipeline_dp.Metrics) -> analysis.MultiParameterConfiguration:
     """Uses some heuristics to find (hopefully) good enough parameters."""
     # TODO: decide where to put QUANTILES_TO_USE, maybe TuneOptions?
     QUANTILES_TO_USE = [0.9, 0.95, 0.98, 0.99, 0.995]
