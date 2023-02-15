@@ -48,53 +48,56 @@ class SumMetrics:
     noise_kind: pipeline_dp.NoiseKind
 
 
-class AggregateMetricType(Enum):
-    PRIVACY_ID_COUNT = 'privacy_id_count'
-    COUNT = 'count'
-    SUM = 'sum'
-
-
 @dataclass
 class MeanVariance:
     mean: float
-    var: float = 0
+    var: float
 
 
 @dataclass
 class ContributionBoundingErrors:
+    """Contains an error breakdown by types of contribution bounding."""
     l0: MeanVariance
-    linf_mean: float
-    linf_min_mean: float
-    linf_max_mean: float
+    linf: float
+    linf_min: float
+    linf_max: float
 
 
 @dataclass
-class ErrorsStatistics:  # ?
-    # Contribution bounding
-    bounding_errors: ContributionBoundingErrors
+class ValueErrorStatistics:
+    """Contains errors on difference between true and dp metric.
 
-    # Errors
+    Attributes:
+        todo
+    """
+
+    # Contribution bounding errors.
+    bounding_errors: ContributionBoundingErrors
+    bias: float
+    variance: float
     rmse_error: float
     l1_error: float
-
-    expected: float
-    variance: float
-    quantiles: List[float]  # ?
+    quantiles: List[float]
 
 
 @dataclass
-class AggregateErrorMetrics:  # ? UtilityAnalysisRes
+class UtilityResult:  # ? UtilityAnalysisRes
     """Stores aggregate cross-partition metrics for utility analysis.
 
+    TODO: update docstring
     All attributes in this dataclass are averages across partitions; except for
     ratio_* attributes, which are simply the ratios of total data dropped
     aggregated across partitions.
     """
-    metric_type: AggregateMetricType
+    metric: pipeline_dp.Metrics
+    num_true_partitions: int
+    num_empty_public_partitions: int
 
+    # Noise information.
     noise_std: float
     noise_kind: pipeline_dp.NoiseKind
 
+    # Ratio of dropped data metrics.
     ratio_data_dropped_l0: float
     ratio_data_dropped_linf: float
     # This cannot be computed at PartitionSelectionMetrics and needs to be
@@ -102,8 +105,9 @@ class AggregateErrorMetrics:  # ? UtilityAnalysisRes
     # drop from contribution bounding and that is aggregation-specific.
     ratio_data_dropped_partition_selection: float
 
-    absolute_error: ErrorsStatistics
-    relative_error: ErrorsStatistics
+    # Value errors
+    absolute_error: ValueErrorStatistics
+    relative_error: ValueErrorStatistics
 
     # The following error metrics include error from dropped partitions.
     #
@@ -120,22 +124,15 @@ class AggregateErrorMetrics:  # ? UtilityAnalysisRes
     error_expected_w_dropped_partitions: float
     rel_error_expected_w_dropped_partitions: float
 
-    # RMSE = sqrt(bias**2 + variance), more details in
-    # https://en.wikipedia.org/wiki/Bias-variance_tradeoff.
-    def absolute_rmse(self) -> float:
-        return math.sqrt(self.error_expected**2 + self.error_variance)
-
-    def relative_rmse(self) -> float:
-        return math.sqrt(self.rel_error_expected**2 + self.rel_error_variance)
-
 
 @dataclass
 class PartitionSelectionMetrics:
     """Stores aggregate metrics about partition selection."""
 
+    strategy: pipeline_dp.PartitionSelectionStrategy
     num_partitions: float
-    dropped_expected: float
-    dropped_variance: float  # ? is it important
+    dropped_partitions: MeanVariance
+    ratio_dropped_data: float
 
 
 @dataclass
@@ -155,6 +152,5 @@ class AggregateMetrics:
     """
     input_aggregate_params: pipeline_dp.AggregateParams
 
-    count_metrics: Optional[AggregateErrorMetrics] = None
-    privacy_id_count_metrics: Optional[AggregateErrorMetrics] = None
+    value_errors: Optional[List[ValueErrorStatistics]] = None
     partition_selection_metrics: Optional[PartitionSelectionMetrics] = None
