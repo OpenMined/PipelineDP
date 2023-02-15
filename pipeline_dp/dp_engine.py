@@ -14,7 +14,7 @@
 """DP aggregations."""
 import dataclasses
 import functools
-from typing import Any, Callable, Tuple
+from typing import Any, Callable, Optional, Tuple
 
 import pipeline_dp
 from pipeline_dp import combiners
@@ -67,17 +67,22 @@ class DPEngine:
                   col,
                   params: pipeline_dp.AggregateParams,
                   data_extractors: DataExtractors,
-                  public_partitions=None):
+                  public_partitions=None,
+                  out_explain_computaton_report: Optional[
+                      pipeline_dp.ExplainComputationReport] = None):
         """Computes DP aggregate metrics.
 
         Args:
           col: collection where all elements are of the same type.
           params: specifies which metrics to compute and computation parameters.
           data_extractors: functions that extract needed pieces of information
-          from elements of 'col'.
+            from elements of 'col'.
           public_partitions: A collection of partition keys that will be present
-          in the result. If not provided, partitions will be selected in a DP
-          manner.
+            in the result. If not provided, partitions will be selected in a DP
+            manner.
+          out_explain_computaton_report: an output argument, if specified,
+            it will contain the Explain Computation report for this aggregation.
+            For more details see the docstring to report_generator.py.
 
         Returns:
           Collection of (partition_key, result_dictionary), where
@@ -91,6 +96,9 @@ class DPEngine:
             self._report_generators.append(
                 report_generator.ReportGenerator(params, "aggregate",
                                                  public_partitions is not None))
+            if out_explain_computaton_report is not None:
+                out_explain_computaton_report._set_report_generator(
+                    self._current_report_generator)
             col = self._aggregate(col, params, data_extractors,
                                   public_partitions)
             budget = self._budget_accountant._compute_budget_for_aggregation(
@@ -113,7 +121,7 @@ class DPEngine:
         else:
             combiner = self._create_compound_combiner(params)
 
-        if public_partitions is not None:
+        if public_partitions is not None and not params.public_partitions_already_filtered:
             col = self._drop_not_public_partitions(col, public_partitions,
                                                    data_extractors)
         if not params.contribution_bounds_already_enforced:
@@ -151,6 +159,7 @@ class DPEngine:
         # col : (partition_key, accumulator)
 
         if public_partitions is None:
+            # Perform private partition selection.
             max_rows_per_privacy_id = 1
 
             if params.contribution_bounds_already_enforced:

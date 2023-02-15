@@ -18,8 +18,9 @@ import pipeline_dp
 from pipeline_dp import combiners
 from pipeline_dp import pipeline_backend
 import analysis
-from analysis import utility_analysis_engine
+from analysis import data_structures
 from analysis import metrics
+from analysis import utility_analysis_engine
 import analysis.combiners as utility_analysis_combiners
 
 
@@ -47,7 +48,10 @@ def perform_utility_analysis(
       return_per_partition: if true, it returns tuple, with the 2nd element
         utility analysis per partitions.
     Returns:
-      1 element collection which contains utility analysis metrics.
+         if return_per_partition == False:
+            returns 1 element collection which contains TuneResult
+        else returns tuple (1 element collection which contains TuneResult,
+        a collection which contains utility analysis results per partition).
     """
     budget_accountant = pipeline_dp.NaiveBudgetAccountant(
         total_epsilon=options.epsilon, total_delta=options.delta)
@@ -94,10 +98,14 @@ def perform_utility_analysis(
         # AggregateErrorMetrics with options.n_configurations sequential
         # configurations of metrics. Each AggregateErrorMetrics within a
         # configuration correspond to a different aggregation.
-        metrics_per_config = len(aggregate_metrics) // options.n_configurations
+        aggregate_params = list(data_structures.get_aggregate_params(options))
+        n_configurations = len(aggregate_params)
+        metrics_per_config = len(aggregate_metrics) // n_configurations
+
         return_list = []
-        for i in range(options.n_configurations):
-            packed_metrics = metrics.AggregateMetrics()
+        for i, aggregate_params in enumerate(aggregate_params):
+            packed_metrics = metrics.AggregateMetrics(
+                input_aggregate_params=aggregate_params)
             for j in range(i * metrics_per_config,
                            (i + 1) * metrics_per_config):
                 _populate_packed_metrics(packed_metrics, aggregate_metrics[j])
