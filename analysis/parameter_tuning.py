@@ -111,7 +111,8 @@ class TuneResult:
 
 
 def _find_candidate_parameters(
-    hist: histograms.DatasetHistograms, parameters_to_tune: ParametersToTune
+    hist: histograms.DatasetHistograms, parameters_to_tune: ParametersToTune,
+    metric: pipeline_dp.Metrics.PRIVACY_ID_COUNT
 ) -> analysis.MultiParameterConfiguration:
     """Uses some heuristics to find (hopefully) good enough parameters."""
     # TODO: decide where to put QUANTILES_TO_USE, maybe TuneOptions?
@@ -128,7 +129,7 @@ def _find_candidate_parameters(
     if parameters_to_tune.max_partitions_contributed:
         l0_candidates = _find_candidates(hist.l0_contributions_histogram)
 
-    if parameters_to_tune.max_contributions_per_partition:
+    if parameters_to_tune.max_contributions_per_partition and metric == pipeline_dp.Metrics.COUNT:
         linf_candidates = _find_candidates(hist.linf_contributions_histogram)
 
     l0_bounds = linf_bounds = None
@@ -162,8 +163,17 @@ def _convert_utility_analysis_to_tune_result(
     # partition selection.
     assert tune_options.function_to_minimize == MinimizingFunction.ABSOLUTE_ERROR
 
-    index_best = np.argmin(
-        [ae.count_metrics.absolute_rmse() for ae in utility_analysis_result])
+    metrics = tune_options.aggregate_params.metrics[0]
+    if metrics == pipeline_dp.Metrics.COUNT:
+        rmse = [
+            ae.count_metrics.absolute_rmse() for ae in utility_analysis_result
+        ]
+    else:
+        rmse = [
+            ae.privacy_id_count_metrics.absolute_rmse()
+            for ae in utility_analysis_result
+        ]
+    index_best = np.argmin(rmse)
 
     return TuneResult(tune_options, contribution_histograms, run_configurations,
                       index_best, utility_analysis_result)
@@ -214,7 +224,8 @@ def tune(col,
     _check_tune_args(options)
 
     candidates = _find_candidate_parameters(contribution_histograms,
-                                            options.parameters_to_tune)
+                                            options.parameters_to_tune,
+                                            options.aggregate_params.metrics[0])
 
     utility_analysis_options = analysis.UtilityAnalysisOptions(
         epsilon=options.epsilon,
@@ -242,8 +253,17 @@ def tune(col,
 
 
 def _check_tune_args(options: TuneOptions):
-    if options.aggregate_params.metrics != [pipeline_dp.Metrics.COUNT]:
-        raise NotImplementedError("Tuning is supported only for Count.")
+    # Check metrics to tune.
+    metrics = options.aggregate_params.metrics
+    if len(metrics) != 1:
+        raise NotImplementedError(
+            f"Tuning supports only one metrics, but {metrics} given.")
+    if metrics[0] not in [
+            pipeline_dp.Metrics.COUNT, pipeline_dp.Metrics.PRIVACY_ID_COUNT
+    ]:
+        raise NotImplementedError(
+            f"Tuning is supported only for Count and Privacy id count, but {metrics[0]} given."
+        )
 
     if options.function_to_minimize != MinimizingFunction.ABSOLUTE_ERROR:
         raise NotImplementedError(
