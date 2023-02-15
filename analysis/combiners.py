@@ -264,7 +264,7 @@ class CountCombiner(SumCombiner):
     AccumulatorType = Tuple[float, float, float, float, float]
 
     def create_accumulator(self, sparse_acc) -> AccumulatorType:
-        count, sum_, n_partitions = data
+        count, sum_, n_partitions = sparse_acc
         max_per_partition = (
             self._params.aggregate_params.max_contributions_per_partition)
         max_partitions = self._params.aggregate_params.max_partitions_contributed
