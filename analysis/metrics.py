@@ -55,7 +55,35 @@ class AggregateMetricType(Enum):
 
 
 @dataclass
-class AggregateErrorMetrics:
+class MeanVariance:
+    mean: float
+    var: float = 0
+
+
+@dataclass
+class ContributionBoundingErrors:
+    l0: MeanVariance
+    linf_mean: float
+    linf_min_mean: float
+    linf_max_mean: float
+
+
+@dataclass
+class ErrorsStatistics:  # ?
+    # Contribution bounding
+    bounding_errors: ContributionBoundingErrors
+
+    # Errors
+    rmse_error: float
+    l1_error: float
+
+    expected: float
+    variance: float
+    quantiles: List[float]  # ?
+
+
+@dataclass
+class AggregateErrorMetrics:  # ? UtilityAnalysisRes
     """Stores aggregate cross-partition metrics for utility analysis.
 
     All attributes in this dataclass are averages across partitions; except for
@@ -64,6 +92,9 @@ class AggregateErrorMetrics:
     """
     metric_type: AggregateMetricType
 
+    noise_std: float
+    noise_kind: pipeline_dp.NoiseKind
+
     ratio_data_dropped_l0: float
     ratio_data_dropped_linf: float
     # This cannot be computed at PartitionSelectionMetrics and needs to be
@@ -71,22 +102,8 @@ class AggregateErrorMetrics:
     # drop from contribution bounding and that is aggregation-specific.
     ratio_data_dropped_partition_selection: float
 
-    error_l0_expected: float
-    error_linf_expected: float
-    error_linf_min_expected: float
-    error_linf_max_expected: float
-    error_expected: float
-    error_l0_variance: float
-    error_variance: float
-    error_quantiles: List[float]
-    rel_error_l0_expected: float
-    rel_error_linf_expected: float
-    rel_error_linf_min_expected: float
-    rel_error_linf_max_expected: float
-    rel_error_expected: float
-    rel_error_l0_variance: float
-    rel_error_variance: float
-    rel_error_quantiles: List[float]
+    absolute_error: ErrorsStatistics
+    relative_error: ErrorsStatistics
 
     # The following error metrics include error from dropped partitions.
     #
@@ -103,8 +120,6 @@ class AggregateErrorMetrics:
     error_expected_w_dropped_partitions: float
     rel_error_expected_w_dropped_partitions: float
 
-    noise_std: float
-
     # RMSE = sqrt(bias**2 + variance), more details in
     # https://en.wikipedia.org/wiki/Bias-variance_tradeoff.
     def absolute_rmse(self) -> float:
@@ -119,8 +134,8 @@ class PartitionSelectionMetrics:
     """Stores aggregate metrics about partition selection."""
 
     num_partitions: float
-    dropped_partitions_expected: float
-    dropped_partitions_variance: float
+    dropped_expected: float
+    dropped_variance: float  # ? is it important
 
 
 @dataclass
