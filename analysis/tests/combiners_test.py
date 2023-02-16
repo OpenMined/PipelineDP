@@ -50,6 +50,7 @@ def _check_none_are_np_float64(t) -> bool:
 
 def _create_sparse_combiner_acc(
         data, n_partitions) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Creates sparse accumulators from raw data."""
     counts = np.array(list(map(len, data)))
     sums = np.array(list(map(sum, data)))
     n_partitions = np.array(n_partitions)
@@ -262,8 +263,8 @@ class UtilityAnalysisSumCombinerTest(parameterized.TestCase):
 
     @parameterized.named_parameters(
         dict(testcase_name='empty',
-             num_partitions=0,
-             contribution_values=(),
+             num_partitions=[0],
+             contribution_values=[()],
              params=_create_combiner_params_for_sum(0, 0),
              expected_metrics=metrics.SumMetrics(
                  sum=0,
@@ -273,9 +274,9 @@ class UtilityAnalysisSumCombinerTest(parameterized.TestCase):
                  std_cross_partition_error=0,
                  std_noise=7.46484375,
                  noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)),
-        dict(testcase_name='one_partition_zero_partition_error',
-             num_partitions=1,
-             contribution_values=(1.1, 2.2),
+        dict(testcase_name='one_privacy_id_zero_partition_error',
+             num_partitions=[1],
+             contribution_values=[(1.1, 2.2)],
              params=_create_combiner_params_for_sum(0, 3.4),
              expected_metrics=metrics.SumMetrics(
                  sum=3.3,
@@ -285,9 +286,9 @@ class UtilityAnalysisSumCombinerTest(parameterized.TestCase):
                  std_cross_partition_error=0,
                  std_noise=7.46484375,
                  noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)),
-        dict(testcase_name='4_partitions_4_contributions_clip_max_error_half',
-             num_partitions=4,
-             contribution_values=(1.1, 2.2, 3.3, 4.4),
+        dict(testcase_name='1_privacy_id_4_contributions_clip_max_error_half',
+             num_partitions=[4],
+             contribution_values=[(1.1, 2.2, 3.3, 4.4)],
              params=_create_combiner_params_for_sum(0, 5.5),
              expected_metrics=metrics.SumMetrics(
                  sum=11.0,
@@ -297,9 +298,9 @@ class UtilityAnalysisSumCombinerTest(parameterized.TestCase):
                  std_cross_partition_error=2.381569860407206,
                  std_noise=7.46484375,
                  noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)),
-        dict(testcase_name='4_partitions_4_contributions_clip_min',
-             num_partitions=4,
-             contribution_values=(0.1, 0.2, 0.3, 0.4),
+        dict(testcase_name='1_privacy_id_4_partitions_4_contributions_clip_min',
+             num_partitions=[4],
+             contribution_values=[(0.1, 0.2, 0.3, 0.4)],
              params=_create_combiner_params_for_sum(2, 20),
              expected_metrics=metrics.SumMetrics(
                  sum=1.0,
@@ -308,12 +309,24 @@ class UtilityAnalysisSumCombinerTest(parameterized.TestCase):
                  expected_cross_partition_error=-1.5,
                  std_cross_partition_error=0.8660254037844386,
                  std_noise=7.46484375,
+                 noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)),
+        dict(testcase_name='2_privacy_ids',
+             num_partitions=[2, 4],
+             contribution_values=[(1,), (0.1, 0.2, 0.3, 0.4)],
+             params=_create_combiner_params_for_sum(0, 0.5),
+             expected_metrics=metrics.SumMetrics(
+                 sum=2.0,
+                 per_partition_error_min=0,
+                 per_partition_error_max=-1.0,
+                 expected_cross_partition_error=-0.625,
+                 std_cross_partition_error=0.33071891388307384,
+                 std_noise=7.46484375,
                  noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)))
     def test_compute_metrics(self, num_partitions, contribution_values, params,
                              expected_metrics):
         utility_analysis_combiner = combiners.SumCombiner(params)
-        sparse_acc = _create_sparse_combiner_acc([contribution_values],
-                                                 [num_partitions])
+        sparse_acc = _create_sparse_combiner_acc(contribution_values,
+                                                 num_partitions)
         test_acc = utility_analysis_combiner.create_accumulator(sparse_acc)
         actual_metrics = utility_analysis_combiner.compute_metrics(test_acc)
         common.assert_dataclasses_are_equal(self, expected_metrics,

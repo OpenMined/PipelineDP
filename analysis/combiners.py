@@ -162,7 +162,11 @@ PartitionSelectionAccumulator = Tuple[Optional[Tuple[float]],
 
 
 def _combine_list(a: List, b: List) -> List:
-    """TODO"""
+    """Combiners 2 lists in 1 and returns it.
+
+    Warning: it changes arguments.
+    """
+    # Extend the larger list (for performance reasons).
     if len(a) >= len(b):
         a.extend(b)
         return a
@@ -232,10 +236,11 @@ class SumCombiner(UtilityAnalysisCombiner):
             self, data: Tuple[np.ndarray, np.ndarray,
                               np.ndarray]) -> AccumulatorType:
         count, partition_sum, n_partitions = data
+        del count  # not used for SumCombiner
         min_bound = self._params.aggregate_params.min_sum_per_partition
         max_bound = self._params.aggregate_params.max_sum_per_partition
         max_partitions = self._params.aggregate_params.max_partitions_contributed
-        l0_prob_keep_contribution = np.where(  #todo function
+        l0_prob_keep_contribution = np.where(
             n_partitions > 0, np.minimum(1, max_partitions / n_partitions), 0)
         per_partition_contribution = np.clip(partition_sum, min_bound,
                                              max_bound)
@@ -280,6 +285,7 @@ class CountCombiner(SumCombiner):
         self, sparse_acc: Tuple[np.ndarray, np.ndarray,
                                 np.ndarray]) -> AccumulatorType:
         count, sum_, n_partitions = sparse_acc
+        del sum_  # not used for CountCombiner
         max_per_partition = (
             self._params.aggregate_params.max_contributions_per_partition)
         max_partitions = self._params.aggregate_params.max_partitions_contributed
@@ -312,9 +318,9 @@ class PrivacyIdCountCombiner(SumCombiner):
     def create_accumulator(
             self, data: Tuple[np.ndarray, np.ndarray,
                               np.ndarray]) -> AccumulatorType:
-        count, _sum, n_partitions = data
-        count = np.where(count > 0, 1, 0)
-        data = count, count, n_partitions
+        counts, _sum, n_partitions = data
+        counts = np.where(counts > 0, 1, 0)
+        data = None, counts, n_partitions
         self._params.aggregate_params.min_sum_per_partition = 0.0
         self._params.aggregate_params.max_sum_per_partition = 1.0
         return super().create_accumulator(data)
