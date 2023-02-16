@@ -312,9 +312,9 @@ class UtilityAnalysisSumCombinerTest(parameterized.TestCase):
     def test_compute_metrics(self, num_partitions, contribution_values, params,
                              expected_metrics):
         utility_analysis_combiner = combiners.SumCombiner(params)
-        test_acc = utility_analysis_combiner.create_accumulator(
-            (len(contribution_values), sum(contribution_values),
-             num_partitions))
+        sparse_acc = _create_sparse_combiner_acc([contribution_values],
+                                                 [num_partitions])
+        test_acc = utility_analysis_combiner.create_accumulator(sparse_acc)
         actual_metrics = utility_analysis_combiner.compute_metrics(test_acc)
         common.assert_dataclasses_are_equal(self, expected_metrics,
                                             actual_metrics)
@@ -404,9 +404,10 @@ class UtilityAnalysisPrivacyIdCountCombinerTest(parameterized.TestCase):
     def test_compute_metrics(self, num_partitions, contribution_values, params,
                              expected_metrics):
         utility_analysis_combiner = combiners.PrivacyIdCountCombiner(params)
-        test_acc = utility_analysis_combiner.create_accumulator(
-            (len(contribution_values), sum(contribution_values),
-             num_partitions))
+        sparse_acc = _create_sparse_combiner_acc([contribution_values],
+                                                 [num_partitions])
+        test_acc = utility_analysis_combiner.create_accumulator(sparse_acc)
+
         actual_metrics = utility_analysis_combiner.compute_metrics(test_acc)
         common.assert_dataclasses_are_equal(self, expected_metrics,
                                             actual_metrics)

@@ -313,7 +313,7 @@ class PrivacyIdCountCombiner(SumCombiner):
             self, data: Tuple[np.ndarray, np.ndarray,
                               np.ndarray]) -> AccumulatorType:
         count, _sum, n_partitions = data
-        count = 1 if count > 0 else 0
+        count = np.where(count > 0, 1, 0)
         data = count, count, n_partitions
         self._params.aggregate_params.min_sum_per_partition = 0.0
         self._params.aggregate_params.max_sum_per_partition = 1.0
