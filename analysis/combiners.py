@@ -161,12 +161,12 @@ PartitionSelectionAccumulator = Tuple[Optional[Tuple[float]],
                                       Optional[SumOfRandomVariablesMoments]]
 
 
-def _combine_list(a: List, b: List) -> List:
-    """Combiners 2 lists in 1 and returns it.
+def _merge_list(a: List, b: List) -> List:
+    """Combines 2 lists in 1 and returns it.
 
-    Warning: it changes arguments.
+    Warning: it modifies arguments.
     """
-    # Extend the larger list (for performance reasons).
+    # Extend the larger list for performance reasons.
     if len(a) >= len(b):
         a.extend(b)
         return a
@@ -181,7 +181,7 @@ def _merge_partition_selection_accumulators(
     probs2, moments2 = acc2
     if ((probs1 is not None) and (probs2 is not None) and
             len(probs1) + len(probs2) <= MAX_PROBABILITIES_IN_ACCUMULATOR):
-        return (_combine_list(probs1, probs2), None)
+        return (_merge_list(probs1, probs2), None)
 
     if moments1 is None:
         moments1 = _probabilities_to_moments(probs1)
@@ -203,9 +203,11 @@ class PartitionSelectionCombiner(UtilityAnalysisCombiner):
         max_partitions = self._params.aggregate_params.max_partitions_contributed
         prob_keep_partition = np.where(
             n_partitions > 0, np.minimum(1, max_partitions / n_partitions), 0)
-        acc1 = (list(prob_keep_partition), None)
-        acc2 = ([], None)
-        return _merge_partition_selection_accumulators(acc1, acc2)
+        acc = (list(prob_keep_partition), None)
+        empty_acc = ([], None)
+        # 'acc' can contain many probabilities and in that case it is better to
+        # convert it to moments. The next line achieves this.
+        return _merge_partition_selection_accumulators(acc, empty_acc)
 
     def merge_accumulators(
             self, acc1: PartitionSelectionAccumulator,
@@ -347,8 +349,8 @@ class CompoundCombiner(pipeline_dp.combiners.CompoundCombiner):
 
     def create_accumulator(self, data: PreaggregatedData) -> AccumulatorType:
         if not data:
-            # This is an empty partition. It was added because of public
-            # partitions.
+            # Handle empty partitions. Only encountered when public partitions
+            # are used.
             return (([0], [0], [0]), None)
         return (([data[0]], [data[1]], [data[2]]), None)
 
@@ -370,7 +372,7 @@ class CompoundCombiner(pipeline_dp.combiners.CompoundCombiner):
         sparse2, dense2 = acc2
         if sparse1 and sparse2:
             merged_sparse = tuple(
-                [_combine_list(s, t) for s, t in zip(sparse1, sparse2)])
+                [_merge_list(s, t) for s, t in zip(sparse1, sparse2)])
             # Computes heuristically that the sparse representation is less
             # than dense. For this assume that 1 accumulator is on average
             # has a size of aggregated contributions from 2 privacy ids.
