@@ -286,29 +286,11 @@ class CountCombiner(SumCombiner):
     def create_accumulator(
         self, sparse_acc: Tuple[np.ndarray, np.ndarray,
                                 np.ndarray]) -> AccumulatorType:
-        count, sum_, n_partitions = sparse_acc
-        del sum_  # not used for CountCombiner
-        max_per_partition = (
-            self._params.aggregate_params.max_contributions_per_partition)
-        max_partitions = self._params.aggregate_params.max_partitions_contributed
-        prob_keep_partition = np.where(
-            n_partitions > 0, np.minimum(1, max_partitions / n_partitions), 0)
-
-        per_partition_contribution = np.minimum(max_per_partition, count)
-        per_partition_error = per_partition_contribution - count
-        expected_cross_partition_error = -per_partition_contribution * (
-            1 - prob_keep_partition)
-        var_cross_partition_error = (per_partition_contribution**2 *
-                                     prob_keep_partition *
-                                     (1 - prob_keep_partition))
-
-        return (
-            count.sum().item(),
-            0,
-            per_partition_error.sum().item(),
-            expected_cross_partition_error.sum().item(),
-            var_cross_partition_error.sum().item(),
-        )
+        count, _sum, n_partitions = sparse_acc
+        data = None, count, n_partitions
+        self._params.aggregate_params.min_sum_per_partition = 0.0
+        self._params.aggregate_params.max_sum_per_partition = self._params.aggregate_params.max_contributions_per_partition
+        return super().create_accumulator(data)
 
 
 class PrivacyIdCountCombiner(SumCombiner):
@@ -318,9 +300,9 @@ class PrivacyIdCountCombiner(SumCombiner):
     AccumulatorType = Tuple[float, float, float, float, float]
 
     def create_accumulator(
-            self, data: Tuple[np.ndarray, np.ndarray,
-                              np.ndarray]) -> AccumulatorType:
-        counts, _sum, n_partitions = data
+        self, sparse_acc: Tuple[np.ndarray, np.ndarray,
+                                np.ndarray]) -> AccumulatorType:
+        counts, _sum, n_partitions = sparse_acc
         counts = np.where(counts > 0, 1, 0)
         data = None, counts, n_partitions
         self._params.aggregate_params.min_sum_per_partition = 0.0
