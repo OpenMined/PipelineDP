@@ -316,14 +316,19 @@ class CompoundCombiner(pipeline_dp.combiners.CompoundCombiner):
     # For improving memory usage the compound accumulator has 2 modes:
     # 1. Sparse mode (for small datasets): which contains information about each
     # privacy id's aggregated contributions per partition.
-    # 2. Dense mode (for large datasets): which contains underlying accumulators
-    # from internal combiners.
+    # 2. Dense mode (for large datasets): which contains accumulators from
+    # internal combiners.
     # Since the utility analysis can be run for many configurations, there can
-    # be hundreds of the internal combiners, as a result the compound
-    # accumulator can contain hundreds accumulators. Converting each privacy id
+    # be 100s of the internal combiners, as a result the compound
+    # accumulator can contain 100s accumulators. Converting each privacy id
     # contribution to such accumulators leads to memory usage blow-up. That is
     # why sparse mode introduced - until the number of privacy id contributions
     # is small, they are saved instead of creating accumulators.
+    # In Sparse mode, data (which contains counts, sums, n_partitions) are kept
+    # in lists and merge is merging of those lists. For further performance
+    # improvements, on converting from sparse to dense mode, the data are
+    # are converted to NumPy arrays. And internal combiners perform NumPy vector
+    # aggregations.
     SparseAccumulatorType = Tuple[List[int], List[float], List[int]]
     DenseAccumulatorType = List[Any]
     AccumulatorType = Tuple[Optional[SparseAccumulatorType],
