@@ -14,6 +14,7 @@
 """Utility Analysis Combiners."""
 
 import abc
+import copy
 from dataclasses import dataclass
 from typing import Any, List, Optional, Tuple
 import numpy as np
@@ -160,14 +161,27 @@ PartitionSelectionAccumulator = Tuple[Optional[Tuple[float]],
                                       Optional[SumOfRandomVariablesMoments]]
 
 
+def _merge_list(a: List, b: List) -> List:
+    """Combines 2 lists in 1 and returns it.
+
+    Warning: it modifies arguments.
+    """
+    # Extend the larger list for performance reasons.
+    if len(a) >= len(b):
+        a.extend(b)
+        return a
+    b.extend(a)
+    return b
+
+
 def _merge_partition_selection_accumulators(
         acc1: PartitionSelectionAccumulator,
         acc2: PartitionSelectionAccumulator) -> PartitionSelectionAccumulator:
     probs1, moments1 = acc1
     probs2, moments2 = acc2
-    if probs1 and probs2 and len(probs1) + len(
-            probs2) <= MAX_PROBABILITIES_IN_ACCUMULATOR:
-        return (probs1 + probs2, None)
+    if ((probs1 is not None) and (probs2 is not None) and
+            len(probs1) + len(probs2) <= MAX_PROBABILITIES_IN_ACCUMULATOR):
+        return (_merge_list(probs1, probs2), None)
 
     if moments1 is None:
         moments1 = _probabilities_to_moments(probs1)
@@ -183,15 +197,17 @@ class PartitionSelectionCombiner(UtilityAnalysisCombiner):
     def __init__(self, params: pipeline_dp.combiners.CombinerParams):
         self._params = params
 
-    def create_accumulator(
-            self, data: Tuple[int, float,
-                              int]) -> PartitionSelectionAccumulator:
-        count, sum_, n_partitions = data
+    def create_accumulator(self, sparse_acc: Tuple[np.ndarray, np.ndarray,
+                                                   np.ndarray]):
+        count, sum_, n_partitions = sparse_acc
         max_partitions = self._params.aggregate_params.max_partitions_contributed
-        prob_keep_contribution = min(1, max_partitions /
-                                     n_partitions) if n_partitions > 0 else 0
-
-        return ((prob_keep_contribution,), None)
+        prob_keep_partition = np.where(
+            n_partitions > 0, np.minimum(1, max_partitions / n_partitions), 0)
+        acc = (list(prob_keep_partition), None)
+        empty_acc = ([], None)
+        # 'acc' can contain many probabilities and in that case it is better to
+        # convert it to moments. The next line achieves this.
+        return _merge_partition_selection_accumulators(acc, empty_acc)
 
     def merge_accumulators(
             self, acc1: PartitionSelectionAccumulator,
@@ -216,31 +232,35 @@ class SumCombiner(UtilityAnalysisCombiner):
     AccumulatorType = Tuple[float, float, float, float, float]
 
     def __init__(self, params: pipeline_dp.combiners.CombinerParams):
-        self._params = params
+        self._params = copy.copy(params)
 
-    def create_accumulator(self, data: PreaggregatedData) -> AccumulatorType:
+    def create_accumulator(
+            self, data: Tuple[np.ndarray, np.ndarray,
+                              np.ndarray]) -> AccumulatorType:
         count, partition_sum, n_partitions = data
+        del count  # not used for SumCombiner
         min_bound = self._params.aggregate_params.min_sum_per_partition
         max_bound = self._params.aggregate_params.max_sum_per_partition
         max_partitions = self._params.aggregate_params.max_partitions_contributed
-        l0_prob_keep_contribution = min(1, max_partitions /
-                                        n_partitions) if n_partitions > 0 else 0
+        l0_prob_keep_contribution = np.where(
+            n_partitions > 0, np.minimum(1, max_partitions / n_partitions), 0)
         per_partition_contribution = np.clip(partition_sum, min_bound,
-                                             max_bound).item()
-        per_partition_error_min = 0
-        per_partition_error_max = 0
+                                             max_bound)
         per_partition_error = per_partition_contribution - partition_sum
-        if partition_sum < min_bound:
-            per_partition_error_min = per_partition_error
-        elif partition_sum > max_bound:
-            per_partition_error_max = per_partition_error
+        per_partition_error_min = np.where(partition_sum < min_bound,
+                                           per_partition_error, 0)
+        per_partition_error_max = np.where(partition_sum > max_bound,
+                                           per_partition_error, 0)
         expected_cross_partition_error = -per_partition_contribution * (
             1 - l0_prob_keep_contribution)
         var_cross_partition_error = per_partition_contribution**2 * l0_prob_keep_contribution * (
             1 - l0_prob_keep_contribution)
 
-        return (partition_sum, per_partition_error_min, per_partition_error_max,
-                expected_cross_partition_error, var_cross_partition_error)
+        return (partition_sum.sum().item(),
+                per_partition_error_min.sum().item(),
+                per_partition_error_max.sum().item(),
+                expected_cross_partition_error.sum().item(),
+                var_cross_partition_error.sum().item())
 
     def compute_metrics(self, acc: AccumulatorType) -> metrics.SumMetrics:
         """Computes metrics based on the accumulator properties."""
@@ -263,9 +283,11 @@ class CountCombiner(SumCombiner):
     # expected_cross_partition_error, var_cross_partition_error)
     AccumulatorType = Tuple[float, float, float, float, float]
 
-    def create_accumulator(self, data: PreaggregatedData) -> AccumulatorType:
-        count, _sum, n_partitions = data
-        data = count, count, n_partitions
+    def create_accumulator(
+        self, sparse_acc: Tuple[np.ndarray, np.ndarray,
+                                np.ndarray]) -> AccumulatorType:
+        count, _sum, n_partitions = sparse_acc
+        data = None, count, n_partitions
         self._params.aggregate_params.min_sum_per_partition = 0.0
         self._params.aggregate_params.max_sum_per_partition = self._params.aggregate_params.max_contributions_per_partition
         return super().create_accumulator(data)
@@ -277,10 +299,12 @@ class PrivacyIdCountCombiner(SumCombiner):
     # expected_cross_partition_error, var_cross_partition_error)
     AccumulatorType = Tuple[float, float, float, float, float]
 
-    def create_accumulator(self, data: PreaggregatedData) -> AccumulatorType:
-        count, _sum, n_partitions = data
-        count = 1 if count > 0 else 0
-        data = count, count, n_partitions
+    def create_accumulator(
+        self, sparse_acc: Tuple[np.ndarray, np.ndarray,
+                                np.ndarray]) -> AccumulatorType:
+        counts, _sum, n_partitions = sparse_acc
+        counts = np.where(counts > 0, 1, 0)
+        data = None, counts, n_partitions
         self._params.aggregate_params.min_sum_per_partition = 0.0
         self._params.aggregate_params.max_sum_per_partition = 1.0
         return super().create_accumulator(data)
@@ -292,53 +316,59 @@ class CompoundCombiner(pipeline_dp.combiners.CompoundCombiner):
     # For improving memory usage the compound accumulator has 2 modes:
     # 1. Sparse mode (for small datasets): which contains information about each
     # privacy id's aggregated contributions per partition.
-    # 2. Dense mode (for large datasets): which contains underlying accumulators
-    # from internal combiners.
+    # 2. Dense mode (for large datasets): which contains accumulators from
+    # internal combiners.
     # Since the utility analysis can be run for many configurations, there can
-    # be hundreds of the internal combiners, as a result the compound
-    # accumulator can contain hundreds accumulators. Converting each privacy id
+    # be 100s of the internal combiners, as a result the compound
+    # accumulator can contain 100s accumulators. Converting each privacy id
     # contribution to such accumulators leads to memory usage blow-up. That is
     # why sparse mode introduced - until the number of privacy id contributions
     # is small, they are saved instead of creating accumulators.
-    SparseAccumulatorType = List[PreaggregatedData]
+    # In Sparse mode, data (which contains counts, sums, n_partitions) are kept
+    # in lists and merge is merging of those lists. For further performance
+    # improvements, on converting from sparse to dense mode, the data are
+    # are converted to NumPy arrays. And internal combiners perform NumPy vector
+    # aggregations.
+    SparseAccumulatorType = Tuple[List[int], List[float], List[int]]
     DenseAccumulatorType = List[Any]
     AccumulatorType = Tuple[Optional[SparseAccumulatorType],
                             Optional[DenseAccumulatorType]]
 
     def create_accumulator(self, data: PreaggregatedData) -> AccumulatorType:
         if not data:
-            # This is an empty partition, what is None assigned to. It was added
-            # because of public partitions.
-            return ([(0, 0, 0)], None)
-        return ([data], None)
+            # Handle empty partitions. Only encountered when public partitions
+            # are used.
+            return (([0], [0], [0]), None)
+        return (([data[0]], [data[1]], [data[2]]), None)
 
     def _to_dense(self,
                   sparse_acc: SparseAccumulatorType) -> DenseAccumulatorType:
-        result = None
-        for count_sum_n_partitions in sparse_acc:
-            compound_acc = (1, [
-                combiner.create_accumulator(count_sum_n_partitions)
+        # sparse_acc contains lists, convert them to numpy arrays in order to
+        # speed up creation of accumulators.
+        sparse_acc = [np.array(a) for a in sparse_acc]
+        return (
+            len(sparse_acc[0]),
+            tuple([
+                combiner.create_accumulator(sparse_acc)
                 for combiner in self._combiners
-            ])
-            if result is None:
-                result = compound_acc
-            else:
-                result = super().merge_accumulators(result, compound_acc)
-        return result
+            ]),
+        )
 
     def merge_accumulators(self, acc1: AccumulatorType, acc2: AccumulatorType):
         sparse1, dense1 = acc1
         sparse2, dense2 = acc2
         if sparse1 and sparse2:
-            sparse1.extend(sparse2)
+            merged_sparse = tuple(
+                [_merge_list(s, t) for s, t in zip(sparse1, sparse2)])
             # Computes heuristically that the sparse representation is less
             # than dense. For this assume that 1 accumulator is on average
             # has a size of aggregated contributions from 2 privacy ids.
-            is_sparse_less_dense = len(sparse1) <= 2 * len(self._combiners)
+            is_sparse_less_dense = len(
+                merged_sparse[0]) <= 2 * len(self._combiners)
             if is_sparse_less_dense:
-                return (sparse1, None)
+                return (merged_sparse, None)
             # Dense is smaller, convert to dense.
-            return (None, self._to_dense(sparse1))
+            return (None, self._to_dense(merged_sparse))
         dense1 = self._to_dense(sparse1) if sparse1 else dense1
         dense2 = self._to_dense(sparse2) if sparse2 else dense2
         merged_dense = super().merge_accumulators(dense1, dense2)
@@ -660,7 +690,7 @@ class PrivatePartitionSelectionAggregateErrorMetricsCombiner(
     def create_accumulator(
             self, prob_to_keep: float) -> PartitionSelectionAccumulator:
         """Creates an accumulator for metrics."""
-        return ((prob_to_keep,), None)
+        return ([prob_to_keep], None)
 
     def merge_accumulators(
             self, acc1: PartitionSelectionAccumulator,
