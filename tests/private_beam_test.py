@@ -41,6 +41,17 @@ class PrivateBeamTest(unittest.TestCase):
         return actual[0] == expected[0] and abs(actual[1] -
                                                 expected[1]) <= tolerance
 
+    def test_transform_with_same_label_work(self):
+        # Apache Beam requires that all stage_names were different.
+        # Calling MakePrivate twice and not getting exception, it's checked that
+        # private_beam handles uniqueness of inner stage names correctly.
+        pipeline = TestPipeline()
+        col = pipeline | beam.Create([])
+        pcol1 = col | private_beam.MakePrivate(budget_accountant=None,
+                                               privacy_id_extractor=lambda x: x)
+        pcol2 = col | private_beam.MakePrivate(budget_accountant=None,
+                                               privacy_id_extractor=lambda x: x)
+
     def test_make_private_transform_succeeds(self):
         runner = fn_api_runner.FnApiRunner()
         with beam.Pipeline(runner=runner) as pipeline:

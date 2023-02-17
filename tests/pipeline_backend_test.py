@@ -252,7 +252,7 @@ class BeamBackendStageNameTest(unittest.TestCase):
             backend.map(col, lambda x: x, "SAME_MAP_NAME")
             backend.map(col, lambda x: x, "SAME_MAP_NAME")
 
-        self.assertEqual("UNIQUE_BACKEND_SUFFIX", backend._ulg._suffix)
+        self.assertEqual("_UNIQUE_BACKEND_SUFFIX", backend._ulg._suffix)
         self.assertEqual(3, len(backend._ulg._labels))
         self.assertIn("SAME_MAP_NAME_UNIQUE_BACKEND_SUFFIX",
                       backend._ulg._labels)
