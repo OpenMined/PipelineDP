@@ -196,7 +196,7 @@ class UniqueLabelsGenerator:
 
     def __init__(self, suffix):
         self._labels = set()
-        self._suffix = suffix
+        self._suffix = ("_" + suffix) if suffix else ""
 
     def _add_if_unique(self, label):
         if label in self._labels:
@@ -207,11 +207,11 @@ class UniqueLabelsGenerator:
     def unique(self, label):
         if not label:
             label = "UNDEFINED_STAGE_NAME"
-        suffix_label = label + "_" + self._suffix
+        suffix_label = label + self._suffix
         if self._add_if_unique(suffix_label):
             return suffix_label
         for i in itertools.count(1):
-            label_candidate = f"{label}_{i}_{self._suffix}"
+            label_candidate = f"{label}_{i}{self._suffix}"
             if self._add_if_unique(label_candidate):
                 return label_candidate
 

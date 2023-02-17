@@ -23,11 +23,28 @@ import apache_beam as beam
 import pipeline_dp
 from pipeline_dp import aggregate_params, budget_accounting
 
+# Apache Beam requires that all stage_names were different.
+# pipeline_dp.BeamBackend object ensures the uniqueness of the stage_names.
+# But it is required to have the same object BeamBackend for all operations.
+# _beam_backend and get_beam_backend() provides functionality for having the
+# same BeamBackend for all operations inside private_beam.py.
+_beam_backend = None
+
+
+def _get_beam_backend() -> pipeline_dp.BeamBackend:
+    global _beam_backend
+    if _beam_backend == None:
+        _beam_backend = pipeline_dp.BeamBackend()
+    return _beam_backend
+
 
 class PrivatePTransform(ptransform.PTransform):
     """Abstract class for PrivatePTransforms."""
 
     def __init__(self, return_anonymized: bool, label: Optional[str] = None):
+        # Ensure that the label is unique.
+        label = _get_beam_backend()._ulg.unique(label)
+
         super().__init__(label)
         self._return_anonymized = return_anonymized
         self._budget_accountant = None
@@ -38,11 +55,12 @@ class PrivatePTransform(ptransform.PTransform):
         self._budget_accountant = budget_accountant
 
     def _create_dp_engine(self):
-        backend = pipeline_dp.BeamBackend()
+        backend = _get_beam_backend()
         return backend, pipeline_dp.DPEngine(self._budget_accountant, backend)
 
     def __rrshift__(self, label):
-        self.label = label
+        # Ensure that the label is unique.
+        self.label = _get_beam_backend()._ulg.unique(label)
         return self
 
     @abstractmethod
@@ -88,8 +106,9 @@ class MakePrivate(PrivatePTransform):
         self._privacy_id_extractor = privacy_id_extractor
 
     def expand(self, pcol: pvalue.PCollection):
-        pcol = pcol | "Extract privacy id" >> beam.Map(
-            lambda x: (self._privacy_id_extractor(x), x))
+        backend = _get_beam_backend()
+        pcol = backend.map(pcol, lambda x: (self._privacy_id_extractor(x), x),
+                           "Extract privacy id")
         return PrivatePCollection(pcol, self._budget_accountant)
 
 
@@ -120,7 +139,7 @@ class Variance(PrivatePTransform):
         self._explain_computaton_report = out_explain_computaton_report
 
     def expand(self, pcol: pvalue.PCollection) -> pvalue.PCollection:
-        backend = pipeline_dp.BeamBackend()
+        backend = _get_beam_backend()
         dp_engine = pipeline_dp.DPEngine(self._budget_accountant, backend)
 
         params = pipeline_dp.AggregateParams(
@@ -184,7 +203,7 @@ class Mean(PrivatePTransform):
         self._explain_computaton_report = out_explain_computaton_report
 
     def expand(self, pcol: pvalue.PCollection) -> pvalue.PCollection:
-        backend = pipeline_dp.BeamBackend()
+        backend = _get_beam_backend()
         dp_engine = pipeline_dp.DPEngine(self._budget_accountant, backend)
 
         params = pipeline_dp.AggregateParams(
@@ -247,7 +266,7 @@ class Sum(PrivatePTransform):
         self._explain_computaton_report = out_explain_computaton_report
 
     def expand(self, pcol: pvalue.PCollection) -> pvalue.PCollection:
-        backend = pipeline_dp.BeamBackend()
+        backend = _get_beam_backend()
         dp_engine = pipeline_dp.DPEngine(self._budget_accountant, backend)
 
         params = pipeline_dp.AggregateParams(
@@ -310,7 +329,7 @@ class Count(PrivatePTransform):
         self._explain_computaton_report = out_explain_computaton_report
 
     def expand(self, pcol: pvalue.PCollection) -> pvalue.PCollection:
-        backend = pipeline_dp.BeamBackend()
+        backend = _get_beam_backend()
         dp_engine = pipeline_dp.DPEngine(self._budget_accountant, backend)
 
         params = pipeline_dp.AggregateParams(
@@ -373,7 +392,7 @@ class PrivacyIdCount(PrivatePTransform):
         self._explain_computaton_report = out_explain_computaton_report
 
     def expand(self, pcol: pvalue.PCollection) -> pvalue.PCollection:
-        backend = pipeline_dp.BeamBackend()
+        backend = _get_beam_backend()
         dp_engine = pipeline_dp.DPEngine(self._budget_accountant, backend)
 
         params = pipeline_dp.AggregateParams(
@@ -419,7 +438,7 @@ class SelectPartitions(PrivatePTransform):
         self._partition_extractor = partition_extractor
 
     def expand(self, pcol: pvalue.PCollection) -> pvalue.PCollection:
-        backend = pipeline_dp.BeamBackend()
+        backend = _get_beam_backend()
         dp_engine = pipeline_dp.DPEngine(self._budget_accountant, backend)
 
         data_extractors = pipeline_dp.DataExtractors(
@@ -441,32 +460,27 @@ class Map(PrivatePTransform):
         self._fn = fn
 
     def expand(self, pcol: pvalue.PCollection):
-        return pcol | "map values" >> beam.Map(lambda x: (x[0], self._fn(x[1])))
+        backend = _get_beam_backend()
+        return backend.map_values(pcol, self._fn, "Map")
 
 
 class FlatMap(PrivatePTransform):
     """Transform class for performing a FlatMap on a PrivatePCollection."""
-
-    class _FlattenValues(beam.DoFn):
-        """Inner class for flattening values of key value pair.
-        Flattens (1, (2,3,4)) into ((1,2), (1,3), (1,4))"""
-
-        def __init__(self, map_fn: Callable):
-            self._map_fn = map_fn
-
-        def process(self, row):
-            key = row[0]
-            values = self._map_fn(row[1])
-            for value in values:
-                yield key, value
 
     def __init__(self, fn: Callable, label: Optional[str] = None):
         super().__init__(return_anonymized=False, label=label)
         self._fn = fn
 
     def expand(self, pcol: pvalue.PCollection):
-        return pcol | "flatten values" >> beam.ParDo(
-            FlatMap._FlattenValues(map_fn=self._fn))
+        backend = _get_beam_backend()
+
+        def fn(row):
+            key = row[0]
+            values = self._fn(row[1])
+            for value in values:
+                yield key, value
+
+        return backend.flat_map(pcol, fn, "FlatMap")
 
 
 class PrivateCombineFn(beam.CombineFn):
