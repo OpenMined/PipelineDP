@@ -95,8 +95,8 @@ def perform_utility_analysis(
 
     def pack_metrics(aggregate_metrics) -> List[metrics.AggregateMetrics]:
         # aggregate_metrics is a flat list of PartitionSelectionMetrics and
-        # AggregateErrorMetrics with options.n_configurations sequential
-        # configurations of metrics. Each AggregateErrorMetrics within a
+        # UtilityAnalysisResult with options.n_configurations sequential
+        # configurations of metrics. Each UtilityAnalysisResult within a
         # configuration correspond to a different aggregation.
         aggregate_params = list(data_structures.get_aggregate_params(options))
         n_configurations = len(aggregate_params)

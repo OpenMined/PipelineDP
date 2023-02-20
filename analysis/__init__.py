@@ -17,12 +17,11 @@ from analysis.data_structures import PreAggregateExtractors
 from analysis.data_structures import UtilityAnalysisOptions
 from analysis.histograms import compute_dataset_histograms
 from analysis.histograms import DatasetHistograms
-from analysis.metrics import AggregateMetrics
+from analysis.metrics import UtilityAnalysisResult
 from analysis.parameter_tuning import tune
 from analysis.parameter_tuning import MinimizingFunction
 from analysis.parameter_tuning import ParametersToTune
 from analysis.parameter_tuning import TuneOptions
 from analysis.parameter_tuning import TuneResult
-from analysis.parameter_tuning import UtilityAnalysisRun
 from analysis.pre_aggregation import preaggregate
 from analysis.utility_analysis import perform_utility_analysis

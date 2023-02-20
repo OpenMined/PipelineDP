@@ -75,39 +75,8 @@ class ValueErrorStatistics:
     bounding_errors: ContributionBoundingErrors
     bias: float
     variance: float
-    rmse_error: float
-    l1_error: float
-    quantiles: List[float]
-
-
-@dataclass
-class UtilityResult:  # ? UtilityAnalysisRes
-    """Stores aggregate cross-partition metrics for utility analysis.
-
-    TODO: update docstring
-    All attributes in this dataclass are averages across partitions; except for
-    ratio_* attributes, which are simply the ratios of total data dropped
-    aggregated across partitions.
-    """
-    metric: pipeline_dp.Metrics
-    num_true_partitions: int
-    num_empty_public_partitions: int
-
-    # Noise information.
-    noise_std: float
-    noise_kind: pipeline_dp.NoiseKind
-
-    # Ratio of dropped data metrics.
-    ratio_data_dropped_l0: float
-    ratio_data_dropped_linf: float
-    # This cannot be computed at PartitionSelectionMetrics and needs to be
-    # computed for each aggregation separately, since it takes into account data
-    # drop from contribution bounding and that is aggregation-specific.
-    ratio_data_dropped_partition_selection: float
-
-    # Value errors
-    absolute_error: ValueErrorStatistics
-    relative_error: ValueErrorStatistics
+    rmse: float
+    l1: float
 
     # The following error metrics include error from dropped partitions.
     #
@@ -121,12 +90,47 @@ class UtilityResult:  # ? UtilityAnalysisRes
     #
     # When public partitions are used, these will be exactly equal to
     # abs/rel_error_expected.
-    error_expected_w_dropped_partitions: float
-    rel_error_expected_w_dropped_partitions: float
+    with_dropped_partitions: float
 
 
 @dataclass
-class PartitionSelectionMetrics:
+class DroppedDataInfo:
+    l0: float
+    linf: float
+
+    # This cannot be computed at PartitionSelectionMetrics and needs to be
+    # computed for each aggregation separately, since it takes into account data
+    # drop from contribution bounding and that is aggregation-specific.
+    ratio_data_dropped_partition_selection: float
+
+
+@dataclass
+class MetricUtility:
+    """Stores aggregate cross-partition metrics for utility analysis.
+
+    TODO: update docstring
+    All attributes in this dataclass are averages across partitions; except for
+    ratio_* attributes, which are simply the ratios of total data dropped
+    aggregated across partitions.
+    """
+    metric: pipeline_dp.Metrics
+    num_true_partitions: int
+    num_dataset_partitions: int
+
+    # Noise information.
+    noise_std: float
+    noise_kind: pipeline_dp.NoiseKind
+
+    # Dropped data breakdown.
+    ratio_data_dropped: DroppedDataInfo
+
+    # Value errors
+    absolute_error: ValueErrorStatistics
+    relative_error: ValueErrorStatistics
+
+
+@dataclass
+class PartitionSelectionUtility:
     """Stores aggregate metrics about partition selection."""
 
     strategy: pipeline_dp.PartitionSelectionStrategy
@@ -136,7 +140,7 @@ class PartitionSelectionMetrics:
 
 
 @dataclass
-class AggregateMetrics:
+class UtilityAnalysisResult:
     """Stores result of the utility analysis for specific input parameters.
 
     Attributes:
@@ -152,5 +156,5 @@ class AggregateMetrics:
     """
     input_aggregate_params: pipeline_dp.AggregateParams
 
-    value_errors: Optional[List[ValueErrorStatistics]] = None
-    partition_selection_metrics: Optional[PartitionSelectionMetrics] = None
+    value_errors: Optional[List[MetricUtility]] = None
+    partition_selection_metrics: Optional[PartitionSelectionUtility] = None

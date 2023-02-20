@@ -59,7 +59,7 @@ class TuneOptions:
         aggregate_params: parameters of aggregation.
         function_to_minimize: which function of the error to minimize. In case
           if this argument is a callable, it should take 1 argument of type
-          AggregateErrorMetrics and return float.
+          UtilityAnalysisResult and return float.
         parameters_to_tune: specifies which parameters to tune.
         partitions_sampling_prob: the probability with which each partition
         will be sampled before running tuning. It is useful for speed-up

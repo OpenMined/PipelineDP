@@ -92,7 +92,7 @@ class UtilityAnalysis(parameterized.TestCase):
             self, expected_partition_selection_metrics,
             output.partition_selection_metrics)
         # Assert count metrics are reasonable.
-        expected_count_metrics = metrics.AggregateErrorMetrics(
+        expected_count_metrics = metrics.UtilityAnalysisResult(
             metric_type=metrics.AggregateMetricType.COUNT,
             ratio_data_dropped_l0=0.6,
             ratio_data_dropped_linf=0.33333,
@@ -124,7 +124,7 @@ class UtilityAnalysis(parameterized.TestCase):
         dict(
             testcase_name="Gaussian noise",
             noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
-            expected=metrics.AggregateErrorMetrics(
+            expected=metrics.UtilityAnalysisResult(
                 metric_type=metrics.AggregateMetricType.COUNT,
                 ratio_data_dropped_l0=0,
                 ratio_data_dropped_linf=0,
@@ -153,7 +153,7 @@ class UtilityAnalysis(parameterized.TestCase):
         dict(
             testcase_name="Laplace noise",
             noise_kind=pipeline_dp.NoiseKind.LAPLACE,
-            expected=metrics.AggregateErrorMetrics(
+            expected=metrics.UtilityAnalysisResult(
                 metric_type=metrics.AggregateMetricType.COUNT,
                 ratio_data_dropped_l0=0.0,
                 ratio_data_dropped_linf=0.0,

@@ -925,7 +925,7 @@ class SumAggregateErrorMetricsCombinerTest(parameterized.TestCase):
                  rel_error_expected_w_dropped_partitions=-0.7,
                  noise_std=1.0,
              ),
-             expected=metrics.AggregateErrorMetrics(
+             expected=metrics.UtilityAnalysisResult(
                  metric_type=metrics.AggregateMetricType.SUM,
                  ratio_data_dropped_l0=0.0,
                  ratio_data_dropped_linf=0.0,
@@ -977,7 +977,7 @@ class SumAggregateErrorMetricsCombinerTest(parameterized.TestCase):
                  rel_error_expected_w_dropped_partitions=-0.4,
                  noise_std=1.0,
              ),
-             expected=metrics.AggregateErrorMetrics(
+             expected=metrics.UtilityAnalysisResult(
                  metric_type=metrics.AggregateMetricType.SUM,
                  ratio_data_dropped_l0=0.0,
                  ratio_data_dropped_linf=0.0,
@@ -1029,7 +1029,7 @@ class SumAggregateErrorMetricsCombinerTest(parameterized.TestCase):
                  rel_error_expected_w_dropped_partitions=-0.7,
                  noise_std=1.0,
              ),
-             expected=metrics.AggregateErrorMetrics(
+             expected=metrics.UtilityAnalysisResult(
                  metric_type=metrics.AggregateMetricType.COUNT,
                  ratio_data_dropped_l0=0.4,
                  ratio_data_dropped_linf=0.4,
@@ -1081,7 +1081,7 @@ class SumAggregateErrorMetricsCombinerTest(parameterized.TestCase):
                  rel_error_expected_w_dropped_partitions=-0.4,
                  noise_std=1.0,
              ),
-             expected=metrics.AggregateErrorMetrics(
+             expected=metrics.UtilityAnalysisResult(
                  metric_type=metrics.AggregateMetricType.COUNT,
                  ratio_data_dropped_l0=0.2,
                  ratio_data_dropped_linf=0.2,
@@ -1133,7 +1133,7 @@ class SumAggregateErrorMetricsCombinerTest(parameterized.TestCase):
                  rel_error_expected_w_dropped_partitions=-0.7,
                  noise_std=1.0,
              ),
-             expected=metrics.AggregateErrorMetrics(
+             expected=metrics.UtilityAnalysisResult(
                  metric_type=metrics.AggregateMetricType.PRIVACY_ID_COUNT,
                  ratio_data_dropped_l0=0.4,
                  ratio_data_dropped_linf=0.0,
@@ -1185,7 +1185,7 @@ class SumAggregateErrorMetricsCombinerTest(parameterized.TestCase):
                  rel_error_expected_w_dropped_partitions=-0.1,
                  noise_std=1.0,
              ),
-             expected=metrics.AggregateErrorMetrics(
+             expected=metrics.UtilityAnalysisResult(
                  metric_type=metrics.AggregateMetricType.PRIVACY_ID_COUNT,
                  ratio_data_dropped_l0=0.2,
                  ratio_data_dropped_linf=0.0,

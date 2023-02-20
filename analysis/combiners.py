@@ -383,7 +383,7 @@ class CompoundCombiner(pipeline_dp.combiners.CompoundCombiner):
 
 @dataclass
 class AggregateErrorMetricsAccumulator:
-    """ Accumulator for AggregateErrorMetrics.
+    """ Accumulator for UtilityAnalysisResult.
 
     All fields in this dataclass are sums across partitions, except for
     noise_std."""
@@ -489,7 +489,7 @@ class SumAggregateErrorMetricsCombiner(pipeline_dp.Combiner):
     """A combiner for aggregating errors across partitions for Sum"""
     AccumulatorType = AggregateErrorMetricsAccumulator
 
-    def __init__(self, metric_type: metrics.AggregateMetricType,
+    def __init__(self, metric_type: pipeline_dp.Metrics,
                  error_quantiles: List[float]):
         self._metric_type = metric_type
         self._error_quantiles = self._invert_error_quantiles(error_quantiles)
@@ -594,7 +594,7 @@ class SumAggregateErrorMetricsCombiner(pipeline_dp.Combiner):
         return acc1 + acc2
 
     def compute_metrics(self,
-                        acc: AccumulatorType) -> metrics.AggregateErrorMetrics:
+                        acc: AccumulatorType) -> metrics.UtilityAnalysisResult:
         """Computes metrics based on the accumulator properties."""
         error_l0_expected = acc.error_l0_expected / acc.kept_partitions_expected
         error_linf_min_expected = acc.error_linf_min_expected / acc.kept_partitions_expected
@@ -605,7 +605,7 @@ class SumAggregateErrorMetricsCombiner(pipeline_dp.Combiner):
         rel_error_linf_max_expected = acc.rel_error_linf_max_expected / acc.kept_partitions_expected
         rel_error_linf_expected = rel_error_linf_min_expected + rel_error_linf_max_expected
         acc.total_aggregate = max(1.0, acc.total_aggregate)
-        return metrics.AggregateErrorMetrics(
+        return metrics.UtilityAnalysisResult(
             metric_type=self._metric_type,
             ratio_data_dropped_l0=acc.data_dropped_l0 / acc.total_aggregate,
             ratio_data_dropped_linf=acc.data_dropped_linf / acc.total_aggregate,
