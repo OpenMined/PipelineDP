@@ -156,5 +156,5 @@ class UtilityAnalysisResult:
     """
     input_aggregate_params: pipeline_dp.AggregateParams
 
-    value_errors: Optional[List[MetricUtility]] = None
+    metric_errors: Optional[List[MetricUtility]] = None
     partition_selection_metrics: Optional[PartitionSelectionUtility] = None
