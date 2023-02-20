@@ -84,7 +84,7 @@ class UtilityAnalysis(parameterized.TestCase):
         output = col[0][0]
         # Assert partition selection metrics are reasonable.
         # partition_kept_probability = 0.4311114 for each partition
-        expected_partition_selection_metrics = metrics.PartitionSelectionMetrics(
+        expected_partition_selection_metrics = metrics.PartitionSelectionUtility(
             num_partitions=10,
             dropped_partitions_expected=7.08783,
             dropped_partitions_variance=2.06410)
@@ -93,7 +93,7 @@ class UtilityAnalysis(parameterized.TestCase):
             output.partition_selection_metrics)
         # Assert count metrics are reasonable.
         expected_count_metrics = metrics.UtilityAnalysisResult(
-            metric_type=metrics.AggregateMetricType.COUNT,
+            metric_type=pipeline_dp.Metrics.COUNT,
             ratio_data_dropped_l0=0.6,
             ratio_data_dropped_linf=0.33333,
             ratio_data_dropped_partition_selection=0.04725,
@@ -125,7 +125,7 @@ class UtilityAnalysis(parameterized.TestCase):
             testcase_name="Gaussian noise",
             noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
             expected=metrics.UtilityAnalysisResult(
-                metric_type=metrics.AggregateMetricType.COUNT,
+                metric_type=pipeline_dp.Metrics.COUNT,
                 ratio_data_dropped_l0=0,
                 ratio_data_dropped_linf=0,
                 ratio_data_dropped_partition_selection=0,
@@ -154,7 +154,7 @@ class UtilityAnalysis(parameterized.TestCase):
             testcase_name="Laplace noise",
             noise_kind=pipeline_dp.NoiseKind.LAPLACE,
             expected=metrics.UtilityAnalysisResult(
-                metric_type=metrics.AggregateMetricType.COUNT,
+                metric_type=pipeline_dp.Metrics.COUNT,
                 ratio_data_dropped_l0=0.0,
                 ratio_data_dropped_linf=0.0,
                 ratio_data_dropped_partition_selection=0.0,
@@ -222,7 +222,7 @@ class UtilityAnalysis(parameterized.TestCase):
         # accurate.
         common.assert_dataclasses_are_equal(self, expected,
                                             col[0][0].count_metrics, 0.5)
-        expected.metric_type = metrics.AggregateMetricType.PRIVACY_ID_COUNT
+        expected.metric_type = pipeline_dp.Metrics.PRIVACY_ID_COUNT
         common.assert_dataclasses_are_equal(self, expected,
                                             col[0][0].privacy_id_count_metrics,
                                             0.5)

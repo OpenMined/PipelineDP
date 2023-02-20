@@ -101,7 +101,7 @@ class TuneResult:
     contribution_histograms: histograms.DatasetHistograms
     utility_analysis_parameters: analysis.MultiParameterConfiguration
     index_best: int
-    utility_results: List[metrics.UtilityResult]
+    utility_results: List[metrics.UtilityAnalysisResult]
 
 
 def _find_candidate_parameters(

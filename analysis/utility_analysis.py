@@ -94,7 +94,7 @@ def perform_utility_analysis(
     # aggregates : (aggregate_metrics)
 
     def pack_metrics(aggregate_metrics) -> List[metrics.AggregateMetrics]:
-        # aggregate_metrics is a flat list of PartitionSelectionMetrics and
+        # aggregate_metrics is a flat list of PartitionSelectionUtility and
         # UtilityAnalysisResult with options.n_configurations sequential
         # configurations of metrics. Each UtilityAnalysisResult within a
         # configuration correspond to a different aggregation.
@@ -120,15 +120,16 @@ def perform_utility_analysis(
     return result
 
 
-def _populate_packed_metrics(packed_metrics: metrics.AggregateMetrics, metric):
+def _populate_packed_metrics(packed_metrics: metrics.UtilityAnalysisResult,
+                             metric):
     """Sets the appropriate packed_metrics field with 'metric' according to 'metric' type."""
-    if isinstance(metric, metrics.PartitionSelectionMetrics):
+    if isinstance(metric, metrics.PartitionSelectionUtility):
         packed_metrics.partition_selection_metrics = metric
-    elif metric.metric_type == metrics.AggregateMetricType.PRIVACY_ID_COUNT:
+    elif metric.metric_type == pipeline_dp.Metrics.PRIVACY_ID_COUNT:
         packed_metrics.privacy_id_count_metrics = metric
-    elif metric.metric_type == metrics.AggregateMetricType.COUNT:
+    elif metric.metric_type == pipeline_dp.Metrics.COUNT:
         packed_metrics.count_metrics = metric
-    elif metric.metric_type == metrics.AggregateMetricType.SUM:
+    elif metric.metric_type == pipeline_dp.Metrics.SUM:
         packed_metrics.sum_metrics = metric
 
 
@@ -148,15 +149,14 @@ def _create_aggregate_error_compound_combiner(
         if pipeline_dp.Metrics.SUM in aggregate_params.metrics:
             internal_combiners.append(
                 utility_analysis_combiners.SumAggregateErrorMetricsCombiner(
-                    metrics.AggregateMetricType.SUM, error_quantiles))
+                    pipeline_dp.Metrics.SUM, error_quantiles))
         if pipeline_dp.Metrics.COUNT in aggregate_params.metrics:
             internal_combiners.append(
                 utility_analysis_combiners.SumAggregateErrorMetricsCombiner(
-                    metrics.AggregateMetricType.COUNT, error_quantiles))
+                    pipeline_dp.Metrics.COUNT, error_quantiles))
         if pipeline_dp.Metrics.PRIVACY_ID_COUNT in aggregate_params.metrics:
             internal_combiners.append(
                 utility_analysis_combiners.SumAggregateErrorMetricsCombiner(
-                    metrics.AggregateMetricType.PRIVACY_ID_COUNT,
-                    error_quantiles))
+                    pipeline_dp.Metrics.PRIVACY_ID_COUNT, error_quantiles))
     return utility_analysis_combiners.AggregateErrorMetricsCompoundCombiner(
         internal_combiners, return_named_tuple=False)

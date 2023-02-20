@@ -629,7 +629,7 @@ class SumAggregateErrorMetricsCombinerTest(parameterized.TestCase):
 
     @parameterized.named_parameters(
         dict(testcase_name='Sum without public partitions',
-             metric_type=metrics.AggregateMetricType.SUM,
+             metric_type=pipeline_dp.Metrics.SUM,
              probability_to_keep=0.5,
              metric=metrics.SumMetrics(
                  sum=5.0,
@@ -666,7 +666,7 @@ class SumAggregateErrorMetricsCombinerTest(parameterized.TestCase):
                  noise_std=1.0,
              )),
         dict(testcase_name='Sum with public partitions',
-             metric_type=metrics.AggregateMetricType.SUM,
+             metric_type=pipeline_dp.Metrics.SUM,
              probability_to_keep=1.0,
              metric=metrics.SumMetrics(
                  sum=5.0,
@@ -703,7 +703,7 @@ class SumAggregateErrorMetricsCombinerTest(parameterized.TestCase):
                  noise_std=1.0,
              )),
         dict(testcase_name='Sum with public partitions and negative sum',
-             metric_type=metrics.AggregateMetricType.SUM,
+             metric_type=pipeline_dp.Metrics.SUM,
              probability_to_keep=1.0,
              metric=metrics.SumMetrics(
                  sum=-5.0,
@@ -740,7 +740,7 @@ class SumAggregateErrorMetricsCombinerTest(parameterized.TestCase):
                  noise_std=1.0,
              )),
         dict(testcase_name='Count without public partitions',
-             metric_type=metrics.AggregateMetricType.COUNT,
+             metric_type=pipeline_dp.Metrics.COUNT,
              probability_to_keep=0.5,
              metric=metrics.SumMetrics(
                  sum=5.0,
@@ -777,7 +777,7 @@ class SumAggregateErrorMetricsCombinerTest(parameterized.TestCase):
                  noise_std=1.0,
              )),
         dict(testcase_name='Count with public partitions',
-             metric_type=metrics.AggregateMetricType.COUNT,
+             metric_type=pipeline_dp.Metrics.COUNT,
              probability_to_keep=1.0,
              metric=metrics.SumMetrics(
                  sum=5.0,
@@ -814,7 +814,7 @@ class SumAggregateErrorMetricsCombinerTest(parameterized.TestCase):
                  noise_std=1.0,
              )),
         dict(testcase_name='PrivacyIdCount without public partitions',
-             metric_type=metrics.AggregateMetricType.PRIVACY_ID_COUNT,
+             metric_type=pipeline_dp.Metrics.PRIVACY_ID_COUNT,
              probability_to_keep=0.5,
              metric=metrics.SumMetrics(
                  sum=5.0,
@@ -851,7 +851,7 @@ class SumAggregateErrorMetricsCombinerTest(parameterized.TestCase):
                  noise_std=1.0,
              )),
         dict(testcase_name='PrivacyIdCount with public partitions',
-             metric_type=metrics.AggregateMetricType.PRIVACY_ID_COUNT,
+             metric_type=pipeline_dp.Metrics.PRIVACY_ID_COUNT,
              probability_to_keep=1.0,
              metric=metrics.SumMetrics(
                  sum=5.0,
@@ -899,7 +899,7 @@ class SumAggregateErrorMetricsCombinerTest(parameterized.TestCase):
 
     @parameterized.named_parameters(
         dict(testcase_name='Sum with public partitions',
-             metric_type=metrics.AggregateMetricType.SUM,
+             metric_type=pipeline_dp.Metrics.SUM,
              acc=combiners.AggregateErrorMetricsAccumulator(
                  num_partitions=1,
                  kept_partitions_expected=0.5,
@@ -926,7 +926,7 @@ class SumAggregateErrorMetricsCombinerTest(parameterized.TestCase):
                  noise_std=1.0,
              ),
              expected=metrics.UtilityAnalysisResult(
-                 metric_type=metrics.AggregateMetricType.SUM,
+                 metric_type=pipeline_dp.Metrics.SUM,
                  ratio_data_dropped_l0=0.0,
                  ratio_data_dropped_linf=0.0,
                  ratio_data_dropped_partition_selection=0.0,
@@ -951,7 +951,7 @@ class SumAggregateErrorMetricsCombinerTest(parameterized.TestCase):
                  noise_std=1.0,
              )),
         dict(testcase_name='Sum without public partitions',
-             metric_type=metrics.AggregateMetricType.SUM,
+             metric_type=pipeline_dp.Metrics.SUM,
              acc=combiners.AggregateErrorMetricsAccumulator(
                  num_partitions=1,
                  kept_partitions_expected=1.0,
@@ -978,7 +978,7 @@ class SumAggregateErrorMetricsCombinerTest(parameterized.TestCase):
                  noise_std=1.0,
              ),
              expected=metrics.UtilityAnalysisResult(
-                 metric_type=metrics.AggregateMetricType.SUM,
+                 metric_type=pipeline_dp.Metrics.SUM,
                  ratio_data_dropped_l0=0.0,
                  ratio_data_dropped_linf=0.0,
                  ratio_data_dropped_partition_selection=0.0,
@@ -1003,7 +1003,7 @@ class SumAggregateErrorMetricsCombinerTest(parameterized.TestCase):
                  noise_std=1.0,
              )),
         dict(testcase_name='Count without public partitions',
-             metric_type=metrics.AggregateMetricType.COUNT,
+             metric_type=pipeline_dp.Metrics.COUNT,
              acc=combiners.AggregateErrorMetricsAccumulator(
                  num_partitions=1,
                  kept_partitions_expected=0.5,
@@ -1030,7 +1030,7 @@ class SumAggregateErrorMetricsCombinerTest(parameterized.TestCase):
                  noise_std=1.0,
              ),
              expected=metrics.UtilityAnalysisResult(
-                 metric_type=metrics.AggregateMetricType.COUNT,
+                 metric_type=pipeline_dp.Metrics.COUNT,
                  ratio_data_dropped_l0=0.4,
                  ratio_data_dropped_linf=0.4,
                  ratio_data_dropped_partition_selection=0.3,
@@ -1055,7 +1055,7 @@ class SumAggregateErrorMetricsCombinerTest(parameterized.TestCase):
                  noise_std=1.0,
              )),
         dict(testcase_name='Count with public partitions',
-             metric_type=metrics.AggregateMetricType.COUNT,
+             metric_type=pipeline_dp.Metrics.COUNT,
              acc=combiners.AggregateErrorMetricsAccumulator(
                  num_partitions=1,
                  kept_partitions_expected=1.0,
@@ -1082,7 +1082,7 @@ class SumAggregateErrorMetricsCombinerTest(parameterized.TestCase):
                  noise_std=1.0,
              ),
              expected=metrics.UtilityAnalysisResult(
-                 metric_type=metrics.AggregateMetricType.COUNT,
+                 metric_type=pipeline_dp.Metrics.COUNT,
                  ratio_data_dropped_l0=0.2,
                  ratio_data_dropped_linf=0.2,
                  ratio_data_dropped_partition_selection=0,
@@ -1107,7 +1107,7 @@ class SumAggregateErrorMetricsCombinerTest(parameterized.TestCase):
                  noise_std=1.0,
              )),
         dict(testcase_name='PrivacyIdCount without public partitions',
-             metric_type=metrics.AggregateMetricType.PRIVACY_ID_COUNT,
+             metric_type=pipeline_dp.Metrics.PRIVACY_ID_COUNT,
              acc=combiners.AggregateErrorMetricsAccumulator(
                  num_partitions=1,
                  kept_partitions_expected=0.5,
@@ -1134,7 +1134,7 @@ class SumAggregateErrorMetricsCombinerTest(parameterized.TestCase):
                  noise_std=1.0,
              ),
              expected=metrics.UtilityAnalysisResult(
-                 metric_type=metrics.AggregateMetricType.PRIVACY_ID_COUNT,
+                 metric_type=pipeline_dp.Metrics.PRIVACY_ID_COUNT,
                  ratio_data_dropped_l0=0.4,
                  ratio_data_dropped_linf=0.0,
                  ratio_data_dropped_partition_selection=0.3,
@@ -1159,7 +1159,7 @@ class SumAggregateErrorMetricsCombinerTest(parameterized.TestCase):
                  noise_std=1.0,
              )),
         dict(testcase_name='PrivacyIdCount with public partitions',
-             metric_type=metrics.AggregateMetricType.PRIVACY_ID_COUNT,
+             metric_type=pipeline_dp.Metrics.PRIVACY_ID_COUNT,
              acc=combiners.AggregateErrorMetricsAccumulator(
                  num_partitions=1,
                  kept_partitions_expected=1.0,
@@ -1186,7 +1186,7 @@ class SumAggregateErrorMetricsCombinerTest(parameterized.TestCase):
                  noise_std=1.0,
              ),
              expected=metrics.UtilityAnalysisResult(
-                 metric_type=metrics.AggregateMetricType.PRIVACY_ID_COUNT,
+                 metric_type=pipeline_dp.Metrics.PRIVACY_ID_COUNT,
                  ratio_data_dropped_l0=0.2,
                  ratio_data_dropped_linf=0.0,
                  ratio_data_dropped_partition_selection=0.0,

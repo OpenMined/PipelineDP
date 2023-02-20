@@ -504,7 +504,7 @@ class SumAggregateErrorMetricsCombiner(pipeline_dp.Combiner):
         data_dropped_l0 = 0
         data_dropped_linf = 0
         data_dropped_partition_selection = 0
-        if self._metric_type != metrics.AggregateMetricType.SUM:
+        if self._metric_type != pipeline_dp.Metrics.SUM:
             data_dropped_l0 = -partition_metrics.expected_cross_partition_error
             data_dropped_linf = -partition_metrics.per_partition_error_max
             data_dropped_partition_selection = (1 - prob_to_keep) * (
@@ -701,7 +701,7 @@ class PrivatePartitionSelectionAggregateErrorMetricsCombiner(
 
     def compute_metrics(
         self, acc: PartitionSelectionAccumulator
-    ) -> metrics.PartitionSelectionMetrics:
+    ) -> metrics.PartitionSelectionUtility:
         """Computes metrics based on the accumulator properties."""
         probs, moments = acc
         if moments is None:
@@ -709,7 +709,7 @@ class PrivatePartitionSelectionAggregateErrorMetricsCombiner(
         kept_partitions_expected = moments.expectation
         kept_partitions_variance = moments.variance
         num_partitions = moments.count
-        return metrics.PartitionSelectionMetrics(
+        return metrics.PartitionSelectionUtility(
             num_partitions=num_partitions,
             dropped_partitions_expected=num_partitions -
             kept_partitions_expected,
