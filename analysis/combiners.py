@@ -485,6 +485,10 @@ class AggregateErrorMetricsCompoundCombiner(combiners.CompoundCombiner):
         return 1, tuple(accumulators)
 
 
+def add_dataclasses_by_field(lhs, rhs):
+    pass
+
+
 class SumAggregateErrorMetricsCombiner(pipeline_dp.Combiner):
     """A combiner for aggregating errors across partitions for Sum"""
     AccumulatorType = AggregateErrorMetricsAccumulator

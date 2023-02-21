@@ -101,7 +101,7 @@ class DroppedDataInfo:
     # This cannot be computed at PartitionSelectionUtility and needs to be
     # computed for each aggregation separately, since it takes into account data
     # drop from contribution bounding and that is aggregation-specific.
-    ratio_data_dropped_partition_selection: float
+    partition_selection: float
 
 
 @dataclass

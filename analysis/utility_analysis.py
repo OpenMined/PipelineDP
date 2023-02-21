@@ -93,7 +93,7 @@ def perform_utility_analysis(
 
     # aggregates : (aggregate_metrics)
 
-    def pack_metrics(aggregate_metrics) -> List[metrics.AggregateMetrics]:
+    def pack_metrics(aggregate_metrics) -> List[metrics.UtilityAnalysisResult]:
         # aggregate_metrics is a flat list of PartitionSelectionUtility and
         # UtilityAnalysisResult with options.n_configurations sequential
         # configurations of metrics. Each UtilityAnalysisResult within a
