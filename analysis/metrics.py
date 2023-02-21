@@ -54,9 +54,11 @@ class AggregateMetricType(Enum):
     SUM = 'sum'
 
 
+# The following dataclasses will be replaced by new (see below) soon.
 @dataclass
 class AggregateErrorMetrics:
     """Stores aggregate cross-partition metrics for utility analysis.
+
     All attributes in this dataclass are averages across partitions; except for
     ratio_* attributes, which are simply the ratios of total data dropped
     aggregated across partitions.
@@ -125,6 +127,7 @@ class PartitionSelectionMetrics:
 @dataclass
 class AggregateMetrics:
     """Stores result of the utility analysis for specific input parameters.
+
     Attributes:
         input_aggregate_params: input parameters for which this utility analysis
           was computed.
@@ -142,6 +145,10 @@ class AggregateMetrics:
     partition_selection_metrics: Optional[PartitionSelectionMetrics] = None
 
 
+# New dataclasses. They will be used as the output of Utility analysis in the
+# next PRs.
+
+
 @dataclass
 class MeanVariance:
     mean: float
@@ -150,7 +157,17 @@ class MeanVariance:
 
 @dataclass
 class ContributionBoundingErrors:
-    """Contains an error breakdown by types of contribution bounding."""
+    """Contains an error breakdown by types of contribution bounding.
+
+    Attributes:
+        l0: max_partition_contributed (aka l0) bounding error. The output of l0
+          bounding is a random variable for each partition.
+        linf: per partition (aka linf) bounding errors. The output of linf
+          bounding is deterministic for each partition.
+        linf_min & linf_max: represents error due to min & max contribution
+          bounding, respectively (only populated for Sum metrics). It is
+          deterministic for each partition.
+    """
     l0: MeanVariance
     linf: float
     linf_min: float
@@ -158,14 +175,28 @@ class ContributionBoundingErrors:
 
 
 @dataclass
-class ValueErrorStatistics:
-    """Contains errors on difference between true and dp metric.
+class ValueErrors:
+    """Errors between true and dp metric.
+
+    This class describes breakdown of errors for (dp_value - actual_value),
+    where value can be a metric like count, sum etc. The value error is a random
+    variable and it comes from different sources - contribution bounding error
+    and DP noise. This class contains different error metrics.
+
+    All attributes correspond to the errors computed per partition and then
+    averaged across partitions, e.g.
+      rmse_per_partition = sqrt(E(dp_value - actual_value)^2)
+      self.rmse = mean(rmse_per_partition)
 
     Attributes:
-        todo
+        bounding_errors: contribution bounding error.
+        bias: averaged across partitions E(dp_value - actual_value).
+        variance: averaged across partitions Var(dp_value - actual_value).
+        rmse: averaged across partitions sqrt(E(dp_value - actual_value)^2).
+        l1:  averaged across partitions E|dp_value - actual_value|.
+        with_dropped_partitions: error which takes into consideration dropped
+          because of partition selection partitions. See example below.
     """
-
-    # Contribution bounding errors.
     bounding_errors: ContributionBoundingErrors
     bias: float
     variance: float
@@ -189,6 +220,15 @@ class ValueErrorStatistics:
 
 @dataclass
 class DroppedDataInfo:
+    """Information about the data dropped during different procedures.
+
+    Attributes:
+        l0: ratio of data dropped during of l0 contribution bounding.
+        linf: ratio of data dropped during of linf contribution bounding.
+        partition_selection: ratio of data dropped because of partition
+          selection.
+
+    """
     l0: float
     linf: float
 
@@ -202,14 +242,23 @@ class DroppedDataInfo:
 class MetricUtility:
     """Stores aggregate cross-partition metrics for utility analysis.
 
-    TODO: update docstring
-    All attributes in this dataclass are averages across partitions; except for
-    ratio_* attributes, which are simply the ratios of total data dropped
-    aggregated across partitions.
+    Attributes:
+        metric: DP metric for which this analysis was performed.
+        num_dataset_partitions: the number of partitions in dataset.
+        num_non_public_partitions: the number of partitions dropped because
+          of public partitions.
+        num_empty_partitions: the number of empty partitions added because of
+          public partitions.
+        noise_std: the standard deviation of added noise.
+        noise_kind: the noise kind (Laplace or Gaussian)
+        ratio_data_dropped: the information about dropped data.
+        absolute_error: error of (dp_value - actual_value).
+        relative_error: error of (dp_value - actual_value)/actual_value.
     """
     metric: pipeline_dp.Metrics
-    num_true_partitions: int
     num_dataset_partitions: int
+    num_non_public_partitions: int
+    num_empty_partitions: int
 
     # Noise information.
     noise_std: float
@@ -219,8 +268,8 @@ class MetricUtility:
     ratio_data_dropped: DroppedDataInfo
 
     # Value errors
-    absolute_error: ValueErrorStatistics
-    relative_error: ValueErrorStatistics
+    absolute_error: ValueErrors
+    relative_error: ValueErrors
 
 
 @dataclass
@@ -241,12 +290,9 @@ class UtilityAnalysisResult:
         input_aggregate_params: input parameters for which this utility analysis
           was computed.
 
-        count_metrics: utility analysis of count. It is non None, if Count
-          metric is in input_aggregate_params.metrics.
-        privacy_id_count_metrics: utility analysis of sum. It is non None, if
-          Sum  metric is in input_aggregate_params.metrics.
-        partition_selection_metrics: utility analysis of selected partition. It
-          is not None if the utility analysis is for private partition selection.
+        metric_errors: utility analysis of metrics (e.g. COUNT, SUM, P
+          RIVACY_ID_COUNT).
+        partition_selection_metrics: utility analysis of selected partition.
     """
     input_aggregate_params: pipeline_dp.AggregateParams
 
