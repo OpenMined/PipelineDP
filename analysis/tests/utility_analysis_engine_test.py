@@ -24,65 +24,6 @@ from analysis import metrics
 import analysis
 
 
-class MultiParameterConfiguration(parameterized.TestCase):
-
-    @parameterized.named_parameters(
-        dict(testcase_name="All MultiParameterConfiguration fields unset",
-             error_msg="MultiParameterConfiguration must have at least 1 "
-             "non-empty attribute.",
-             max_partitions_contributed=None,
-             max_contributions_per_partition=None,
-             min_sum_per_partition=None,
-             max_sum_per_partition=None),
-        dict(testcase_name="Attributes different size 1",
-             error_msg="All set attributes in MultiParameterConfiguration must "
-             "have the same length.",
-             max_partitions_contributed=[1],
-             max_contributions_per_partition=[1, 2],
-             min_sum_per_partition=None,
-             max_sum_per_partition=None),
-        dict(testcase_name="Attributes different size 2",
-             error_msg="All set attributes in MultiParameterConfiguration must "
-             "have the same length.",
-             max_partitions_contributed=None,
-             max_contributions_per_partition=None,
-             min_sum_per_partition=[1, 1, 1],
-             max_sum_per_partition=[2]),
-        dict(testcase_name="One of min_sum_per_partition, "
-             "max_sum_per_partition is None",
-             error_msg="MultiParameterConfiguration: min_sum_per_partition and "
-             "max_sum_per_partition must be both set or both None.",
-             max_partitions_contributed=None,
-             max_contributions_per_partition=None,
-             min_sum_per_partition=[1, 1, 1],
-             max_sum_per_partition=None),
-    )
-    def test_validation(self, error_msg, max_partitions_contributed,
-                        max_contributions_per_partition, min_sum_per_partition,
-                        max_sum_per_partition):
-        with self.assertRaisesRegex(ValueError, error_msg):
-            analysis.MultiParameterConfiguration(
-                max_partitions_contributed, max_contributions_per_partition,
-                min_sum_per_partition, max_sum_per_partition)
-
-    def test_get_aggregate_params(self):
-        params = pipeline_dp.AggregateParams(
-            noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
-            metrics=[pipeline_dp.Metrics.COUNT],
-            max_partitions_contributed=1,
-            max_contributions_per_partition=1)
-
-        max_partitions_contributed = [10, 12, 15]
-        multi_params = analysis.MultiParameterConfiguration(
-            max_partitions_contributed=max_partitions_contributed)
-        self.assertTrue(3, multi_params.size)
-
-        for i in range(multi_params.size):
-            ith_params = multi_params.get_aggregate_params(params, i)
-            params.max_partitions_contributed = max_partitions_contributed[i]
-            self.assertEqual(params, ith_params)
-
-
 class UtilityAnalysisEngineTest(parameterized.TestCase):
 
     def _get_default_extractors(self) -> pipeline_dp.DataExtractors:
