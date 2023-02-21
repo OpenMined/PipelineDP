@@ -27,6 +27,12 @@ from enum import Enum
 import numpy as np
 
 
+@dataclass
+class UtilityAnalysisRun:
+    params: analysis.UtilityAnalysisOptions
+    result: metrics.AggregateErrorMetrics
+
+
 class MinimizingFunction(Enum):
     ABSOLUTE_ERROR = 'absolute_error'
     RELATIVE_ERROR = 'relative_error'
@@ -101,7 +107,7 @@ class TuneResult:
     contribution_histograms: histograms.DatasetHistograms
     utility_analysis_parameters: analysis.MultiParameterConfiguration
     index_best: int
-    utility_results: List[metrics.UtilityResult]
+    utility_analysis_results: List[metrics.AggregateMetrics]
 
 
 def _find_candidate_parameters(
