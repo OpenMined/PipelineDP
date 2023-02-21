@@ -131,6 +131,7 @@ class AggregateMetrics:
     Attributes:
         input_aggregate_params: input parameters for which this utility analysis
           was computed.
+
         count_metrics: utility analysis of count. It is non None, if Count
           metric is in input_aggregate_params.metrics.
         privacy_id_count_metrics: utility analysis of sum. It is non None, if
@@ -289,7 +290,6 @@ class UtilityAnalysisResult:
     Attributes:
         input_aggregate_params: input parameters for which this utility analysis
           was computed.
-
         metric_errors: utility analysis of metrics (e.g. COUNT, SUM, P
           RIVACY_ID_COUNT).
         partition_selection_metrics: utility analysis of selected partition.
