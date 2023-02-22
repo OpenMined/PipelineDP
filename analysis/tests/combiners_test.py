@@ -1221,5 +1221,20 @@ class SumAggregateErrorMetricsCombinerTest(parameterized.TestCase):
         self.assertTrue(_check_none_are_np_float64(acc))
 
 
+class UtilitiesTest(parameterized.TestCase):
+
+    def test_merge_list_left_bigger(self):
+        a, b = [1, 2], [3]
+        result = combiners._merge_list(a, b)
+        self.assertEqual(result, [1, 2, 3])
+        self.assertIs(result, a)
+
+    def test_merge_list_right_bigger(self):
+        a, b = [1], [2, 3]
+        result = combiners._merge_list(a, b)
+        self.assertEqual(result, [2, 3, 1])
+        self.assertIs(result, b)
+
+
 if __name__ == '__main__':
     absltest.main()
