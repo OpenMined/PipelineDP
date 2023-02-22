@@ -71,6 +71,9 @@ class MultiParameterConfiguration:
     max_contributions_per_partition: Sequence[int] = None
     min_sum_per_partition: Sequence[float] = None
     max_sum_per_partition: Sequence[float] = None
+    noise_kind: Sequence[pipeline_dp.NoiseKind] = None
+    partition_selection_strategy: Sequence[
+        pipeline_dp.PartitionSelectionStrategy] = None
 
     def __post_init__(self):
         attributes = dataclasses.asdict(self)
@@ -107,6 +110,11 @@ class MultiParameterConfiguration:
             params.min_sum_per_partition = self.min_sum_per_partition[index]
         if self.max_sum_per_partition:
             params.max_sum_per_partition = self.max_sum_per_partition[index]
+        if self.noise_kind:
+            params.noise_kind = self.noise_kind[index]
+        if self.partition_selection_strategy:
+            params.partition_selection_strategy = self.partition_selection_strategy[
+                index]
         return params
 
 
