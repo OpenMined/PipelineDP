@@ -198,9 +198,8 @@ class NaiveBudgetAccountantTest(parameterized.TestCase):
 class PLDBudgetAccountantTest(unittest.TestCase):
 
     def test_noise_not_calculated(self):
-        with self.assertRaises(AssertionError):
-            mechanism = MechanismSpec(MechanismType.LAPLACE)
-            print(mechanism.noise_standard_deviation())
+        mechanism = MechanismSpec(MechanismType.LAPLACE)
+        self.assertEqual(None, mechanism.noise_standard_deviation)
 
     def test_invalid_epsilon(self):
         with self.assertRaises(ValueError):
@@ -257,7 +256,7 @@ class PLDBudgetAccountantTest(unittest.TestCase):
             epsilon: float
             delta: float
             expected_pipeline_noise_std: float
-            mechanisms: []
+            mechanisms: list
 
         testcases = [
             ComputeBudgetTestCase(

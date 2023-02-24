@@ -48,14 +48,7 @@ class MechanismSpec:
 
     @property
     def noise_standard_deviation(self):
-        """Noise value for the mechanism.
-
-        Raises:
-            AssertionError: The noise value is not calculated yet.
-        """
-        if self._noise_standard_deviation is None:
-            raise AssertionError(
-                "Noise standard deviation is not calculated yet.")
+        """Noise value for the mechanism. It can be None before budget is computed."""
         return self._noise_standard_deviation
 
     @property
