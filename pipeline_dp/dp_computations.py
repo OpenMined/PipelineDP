@@ -104,13 +104,13 @@ def compute_sigma(eps: float, delta: float, l2_sensitivity: float):
         delta: The delta value.
         l2_sensitivity: The L2 sensitivity.
     """
-    return dp_mechanisms.GaussianMechanism(epsilon=eps, 
+    return dp_mechanisms.GaussianMechanism(epsilon=eps,
                                            delta=delta,
                                            sensitivity=l2_sensitivity).std
 
 
-def apply_laplace_mechanism(value: float, 
-                            eps: float, 
+def apply_laplace_mechanism(value: float,
+                            eps: float,
                             l1_sensitivity: float,
                             noise_standard_deviation: Optional[float] = None):
     """Applies the Laplace mechanism to the value.
@@ -126,15 +126,12 @@ def apply_laplace_mechanism(value: float,
         The value resulted after adding the noise.
     """
     if noise_standard_deviation is not None:
-        mechanism = dp_mechanisms.LaplaceMechanism(
-                        epsilon=1/noise_standard_deviation,
-                        sensitivity=l1_sensitivity
-                    )
+        mechanism = dp_mechanisms.LaplaceMechanism(epsilon=1 /
+                                                   noise_standard_deviation,
+                                                   sensitivity=l1_sensitivity)
     else:
-        mechanism = dp_mechanisms.LaplaceMechanism(
-                        epsilon=eps,
-                        sensitivity=l1_sensitivity
-                    )
+        mechanism = dp_mechanisms.LaplaceMechanism(epsilon=eps,
+                                                   sensitivity=l1_sensitivity)
     return mechanism.add_noise(1.0 * value)
 
 
@@ -158,14 +155,11 @@ def apply_gaussian_mechanism(value: float,
     """
     if noise_standard_deviation is not None:
         mechanism = dp_mechanisms.GaussianMechanism.create_from_standard_deviation(
-                        std=l2_sensitivity * noise_standard_deviation
-                    )
+            std=l2_sensitivity * noise_standard_deviation)
     else:
-        mechanism = dp_mechanisms.GaussianMechanism(
-                        epsilon=eps, 
-                        delta=delta,
-                        sensitivity=l2_sensitivity
-                    )
+        mechanism = dp_mechanisms.GaussianMechanism(epsilon=eps,
+                                                    delta=delta,
+                                                    sensitivity=l2_sensitivity)
     return mechanism.add_noise(1.0 * value)
 
 
@@ -191,24 +185,19 @@ def _add_random_noise(
     Returns:
         The value resulted after adding the random noise.
     """
-    
+
     if noise_kind == pipeline_dp.NoiseKind.LAPLACE:
         l1_sensitivity = compute_l1_sensitivity(l0_sensitivity,
                                                 linf_sensitivity)
-        return apply_laplace_mechanism(value, 
-                                       eps,
-                                       l1_sensitivity,
+        return apply_laplace_mechanism(value, eps, l1_sensitivity,
                                        noise_standard_deviation)
-    
+
     if noise_kind == pipeline_dp.NoiseKind.GAUSSIAN:
         l2_sensitivity = compute_l2_sensitivity(l0_sensitivity,
                                                 linf_sensitivity)
-        return apply_gaussian_mechanism(value,
-                                        eps,
-                                        delta,
-                                        l2_sensitivity,
+        return apply_gaussian_mechanism(value, eps, delta, l2_sensitivity,
                                         noise_standard_deviation)
-    
+
     raise ValueError("Noise kind must be either Laplace or Gaussian.")
 
 
@@ -250,7 +239,7 @@ def add_noise_vector(vec: np.ndarray, noise_params: AdditiveVectorNoiseParams):
             s,
             noise_params.eps_per_coordinate,
             noise_params.delta_per_coordinate,
-            None, # TODO: Add noise_standard_deviation for vector sum computation
+            None,  # TODO: Add noise_standard_deviation for vector sum computation
             noise_params.l0_sensitivity,
             noise_params.linf_sensitivity,
             noise_params.noise_kind,
@@ -383,15 +372,10 @@ def _compute_mean_for_normalized_sum(
     middle = compute_middle(min_value, max_value)
     linf_sensitivity = max_contributions_per_partition * abs(middle - min_value)
 
-    dp_normalized_sum = _add_random_noise(
-                            sum, 
-                            eps, 
-                            delta, 
-                            noise_standard_deviation,
-                            l0_sensitivity,
-                            linf_sensitivity, 
-                            noise_kind
-                        )
+    dp_normalized_sum = _add_random_noise(sum, eps, delta,
+                                          noise_standard_deviation,
+                                          l0_sensitivity, linf_sensitivity,
+                                          noise_kind)
     # Clamps dp_count to 1.0. We know that actual count > 1 except when the
     # input set is empty, in which case it shouldn't matter much what the
     # denominator is.
@@ -425,7 +409,7 @@ def compute_dp_mean(count: int, normalized_sum: float,
             2*dp_params.noise_standard_deviation \
                 if dp_params.noise_standard_deviation is not None \
                     else None
-    
+
     dp_count = _add_random_noise(
         count,
         count_eps,
@@ -478,7 +462,7 @@ def compute_dp_var(count: int, normalized_sum: float,
         (sum_squares_eps, sum_squares_delta),
     ) = equally_split_budget(dp_params.eps, dp_params.delta, 3)
     l0_sensitivity = dp_params.l0_sensitivity()
-    
+
     # Increases noise std.dev. equally due to multiple computations
     count_noise_standard_deviation = \
         sum_noise_standard_deviation = \
@@ -516,17 +500,10 @@ def compute_dp_var(count: int, normalized_sum: float,
 
     # Computes and adds noise to the mean of squares.
     dp_mean_squares = _compute_mean_for_normalized_sum(
-        dp_count,
-        normalized_sum_squares,
-        squares_min_value,
-        squares_max_value,
-        sum_squares_eps,
-        sum_squares_delta,
-        sum_squares_noise_standard_deviation,
-        l0_sensitivity,
-        dp_params.max_contributions_per_partition,
-        dp_params.noise_kind
-    )
+        dp_count, normalized_sum_squares, squares_min_value, squares_max_value,
+        sum_squares_eps, sum_squares_delta,
+        sum_squares_noise_standard_deviation, l0_sensitivity,
+        dp_params.max_contributions_per_partition, dp_params.noise_kind)
 
     dp_var = dp_mean_squares - dp_mean**2
     if dp_params.min_value != dp_params.max_value:

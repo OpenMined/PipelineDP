@@ -149,7 +149,7 @@ class CombinerParams:
     @property
     def delta(self):
         return self._mechanism_spec.delta
-    
+
     @property
     def noise_standard_deviation(self):
         return self._mechanism_spec.noise_standard_deviation
@@ -157,15 +157,13 @@ class CombinerParams:
     @property
     def scalar_noise_params(self):
         return dp_computations.ScalarNoiseParams(
-            self.eps, self.delta,
-            self.aggregate_params.min_value,
+            self.eps, self.delta, self.aggregate_params.min_value,
             self.aggregate_params.max_value,
             self.aggregate_params.min_sum_per_partition,
             self.aggregate_params.max_sum_per_partition,
             self.aggregate_params.max_partitions_contributed,
             self.aggregate_params.max_contributions_per_partition,
-            self.aggregate_params.noise_kind,
-            self.noise_standard_deviation)
+            self.aggregate_params.noise_kind, self.noise_standard_deviation)
 
     @property
     def additive_vector_noise_params(
