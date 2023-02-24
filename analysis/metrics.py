@@ -54,7 +54,7 @@ class AggregateMetricType(Enum):
     SUM = 'sum'
 
 
-# The following dataclasses will be replaced by new (see below) soon.
+# TODO(dvadym): Remove he following dataclasses, when the new ones are used.
 @dataclass
 class AggregateErrorMetrics:
     """Stores aggregate cross-partition metrics for utility analysis.
@@ -162,8 +162,9 @@ class ContributionBoundingErrors:
 
     Attributes:
         l0: max_partition_contributed (aka l0) bounding error. The output of l0
-          bounding is a random variable for each partition.
-        linf: per partition (aka linf) bounding errors. The output of linf
+          bounding is a random variable for each partition. Its distribution is
+          close to normal when number of contribution per partition is large.
+        linf: per partition (aka linf) bounding error. The output of linf
           bounding is deterministic for each partition.
         linf_min & linf_max: represents error due to min & max contribution
           bounding, respectively (only populated for Sum metrics). It is
@@ -177,7 +178,7 @@ class ContributionBoundingErrors:
 
 @dataclass
 class ValueErrors:
-    """Errors between true and dp metric.
+    """Errors between actual and dp metric.
 
     This class describes breakdown of errors for (dp_value - actual_value),
     where value can be a metric like count, sum etc. The value error is a random
@@ -190,13 +191,13 @@ class ValueErrors:
       self.rmse = mean(rmse_per_partition)
 
     Attributes:
-        bounding_errors: contribution bounding error.
+        bounding_errors: contribution bounding errors.
         bias: averaged across partitions E(dp_value - actual_value).
         variance: averaged across partitions Var(dp_value - actual_value).
         rmse: averaged across partitions sqrt(E(dp_value - actual_value)^2).
-        l1:  averaged across partitions E|dp_value - actual_value|.
-        with_dropped_partitions: error which takes into consideration dropped
-          because of partition selection partitions. See example below.
+        l1: averaged across partitions E|dp_value - actual_value|.
+        with_dropped_partitions: error which takes into consideration partitions
+          dropped due to partition selection. See example below.
     """
     bounding_errors: ContributionBoundingErrors
     bias: float
@@ -220,8 +221,8 @@ class ValueErrors:
 
 
 @dataclass
-class DroppedDataInfo:
-    """Information about the data dropped during different procedures.
+class DataDropInfo:
+    """Information about the data dropped during different DP stages.
 
     Attributes:
         l0: ratio of data dropped during of l0 contribution bounding.
@@ -253,8 +254,8 @@ class MetricUtility:
         noise_std: the standard deviation of added noise.
         noise_kind: the noise kind (Laplace or Gaussian)
         ratio_data_dropped: the information about dropped data.
-        absolute_error: error of (dp_value - actual_value).
-        relative_error: error of (dp_value - actual_value)/actual_value.
+        absolute_error: error in terms of (dp_value - actual_value).
+        relative_error: error in terms of (dp_value - actual_value)/actual_value.
     """
     metric: pipeline_dp.Metrics
     num_dataset_partitions: int
@@ -266,7 +267,7 @@ class MetricUtility:
     noise_kind: pipeline_dp.NoiseKind
 
     # Dropped data breakdown.
-    ratio_data_dropped: DroppedDataInfo
+    ratio_data_dropped: DataDropInfo
 
     # Value errors
     absolute_error: ValueErrors
@@ -284,14 +285,14 @@ class PartitionSelectionUtility:
 
 
 @dataclass
-class UtilityAnalysisResult:
+class UtilityReport:
     """Stores result of the utility analysis for specific input parameters.
 
     Attributes:
         input_aggregate_params: input parameters for which this utility analysis
           was computed.
-        metric_errors: utility analysis of metrics (e.g. COUNT, SUM, P
-          RIVACY_ID_COUNT).
+        metric_errors: utility analysis of metrics (e.g. COUNT, SUM,
+          PRIVACY_ID_COUNT).
         partition_selection_metrics: utility analysis of selected partition.
     """
     input_aggregate_params: pipeline_dp.AggregateParams
