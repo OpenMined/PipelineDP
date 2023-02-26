@@ -39,7 +39,7 @@ RUN pip3 install pandas pipeline-dp absl-py
 
 # download source 
 RUN git clone https://github.com/OpenMined/PipelineDP.git
-RUN cd /PipelineDP && git checkout v0.1.1
+RUN cd /PipelineDP && git checkout v0.2.0
 
 # check modes and run example 
 
