@@ -171,9 +171,15 @@ class ContributionBoundingErrors:
           deterministic for each partition.
     """
     l0: MeanVariance
-    linf: float
     linf_min: float
     linf_max: float
+
+    def to_relative(self, value: float) -> 'ContributionBoundingErrors':
+        l0_rel_mean_var = MeanVariance(self.l0.mean / value,
+                                       self.l0.var / value**2)
+        return ContributionBoundingErrors(l0=l0_rel_mean_var,
+                                          linf_min=self.linf_min / value,
+                                          linf_max=self.linf_max / value)
 
 
 @dataclass
@@ -200,24 +206,42 @@ class ValueErrors:
           dropped due to partition selection. See example below.
     """
     bounding_errors: ContributionBoundingErrors
-    bias: float
+    mean: float
     variance: float
+
     rmse: float
     l1: float
 
-    # The following error metrics include error from dropped partitions.
-    #
-    # Consider the following example with a single partition to see how they are
-    # different from abs/rel_error_expected metrics:
-    #
-    # Given 1 partition with probability_to_keep=0.4, actual_count=100,
-    # abs_error_expected=-50;
-    # -> abs_error_expected = (0.4*-50)/0.4=-50
-    # -> abs_error_expected_w_dropped_partitions = 0.4*-50+0.6*-100=-80
-    #
-    # When public partitions are used, these will be exactly equal to
-    # abs/rel_error_expected.
-    with_dropped_partitions: float
+    # The following error metrics include error from dropped partitions for
+    # private partition selection. For example rmse:
+    #    rmse = sqrt(E(actual-output)^2) = f(actual-output).
+    # For the partition with probability to keep = p.
+    #    rmse_with_dropped_partitions = p*rmse + (1-p)*f(actual-0).
+    rmse_with_dropped_partitions: float
+    l1_with_dropped_partitions: float
+
+    def to_relative(self, value: float):
+        return ValueErrors(
+            self.bounding_errors.to_relative(value),
+            mean=self.mean / value,
+            variance=self.variance / value**2,
+            rmse=self.rmse / value,
+            l1=self.l1 / value,
+            rmse_with_dropped_partitions=self.rmse_with_dropped_partitions,
+            l1_with_dropped_partitions=self.l1_with_dropped_partitions)
+
+    @classmethod
+    def get_empty(cls):
+        empty_bounding = ContributionBoundingErrors(l0=MeanVariance(0, 0),
+                                                    linf_min=0,
+                                                    linf_max=0)
+        return ValueErrors(bounding_errors=empty_bounding,
+                           mean=0,
+                           variance=0,
+                           rmse=0,
+                           l1=0,
+                           rmse_with_dropped_partitions=0,
+                           l1_with_dropped_partitions=0)
 
 
 @dataclass
@@ -267,7 +291,7 @@ class MetricUtility:
     noise_kind: pipeline_dp.NoiseKind
 
     # Dropped data breakdown.
-    ratio_data_dropped: DataDropInfo
+    ratio_data_dropped: Optional[DataDropInfo]
 
     # Value errors
     absolute_error: ValueErrors
