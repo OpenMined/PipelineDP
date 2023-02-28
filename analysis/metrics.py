@@ -175,6 +175,7 @@ class ContributionBoundingErrors:
     linf_max: float
 
     def to_relative(self, value: float) -> 'ContributionBoundingErrors':
+        """Converts from the absolute to the relative error dividing by actual value."""
         l0_rel_mean_var = MeanVariance(self.l0.mean / value,
                                        self.l0.var / value**2)
         return ContributionBoundingErrors(l0=l0_rel_mean_var,
@@ -198,7 +199,8 @@ class ValueErrors:
 
     Attributes:
         bounding_errors: contribution bounding errors.
-        bias: averaged across partitions E(dp_value - actual_value).
+        mean: averaged across partitions E(dp_value - actual_value), aka
+         statistical bias.
         variance: averaged across partitions Var(dp_value - actual_value).
         rmse: averaged across partitions sqrt(E(dp_value - actual_value)^2).
         l1: averaged across partitions E|dp_value - actual_value|.
@@ -221,14 +223,16 @@ class ValueErrors:
     l1_with_dropped_partitions: float
 
     def to_relative(self, value: float):
+        """Converts from the absolute to the relative error dividing by actual value."""
         return ValueErrors(
             self.bounding_errors.to_relative(value),
             mean=self.mean / value,
             variance=self.variance / value**2,
             rmse=self.rmse / value,
             l1=self.l1 / value,
-            rmse_with_dropped_partitions=self.rmse_with_dropped_partitions,
-            l1_with_dropped_partitions=self.l1_with_dropped_partitions)
+            rmse_with_dropped_partitions=self.rmse_with_dropped_partitions /
+            value,
+            l1_with_dropped_partitions=self.l1_with_dropped_partitions / value)
 
     @classmethod
     def get_empty(cls):

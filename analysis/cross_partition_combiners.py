@@ -82,8 +82,9 @@ def _sum_metrics_to_metric_utility(
     absolute_error = _sum_metrics_to_value_error(
         sum_metrics, keep_prob=partition_keep_probability)
     if sum_metrics.sum == 0:
-        # Relative error can't be computed. Set relative errors to 0 in order
-        # not to influence aggregated relative error.
+        # When the actual value is 0, the relative error can't be computed. Set
+        # relative errors to 0 in order not to influence aggregated relative
+        # error.
         relative_error = metrics.ValueErrors.get_empty()
     else:
         relative_error = absolute_error.to_relative(sum_metrics.sum)
