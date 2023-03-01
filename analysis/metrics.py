@@ -215,15 +215,29 @@ class ValueErrors:
     l1: float
 
     # The following error metrics include error from dropped partitions for
-    # private partition selection. For example rmse:
-    #    rmse = sqrt(E(actual-output)^2) = f(actual-output).
+    # private partition selection. For example:
+    #    rmse = sqrt(E(actual_value-dp_output)^2) = f(actual_value-dp_output).
     # For the partition with probability to keep = p.
-    #    rmse_with_dropped_partitions = p*rmse + (1-p)*f(actual-0).
+    #    rmse_with_dropped_partitions = p*rmse + (1-p)*f(actual_value-0).
     rmse_with_dropped_partitions: float
     l1_with_dropped_partitions: float
 
     def to_relative(self, value: float):
-        """Converts from the absolute to the relative error dividing by actual value."""
+        """Converts from absolute to relative error dividing by actual_value."""
+        if value == 0:
+            # When the actual value is 0, the relative error can't be computed.
+            # Set relative errors to 0 in order not to influence aggregated
+            # relative error.
+            empty_bounding = ContributionBoundingErrors(l0=MeanVariance(0, 0),
+                                                        linf_min=0,
+                                                        linf_max=0)
+            return ValueErrors(bounding_errors=empty_bounding,
+                               mean=0,
+                               variance=0,
+                               rmse=0,
+                               l1=0,
+                               rmse_with_dropped_partitions=0,
+                               l1_with_dropped_partitions=0)
         return ValueErrors(
             self.bounding_errors.to_relative(value),
             mean=self.mean / value,
@@ -233,19 +247,6 @@ class ValueErrors:
             rmse_with_dropped_partitions=self.rmse_with_dropped_partitions /
             value,
             l1_with_dropped_partitions=self.l1_with_dropped_partitions / value)
-
-    @classmethod
-    def get_empty(cls):
-        empty_bounding = ContributionBoundingErrors(l0=MeanVariance(0, 0),
-                                                    linf_min=0,
-                                                    linf_max=0)
-        return ValueErrors(bounding_errors=empty_bounding,
-                           mean=0,
-                           variance=0,
-                           rmse=0,
-                           l1=0,
-                           rmse_with_dropped_partitions=0,
-                           l1_with_dropped_partitions=0)
 
 
 @dataclass
@@ -257,7 +258,6 @@ class DataDropInfo:
         linf: ratio of data dropped during of linf contribution bounding.
         partition_selection: ratio of data dropped because of partition
           selection.
-
     """
     l0: float
     linf: float
@@ -271,6 +271,8 @@ class DataDropInfo:
 @dataclass
 class MetricUtility:
     """Stores aggregate cross-partition metrics for utility analysis.
+
+    It contains utility analysis for 1 DP metric (COUNT, SUM etc).
 
     Attributes:
         metric: DP metric for which this analysis was performed.
