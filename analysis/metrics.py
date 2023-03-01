@@ -171,9 +171,16 @@ class ContributionBoundingErrors:
           deterministic for each partition.
     """
     l0: MeanVariance
-    linf: float
     linf_min: float
     linf_max: float
+
+    def to_relative(self, value: float) -> 'ContributionBoundingErrors':
+        """Converts from the absolute to the relative error dividing by actual value."""
+        l0_rel_mean_var = MeanVariance(self.l0.mean / value,
+                                       self.l0.var / value**2)
+        return ContributionBoundingErrors(l0=l0_rel_mean_var,
+                                          linf_min=self.linf_min / value,
+                                          linf_max=self.linf_max / value)
 
 
 @dataclass
@@ -192,7 +199,8 @@ class ValueErrors:
 
     Attributes:
         bounding_errors: contribution bounding errors.
-        bias: averaged across partitions E(dp_value - actual_value).
+        mean: averaged across partitions E(dp_value - actual_value), aka
+         statistical bias.
         variance: averaged across partitions Var(dp_value - actual_value).
         rmse: averaged across partitions sqrt(E(dp_value - actual_value)^2).
         l1: averaged across partitions E|dp_value - actual_value|.
@@ -200,24 +208,45 @@ class ValueErrors:
           dropped due to partition selection. See example below.
     """
     bounding_errors: ContributionBoundingErrors
-    bias: float
+    mean: float
     variance: float
+
     rmse: float
     l1: float
 
-    # The following error metrics include error from dropped partitions.
-    #
-    # Consider the following example with a single partition to see how they are
-    # different from abs/rel_error_expected metrics:
-    #
-    # Given 1 partition with probability_to_keep=0.4, actual_count=100,
-    # abs_error_expected=-50;
-    # -> abs_error_expected = (0.4*-50)/0.4=-50
-    # -> abs_error_expected_w_dropped_partitions = 0.4*-50+0.6*-100=-80
-    #
-    # When public partitions are used, these will be exactly equal to
-    # abs/rel_error_expected.
-    with_dropped_partitions: float
+    # The following error metrics include error from dropped partitions for
+    # private partition selection. For example:
+    #    rmse = sqrt(E(actual_value-dp_output)^2) = f(actual_value-dp_output).
+    # For the partition with probability to keep = p.
+    #    rmse_with_dropped_partitions = p*rmse + (1-p)*f(actual_value-0).
+    rmse_with_dropped_partitions: float
+    l1_with_dropped_partitions: float
+
+    def to_relative(self, value: float):
+        """Converts from absolute to relative error dividing by actual_value."""
+        if value == 0:
+            # When the actual value is 0, the relative error can't be computed.
+            # Set relative errors to 0 in order not to influence aggregated
+            # relative error.
+            empty_bounding = ContributionBoundingErrors(l0=MeanVariance(0, 0),
+                                                        linf_min=0,
+                                                        linf_max=0)
+            return ValueErrors(bounding_errors=empty_bounding,
+                               mean=0,
+                               variance=0,
+                               rmse=0,
+                               l1=0,
+                               rmse_with_dropped_partitions=0,
+                               l1_with_dropped_partitions=0)
+        return ValueErrors(
+            self.bounding_errors.to_relative(value),
+            mean=self.mean / value,
+            variance=self.variance / value**2,
+            rmse=self.rmse / value,
+            l1=self.l1 / value,
+            rmse_with_dropped_partitions=self.rmse_with_dropped_partitions /
+            value,
+            l1_with_dropped_partitions=self.l1_with_dropped_partitions / value)
 
 
 @dataclass
@@ -229,7 +258,6 @@ class DataDropInfo:
         linf: ratio of data dropped during of linf contribution bounding.
         partition_selection: ratio of data dropped because of partition
           selection.
-
     """
     l0: float
     linf: float
@@ -243,6 +271,8 @@ class DataDropInfo:
 @dataclass
 class MetricUtility:
     """Stores aggregate cross-partition metrics for utility analysis.
+
+    It contains utility analysis for 1 DP metric (COUNT, SUM etc).
 
     Attributes:
         metric: DP metric for which this analysis was performed.
@@ -267,7 +297,7 @@ class MetricUtility:
     noise_kind: pipeline_dp.NoiseKind
 
     # Dropped data breakdown.
-    ratio_data_dropped: DataDropInfo
+    ratio_data_dropped: Optional[DataDropInfo]
 
     # Value errors
     absolute_error: ValueErrors
