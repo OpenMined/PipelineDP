@@ -332,7 +332,8 @@ class UtilityReport:
           PRIVACY_ID_COUNT).
         partition_selection_metrics: utility analysis of selected partition.
     """
-    input_aggregate_params: Optional[pipeline_dp.AggregateParams] = None
+    input_aggregate_params: pipeline_dp.AggregateParams
 
-    partition_selection: Optional[PrivatePartitionSelectionUtility] = None
     metric_errors: Optional[List[MetricUtility]] = None
+    partition_selection_metrics: Optional[
+        PrivatePartitionSelectionUtility] = None
