@@ -109,19 +109,21 @@ def _add_dataclasses_by_fields(dataclass1, dataclass2,
                                fields_to_ignore: List[str]) -> None:
     """Recursively adds all numerical fields of one dataclass to another.
 
-    The result is in dataclass1.
+    The result is stored in dataclass1. dataclass2 is unmodified.
 
     Assumptions:
       1. dataclass1 and dataclass2 are instances of the same dataclass type.
       2. all fields which should be processed (i.e. not in fields_to_ignore)
-       are dataclasses or '+' operator can be applied.
+        are either dataclasses or support + operator.
       3. For all dataclasses fields assumptions 1,2 apply.
 
     Attributes:
         dataclass1, dataclass2: instances of the same dataclass type.
         fields_to_ignore: field names which should be ignored.
     """
-    assert type(dataclass1) == type(dataclass2)
+    assert type(dataclass1) == type(
+        dataclass2
+    ), f"type(dataclass1) = {type(dataclass1)} != type(dataclass2) = {type(dataclass2)} must have the same types, their types {type(dataclass1)} and {type(dataclass2)}"
     fields = dataclasses.fields(dataclass1)
     for field in fields:
         if field.name in fields_to_ignore:
@@ -135,7 +137,10 @@ def _add_dataclasses_by_fields(dataclass1, dataclass2,
 
 
 def _multiply_float_dataclasses_field(dataclass, factor: float):
-    """Recursively multiply all float fields of the dataclass by given number."""
+    """Recursively multiply all float fields of the dataclass by given number.
+
+    Warning: it modifies dataclass.
+    """
     fields = dataclasses.fields(dataclass)
     for field in fields:
         value = getattr(dataclass, field.name)
@@ -145,4 +150,3 @@ def _multiply_float_dataclasses_field(dataclass, factor: float):
             setattr(dataclass, field.name, value * factor)
         if dataclasses.is_dataclass(value):
             _multiply_float_dataclasses_field(value, factor)
-            continue
