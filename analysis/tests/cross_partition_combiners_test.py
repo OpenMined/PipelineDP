@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Tests for cross-partition utility analysis combiners."""
+import dataclasses
 
 from absl.testing import absltest
 from absl.testing import parameterized
@@ -76,6 +77,47 @@ class PerPartitionToCrossPartitionMetrics(parameterized.TestCase):
         self.assertEqual(output.num_partitions, 1)
         self.assertEqual(output.dropped_partitions,
                          metrics.MeanVariance(0.25, 0.25 * 0.75))
+
+
+# Dataclasses for DataclassHelpersTests
+@dataclasses.dataclass
+class OuterClass:
+    field11: float
+    field12: int
+
+
+@dataclasses.dataclass
+class InnerClass:
+    field21: float
+    field22: OuterClass
+
+
+class DataclassHelpersTests(parameterized.TestCase):
+
+    def test_add(self):
+        input1 = InnerClass(1.0, OuterClass(10.0, 100))
+        input2 = InnerClass(2.0, OuterClass(20.0, 200))
+        exptected_output = InnerClass(3.0, OuterClass(30.0, 300))
+        cross_partition_combiners._add_dataclasses_by_fields(
+            input1, input2, fields_to_ignore=[])
+        self.assertEqual(input1, exptected_output)
+
+    def test_add_some_fields_ignored(self):
+        input1 = InnerClass(1.0, OuterClass(10.0, 100))
+        input2 = InnerClass(2.0, OuterClass(20.0, 200))
+        exptected_output = InnerClass(3.0, OuterClass(
+            30.0, field12=100))  # field12 is ignored
+        cross_partition_combiners._add_dataclasses_by_fields(
+            input1, input2, fields_to_ignore=["field12"])
+        self.assertEqual(input1, exptected_output)
+
+    def test_multiply_float_by_number(self):
+        factor = 5
+        dataclass_object = InnerClass(1.0, OuterClass(10.0, 100))
+        exptected_output = InnerClass(5.0, OuterClass(50.0, 100))
+        cross_partition_combiners._multiply_float_dataclasses_field(
+            dataclass_object, factor)
+        self.assertEqual(dataclass_object, exptected_output)
 
 
 if __name__ == '__main__':
