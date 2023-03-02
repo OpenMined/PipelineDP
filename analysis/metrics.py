@@ -46,7 +46,6 @@ class SumMetrics:
     std_cross_partition_error: float
     std_noise: float
     noise_kind: pipeline_dp.NoiseKind
-    metric: pipeline_dp.Metrics = None
 
 
 @dataclass

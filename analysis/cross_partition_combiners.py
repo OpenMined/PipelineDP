@@ -12,12 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Utility Analysis cross partition combiners."""
-import copy
-import dataclasses
-
 import pipeline_dp
-from pipeline_dp import combiners
-from analysis import data_structures
 from analysis import metrics
 from typing import List, Optional, Tuple
 import math
@@ -100,7 +95,7 @@ def _sum_metrics_to_metric_utility(
 
 def _partition_selection_per_to_cross_partition(
         prob_keep: float) -> metrics.PrivatePartitionSelectionUtility:
-    """Creates cross-partition Partition selection utility from 1 partition utility."""
+    """Creates cross-partition partition selection utility from 1 partition utility."""
     return metrics.PrivatePartitionSelectionUtility(
         strategy=None,
         num_partitions=1,
