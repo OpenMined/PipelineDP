@@ -94,9 +94,9 @@ def _sum_metrics_to_metric_utility(
 
 
 def _partition_selection_per_to_cross_partition(
-        prob_keep: float) -> metrics.PrivatePartitionSelectionUtility:
-    """Creates cross-partition partition selection utility from 1 partition utility."""
-    return metrics.PrivatePartitionSelectionUtility(
+        prob_keep: float) -> metrics.PrivatePartitionSelectionMetrics:
+    """Creates cross-partition partition selection metrics from keep probability for 1 partition."""
+    return metrics.PrivatePartitionSelectionMetrics(
         strategy=None,
         num_partitions=1,
         dropped_partitions=metrics.MeanVariance(mean=prob_keep,

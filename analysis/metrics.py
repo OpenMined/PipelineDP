@@ -311,7 +311,7 @@ class MetricUtility:
 
 
 @dataclass
-class PrivatePartitionSelectionUtility:
+class PrivatePartitionSelectionMetrics:
     """Stores aggregate metrics about partition selection."""
 
     strategy: Optional[pipeline_dp.PartitionSelectionStrategy]
@@ -335,4 +335,4 @@ class UtilityReport:
 
     metric_errors: Optional[List[MetricUtility]] = None
     partition_selection_metrics: Optional[
-        PrivatePartitionSelectionUtility] = None
+        PrivatePartitionSelectionMetrics] = None
