@@ -12,12 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Tests for cross-partition utility analysis combiners."""
-import unittest.mock
-
 from absl.testing import absltest
 from absl.testing import parameterized
 import dataclasses
 import math
+import unittest.mock
 from unittest.mock import patch
 
 from analysis import metrics
