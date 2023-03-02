@@ -108,126 +108,44 @@ def _partition_selection_per_to_cross_partition(
         ratio_dropped_data=0)  # todo: implement
 
 
-def _per_partition_to_cross_partition_utility(
-        per_partition_utility: metrics.PerPartitionUtility,
-        dp_metrics: List[pipeline_dp.Metrics],
-        public_partition: bool) -> metrics.UtilityReport:
-    # Partition selection
-    prob_to_keep = per_partition_utility.partition_selection_probability_to_keep
-    partition_selection_utility = None
-    if not public_partition:
-        partition_selection_utility = _partition_selection_per_to_cross_partition(
-            prob_to_keep)
-    # Metric errors
-    metric_errors = None
-    if dp_metrics:
-        metric_errors = []
-        assert len(per_partition_utility.metric_errors) == len(dp_metrics)
-        for metric_error, dp_metric in zip(per_partition_utility.metric_errors,
-                                           dp_metrics):
-            metric_errors.append(
-                _sum_metrics_to_metric_utility(metric_error, dp_metric,
-                                               prob_to_keep))
+def _add_dataclasses_by_fields(dataclass1, dataclass2,
+                               fields_to_ignore: List[str]) -> None:
+    """Recursively adds all numerical fields of one dataclass to another.
 
-    return metrics.UtilityReport(
-        per_partition_utility=partition_selection_utility,
-        metric_errors=metric_errors)
+    The result is in dataclass1.
 
+    Assumptions:
+      1. dataclass1 and dataclass2 are instances of the same dataclass type.
+      2. all fields which should be processed (i.e. not in fields_to_ignore)
+       are dataclasses or '+' operator can be applied.
+      3. For all dataclasses fields assumptions 1,2 apply.
 
-def _add_dataclasses_by_fields(lhs, rhs, fields_to_ignore):
-    assert type(lhs) == type(rhs)
-    fields = dataclasses.fields(lhs)
+    Attributes:
+        dataclass1, dataclass2: instances of the same dataclass type.
+        fields_to_ignore: field names which should be ignored.
+    """
+    assert type(dataclass1) == type(dataclass2)
+    fields = dataclasses.fields(dataclass1)
     for field in fields:
         if field.name in fields_to_ignore:
             continue
-        value1 = getattr(lhs, field.name)
-        value2 = getattr(rhs, field.name)
+        value1 = getattr(dataclass1, field.name)
+        value2 = getattr(dataclass2, field.name)
         if dataclasses.is_dataclass(value1):
             _add_dataclasses_by_fields(value1, value2, fields_to_ignore)
             continue
-        setattr(lhs, field.name, value1 + value2)
-    return lhs  # needed?
+        setattr(dataclass1, field.name, value1 + value2)
 
 
 def _multiply_float_dataclasses_field(dataclass, factor: float):
+    """Recursively multiply all float fields of the dataclass by given number."""
     fields = dataclasses.fields(dataclass)
     for field in fields:
         value = getattr(dataclass, field.name)
         if value is None:
             continue
-        if value is float:
+        if field.type is float:
             setattr(dataclass, field.name, value * factor)
         if dataclasses.is_dataclass(value):
             _multiply_float_dataclasses_field(value, factor)
             continue
-
-
-def _merge_partition_selection_utilities(
-        utility1: metrics.PrivatePartitionSelectionUtility,
-        utility2: metrics.PrivatePartitionSelectionUtility) -> None:
-    utility1.num_partitions += utility2.num_partitions
-    utility1.dropped_partitions.mean += utility2.dropped_partitions.mean
-    utility1.dropped_partitions.var += utility2.dropped_partitions.var
-    # todo(dvadym): implement for ratio_dropped_data
-
-
-def _merge_metric_utility(utility1: metrics.MetricUtility,
-                          utility2: metrics.MetricUtility) -> None:
-    _add_dataclasses_by_fields(utility1, utility2,
-                               ["metric", "noise_std", "noise_kind"])
-
-
-def _merge_utility_reports(report1: metrics.UtilityReport,
-                           report2: metrics.UtilityReport):
-    _merge_partition_selection_utilities(report1.partition_selection,
-                                         report2.partition_selection)
-    if report1.metric_errors is None:
-        return
-    assert len(report1.metric_errors) == len(report2.metric_errors)
-    for utility1, utility2 in zip(report1.metric_errors, report2.metric_errors):
-        _merge_metric_utility(utility1, utility2)
-
-
-def _normalize_utility_report(report: metrics.UtilityReport,
-                              denominator: float):
-    _multiply_float_dataclasses_field(report, 1.0 / denominator)
-
-
-class CrossPartitionCompoundCombiner(combiners.Combiner):
-    """A compound combiner for aggregating error metrics across partitions"""
-    AccumulatorType = Tuple[metrics.UtilityReport]
-    OutputType = AccumulatorType
-
-    def __init__(self, options: data_structures.UtilityAnalysisOptions):
-        self._options = options
-
-    def create_accumulator(
-        self, per_partition_utilities: Tuple[metrics.PerPartitionUtility]
-    ) -> AccumulatorType:
-        return tuple(
-            _per_partition_to_cross_partition_utility(utility)
-            for utility in per_partition_utilities)
-
-    def merge_accumulators(self, accumulator1: AccumulatorType,
-                           accumulator2: AccumulatorType) -> AccumulatorType:
-        """Merges the accumulators and returns accumulator."""
-        for report1, report2 in zip(accumulator1, accumulator2):
-            _merge_utility_reports(report1, report2)
-        return accumulator1
-
-    def compute_metrics(self, utility_reports: AccumulatorType) -> OutputType:
-        """Computes and returns the result of aggregation."""
-        multi_aggregate_params = list(
-            data_structures.get_aggregate_params(self._options))
-        result = []
-        for report, params in zip(utility_reports, multi_aggregate_params):
-            _normalize_utility_report(report, 1.0)  # todo 1.0 -> to_proper
-            report.input_aggregate_params = params
-            result.append(report)
-        return result
-
-    def metrics_names(self):
-        return []  # Not used
-
-    def explain_computation(self):
-        return None  # Not used

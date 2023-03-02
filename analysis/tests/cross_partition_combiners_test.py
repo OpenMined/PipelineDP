@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Tests for cross-partition utility analysis combiners."""
+import dataclasses
 
 from absl.testing import absltest
 from absl.testing import parameterized
@@ -69,6 +70,47 @@ class PerPartitionToCrossPartitionMetrics(parameterized.TestCase):
         output: metrics.MetricUtility = cross_partition_combiners._sum_metrics_to_metric_utility(
             input, pipeline_dp.Metrics.COUNT, partition_keep_probability=1.0)
         self.assertEqual(output.num_empty_partitions, 1)
+
+
+# Dataclasses for DataclassHelpersTests
+@dataclasses.dataclass
+class dataclass1:
+    field11: float
+    field12: int
+
+
+@dataclasses.dataclass
+class dataclass2:
+    field21: float
+    field22: dataclass1
+
+
+class DataclassHelpersTests(parameterized.TestCase):
+
+    def test_add(self):
+        input1 = dataclass2(1.0, dataclass1(10.0, 100))
+        input2 = dataclass2(2.0, dataclass1(20.0, 200))
+        exptected_output = dataclass2(3.0, dataclass1(30.0, 300))
+        cross_partition_combiners._add_dataclasses_by_fields(
+            input1, input2, fields_to_ignore=[])
+        self.assertEqual(input1, exptected_output)
+
+    def test_add_some_fields_ignored(self):
+        input1 = dataclass2(1.0, dataclass1(10.0, 100))
+        input2 = dataclass2(2.0, dataclass1(20.0, 200))
+        exptected_output = dataclass2(3.0, dataclass1(
+            30.0, field12=100))  # field12 is ignored
+        cross_partition_combiners._add_dataclasses_by_fields(
+            input1, input2, fields_to_ignore=["field12"])
+        self.assertEqual(input1, exptected_output)
+
+    def test_multiply_float_by_number(self):
+        factor = 5
+        dataclass_object = dataclass2(1.0, dataclass1(10.0, 100))
+        exptected_output = dataclass2(5.0, dataclass1(50.0, 100))
+        cross_partition_combiners._multiply_float_dataclasses_field(
+            dataclass_object, factor)
+        self.assertEqual(dataclass_object, exptected_output)
 
 
 if __name__ == '__main__':
