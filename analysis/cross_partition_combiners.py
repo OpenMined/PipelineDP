@@ -99,6 +99,7 @@ def _partition_selection_per_to_cross_partition(
     return metrics.PrivatePartitionSelectionUtility(
         strategy=None,
         num_partitions=1,
-        dropped_partitions=metrics(mean=prob_keep,
-                                   var=prob_keep * (1 - prob_keep)),
+        dropped_partitions=metrics.MeanVariance(mean=prob_keep,
+                                                var=prob_keep *
+                                                (1 - prob_keep)),
         ratio_dropped_data=0)  # todo(dvadym): implement ratio_dropped_data
