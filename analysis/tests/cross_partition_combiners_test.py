@@ -71,6 +71,13 @@ class PerPartitionToCrossPartitionMetrics(parameterized.TestCase):
             input, pipeline_dp.Metrics.COUNT, partition_keep_probability=1.0)
         self.assertEqual(output.num_empty_partitions, 1)
 
+    def test_partition_selection_per_to_cross_partition(self):
+        output = cross_partition_combiners._partition_selection_per_to_cross_partition(
+            0.25)
+        self.assertEqual(output.num_partitions, 1)
+        self.assertEqual(output.dropped_partitions,
+                         metrics.MeanVariance(0.25, 0.25 * 0.75))
+
 
 # Dataclasses for DataclassHelpersTests
 @dataclasses.dataclass

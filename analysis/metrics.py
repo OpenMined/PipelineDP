@@ -48,6 +48,12 @@ class SumMetrics:
     noise_kind: pipeline_dp.NoiseKind
 
 
+@dataclass
+class PerPartitionUtility:
+    partition_selection_probability_to_keep: float
+    metric_errors: Optional[List[SumMetrics]] = None
+
+
 class AggregateMetricType(Enum):
     PRIVACY_ID_COUNT = 'privacy_id_count'
     COUNT = 'count'
@@ -305,11 +311,11 @@ class MetricUtility:
 
 
 @dataclass
-class PrivatePartitionSelectionUtility:
+class PrivatePartitionSelectionMetrics:
     """Stores aggregate metrics about partition selection."""
 
-    strategy: pipeline_dp.PartitionSelectionStrategy
-    num_partitions: float
+    strategy: Optional[pipeline_dp.PartitionSelectionStrategy]
+    num_partitions: int
     dropped_partitions: MeanVariance
     ratio_dropped_data: float
 
@@ -329,4 +335,4 @@ class UtilityReport:
 
     metric_errors: Optional[List[MetricUtility]] = None
     partition_selection_metrics: Optional[
-        PrivatePartitionSelectionUtility] = None
+        PrivatePartitionSelectionMetrics] = None
