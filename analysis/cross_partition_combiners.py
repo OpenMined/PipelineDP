@@ -12,12 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Utility Analysis cross partition combiners."""
-import copy
-import dataclasses
-
 import pipeline_dp
 from analysis import metrics
-from typing import Optional
+from typing import List, Optional, Tuple
 import math
 
 
@@ -76,7 +73,7 @@ def _sum_metrics_to_metric_utility(
         dp_metric: metric for which utility is computed (e.g. COUNT)
         partition_keep_probability: partition selection probability.
     """
-    assert dp_metric != pipeline_dp.Metrics.SUM, "Cross-partition metrics are not implemented for Sum"
+    assert dp_metric != pipeline_dp.Metrics.SUM, "Cross-partition metrics are not implemented for SUM"
     # The next line does not work for SUM because the user can contribute 0.
     is_empty_public = sum_metrics.sum == 0
     data_dropped = _sum_metrics_to_data_dropped(sum_metrics, dp_metric)
@@ -94,3 +91,15 @@ def _sum_metrics_to_metric_utility(
         ratio_data_dropped=data_dropped,
         absolute_error=absolute_error,
         relative_error=relative_error)
+
+
+def _partition_selection_per_to_cross_partition(
+        prob_keep: float) -> metrics.PrivatePartitionSelectionMetrics:
+    """Creates cross-partition partition selection metrics from keep probability for 1 partition."""
+    return metrics.PrivatePartitionSelectionMetrics(
+        strategy=None,
+        num_partitions=1,
+        dropped_partitions=metrics.MeanVariance(mean=prob_keep,
+                                                var=prob_keep *
+                                                (1 - prob_keep)),
+        ratio_dropped_data=0)  # todo(dvadym): implement ratio_dropped_data
