@@ -180,7 +180,7 @@ def _merge_metric_utility(utility1: metrics.MetricUtility,
 
 
 def _merge_utility_reports(report1: metrics.UtilityReport,
-                           report2: metrics.UtilityReport):
+                           report2: metrics.UtilityReport) -> None:
     """Merges cross-partition utility reports.
 
     Warning: it modifies 'report1' argument.
