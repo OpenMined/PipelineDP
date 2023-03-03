@@ -120,5 +120,76 @@ class DataclassHelpersTests(parameterized.TestCase):
         self.assertEqual(dataclass_object, exptected_output)
 
 
+class MergeMetricsTests(parameterized.TestCase):
+
+    @classmethod
+    def get_partition_selection_metrics(
+            cls, coef: int) -> metrics.PrivatePartitionSelectionMetrics:
+        return metrics.PrivatePartitionSelectionMetrics(
+            strategy=None,
+            num_partitions=coef,
+            dropped_partitions=metrics.MeanVariance(2 * coef, 3 * coef),
+            ratio_dropped_data=0)
+
+    @classmethod
+    def get_metric_utility(cls, coef: int) -> metrics.MetricUtility:
+        """Returns MetricUtility with numerical fields proportional to 'coef'"""
+        get_mean_var = lambda: metrics.MeanVariance(coef, 2 * coef)
+        get_bounding_errors = lambda: metrics.ContributionBoundingErrors(
+            l0=get_mean_var(), linf_min=3 * coef, linf_max=4 * coef)
+        get_value_errors = lambda: metrics.ValueErrors(
+            bounding_errors=get_bounding_errors(),
+            mean=5 * coef,
+            variance=6 * coef,
+            rmse=7 * coef,
+            l1=8 * coef,
+            rmse_with_dropped_partitions=9 * coef,
+            l1_with_dropped_partitions=10 * coef)
+        noise_std = 1000  # it's not merged, that's why not multiplied by coef.
+        return metrics.MetricUtility(
+            metric=pipeline_dp.Metrics.COUNT,
+            num_dataset_partitions=101 * coef,
+            num_non_public_partitions=102 * coef,
+            num_empty_partitions=103 * coef,
+            noise_std=noise_std,
+            noise_kind=pipeline_dp.NoiseKind.LAPLACE,
+            ratio_data_dropped=None,
+            absolute_error=get_value_errors(),
+            relative_error=get_value_errors().to_relative(10.0))
+
+    @classmethod
+    def get_utility_report(cls, coef: int) -> metrics.UtilityReport:
+        return metrics.UtilityReport(
+            input_aggregate_params=None,
+            metric_errors=[
+                cls.get_metric_utility(coef=coef),
+                cls.get_metric_utility(coef=2 * coef)
+            ],
+            partition_selection_metrics=cls.get_partition_selection_metrics(
+                coef=3 * coef))
+
+    def test_merge_partition_selection_utilities(self):
+        utility1 = self.get_partition_selection_metrics(coef=1)
+        utility2 = self.get_partition_selection_metrics(coef=2)
+        expected_utility = self.get_partition_selection_metrics(coef=3)
+        cross_partition_combiners._merge_partition_selection_metrics(
+            utility1, utility2)
+        self.assertEqual(utility1, expected_utility)
+
+    def test_merge_metric_utility(self):
+        utility1 = self.get_metric_utility(coef=2)
+        utility2 = self.get_metric_utility(coef=3)
+        expected = self.get_metric_utility(coef=5)
+        cross_partition_combiners._merge_metric_utility(utility1, utility2)
+        self.assertEqual(utility1, expected)
+
+    def test_merge_utility_reports(self):
+        report1 = self.get_utility_report(coef=2)
+        report2 = self.get_utility_report(coef=5)
+        expected_report = self.get_utility_report(coef=7)
+        cross_partition_combiners._merge_utility_reports(report1, report2)
+        self.assertEqual(report1, expected_report)
+
+
 if __name__ == '__main__':
     absltest.main()
