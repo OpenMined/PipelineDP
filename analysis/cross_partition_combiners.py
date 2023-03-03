@@ -159,13 +159,13 @@ def _per_partition_to_cross_partition_utility(
         dp_metrics: List[pipeline_dp.Metrics],
         public_partitions: bool) -> metrics.UtilityReport:
     """Converts per-partition to cross-partition utility metrics."""
-    # Partition selection
+    # Fill partition selection metrics.
     prob_to_keep = per_partition_utility.partition_selection_probability_to_keep
     partition_selection_utility = None
     if not public_partitions:
         partition_selection_utility = _partition_selection_per_to_cross_partition(
             prob_to_keep)
-    # Metric errors
+    # Fill metric errors.
     metric_errors = None
     if dp_metrics:
         metric_errors = []
