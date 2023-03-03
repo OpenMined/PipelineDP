@@ -131,6 +131,8 @@ def _add_dataclasses_by_fields(dataclass1, dataclass2,
         if field.name in fields_to_ignore:
             continue
         value1 = getattr(dataclass1, field.name)
+        if value1 is None:
+            continue
         value2 = getattr(dataclass2, field.name)
         if dataclasses.is_dataclass(value1):
             _add_dataclasses_by_fields(value1, value2, fields_to_ignore)
@@ -138,10 +140,10 @@ def _add_dataclasses_by_fields(dataclass1, dataclass2,
         setattr(dataclass1, field.name, value1 + value2)
 
 
-def _multiply_float_dataclasses_field(dataclass, factor: float):
-    """Recursively multiply all float fields of the dataclass by given number.
+def _multiply_float_dataclasses_field(dataclass, factor: float) -> None:
+    """Recursively multiplies all float fields of the dataclass by given number.
 
-    Warning: it modifies dataclass.
+    Warning: it modifies 'dataclass' argument.
     """
     fields = dataclasses.fields(dataclass)
     for field in fields:
@@ -179,4 +181,42 @@ def _per_partition_to_cross_partition_utility(
     return metrics.UtilityReport(
         input_aggregate_params=None,
         partition_selection=partition_selection_utility,
-        metric=metric_errors)
+        metric_errors=metric_errors)
+
+
+def _merge_partition_selection_metrics(
+        utility1: metrics.PrivatePartitionSelectionMetrics,
+        utility2: metrics.PrivatePartitionSelectionMetrics) -> None:
+    """Merges cross-partition utility metrics.
+
+    Warning: it modifies 'utility1' argument.
+    """
+    utility1.num_partitions += utility2.num_partitions
+    utility1.dropped_partitions.mean += utility2.dropped_partitions.mean
+    utility1.dropped_partitions.var += utility2.dropped_partitions.var
+    # todo(dvadym): implement for ratio_dropped_data
+
+
+def _merge_metric_utility(utility1: metrics.MetricUtility,
+                          utility2: metrics.MetricUtility) -> None:
+    """Merges cross-partition metric utilities.
+
+    Warning: it modifies 'utility1' argument.
+    """
+    _add_dataclasses_by_fields(utility1, utility2,
+                               ["metric", "noise_std", "noise_kind"])
+
+
+def _merge_utility_reports(report1: metrics.UtilityReport,
+                           report2: metrics.UtilityReport) -> None:
+    """Merges cross-partition utility reports.
+
+    Warning: it modifies 'report1' argument.
+    """
+    _merge_partition_selection_metrics(report1.partition_selection,
+                                       report2.partition_selection)
+    if report1.metric_errors is None:
+        return
+    assert len(report1.metric_errors) == len(report2.metric_errors)
+    for utility1, utility2 in zip(report1.metric_errors, report2.metric_errors):
+        _merge_metric_utility(utility1, utility2)

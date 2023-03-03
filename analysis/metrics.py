@@ -331,7 +331,7 @@ class UtilityReport:
         metric_errors: utility analysis of metrics (e.g. COUNT, SUM,
           PRIVACY_ID_COUNT).
     """
-    input_aggregate_params: pipeline_dp.AggregateParams
+    input_aggregate_params: Optional[pipeline_dp.AggregateParams]
 
     partition_selection: Optional[PrivatePartitionSelectionMetrics] = None
-    metric: Optional[List[MetricUtility]] = None
+    metric_errors: Optional[List[MetricUtility]] = None
