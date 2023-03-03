@@ -87,7 +87,7 @@ class PerPartitionToCrossPartitionMetrics(parameterized.TestCase):
     def test_per_partition_to_cross_partition_utility(
             self, public_partitions: bool, mock_sum_metrics_to_metric_utility,
             mock_partition_selection_per_to_cross_partition):
-        per_partition_utility = metrics.PerPartitionUtilityMetrics(
+        per_partition_utility = metrics.PerPartitionMetrics(
             0.2, metric_errors=[self.get_sum_metrics(),
                                 self.get_sum_metrics()])
         dp_metrics = [
@@ -110,8 +110,8 @@ class PerPartitionToCrossPartitionMetrics(parameterized.TestCase):
     def test_per_partition_to_cross_partition_utility_only_partition_selection(
             self, mock_sum_metrics_to_metric_utility,
             mock_partition_selection_per_to_cross_partition):
-        per_partition_utility = metrics.PerPartitionUtilityMetrics(
-            0.5, metric_errors=None)
+        per_partition_utility = metrics.PerPartitionMetrics(0.5,
+                                                            metric_errors=None)
         output = cross_partition_combiners._per_partition_to_cross_partition_utility(
             per_partition_utility, [], public_partitions=False)
 

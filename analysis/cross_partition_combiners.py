@@ -155,7 +155,7 @@ def _multiply_float_dataclasses_field(dataclass, factor: float):
 
 
 def _per_partition_to_cross_partition_utility(
-        per_partition_utility: metrics.PerPartitionUtilityMetrics,
+        per_partition_utility: metrics.PerPartitionMetrics,
         dp_metrics: List[pipeline_dp.Metrics],
         public_partitions: bool) -> metrics.UtilityReport:
     """Converts per-partition to cross-partition utility metrics."""
@@ -168,8 +168,8 @@ def _per_partition_to_cross_partition_utility(
     # Fill metric errors.
     metric_errors = None
     if dp_metrics:
-        metric_errors = []
         assert len(per_partition_utility.metric_errors) == len(dp_metrics)
+        metric_errors = []
         for metric_error, dp_metric in zip(per_partition_utility.metric_errors,
                                            dp_metrics):
             metric_errors.append(

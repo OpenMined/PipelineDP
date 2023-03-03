@@ -49,7 +49,7 @@ class SumMetrics:
 
 
 @dataclass
-class PerPartitionUtilityMetrics:
+class PerPartitionMetrics:
     partition_selection_probability_to_keep: float
     metric_errors: Optional[List[SumMetrics]] = None
 
