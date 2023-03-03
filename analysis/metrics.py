@@ -49,7 +49,7 @@ class SumMetrics:
 
 
 @dataclass
-class PerPartitionUtility:
+class PerPartitionMetrics:
     partition_selection_probability_to_keep: float
     metric_errors: Optional[List[SumMetrics]] = None
 
@@ -327,12 +327,11 @@ class UtilityReport:
     Attributes:
         input_aggregate_params: input parameters for which this utility analysis
           was computed.
+        partition_selection_metrics: utility analysis of selected partition.
         metric_errors: utility analysis of metrics (e.g. COUNT, SUM,
           PRIVACY_ID_COUNT).
-        partition_selection_metrics: utility analysis of selected partition.
     """
     input_aggregate_params: pipeline_dp.AggregateParams
 
-    metric_errors: Optional[List[MetricUtility]] = None
-    partition_selection_metrics: Optional[
-        PrivatePartitionSelectionMetrics] = None
+    partition_selection: Optional[PrivatePartitionSelectionMetrics] = None
+    metric: Optional[List[MetricUtility]] = None

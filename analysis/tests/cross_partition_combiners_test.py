@@ -12,11 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Tests for cross-partition utility analysis combiners."""
-import dataclasses
-
 from absl.testing import absltest
 from absl.testing import parameterized
+import dataclasses
 import math
+import unittest.mock
+from unittest.mock import patch
 
 from analysis import metrics
 from analysis import cross_partition_combiners
@@ -77,6 +78,49 @@ class PerPartitionToCrossPartitionMetrics(parameterized.TestCase):
         self.assertEqual(output.num_partitions, 1)
         self.assertEqual(output.dropped_partitions,
                          metrics.MeanVariance(0.25, 0.25 * 0.75))
+
+    @parameterized.parameters(False, True)
+    @patch(
+        "analysis.cross_partition_combiners._partition_selection_per_to_cross_partition"
+    )
+    @patch("analysis.cross_partition_combiners._sum_metrics_to_metric_utility")
+    def test_per_partition_to_cross_partition_utility(
+            self, public_partitions: bool, mock_sum_metrics_to_metric_utility,
+            mock_partition_selection_per_to_cross_partition):
+        per_partition_utility = metrics.PerPartitionMetrics(
+            0.2, metric_errors=[self.get_sum_metrics(),
+                                self.get_sum_metrics()])
+        dp_metrics = [
+            pipeline_dp.Metrics.PRIVACY_ID_COUNT, pipeline_dp.Metrics.COUNT
+        ]
+        output = cross_partition_combiners._per_partition_to_cross_partition_utility(
+            per_partition_utility, dp_metrics, public_partitions)
+        if public_partitions:
+            mock_partition_selection_per_to_cross_partition.assert_not_called()
+        else:
+            mock_partition_selection_per_to_cross_partition.assert_called_once_with(
+                0.2)
+
+        self.assertEqual(mock_sum_metrics_to_metric_utility.call_count, 2)
+
+    @patch(
+        "analysis.cross_partition_combiners._partition_selection_per_to_cross_partition"
+    )
+    @patch("analysis.cross_partition_combiners._sum_metrics_to_metric_utility")
+    def test_per_partition_to_cross_partition_utility_only_partition_selection(
+            self, mock_sum_metrics_to_metric_utility,
+            mock_partition_selection_per_to_cross_partition):
+        per_partition_utility = metrics.PerPartitionMetrics(0.5,
+                                                            metric_errors=None)
+        output = cross_partition_combiners._per_partition_to_cross_partition_utility(
+            per_partition_utility, [], public_partitions=False)
+
+        self.assertIsNone(output.metric)
+        self.assertIsInstance(output.partition_selection,
+                              unittest.mock.MagicMock)
+        mock_sum_metrics_to_metric_utility.assert_not_called()
+        mock_partition_selection_per_to_cross_partition.assert_called_once_with(
+            0.5)
 
 
 # Dataclasses for DataclassHelpersTests
