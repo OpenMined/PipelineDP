@@ -141,7 +141,7 @@ def _add_dataclasses_by_fields(dataclass1, dataclass2,
 
 
 def _multiply_float_dataclasses_field(dataclass, factor: float) -> None:
-    """Recursively multiply all float fields of the dataclass by given number.
+    """Recursively multiplies all float fields of the dataclass by given number.
 
     Warning: it modifies 'dataclass' argument.
     """
