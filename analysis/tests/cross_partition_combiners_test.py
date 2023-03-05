@@ -72,6 +72,15 @@ class PerPartitionToCrossPartitionMetrics(parameterized.TestCase):
             input, pipeline_dp.Metrics.COUNT, partition_keep_probability=1.0)
         self.assertEqual(output.num_empty_partitions, 1)
 
+    @parameterized.parameters(False, True)
+    def test_create_partition_metrics_for_public_partitions(
+            self, is_empty_partition):
+        output: metrics.PartitionMetrics = cross_partition_combiners._create_partition_metrics_for_public_partitions(
+            is_empty_partition)
+        self.assertTrue(output.public_partitions)
+        self.assertEqual(output.num_non_public_partitions, 0)
+        self.assertEqual(output.num_dataset_partitions, 0)
+
     def test_partition_selection_per_to_cross_partition(self):
         output = cross_partition_combiners._partition_selection_per_to_cross_partition(
             0.25)

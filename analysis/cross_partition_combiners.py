@@ -97,10 +97,15 @@ def _sum_metrics_to_metric_utility(
 
 def _create_partition_metrics_for_public_partitions(
         is_empty_partition: bool) -> metrics.PartitionMetrics:
-    return metrics.PartitionMetrics(public_partitions=True,
-                                    num_dataset_partitions=0,
-                                    num_non_public_partitions=0,
-                                    num_empty_partitions=0)
+    result = metrics.PartitionMetrics(public_partitions=True,
+                                      num_dataset_partitions=0,
+                                      num_non_public_partitions=0,
+                                      num_empty_partitions=0)
+    if is_empty_partition:
+        result.num_empty_partitions = 1
+    else:
+        result.num_dataset_partitions = 1
+    return result
 
 
 def _create_partition_metrics_for_private_partitions(
