@@ -486,3 +486,88 @@ def compute_dp_sum_noise_std(dp_params: ScalarNoiseParams) -> float:
     linf_sensitivity = max(abs(dp_params.min_sum_per_partition),
                            abs(dp_params.max_sum_per_partition))
     return _compute_noise_std(linf_sensitivity, dp_params)
+
+
+import abc
+import math
+
+
+class AdditiveMechanism(abc.ABC):
+
+    @abc.abstractmethod
+    def add_noise(self, value: float) -> float:
+        pass
+
+    @abc.abstractmethod
+    @property
+    def noise_kind(self) -> pipeline_dp.NoiseKind:
+        pass
+
+    @abc.abstractmethod
+    @property
+    def std(self) -> float:
+        pass
+
+    @abc.abstractmethod
+    @property
+    def noise_parameter(self) -> float:
+        pass
+
+    @abc.abstractmethod
+    @property
+    def sensitivity(self) -> float:
+        pass
+
+
+class LaplaceMechanism(AdditiveMechanism):
+
+    def __init__(self, epsilon: float, l1_sensitivity: float):
+        self._l1_sensitivity = l1_sensitivity
+        self._mechanism = dp_mechanisms.LaplaceMechanism(
+            epsilon=epsilon, sensitivity=l1_sensitivity)
+
+    def add_noise(self, value: float) -> float:
+        return self._mechanism.add_noise(1.0 * value)
+
+    @property
+    def noise_kind(self) -> pipeline_dp.NoiseKind:
+        return pipeline_dp.NoiseKind.LAPLACE
+
+    @property
+    def std(self) -> float:
+        return self._l1_sensitivity * math.sqrt(2)
+
+    @property
+    def noise_parameter(self) -> float:
+        return None  # todo
+
+    @property
+    def sensitivity(self) -> float:
+        return self._l1_sensitivity
+
+
+@dataclass
+class Sensitivities:
+    L0: Optional[int] = None
+    Linf: Optional[float] = None
+    L1: Optional[float] = None
+    L2: Optional[float] = None
+
+
+@dataclass
+class AdditiveMechanismSpec:
+    epsilon: float
+    delta: float
+    noise_kind: pipeline_dp.NoiseKind
+
+
+# todo add Gaussian
+def create_additive_mechanism(
+        spec: AdditiveMechanismSpec,
+        sensitivities: Sensitivities) -> AdditiveMechanism:
+    if spec.noise_kind == pipeline_dp.NoiseKind.LAPLACE:
+        l1_sensitivity = sensitivities.L1
+        if l1_sensitivity is None:
+            l1_sensitivity = sensitivities.L0 * sensitivities.Linf
+            # throw exception
+        return LaplaceMechanism(spec.epsilon, l1_sensitivity)
