@@ -50,7 +50,7 @@ class SumMetrics:
 
 @dataclass
 class PerPartitionMetrics:
-    partition_selection_probability_to_keep: float
+    probability_to_keep: float  # todo: add comment
     metric_errors: Optional[List[SumMetrics]] = None
 
 
@@ -311,13 +311,20 @@ class MetricUtility:
 
 
 @dataclass
-class PrivatePartitionSelectionMetrics:
+class PartitionMetrics:
     """Stores aggregate metrics about partition selection."""
+    public_partitions: bool
 
-    strategy: Optional[pipeline_dp.PartitionSelectionStrategy]
-    num_partitions: int
-    dropped_partitions: MeanVariance
-    ratio_dropped_data: float
+    # Common
+    num_dataset_partitions: int
+
+    # Public partitions
+    num_non_public_partitions: Optional[int] = None
+    num_empty_partitions: Optional[int] = None
+
+    # Private partition selection
+    strategy: Optional[pipeline_dp.PartitionSelectionStrategy] = None
+    kept_partitions: Optional[MeanVariance] = None
 
 
 @dataclass
@@ -333,5 +340,5 @@ class UtilityReport:
     """
     input_aggregate_params: Optional[pipeline_dp.AggregateParams]
 
-    partition_selection: Optional[PrivatePartitionSelectionMetrics] = None
+    partition_metrics: PartitionMetrics
     metric_errors: Optional[List[MetricUtility]] = None

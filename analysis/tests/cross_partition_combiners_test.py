@@ -93,7 +93,7 @@ class PerPartitionToCrossPartitionMetrics(parameterized.TestCase):
         dp_metrics = [
             pipeline_dp.Metrics.PRIVACY_ID_COUNT, pipeline_dp.Metrics.COUNT
         ]
-        cross_partition_combiners._per_partition_to_cross_partition_utility(
+        cross_partition_combiners._per_partition_to_cross_partition_metrics(
             per_partition_utility, dp_metrics, public_partitions)
         if public_partitions:
             mock_partition_selection_per_to_cross_partition.assert_not_called()
@@ -112,7 +112,7 @@ class PerPartitionToCrossPartitionMetrics(parameterized.TestCase):
             mock_partition_selection_per_to_cross_partition):
         per_partition_utility = metrics.PerPartitionMetrics(0.5,
                                                             metric_errors=None)
-        output = cross_partition_combiners._per_partition_to_cross_partition_utility(
+        output = cross_partition_combiners._per_partition_to_cross_partition_metrics(
             per_partition_utility, [], public_partitions=False)
 
         self.assertIsNone(output.metric_errors)
@@ -216,8 +216,7 @@ class MergeMetricsTests(parameterized.TestCase):
         utility1 = self.get_partition_selection_metrics(coef=1)
         utility2 = self.get_partition_selection_metrics(coef=2)
         expected_utility = self.get_partition_selection_metrics(coef=3)
-        cross_partition_combiners._merge_partition_selection_metrics(
-            utility1, utility2)
+        cross_partition_combiners._merge_partition_metrics(utility1, utility2)
         self.assertEqual(utility1, expected_utility)
 
     def test_merge_metric_utility(self):
