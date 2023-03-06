@@ -83,7 +83,7 @@ def _sum_metrics_to_metric_utility(
         sum_metrics, keep_prob=partition_keep_probability)
     relative_error = absolute_error.to_relative(sum_metrics.sum)
 
-    return metrics.UtilityReport(metric=dp_metric,
+    return metrics.MetricUtility(metric=dp_metric,
                                  noise_std=sum_metrics.std_noise,
                                  noise_kind=sum_metrics.noise_kind,
                                  ratio_data_dropped=data_dropped,
@@ -91,7 +91,7 @@ def _sum_metrics_to_metric_utility(
                                  relative_error=relative_error)
 
 
-def _create_partition_metrics_for_public_partitions(
+def _partition_metrics_public_partitions(
         is_empty_partition: bool) -> metrics.PartitionMetrics:
     result = metrics.PartitionMetrics(public_partitions=True,
                                       num_dataset_partitions=0,
@@ -104,12 +104,12 @@ def _create_partition_metrics_for_public_partitions(
     return result
 
 
-def _create_partition_metrics_for_private_partitions(
+def _partition_metrics_private_partitions(
         prob_keep: float) -> metrics.PartitionMetrics:
     kept_partitions = metrics.MeanVariance(mean=prob_keep,
                                            var=prob_keep * (1 - prob_keep))
     return metrics.PartitionMetrics(public_partitions=False,
-                                    num_partitions=1,
+                                    num_dataset_partitions=1,
                                     kept_partitions=kept_partitions)
 
 
@@ -170,11 +170,12 @@ def _per_partition_to_cross_partition_metrics(
     # Fill partition selection metrics.
     if public_partitions:
         prob_to_keep = 1
-        partition_metrics = _create_partition_metrics_for_public_partitions()
+        is_empty_partition = False  # TODO(dvadym): compute this
+        partition_metrics = _partition_metrics_public_partitions(
+            is_empty_partition)
     else:
-        prob_to_keep = per_partition_utility.probability_to_keep
-        partition_metrics = _create_partition_metrics_for_private_partitions(
-            prob_to_keep)
+        prob_to_keep = per_partition_utility.partition_selection_probability_to_keep
+        partition_metrics = _partition_metrics_private_partitions(prob_to_keep)
     # Fill metric errors.
     metric_errors = None
     if dp_metrics:
@@ -217,8 +218,8 @@ def _merge_utility_reports(report1: metrics.UtilityReport,
 
     Warning: it modifies 'report1' argument.
     """
-    _merge_partition_metrics(report1.partition_selection,
-                             report2.partition_selection)
+    _merge_partition_metrics(report1.partition_metrics,
+                             report2.partition_metrics)
     if report1.metric_errors is None:
         return
     assert len(report1.metric_errors) == len(report2.metric_errors)

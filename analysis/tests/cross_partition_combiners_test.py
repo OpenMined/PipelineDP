@@ -42,8 +42,6 @@ class PerPartitionToCrossPartitionMetrics(parameterized.TestCase):
             input, pipeline_dp.Metrics.COUNT, partition_keep_probability=1.0)
 
         self.assertEqual(output.metric, pipeline_dp.Metrics.COUNT)
-        self.assertEqual(output.num_dataset_partitions, 1)
-        self.assertEqual(output.num_empty_partitions, 0)
         self.assertEqual(output.noise_kind, input.noise_kind)
         self.assertEqual(output.noise_std, input.std_noise)
 
@@ -65,37 +63,38 @@ class PerPartitionToCrossPartitionMetrics(parameterized.TestCase):
         self.assertEqual(output.relative_error, expected_rel_error)
         self.assertAlmostEqual(output.relative_error.mean, -0.4, delta=1e-12)
 
-    def test_metric_utility_empty_partition(self):
-        input = self.get_sum_metrics()
-        input.sum = 0
-        output: metrics.MetricUtility = cross_partition_combiners._sum_metrics_to_metric_utility(
-            input, pipeline_dp.Metrics.COUNT, partition_keep_probability=1.0)
-        self.assertEqual(output.num_empty_partitions, 1)
-
     @parameterized.parameters(False, True)
     def test_create_partition_metrics_for_public_partitions(
             self, is_empty_partition):
-        output: metrics.PartitionMetrics = cross_partition_combiners._create_partition_metrics_for_public_partitions(
+        output: metrics.PartitionMetrics = cross_partition_combiners._partition_metrics_public_partitions(
             is_empty_partition)
         self.assertTrue(output.public_partitions)
         self.assertEqual(output.num_non_public_partitions, 0)
-        self.assertEqual(output.num_dataset_partitions, 0)
+        self.assertEqual(output.num_dataset_partitions,
+                         0 if is_empty_partition else 1)
+        self.assertEqual(output.num_empty_partitions,
+                         1 if is_empty_partition else 0)
 
     def test_partition_selection_per_to_cross_partition(self):
-        output = cross_partition_combiners._partition_selection_per_to_cross_partition(
+        output = cross_partition_combiners._partition_metrics_private_partitions(
             0.25)
-        self.assertEqual(output.num_partitions, 1)
-        self.assertEqual(output.dropped_partitions,
+        self.assertFalse(output.public_partitions)
+        self.assertEqual(output.num_dataset_partitions, 1)
+        self.assertEqual(output.kept_partitions,
                          metrics.MeanVariance(0.25, 0.25 * 0.75))
 
     @parameterized.parameters(False, True)
     @patch(
-        "analysis.cross_partition_combiners._partition_selection_per_to_cross_partition"
+        "analysis.cross_partition_combiners._partition_metrics_public_partitions"
+    )
+    @patch(
+        "analysis.cross_partition_combiners._partition_metrics_private_partitions"
     )
     @patch("analysis.cross_partition_combiners._sum_metrics_to_metric_utility")
     def test_per_partition_to_cross_partition_utility(
             self, public_partitions: bool, mock_sum_metrics_to_metric_utility,
-            mock_partition_selection_per_to_cross_partition):
+            mock_create_for_private_partitions,
+            mock_create_for_public_partitions):
         per_partition_utility = metrics.PerPartitionMetrics(
             0.2, metric_errors=[self.get_sum_metrics(),
                                 self.get_sum_metrics()])
@@ -105,31 +104,34 @@ class PerPartitionToCrossPartitionMetrics(parameterized.TestCase):
         cross_partition_combiners._per_partition_to_cross_partition_metrics(
             per_partition_utility, dp_metrics, public_partitions)
         if public_partitions:
-            mock_partition_selection_per_to_cross_partition.assert_not_called()
+            mock_create_for_public_partitions.assert_called_once_with(False)
+            mock_create_for_private_partitions.assert_not_called()
         else:
-            mock_partition_selection_per_to_cross_partition.assert_called_once_with(
-                0.2)
+            mock_create_for_public_partitions.assert_not_called()
+            mock_create_for_private_partitions.assert_called_once_with(0.2)
 
         self.assertEqual(mock_sum_metrics_to_metric_utility.call_count, 2)
 
     @patch(
-        "analysis.cross_partition_combiners._partition_selection_per_to_cross_partition"
+        "analysis.cross_partition_combiners._partition_metrics_public_partitions"
+    )
+    @patch(
+        "analysis.cross_partition_combiners._partition_metrics_private_partitions"
     )
     @patch("analysis.cross_partition_combiners._sum_metrics_to_metric_utility")
     def test_per_partition_to_cross_partition_utility_only_partition_selection(
-            self, mock_sum_metrics_to_metric_utility,
-            mock_partition_selection_per_to_cross_partition):
+            self, mock_to_metric_utility, mock_create_for_private_partitions,
+            mock_create_for_public_partitions):
         per_partition_utility = metrics.PerPartitionMetrics(0.5,
                                                             metric_errors=None)
         output = cross_partition_combiners._per_partition_to_cross_partition_metrics(
             per_partition_utility, [], public_partitions=False)
 
         self.assertIsNone(output.metric_errors)
-        self.assertIsInstance(output.partition_selection,
-                              unittest.mock.MagicMock)
-        mock_sum_metrics_to_metric_utility.assert_not_called()
-        mock_partition_selection_per_to_cross_partition.assert_called_once_with(
-            0.5)
+        self.assertIsInstance(output.partition_metrics, unittest.mock.MagicMock)
+        mock_to_metric_utility.assert_not_called()
+        mock_create_for_public_partitions.assert_not_called()
+        mock_create_for_private_partitions.assert_called_once_with(0.5)
 
 
 # Dataclasses for DataclassHelpersTests
@@ -176,13 +178,13 @@ class DataclassHelpersTests(parameterized.TestCase):
 class MergeMetricsTests(parameterized.TestCase):
 
     @classmethod
-    def get_partition_selection_metrics(
-            cls, coef: int) -> metrics.PrivatePartitionSelectionMetrics:
-        return metrics.PrivatePartitionSelectionMetrics(
-            strategy=None,
-            num_partitions=coef,
-            dropped_partitions=metrics.MeanVariance(2 * coef, 3 * coef),
-            ratio_dropped_data=0)
+    def get_partition_metrics(cls, coef: int) -> metrics.PartitionMetrics:
+        return metrics.PartitionMetrics(public_partitions=False,
+                                        num_dataset_partitions=coef,
+                                        num_non_public_partitions=2 * coef,
+                                        num_empty_partitions=3 * coef,
+                                        kept_partitions=metrics.MeanVariance(
+                                            4 * coef, 5 * coef))
 
     @classmethod
     def get_metric_utility(cls, coef: int) -> metrics.MetricUtility:
@@ -201,9 +203,6 @@ class MergeMetricsTests(parameterized.TestCase):
         noise_std = 1000  # it's not merged, that's why not multiplied by coef.
         return metrics.MetricUtility(
             metric=pipeline_dp.Metrics.COUNT,
-            num_dataset_partitions=101 * coef,
-            num_non_public_partitions=102 * coef,
-            num_empty_partitions=103 * coef,
             noise_std=noise_std,
             noise_kind=pipeline_dp.NoiseKind.LAPLACE,
             ratio_data_dropped=None,
@@ -218,15 +217,14 @@ class MergeMetricsTests(parameterized.TestCase):
                 cls.get_metric_utility(coef=coef),
                 cls.get_metric_utility(coef=2 * coef)
             ],
-            partition_selection=cls.get_partition_selection_metrics(coef=3 *
-                                                                    coef))
+            partition_metrics=cls.get_partition_metrics(coef=3 * coef))
 
     def test_merge_partition_selection_utilities(self):
-        utility1 = self.get_partition_selection_metrics(coef=1)
-        utility2 = self.get_partition_selection_metrics(coef=2)
-        expected_utility = self.get_partition_selection_metrics(coef=3)
-        cross_partition_combiners._merge_partition_metrics(utility1, utility2)
-        self.assertEqual(utility1, expected_utility)
+        metrics1 = self.get_partition_metrics(coef=1)
+        metrics2 = self.get_partition_metrics(coef=2)
+        expected_utility = self.get_partition_metrics(coef=3)
+        cross_partition_combiners._merge_partition_metrics(metrics1, metrics2)
+        self.assertEqual(metrics1, expected_utility)
 
     def test_merge_metric_utility(self):
         utility1 = self.get_metric_utility(coef=2)
@@ -245,3 +243,7 @@ class MergeMetricsTests(parameterized.TestCase):
 
 if __name__ == '__main__':
     absltest.main()
+
+#
+# self.assertEqual(output.num_dataset_partitions, 1)
+# self.assertEqual(output.num_empty_partitions, 0)
