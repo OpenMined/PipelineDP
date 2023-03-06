@@ -83,16 +83,12 @@ def _sum_metrics_to_metric_utility(
         sum_metrics, keep_prob=partition_keep_probability)
     relative_error = absolute_error.to_relative(sum_metrics.sum)
 
-    return metrics.MetricUtility(
-        metric=dp_metric,
-        num_dataset_partitions=1,
-        num_non_public_partitions=0,  # todo(dvadym): to implement it.
-        num_empty_partitions=1 if is_empty_public else 0,
-        noise_std=sum_metrics.std_noise,
-        noise_kind=sum_metrics.noise_kind,
-        ratio_data_dropped=data_dropped,
-        absolute_error=absolute_error,
-        relative_error=relative_error)
+    return metrics.UtilityReport(metric=dp_metric,
+                                 noise_std=sum_metrics.std_noise,
+                                 noise_kind=sum_metrics.noise_kind,
+                                 ratio_data_dropped=data_dropped,
+                                 absolute_error=absolute_error,
+                                 relative_error=relative_error)
 
 
 def _create_partition_metrics_for_public_partitions(

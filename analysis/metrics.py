@@ -50,7 +50,7 @@ class SumMetrics:
 
 @dataclass
 class PerPartitionMetrics:
-    probability_to_keep: float  # todo: add comment
+    partition_selection_probability_to_keep: float
     metric_errors: Optional[List[SumMetrics]] = None
 
 
@@ -282,11 +282,6 @@ class MetricUtility:
 
     Attributes:
         metric: DP metric for which this analysis was performed.
-        num_dataset_partitions: the number of partitions in dataset.
-        num_non_public_partitions: the number of partitions dropped because
-          of public partitions.
-        num_empty_partitions: the number of empty partitions added because of
-          public partitions.
         noise_std: the standard deviation of added noise.
         noise_kind: the noise kind (Laplace or Gaussian)
         ratio_data_dropped: the information about dropped data.
@@ -294,9 +289,6 @@ class MetricUtility:
         relative_error: error in terms of (dp_value - actual_value)/actual_value.
     """
     metric: pipeline_dp.Metrics
-    num_dataset_partitions: int
-    num_non_public_partitions: int
-    num_empty_partitions: int
 
     # Noise information.
     noise_std: float
@@ -312,7 +304,19 @@ class MetricUtility:
 
 @dataclass
 class PartitionMetrics:
-    """Stores aggregate metrics about partition selection."""
+    """Stores aggregate metrics about partitions ans partition selection.
+
+    Attributes:
+        public_partitions: true if public partitinos are used.
+        num_dataset_partitions: the number of partitions in dataset.
+        num_non_public_partitions: the number of partitions dropped because
+          of public partitions.
+        num_empty_partitions: the number of empty partitions added because of
+          public partitions.
+        strategy: Private partition selection strategy. None if public
+          partitions are used.
+        kept_partitions: Mean and Variance of the number of kept partitions.
+    """
     public_partitions: bool
 
     # Common
