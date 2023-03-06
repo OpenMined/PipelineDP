@@ -229,11 +229,12 @@ def _merge_utility_reports(report1: metrics.UtilityReport,
 
 def _normalize_utility_report(report: metrics.UtilityReport,
                               denominator: float):
+    """Averages all float fields of 'report' by dividing by 'denominator'"""
     _multiply_float_dataclasses_field(report, 1.0 / denominator)
 
 
-class CrossPartitionCompoundCombiner(pipeline_dp.combiners.Combiner):
-    """A compound combiner for aggregating error metrics across partitions"""
+class CrossPartitionCombiner(pipeline_dp.combiners.Combiner):
+    """A combiner for aggregating error metrics across partitions"""
 
     def __init__(self, dp_metrics: List[pipeline_dp.Metrics],
                  public_partitions: bool):
@@ -256,8 +257,13 @@ class CrossPartitionCompoundCombiner(pipeline_dp.combiners.Combiner):
     def compute_metrics(self,
                         report: metrics.UtilityReport) -> metrics.UtilityReport:
         """Normalizes and returns UtilityReport."""
-        expected_num_output_partitions = 1  # todo
-        _normalize_utility_report(report, expected_num_output_partitions)
+        num_output_partitions = 0
+        partitions = report.partition_metrics
+        if self._public_partitions:
+            num_output_partitions = partitions.num_dataset_partitions + partitions.num_empty_partitions
+        else:
+            num_output_partitions = partitions.kept_partitions.mean
+        _normalize_utility_report(report, num_output_partitions)
         return report
 
     def metrics_names(self):
