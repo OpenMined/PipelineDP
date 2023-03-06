@@ -101,7 +101,7 @@ class PerPartitionToCrossPartitionMetrics(parameterized.TestCase):
         dp_metrics = [
             pipeline_dp.Metrics.PRIVACY_ID_COUNT, pipeline_dp.Metrics.COUNT
         ]
-        cross_partition_combiners._per_partition_to_cross_partition_metrics(
+        cross_partition_combiners._per_partition_to_utility_report(
             per_partition_utility, dp_metrics, public_partitions)
         if public_partitions:
             mock_create_for_public_partitions.assert_called_once_with(False)
@@ -124,7 +124,7 @@ class PerPartitionToCrossPartitionMetrics(parameterized.TestCase):
             mock_create_for_public_partitions):
         per_partition_utility = metrics.PerPartitionMetrics(0.5,
                                                             metric_errors=None)
-        output = cross_partition_combiners._per_partition_to_cross_partition_metrics(
+        output = cross_partition_combiners._per_partition_to_utility_report(
             per_partition_utility, [], public_partitions=False)
 
         self.assertIsNone(output.metric_errors)
@@ -257,18 +257,17 @@ class CrossPartitionCombiner(parameterized.TestCase):
             utility_report.partition_metrics.num_dataset_partitions, 1)
         self.assertLen(utility_report.metric_errors, 1)
 
-    @patch(
-        "analysis.cross_partition_combiners._per_partition_to_cross_partition_metrics"
-    )
-    def test_create_report_with_mocks(
-            self, mock_per_partition_to_cross_partition_metrics):
+    @patch("analysis.cross_partition_combiners._per_partition_to_utility_report"
+          )
+    def test_create_report_with_mocks(self,
+                                      mock_per_partition_to_utility_report):
         combiner = self._create_combiner()
         per_partition_metrics = metrics.PerPartitionMetrics(
             0.2, metric_errors=[_get_sum_metrics()])
         combiner.create_accumulator(per_partition_metrics)
         expected_metrics = [pipeline_dp.Metrics.COUNT]
         expected_public_partitions = False
-        mock_per_partition_to_cross_partition_metrics.assert_called_once_with(
+        mock_per_partition_to_utility_report.assert_called_once_with(
             per_partition_metrics, expected_metrics, expected_public_partitions)
 
     def test_create_accumulator(self):
@@ -280,15 +279,16 @@ class CrossPartitionCombiner(parameterized.TestCase):
                          expected_report)
 
     @parameterized.parameters(False, True)
-    @patch("analysis.cross_partition_combiners._normalize_utility_report")
+    @patch(
+        "analysis.cross_partition_combiners._multiply_float_dataclasses_field")
     def test_compute_metrics(self, public_partitions,
-                             mock_normalize_utility_report):
+                             mock_multiply_float_dataclasses_field):
         combiner = self._create_combiner(public_partitions)
         report = _get_utility_report(coef=1)
         combiner.compute_metrics(report)
         expeced_num_output_partitions = 12 if public_partitions else 30
-        mock_normalize_utility_report.assert_called_once_with(
-            report, expeced_num_output_partitions)
+        mock_multiply_float_dataclasses_field.assert_called_once_with(
+            report, 1.0 / expeced_num_output_partitions)
 
 
 if __name__ == '__main__':

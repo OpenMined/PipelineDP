@@ -162,11 +162,11 @@ def _multiply_float_dataclasses_field(dataclass, factor: float) -> None:
             _multiply_float_dataclasses_field(value, factor)
 
 
-def _per_partition_to_cross_partition_metrics(
+def _per_partition_to_utility_report(
         per_partition_utility: metrics.PerPartitionMetrics,
         dp_metrics: List[pipeline_dp.Metrics],
         public_partitions: bool) -> metrics.UtilityReport:
-    """Converts per-partition to cross-partition utility metrics."""
+    """Converts per-partition metrics to cross-partition utility report."""
     # Fill partition selection metrics.
     if public_partitions:
         prob_to_keep = 1
@@ -227,12 +227,6 @@ def _merge_utility_reports(report1: metrics.UtilityReport,
         _merge_metric_utility(utility1, utility2)
 
 
-def _normalize_utility_report(report: metrics.UtilityReport,
-                              denominator: float):
-    """Averages all float fields of 'report' by dividing by 'denominator'"""
-    _multiply_float_dataclasses_field(report, 1.0 / denominator)
-
-
 class CrossPartitionCombiner(pipeline_dp.combiners.Combiner):
     """A combiner for aggregating error metrics across partitions"""
 
@@ -244,8 +238,8 @@ class CrossPartitionCombiner(pipeline_dp.combiners.Combiner):
     def create_accumulator(
             self,
             metrics: metrics.PerPartitionMetrics) -> metrics.UtilityReport:
-        return _per_partition_to_cross_partition_metrics(
-            metrics, self._dp_metrics, self._public_partitions)
+        return _per_partition_to_utility_report(metrics, self._dp_metrics,
+                                                self._public_partitions)
 
     def merge_accumulators(
             self, report1: metrics.UtilityReport,
@@ -256,14 +250,17 @@ class CrossPartitionCombiner(pipeline_dp.combiners.Combiner):
 
     def compute_metrics(self,
                         report: metrics.UtilityReport) -> metrics.UtilityReport:
-        """Normalizes and returns UtilityReport."""
-        num_output_partitions = 0
+        """Returns UtilityReport with final metrics."""
+        # The fields of 'report' contains sums of different quantities (like sum
+        # of errors etc). The output should contain averaged across partitions.
+        # The next lines compute averages by dividing on expected number of
+        # partitions.
         partitions = report.partition_metrics
         if self._public_partitions:
             num_output_partitions = partitions.num_dataset_partitions + partitions.num_empty_partitions
         else:
             num_output_partitions = partitions.kept_partitions.mean
-        _normalize_utility_report(report, num_output_partitions)
+        _multiply_float_dataclasses_field(report, 1.0 / num_output_partitions)
         return report
 
     def metrics_names(self):

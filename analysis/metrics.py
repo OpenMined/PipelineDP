@@ -304,7 +304,7 @@ class MetricUtility:
 
 @dataclass
 class PartitionMetrics:
-    """Stores aggregate metrics about partitions ans partition selection.
+    """Stores aggregate metrics about partitions and partition selection.
 
     Attributes:
         public_partitions: true if public partitinos are used.
