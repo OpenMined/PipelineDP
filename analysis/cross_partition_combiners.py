@@ -16,7 +16,7 @@
 import pipeline_dp
 from analysis import metrics
 import dataclasses
-from typing import List, Optional, Tuple
+from typing import Iterable, List, Optional, Tuple
 import math
 
 
@@ -158,8 +158,12 @@ def _multiply_float_dataclasses_field(dataclass, factor: float) -> None:
             continue
         if field.type is float:
             setattr(dataclass, field.name, value * factor)
-        if dataclasses.is_dataclass(value):
+        elif dataclasses.is_dataclass(value):
             _multiply_float_dataclasses_field(value, factor)
+        elif isinstance(value, Iterable):
+            for v in value:
+                if dataclasses.is_dataclass(v):
+                    _multiply_float_dataclasses_field(v, factor)
 
 
 def _per_partition_to_utility_report(
@@ -187,7 +191,7 @@ def _per_partition_to_utility_report(
                 _sum_metrics_to_metric_utility(metric_error, dp_metric,
                                                prob_to_keep))
 
-    return metrics.UtilityReport(input_aggregate_params=None,
+    return metrics.UtilityReport(configuration_index=-1,
                                  partition_metrics=partition_metrics,
                                  metric_errors=metric_errors)
 

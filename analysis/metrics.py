@@ -334,13 +334,13 @@ class UtilityReport:
     """Stores result of the utility analysis for specific input parameters.
 
     Attributes:
-        input_aggregate_params: input parameters for which this utility analysis
-          was computed.
+        configuration_index: the index of the input parameter configuration for
+          which this report was computed.
         partition_metrics: utility analysis of selected partition.
         metric_errors: utility analysis of metrics (e.g. COUNT, SUM,
           PRIVACY_ID_COUNT).
     """
-    input_aggregate_params: Optional[pipeline_dp.AggregateParams]
+    configuration_index: int
 
     partition_metrics: PartitionsInfo
     metric_errors: Optional[List[MetricUtility]] = None
