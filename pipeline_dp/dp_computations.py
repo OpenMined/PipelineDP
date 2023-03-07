@@ -571,3 +571,37 @@ def create_additive_mechanism(
             l1_sensitivity = sensitivities.L0 * sensitivities.Linf
             # throw exception
         return LaplaceMechanism(spec.epsilon, l1_sensitivity)
+
+
+@dataclass
+class ValuesParams:
+    min_value: float
+    max_value: float
+    max_contributions_per_partition: int
+
+
+@dataclass
+class ContributionBounds:
+    min_value: Optional[float]
+    max_value: Optional[float]
+    min_sum_per_partition: Optional[float]
+    max_sum_per_partition: Optional[float]
+    max_partitions_contributed: int
+    max_contributions_per_partition: Optional[int]
+
+
+class MeanCalculator:
+
+    def __init__(self, spec: AdditiveMechanismSpec,
+                 count_sensitivites: Sensitivities,
+                 sum_sensitivieties: Sensitivities):
+        (count_eps, count_delta), (sum_eps, sum_delta) = equally_split_budget(
+            spec.epsilon, spec.delta, 2)
+        self._count_mechanism = create_additive_mechanism(
+            spec, count_sensitivites)
+        self._sum_mechanism = create_additive_mechanism(spec,
+                                                        sum_sensitivieties)
+
+    def dp_mean(self, count: int, normalized_sum: float):
+        result = self._sum_mechanism.add_noise(
+            normalized_sum) / self._count_mechanism.add_noise(count)
