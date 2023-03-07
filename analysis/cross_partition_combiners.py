@@ -83,28 +83,34 @@ def _sum_metrics_to_metric_utility(
         sum_metrics, keep_prob=partition_keep_probability)
     relative_error = absolute_error.to_relative(sum_metrics.sum)
 
-    return metrics.MetricUtility(
-        metric=dp_metric,
-        num_dataset_partitions=1,
-        num_non_public_partitions=0,  # todo(dvadym): to implement it.
-        num_empty_partitions=1 if is_empty_public else 0,
-        noise_std=sum_metrics.std_noise,
-        noise_kind=sum_metrics.noise_kind,
-        ratio_data_dropped=data_dropped,
-        absolute_error=absolute_error,
-        relative_error=relative_error)
+    return metrics.MetricUtility(metric=dp_metric,
+                                 noise_std=sum_metrics.std_noise,
+                                 noise_kind=sum_metrics.noise_kind,
+                                 ratio_data_dropped=data_dropped,
+                                 absolute_error=absolute_error,
+                                 relative_error=relative_error)
 
 
-def _partition_selection_per_to_cross_partition(
-        prob_keep: float) -> metrics.PrivatePartitionSelectionMetrics:
-    """Creates cross-partition partition selection metrics from keep probability for 1 partition."""
-    return metrics.PrivatePartitionSelectionMetrics(
-        strategy=None,
-        num_partitions=1,
-        dropped_partitions=metrics.MeanVariance(mean=prob_keep,
-                                                var=prob_keep *
-                                                (1 - prob_keep)),
-        ratio_dropped_data=0)  # todo(dvadym): implement ratio_dropped_data
+def _partition_metrics_public_partitions(
+        is_empty_partition: bool) -> metrics.PartitionsInfo:
+    result = metrics.PartitionsInfo(public_partitions=True,
+                                    num_dataset_partitions=0,
+                                    num_non_public_partitions=0,
+                                    num_empty_partitions=0)
+    if is_empty_partition:
+        result.num_empty_partitions = 1
+    else:
+        result.num_dataset_partitions = 1
+    return result
+
+
+def _partition_metrics_private_partitions(
+        prob_keep: float) -> metrics.PartitionsInfo:
+    kept_partitions = metrics.MeanVariance(mean=prob_keep,
+                                           var=prob_keep * (1 - prob_keep))
+    return metrics.PartitionsInfo(public_partitions=False,
+                                  num_dataset_partitions=1,
+                                  kept_partitions=kept_partitions)
 
 
 def _add_dataclasses_by_fields(dataclass1, dataclass2,
@@ -156,17 +162,20 @@ def _multiply_float_dataclasses_field(dataclass, factor: float) -> None:
             _multiply_float_dataclasses_field(value, factor)
 
 
-def _per_partition_to_cross_partition_utility(
+def _per_partition_to_utility_report(
         per_partition_utility: metrics.PerPartitionMetrics,
         dp_metrics: List[pipeline_dp.Metrics],
         public_partitions: bool) -> metrics.UtilityReport:
-    """Converts per-partition to cross-partition utility metrics."""
+    """Converts per-partition metrics to cross-partition utility report."""
     # Fill partition selection metrics.
-    prob_to_keep = per_partition_utility.partition_selection_probability_to_keep
-    partition_selection_utility = None
-    if not public_partitions:
-        partition_selection_utility = _partition_selection_per_to_cross_partition(
-            prob_to_keep)
+    if public_partitions:
+        prob_to_keep = 1
+        is_empty_partition = False  # TODO(dvadym): compute this
+        partition_metrics = _partition_metrics_public_partitions(
+            is_empty_partition)
+    else:
+        prob_to_keep = per_partition_utility.partition_selection_probability_to_keep
+        partition_metrics = _partition_metrics_private_partitions(prob_to_keep)
     # Fill metric errors.
     metric_errors = None
     if dp_metrics:
@@ -178,23 +187,19 @@ def _per_partition_to_cross_partition_utility(
                 _sum_metrics_to_metric_utility(metric_error, dp_metric,
                                                prob_to_keep))
 
-    return metrics.UtilityReport(
-        input_aggregate_params=None,
-        partition_selection=partition_selection_utility,
-        metric_errors=metric_errors)
+    return metrics.UtilityReport(input_aggregate_params=None,
+                                 partition_metrics=partition_metrics,
+                                 metric_errors=metric_errors)
 
 
-def _merge_partition_selection_metrics(
-        utility1: metrics.PrivatePartitionSelectionMetrics,
-        utility2: metrics.PrivatePartitionSelectionMetrics) -> None:
+def _merge_partition_metrics(metrics1: metrics.PartitionsInfo,
+                             metrics2: metrics.PartitionsInfo) -> None:
     """Merges cross-partition utility metrics.
 
-    Warning: it modifies 'utility1' argument.
+    Warning: it modifies 'metrics1' argument.
     """
-    utility1.num_partitions += utility2.num_partitions
-    utility1.dropped_partitions.mean += utility2.dropped_partitions.mean
-    utility1.dropped_partitions.var += utility2.dropped_partitions.var
-    # todo(dvadym): implement for ratio_dropped_data
+    _add_dataclasses_by_fields(metrics1, metrics2,
+                               ["public_partitions", "strategy"])
 
 
 def _merge_metric_utility(utility1: metrics.MetricUtility,
@@ -213,10 +218,53 @@ def _merge_utility_reports(report1: metrics.UtilityReport,
 
     Warning: it modifies 'report1' argument.
     """
-    _merge_partition_selection_metrics(report1.partition_selection,
-                                       report2.partition_selection)
+    _merge_partition_metrics(report1.partition_metrics,
+                             report2.partition_metrics)
     if report1.metric_errors is None:
         return
     assert len(report1.metric_errors) == len(report2.metric_errors)
     for utility1, utility2 in zip(report1.metric_errors, report2.metric_errors):
         _merge_metric_utility(utility1, utility2)
+
+
+class CrossPartitionCombiner(pipeline_dp.combiners.Combiner):
+    """A combiner for aggregating error metrics across partitions"""
+
+    def __init__(self, dp_metrics: List[pipeline_dp.Metrics],
+                 public_partitions: bool):
+        self._dp_metrics = dp_metrics
+        self._public_partitions = public_partitions
+
+    def create_accumulator(
+            self,
+            metrics: metrics.PerPartitionMetrics) -> metrics.UtilityReport:
+        return _per_partition_to_utility_report(metrics, self._dp_metrics,
+                                                self._public_partitions)
+
+    def merge_accumulators(
+            self, report1: metrics.UtilityReport,
+            report2: metrics.UtilityReport) -> metrics.UtilityReport:
+        """Merges UtilityReports."""
+        _merge_utility_reports(report1, report2)
+        return report1
+
+    def compute_metrics(self,
+                        report: metrics.UtilityReport) -> metrics.UtilityReport:
+        """Returns UtilityReport with final metrics."""
+        # The fields of 'report' contains sums of different quantities (like sum
+        # of errors etc). The output should contain averaged across partitions.
+        # The next lines compute averages by dividing on expected number of
+        # partitions.
+        partitions = report.partition_metrics
+        if self._public_partitions:
+            num_output_partitions = partitions.num_dataset_partitions + partitions.num_empty_partitions
+        else:
+            num_output_partitions = partitions.kept_partitions.mean
+        _multiply_float_dataclasses_field(report, 1.0 / num_output_partitions)
+        return report
+
+    def metrics_names(self):
+        return []  # Not used for utility analysis
+
+    def explain_computation(self):
+        return None  # Not used for utility analysis
