@@ -92,11 +92,11 @@ def _sum_metrics_to_metric_utility(
 
 
 def _partition_metrics_public_partitions(
-        is_empty_partition: bool) -> metrics.PartitionMetrics:
-    result = metrics.PartitionMetrics(public_partitions=True,
-                                      num_dataset_partitions=0,
-                                      num_non_public_partitions=0,
-                                      num_empty_partitions=0)
+        is_empty_partition: bool) -> metrics.PartitionsInfo:
+    result = metrics.PartitionsInfo(public_partitions=True,
+                                    num_dataset_partitions=0,
+                                    num_non_public_partitions=0,
+                                    num_empty_partitions=0)
     if is_empty_partition:
         result.num_empty_partitions = 1
     else:
@@ -105,12 +105,12 @@ def _partition_metrics_public_partitions(
 
 
 def _partition_metrics_private_partitions(
-        prob_keep: float) -> metrics.PartitionMetrics:
+        prob_keep: float) -> metrics.PartitionsInfo:
     kept_partitions = metrics.MeanVariance(mean=prob_keep,
                                            var=prob_keep * (1 - prob_keep))
-    return metrics.PartitionMetrics(public_partitions=False,
-                                    num_dataset_partitions=1,
-                                    kept_partitions=kept_partitions)
+    return metrics.PartitionsInfo(public_partitions=False,
+                                  num_dataset_partitions=1,
+                                  kept_partitions=kept_partitions)
 
 
 def _add_dataclasses_by_fields(dataclass1, dataclass2,
@@ -192,8 +192,8 @@ def _per_partition_to_utility_report(
                                  metric_errors=metric_errors)
 
 
-def _merge_partition_metrics(metrics1: metrics.PartitionMetrics,
-                             metrics2: metrics.PartitionMetrics) -> None:
+def _merge_partition_metrics(metrics1: metrics.PartitionsInfo,
+                             metrics2: metrics.PartitionsInfo) -> None:
     """Merges cross-partition utility metrics.
 
     Warning: it modifies 'metrics1' argument.

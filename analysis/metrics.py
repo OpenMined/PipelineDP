@@ -170,8 +170,6 @@ class ContributionBoundingErrors:
         l0: max_partition_contributed (aka l0) bounding error. The output of l0
           bounding is a random variable for each partition. Its distribution is
           close to normal when number of contribution per partition is large.
-        linf: per partition (aka linf) bounding error. The output of linf
-          bounding is deterministic for each partition.
         linf_min & linf_max: represents error due to min & max contribution
           bounding, respectively (only populated for Sum metrics). It is
           deterministic for each partition.
@@ -303,7 +301,7 @@ class MetricUtility:
 
 
 @dataclass
-class PartitionMetrics:
+class PartitionsInfo:
     """Stores aggregate metrics about partitions and partition selection.
 
     Attributes:
@@ -338,11 +336,11 @@ class UtilityReport:
     Attributes:
         input_aggregate_params: input parameters for which this utility analysis
           was computed.
-        partition_selection_metrics: utility analysis of selected partition.
+        partition_metrics: utility analysis of selected partition.
         metric_errors: utility analysis of metrics (e.g. COUNT, SUM,
           PRIVACY_ID_COUNT).
     """
     input_aggregate_params: Optional[pipeline_dp.AggregateParams]
 
-    partition_metrics: PartitionMetrics
+    partition_metrics: PartitionsInfo
     metric_errors: Optional[List[MetricUtility]] = None

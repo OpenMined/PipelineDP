@@ -66,7 +66,7 @@ class PerPartitionToCrossPartitionMetrics(parameterized.TestCase):
     @parameterized.parameters(False, True)
     def test_create_partition_metrics_for_public_partitions(
             self, is_empty_partition):
-        output: metrics.PartitionMetrics = cross_partition_combiners._partition_metrics_public_partitions(
+        output: metrics.PartitionsInfo = cross_partition_combiners._partition_metrics_public_partitions(
             is_empty_partition)
         self.assertTrue(output.public_partitions)
         self.assertEqual(output.num_non_public_partitions, 0)
@@ -175,13 +175,13 @@ class DataclassHelpersTests(parameterized.TestCase):
         self.assertEqual(dataclass_object, exptected_output)
 
 
-def _get_partition_metrics(coef: int) -> metrics.PartitionMetrics:
-    return metrics.PartitionMetrics(public_partitions=False,
-                                    num_dataset_partitions=coef,
-                                    num_non_public_partitions=2 * coef,
-                                    num_empty_partitions=3 * coef,
-                                    kept_partitions=metrics.MeanVariance(
-                                        10 * coef, 11 * coef))
+def _get_partition_metrics(coef: int) -> metrics.PartitionsInfo:
+    return metrics.PartitionsInfo(public_partitions=False,
+                                  num_dataset_partitions=coef,
+                                  num_non_public_partitions=2 * coef,
+                                  num_empty_partitions=3 * coef,
+                                  kept_partitions=metrics.MeanVariance(
+                                      10 * coef, 11 * coef))
 
 
 def _get_metric_utility(coef: int) -> metrics.MetricUtility:
