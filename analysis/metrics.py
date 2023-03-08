@@ -342,5 +342,5 @@ class UtilityReport:
     """
     configuration_index: int
 
-    partition_metrics: PartitionsInfo
+    partitions_info: PartitionsInfo
     metric_errors: Optional[List[MetricUtility]] = None

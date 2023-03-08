@@ -128,7 +128,7 @@ class PerPartitionToCrossPartitionMetrics(parameterized.TestCase):
             per_partition_utility, [], public_partitions=False)
 
         self.assertIsNone(output.metric_errors)
-        self.assertIsInstance(output.partition_metrics, unittest.mock.MagicMock)
+        self.assertIsInstance(output.partitions_info, unittest.mock.MagicMock)
         mock_to_metric_utility.assert_not_called()
         mock_create_for_public_partitions.assert_not_called()
         mock_create_for_private_partitions.assert_called_once_with(0.5)
@@ -253,8 +253,8 @@ class CrossPartitionCombiner(parameterized.TestCase):
         per_partition_metrics = metrics.PerPartitionMetrics(
             0.2, metric_errors=[_get_sum_metrics()])
         utility_report = combiner.create_accumulator(per_partition_metrics)
-        self.assertEqual(
-            utility_report.partition_metrics.num_dataset_partitions, 1)
+        self.assertEqual(utility_report.partitions_info.num_dataset_partitions,
+                         1)
         self.assertLen(utility_report.metric_errors, 1)
 
     @patch("analysis.cross_partition_combiners._per_partition_to_utility_report"
