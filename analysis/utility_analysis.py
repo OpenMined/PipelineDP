@@ -154,46 +154,31 @@ def perform_utility_analysis_new(
         total_epsilon=options.epsilon, total_delta=options.delta)
     engine = utility_analysis_engine.UtilityAnalysisEngine(
         budget_accountant=budget_accountant, backend=backend)
-    per_partition_analysis_result = engine.analyze(
-        col,
-        options=options,
-        data_extractors=data_extractors,
-        public_partitions=public_partitions)
-    # (partition_key, utility result)
+    per_partition_result = engine.analyze(col,
+                                          options=options,
+                                          data_extractors=data_extractors,
+                                          public_partitions=public_partitions)
+    # (partition_key, utility results)
     budget_accountant.compute_budgets()
 
-    per_partition_analysis_result = backend.to_multi_transformable_collection(
-        per_partition_analysis_result)
+    per_partition_result = backend.to_multi_transformable_collection(
+        per_partition_result)
+
+    per_partition_result = backend.values(per_partition_result,
+                                          "Drop partition key")
+    # (utility results)
 
     n_configurations = options.n_configurations
-
-    def _pack_per_partition_metrics(
-        partition_key_utility: Tuple[Any, List[Any]]
-    ) -> List[Tuple[int, metrics.PerPartitionMetrics]]:
-        """Sets the appropriate packed_metrics field with 'metric' according to 'metric' type."""
-        _, utility_metrics = partition_key_utility
-        result = []
-        n_computed_metrics = len(utility_metrics) // n_configurations
-        for i, metric in enumerate(utility_metrics):
-            if i % n_computed_metrics == 0:
-                i_configuration = i // n_computed_metrics
-                result.append(
-                    (i_configuration, metrics.PerPartitionMetrics(1, [])))
-            if isinstance(metric, float):  # partition selection
-                result[-1][1].partition_selection_probability_to_keep = metric
-            else:
-                result[-1][1].metric_errors.append(metric)
-        return result
-
-    per_partition_analysis_result = backend.flat_map(
-        per_partition_analysis_result, _pack_per_partition_metrics,
+    per_partition_result = backend.flat_map(
+        per_partition_result,
+        lambda value: _pack_per_partition_metrics(value, n_configurations),
         "Pack per-partition metrics.")
     # (configuration_index, metrics.PerPartitionMetrics)
 
     combiner = cross_partition_combiners.CrossPartitionCombiner(
         options.aggregate_params.metrics, public_partitions is not None)
 
-    accumulators = backend.map_values(per_partition_analysis_result,
+    accumulators = backend.map_values(per_partition_result,
                                       combiner.create_accumulator,
                                       "Create accumulators")
     # accumulators : (configuration_index, accumulator)
@@ -206,7 +191,6 @@ def perform_utility_analysis_new(
         accumulators, combiner.compute_metrics,
         "Compute cross-partition metrics")
 
-    # return cross_partition_metrics
     # cross_partition_metrics : (configuration_index, UtilityReport)
     def add_index(index,
                   report: metrics.UtilityReport) -> metrics.UtilityReport:
@@ -214,6 +198,39 @@ def perform_utility_analysis_new(
         return report
 
     return backend.map_tuple(cross_partition_metrics, add_index, "Add index")
+
+
+def _pack_per_partition_metrics(
+        utility_result: List[Any],
+        n_configurations: int) -> List[Tuple[int, metrics.PerPartitionMetrics]]:
+    """Packs per-partition metrics.
+
+    Arguments:
+        utility_result: a list with per-partition results, which contains
+          results for all configurations.
+        n_configurations: the number of configuration of parameters for which
+          the utility analysis is computed.
+
+    Returns: a list of element (i_configuration, PerPartitionMetrics),
+    where each element corresponds to one of the configuration of the input
+    parameters.
+    """
+    n_metrics = len(utility_result) // n_configurations
+
+    # Create 'result' with empty elements.
+    empty_per_partition_metric = lambda: metrics.PerPartitionMetrics(1, [])
+    result = [(i, empty_per_partition_metric()) for i in range(n_configurations)
+             ]
+
+    # Fill 'result' from 'utility_metrics'.
+    for i, metric in enumerate(utility_result):
+        i_configuration = i // n_metrics
+        if isinstance(metric, float):  # partition selection
+            result[i_configuration][
+                1].partition_selection_probability_to_keep = metric
+        else:
+            result[i_configuration][1].metric_errors.append(metric)
+    return result
 
 
 def _populate_packed_metrics(packed_metrics: metrics.AggregateMetrics, metric):

@@ -208,13 +208,13 @@ def _get_metric_utility(coef: int) -> metrics.MetricUtility:
 
 
 def _get_utility_report(coef: int) -> metrics.UtilityReport:
-    return metrics.UtilityReport(
-        input_aggregate_params=None,
-        metric_errors=[
-            _get_metric_utility(coef=coef),
-            _get_metric_utility(coef=2 * coef)
-        ],
-        partition_metrics=_get_partition_metrics(coef=3 * coef))
+    return metrics.UtilityReport(configuration_index=-1,
+                                 metric_errors=[
+                                     _get_metric_utility(coef=coef),
+                                     _get_metric_utility(coef=2 * coef)
+                                 ],
+                                 partitions_info=_get_partition_metrics(coef=3 *
+                                                                        coef))
 
 
 class MergeMetricsTests(parameterized.TestCase):

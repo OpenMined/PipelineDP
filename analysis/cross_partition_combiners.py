@@ -163,10 +163,6 @@ def _multiply_float_dataclasses_field(dataclass,
             setattr(dataclass, field.name, value * factor)
         elif dataclasses.is_dataclass(value):
             _multiply_float_dataclasses_field(value, factor)
-        # elif isinstance(value, Iterable):
-        #     for v in value:
-        #         if dataclasses.is_dataclass(v):
-        #             _multiply_float_dataclasses_field(v, factor)
 
 
 def _per_partition_to_utility_report(
@@ -195,7 +191,7 @@ def _per_partition_to_utility_report(
                                                prob_to_keep))
 
     return metrics.UtilityReport(configuration_index=-1,
-                                 partition_info=partition_metrics,
+                                 partitions_info=partition_metrics,
                                  metric_errors=metric_errors)
 
 
@@ -235,7 +231,7 @@ def _merge_utility_reports(report1: metrics.UtilityReport,
 
 def _average_utility_report(report: metrics.UtilityReport,
                             public_partitions: bool) -> None:
-    """todo"""
+    """Averages across partitions fields of the 'report'."""
     partitions = report.partitions_info
     if public_partitions:
         num_output_partitions = partitions.num_dataset_partitions + partitions.num_empty_partitions
