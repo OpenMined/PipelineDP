@@ -16,7 +16,7 @@
 import pipeline_dp
 from analysis import metrics
 import dataclasses
-from typing import List, Optional, Tuple
+from typing import Iterable, List, Optional, Tuple
 import math
 
 
@@ -129,9 +129,8 @@ def _add_dataclasses_by_fields(dataclass1, dataclass2,
         dataclass1, dataclass2: instances of the same dataclass type.
         fields_to_ignore: field names which should be ignored.
     """
-    assert type(dataclass1) == type(
-        dataclass2
-    ), f"type(dataclass1) = {type(dataclass1)} != type(dataclass2) = {type(dataclass2)} must have the same types, their types {type(dataclass1)} and {type(dataclass2)}"
+    assert type(dataclass1) == type(dataclass2), \
+        f"type(dataclass1) = {type(dataclass1)} != type(dataclass2) = {type(dataclass2)}"
     fields = dataclasses.fields(dataclass1)
     for field in fields:
         if field.name in fields_to_ignore:
@@ -146,19 +145,23 @@ def _add_dataclasses_by_fields(dataclass1, dataclass2,
         setattr(dataclass1, field.name, value1 + value2)
 
 
-def _multiply_float_dataclasses_field(dataclass, factor: float) -> None:
+def _multiply_float_dataclasses_field(dataclass,
+                                      factor: float,
+                                      fields_to_ignore: List[str] = []) -> None:
     """Recursively multiplies all float fields of the dataclass by given number.
 
     Warning: it modifies 'dataclass' argument.
     """
     fields = dataclasses.fields(dataclass)
     for field in fields:
+        if field.name in fields_to_ignore:
+            continue
         value = getattr(dataclass, field.name)
         if value is None:
             continue
         if field.type is float:
             setattr(dataclass, field.name, value * factor)
-        if dataclasses.is_dataclass(value):
+        elif dataclasses.is_dataclass(value):
             _multiply_float_dataclasses_field(value, factor)
 
 
@@ -187,8 +190,8 @@ def _per_partition_to_utility_report(
                 _sum_metrics_to_metric_utility(metric_error, dp_metric,
                                                prob_to_keep))
 
-    return metrics.UtilityReport(input_aggregate_params=None,
-                                 partition_metrics=partition_metrics,
+    return metrics.UtilityReport(configuration_index=-1,
+                                 partitions_info=partition_metrics,
                                  metric_errors=metric_errors)
 
 
@@ -218,13 +221,29 @@ def _merge_utility_reports(report1: metrics.UtilityReport,
 
     Warning: it modifies 'report1' argument.
     """
-    _merge_partition_metrics(report1.partition_metrics,
-                             report2.partition_metrics)
+    _merge_partition_metrics(report1.partitions_info, report2.partitions_info)
     if report1.metric_errors is None:
         return
     assert len(report1.metric_errors) == len(report2.metric_errors)
     for utility1, utility2 in zip(report1.metric_errors, report2.metric_errors):
         _merge_metric_utility(utility1, utility2)
+
+
+def _average_utility_report(report: metrics.UtilityReport,
+                            public_partitions: bool) -> None:
+    """Averages fields of the 'report' across partitions."""
+    partitions = report.partitions_info
+    if public_partitions:
+        num_output_partitions = partitions.num_dataset_partitions + partitions.num_empty_partitions
+    else:
+        num_output_partitions = partitions.kept_partitions.mean
+    _multiply_float_dataclasses_field(report.partitions_info,
+                                      1.0 / num_output_partitions)
+    if report.metric_errors:
+        for metric_error in report.metric_errors:
+            _multiply_float_dataclasses_field(metric_error,
+                                              1.0 / num_output_partitions,
+                                              fields_to_ignore=["noise_std"])
 
 
 class CrossPartitionCombiner(pipeline_dp.combiners.Combiner):
@@ -251,16 +270,7 @@ class CrossPartitionCombiner(pipeline_dp.combiners.Combiner):
     def compute_metrics(self,
                         report: metrics.UtilityReport) -> metrics.UtilityReport:
         """Returns UtilityReport with final metrics."""
-        # The fields of 'report' contains sums of different quantities (like sum
-        # of errors etc). The output should contain averaged across partitions.
-        # The next lines compute averages by dividing on expected number of
-        # partitions.
-        partitions = report.partition_metrics
-        if self._public_partitions:
-            num_output_partitions = partitions.num_dataset_partitions + partitions.num_empty_partitions
-        else:
-            num_output_partitions = partitions.kept_partitions.mean
-        _multiply_float_dataclasses_field(report, 1.0 / num_output_partitions)
+        _average_utility_report(report, self._public_partitions)
         return report
 
     def metrics_names(self):

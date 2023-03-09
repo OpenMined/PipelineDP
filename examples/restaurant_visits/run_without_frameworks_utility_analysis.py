@@ -142,10 +142,10 @@ def aggregate_utility_analysis():
     options = analysis.UtilityAnalysisOptions(1, 1e-5, aggregate_params,
                                               get_multi_params())
 
-    result = analysis.perform_utility_analysis(restaurant_visits_rows,
-                                               pipeline_dp.LocalBackend(),
-                                               options, data_extractors,
-                                               public_partitions)
+    result = analysis.perform_utility_analysis_new(restaurant_visits_rows,
+                                                   pipeline_dp.LocalBackend(),
+                                                   options, data_extractors,
+                                                   public_partitions)
 
     # Here's where the lazy iterator initiates computations and gets transformed
     # into actual results

@@ -299,6 +299,10 @@ class PrivacyIdCountCombiner(SumCombiner):
     # expected_cross_partition_error, var_cross_partition_error)
     AccumulatorType = Tuple[float, float, float, float, float]
 
+    def __init__(self, params: pipeline_dp.combiners.CombinerParams):
+        self._params = copy.copy(params)
+        self._params.aggregate_params.max_contributions_per_partition = 1
+
     def create_accumulator(
         self, sparse_acc: Tuple[np.ndarray, np.ndarray,
                                 np.ndarray]) -> AccumulatorType:
