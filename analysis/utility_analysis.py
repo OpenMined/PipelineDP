@@ -192,7 +192,7 @@ def perform_utility_analysis_new(
         utility analysis per partitions.
     Returns:
          if return_per_partition == False:
-            returns collections which contains metrics.UtitlityReport with
+            returns collections which contains metrics.UtilityReport with
             one report per each input configuration
         else returns tuple, with the 1st element as in first 'if' clause and the
         2nd a collection which contains utility analysis results per partition).
