@@ -98,6 +98,38 @@ class PartitionSelectionStrategy(Enum):
 
 
 @dataclass
+class CalculatePrivateContributionBoundsParams:
+    """Specifies parameters for function DPEngine.calculate_private_contribution_bounds()
+
+    WARNING: Aggregation where the calculated bounds will be used should one of the following: COUNT, PRIVACY_ID_COUNT. Other aggregations (metrics in AggregateParams) are not supported.
+
+    Attributes:
+        aggregation_noise_kind: noise that will be used in the aggregation.
+        aggregation_eps: epsilon that will be used in the aggregation.
+        aggregation_delta: delta that will be used in the aggregation.
+        calculation_eps: epsilon that will be used in the computation of private contribution bounds.
+        max_partitions_contributed_upper_bound: The biggest ever possible value for max_partitions_contributed.
+    """
+    aggregation_noise_kind: NoiseKind
+    aggregation_eps: float
+    aggregation_delta: float
+    calculation_eps: float
+    max_partitions_contributed_upper_bound: int
+
+
+@dataclass
+class PrivateContributionBounds:
+    """Contribution bounds computed in a differential private way that can be used in COUNT and PRIVACY_ID_COUNT aggregations.
+
+    Attributes:
+        max_partitions_contributed: A bound on the number of partitions to which one
+          unit of privacy (e.g., a user) can contribute (also referred to as l_0).
+    """
+
+    max_partitions_contributed: int
+
+
+@dataclass
 class AggregateParams:
     """Specifies parameters for function DPEngine.aggregate()
 

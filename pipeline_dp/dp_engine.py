@@ -19,9 +19,9 @@ from typing import Any, Callable, Optional, Tuple
 import pipeline_dp
 from pipeline_dp import combiners
 from pipeline_dp import contribution_bounders
+from pipeline_dp import partition_selection
 from pipeline_dp import report_generator
 from pipeline_dp import sampling_utils
-from pipeline_dp import partition_selection
 
 
 @dataclasses.dataclass
@@ -56,6 +56,39 @@ class DPEngine:
     def _add_report_stages(self, stages_description):
         for stage_description in stages_description:
             self._add_report_stage(stage_description)
+
+    def calculate_private_contribution_bounds(
+        self,
+        col,
+        params: pipeline_dp.CalculatePrivateContributionBoundsParams,
+        data_extractors: pipeline_dp.DataExtractors,
+        partitions: Any,
+        partitions_already_filtered: bool = False,
+        out_explain_computation_report: Optional[
+            pipeline_dp.ExplainComputationReport] = None):
+        """Computes contribution bounds for COUNT and PRIVACY_ID_COUNT metrics in a differentially private way. Currently only max_partitions_contributed is calculated.
+
+        WARNINGS:
+            * This API is experimental, there is a possibility that it will slightly change in the future.
+            * Use it ONLY for COUNT and PRIVACY_ID_COUNT metrics.
+
+                Args:
+                  col: collection where all elements are of the same type.
+                  params: specifies computation parameters necessary for the algorithm.
+                  data_extractors: functions that extract needed pieces of information
+                    from elements of 'col'.
+                  partitions: A collection of partition keys that will be present
+                    in the result. It can be either the list of public partitions or private partitions
+                    that were selected before calling this function.
+                  partitions_already_filtered: if false, then filtering will be made and only provided partitions will be kept in col. You can set it to true if you have already filtered for these partitions (e.g. you did partition selection), it will save you some computation time.
+                  out_explain_computation_report: an output argument, if specified,
+                    it will contain the Explain Computation report for this aggregation.
+                    For more details see the docstring to report_generator.py.
+
+                Returns:
+                  Collection consisting of 1 element: pipeline_dp.PrivateContributionBounds.
+                """
+        pass
 
     def explain_computations_report(self):
         return [
