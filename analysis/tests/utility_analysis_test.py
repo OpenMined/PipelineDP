@@ -234,7 +234,7 @@ class UtilityAnalysis(parameterized.TestCase):
         utility_reports = list(output)
 
         # Assert
-        self.assertLen(utility_reports, 2)  # a report per each configuration.
+        self.assertLen(utility_reports, 2)  # one report per each configuration.
 
         # Check the parameter configuration
         expected_noise_std = [3.02734375, 8.56262117843085]
@@ -247,7 +247,7 @@ class UtilityAnalysis(parameterized.TestCase):
         for i_configuration, report in enumerate(utility_reports):
             self.assertEqual(report.configuration_index, i_configuration)
             self.assertEqual(report.partitions_info, expected_partition_info)
-            self.assertLen(report.metric_errors, 1)  # COUNT
+            self.assertLen(report.metric_errors, 1)  # metrics for COUNT
             errors = report.metric_errors[0]
             self.assertEqual(errors.metric, pipeline_dp.Metrics.COUNT)
             self.assertEqual(errors.noise_std,
