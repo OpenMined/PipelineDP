@@ -75,8 +75,7 @@ class UtilityAnalysis(parameterized.TestCase):
         col = list(col)
 
         # Assert
-        # Assert a singleton is returned
-        self.assertLen(col, 1)
+        self.assertLen(col, 1)  # a singleton is returned
         report = col[0]
         self.assertIsInstance(report, metrics.UtilityReport)
         expected = metrics.UtilityReport(
@@ -151,6 +150,7 @@ class UtilityAnalysis(parameterized.TestCase):
             ])
         common.assert_dataclasses_are_equal(self, report, expected)
 
+    # todo: work in progress for this PR.
     # @parameterized.named_parameters(
     #     dict(
     #         testcase_name="Gaussian noise",

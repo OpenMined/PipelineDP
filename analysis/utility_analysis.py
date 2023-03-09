@@ -25,6 +25,8 @@ import analysis.combiners as utility_analysis_combiners
 from analysis import cross_partition_combiners
 
 
+############# Deprected code #################
+# perform_utility_analysis_new will replace perform_utility_analysis.
 def perform_utility_analysis(
         col,
         backend: pipeline_backend.PipelineBackend,
@@ -121,6 +123,50 @@ def perform_utility_analysis(
     return result
 
 
+def _populate_packed_metrics(packed_metrics: metrics.AggregateMetrics, metric):
+    """Sets the appropriate packed_metrics field with 'metric' according to 'metric' type."""
+    if isinstance(metric, metrics.PartitionSelectionMetrics):
+        packed_metrics.partition_selection_metrics = metric
+    elif metric.metric_type == metrics.AggregateMetricType.PRIVACY_ID_COUNT:
+        packed_metrics.privacy_id_count_metrics = metric
+    elif metric.metric_type == metrics.AggregateMetricType.COUNT:
+        packed_metrics.count_metrics = metric
+    elif metric.metric_type == metrics.AggregateMetricType.SUM:
+        packed_metrics.sum_metrics = metric
+
+
+def _create_aggregate_error_compound_combiner(
+        aggregate_params: pipeline_dp.AggregateParams,
+        error_quantiles: List[float], public_partitions: bool,
+        n_configurations: int) -> combiners.CompoundCombiner:
+    internal_combiners = []
+    for i in range(n_configurations):
+        if not public_partitions:
+            internal_combiners.append(
+                utility_analysis_combiners.
+                PrivatePartitionSelectionAggregateErrorMetricsCombiner(
+                    error_quantiles))
+        # WARNING: The order here needs to follow the order in
+        # UtilityAnalysisEngine._create_compound_combiner().
+        if pipeline_dp.Metrics.SUM in aggregate_params.metrics:
+            internal_combiners.append(
+                utility_analysis_combiners.SumAggregateErrorMetricsCombiner(
+                    metrics.AggregateMetricType.SUM, error_quantiles))
+        if pipeline_dp.Metrics.COUNT in aggregate_params.metrics:
+            internal_combiners.append(
+                utility_analysis_combiners.SumAggregateErrorMetricsCombiner(
+                    metrics.AggregateMetricType.COUNT, error_quantiles))
+        if pipeline_dp.Metrics.PRIVACY_ID_COUNT in aggregate_params.metrics:
+            internal_combiners.append(
+                utility_analysis_combiners.SumAggregateErrorMetricsCombiner(
+                    metrics.AggregateMetricType.PRIVACY_ID_COUNT,
+                    error_quantiles))
+    return utility_analysis_combiners.AggregateErrorMetricsCompoundCombiner(
+        internal_combiners, return_named_tuple=False)
+
+
+################# New code  ##################
+# perform_utility_analysis_new will be renamed to perform_utility_analysis.
 def perform_utility_analysis_new(
         col,
         backend: pipeline_backend.PipelineBackend,
@@ -146,9 +192,10 @@ def perform_utility_analysis_new(
         utility analysis per partitions.
     Returns:
          if return_per_partition == False:
-            returns 1 element collection which contains TuneResult
-        else returns tuple (1 element collection which contains TuneResult,
-        a collection which contains utility analysis results per partition).
+            returns collections which contains metrics.UtitlityReport with
+            one report per each input configuration
+        else returns tuple, with the 1st element as in first 'if' clause and the
+        2nd a collection which contains utility analysis results per partition).
     """
     budget_accountant = pipeline_dp.NaiveBudgetAccountant(
         total_epsilon=options.epsilon, total_delta=options.delta)
@@ -231,45 +278,3 @@ def _pack_per_partition_metrics(
         else:
             result[i_configuration][1].metric_errors.append(metric)
     return result
-
-
-def _populate_packed_metrics(packed_metrics: metrics.AggregateMetrics, metric):
-    """Sets the appropriate packed_metrics field with 'metric' according to 'metric' type."""
-    if isinstance(metric, metrics.PartitionSelectionMetrics):
-        packed_metrics.partition_selection_metrics = metric
-    elif metric.metric_type == metrics.AggregateMetricType.PRIVACY_ID_COUNT:
-        packed_metrics.privacy_id_count_metrics = metric
-    elif metric.metric_type == metrics.AggregateMetricType.COUNT:
-        packed_metrics.count_metrics = metric
-    elif metric.metric_type == metrics.AggregateMetricType.SUM:
-        packed_metrics.sum_metrics = metric
-
-
-def _create_aggregate_error_compound_combiner(
-        aggregate_params: pipeline_dp.AggregateParams,
-        error_quantiles: List[float], public_partitions: bool,
-        n_configurations: int) -> combiners.CompoundCombiner:
-    internal_combiners = []
-    for i in range(n_configurations):
-        if not public_partitions:
-            internal_combiners.append(
-                utility_analysis_combiners.
-                PrivatePartitionSelectionAggregateErrorMetricsCombiner(
-                    error_quantiles))
-        # WARNING: The order here needs to follow the order in
-        # UtilityAnalysisEngine._create_compound_combiner().
-        if pipeline_dp.Metrics.SUM in aggregate_params.metrics:
-            internal_combiners.append(
-                utility_analysis_combiners.SumAggregateErrorMetricsCombiner(
-                    metrics.AggregateMetricType.SUM, error_quantiles))
-        if pipeline_dp.Metrics.COUNT in aggregate_params.metrics:
-            internal_combiners.append(
-                utility_analysis_combiners.SumAggregateErrorMetricsCombiner(
-                    metrics.AggregateMetricType.COUNT, error_quantiles))
-        if pipeline_dp.Metrics.PRIVACY_ID_COUNT in aggregate_params.metrics:
-            internal_combiners.append(
-                utility_analysis_combiners.SumAggregateErrorMetricsCombiner(
-                    metrics.AggregateMetricType.PRIVACY_ID_COUNT,
-                    error_quantiles))
-    return utility_analysis_combiners.AggregateErrorMetricsCompoundCombiner(
-        internal_combiners, return_named_tuple=False)
