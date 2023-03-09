@@ -46,7 +46,7 @@ class UtilityAnalysis(parameterized.TestCase):
         if not pre_aggregated:
             col = [(i, j) for i in range(10) for j in range(10)] * 3
         else:
-            # This is pre-aggregated dataset, namely each element has a format
+            # This is a pre-aggregated dataset, namely each element has a format
             # (partition_key, (count, sum, num_partition_contributed).
             # And each element is in one-to-one correspondence to pairs
             # (privacy_id, partition_key) from the dataset.

@@ -231,7 +231,7 @@ def _merge_utility_reports(report1: metrics.UtilityReport,
 
 def _average_utility_report(report: metrics.UtilityReport,
                             public_partitions: bool) -> None:
-    """Averages across partitions fields of the 'report'."""
+    """Averages fields of the 'report' across partitions."""
     partitions = report.partitions_info
     if public_partitions:
         num_output_partitions = partitions.num_dataset_partitions + partitions.num_empty_partitions
@@ -270,10 +270,6 @@ class CrossPartitionCombiner(pipeline_dp.combiners.Combiner):
     def compute_metrics(self,
                         report: metrics.UtilityReport) -> metrics.UtilityReport:
         """Returns UtilityReport with final metrics."""
-        # The fields of 'report' contains sums of different quantities (like sum
-        # of errors etc). The output should contain averaged across partitions.
-        # The next lines compute averages by dividing on expected number of
-        # partitions.
         _average_utility_report(report, self._public_partitions)
         return report
 
