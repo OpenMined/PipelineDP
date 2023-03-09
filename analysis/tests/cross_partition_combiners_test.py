@@ -16,7 +16,7 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import dataclasses
 import math
-import unittest.mock
+from unittest import mock
 from unittest.mock import patch
 
 from analysis import metrics
@@ -128,7 +128,7 @@ class PerPartitionToCrossPartitionMetrics(parameterized.TestCase):
             per_partition_utility, [], public_partitions=False)
 
         self.assertIsNone(output.metric_errors)
-        self.assertIsInstance(output.partition_metrics, unittest.mock.MagicMock)
+        self.assertIsInstance(output.partitions_info, mock.MagicMock)
         mock_to_metric_utility.assert_not_called()
         mock_create_for_public_partitions.assert_not_called()
         mock_create_for_private_partitions.assert_called_once_with(0.5)
@@ -208,13 +208,13 @@ def _get_metric_utility(coef: int) -> metrics.MetricUtility:
 
 
 def _get_utility_report(coef: int) -> metrics.UtilityReport:
-    return metrics.UtilityReport(
-        input_aggregate_params=None,
-        metric_errors=[
-            _get_metric_utility(coef=coef),
-            _get_metric_utility(coef=2 * coef)
-        ],
-        partition_metrics=_get_partition_metrics(coef=3 * coef))
+    return metrics.UtilityReport(configuration_index=-1,
+                                 metric_errors=[
+                                     _get_metric_utility(coef=coef),
+                                     _get_metric_utility(coef=2 * coef)
+                                 ],
+                                 partitions_info=_get_partition_metrics(coef=3 *
+                                                                        coef))
 
 
 class MergeMetricsTests(parameterized.TestCase):
@@ -253,8 +253,8 @@ class CrossPartitionCombiner(parameterized.TestCase):
         per_partition_metrics = metrics.PerPartitionMetrics(
             0.2, metric_errors=[_get_sum_metrics()])
         utility_report = combiner.create_accumulator(per_partition_metrics)
-        self.assertEqual(
-            utility_report.partition_metrics.num_dataset_partitions, 1)
+        self.assertEqual(utility_report.partitions_info.num_dataset_partitions,
+                         1)
         self.assertLen(utility_report.metric_errors, 1)
 
     @patch("analysis.cross_partition_combiners._per_partition_to_utility_report"
@@ -279,16 +279,14 @@ class CrossPartitionCombiner(parameterized.TestCase):
                          expected_report)
 
     @parameterized.parameters(False, True)
-    @patch(
-        "analysis.cross_partition_combiners._multiply_float_dataclasses_field")
+    @patch("analysis.cross_partition_combiners._average_utility_report")
     def test_compute_metrics(self, public_partitions,
-                             mock_multiply_float_dataclasses_field):
+                             mock_average_utility_report):
         combiner = self._create_combiner(public_partitions)
         report = _get_utility_report(coef=1)
         combiner.compute_metrics(report)
-        expeced_num_output_partitions = 12 if public_partitions else 30
-        mock_multiply_float_dataclasses_field.assert_called_once_with(
-            report, 1.0 / expeced_num_output_partitions)
+        mock_average_utility_report.assert_called_once_with(
+            report, public_partitions)
 
 
 if __name__ == '__main__':
