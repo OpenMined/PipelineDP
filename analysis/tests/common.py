@@ -41,33 +41,49 @@ def assert_dataclasses_are_equal(test: parameterized.TestCase,
                       f"need to be the same type")
     expected = dataclasses.asdict(expected)
     actual = dataclasses.asdict(actual)
+    assert_dictionaries_are_equal(test, expected, actual, delta)
 
-    for field_name in actual.keys():
-        exp = expected[field_name]
-        act = actual[field_name]
-        if isinstance(act, int) or isinstance(act, enum.Enum):
-            test.assertEquals(
-                exp,
-                act,
-                msg=f"expected={exp} and actual={act} differ in {field_name}")
-        elif isinstance(act, float):
-            test.assertAlmostEquals(
-                exp,
-                act,
-                delta=delta,
-                msg=f"expected={exp} and actual={act} differ in {field_name}")
-        elif isinstance(act, typing.List):
-            [
-                test.assertAlmostEquals(
-                    exp_i,
-                    act_i,
-                    delta=delta,
-                    msg=f"expected={exp_i} and actual={act_i} differ in "
-                    f"{field_name} at index= {i}")
-                for i, (exp_i, act_i) in enumerate(zip(exp, act))
-            ]
-        else:
-            raise Exception(
-                f"assert_dataclasses_are_equal only supports dataclasses with "
-                f"int, float, List[int], List[float] or enum fields. Got "
-                f"f1={field_name} with type={type(act)} instead")
+
+def assert_fields_are_equal(
+        test: parameterized.TestCase,
+        expected,  # todo rename
+        actual,
+        field_name: str,
+        delta=1e-5):
+    if expected == actual:
+        return
+    if expected is None:
+        test.assertIsNone(actual, msg=f"{field_name} is expected tp be None.")
+    elif isinstance(expected, int) or isinstance(expected, enum.Enum):
+        test.assertEquals(
+            expected,
+            actual,
+            msg=f"expected={expected} and actual={actual} differ in {field_name}"
+        )
+    elif isinstance(expected, float):
+        test.assertAlmostEquals(
+            expected,
+            actual,
+            delta=delta,
+            msg=f"expected={expected} and actual={actual} differ in {field_name}"
+        )
+    elif isinstance(expected, typing.List):
+        for i, (exp_i, act_i) in enumerate(zip(expected, actual)):
+            assert_fields_are_equal(test, exp_i, act_i, f"{field_name}[{i}]",
+                                    delta)
+    elif isinstance(expected, typing.Dict):
+        assert_dictionaries_are_equal(test, expected, actual, delta)
+    else:
+        raise Exception(
+            f"assert_dataclasses_are_equal only supports dataclasses with "
+            f"int, float, List[int], List[float] or enum fields. Got "
+            f"f1={field_name} with type={type(actual)} instead")
+
+
+def assert_dictionaries_are_equal(test: parameterized.TestCase,
+                                  expected,
+                                  actual,
+                                  delta=1e-5):
+    for field_name in expected.keys():
+        assert_fields_are_equal(test, expected[field_name], actual[field_name],
+                                field_name, delta)
