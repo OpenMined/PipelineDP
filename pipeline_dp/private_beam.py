@@ -24,11 +24,28 @@ import apache_beam as beam
 import pipeline_dp
 from pipeline_dp import aggregate_params, budget_accounting
 
+# Apache Beam requires that all stage_names were different.
+# pipeline_dp.BeamBackend object ensures the uniqueness of the stage_names.
+# But it is required to have the same object BeamBackend for all operations.
+# _beam_backend and get_beam_backend() provides functionality for having the
+# same BeamBackend for all operations inside private_beam.py.
+_beam_backend = None
+
+
+def _get_beam_backend() -> pipeline_dp.BeamBackend:
+    global _beam_backend
+    if _beam_backend == None:
+        _beam_backend = pipeline_dp.BeamBackend()
+    return _beam_backend
+
 
 class PrivatePTransform(ptransform.PTransform):
     """Abstract class for PrivatePTransforms."""
 
     def __init__(self, return_anonymized: bool, label: Optional[str] = None):
+        # Ensure that the label is unique.
+        label = _get_beam_backend()._ulg.unique(label)
+
         super().__init__(label)
         self._return_anonymized = return_anonymized
         self._budget_accountant = None
@@ -39,11 +56,12 @@ class PrivatePTransform(ptransform.PTransform):
         self._budget_accountant = budget_accountant
 
     def _create_dp_engine(self):
-        backend = pipeline_dp.BeamBackend()
+        backend = _get_beam_backend()
         return backend, pipeline_dp.DPEngine(self._budget_accountant, backend)
 
     def __rrshift__(self, label):
-        self.label = label
+        # Ensure that the label is unique.
+        self.label = _get_beam_backend()._ulg.unique(label)
         return self
 
     @abstractmethod
@@ -89,8 +107,9 @@ class MakePrivate(PrivatePTransform):
         self._privacy_id_extractor = privacy_id_extractor
 
     def expand(self, pcol: pvalue.PCollection):
-        pcol = pcol | "Extract privacy id" >> beam.Map(
-            lambda x: (self._privacy_id_extractor(x), x))
+        backend = _get_beam_backend()
+        pcol = backend.map(pcol, lambda x: (self._privacy_id_extractor(x), x),
+                           "Extract privacy id")
         return PrivatePCollection(pcol, self._budget_accountant)
 
 
@@ -100,13 +119,28 @@ class Variance(PrivatePTransform):
     def __init__(self,
                  variance_params: aggregate_params.VarianceParams,
                  label: Optional[str] = None,
-                 public_partitions=None):
+                 public_partitions=None,
+                 out_explain_computaton_report: Optional[
+                     pipeline_dp.ExplainComputationReport] = None):
+        """Initialize.
+
+         Args:
+             variance_params: parameters for calculation
+             public_partitions: A collection of partition keys that will be
+               present in the result. Optional. If not provided, partitions will
+               be selected in a DP manner.
+             out_explain_computaton_report: an output argument, if specified,
+                it will contain the Explain Computation report for this
+                aggregation. For more details see the docstring to
+                report_generator.py.
+         """
         super().__init__(return_anonymized=True, label=label)
         self._variance_params = variance_params
         self._public_partitions = public_partitions
+        self._explain_computaton_report = out_explain_computaton_report
 
     def expand(self, pcol: pvalue.PCollection) -> pvalue.PCollection:
-        backend = pipeline_dp.BeamBackend()
+        backend = _get_beam_backend()
         dp_engine = pipeline_dp.DPEngine(self._budget_accountant, backend)
 
         params = pipeline_dp.AggregateParams(
@@ -126,8 +160,12 @@ class Variance(PrivatePTransform):
             value_extractor=lambda x: self._variance_params.value_extractor(x[1]
                                                                            ))
 
-        dp_result = dp_engine.aggregate(pcol, params, data_extractors,
-                                        self._public_partitions)
+        dp_result = dp_engine.aggregate(
+            pcol,
+            params,
+            data_extractors,
+            self._public_partitions,
+            out_explain_computaton_report=self._explain_computaton_report)
         # dp_result : (partition_key, [dp_variance])
 
         # aggregate() returns a namedtuple of metrics for each partition key.
@@ -145,13 +183,28 @@ class Mean(PrivatePTransform):
     def __init__(self,
                  mean_params: aggregate_params.MeanParams,
                  label: Optional[str] = None,
-                 public_partitions=None):
+                 public_partitions=None,
+                 out_explain_computaton_report: Optional[
+                     pipeline_dp.ExplainComputationReport] = None):
+        """Initialize
+
+        Args:
+            mean_params: parameters for calculation
+            public_partitions: A collection of partition keys that will be
+              present in the result. Optional. If not provided, partitions will
+              be selected in a DP manner.
+            out_explain_computaton_report: an output argument, if specified,
+              it will contain the Explain Computation report for this
+              aggregation. For more details see the docstring to
+              report_generator.py.
+        """
         super().__init__(return_anonymized=True, label=label)
         self._mean_params = mean_params
         self._public_partitions = public_partitions
+        self._explain_computaton_report = out_explain_computaton_report
 
     def expand(self, pcol: pvalue.PCollection) -> pvalue.PCollection:
-        backend = pipeline_dp.BeamBackend()
+        backend = _get_beam_backend()
         dp_engine = pipeline_dp.DPEngine(self._budget_accountant, backend)
 
         params = pipeline_dp.AggregateParams(
@@ -170,8 +223,12 @@ class Mean(PrivatePTransform):
             privacy_id_extractor=lambda x: x[0],
             value_extractor=lambda x: self._mean_params.value_extractor(x[1]))
 
-        dp_result = dp_engine.aggregate(pcol, params, data_extractors,
-                                        self._public_partitions)
+        dp_result = dp_engine.aggregate(
+            pcol,
+            params,
+            data_extractors,
+            self._public_partitions,
+            out_explain_computaton_report=self._explain_computaton_report)
         # dp_result : (partition_key, [dp_mean])
 
         # aggregate() returns a namedtuple of metrics for each partition key.
@@ -189,13 +246,28 @@ class Sum(PrivatePTransform):
     def __init__(self,
                  sum_params: aggregate_params.SumParams,
                  label: Optional[str] = None,
-                 public_partitions=None):
+                 public_partitions=None,
+                 out_explain_computaton_report: Optional[
+                     pipeline_dp.ExplainComputationReport] = None):
+        """Initialize.
+
+        Args:
+           sum_params: parameters for calculation
+           public_partitions: A collection of partition keys that will be
+              present in the result. Optional. If not provided, partitions will
+              be selected in a DP manner.
+           out_explain_computaton_report: an output argument, if specified,
+              it will contain the Explain Computation report for this
+              aggregation. For more details see the docstring to
+              report_generator.py.
+        """
         super().__init__(return_anonymized=True, label=label)
         self._sum_params = sum_params
         self._public_partitions = public_partitions
+        self._explain_computaton_report = out_explain_computaton_report
 
     def expand(self, pcol: pvalue.PCollection) -> pvalue.PCollection:
-        backend = pipeline_dp.BeamBackend()
+        backend = _get_beam_backend()
         dp_engine = pipeline_dp.DPEngine(self._budget_accountant, backend)
 
         params = pipeline_dp.AggregateParams(
@@ -214,8 +286,12 @@ class Sum(PrivatePTransform):
             privacy_id_extractor=lambda x: x[0],
             value_extractor=lambda x: self._sum_params.value_extractor(x[1]))
 
-        dp_result = dp_engine.aggregate(pcol, params, data_extractors,
-                                        self._public_partitions)
+        dp_result = dp_engine.aggregate(
+            pcol,
+            params,
+            data_extractors,
+            self._public_partitions,
+            out_explain_computaton_report=self._explain_computaton_report)
         # dp_result : (partition_key, [dp_sum])
 
         # aggregate() returns a namedtuple of metrics for each partition key.
@@ -233,13 +309,28 @@ class Count(PrivatePTransform):
     def __init__(self,
                  count_params: aggregate_params.CountParams,
                  label: Optional[str] = None,
-                 public_partitions=None):
+                 public_partitions=None,
+                 out_explain_computaton_report: Optional[
+                     pipeline_dp.ExplainComputationReport] = None):
+        """Initialize.
+
+        Args:
+            count_params: parameters for calculation
+            public_partitions: A collection of partition keys that will be
+              present in the result. Optional. If not provided, partitions will
+              be selected in a DP manner.
+            out_explain_computaton_report: an output argument, if specified,
+              it will contain the Explain Computation report for this
+              aggregation. For more details see the docstring to
+              report_generator.py.
+        """
         super().__init__(return_anonymized=True, label=label)
         self._count_params = count_params
         self._public_partitions = public_partitions
+        self._explain_computaton_report = out_explain_computaton_report
 
     def expand(self, pcol: pvalue.PCollection) -> pvalue.PCollection:
-        backend = pipeline_dp.BeamBackend()
+        backend = _get_beam_backend()
         dp_engine = pipeline_dp.DPEngine(self._budget_accountant, backend)
 
         params = pipeline_dp.AggregateParams(
@@ -258,8 +349,12 @@ class Count(PrivatePTransform):
             # doesn't use value extractor.
             value_extractor=lambda x: None)
 
-        dp_result = dp_engine.aggregate(pcol, params, data_extractors,
-                                        self._public_partitions)
+        dp_result = dp_engine.aggregate(
+            pcol,
+            params,
+            data_extractors,
+            self._public_partitions,
+            out_explain_computaton_report=self._explain_computaton_report)
         # dp_result : (partition_key, [dp_count])
 
         # aggregate() returns a namedtuple of metrics for each partition key.
@@ -277,13 +372,28 @@ class PrivacyIdCount(PrivatePTransform):
     def __init__(self,
                  privacy_id_count_params: aggregate_params.PrivacyIdCountParams,
                  label: Optional[str] = None,
-                 public_partitions=None):
+                 public_partitions=None,
+                 out_explain_computaton_report: Optional[
+                     pipeline_dp.ExplainComputationReport] = None):
+        """Initialize.
+
+        Args:
+            privacy_id_count_params: parameters for calculation
+            public_partitions: A collection of partition keys that will be
+              present in the result. Optional. If not provided, partitions will
+              be selected in a DP manner.
+            out_explain_computaton_report: an output argument, if specified,
+              it will contain the Explain Computation report for this
+              aggregation. For more details see the docstring to
+              report_generator.py.
+        """
         super().__init__(return_anonymized=True, label=label)
         self._privacy_id_count_params = privacy_id_count_params
         self._public_partitions = public_partitions
+        self._explain_computaton_report = out_explain_computaton_report
 
     def expand(self, pcol: pvalue.PCollection) -> pvalue.PCollection:
-        backend = pipeline_dp.BeamBackend()
+        backend = _get_beam_backend()
         dp_engine = pipeline_dp.DPEngine(self._budget_accountant, backend)
 
         params = pipeline_dp.AggregateParams(
@@ -300,8 +410,12 @@ class PrivacyIdCount(PrivatePTransform):
             # PrivacyIdCount ignores values.
             value_extractor=lambda x: None)
 
-        dp_result = dp_engine.aggregate(pcol, params, data_extractors,
-                                        self._public_partitions)
+        dp_result = dp_engine.aggregate(
+            pcol,
+            params,
+            data_extractors,
+            self._public_partitions,
+            out_explain_computaton_report=self._explain_computaton_report)
         # dp_result : (partition_key, [dp_privacy_id_count])
 
         # aggregate() returns a namedtuple of metrics for each partition key.
@@ -325,7 +439,7 @@ class SelectPartitions(PrivatePTransform):
         self._partition_extractor = partition_extractor
 
     def expand(self, pcol: pvalue.PCollection) -> pvalue.PCollection:
-        backend = pipeline_dp.BeamBackend()
+        backend = _get_beam_backend()
         dp_engine = pipeline_dp.DPEngine(self._budget_accountant, backend)
 
         data_extractors = pipeline_dp.DataExtractors(
@@ -347,32 +461,27 @@ class Map(PrivatePTransform):
         self._fn = fn
 
     def expand(self, pcol: pvalue.PCollection):
-        return pcol | "map values" >> beam.Map(lambda x: (x[0], self._fn(x[1])))
+        backend = _get_beam_backend()
+        return backend.map_values(pcol, self._fn, "Map")
 
 
 class FlatMap(PrivatePTransform):
     """Transform class for performing a FlatMap on a PrivatePCollection."""
-
-    class _FlattenValues(beam.DoFn):
-        """Inner class for flattening values of key value pair.
-        Flattens (1, (2,3,4)) into ((1,2), (1,3), (1,4))"""
-
-        def __init__(self, map_fn: Callable):
-            self._map_fn = map_fn
-
-        def process(self, row):
-            key = row[0]
-            values = self._map_fn(row[1])
-            for value in values:
-                yield key, value
 
     def __init__(self, fn: Callable, label: Optional[str] = None):
         super().__init__(return_anonymized=False, label=label)
         self._fn = fn
 
     def expand(self, pcol: pvalue.PCollection):
-        return pcol | "flatten values" >> beam.ParDo(
-            FlatMap._FlattenValues(map_fn=self._fn))
+        backend = _get_beam_backend()
+
+        def fn(row):
+            key = row[0]
+            values = self._fn(row[1])
+            for value in values:
+                yield key, value
+
+        return backend.flat_map(pcol, fn, "FlatMap")
 
 
 class PrivateCombineFn(beam.CombineFn):

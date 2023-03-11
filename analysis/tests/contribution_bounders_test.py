@@ -18,7 +18,7 @@ from absl.testing import absltest
 from absl.testing import parameterized
 
 import pipeline_dp
-import utility_analysis_new.contribution_bounders as contribution_bounders
+import analysis.contribution_bounders as contribution_bounders
 
 MaxContributionsParams = collections.namedtuple("MaxContributionParams",
                                                 ["max_contributions"])
@@ -26,29 +26,31 @@ CrossAndPerPartitionContributionParams = collections.namedtuple(
     "CrossAndPerPartitionContributionParams",
     ["max_partitions_contributed", "max_contributions_per_partition"])
 
-# input_values is a tuple (value, num_partitions_contributed)
-aggregate_fn = lambda input_value: len(input_value[0])
+# input_values is a tuple (count, sum, num_partitions_contributed)
+count_aggregate_fn = lambda input_value: input_value[0]  # returns count
 
 
 def _create_report_generator():
     return pipeline_dp.report_generator.ReportGenerator(None, "test")
 
 
-class SamplingCrossAndPerPartitionContributionBounderTest(
-        parameterized.TestCase):
+class SamplingL0LinfContributionBounderTest(parameterized.TestCase):
 
-    def _run_contribution_bounding(self, input, max_partitions_contributed,
-                                   max_contributions_per_partition):
+    def _run_contribution_bounding(self,
+                                   input,
+                                   max_partitions_contributed,
+                                   max_contributions_per_partition,
+                                   partitions_sampling_prob: float = 1.0):
         params = CrossAndPerPartitionContributionParams(
             max_partitions_contributed, max_contributions_per_partition)
 
-        bounder = contribution_bounders.SamplingCrossAndPerPartitionContributionBounder(
-        )
+        bounder = contribution_bounders.SamplingL0LinfContributionBounder(
+            partitions_sampling_prob)
         return list(
             bounder.bound_contributions(input, params,
                                         pipeline_dp.LocalBackend(),
                                         _create_report_generator(),
-                                        aggregate_fn))
+                                        count_aggregate_fn))
 
     def test_contribution_bounding_empty_col(self):
         input = []
@@ -95,6 +97,48 @@ class SamplingCrossAndPerPartitionContributionBounderTest(
                            (('pid2', 'pk4'), 1)]
         # Check per- and cross-partition contribution limits are not enforced.
         self.assertEqual(set(expected_result), set(bound_result))
+
+    def test_contribution_bounding_cross_partition_bounding_and_sampling(self):
+        input = [("pid1", 'pk1', 1), ("pid1", 'pk1', 2), ("pid1", 'pk2', 3),
+                 ("pid1", 'pk2', 4), ("pid1", 'pk2', 5), ("pid1", 'pk3', 6),
+                 ("pid1", 'pk4', 7), ("pid2", 'pk4', 8)]
+        max_partitions_contributed = 3
+        max_contributions_per_partition = 5
+
+        bound_result = self._run_contribution_bounding(
+            input,
+            max_partitions_contributed,
+            max_contributions_per_partition,
+            partitions_sampling_prob=0.7)
+
+        # 'pk1' and 'pk2' are dropped by subsampling.
+        expected_result = [(('pid2', 'pk4'), 1), (('pid1', 'pk3'), 1),
+                           (('pid1', 'pk4'), 1)]
+        # Check per- and cross-partition contribution limits are not enforced.
+        self.assertEqual(set(expected_result), set(bound_result))
+
+
+class SamplingL0LinfContributionBounderTest(parameterized.TestCase):
+
+    def test_contribution_bounding_doesnt_drop_contributions(self):
+        # Arrange.
+        # input has format (partition_key, (count, sum, num_partitions_contributed)).
+        input = [('pk1', (1, 2, 3)), ('pk2', (2, 3, 4)), ('pk1', (10, 11, 12)),
+                 ("pk3", (100, 101, 102))]
+        bounder = contribution_bounders.NoOpContributionBounder()
+
+        # Act.
+        bound_result = list(
+            bounder.bound_contributions(input,
+                                        params=None,
+                                        backend=pipeline_dp.LocalBackend(),
+                                        report_generator=None,
+                                        aggregate_fn=count_aggregate_fn))
+
+        # Assert.
+        expected_result = [((None, 'pk1'), 1), ((None, 'pk2'), 2),
+                           ((None, 'pk1'), 10), ((None, 'pk3'), 100)]
+        self.assertSequenceEqual(set(expected_result), set(bound_result))
 
 
 if __name__ == '__main__':

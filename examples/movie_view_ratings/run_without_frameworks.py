@@ -47,7 +47,10 @@ def main(unused_argv):
             # we can compute multiple metrics at once.
             pipeline_dp.Metrics.COUNT,
             pipeline_dp.Metrics.SUM,
-            pipeline_dp.Metrics.PRIVACY_ID_COUNT
+            pipeline_dp.Metrics.PRIVACY_ID_COUNT,
+            pipeline_dp.Metrics.PERCENTILE(50),
+            pipeline_dp.Metrics.PERCENTILE(90),
+            pipeline_dp.Metrics.PERCENTILE(99)
         ],
         # Limits to how much one user can contribute:
         # .. at most two movies rated per user
@@ -66,14 +69,26 @@ def main(unused_argv):
         privacy_id_extractor=lambda mv: mv.user_id,
         value_extractor=lambda mv: mv.rating)
 
+    # Create the Explain Computation report object for passing it into
+    # DPEngine.aggregate().
+    explain_computation_report = pipeline_dp.ExplainComputationReport()
+
     # Create a computational graph for the aggregation.
     # All computations are lazy. dp_result is iterable, but iterating it would
     # fail until budget is computed (below).
     # It’s possible to call DPEngine.aggregate multiple times with different
     # metrics to compute.
-    dp_result = dp_engine.aggregate(movie_views, params, data_extractors)
+    dp_result = dp_engine.aggregate(
+        movie_views,
+        params,
+        data_extractors,
+        out_explain_computaton_report=explain_computation_report)
 
     budget_accountant.compute_budgets()
+
+    # Generate the Explain Computation report. It must be called after
+    # budget_accountant.compute_budgets().
+    print(explain_computation_report.text())
 
     # Here's where the lazy iterator initiates computations and gets transformed
     # into actual results

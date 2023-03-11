@@ -18,12 +18,14 @@ import multiprocessing as mp
 import random
 import numpy as np
 from collections.abc import Iterable
+from typing import Callable
 
 import abc
 import pipeline_dp.combiners as dp_combiners
 import typing
 import collections
 import itertools
+import operator
 
 try:
     import apache_beam as beam
@@ -34,8 +36,34 @@ except:
 
 
 class PipelineBackend(abc.ABC):
-    """Interface implemented by the pipeline backends compatible with PipelineDP
-    """
+    """Interface implemented by the pipeline backends compatible with PipelineDP."""
+
+    def to_collection(self, collection_or_iterable, col, stage_name: str):
+        """Converts to collection native to Pipeline Framework.
+
+        If collection_or_iterable is already the framework collection then
+        its return, if it is iterable, it is converted to the framework
+        collection and return.
+
+        Note, that col is required to be the framework collection in order to
+        get correct pipeline information.
+
+        Args:
+            collection_or_iterable: iterable or Framework collection.
+            col: some framework collection.
+            stage_name: stage name.
+        Returns:
+            the framework collection with elements from collection_or_iterable.
+        """
+        return collection_or_iterable
+
+    def to_multi_transformable_collection(self, col):
+        """Converts to a collection, for which multiple transformations can be applied.
+
+        Note: for now it's needed only for LocalBackend, because in Beam and
+        Spark any collection can be transformed multiple times.
+        """
+        return col
 
     @abc.abstractmethod
     def map(self, col, fn, stage_name: str):
@@ -86,7 +114,7 @@ class PipelineBackend(abc.ABC):
 
     @abc.abstractmethod
     def sample_fixed_per_key(self, col, n: int, stage_name: str):
-        """Get random samples without replacement of values for each key.
+        """Returns random samples without replacement of values for each key.
 
         Args:
           col: input collection of elements (key, value).
@@ -103,6 +131,10 @@ class PipelineBackend(abc.ABC):
         pass
 
     @abc.abstractmethod
+    def sum_per_key(self, col, stage_name: str):
+        pass
+
+    @abc.abstractmethod
     def combine_accumulators_per_key(self, col, combiner: dp_combiners.Combiner,
                                      stage_name: str):
         """Combines the input collection so that all elements per each key are merged.
@@ -115,16 +147,34 @@ class PipelineBackend(abc.ABC):
 
         Returns:
           A collection of tuples (key, accumulator).
-
         """
 
     @abc.abstractmethod
-    def flatten(self, col1, col2, stage_name: str):
-        """
+    def reduce_per_key(self, col, fn: Callable, stage_name: str):
+        """Reduces the input collection so that all elements per each key are combined.
+
+        Args:
+          col: input collection which contains tuples (key, value).
+          fn: function of 2 elements, which returns element of the same
+          type. The operation defined by this function needs to be associative
+          and commutative (e.g. +, *).
+          stage_name: name of the stage.
+
         Returns:
-          A collection that contains all values from col1 and col2.
+          A collection of tuples (key, value).
         """
-        pass
+
+    @abc.abstractmethod
+    def flatten(self, cols: Iterable, stage_name: str):
+        """Returns a collection that contains all values from collections from cols."""
+
+    @abc.abstractmethod
+    def distinct(self, col, stage_name: str):
+        """Returns a collection containing distinct elements of the input collection."""
+
+    @abc.abstractmethod
+    def to_list(self, col, stage_name: str):
+        """Returns a 1-element collection with a list of all elements."""
 
     def annotate(self, col, stage_name: str, **kwargs):
         """Annotates collection with registered annotators.
@@ -142,11 +192,11 @@ class PipelineBackend(abc.ABC):
 
 
 class UniqueLabelsGenerator:
-    """Generate unique labels for each pipeline aggregation."""
+    """Generates unique labels for each pipeline aggregation."""
 
     def __init__(self, suffix):
         self._labels = set()
-        self._suffix = suffix
+        self._suffix = ("_" + suffix) if suffix else ""
 
     def _add_if_unique(self, label):
         if label in self._labels:
@@ -157,11 +207,11 @@ class UniqueLabelsGenerator:
     def unique(self, label):
         if not label:
             label = "UNDEFINED_STAGE_NAME"
-        suffix_label = label + "_" + self._suffix
+        suffix_label = label + self._suffix
         if self._add_if_unique(suffix_label):
             return suffix_label
         for i in itertools.count(1):
-            label_candidate = f"{label}_{i}_{self._suffix}"
+            label_candidate = f"{label}_{i}{self._suffix}"
             if self._add_if_unique(label_candidate):
                 return label_candidate
 
@@ -172,6 +222,16 @@ class BeamBackend(PipelineBackend):
     def __init__(self, suffix: str = ""):
         super().__init__()
         self._ulg = UniqueLabelsGenerator(suffix)
+
+    @property
+    def unique_lable_generator(self) -> UniqueLabelsGenerator:
+        return self._ulg
+
+    def to_collection(self, collection_or_iterable, col, stage_name: str):
+        if isinstance(collection_or_iterable, beam.PCollection):
+            return collection_or_iterable
+        return col.pipeline | self._ulg.unique(stage_name) >> beam.Create(
+            collection_or_iterable)
 
     def map(self, col, fn, stage_name: str):
         return col | self._ulg.unique(stage_name) >> beam.Map(fn)
@@ -187,7 +247,7 @@ class BeamBackend(PipelineBackend):
                                                                    (k, fn(v)))
 
     def group_by_key(self, col, stage_name: str):
-        """Group the values for each key in the PCollection into a single sequence.
+        """Groups the values for each key in the PCollection into a single sequence.
 
         Args:
           col: input collection with elements (key, value)
@@ -258,6 +318,9 @@ class BeamBackend(PipelineBackend):
         return col | self._ulg.unique(
             stage_name) >> combiners.Count.PerElement()
 
+    def sum_per_key(self, col, stage_name: str):
+        return col | self._ulg.unique(stage_name) >> beam.CombinePerKey(sum)
+
     def combine_accumulators_per_key(self, col, combiner: dp_combiners.Combiner,
                                      stage_name: str):
 
@@ -273,8 +336,19 @@ class BeamBackend(PipelineBackend):
         return col | self._ulg.unique(stage_name) >> beam.CombinePerKey(
             merge_accumulators)
 
-    def flatten(self, col1, col2, stage_name: str):
-        return (col1, col2) | self._ulg.unique(stage_name) >> beam.Flatten()
+    def reduce_per_key(self, col, fn: Callable, stage_name: str):
+        combine_fn = lambda elements: functools.reduce(fn, elements)
+        return col | self._ulg.unique(stage_name) >> beam.CombinePerKey(
+            combine_fn)
+
+    def flatten(self, cols, stage_name: str):
+        return cols | self._ulg.unique(stage_name) >> beam.Flatten()
+
+    def distinct(self, col, stage_name: str):
+        return col | self._ulg.unique(stage_name) >> beam.Distinct()
+
+    def to_list(self, col, stage_name: str):
+        return col | self._ulg.unique(stage_name) >> beam.combiners.ToList()
 
     def to_pcollection(self, col, not_col, stage_name: str):
         return col.pipeline | self._ulg.unique(stage_name) >> beam.Create(
@@ -295,6 +369,10 @@ class SparkRDDBackend(PipelineBackend):
     def __init__(self, sc: 'SparkContext'):
         self._sc = sc
 
+    def to_collection(self, collection_or_iterable, col, stage_name: str):
+        # TODO: implement it and remove workaround in map() below.
+        return collection_or_iterable
+
     def map(self, rdd, fn, stage_name: str = None):
         # TODO(make more elegant solution): workaround for public_partitions
         # It is beneficial to accept them as in-memory collection for improving
@@ -313,7 +391,7 @@ class SparkRDDBackend(PipelineBackend):
         return rdd.mapValues(fn)
 
     def group_by_key(self, rdd, stage_name: str = None):
-        """Group the values for each key in the RDD into a single sequence.
+        """Groups the values for each key in the RDD into a single sequence.
 
         Args:
           rdd: input RDD
@@ -356,7 +434,10 @@ class SparkRDDBackend(PipelineBackend):
             lambda x, y: random.sample(x + y, min(len(x) + len(y), n)))
 
     def count_per_element(self, rdd, stage_name: str = None):
-        return rdd.map(lambda x: (x, 1)).reduceByKey(lambda x, y: (x + y))
+        return rdd.map(lambda x: (x, 1)).reduceByKey(operator.add)
+
+    def sum_per_key(self, rdd, stage_name: str = None):
+        return rdd.reduceByKey(operator.add)
 
     def combine_accumulators_per_key(self,
                                      rdd,
@@ -365,12 +446,24 @@ class SparkRDDBackend(PipelineBackend):
         return rdd.reduceByKey(
             lambda acc1, acc2: combiner.merge_accumulators(acc1, acc2))
 
-    def flatten(self, col1, col2, stage_name: str = None):
-        return col1.union(col2)
+    def reduce_per_key(self, rdd, fn: Callable, stage_name: str):
+        return rdd.reduceByKey(fn)
+
+    def flatten(self, cols, stage_name: str = None):
+        return self._sc.union(cols)
+
+    def distinct(self, col, stage_name: str):
+        return col.distinct()
+
+    def to_list(self, col, stage_name: str):
+        raise NotImplementedError("to_list is not implement in SparkBackend.")
 
 
 class LocalBackend(PipelineBackend):
     """Local Pipeline adapter."""
+
+    def to_multi_transformable_collection(self, col):
+        return list(col)
 
     def map(self, col, fn, stage_name: typing.Optional[str] = None):
         return map(fn, col)
@@ -433,6 +526,9 @@ class LocalBackend(PipelineBackend):
     def count_per_element(self, col, stage_name: typing.Optional[str] = None):
         yield from collections.Counter(col).items()
 
+    def sum_per_key(self, col, stage_name: typing.Optional[str] = None):
+        return self.map_values(self.group_by_key(col), sum)
+
     def combine_accumulators_per_key(self,
                                      col,
                                      combiner: dp_combiners.Combiner,
@@ -445,8 +541,23 @@ class LocalBackend(PipelineBackend):
 
         return self.map_values(self.group_by_key(col), merge_accumulators)
 
-    def flatten(self, col1, col2, stage_name: str = None):
-        return itertools.chain(col1, col2)
+    def reduce_per_key(self, col, fn: Callable, stage_name: str):
+        combine_fn = lambda elements: functools.reduce(fn, elements)
+        return self.map_values(self.group_by_key(col), combine_fn)
+
+    def flatten(self, cols, stage_name: str = None):
+        return itertools.chain(*cols)
+
+    def distinct(self, col, stage_name: str):
+
+        def generator():
+            for v in set(col):
+                yield v
+
+        return generator()
+
+    def to_list(self, col, stage_name: str):
+        return (list(col) for _ in range(1))
 
 
 # workaround for passing lambda functions to multiprocessing
@@ -651,14 +762,34 @@ class MultiProcLocalBackend(PipelineBackend):
         return _LazyMultiProcCountIterator(col, self.chunksize, self.n_jobs,
                                            **self.pool_kwargs)
 
+    def sum_per_key(self, rdd, stage_name: str = None):
+        raise NotImplementedError(
+            "sum_per_key is not implemented for MultiProcLocalBackend")
+
     def combine_accumulators_per_key(self, col, combiner: dp_combiners.Combiner,
                                      stage_name: str):
         raise NotImplementedError(
-            "combine_accumulators_per_key is not implmeneted for MultiProcLocalBackend"
+            "combine_accumulators_per_key is not implemented for MultiProcLocalBackend"
         )
+
+    def reduce_per_key(self, col, combine_fn: Callable, stage_name: str):
+        raise NotImplementedError(
+            "reduce_per_key is not implemented for MultiProcLocalBackend")
 
     def flatten(self, col1, col2, stage_name: str = None):
         return itertools.chain(col1, col2)
+
+    def distinct(self, col, stage_name: str):
+
+        def generator():
+            for v in set(col):
+                yield v
+
+        return generator()
+
+    def to_list(self, col, stage_name: str):
+        raise NotImplementedError(
+            "to_list is not implemented for MultiProcLocalBackend")
 
 
 class Annotator(abc.ABC):
@@ -678,7 +809,6 @@ class Annotator(abc.ABC):
         Returns:
             The input collection after applying an annotation.
         """
-        pass
 
 
 _annotators = []

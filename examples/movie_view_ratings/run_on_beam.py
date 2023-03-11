@@ -68,12 +68,17 @@ def main(unused_argv):
         scalar_value_params = pipeline_dp.aggregate_params.ScalarValueParams(
             min_value=1, max_value=5)
 
+        explain_computation_report = pipeline_dp.ExplainComputationReport()
         # Calculate the private sum
         dp_result = private_movie_views | \
                     "Private aggregate" >> private_beam.AggregationBuilder(global_params, [1,2,3,4,5]).\
                         aggregate_value(lambda mv:mv.rating, metrics=[pipeline_dp.Metrics.MEAN, pipeline_dp.Metrics.COUNT], output_col_name="rating1", scalar_value_params=scalar_value_params).\
                         aggregate_value(lambda mv:mv.rating, metrics=[pipeline_dp.Metrics.MEAN, pipeline_dp.Metrics.COUNT], output_col_name="rating2", scalar_value_params=scalar_value_params)
         budget_accountant.compute_budgets()
+
+        # Generate the Explain Computation Report. It must be called after
+        # budget_accountant.compute_budgets().
+        print(explain_computation_report.text())
 
         # Save the results
         dp_result | beam.io.WriteToText(output_file)

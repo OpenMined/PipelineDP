@@ -11,6 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""Combiners for computing DP aggregations."""
+
 import abc
 import copy
 from typing import Callable, Iterable, Sized, Tuple, List, Union
@@ -20,6 +22,8 @@ from pipeline_dp import dp_computations
 from pipeline_dp import budget_accounting
 import numpy as np
 import collections
+import pydp
+from pydp.algorithms import quantile_tree
 
 ArrayLike = Union[np.ndarray, List[float]]
 ExplainComputationReport = Union[Callable, str, List[Union[Callable, str]]]
@@ -109,7 +113,7 @@ class CustomCombiner(Combiner, abc.ABC):
 
     def set_aggregate_params(self,
                              aggregate_params: pipeline_dp.AggregateParams):
-        """Sets aggregate parameters
+        """Sets aggregate parameters.
 
         The custom combiner can optionally use it for own DP parameter
         computations.
@@ -117,9 +121,9 @@ class CustomCombiner(Combiner, abc.ABC):
         self._aggregate_params = aggregate_params
 
     def metrics_names(self) -> List[str]:
-        """Metrics that self computes.
+        """Metrics that 'self' computes.
 
-        By default returns class name.
+        It returns the class name by default.
         """
         return self.__class__.__name__
 
@@ -274,11 +278,13 @@ class SumCombiner(Combiner):
 
 
 class MeanCombiner(Combiner):
-    """Combiner for computing DP Mean. Also returns sum and count in addition to
-    the mean.
-    The type of the accumulator is a tuple(count: int, normalized_sum: float) that holds
-    the count and normalized sum of elements in the dataset for which this accumulator is
-    computed.
+    """Combiner for computing DP Mean.
+
+    It can also return sum and count in addition to the mean.
+
+    The type of the accumulator is a tuple(count: int, normalized_sum: float)
+    that holds the count and normalized sum of elements in the dataset for which
+    this accumulator is computed.
     """
     AccumulatorType = Tuple[int, float]
 
@@ -329,11 +335,14 @@ class MeanCombiner(Combiner):
 
 
 class VarianceCombiner(Combiner):
-    """Combiner for computing DP Variance. Also returns mean, sum and count in addition to
-    the variance.
-    The type of the accumulator is a tuple(count: int, normalized_sum: float, normalized_sum_of_squares: float) that holds
-    the count, normalized sum and normalized sum of squares of elements in the dataset for which this accumulator is
-    computed.
+    """Combiner for computing DP Variance.
+
+    It can also return mean, sum and count in addition to the variance.
+
+    The accumulator type is a
+      tuple(count: int, normalized_sum: float, normalized_sum_of_squares: float)
+    that holds the count, normalized sum and normalized sum of squares of
+    elements in the dataset for which this accumulator is computed.
     """
     AccumulatorType = Tuple[int, float, float]
 
@@ -390,6 +399,85 @@ class VarianceCombiner(Combiner):
         return lambda: f"Computed variance with (eps={self._params.eps} delta={self._params.delta})"
 
 
+class QuantileCombiner(Combiner):
+    """Combiner for computing DP quantiles.
+
+    It can compute any number of quantiles at once with the same accuracy.
+    It uses QuantileTree algorithm from Google C++ DP library
+    https://github.com/google/differential-privacy/blob/main/cc/algorithms/quantile-tree.h
+    with the wrapper from PyDP.
+
+    The accumulator is QuantileTree object serialized to string.
+    """
+
+    AccumulatorType = str
+
+    def __init__(self, params, percentiles_to_compute: List[float]):
+        self._params = params
+        self._percentiles = percentiles_to_compute
+        self._quantiles_to_compute = [p / 100 for p in percentiles_to_compute]
+
+    def create_accumulator(self, values) -> AccumulatorType:
+        tree = self._create_empty_quantile_tree()
+        for value in values:
+            tree.add_entry(value)
+        return tree.serialize().to_bytes()
+
+    def merge_accumulators(self, accumulator1: AccumulatorType,
+                           accumulator2: AccumulatorType) -> AccumulatorType:
+        tree = self._create_empty_quantile_tree()
+
+        tree.merge(pydp._pydp.bytes_to_summary(accumulator1))
+        tree.merge(pydp._pydp.bytes_to_summary(accumulator2))
+        return tree.serialize().to_bytes()
+
+    def compute_metrics(self, accumulator: AccumulatorType) -> AccumulatorType:
+        tree = self._create_empty_quantile_tree()
+        tree.merge(pydp._pydp.bytes_to_summary(accumulator))
+
+        quantiles = tree.compute_quantiles(
+            self._params.eps, self._params.delta,
+            self._params.aggregate_params.max_partitions_contributed,
+            self._params.aggregate_params.max_contributions_per_partition,
+            self._quantiles_to_compute, self._noise_type())
+
+        return dict([(name, value)
+                     for name, value in zip(self.metrics_names(), quantiles)])
+
+    def metrics_names(self) -> List[str]:
+
+        def format_metric_name(p: float):
+            int_p = int(round(p))
+            if int_p == p:
+                p = int_p
+            else:
+                p = str(p).replace('.', '_')
+            return f"percentile_{p}"
+
+        return list(map(format_metric_name, self._percentiles))
+
+    def explain_computation(self) -> ExplainComputationReport:
+        return lambda: f"Computed percentiles {self._percentiles} with (eps={self._params.eps} delta={self._params.delta})"
+
+    def _create_empty_quantile_tree(self):
+        # The default tree parameters taken from
+        # https://github.com/google/differential-privacy/blob/605ec87bcbd4a536995b611132dbf4d341d2e91d/cc/algorithms/quantile-tree.h#L47
+        DEFAULT_TREE_HEIGHT = 4
+        DEFAULT_BRANCHING_FACTOR = 16
+        return quantile_tree.QuantileTree(
+            self._params.aggregate_params.min_value,
+            self._params.aggregate_params.max_value, DEFAULT_TREE_HEIGHT,
+            DEFAULT_BRANCHING_FACTOR)
+
+    def _noise_type(self) -> str:
+        noise_kind = self._params.aggregate_params.noise_kind
+        if noise_kind == pipeline_dp.NoiseKind.LAPLACE:
+            return "laplace"
+        if noise_kind == pipeline_dp.NoiseKind.GAUSSIAN:
+            return "gaussian"
+        assert False, f"{noise_kind} is not support by PyDP quantile tree."
+
+
 # Cache for namedtuple types. It should be used only in
 # '_get_or_create_named_tuple()' function.
 _named_tuple_cache = {}
@@ -423,7 +511,7 @@ class CompoundCombiner(Combiner):
     multiple metrics. For example, it can contain [CountCombiner, SumCombiner].
     CompoundCombiner delegates all operations to the internal combiners.
 
-    In case one the of combiners is MeanCombiner, which computes count and sum
+    In case one of the combiners is MeanCombiner, which computes count and sum
     in addition to mean, output_count and output_sum should be set to True if
     they are to be outputted from MeanCombiner. For VarianceCombiner you can
     additionally set output_mean to True.
@@ -452,7 +540,7 @@ class CompoundCombiner(Combiner):
 
     def __init__(self, combiners: Iterable['Combiner'],
                  return_named_tuple: bool):
-        self._combiners = combiners
+        self._combiners = list(combiners)
         self._metrics_to_compute = []
         self._return_named_tuple = return_named_tuple
         if not self._return_named_tuple:
@@ -615,6 +703,19 @@ def create_compound_combiner(
         combiners.append(
             VectorSumCombiner(
                 CombinerParams(budget_vector_sum, aggregate_params)))
+
+    percentiles_to_compute = [
+        metric.parameter
+        for metric in aggregate_params.metrics
+        if metric.is_percentile
+    ]
+    if percentiles_to_compute:
+        budget_percentile = budget_accountant.request_budget(
+            mechanism_type, weight=aggregate_params.budget_weight)
+        combiners.append(
+            QuantileCombiner(
+                CombinerParams(budget_percentile, aggregate_params),
+                percentiles_to_compute))
 
     return CompoundCombiner(combiners, return_named_tuple=True)
 

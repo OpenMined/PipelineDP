@@ -29,7 +29,7 @@ class ReportGeneratorTest(unittest.TestCase):
         expected_report = (
             "DPEngine method: test_method\n"
             "AggregateParams:\n"
-            " metrics=['privacy_id_count', 'count', 'mean', 'sum']\n"
+            " metrics=['PRIVACY_ID_COUNT', 'COUNT', 'MEAN', 'SUM']\n"
             " noise_kind=gaussian\n"
             " budget_weight=1\n"
             " Contribution bounding:\n"
@@ -53,6 +53,44 @@ class ReportGeneratorTest(unittest.TestCase):
         report_generator.add_stage("Stage1 ")  # add string
         report_generator.add_stage(lambda: "Stage2")  # add lambda returning str
         self.assertEqual(expected_report, report_generator.report())
+
+
+class ExplainComputationReportTest(unittest.TestCase):
+
+    def test_report_empty(self):
+        report = pipeline_dp.ExplainComputationReport()
+        with self.assertRaisesRegex(ValueError,
+                                    "The report_generator is not set"):
+            report.text()
+
+    def test_fail_to_generate(self):
+        report = pipeline_dp.ExplainComputationReport()
+        report_generator = ReportGenerator(None, "test_method")
+
+        # Simulate that one of the stages of report generation failed.
+        def stage_fn():
+            raise ValueError("Fail to generate")
+
+        report_generator.add_stage(lambda: stage_fn)
+
+        with self.assertRaisesRegex(ValueError, "report_generator is not set"):
+            report.text()
+
+    def test_generate(self):
+        report = pipeline_dp.ExplainComputationReport()
+        params = pipeline_dp.AggregateParams(
+            noise_kind=pipeline_dp.NoiseKind.LAPLACE,
+            metrics=[pipeline_dp.Metrics.COUNT],
+            max_partitions_contributed=2,
+            max_contributions_per_partition=1)
+        report_generator = ReportGenerator(params, "test_method")
+        report_generator.add_stage("stage 1")
+        report_generator.add_stage("stage 2")
+        report._set_report_generator(report_generator)
+
+        text = report.text()
+        self.assertTrue("stage 1" in text)
+        self.assertTrue("stage 2" in text)
 
 
 if __name__ == "__main__":

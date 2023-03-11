@@ -23,7 +23,7 @@ import pipeline_dp
 import pandas as pd
 
 FLAGS = flags.FLAGS
-flags.DEFINE_string('input_file', 'restaraunts_week_data.csv',
+flags.DEFINE_string('input_file', 'restaurants_week_data.csv',
                     'The file with the restaraunt visits data')
 flags.DEFINE_string('output_file', None, 'Output file')
 

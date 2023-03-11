@@ -30,7 +30,7 @@ jobs:
 
       - name: Check formatting
         run: |
-          yapf --diff --recursive pipeline_dp tests utility_analysis_new
+          yapf --diff --recursive pipeline_dp tests analysis
 
   test:
     runs-on: ${{ matrix.os }}
@@ -40,7 +40,7 @@ jobs:
       max-parallel: 3
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        python-version: ["3.6", "3.7", "3.8", "3.9"]
+        python-version: ["3.7", "3.8", "3.9"]
 
     steps:
       - uses: actions/checkout@v2
@@ -58,4 +58,4 @@ jobs:
 
       - name: Run pytest
         run: |
-          pytest tests utility_analysis_new/tests
+          pytest tests analysis/tests

@@ -22,13 +22,49 @@ import logging
 import pipeline_dp
 
 
-class Metrics(Enum):
-    COUNT = 'count'
-    PRIVACY_ID_COUNT = 'privacy_id_count'
-    SUM = 'sum'
-    MEAN = 'mean'
-    VARIANCE = 'variance'
-    VECTOR_SUM = 'vector_sum'
+@dataclass
+class Metric:
+    """Represents a DP metric.
+
+    Attributes:
+        name: the name of the metric, like 'COUNT', 'PERCENTILE'.
+        parameter: an optional parameter of the metric, e.g. for 90th
+        percentile, parameter = 90.
+    """
+    name: str
+    parameter: Optional[float] = None
+
+    def __eq__(self, other: 'Metric') -> bool:
+        return self.name == other.name and self.parameter == other.parameter
+
+    def __str__(self):
+        if self.parameter is None:
+            return self.name
+        return f'{self.name}({self.parameter})'
+
+    def __repr__(self):
+        return self.__str__()
+
+    def __hash__(self):
+        return hash(str(self))
+
+    @property
+    def is_percentile(self):
+        return self.name == 'PERCENTILE'
+
+
+class Metrics:
+    """Contains all supported DP metrics."""
+    COUNT = Metric('COUNT')
+    PRIVACY_ID_COUNT = Metric('PRIVACY_ID_COUNT')
+    SUM = Metric('SUM')
+    MEAN = Metric('MEAN')
+    VARIANCE = Metric('VARIANCE')
+    VECTOR_SUM = Metric('VECTOR_SUM')
+
+    @classmethod
+    def PERCENTILE(cls, percentile_to_compute: float):
+        return Metric('PERCENTILE', percentile_to_compute)
 
 
 class NoiseKind(Enum):
@@ -45,7 +81,7 @@ class NoiseKind(Enum):
 class MechanismType(Enum):
     LAPLACE = 'Laplace'
     GAUSSIAN = 'Gaussian'
-    GENERIC = 'Truncated Geometric'
+    GENERIC = 'Generic'
 
 
 class NormKind(Enum):
@@ -55,11 +91,17 @@ class NormKind(Enum):
     L2 = "l2"
 
 
+class PartitionSelectionStrategy(Enum):
+    TRUNCATED_GEOMETRIC = 'Truncated Geometric'
+    LAPLACE_THRESHOLDING = 'Laplace Thresholding'
+    GAUSSIAN_THRESHOLDING = 'Gaussian Thresholding'
+
+
 @dataclass
 class AggregateParams:
     """Specifies parameters for function DPEngine.aggregate()
 
-    Args:
+    Attributes:
         metrics: A list of metrics to compute.
         noise_kind: The type of noise to use for the DP calculations.
         max_partitions_contributed: A bound on the number of partitions to which one
@@ -91,8 +133,13 @@ class AggregateParams:
          max_contributions_per_partition. This option can be used if the dataset
          does not contain any identifiers that can be used to enforce
          contribution bounds automatically.
+        public_partitions_already_filtered: if true, it is assumed that records
+         with partition_key which are not in public_partitions are already
+         removed from the dataset. It can only be used with public partitions.
+        partition_selection_strategy: which strategy to use for private
+         partition selection. It is ignored when public partitions are used.
     """
-    metrics: List[Metrics]
+    metrics: List[Metric]
     noise_kind: NoiseKind = NoiseKind.LAPLACE
     max_partitions_contributed: Optional[int] = None
     max_contributions_per_partition: Optional[int] = None
@@ -110,12 +157,14 @@ class AggregateParams:
     vector_max_norm: Optional[float] = None
     vector_size: Optional[int] = None
     contribution_bounds_already_enforced: bool = False
+    public_partitions_already_filtered: bool = False
+    partition_selection_strategy: PartitionSelectionStrategy = PartitionSelectionStrategy.TRUNCATED_GEOMETRIC
 
     @property
     def metrics_str(self) -> str:
         if self.custom_combiners:
             return f"custom combiners={[c.metrics_names() for c in self.custom_combiners]}"
-        return f"metrics={[m.value for m in self.metrics]}"
+        return f"metrics={[str(m) for m in self.metrics]}"
 
     @property
     def bounds_per_contribution_are_set(self) -> bool:
@@ -253,7 +302,7 @@ class AggregateParams:
 class SelectPartitionsParams:
     """Specifies parameters for differentially-private partition selection.
 
-    Args:
+    Attributes:
         max_partitions_contributed: Maximum number of partitions per privacy ID.
             The algorithm will drop contributions over this limit. To keep more
             data, this should be a good estimate of the realistic upper bound.
@@ -261,9 +310,12 @@ class SelectPartitionsParams:
             of dropped partitions.
         budget_weight: Relative weight of the privacy budget allocated to
             partition selection.
+        partition_selection_strategy: which strategy to use for private
+         partition selection.
     """
     max_partitions_contributed: int
     budget_weight: float = 1
+    partition_selection_strategy: PartitionSelectionStrategy = PartitionSelectionStrategy.TRUNCATED_GEOMETRIC
 
     # TODO: Add support for contribution_bounds_already_enforced
 
@@ -275,16 +327,25 @@ class SelectPartitionsParams:
 class SumParams:
     """Specifies parameters for differentially-private sum calculation.
 
-    Args:
-        noise_kind: The type of noise to use for the DP calculations.
-        max_partitions_contributed: A bounds on the number of partitions to which one
-            unit of privacy (e.g., a user) can contribute.
-        max_contributions_per_partition: A bound on the number of times one unit of
-            privacy (e.g. a user) can contribute to a partition.
+    Attributes:
+        max_partitions_contributed: A bounds on the number of partitions to
+            which one unit of privacy (e.g., a user) can contribute.
+        max_contributions_per_partition: A bound on the number of times one unit
+            of privacy (e.g. a user) can contribute to a partition.
         min_value: Lower bound on each value.
         max_value: Upper bound on each value.
-        partition_extractor: A function which, given an input element, will return its partition id.
-        value_extractor: A function which, given an input element, will return its value.
+        partition_extractor: A function which, given an input element, will
+            return its partition id.
+        value_extractor: A function which, given an input element, will return
+            its value.
+        budget_weight: Relative weight of the privacy budget allocated to
+            partition selection.
+        noise_kind: The type of noise to use for the DP calculations.
+        contribution_bounds_already_enforced: assume that the input dataset
+            complies with the bounds provided in max_partitions_contributed and
+            max_contributions_per_partition. This option can be used if the
+            dataset does not contain any identifiers that can be used to enforce
+            contribution bounds automatically.
     """
     max_partitions_contributed: int
     max_contributions_per_partition: int
@@ -296,6 +357,7 @@ class SumParams:
     high: float = None  # deprecated
     budget_weight: float = 1
     noise_kind: NoiseKind = NoiseKind.LAPLACE
+    contribution_bounds_already_enforced: bool = False
     public_partitions: Union[Iterable, 'PCollection',
                              'RDD'] = None  # deprecated
 
@@ -316,7 +378,7 @@ class SumParams:
 class VarianceParams:
     """Specifies parameters for differentially-private variance calculation.
 
-    Args:
+    Attributes:
         noise_kind: Kind of noise to use for the DP calculations.
         max_partitions_contributed: Bounds the number of partitions in which one
             unit of privacy (e.g., a user) can participate.
@@ -328,7 +390,15 @@ class VarianceParams:
         partition_extractor: A function for partition id extraction from a collection record.
         value_extractor: A function for extraction of value
             for which the sum will be calculated.
-  """
+        budget_weight: Relative weight of the privacy budget allocated to
+            partition selection.
+        noise_kind: The type of noise to use for the DP calculations.
+        contribution_bounds_already_enforced: assume that the input dataset
+            complies with the bounds provided in max_partitions_contributed and
+            max_contributions_per_partition. This option can be used if the
+            dataset does not contain any identifiers that can be used to enforce
+            contribution bounds automatically.
+    """
     max_partitions_contributed: int
     max_contributions_per_partition: int
     min_value: float
@@ -337,6 +407,7 @@ class VarianceParams:
     value_extractor: Callable
     budget_weight: float = 1
     noise_kind: NoiseKind = NoiseKind.LAPLACE
+    contribution_bounds_already_enforced: bool = False
     public_partitions: Union[Iterable, 'PCollection',
                              'RDD'] = None  # deprecated
 
@@ -351,7 +422,7 @@ class VarianceParams:
 class MeanParams:
     """Specifies parameters for differentially-private mean calculation.
 
-    Args:
+    Attributes:
         noise_kind: Kind of noise to use for the DP calculations.
         max_partitions_contributed: Bounds the number of partitions in which one
             unit of privacy (e.g., a user) can participate.
@@ -364,7 +435,15 @@ class MeanParams:
             the result.
         value_extractor: A function for extraction of value
             for which the sum will be calculated.
-  """
+        budget_weight: Relative weight of the privacy budget allocated to
+            partition selection.
+        noise_kind: The type of noise to use for the DP calculations.
+        contribution_bounds_already_enforced: assume that the input dataset
+            complies with the bounds provided in max_partitions_contributed and
+            max_contributions_per_partition. This option can be used if the
+            dataset does not contain any identifiers that can be used to enforce
+            contribution bounds automatically.
+    """
     max_partitions_contributed: int
     max_contributions_per_partition: int
     min_value: float
@@ -373,6 +452,7 @@ class MeanParams:
     value_extractor: Callable
     budget_weight: float = 1
     noise_kind: NoiseKind = NoiseKind.LAPLACE
+    contribution_bounds_already_enforced: bool = False
     public_partitions: Union[Iterable, 'PCollection',
                              'RDD'] = None  # deprecated
 
@@ -387,16 +467,21 @@ class MeanParams:
 class CountParams:
     """Specifies parameters for differentially-private count calculation.
 
-    Args:
+    Attributes:
         noise_kind: The type of noise to use for the DP calculations.
-        max_partitions_contributed: A bound on the number of partitions to which one
-            unit of privacy (e.g., a user) can contribute.
-        max_contributions_per_partition: A bound on the number of times one unit of
-            privacy (e.g. a user) can contribute to a partition.
-        partition_extractor: A function which, given an input element, will return its partition id.
+        max_partitions_contributed: A bound on the number of partitions to which
+            one unit of privacy (e.g., a user) can contribute.
+        max_contributions_per_partition: A bound on the number of times one unit
+            of privacy (e.g. a user) can contribute to a partition.
+        partition_extractor: A function which, given an input element, will
+            return its partition id.
         budget_weight: Relative weight of the privacy budget allocated for this
             operation.
-
+        contribution_bounds_already_enforced: assume that the input dataset
+            complies with the bounds provided in max_partitions_contributed and
+            max_contributions_per_partition. This option can be used if the
+            dataset does not contain any identifiers that can be used to enforce
+            contribution bounds automatically.
     """
 
     noise_kind: NoiseKind
@@ -404,6 +489,7 @@ class CountParams:
     max_contributions_per_partition: int
     partition_extractor: Callable
     budget_weight: float = 1
+    contribution_bounds_already_enforced: bool = False
     public_partitions: Union[Iterable, 'PCollection',
                              'RDD'] = None  # deprecated
 
@@ -418,19 +504,28 @@ class CountParams:
 class PrivacyIdCountParams:
     """Specifies parameters for differentially-private privacy id count calculation.
 
-    Args:
+    Attributes:
         noise_kind: The type of noise to use for the DP calculations.
-        max_partitions_contributed: A bound on the number of partitions to which one
-            unit of privacy (e.g., a user) can contribute.
+        max_partitions_contributed: A bound on the number of partitions to which
+            one unit of privacy (e.g., a user) can contribute.
         budget_weight: Relative weight of the privacy budget allocated for this
             operation.
-        partition_extractor: A function which, given an input element, will return its partition id.
+        partition_extractor: A function which, given an input element, will
+            return its partition id.
+        budget_weight: Relative weight of the privacy budget allocated for this
+            operation.
+        contribution_bounds_already_enforced: assume that the input dataset
+            complies with the bounds provided in max_partitions_contributed and
+            max_contributions_per_partition. This option can be used if the
+            dataset does not contain any identifiers that can be used to enforce
+            contribution bounds automatically.
     """
 
     noise_kind: NoiseKind
     max_partitions_contributed: int
     partition_extractor: Callable
     budget_weight: float = 1
+    contribution_bounds_already_enforced: bool = False
     public_partitions: Union[Sequence, 'PCollection',
                              'RDD'] = None  # deprecated
 

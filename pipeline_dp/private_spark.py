@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from pyspark import RDD
-from typing import Callable
+from typing import Callable, Optional
 
 import pipeline_dp
 from pipeline_dp import aggregate_params, budget_accounting
@@ -59,16 +59,24 @@ class PrivateRDD:
         rdd = self._rdd.flatMapValues(fn)
         return make_private(rdd, self._budget_accountant, None)
 
-    def variance(self,
-                 variance_params: aggregate_params.VarianceParams,
-                 public_partitions=None) -> RDD:
+    def variance(
+        self,
+        variance_params: aggregate_params.VarianceParams,
+        public_partitions=None,
+        out_explain_computaton_report: Optional[
+            pipeline_dp.ExplainComputationReport] = None
+    ) -> RDD:
         """Computes a DP variance.
 
         Args:
             variance_params: parameters for calculation
-            public_partitions: A collection of partition keys that will be present in
-          the result. Optional. If not provided, partitions will be selected in a DP
-          manner.
+            public_partitions: A collection of partition keys that will be
+              present in the result. Optional. If not provided, partitions will be selected in a DP
+              manner.
+            out_explain_computaton_report: an output argument, if specified,
+              it will contain the Explain Computation report for this
+              aggregation. For more details see the docstring to
+              report_generator.py.
         """
 
         backend = pipeline_dp.SparkRDDBackend(self._rdd.context)
@@ -83,16 +91,24 @@ class PrivateRDD:
             max_contributions_per_partition,
             min_value=variance_params.min_value,
             max_value=variance_params.max_value,
-            budget_weight=variance_params.budget_weight)
+            budget_weight=variance_params.budget_weight,
+            contribution_bounds_already_enforced=variance_params.
+            contribution_bounds_already_enforced)
 
+        value_extractor_needed = not variance_params.contribution_bounds_already_enforced
         data_extractors = pipeline_dp.DataExtractors(
             partition_extractor=lambda x: variance_params.partition_extractor(x[
                 1]),
-            privacy_id_extractor=lambda x: x[0],
+            privacy_id_extractor=self._get_privacy_id_extractor(
+                params.contribution_bounds_already_enforced),
             value_extractor=lambda x: variance_params.value_extractor(x[1]))
 
-        dp_result = dp_engine.aggregate(self._rdd, params, data_extractors,
-                                        public_partitions)
+        dp_result = dp_engine.aggregate(
+            self._rdd,
+            params,
+            data_extractors,
+            public_partitions,
+            out_explain_computaton_report=out_explain_computaton_report)
         # dp_result : (partition_key, (variance=dp_variance))
 
         # aggregate() returns a namedtuple of metrics for each partition key.
@@ -103,18 +119,25 @@ class PrivateRDD:
 
         return dp_result
 
-    def mean(self,
-             mean_params: aggregate_params.MeanParams,
-             public_partitions=None) -> RDD:
+    def mean(
+        self,
+        mean_params: aggregate_params.MeanParams,
+        public_partitions=None,
+        out_explain_computaton_report: Optional[
+            pipeline_dp.ExplainComputationReport] = None
+    ) -> RDD:
         """Computes a DP mean.
 
         Args:
             mean_params: parameters for calculation
-            public_partitions: A collection of partition keys that will be present in
-          the result. Optional. If not provided, partitions will be selected in a DP
-          manner.
+            public_partitions: A collection of partition keys that will be
+              present in the result. Optional. If not provided, partitions will
+              be selected in a DP manner.
+            out_explain_computaton_report: an output argument, if specified,
+              it will contain the Explain Computation report for this
+              aggregation. For more details see the docstring to
+              report_generator.py.
         """
-
         backend = pipeline_dp.SparkRDDBackend(self._rdd.context)
         dp_engine = pipeline_dp.DPEngine(self._budget_accountant, backend)
 
@@ -126,15 +149,22 @@ class PrivateRDD:
             max_contributions_per_partition,
             min_value=mean_params.min_value,
             max_value=mean_params.max_value,
-            budget_weight=mean_params.budget_weight)
+            budget_weight=mean_params.budget_weight,
+            contribution_bounds_already_enforced=mean_params.
+            contribution_bounds_already_enforced)
 
         data_extractors = pipeline_dp.DataExtractors(
             partition_extractor=lambda x: mean_params.partition_extractor(x[1]),
-            privacy_id_extractor=lambda x: x[0],
+            privacy_id_extractor=self._get_privacy_id_extractor(
+                params.contribution_bounds_already_enforced),
             value_extractor=lambda x: mean_params.value_extractor(x[1]))
 
-        dp_result = dp_engine.aggregate(self._rdd, params, data_extractors,
-                                        public_partitions)
+        dp_result = dp_engine.aggregate(
+            self._rdd,
+            params,
+            data_extractors,
+            public_partitions,
+            out_explain_computaton_report=out_explain_computaton_report)
         # dp_result : (partition_key, (mean=dp_mean))
 
         # aggregate() returns a namedtuple of metrics for each partition key.
@@ -145,18 +175,25 @@ class PrivateRDD:
 
         return dp_result
 
-    def sum(self,
-            sum_params: aggregate_params.SumParams,
-            public_partitions=None) -> RDD:
+    def sum(
+        self,
+        sum_params: aggregate_params.SumParams,
+        public_partitions=None,
+        out_explain_computaton_report: Optional[
+            pipeline_dp.ExplainComputationReport] = None
+    ) -> RDD:
         """Computes a DP sum.
 
         Args:
             sum_params: parameters for calculation
-            public_partitions: A collection of partition keys that will be present in
-          the result. Optional. If not provided, partitions will be selected in a DP
-          manner.
+            public_partitions: A collection of partition keys that will be
+               present in the result. Optional. If not provided, partitions will
+               be selected in a DP manner.
+            out_explain_computaton_report: an output argument, if specified,
+              it will contain the Explain Computation report for this
+              aggregation. For more details see the docstring to
+              report_generator.py.
         """
-
         backend = pipeline_dp.SparkRDDBackend(self._rdd.context)
         dp_engine = pipeline_dp.DPEngine(self._budget_accountant, backend)
 
@@ -168,15 +205,22 @@ class PrivateRDD:
             max_contributions_per_partition,
             min_value=sum_params.min_value,
             max_value=sum_params.max_value,
-            budget_weight=sum_params.budget_weight)
+            budget_weight=sum_params.budget_weight,
+            contribution_bounds_already_enforced=sum_params.
+            contribution_bounds_already_enforced)
 
         data_extractors = pipeline_dp.DataExtractors(
             partition_extractor=lambda x: sum_params.partition_extractor(x[1]),
-            privacy_id_extractor=lambda x: x[0],
+            privacy_id_extractor=self._get_privacy_id_extractor(
+                params.contribution_bounds_already_enforced),
             value_extractor=lambda x: sum_params.value_extractor(x[1]))
 
-        dp_result = dp_engine.aggregate(self._rdd, params, data_extractors,
-                                        public_partitions)
+        dp_result = dp_engine.aggregate(
+            self._rdd,
+            params,
+            data_extractors,
+            public_partitions,
+            out_explain_computaton_report=out_explain_computaton_report)
         # dp_result : (partition_key, (sum=dp_sum))
 
         # aggregate() returns a namedtuple of metrics for each partition key.
@@ -187,18 +231,25 @@ class PrivateRDD:
 
         return dp_result
 
-    def count(self,
-              count_params: aggregate_params.CountParams,
-              public_partitions=None) -> RDD:
+    def count(
+        self,
+        count_params: aggregate_params.CountParams,
+        public_partitions=None,
+        out_explain_computaton_report: Optional[
+            pipeline_dp.ExplainComputationReport] = None
+    ) -> RDD:
         """Computes a DP count.
 
         Args:
             count_params: parameters for calculation
-            public_partitions: A collection of partition keys that will be present in
-          the result. Optional. If not provided, partitions will be selected in a DP
-          manner.
+            public_partitions: A collection of partition keys that will be
+              present in the result. Optional. If not provided, partitions will
+              be selected in a DP manner.
+            out_explain_computaton_report: an output argument, if specified,
+              it will contain the Explain Computation report for this
+              aggregation. For more details see the docstring to
+              report_generator.py.
         """
-
         backend = pipeline_dp.SparkRDDBackend(self._rdd.context)
         dp_engine = pipeline_dp.DPEngine(self._budget_accountant, backend)
 
@@ -208,16 +259,23 @@ class PrivateRDD:
             max_partitions_contributed=count_params.max_partitions_contributed,
             max_contributions_per_partition=count_params.
             max_contributions_per_partition,
-            budget_weight=count_params.budget_weight)
+            budget_weight=count_params.budget_weight,
+            contribution_bounds_already_enforced=count_params.
+            contribution_bounds_already_enforced)
 
         data_extractors = pipeline_dp.DataExtractors(
             partition_extractor=lambda x: count_params.partition_extractor(x[1]
                                                                           ),
-            privacy_id_extractor=lambda x: x[0],
+            privacy_id_extractor=self._get_privacy_id_extractor(
+                params.contribution_bounds_already_enforced),
             value_extractor=lambda x: None)
 
-        dp_result = dp_engine.aggregate(self._rdd, params, data_extractors,
-                                        public_partitions)
+        dp_result = dp_engine.aggregate(
+            self._rdd,
+            params,
+            data_extractors,
+            public_partitions,
+            out_explain_computaton_report=out_explain_computaton_report)
         # dp_result : (partition_key, (count=dp_count))
 
         # aggregate() returns a namedtuple of metrics for each partition key.
@@ -229,18 +287,24 @@ class PrivateRDD:
         return dp_result
 
     def privacy_id_count(
-            self,
-            privacy_id_count_params: aggregate_params.PrivacyIdCountParams,
-            public_partitions=None) -> RDD:
+        self,
+        privacy_id_count_params: aggregate_params.PrivacyIdCountParams,
+        public_partitions=None,
+        out_explain_computaton_report: Optional[
+            pipeline_dp.ExplainComputationReport] = None
+    ) -> RDD:
         """Computes a DP Privacy ID count.
 
         Args:
             privacy_id_count_params: parameters for calculation
-            public_partitions: A collection of partition keys that will be present in
-          the result. Optional. If not provided, partitions will be selected in a DP
-          manner.
+            public_partitions: A collection of partition keys that will be
+              present in the result. Optional. If not provided, partitions will
+              be selected in a DP manner.
+            out_explain_computaton_report: an output argument, if specified,
+              it will contain the Explain Computation report for this
+              aggregation. For more details see the docstring to
+              report_generator.py.
         """
-
         backend = pipeline_dp.SparkRDDBackend(self._rdd.context)
         dp_engine = pipeline_dp.DPEngine(self._budget_accountant, backend)
 
@@ -249,17 +313,24 @@ class PrivateRDD:
             metrics=[pipeline_dp.Metrics.PRIVACY_ID_COUNT],
             max_partitions_contributed=privacy_id_count_params.
             max_partitions_contributed,
-            max_contributions_per_partition=1)
+            max_contributions_per_partition=1,
+            contribution_bounds_already_enforced=privacy_id_count_params.
+            contribution_bounds_already_enforced)
 
         data_extractors = pipeline_dp.DataExtractors(
             partition_extractor=lambda x: privacy_id_count_params.
             partition_extractor(x[1]),
-            privacy_id_extractor=lambda x: x[0],
+            privacy_id_extractor=self._get_privacy_id_extractor(
+                params.contribution_bounds_already_enforced),
             # PrivacyIdCount ignores values.
             value_extractor=lambda x: None)
 
-        dp_result = dp_engine.aggregate(self._rdd, params, data_extractors,
-                                        public_partitions)
+        dp_result = dp_engine.aggregate(
+            self._rdd,
+            params,
+            data_extractors,
+            public_partitions,
+            out_explain_computaton_report=out_explain_computaton_report)
         # dp_result : (partition_key, (privacy_id_count=dp_privacy_id_count))
 
         # aggregate() returns a namedtuple of metrics for each partition key.
@@ -293,6 +364,14 @@ class PrivateRDD:
             privacy_id_extractor=lambda x: x[0])
 
         return dp_engine.select_partitions(self._rdd, params, data_extractors)
+
+    def _get_privacy_id_extractor(self,
+                                  contribution_bounds_already_enforced: bool):
+        if contribution_bounds_already_enforced:
+            # Privacy ids are not needed when contribution bounding already
+            # enforced.
+            return None
+        return lambda x: x[0]
 
 
 def make_private(rdd: RDD,

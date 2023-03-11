@@ -28,10 +28,6 @@ from pipeline_dp.pipeline_backend import BeamBackend
 import pipeline_dp.combiners as dp_combiners
 
 
-class PipelineBackendTest(unittest.TestCase):
-    pass
-
-
 class BeamBackendTest(parameterized.TestCase):
 
     @classmethod
@@ -42,14 +38,24 @@ class BeamBackendTest(parameterized.TestCase):
             privacy_id_extractor=lambda x: x[0],
             value_extractor=lambda x: x[2])
 
+    @parameterized.parameters(True, False)
+    def test_to_collection(self, input_is_pcollection):
+        with test_pipeline.TestPipeline() as p:
+            input = [1, 3, 5]
+            if input_is_pcollection:
+                input = p | "Creat input PCollection" >> beam.Create(input)
+            col = p | beam.Create([])
+            output = self.backend.to_collection(input, col, "to_collection")
+            self.assertIsInstance(output, beam.PCollection)
+            beam_util.assert_that(output, beam_util.equal_to([1, 3, 5]))
+
     def test_filter_by_key_must_not_be_none(self):
         with test_pipeline.TestPipeline() as p:
             data = [(7, 1), (2, 1), (3, 9), (4, 1), (9, 10)]
             col = p | "Create PCollection" >> beam.Create(data)
             key_to_keep = None
             with self.assertRaises(TypeError):
-                result = self.backend.filter_by_key(col, key_to_keep,
-                                                    "filter_by_key")
+                self.backend.filter_by_key(col, key_to_keep, "filter_by_key")
 
     @parameterized.parameters(
         {'in_memory': True},
@@ -99,6 +105,43 @@ class BeamBackendTest(parameterized.TestCase):
 
             beam_util.assert_that(result,
                                   beam_util.equal_to([(6, 2), (7, 2), (8, 1)]))
+
+    def test_local_combine_accumulators_per_key(self):
+        with test_pipeline.TestPipeline() as p:
+            data = p | beam.Create([(1, 2), (1, 5), (2, 1), (1, 4), (3, 8),
+                                    (2, 3)])
+            col = self.backend.reduce_per_key(data, lambda x, y: x + y,
+                                              "Reduce")
+            beam_util.assert_that(col,
+                                  beam_util.equal_to([(1, 11), (2, 4), (3, 8)]))
+
+    def test_local_combine_accumulators_per_key(self):
+        with test_pipeline.TestPipeline() as p:
+            data = p | beam.Create([1, 2, 3, 4, 5])
+            col = self.backend.to_list(data, "To list")
+            beam_util.assert_that(col, beam_util.equal_to([[1, 2, 3, 4, 5]]))
+
+    def test_flatten(self):
+        with test_pipeline.TestPipeline() as p:
+            data1 = p | "data1" >> beam.Create([1, 2, 3, 4])
+            data2 = p | "data2" >> beam.Create([5, 6, 7, 8])
+            col = self.backend.flatten((data1, data2), "flatten")
+            beam_util.assert_that(col,
+                                  beam_util.equal_to([1, 2, 3, 4, 5, 6, 7, 8]))
+
+    def test_distinct(self):
+        with test_pipeline.TestPipeline() as p:
+            input = p | beam.Create([3, 2, 1, 3, 5, 4, 1, 1, 2])
+            output = self.backend.distinct(input, "distinct")
+            beam_util.assert_that(output, beam_util.equal_to([1, 2, 3, 4, 5]))
+
+    def test_sum_per_key(self):
+        with test_pipeline.TestPipeline() as p:
+            data = p | beam.Create([(1, 2), (2, 1), (1, 4), (3, 8), (2, -3),
+                                    (10, 5)])
+            result = self.backend.sum_per_key(data, "sum_per_key")
+            beam_util.assert_that(
+                result, beam_util.equal_to([(1, 6), (2, -2), (3, 8), (10, 5)]))
 
 
 class BeamBackendStageNameTest(unittest.TestCase):
@@ -209,7 +252,7 @@ class BeamBackendStageNameTest(unittest.TestCase):
             backend.map(col, lambda x: x, "SAME_MAP_NAME")
             backend.map(col, lambda x: x, "SAME_MAP_NAME")
 
-        self.assertEqual("UNIQUE_BACKEND_SUFFIX", backend._ulg._suffix)
+        self.assertEqual("_UNIQUE_BACKEND_SUFFIX", backend._ulg._suffix)
         self.assertEqual(3, len(backend._ulg._labels))
         self.assertIn("SAME_MAP_NAME_UNIQUE_BACKEND_SUFFIX",
                       backend._ulg._labels)
@@ -281,6 +324,12 @@ class SparkRDDBackendTest(parameterized.TestCase):
         result = dict(result)
         self.assertDictEqual(result, {'a': 2, 'b': 1})
 
+    def test_sum_per_key(self):
+        data = self.sc.parallelize([(1, 2), (2, 1), (1, 4), (3, 8), (2, -3),
+                                    (10, 5)])
+        result = self.backend.sum_per_key(data).collect()
+        self.assertEqual(set(result), set([(1, 6), (2, -2), (3, 8), (10, 5)]))
+
     def test_combine_accumulators_per_key(self):
         data = self.sc.parallelize([(1, 2), (2, 1), (1, 4), (3, 8), (2, 3)])
         rdd = self.backend.group_by_key(data)
@@ -322,14 +371,17 @@ class SparkRDDBackendTest(parameterized.TestCase):
                                                                  ("b", 8)])
 
     def test_flatten(self):
-        data1 = [1, 2, 3, 4]
-        dist_data1 = self.sc.parallelize(data1)
-        data2 = [5, 6, 7, 8]
-        dist_data2 = self.sc.parallelize(data2)
+        data1 = self.sc.parallelize([1, 2, 3, 4])
+        data2 = self.sc.parallelize([5, 6, 7, 8])
 
         self.assertEqual(
-            self.backend.flatten(dist_data1, dist_data2).collect(),
+            self.backend.flatten((data1, data2)).collect(),
             [1, 2, 3, 4, 5, 6, 7, 8])
+
+    def test_distinct(self):
+        input = self.sc.parallelize([3, 2, 1, 3, 5, 4, 1, 1, 2])
+        output = self.backend.distinct(input, "distinct").collect()
+        self.assertSetEqual(set([1, 2, 3, 4, 5]), set(output))
 
     @classmethod
     def tearDownClass(cls):
@@ -439,6 +491,11 @@ class LocalBackendTest(unittest.TestCase):
             0: 1
         })
 
+    def test_sum_per_key(self):
+        data = [(1, 2), (2, 1), (1, 4), (3, 8), (2, -3), (10, 5)]
+        result = list(self.backend.sum_per_key(data))
+        self.assertEqual(result, [(1, 6), (2, -2), (3, 8), (10, 5)])
+
     def test_local_combine_accumulators_per_key(self):
         data = [(1, 2), (2, 1), (1, 4), (3, 8), (2, 3)]
         col = self.backend.group_by_key(data)
@@ -448,6 +505,18 @@ class LocalBackendTest(unittest.TestCase):
         col = self.backend.map_values(col, sum_combiner.compute_metrics)
         result = list(col)
         self.assertEqual(result, [(1, 6), (2, 4), (3, 8)])
+
+    def test_local_combine_accumulators_per_key(self):
+        data = [(1, 2), (2, 1), (1, 4), (3, 8), (2, 3)]
+        col = self.backend.reduce_per_key(data, lambda x, y: x + y, "Reduce")
+        result = list(col)
+        self.assertEqual(result, [(1, 6), (2, 4), (3, 8)])
+
+    def test_local_combine_accumulators_per_key(self):
+        data = [1, 2, 3, 4, 5]
+        col = self.backend.to_list(data, "To list")
+        result = list(col)
+        self.assertEqual(result, [[1, 2, 3, 4, 5]])
 
     def test_laziness(self):
 
@@ -472,9 +541,11 @@ class LocalBackendTest(unittest.TestCase):
         assert_laziness(self.backend.values)
         assert_laziness(self.backend.keys)
         assert_laziness(self.backend.count_per_element)
+        assert_laziness(self.backend.sum_per_key)
         assert_laziness(self.backend.flat_map, str)
         assert_laziness(self.backend.sample_fixed_per_key, int)
         assert_laziness(self.backend.filter_by_key, list)
+        assert_laziness(self.backend.distinct, str)
 
     def test_local_sample_fixed_per_key_requires_no_discarding(self):
         input_col = [("pid1", ('pk1', 1)), ("pid1", ('pk2', 1)),
@@ -525,6 +596,17 @@ class LocalBackendTest(unittest.TestCase):
         self.assertEqual(list(self.backend.group_by_key(some_dict)),
                          [("cheese", ["brie", "swiss"]),
                           ("bread", ["sourdough"])])
+
+    def test_flatten(self):
+        data1, data2, data3 = [1, 2, 3, 4], [5, 6, 7, 8], [9, 10]
+
+        self.assertEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+                         list(self.backend.flatten((data1, data2, data3))))
+
+    def test_distinct(self):
+        input = [3, 2, 1, 3, 5, 4, 1, 1, 2]
+        output = set(self.backend.distinct(input, "distinct"))
+        self.assertSetEqual(set([1, 2, 3, 4, 5]), output)
 
 
 @unittest.skipIf(sys.platform == 'win32' or sys.platform == 'darwin',

@@ -11,14 +11,14 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import collections
+"""DPEngine Test"""
+
 import unittest
 from unittest.mock import patch
 
 import apache_beam as beam
 import apache_beam.testing.test_pipeline as test_pipeline
 import apache_beam.testing.util as beam_util
-import numpy as np
 import pydp.algorithms.partition_selection as partition_selection
 from absl.testing import absltest
 from absl.testing import parameterized
@@ -30,27 +30,6 @@ from pipeline_dp.aggregate_params import SelectPartitionsParams
 from pipeline_dp.budget_accounting import NaiveBudgetAccountant
 from pipeline_dp.pipeline_backend import PipelineBackend
 from pipeline_dp.report_generator import ReportGenerator
-"""DPEngine Test"""
-
-
-class _MockPartitionStrategy(partition_selection.PartitionSelectionStrategy):
-
-    def __init__(self, eps, delta, max_partitions_contributed, min_users):
-        self.eps = eps
-        self.delta = delta
-        self.max_partitions_contributed = max_partitions_contributed
-        self.min_users = min_users
-
-    def should_keep(self, num_users: int) -> bool:
-        return num_users > self.min_users
-
-
-def _mock_partition_strategy_factory(min_users):
-
-    def partition_strategy_factory(e, d, mpc):
-        return _MockPartitionStrategy(e, d, mpc, min_users)
-
-    return partition_strategy_factory
 
 
 class DpEngineTest(parameterized.TestCase):
@@ -96,133 +75,6 @@ class DpEngineTest(parameterized.TestCase):
     def test_aggregate_none(self):
         with self.assertRaises(Exception):
             pipeline_dp.DPEngine(None, None).aggregate(None, None, None)
-
-    # TODO: move these tests to aggregate_params_tests.py
-    @parameterized.named_parameters(
-        dict(testcase_name='negative max_partitions_contributed',
-             error_msg='max_partitions_contributed has to be positive integer',
-             min_value=None,
-             max_value=None,
-             max_partitions_contributed=-1,
-             max_contributions_per_partition=1,
-             max_contributions=None,
-             metrics=[pipeline_dp.Metrics.PRIVACY_ID_COUNT]),
-        dict(testcase_name='negative max_contributions_per_partition',
-             error_msg=
-             'max_contributions_per_partition has to be positive integer',
-             min_value=None,
-             max_value=None,
-             max_partitions_contributed=1,
-             max_contributions_per_partition=-1,
-             max_contributions=None,
-             metrics=[pipeline_dp.Metrics.PRIVACY_ID_COUNT]),
-        dict(testcase_name='float max_partitions_contributed',
-             error_msg='max_partitions_contributed has to be positive integer',
-             min_value=None,
-             max_value=None,
-             max_partitions_contributed=1.5,
-             max_contributions_per_partition=1,
-             max_contributions=None,
-             metrics=[pipeline_dp.Metrics.PRIVACY_ID_COUNT]),
-        dict(testcase_name='float max_contributions_per_partition',
-             error_msg=
-             'max_contributions_per_partition has to be positive integer',
-             min_value=None,
-             max_value=None,
-             max_partitions_contributed=1,
-             max_contributions_per_partition=1.5,
-             max_contributions=None,
-             metrics=[pipeline_dp.Metrics.PRIVACY_ID_COUNT]),
-        dict(
-            testcase_name='min_value is not set, max_value is set SUM',
-            error_msg='min_value and max_value should be both set or both None',
-            min_value=None,
-            max_value=1,
-            max_partitions_contributed=1,
-            max_contributions_per_partition=1,
-            max_contributions=None,
-            metrics=[pipeline_dp.Metrics.SUM]),
-        dict(
-            testcase_name='unspecified max_value SUM',
-            error_msg='min_value and max_value should be both set or both None',
-            min_value=1,
-            max_value=None,
-            max_partitions_contributed=1,
-            max_contributions_per_partition=1,
-            max_contributions=None,
-            metrics=[pipeline_dp.Metrics.SUM]),
-        dict(
-            testcase_name='unspecified min_value MEAN',
-            error_msg='min_value and max_value should be both set or both None',
-            min_value=None,
-            max_value=1,
-            max_partitions_contributed=1,
-            max_contributions_per_partition=1,
-            max_contributions=None,
-            metrics=[pipeline_dp.Metrics.MEAN]),
-        dict(
-            testcase_name='unspecified max_value MEAN',
-            error_msg='min_value and max_value should be both set or both None',
-            min_value=1,
-            max_value=None,
-            max_partitions_contributed=1,
-            max_contributions_per_partition=1,
-            max_contributions=None,
-            metrics=[pipeline_dp.Metrics.MEAN]),
-        dict(testcase_name='min_value > max_value',
-             error_msg='must be equal to or greater',
-             min_value=2,
-             max_value=1,
-             max_partitions_contributed=1,
-             max_contributions_per_partition=1,
-             max_contributions=None,
-             metrics=[pipeline_dp.Metrics.SUM]),
-        dict(testcase_name='max_contrib and max_partitions are set',
-             error_msg='only one in max_contributions or',
-             min_value=0,
-             max_value=1,
-             max_partitions_contributed=1,
-             max_contributions_per_partition=1,
-             max_contributions=1,
-             metrics=[pipeline_dp.Metrics.SUM]),
-        dict(testcase_name='max_partitions_contributed not set',
-             error_msg='either none or both',
-             min_value=0,
-             max_value=1,
-             max_partitions_contributed=None,
-             max_contributions_per_partition=1,
-             max_contributions=None,
-             metrics=[pipeline_dp.Metrics.SUM]),
-        dict(testcase_name='contributions not set',
-             error_msg='either max_contributions must',
-             min_value=0,
-             max_value=1,
-             max_partitions_contributed=None,
-             max_contributions_per_partition=None,
-             max_contributions=None,
-             metrics=[pipeline_dp.Metrics.SUM]),
-    )
-    def test_check_invalid_bounding_params(self, error_msg, min_value,
-                                           max_value,
-                                           max_partitions_contributed,
-                                           max_contributions_per_partition,
-                                           max_contributions, metrics):
-        with self.assertRaisesRegex(ValueError, error_msg):
-            budget_accountant = NaiveBudgetAccountant(total_epsilon=1,
-                                                      total_delta=1e-10)
-            engine = pipeline_dp.DPEngine(budget_accountant=budget_accountant,
-                                          backend=pipeline_dp.LocalBackend())
-            engine.aggregate(
-                [0],
-                pipeline_dp.AggregateParams(
-                    noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
-                    max_partitions_contributed=max_partitions_contributed,
-                    max_contributions_per_partition=
-                    max_contributions_per_partition,
-                    min_value=min_value,
-                    max_value=max_value,
-                    max_contributions=max_contributions,
-                    metrics=metrics), self._get_default_extractors())
 
     def test_check_aggregate_params(self):
         default_extractors = self._get_default_extractors()
@@ -323,7 +175,7 @@ class DpEngineTest(parameterized.TestCase):
             engine._report_generators[0].report(),
             [
                 "DPEngine method: aggregate",
-                "metrics=['privacy_id_count', 'count', 'mean']",
+                "metrics=['PRIVACY_ID_COUNT', 'COUNT', 'MEAN']",
                 " noise_kind=gaussian", "max_value=5",
                 "Partition selection: private partitions",
                 "Cross-partition contribution bounding: for each privacy id randomly select max(actual_partition_contributed, 3)",
@@ -334,7 +186,7 @@ class DpEngineTest(parameterized.TestCase):
         self._check_string_contains_strings(
             engine._report_generators[1].report(),
             [
-                "metrics=['sum', 'mean']", " noise_kind=gaussian",
+                "metrics=['SUM', 'MEAN']", " noise_kind=gaussian",
                 "max_value=5", "Partition selection: public partitions",
                 "Per-partition contribution bounding: for each privacy_id and eachpartition, randomly select max(actual_contributions_per_partition, 3)",
                 "Adding empty partitions for public partitions that are missing in data"
@@ -354,8 +206,7 @@ class DpEngineTest(parameterized.TestCase):
     @patch(
         'pipeline_dp.contribution_bounders.SamplingCrossAndPerPartitionContributionBounder.bound_contributions'
     )
-    def test_aggregate_computation_graph_verification(self,
-                                                      mock_bound_contributions):
+    def test_aggregate_computation_graph(self, mock_bound_contributions):
         # Arrange
         aggregate_params = pipeline_dp.AggregateParams(
             noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
@@ -389,34 +240,79 @@ class DpEngineTest(parameterized.TestCase):
                                                     unittest.mock.ANY,
                                                     unittest.mock.ANY)
 
-    def _mock_and_assert_private_partitions(self, engine: pipeline_dp.DPEngine,
-                                            col, min_users, expected_partitions,
-                                            max_partitions_contributed):
-        with patch(
-                "pydp.algorithms.partition_selection.create_truncated_geometric_partition_strategy",
-                new=_mock_partition_strategy_factory(
-                    min_users)) as mock_factory:
-            data_filtered = engine._select_private_partitions_internal(
-                col, max_partitions_contributed, max_rows_per_privacy_id=1)
-            engine._budget_accountant.compute_budgets()
-            self.assertListEqual(list(data_filtered), expected_partitions)
+    @patch(
+        'pipeline_dp.dp_engine.DPEngine._drop_not_public_partitions',)
+    def test_aggregate_no_partition_filtering_public_partitions(
+            self, mock_drop_not_public_partitions):
+        # Arrange
+        engine, accountant = self._create_dp_engine_default(
+            return_accountant=True)
+        params, _ = self._create_params_default()
+        params.public_partitions_already_filtered = True
+        params.metrics = [pipeline_dp.Metrics.COUNT]
+
+        # Act
+        result = engine.aggregate(
+            col=["pk0", "pk1"],
+            params=params,
+            data_extractors=self._get_default_extractors(),
+            public_partitions=["pk0", "pk2"])
+        accountant.compute_budgets()
+        result = list(result)
+
+        # Assert
+        mock_drop_not_public_partitions.assert_not_called()
+        partition_keys = [kv[0] for kv in result]  # extract partition keys
+        self.assertEqual(set(partition_keys), set(["pk0", "pk1", "pk2"]))
 
     @parameterized.named_parameters(
-        dict(testcase_name='all_data_kept', min_users=1),
-        dict(testcase_name='1 partition left', min_users=5),
-        dict(testcase_name='empty result', min_users=20),
+        dict(testcase_name='all_data_kept',
+             min_users=1,
+             strategy=pipeline_dp.PartitionSelectionStrategy.TRUNCATED_GEOMETRIC
+            ),
+        dict(testcase_name='1 partition left',
+             min_users=5,
+             strategy=pipeline_dp.PartitionSelectionStrategy.
+             GAUSSIAN_THRESHOLDING),
+        dict(testcase_name='empty result',
+             min_users=20,
+             strategy=pipeline_dp.PartitionSelectionStrategy.
+             LAPLACE_THRESHOLDING),
     )
-    def test_select_private_partitions_internal(self, min_users):
-        input_col = [("pk1", (3, None)), ("pk2", (10, None))]
+    def test_select_private_partitions_internal(
+            self, min_users: int,
+            strategy: pipeline_dp.PartitionSelectionStrategy):
+        input = [("pk1", (3, None)), ("pk2", (10, None))]
 
         engine = self._create_dp_engine_default()
-        expected_data_filtered = [x for x in input_col if x[1][0] > min_users]
+        expected_data_filtered = [x for x in input if x[1][0] > min_users]
 
-        self._mock_and_assert_private_partitions(engine,
-                                                 input_col,
-                                                 min_users,
-                                                 expected_data_filtered,
-                                                 max_partitions_contributed=1)
+        class MockPartitionStrategy(
+                partition_selection.PartitionSelectionStrategy):
+
+            def __init__(self, min_users):
+                self.min_users = min_users
+
+            def should_keep(self, num_users: int) -> bool:
+                return num_users > self.min_users
+
+        with patch(
+                "pipeline_dp.partition_selection.create_partition_selection_strategy",
+                return_value=MockPartitionStrategy(min_users)) as mock_method:
+            max_partitions_contributed = 2
+            data_filtered = engine._select_private_partitions_internal(
+                input,
+                max_partitions_contributed,
+                max_rows_per_privacy_id=1,
+                strategy=strategy)
+            engine._budget_accountant.compute_budgets()
+            self.assertListEqual(list(data_filtered), expected_data_filtered)
+            args = list(mock_method.call_args_list)
+            self.assertLen(args, 2)  # there are 2 input data.
+            self.assertEqual(args[0], args[1])
+            self.assertTupleEqual(
+                (strategy, 1, 1e-10, max_partitions_contributed),
+                tuple(args[0])[0])
 
     def test_aggregate_private_partition_selection_keep_everything(self):
         # Arrange
@@ -811,7 +707,7 @@ class DpEngineTest(parameterized.TestCase):
         # Set a large budget for having the small noise and keeping all
         # partition keys.
         budget_accountant = NaiveBudgetAccountant(total_epsilon=100000,
-                                                  total_delta=1)
+                                                  total_delta=0.99)
 
         data_extractor = pipeline_dp.DataExtractors(
             privacy_id_extractor=lambda x: x,
