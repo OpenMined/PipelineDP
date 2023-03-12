@@ -170,8 +170,6 @@ class ContributionBoundingErrors:
         l0: max_partition_contributed (aka l0) bounding error. The output of l0
           bounding is a random variable for each partition. Its distribution is
           close to normal when number of contribution per partition is large.
-        linf: per partition (aka linf) bounding error. The output of linf
-          bounding is deterministic for each partition.
         linf_min & linf_max: represents error due to min & max contribution
           bounding, respectively (only populated for Sum metrics). It is
           deterministic for each partition.
@@ -282,11 +280,6 @@ class MetricUtility:
 
     Attributes:
         metric: DP metric for which this analysis was performed.
-        num_dataset_partitions: the number of partitions in dataset.
-        num_non_public_partitions: the number of partitions dropped because
-          of public partitions.
-        num_empty_partitions: the number of empty partitions added because of
-          public partitions.
         noise_std: the standard deviation of added noise.
         noise_kind: the noise kind (Laplace or Gaussian)
         ratio_data_dropped: the information about dropped data.
@@ -294,9 +287,6 @@ class MetricUtility:
         relative_error: error in terms of (dp_value - actual_value)/actual_value.
     """
     metric: pipeline_dp.Metrics
-    num_dataset_partitions: int
-    num_non_public_partitions: int
-    num_empty_partitions: int
 
     # Noise information.
     noise_std: float
@@ -311,13 +301,32 @@ class MetricUtility:
 
 
 @dataclass
-class PrivatePartitionSelectionMetrics:
-    """Stores aggregate metrics about partition selection."""
+class PartitionsInfo:
+    """Stores aggregate metrics about partitions and partition selection.
 
-    strategy: Optional[pipeline_dp.PartitionSelectionStrategy]
-    num_partitions: int
-    dropped_partitions: MeanVariance
-    ratio_dropped_data: float
+    Attributes:
+        public_partitions: true if public partitinos are used.
+        num_dataset_partitions: the number of partitions in dataset.
+        num_non_public_partitions: the number of partitions dropped because
+          of public partitions.
+        num_empty_partitions: the number of empty partitions added because of
+          public partitions.
+        strategy: Private partition selection strategy. None if public
+          partitions are used.
+        kept_partitions: Mean and Variance of the number of kept partitions.
+    """
+    public_partitions: bool
+
+    # Common
+    num_dataset_partitions: int
+
+    # Public partitions
+    num_non_public_partitions: Optional[int] = None
+    num_empty_partitions: Optional[int] = None
+
+    # Private partition selection
+    strategy: Optional[pipeline_dp.PartitionSelectionStrategy] = None
+    kept_partitions: Optional[MeanVariance] = None
 
 
 @dataclass
@@ -325,13 +334,13 @@ class UtilityReport:
     """Stores result of the utility analysis for specific input parameters.
 
     Attributes:
-        input_aggregate_params: input parameters for which this utility analysis
-          was computed.
-        partition_selection_metrics: utility analysis of selected partition.
+        configuration_index: the index of the input parameter configuration for
+          which this report was computed.
+        partition_metrics: utility analysis of selected partition.
         metric_errors: utility analysis of metrics (e.g. COUNT, SUM,
           PRIVACY_ID_COUNT).
     """
-    input_aggregate_params: Optional[pipeline_dp.AggregateParams]
+    configuration_index: int
 
-    partition_selection: Optional[PrivatePartitionSelectionMetrics] = None
+    partitions_info: PartitionsInfo
     metric_errors: Optional[List[MetricUtility]] = None
