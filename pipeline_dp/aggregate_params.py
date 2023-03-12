@@ -541,25 +541,24 @@ class PrivacyIdCountParams:
 class AggregationBuilderParams:
     # todo: add budget weight
     partition_extractor: Callable
-    noise_kind: Optional[NoiseKind] = None
+    noise_kind: NoiseKind
     max_partitions_contributed: Optional[int] = None
     max_contributions_per_partition: Optional[int] = None
     max_contributions: Optional[int] = None
 
+    def __post_init__(self):
+        pass  # TODO: l0, linf or l1
+
 
 @dataclass
-class ScalarValueParams:
+class Range:
     min_value: float
     max_value: float
-    noise: Optional[NoiseKind] = None
 
-
-@dataclass
-class VectorValueParams:
-    vector_norm_kind: NormKind
-    vector_max_norm: float
-    vector_size: int
-    noise: Optional[NoiseKind] = None
+    def __post_init__(self):
+        if self.min_value > self.max_value:
+            raise ValueError(
+                f"min_value={self.min_value} < max_value={self.max_value}")
 
 
 def _not_a_proper_number(num: Any) -> bool:

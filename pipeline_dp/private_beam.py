@@ -314,6 +314,7 @@ class Count(PrivatePTransform):
                      pipeline_dp.ExplainComputationReport] = None):
         """Initialize.
 
+
         Args:
             count_params: parameters for calculation
             public_partitions: A collection of partition keys that will be
@@ -677,14 +678,11 @@ def _create_named_tuple_instance(type_name: str, field_names: tuple, values):
 
 
 @dataclasses.dataclass
-class _MultiAggregation:  # todo, another name?
+class _ValueAggregationParams:
     value_extractor: Callable
     metrics: Union[pipeline_dp.Metrics, Sequence[pipeline_dp.Metrics]]
     output_col_name: str
-    scalar_value_params: aggregate_params.ScalarValueParams
-    vector_value_params: aggregate_params.VectorValueParams
-
-    # todo Validation
+    value_range: aggregate_params.Range
 
 
 class AggregationBuilder(PrivatePTransform):
@@ -698,34 +696,65 @@ class AggregationBuilder(PrivatePTransform):
         self._params = params
         self._public_partitions = public_partitions
         self._aggregations = []
+        self._perform_count = False
+        self._perform_privacy_id_count = False
+
+    def count(self) -> "AggregationBuilder":
+        """Adds COUNT aggregation to the computation graph and returns self."""
+        self._perform_count = True
+        return self
+
+    def privacy_id_count(self) -> "AggregationBuilder":
+        """Adds PRIVACY_ID_COUNT aggregation to the computation graph and returns self."""
+        self._perform_privacy_id_count = True
+        return self
 
     def aggregate_value(
-            self,
-            value_extractor: Callable,
+            self, value_extractor: Callable,
             metrics: Union[pipeline_dp.Metrics, Sequence[pipeline_dp.Metrics]],
-            output_col_name: str,
-            scalar_value_params: aggregate_params.ScalarValueParams = None,
-            vector_value_params: aggregate_params.VectorValueParams = None):
-        """Adds aggregation to the computation graph and returns self.
+            output_column_prefix: str,
+            value_range: aggregate_params.Range) -> "AggregationBuilder":
+        """Adds value aggregations to the computation graph and returns self.
 
-        Args: todo
-            args: args for Aggregate Transforms like SumParams.)
-            col_name: name of the column for the resulting aggregate value.
-            metrics: type of pipeline_dp.Metrics identifying the aggregate
-            to calculate."""
+        Args:
+            value_extractor: a function which, given an input element, will
+              return the value for aggregation.
+            metrics: 1 or more metrics to compute. Supported Metrics are
+              SUM, MEAN, VARIANCE, PERCENTILE.
+            output_column_prefix: the prefix of the column for the resulting
+              aggregate metric. The output columns for 'metric' will be
+              f"{output_column_prefix}_{metric}".
+            value_range: the range for value."""
+
+        if isinstance(metrics, pipeline_dp.aggregate_params.Metric):
+            metrics = [metrics]
+
+        for m in metrics:
+            if m == pipeline_dp.Metrics.COUNT:
+                raise ValueError(
+                    "Use AggregationBuilder.count() for computing DP count.")
+            if m == pipeline_dp.Metrics.PRIVACY_ID_COUNT:
+                raise ValueError(
+                    "Use AggregationBuilder.privacy_id_count() for computing DP privacy id count."
+                )
+            if m == pipeline_dp.Metrics.VECTOR_SUM:
+                raise NotImplementedError(
+                    "Vector sum is not implemented in AggregationBuilder")
+
         self._aggregations.append(
-            _MultiAggregation(value_extractor, metrics, output_col_name,
-                              scalar_value_params, vector_value_params))
+            _ValueAggregationParams(value_extractor, metrics,
+                                    output_column_prefix, value_range))
         return self
 
     def expand(self, pcol: pvalue.PCollection) -> pvalue.PCollection:
-        backend = pipeline_dp.BeamBackend()
-        dp_engine = pipeline_dp.DPEngine(self._budget_accountant, backend)
+        backend, dp_engine = self._create_dp_engine()
         privacy_id_extractor = lambda x: x[0]
         partition_extractor = lambda x: self._params.partition_extractor(x[1])
 
-        partitions = self._public_partitions
-        if partitions is None:
+        # Partition selection.
+        if self._public_partitions is None:
+            # Performs private partition selection once and then use selected
+            # partitions as public partitions.
             selection_partition_params = aggregate_params.SelectPartitionsParams(
                 max_partitions_contributed=self._params.
                 max_partitions_contributed)
@@ -733,21 +762,47 @@ class AggregationBuilder(PrivatePTransform):
                 privacy_id_extractor, partition_extractor)
             partitions = dp_engine.select_partitions(
                 pcol, selection_partition_params, data_extractors)
+        else:
+            partitions = self._public_partitions
 
         output_pcollections = []
-        for one_aggregation_params in self._aggregations:
-            value_extractor = lambda x: one_aggregation_params.value_extractor(
+
+        # COUNT and PRIVACY_ID_COUNT aggregations.
+        count_metrics = []
+        if self._perform_count:
+            count_metrics.append(pipeline_dp.Metrics.COUNT)
+        if self._perform_privacy_id_count:
+            count_metrics.append(pipeline_dp.Metrics.PRIVACY_ID_COUNT)
+        if count_metrics:
+            data_extractors = pipeline_dp.DataExtractors(
+                privacy_id_extractor,
+                partition_extractor,
+                value_extractor=lambda _: 0)
+            output_pcollections.append(
+                dp_engine.aggregate(
+                    pcol, self._create_aggregate_params(count_metrics),
+                    data_extractors, partitions))
+
+        # Value aggregations.
+        for value_aggregation_params in self._aggregations:
+            value_extractor = lambda x: value_aggregation_params.value_extractor(
                 x[1])
             data_extractors = pipeline_dp.DataExtractors(
                 privacy_id_extractor, partition_extractor, value_extractor)
             dp_engine_aggregate_params = self._create_aggregate_params(
-                one_aggregation_params)
+                value_aggregation_params.metrics,
+                value_aggregation_params.value_range)
             output_pcollections.append(
                 dp_engine.aggregate(pcol, dp_engine_aggregate_params,
                                     data_extractors, partitions))
 
         n_aggregations = len(output_pcollections)
-        col_names = [agg.output_col_name for agg in self._aggregations]
+        if count_metrics:
+            col_names = [""]
+        else:
+            col_names = []
+        col_names.extend(
+            [agg.output_col_name + "_" for agg in self._aggregations])
 
         def pack_per_partition(join_data):
             column_names = []
@@ -757,29 +812,33 @@ class AggregationBuilder(PrivatePTransform):
                 metric_tuple = join_dict[i][0]
                 metric_names = sorted(metric_tuple._fields)
                 for m in metric_names:
-                    column_names.append(f"{col_names[i]}_{m}")
+                    column_names.append(f"{col_names[i]}{m}")
                     values.append(getattr(metric_tuple, m))
             return _create_named_tuple_instance("ResultTuple",
                                                 tuple(column_names),
                                                 tuple(values))
 
         dict_pcollections = dict(enumerate(output_pcollections))
-        return dict_pcollections | "CoGroup by partition key" >> beam.CoGroupByKey(
-        ) | "Pack per partition" >> beam.Map(pack_per_partition)
+        return dict_pcollections | backend._ulg.unique(
+            "CoGroup by partition key") >> beam.CoGroupByKey(
+            ) | backend._ulg.unique("Pack per partition") >> beam.Map(
+                pack_per_partition)
 
     def _create_aggregate_params(
-        self, one_aggregation_params: _MultiAggregation
+        self,
+        metrics: list[pipeline_dp.Metrics],
+        range: Optional[aggregate_params.Range] = None
     ) -> aggregate_params.AggregateParams:
-        # todo implement for Vector metrics
-        noise = self._params.noise_kind or one_aggregation_params.scalar_value_params.noise_kind
-        scalar_value_params = one_aggregation_params.scalar_value_params
+        min_value = max_value = None
+        if range is not None:
+            min_value, max_value = range.min_value, range.max_value
         return pipeline_dp.AggregateParams(
-            metrics=one_aggregation_params.metrics,
-            noise_kind=noise,
+            metrics=metrics,
+            noise_kind=self._params.noise_kind,
             max_partitions_contributed=self._params.max_partitions_contributed,
             max_contributions_per_partition=self._params.
             max_contributions_per_partition,
             max_contributions=self._params.max_contributions,
-            min_value=scalar_value_params.min_value,
-            max_value=scalar_value_params.max_value,
+            min_value=min_value,
+            max_value=max_value,
         )

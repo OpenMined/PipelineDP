@@ -28,7 +28,7 @@ from pipeline_dp import private_beam
 from pipeline_dp import SumParams, PrivacyIdCountParams
 from pipeline_dp.private_beam import MakePrivate
 from common_utils import ParseFile
-#
+
 # FLAGS = flags.FLAGS
 # flags.DEFINE_string('input_file', None, 'The file with the movie view data')
 # flags.DEFINE_string('output_file', None, 'Output file')
@@ -65,20 +65,20 @@ def main(unused_argv):
             max_contributions_per_partition=1,
         )
 
-        scalar_value_params = pipeline_dp.aggregate_params.ScalarValueParams(
-            min_value=1, max_value=5)
+        value_range = pipeline_dp.aggregate_params.Range(min_value=1,
+                                                         max_value=5)
 
-        explain_computation_report = pipeline_dp.ExplainComputationReport()
+        # explain_computation_report = pipeline_dp.ExplainComputationReport()
         # Calculate the private sum
         dp_result = private_movie_views | \
-                    "Private aggregate" >> private_beam.AggregationBuilder(global_params, [1,2,3,4,5]).\
-                        aggregate_value(lambda mv:mv.rating, metrics=[pipeline_dp.Metrics.MEAN, pipeline_dp.Metrics.COUNT], output_col_name="rating1", scalar_value_params=scalar_value_params).\
-                        aggregate_value(lambda mv:mv.rating, metrics=[pipeline_dp.Metrics.MEAN, pipeline_dp.Metrics.COUNT], output_col_name="rating2", scalar_value_params=scalar_value_params)
+                    "Private aggregate" >> private_beam.AggregationBuilder(global_params, [1,2,3,4,5]).count().\
+                        aggregate_value(lambda mv:mv.rating, metrics=[pipeline_dp.Metrics.MEAN, pipeline_dp.Metrics.PERCENTILE(50), pipeline_dp.Metrics.PERCENTILE(90)], output_column_prefix="rating1", value_range=value_range).\
+                        aggregate_value(lambda mv:mv.rating, metrics=pipeline_dp.Metrics.MEAN, output_column_prefix="rating2", value_range=value_range)
         budget_accountant.compute_budgets()
 
         # Generate the Explain Computation Report. It must be called after
         # budget_accountant.compute_budgets().
-        print(explain_computation_report.text())
+        # print(explain_computation_report.text())
 
         # Save the results
         dp_result | beam.io.WriteToText(output_file)
