@@ -657,5 +657,102 @@ class DPComputationsTest(parameterized.TestCase):
         self.assertAlmostEqual(scale, expected_std)
 
 
+class AdditiveMechanismTests(parameterized.TestCase):
+
+    @parameterized.parameters(
+        dict(epsilon=2, l1_sensitivity=4.5, expected_noise=2.25),
+        dict(epsilon=0.1, l1_sensitivity=0.55, expected_noise=5.5),
+    )
+    def test_laplace_mechanism_creation(self, epsilon, l1_sensitivity,
+                                        expected_noise):
+        mechanism = dp_computations.LaplaceMechanism(
+            epsilon=epsilon, l1_sensitivity=l1_sensitivity)
+        self.assertEqual(mechanism.noise_kind, pipeline_dp.NoiseKind.LAPLACE)
+        self.assertAlmostEqual(mechanism.noise_parameter,
+                               expected_noise,
+                               delta=1e-12)
+        self.assertAlmostEqual(mechanism.std,
+                               expected_noise * math.sqrt(2),
+                               delta=1e-12)
+        self.assertEqual(mechanism.sensitivity, l1_sensitivity)
+        self.assertIsInstance(mechanism.add_noise(1000), float)
+
+    @parameterized.parameters(
+        dict(epsilon=2, l1_sensitivity=4.5, value=0, expected_noise_scale=2.25),
+        dict(epsilon=0.1,
+             l1_sensitivity=0.55,
+             value=1000,
+             expected_noise_scale=5.5),
+        dict(epsilon=0.001,
+             l1_sensitivity=10,
+             value=-100,
+             expected_noise_scale=10000),
+    )
+    def test_laplace_mechanism_distribution(self, epsilon, l1_sensitivity,
+                                            value, expected_noise_scale):
+        # Use Kolmogorov-Smirnov test to verify the output noise distrition.
+        # https://en.wikipedia.org/wiki/Kolmogorov-Smirnov_test
+        mechanism = dp_computations.LaplaceMechanism(
+            epsilon=epsilon, l1_sensitivity=l1_sensitivity)
+        expected_cdf = stats.laplace(loc=value, scale=expected_noise_scale).cdf
+        noised_values = [mechanism.add_noise(value) for _ in range(30000)]
+
+        res = stats.ks_1samp(noised_values, expected_cdf)
+        self.assertGreater(res.pvalue, 1e-4)
+
+    @parameterized.parameters(
+        dict(epsilon=2,
+             delta=1e-15,
+             l2_sensitivity=4.5,
+             expected_noise_scale=17.1826171875),
+        dict(epsilon=0.1,
+             delta=1e-5,
+             l2_sensitivity=0.55,
+             expected_noise_scale=16.9125),
+    )
+    def test_gaussian_mechanism_creation(self, epsilon, delta, l2_sensitivity,
+                                         expected_noise_scale):
+        mechanism = dp_computations.GaussianMechanism(
+            epsilon=epsilon, delta=delta, l2_sensitivity=l2_sensitivity)
+        self.assertEqual(mechanism.noise_kind, pipeline_dp.NoiseKind.GAUSSIAN)
+        self.assertAlmostEqual(mechanism.noise_parameter,
+                               expected_noise_scale,
+                               delta=1e-6)
+        self.assertAlmostEqual(mechanism.std, expected_noise_scale, delta=6)
+        self.assertEqual(mechanism.sensitivity, l2_sensitivity)
+        self.assertIsInstance(mechanism.add_noise(1000), float)
+
+    @parameterized.parameters(
+        dict(epsilon=2,
+             delta=1e-15,
+             l2_sensitivity=4.5,
+             value=0,
+             expected_noise_scale=17.1826171875),
+        dict(epsilon=0.1,
+             delta=1e-5,
+             l2_sensitivity=0.55,
+             value=2000,
+             expected_noise_scale=16.9125),
+        dict(epsilon=0.2,
+             delta=1e-10,
+             l2_sensitivity=10,
+             value=-500,
+             expected_noise_scale=277.34375),
+    )
+    def test_gaussian_mechanism_distribution(self, epsilon, delta,
+                                             l2_sensitivity, value,
+                                             expected_noise_scale):
+        # Use Kolmogorov-Smirnov test to verify the output noise distrition.
+        # https://en.wikipedia.org/wiki/Kolmogorov-Smirnov_test
+        mechanism = dp_computations.GaussianMechanism(
+            epsilon=epsilon, delta=delta, l2_sensitivity=l2_sensitivity)
+        self.assertEqual(mechanism.std, expected_noise_scale)
+        expected_cdf = stats.norm(loc=value, scale=expected_noise_scale).cdf
+        noised_values = [mechanism.add_noise(value) for _ in range(30000)]
+
+        res = stats.ks_1samp(noised_values, expected_cdf)
+        self.assertGreater(res.pvalue, 1e-4)
+
+
 if __name__ == '__main__':
     absltest.main()
