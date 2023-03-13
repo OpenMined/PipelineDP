@@ -21,11 +21,19 @@ import math
 
 
 def _sum_metrics_to_data_dropped(
-        sum_metrics: metrics.SumMetrics,
+        sum_metrics: metrics.SumMetrics, partition_keep_probability: float,
         dp_metric: pipeline_dp.Metrics) -> Optional[metrics.DataDropInfo]:
     """Finds Data drop information from per-partition metrics."""
     # TODO(dvadym): implement
-    return None
+    assert dp_metric != pipeline_dp.Metrics.SUM, "Cross-partition metrics are not implemented for SUM"
+
+    l0_dropped = sum_metrics.std_cross_partition_error
+    linf_dropped = sum_metrics.per_partition_error_max  # it doesn't work for SUM
+    partition_selection_dropped = (sum_metrics.sum - l0_dropped - linf_dropped
+                                  ) * (1 - partition_keep_probability)
+    return metrics.DataDropInfo(l0=l0_dropped,
+                                linf=linf_dropped,
+                                partition_selection=partition_selection_dropped)
 
 
 def _create_contribution_bounding_errors(
@@ -75,10 +83,9 @@ def _sum_metrics_to_metric_utility(
         dp_metric: metric for which utility is computed (e.g. COUNT)
         partition_keep_probability: partition selection probability.
     """
-    assert dp_metric != pipeline_dp.Metrics.SUM, "Cross-partition metrics are not implemented for SUM"
-    # The next line does not work for SUM because the user can contribute 0.
-    is_empty_public = sum_metrics.sum == 0
-    data_dropped = _sum_metrics_to_data_dropped(sum_metrics, dp_metric)
+    data_dropped = _sum_metrics_to_data_dropped(sum_metrics,
+                                                partition_keep_probability,
+                                                dp_metric)
     absolute_error = _sum_metrics_to_value_error(
         sum_metrics, keep_prob=partition_keep_probability)
     relative_error = absolute_error.to_relative(sum_metrics.sum)
