@@ -757,6 +757,110 @@ class AdditiveMechanismTests(parameterized.TestCase):
         res = stats.ks_1samp(noised_values, expected_cdf)
         self.assertGreater(res.pvalue, 1e-4)
 
+    @parameterized.parameters(
+        dict(l0_sensitivity=-2,
+             linf_sensitivity=2,
+             l1_sensitivity=None,
+             l2_sensitivity=None,
+             expected_error="L0 must be positive"),
+        dict(l0_sensitivity=2,
+             linf_sensitivity=-2,
+             l1_sensitivity=-1,
+             l2_sensitivity=None,
+             expected_error="Linf must be positive"),
+        dict(l0_sensitivity=None,
+             linf_sensitivity=None,
+             l1_sensitivity=0,
+             l2_sensitivity=None,
+             expected_error="L1 must be positive"),
+        dict(l0_sensitivity=None,
+             linf_sensitivity=None,
+             l1_sensitivity=None,
+             l2_sensitivity=-5,
+             expected_error="L2 must be positive"),
+        dict(l0_sensitivity=4,
+             linf_sensitivity=None,
+             l1_sensitivity=None,
+             l2_sensitivity=None,
+             expected_error="both set or both unset"),
+        dict(l0_sensitivity=4,
+             linf_sensitivity=2,
+             l1_sensitivity=7,
+             l2_sensitivity=None,
+             expected_error="L1=7 != .*=8"),
+        dict(l0_sensitivity=4,
+             linf_sensitivity=5,
+             l1_sensitivity=None,
+             l2_sensitivity=9,
+             expected_error="L2=9 != .*=10"),
+    )
+    def test_sensitivities_post_init_validation(self, l0_sensitivity,
+                                                linf_sensitivity,
+                                                l1_sensitivity, l2_sensitivity,
+                                                expected_error):
+        with self.assertRaisesRegex(ValueError, expected_error):
+            dp_computations.Sensitivities(l0_sensitivity, linf_sensitivity,
+                                          l1_sensitivity, l2_sensitivity)
+
+    def test_sensitivities_post_init_l1_l2_computation(self):
+        sensitivities = dp_computations.Sensitivities(l0=4, linf=5)
+        self.assertEqual(sensitivities.l1, 20)
+        self.assertEqual(sensitivities.l2, 10)
+
+    @parameterized.parameters(
+        dict(epsilon=2,
+             l0_sensitivity=None,
+             linf_sensitivity=None,
+             l1_sensitivity=5,
+             expected_noise_parameter=2.5),
+        dict(epsilon=0.1,
+             l0_sensitivity=None,
+             linf_sensitivity=None,
+             l1_sensitivity=3,
+             expected_noise_parameter=30),
+        dict(epsilon=0.5,
+             l0_sensitivity=8,
+             linf_sensitivity=3,
+             l1_sensitivity=None,
+             expected_noise_parameter=48),
+    )
+    def test_create_laplace_mechanism(self, epsilon, l0_sensitivity,
+                                      linf_sensitivity, l1_sensitivity,
+                                      expected_noise_parameter):
+        spec = dp_computations.AdditiveMechanismSpec(
+            epsilon, delta=0, noise_kind=pipeline_dp.NoiseKind.LAPLACE)
+        sensitivies = dp_computations.Sensitivities(l0=l0_sensitivity,
+                                                    linf=linf_sensitivity,
+                                                    l1=l1_sensitivity)
+
+        mechanism = dp_computations.create_additive_mechanism(spec, sensitivies)
+
+        self.assertAlmostEqual(mechanism.noise_parameter,
+                               expected_noise_parameter,
+                               delta=1e-12)
+
+    @parameterized.parameters(
+        dict(epsilon=2,
+             delta=1e-10,
+             l2_sensitivity=10,
+             expected_noise_parameter=30.2734375),
+        dict(epsilon=0.1,
+             delta=1e-15,
+             l2_sensitivity=3,
+             expected_noise_parameter=213.9375),
+    )
+    def test_create_gaussian_mechanism(self, epsilon, delta, l2_sensitivity,
+                                       expected_noise_parameter):
+        spec = dp_computations.AdditiveMechanismSpec(
+            epsilon, delta=delta, noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)
+        sensitivies = dp_computations.Sensitivities(l2=l2_sensitivity)
+
+        mechanism = dp_computations.create_additive_mechanism(spec, sensitivies)
+
+        self.assertAlmostEqual(mechanism.noise_parameter,
+                               expected_noise_parameter,
+                               delta=1e-6)
+
 
 if __name__ == '__main__':
     absltest.main()
