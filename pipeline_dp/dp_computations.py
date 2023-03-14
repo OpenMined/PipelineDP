@@ -576,10 +576,10 @@ class GaussianMechanism(AdditiveMechanism):
 @dataclass
 class Sensitivities:
     """Contains sensitivities of the additive DP mechanism."""
-    L0: Optional[int] = None
-    Linf: Optional[float] = None
-    L1: Optional[float] = None
-    L2: Optional[float] = None
+    l0: Optional[int] = None
+    linf: Optional[float] = None
+    l1: Optional[float] = None
+    l2: Optional[float] = None
 
     def __post_init__(self):
 
@@ -587,28 +587,28 @@ class Sensitivities:
             if num is not None and num <= 0:
                 raise ValueError(f"{name} has to be positive, but {num} given.")
 
-        check_is_positive(self.L0, "LO")
-        check_is_positive(self.Linf, "Linf")
-        check_is_positive(self.L1, "L1")
-        check_is_positive(self.L2, "L2")
-        if self.L0 is not None and self.Linf is not None:
+        check_is_positive(self.l0, "L0")
+        check_is_positive(self.linf, "Linf")
+        check_is_positive(self.l1, "L1")
+        check_is_positive(self.l2, "L2")
+        if self.l0 is not None and self.linf is not None:
             # Compute L1 sensitivity if not given, otherwise check that it is
             # correct.
-            l1 = compute_l1_sensitivity(self.L0, self.Linf)
-            if self.L1 is None:
-                self.L1 = l1
+            l1 = compute_l1_sensitivity(self.l0, self.linf)
+            if self.l1 is None:
+                self.l1 = l1
             else:
-                if abs(l1 - self.L1) > 1e-12:
-                    raise ValueError(f"L1={self.L1} != L0*Linf={l1}")
+                if abs(l1 - self.l1) > 1e-12:
+                    raise ValueError(f"L1={self.l1} != L0*Linf={l1}")
 
             # Compute L2 sensitivity if not given, otherwise check that it is
             # correct.
-            l2 = compute_l2_sensitivity(self.L0, self.Linf)
-            if self.L2 is None:
-                self.L2 = l2
+            l2 = compute_l2_sensitivity(self.l0, self.linf)
+            if self.l2 is None:
+                self.l2 = l2
             else:
-                if abs(l2 - self.L2) > 1e-12:
-                    raise ValueError(f"L2={self.L2} != sqrt(L0)*Linf={l2}")
+                if abs(l2 - self.l2) > 1e-12:
+                    raise ValueError(f"L2={self.l2} != sqrt(L0)*Linf={l2}")
 
 
 @dataclass
@@ -622,17 +622,17 @@ class AdditiveMechanismSpec:
 def create_additive_mechanism(
         spec: AdditiveMechanismSpec,
         sensitivities: Sensitivities) -> AdditiveMechanism:
-    """Creates AdditiveMechanism based on the budget, noise kind and sensitivities."""
+    """Creates AdditiveMechanism based on the mechanism spec and sensitivities."""
     if spec.noise_kind == pipeline_dp.NoiseKind.LAPLACE:
-        if sensitivities.L1 is None:
+        if sensitivities.l1 is None:
             raise ValueError("L1 or (L0 and Linf) sensitivities must be set for"
                              " Laplace mechanism.")
-        return LaplaceMechanism(spec.epsilon, sensitivities.L1)
+        return LaplaceMechanism(spec.epsilon, sensitivities.l1)
 
     if spec.noise_kind == pipeline_dp.NoiseKind.GAUSSIAN:
-        if sensitivities.L2 is None:
+        if sensitivities.l2 is None:
             raise ValueError("L2 or (L0 and Linf) sensitivities must be set for"
                              " Gaussian mechanism.")
-        return GaussianMechanism(spec.epsilon, spec.delta, sensitivities.L2)
+        return GaussianMechanism(spec.epsilon, spec.delta, sensitivities.l2)
 
     assert False, f"{spec.noise_kind} not supported."
