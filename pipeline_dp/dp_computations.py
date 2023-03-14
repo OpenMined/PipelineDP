@@ -13,8 +13,11 @@
 # limitations under the License.
 """Differential privacy computing of count, sum, mean, variance."""
 
+import abc
+import math
 import numpy as np
-from typing import Optional
+from typing import Optional, Union
+
 import pipeline_dp
 from dataclasses import dataclass
 from pydp.algorithms import numerical_mechanisms as dp_mechanisms
@@ -486,3 +489,85 @@ def compute_dp_sum_noise_std(dp_params: ScalarNoiseParams) -> float:
     linf_sensitivity = max(abs(dp_params.min_sum_per_partition),
                            abs(dp_params.max_sum_per_partition))
     return _compute_noise_std(linf_sensitivity, dp_params)
+
+
+class AdditiveMechanism(abc.ABC):
+    """Base class for addition DP mechanism (like Laplace of Gaussian)."""
+
+    @abc.abstractmethod
+    def add_noise(self, value: Union[int, float]) -> float:
+        """Anonymizes value by adding noise."""
+
+    @property
+    @abc.abstractmethod
+    def noise_kind(self) -> pipeline_dp.NoiseKind:
+        pass
+
+    @property
+    @abc.abstractmethod
+    def noise_parameter(self) -> float:
+        """Noise distribution parameter."""
+        pass
+
+    @property
+    @abc.abstractmethod
+    def std(self) -> float:
+        """Noise distribution standard deviation."""
+
+    @property
+    @abc.abstractmethod
+    def sensitivity(self) -> float:
+        """Mechanism sensitivity."""
+
+
+class LaplaceMechanism(AdditiveMechanism):
+
+    def __init__(self, epsilon: float, l1_sensitivity: float):
+        self._mechanism = dp_mechanisms.LaplaceMechanism(
+            epsilon=epsilon, sensitivity=l1_sensitivity)
+
+    def add_noise(self, value: Union[int, float]) -> float:
+        return self._mechanism.add_noise(1.0 * value)
+
+    @property
+    def noise_parameter(self) -> float:
+        return self._mechanism.diversity
+
+    @property
+    def std(self) -> float:
+        return self.noise_parameter * math.sqrt(2)
+
+    @property
+    def noise_kind(self) -> pipeline_dp.NoiseKind:
+        return pipeline_dp.NoiseKind.LAPLACE
+
+    @property
+    def sensitivity(self) -> float:
+        return self._mechanism.sensitivity
+
+
+class GaussianMechanism(AdditiveMechanism):
+
+    def __init__(self, epsilon: float, delta: float, l2_sensitivity: float):
+        self._l2_sensitivity = l2_sensitivity
+        self._mechanism = dp_mechanisms.GaussianMechanism(
+            epsilon=epsilon, delta=delta, sensitivity=l2_sensitivity)
+
+    def add_noise(self, value: Union[int, float]) -> float:
+        return self._mechanism.add_noise(1.0 * value)
+
+    @property
+    def noise_kind(self) -> pipeline_dp.NoiseKind:
+        return pipeline_dp.NoiseKind.GAUSSIAN
+
+    @property
+    def noise_parameter(self) -> float:
+        return self._mechanism.std
+
+    @property
+    def std(self) -> float:
+        return self._mechanism.std
+
+    @property
+    def sensitivity(self) -> float:
+        return self._mechanism.l2_sensitivity
