@@ -252,6 +252,10 @@ def _average_utility_report(report: metrics.UtilityReport,
                                               1.0 / num_output_partitions,
                                               fields_to_ignore=["noise_std"])
 
+@dataclasses.dataclass
+class Stats1: # todo better name
+
+
 
 class CrossPartitionCombiner(pipeline_dp.combiners.Combiner):
     """A combiner for aggregating error metrics across partitions"""
