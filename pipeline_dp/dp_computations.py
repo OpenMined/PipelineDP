@@ -622,7 +622,7 @@ class AdditiveMechanismSpec:
 def create_additive_mechanism(
         spec: AdditiveMechanismSpec,
         sensitivities: Sensitivities) -> AdditiveMechanism:
-    """Creates AdditiveMechanism based on the mechanism spec and sensitivities."""
+    """Creates AdditiveMechanism from a mechanism spec and sensitivities."""
     if spec.noise_kind == pipeline_dp.NoiseKind.LAPLACE:
         if sensitivities.l1 is None:
             raise ValueError("L1 or (L0 and Linf) sensitivities must be set for"
