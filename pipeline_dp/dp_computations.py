@@ -16,7 +16,7 @@
 import abc
 import math
 import numpy as np
-from typing import Optional, Union
+from typing import Any, Optional, Union
 
 import pipeline_dp
 from dataclasses import dataclass
@@ -571,3 +571,68 @@ class GaussianMechanism(AdditiveMechanism):
     @property
     def sensitivity(self) -> float:
         return self._mechanism.l2_sensitivity
+
+
+@dataclass
+class Sensitivities:
+    """Contains sensitivities of the additive DP mechanism."""
+    L0: Optional[int] = None
+    Linf: Optional[float] = None
+    L1: Optional[float] = None
+    L2: Optional[float] = None
+
+    def __post_init__(self):
+
+        def check_is_positive(num: Any, name: str) -> bool:
+            if num is not None and num <= 0:
+                raise ValueError(f"{name} has to be positive, but {num} given.")
+
+        check_is_positive(self.L0, "LO")
+        check_is_positive(self.Linf, "Linf")
+        check_is_positive(self.L1, "L1")
+        check_is_positive(self.L2, "L2")
+        if self.L0 is not None and self.Linf is not None:
+            # Compute L1 sensitivity if not given, otherwise check that it is
+            # correct.
+            l1 = compute_l1_sensitivity(self.L0, self.Linf)
+            if self.L1 is None:
+                self.L1 = l1
+            else:
+                if abs(l1 - self.L1) > 1e-12:
+                    raise ValueError(f"L1={self.L1} != L0*Linf={l1}")
+
+            # Compute L2 sensitivity if not given, otherwise check that it is
+            # correct.
+            l2 = compute_l2_sensitivity(self.L0, self.Linf)
+            if self.L2 is None:
+                self.L2 = l2
+            else:
+                if abs(l2 - self.L2) > 1e-12:
+                    raise ValueError(f"L2={self.L2} != sqrt(L0)*Linf={l2}")
+
+
+@dataclass
+class AdditiveMechanismSpec:
+    """Contains the budget and noise_kind."""
+    epsilon: float
+    delta: float
+    noise_kind: pipeline_dp.NoiseKind
+
+
+def create_additive_mechanism(
+        spec: AdditiveMechanismSpec,
+        sensitivities: Sensitivities) -> AdditiveMechanism:
+    """Creates AdditiveMechanism based on the budget, noise kind and sensitivities."""
+    if spec.noise_kind == pipeline_dp.NoiseKind.LAPLACE:
+        if sensitivities.L1 is None:
+            raise ValueError("L1 or (L0 and Linf) sensitivities must be set for"
+                             " Laplace mechanism.")
+        return LaplaceMechanism(spec.epsilon, sensitivities.L1)
+
+    if spec.noise_kind == pipeline_dp.NoiseKind.GAUSSIAN:
+        if sensitivities.L2 is None:
+            raise ValueError("L2 or (L0 and Linf) sensitivities must be set for"
+                             " Gaussian mechanism.")
+        return GaussianMechanism(spec.epsilon, spec.delta, sensitivities.L2)
+
+    assert False, f"{spec.noise_kind} not supported."
