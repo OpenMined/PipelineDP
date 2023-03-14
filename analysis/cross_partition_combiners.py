@@ -252,9 +252,10 @@ def _average_utility_report(report: metrics.UtilityReport,
                                               1.0 / num_output_partitions,
                                               fields_to_ignore=["noise_std"])
 
-@dataclasses.dataclass
-class Stats1: # todo better name
 
+@dataclasses.dataclass
+class Stats1:  # todo better name
+    pass
 
 
 class CrossPartitionCombiner(pipeline_dp.combiners.Combiner):
