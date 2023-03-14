@@ -585,12 +585,17 @@ class Sensitivities:
 
         def check_is_positive(num: Any, name: str) -> bool:
             if num is not None and num <= 0:
-                raise ValueError(f"{name} has to be positive, but {num} given.")
+                raise ValueError(f"{name} must be positive, but {num} given.")
 
         check_is_positive(self.l0, "L0")
         check_is_positive(self.linf, "Linf")
         check_is_positive(self.l1, "L1")
         check_is_positive(self.l2, "L2")
+
+        if (self.l0 is None) != (self.linf is None):
+            raise ValueError("l0 and linf sensitivities must be either both set"
+                             " or both unset.")
+
         if self.l0 is not None and self.linf is not None:
             # Compute L1 sensitivity if not given, otherwise check that it is
             # correct.
