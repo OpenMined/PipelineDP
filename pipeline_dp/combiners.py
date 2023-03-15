@@ -185,6 +185,7 @@ class CountCombiner(Combiner):
 
     def __init__(self, params: CombinerParams):
         self._params = params
+        self._mechanism = None
 
     def create_accumulator(self, values: Sized) -> AccumulatorType:
         return len(values)
@@ -194,11 +195,7 @@ class CountCombiner(Combiner):
         return count1 + count2
 
     def compute_metrics(self, count: AccumulatorType) -> dict:
-        return {
-            'count':
-                dp_computations.compute_dp_count(
-                    count, self._params.scalar_noise_params)
-        }
+        return {'count': self._get_mechanism().add_noise(count)}
 
     def metrics_names(self) -> List[str]:
         return ['count']
@@ -206,6 +203,27 @@ class CountCombiner(Combiner):
     def explain_computation(self) -> ExplainComputationReport:
         # TODO: add information in this and others combiners about amount of noise.
         return lambda: f"Computed count with (eps={self._params.eps} delta={self._params.delta})"
+
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        # Do not serialize _mechanism. It can be created from params.
+        del state["_mechanism"]
+        return state
+
+    def _get_mechanism(self) -> dp_computations.AdditiveMechanism:
+        if not self._mechanism:
+            params = self._params
+            noise_params = params.scalar_noise_params
+            spec = dp_computations.AdditiveMechanismSpec(
+                epsilon=params.eps,
+                delta=params.delta,
+                noise_kind=noise_params.noise_kind)
+            sensitivities = dp_computations.Sensitivities(
+                l0=noise_params.l0_sensitivity(),
+                linf=noise_params.max_contributions_per_partition)
+            self._mechanism = dp_computations.create_additive_mechanism(
+                spec, sensitivities)
+        return self._mechanism
 
 
 class PrivacyIdCountCombiner(Combiner):
