@@ -359,17 +359,13 @@ class CompoundCombiner(pipeline_dp.combiners.CompoundCombiner):
         )
 
     def _merge_sparse(self, acc1, acc2):
-        if acc1 is None and acc2 is None:
-            return None
         if acc1 is None:
             return acc2
         if acc2 is None:
             return acc1
-        return tuple([_merge_list(s, t) for s, t in zip(acc1, acc2)])
+        return tuple(_merge_list(s, t) for s, t in zip(acc1, acc2))
 
     def _merge_dense(self, acc1, acc2):
-        if acc1 is None and acc2 is None:
-            return None
         if acc1 is None:
             return acc2
         if acc2 is None:
