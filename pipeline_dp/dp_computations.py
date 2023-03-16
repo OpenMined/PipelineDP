@@ -13,8 +13,11 @@
 # limitations under the License.
 """Differential privacy computing of count, sum, mean, variance."""
 
+import abc
+import math
 import numpy as np
-from typing import Optional
+from typing import Any, Optional, Union
+
 import pipeline_dp
 from dataclasses import dataclass
 from pydp.algorithms import numerical_mechanisms as dp_mechanisms
@@ -486,3 +489,155 @@ def compute_dp_sum_noise_std(dp_params: ScalarNoiseParams) -> float:
     linf_sensitivity = max(abs(dp_params.min_sum_per_partition),
                            abs(dp_params.max_sum_per_partition))
     return _compute_noise_std(linf_sensitivity, dp_params)
+
+
+class AdditiveMechanism(abc.ABC):
+    """Base class for addition DP mechanism (like Laplace of Gaussian)."""
+
+    @abc.abstractmethod
+    def add_noise(self, value: Union[int, float]) -> float:
+        """Anonymizes value by adding noise."""
+
+    @property
+    @abc.abstractmethod
+    def noise_kind(self) -> pipeline_dp.NoiseKind:
+        pass
+
+    @property
+    @abc.abstractmethod
+    def noise_parameter(self) -> float:
+        """Noise distribution parameter."""
+        pass
+
+    @property
+    @abc.abstractmethod
+    def std(self) -> float:
+        """Noise distribution standard deviation."""
+
+    @property
+    @abc.abstractmethod
+    def sensitivity(self) -> float:
+        """Mechanism sensitivity."""
+
+
+class LaplaceMechanism(AdditiveMechanism):
+
+    def __init__(self, epsilon: float, l1_sensitivity: float):
+        self._mechanism = dp_mechanisms.LaplaceMechanism(
+            epsilon=epsilon, sensitivity=l1_sensitivity)
+
+    def add_noise(self, value: Union[int, float]) -> float:
+        return self._mechanism.add_noise(1.0 * value)
+
+    @property
+    def noise_parameter(self) -> float:
+        return self._mechanism.diversity
+
+    @property
+    def std(self) -> float:
+        return self.noise_parameter * math.sqrt(2)
+
+    @property
+    def noise_kind(self) -> pipeline_dp.NoiseKind:
+        return pipeline_dp.NoiseKind.LAPLACE
+
+    @property
+    def sensitivity(self) -> float:
+        return self._mechanism.sensitivity
+
+
+class GaussianMechanism(AdditiveMechanism):
+
+    def __init__(self, epsilon: float, delta: float, l2_sensitivity: float):
+        self._l2_sensitivity = l2_sensitivity
+        self._mechanism = dp_mechanisms.GaussianMechanism(
+            epsilon=epsilon, delta=delta, sensitivity=l2_sensitivity)
+
+    def add_noise(self, value: Union[int, float]) -> float:
+        return self._mechanism.add_noise(1.0 * value)
+
+    @property
+    def noise_kind(self) -> pipeline_dp.NoiseKind:
+        return pipeline_dp.NoiseKind.GAUSSIAN
+
+    @property
+    def noise_parameter(self) -> float:
+        return self._mechanism.std
+
+    @property
+    def std(self) -> float:
+        return self._mechanism.std
+
+    @property
+    def sensitivity(self) -> float:
+        return self._mechanism.l2_sensitivity
+
+
+@dataclass
+class Sensitivities:
+    """Contains sensitivities of the additive DP mechanism."""
+    l0: Optional[int] = None
+    linf: Optional[float] = None
+    l1: Optional[float] = None
+    l2: Optional[float] = None
+
+    def __post_init__(self):
+
+        def check_is_positive(num: Any, name: str) -> bool:
+            if num is not None and num <= 0:
+                raise ValueError(f"{name} must be positive, but {num} given.")
+
+        check_is_positive(self.l0, "L0")
+        check_is_positive(self.linf, "Linf")
+        check_is_positive(self.l1, "L1")
+        check_is_positive(self.l2, "L2")
+
+        if (self.l0 is None) != (self.linf is None):
+            raise ValueError("l0 and linf sensitivities must be either both set"
+                             " or both unset.")
+
+        if self.l0 is not None and self.linf is not None:
+            # Compute L1 sensitivity if not given, otherwise check that it is
+            # correct.
+            l1 = compute_l1_sensitivity(self.l0, self.linf)
+            if self.l1 is None:
+                self.l1 = l1
+            else:
+                if abs(l1 - self.l1) > 1e-12:
+                    raise ValueError(f"L1={self.l1} != L0*Linf={l1}")
+
+            # Compute L2 sensitivity if not given, otherwise check that it is
+            # correct.
+            l2 = compute_l2_sensitivity(self.l0, self.linf)
+            if self.l2 is None:
+                self.l2 = l2
+            else:
+                if abs(l2 - self.l2) > 1e-12:
+                    raise ValueError(f"L2={self.l2} != sqrt(L0)*Linf={l2}")
+
+
+@dataclass
+class AdditiveMechanismSpec:
+    """Contains the budget and noise_kind."""
+    epsilon: float
+    delta: float
+    noise_kind: pipeline_dp.NoiseKind
+
+
+def create_additive_mechanism(
+        spec: AdditiveMechanismSpec,
+        sensitivities: Sensitivities) -> AdditiveMechanism:
+    """Creates AdditiveMechanism from a mechanism spec and sensitivities."""
+    if spec.noise_kind == pipeline_dp.NoiseKind.LAPLACE:
+        if sensitivities.l1 is None:
+            raise ValueError("L1 or (L0 and Linf) sensitivities must be set for"
+                             " Laplace mechanism.")
+        return LaplaceMechanism(spec.epsilon, sensitivities.l1)
+
+    if spec.noise_kind == pipeline_dp.NoiseKind.GAUSSIAN:
+        if sensitivities.l2 is None:
+            raise ValueError("L2 or (L0 and Linf) sensitivities must be set for"
+                             " Gaussian mechanism.")
+        return GaussianMechanism(spec.epsilon, spec.delta, sensitivities.l2)
+
+    assert False, f"{spec.noise_kind} not supported."
