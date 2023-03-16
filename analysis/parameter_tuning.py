@@ -184,6 +184,10 @@ def _convert_utility_analysis_to_tune_result(
                       utility_reports=[])
 
 
+############# Deprected code #################
+# TODO(dvadym):
+#  1. Drop tune.
+#  2. Rename tune_new to tune.
 def tune(col,
          backend: pipeline_backend.PipelineBackend,
          contribution_histograms: histograms.DatasetHistograms,
@@ -257,6 +261,8 @@ def tune(col,
     return utility_analysis_result
 
 
+################# New code  ##################
+# tune_new will be renamed to tune.
 def tune_new(col,
              backend: pipeline_backend.PipelineBackend,
              contribution_histograms: histograms.DatasetHistograms,
