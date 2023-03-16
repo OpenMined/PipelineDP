@@ -135,6 +135,12 @@ class BeamBackendTest(parameterized.TestCase):
             output = self.backend.distinct(input, "distinct")
             beam_util.assert_that(output, beam_util.equal_to([1, 2, 3, 4, 5]))
 
+    def test_size(self):
+        with test_pipeline.TestPipeline() as p:
+            input = p | beam.Create([3, 2, 1, 1])
+            output = self.backend.size(input, "size")
+            beam_util.assert_that(output, beam_util.equal_to([4]))
+
     def test_sum_per_key(self):
         with test_pipeline.TestPipeline() as p:
             data = p | beam.Create([(1, 2), (2, 1), (1, 4), (3, 8), (2, -3),
@@ -383,6 +389,11 @@ class SparkRDDBackendTest(parameterized.TestCase):
         output = self.backend.distinct(input, "distinct").collect()
         self.assertSetEqual(set([1, 2, 3, 4, 5]), set(output))
 
+    def test_size(self):
+        input = self.sc.parallelize([3, 2, 1, 1])
+        output = self.backend.size(input, "size").collect()
+        self.assertListEqual([4], list(output))
+
     @classmethod
     def tearDownClass(cls):
         cls.sc.stop()
@@ -607,6 +618,11 @@ class LocalBackendTest(unittest.TestCase):
         input = [3, 2, 1, 3, 5, 4, 1, 1, 2]
         output = set(self.backend.distinct(input, "distinct"))
         self.assertSetEqual(set([1, 2, 3, 4, 5]), output)
+
+    def test_size(self):
+        input = [3, 2, 1, 1]
+        output = self.backend.size(input, "size")
+        self.assertListEqual([4], list(output))
 
 
 @unittest.skipIf(sys.platform == 'win32' or sys.platform == 'darwin',

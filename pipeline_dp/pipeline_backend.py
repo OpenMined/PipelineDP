@@ -172,6 +172,15 @@ class PipelineBackend(abc.ABC):
     def distinct(self, col, stage_name: str):
         """Returns a collection containing distinct elements of the input collection."""
 
+    def size(self, col, stage_name: str):
+        """Returns a one element collection that contains the size of the input collection."""
+
+        col = self.map(col, lambda x: "fake_common_key",
+                       f"{stage_name}: mapping to the same key")
+        col = self.count_per_element(
+            col, f"{stage_name}: counting the number of elements")
+        return self.values(col, f"{stage_name}: dropping the fake_common_key")
+
     @abc.abstractmethod
     def to_list(self, col, stage_name: str):
         """Returns a 1-element collection with a list of all elements."""
