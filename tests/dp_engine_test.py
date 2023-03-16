@@ -311,9 +311,9 @@ class DpEngineTest(parameterized.TestCase):
                                                     unittest.mock.ANY)
 
     @patch(
-        'pipeline_dp.dp_engine.DPEngine._drop_not_public_partitions',)
+        'pipeline_dp.dp_engine.DPEngine._drop_partitions',)
     def test_aggregate_no_partition_filtering_public_partitions(
-            self, mock_drop_not_public_partitions):
+            self, mock_drop_partitions):
         # Arrange
         engine, accountant = self._create_dp_engine_default(
             return_accountant=True)
@@ -331,7 +331,7 @@ class DpEngineTest(parameterized.TestCase):
         result = list(result)
 
         # Assert
-        mock_drop_not_public_partitions.assert_not_called()
+        mock_drop_partitions.assert_not_called()
         partition_keys = [kv[0] for kv in result]  # extract partition keys
         self.assertEqual(set(partition_keys), set(["pk0", "pk1", "pk2"]))
 

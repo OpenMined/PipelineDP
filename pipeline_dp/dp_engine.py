@@ -99,6 +99,9 @@ class DPEngine:
                 f"Private contribution bounds calculation: data has been "
                 f"filtered for the provided partitions.")
 
+        distinct_partitions = self._backend.distinct(partitions)
+        number_of_partitions = self._backend.size(distinct_partitions, "Calculate number of paritions")
+
     def explain_computations_report(self):
         return [
             report_generator.report()
