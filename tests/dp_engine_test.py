@@ -14,6 +14,7 @@
 """DPEngine Test"""
 
 import unittest
+from typing import List
 from unittest.mock import patch
 
 import apache_beam as beam
@@ -22,7 +23,6 @@ import apache_beam.testing.util as beam_util
 import pydp.algorithms.partition_selection as partition_selection
 from absl.testing import absltest
 from absl.testing import parameterized
-from typing import List
 
 import pipeline_dp
 from pipeline_dp import aggregate_params as agg
@@ -62,6 +62,70 @@ class DpEngineTest(parameterized.TestCase):
         if return_accountant:
             return dp_engine, accountant
         return dp_engine
+
+    def test_calculate_private_contribution_bounds_none(self):
+        with self.assertRaises(Exception):
+            pipeline_dp.DPEngine(None,
+                                 None).calculate_private_contribution_bounds(
+                                     None, None, None, None)
+
+    def test_check_calculate_private_contribution_bounds_params(self):
+        default_extractors = self._get_default_extractors()
+        default_params = pipeline_dp.CalculatePrivateContributionBoundsParams(
+            aggregation_noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+            aggregation_eps=0.01,
+            aggregation_delta=0.0001,
+            calculation_eps=0.001,
+            max_partitions_contributed_upper_bound=100)
+
+        test_cases = [
+            {
+                "desc": "None col",
+                "col": None,
+                "params": default_params,
+                "data_extractor": default_extractors,
+            },
+            {
+                "desc": "empty col",
+                "col": [],
+                "params": default_params,
+                "data_extractor": default_extractors
+            },
+            {
+                "desc": "none params",
+                "col": [0],
+                "params": None,
+                "data_extractor": default_extractors,
+            },
+            {
+                "desc": "params with incorrect type",
+                "col": [0],
+                "params": 1,
+                "data_extractor": default_extractors,
+            },
+            {
+                "desc": "None data_extractor",
+                "col": [0],
+                "params": default_params,
+                "data_extractor": None,
+            },
+            {
+                "desc": "data_extractor with an incorrect type",
+                "col": [0],
+                "params": default_params,
+                "data_extractor": 1,
+            },
+        ]
+
+        for test_case in test_cases:
+            with self.assertRaises(Exception, msg=test_case["desc"]):
+                budget_accountant = NaiveBudgetAccountant(total_epsilon=1,
+                                                          total_delta=1e-10)
+                engine = pipeline_dp.DPEngine(
+                    budget_accountant=budget_accountant,
+                    backend=pipeline_dp.LocalBackend())
+                engine.aggregate(test_case["col"], test_case["params"],
+                                 test_case["data_extractor"])
 
     def _create_params_default(self):
         return (pipeline_dp.AggregateParams(
@@ -178,8 +242,10 @@ class DpEngineTest(parameterized.TestCase):
                 "metrics=['PRIVACY_ID_COUNT', 'COUNT', 'MEAN']",
                 " noise_kind=gaussian", "max_value=5",
                 "Partition selection: private partitions",
-                "Cross-partition contribution bounding: for each privacy id randomly select max(actual_partition_contributed, 3)",
-                "Private Partition selection: using Truncated Geometric method with (eps="
+                "Cross-partition contribution bounding: for each privacy id "
+                "randomly select max(actual_partition_contributed, 3)",
+                "Private Partition selection: using Truncated Geometric "
+                "method with (eps="
             ],
         )
 
@@ -188,8 +254,11 @@ class DpEngineTest(parameterized.TestCase):
             [
                 "metrics=['SUM', 'MEAN']", " noise_kind=gaussian",
                 "max_value=5", "Partition selection: public partitions",
-                "Per-partition contribution bounding: for each privacy_id and eachpartition, randomly select max(actual_contributions_per_partition, 3)",
-                "Adding empty partitions for public partitions that are missing in data"
+                "Per-partition contribution bounding: for each privacy_id and "
+                "eachpartition, randomly select max("
+                "actual_contributions_per_partition, 3)",
+                "Adding empty partitions for public partitions that are "
+                "missing in data"
             ],
         )
 
@@ -199,13 +268,14 @@ class DpEngineTest(parameterized.TestCase):
                 "DPEngine method: select_partitions",
                 " budget_weight=1",
                 "max_partitions_contributed=2",
-                "Private Partition selection: using Truncated Geometric method with",
+                "Private Partition selection: using Truncated Geometric "
+                "method with",
             ],
         )
 
     @patch(
-        'pipeline_dp.contribution_bounders.SamplingCrossAndPerPartitionContributionBounder.bound_contributions'
-    )
+        'pipeline_dp.contribution_bounders'
+        '.SamplingCrossAndPerPartitionContributionBounder.bound_contributions')
     def test_aggregate_computation_graph(self, mock_bound_contributions):
         # Arrange
         aggregate_params = pipeline_dp.AggregateParams(
@@ -297,7 +367,8 @@ class DpEngineTest(parameterized.TestCase):
                 return num_users > self.min_users
 
         with patch(
-                "pipeline_dp.partition_selection.create_partition_selection_strategy",
+                "pipeline_dp.partition_selection"
+                ".create_partition_selection_strategy",
                 return_value=MockPartitionStrategy(min_users)) as mock_method:
             max_partitions_contributed = 2
             data_filtered = engine._select_private_partitions_internal(
@@ -329,7 +400,7 @@ class DpEngineTest(parameterized.TestCase):
         col = list(range(10)) + list(range(100, 120))
         data_extractor = pipeline_dp.DataExtractors(
             privacy_id_extractor=lambda x: x,
-            partition_extractor=lambda x: f"pk{x//100}",
+            partition_extractor=lambda x: f"pk{x // 100}",
             value_extractor=lambda x: None)
 
         engine = pipeline_dp.DPEngine(budget_accountant=budget_accountant,
@@ -384,7 +455,7 @@ class DpEngineTest(parameterized.TestCase):
         # Assert
 
         # Most partition should be dropped by private partition selection.
-        # This tests is non-deterministic, but it should pass with probability
+        # This test is non-deterministic, but it should pass with probability
         # very close to 1.
         self.assertLess(len(col), 5)
 
@@ -711,7 +782,7 @@ class DpEngineTest(parameterized.TestCase):
 
         data_extractor = pipeline_dp.DataExtractors(
             privacy_id_extractor=lambda x: x,
-            partition_extractor=lambda x: f"pk{x//2}",
+            partition_extractor=lambda x: f"pk{x // 2}",
             value_extractor=lambda x: x)
 
         engine = pipeline_dp.DPEngine(budget_accountant, backend)

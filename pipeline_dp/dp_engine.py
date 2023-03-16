@@ -61,7 +61,7 @@ class DPEngine:
         self,
         col,
         params: pipeline_dp.CalculatePrivateContributionBoundsParams,
-        data_extractors: pipeline_dp.DataExtractors,
+        data_extractors: DataExtractors,
         partitions: Any,
         partitions_already_filtered: bool = False,
         out_explain_computation_report: Optional[
@@ -95,7 +95,8 @@ class DPEngine:
           Collection consisting of 1 element:
           pipeline_dp.PrivateContributionBounds.
         """
-        pass
+        self._check_calculate_private_contribution_bounds_params(
+            col, params, data_extractors)
 
     def explain_computations_report(self):
         return [
@@ -161,7 +162,8 @@ class DPEngine:
         else:
             combiner = self._create_compound_combiner(params)
 
-        if public_partitions is not None and not params.public_partitions_already_filtered:
+        if (public_partitions is not None and
+                not params.public_partitions_already_filtered):
             col = self._drop_not_public_partitions(col, public_partitions,
                                                    data_extractors)
         if not params.contribution_bounds_already_enforced:
@@ -206,7 +208,9 @@ class DPEngine:
                 # This regime assumes the input data doesn't have privacy IDs,
                 # and therefore we didn't group by them and cannot guarantee one
                 # row corresponds to exactly one privacy ID.
-                max_rows_per_privacy_id = params.max_contributions or params.max_contributions_per_partition
+                max_rows_per_privacy_id = (
+                    params.max_contributions or
+                    params.max_contributions_per_partition)
 
             col = self._select_private_partitions_internal(
                 col, params.max_partitions_contributed, max_rows_per_privacy_id,
@@ -427,6 +431,23 @@ class DPEngine:
                               data_extractors.value_extractor(row)),
             "Extract (privacy_id, partition_key, value))")
 
+    def _check_calculate_private_contribution_bounds_params(
+            self,
+            col,
+            params: pipeline_dp.CalculatePrivateContributionBoundsParams,
+            data_extractors: DataExtractors,
+            check_data_extractors: bool = True):
+        _check_col(col)
+        if params is None:
+            raise ValueError("params must be set to a valid "
+                             "CalculatePrivateContributionBoundsParams")
+        if not isinstance(params,
+                          pipeline_dp.CalculatePrivateContributionBoundsParams):
+            raise TypeError("params must be set to a valid "
+                            "CalculatePrivateContributionBoundsParams")
+        if check_data_extractors:
+            _check_data_extractors(data_extractors)
+
     def _check_aggregate_params(self,
                                 col,
                                 params: pipeline_dp.AggregateParams,
@@ -434,19 +455,13 @@ class DPEngine:
                                 check_data_extractors: bool = True):
         if params.max_contributions is not None:
             raise NotImplementedError("max_contributions is not supported yet.")
-        if col is None or not col:
-            raise ValueError("col must be non-empty")
+        _check_col(col)
         if params is None:
             raise ValueError("params must be set to a valid AggregateParams")
         if not isinstance(params, pipeline_dp.AggregateParams):
             raise TypeError("params must be set to a valid AggregateParams")
         if check_data_extractors:
-            if data_extractors is None:
-                raise ValueError(
-                    "data_extractors must be set to a DataExtractors")
-            if not isinstance(data_extractors, pipeline_dp.DataExtractors):
-                raise TypeError(
-                    "data_extractors must be set to a DataExtractors")
+            _check_data_extractors(data_extractors)
         if params.contribution_bounds_already_enforced:
             if data_extractors.privacy_id_extractor:
                 raise ValueError(
@@ -456,3 +471,15 @@ class DPEngine:
                 raise ValueError(
                     "PRIVACY_ID_COUNT cannot be computed when "
                     "contribution_bounds_already_enforced is True.")
+
+
+def _check_col(col):
+    if col is None or not col:
+        raise ValueError("col must be non-empty")
+
+
+def _check_data_extractors(data_extractors: DataExtractors):
+    if data_extractors is None:
+        raise ValueError("data_extractors must be set to a DataExtractors")
+    if not isinstance(data_extractors, pipeline_dp.DataExtractors):
+        raise TypeError("data_extractors must be set to a DataExtractors")
