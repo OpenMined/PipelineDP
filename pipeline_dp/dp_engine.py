@@ -58,14 +58,12 @@ class DPEngine:
             self._add_report_stage(stage_description)
 
     def calculate_private_contribution_bounds(
-        self,
-        col,
-        params: pipeline_dp.CalculatePrivateContributionBoundsParams,
-        data_extractors: DataExtractors,
-        partitions: Any,
-        partitions_already_filtered: bool = False,
-        out_explain_computation_report: Optional[
-            pipeline_dp.ExplainComputationReport] = None):
+            self,
+            col,
+            params: pipeline_dp.CalculatePrivateContributionBoundsParams,
+            data_extractors: DataExtractors,
+            partitions: Any,
+            partitions_already_filtered: bool = False):
         """Computes contribution bounds for COUNT and PRIVACY_ID_COUNT
         metrics in a differentially private way.
         Currently only max_partitions_contributed is calculated.
@@ -87,9 +85,6 @@ class DPEngine:
             and only provided partitions will be kept in col. You can set it to
             true if you have already filtered for these partitions (e.g. you
             did partition selection), it will save you some computation time.
-          out_explain_computation_report: an output argument, if specified,
-            it will contain the Explain Computation report for this aggregation.
-            For more details see the docstring to report_generator.py.
 
         Returns:
           Collection consisting of 1 element:
