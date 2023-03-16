@@ -164,7 +164,7 @@ class Variance(PrivatePTransform):
             params,
             data_extractors,
             self._public_partitions,
-            out_explain_computaton_report=self._explain_computaton_report)
+            out_explain_computation_report=self._explain_computaton_report)
         # dp_result : (partition_key, [dp_variance])
 
         # aggregate() returns a namedtuple of metrics for each partition key.
@@ -227,7 +227,7 @@ class Mean(PrivatePTransform):
             params,
             data_extractors,
             self._public_partitions,
-            out_explain_computaton_report=self._explain_computaton_report)
+            out_explain_computation_report=self._explain_computaton_report)
         # dp_result : (partition_key, [dp_mean])
 
         # aggregate() returns a namedtuple of metrics for each partition key.
@@ -290,7 +290,7 @@ class Sum(PrivatePTransform):
             params,
             data_extractors,
             self._public_partitions,
-            out_explain_computaton_report=self._explain_computaton_report)
+            out_explain_computation_report=self._explain_computaton_report)
         # dp_result : (partition_key, [dp_sum])
 
         # aggregate() returns a namedtuple of metrics for each partition key.
@@ -353,7 +353,7 @@ class Count(PrivatePTransform):
             params,
             data_extractors,
             self._public_partitions,
-            out_explain_computaton_report=self._explain_computaton_report)
+            out_explain_computation_report=self._explain_computaton_report)
         # dp_result : (partition_key, [dp_count])
 
         # aggregate() returns a namedtuple of metrics for each partition key.
@@ -414,7 +414,7 @@ class PrivacyIdCount(PrivatePTransform):
             params,
             data_extractors,
             self._public_partitions,
-            out_explain_computaton_report=self._explain_computaton_report)
+            out_explain_computation_report=self._explain_computaton_report)
         # dp_result : (partition_key, [dp_privacy_id_count])
 
         # aggregate() returns a namedtuple of metrics for each partition key.

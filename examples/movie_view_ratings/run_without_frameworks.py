@@ -82,7 +82,7 @@ def main(unused_argv):
         movie_views,
         params,
         data_extractors,
-        out_explain_computaton_report=explain_computation_report)
+        out_explain_computation_report=explain_computation_report)
 
     budget_accountant.compute_budgets()
 

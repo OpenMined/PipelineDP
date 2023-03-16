@@ -104,7 +104,7 @@ class DPEngine:
                   params: pipeline_dp.AggregateParams,
                   data_extractors: DataExtractors,
                   public_partitions=None,
-                  out_explain_computaton_report: Optional[
+                  out_explain_computation_report: Optional[
                       pipeline_dp.ExplainComputationReport] = None):
         """Computes DP aggregate metrics.
 
@@ -116,7 +116,7 @@ class DPEngine:
           public_partitions: A collection of partition keys that will be present
             in the result. If not provided, partitions will be selected in a DP
             manner.
-          out_explain_computaton_report: an output argument, if specified,
+          out_explain_computation_report: an output argument, if specified,
             it will contain the Explain Computation report for this aggregation.
             For more details see the docstring to report_generator.py.
 
@@ -132,8 +132,8 @@ class DPEngine:
             self._report_generators.append(
                 report_generator.ReportGenerator(params, "aggregate",
                                                  public_partitions is not None))
-            if out_explain_computaton_report is not None:
-                out_explain_computaton_report._set_report_generator(
+            if out_explain_computation_report is not None:
+                out_explain_computation_report._set_report_generator(
                     self._current_report_generator)
             col = self._aggregate(col, params, data_extractors,
                                   public_partitions)
