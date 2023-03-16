@@ -184,10 +184,8 @@ def _convert_utility_analysis_to_tune_result(
                       utility_reports=[])
 
 
-############# Deprected code #################
-# TODO(dvadym):
-#  1. Drop tune.
-#  2. Rename tune_new to tune.
+############# Deprecated code #################
+# TODO(dvadym): Rename tune_new to tune
 def tune(col,
          backend: pipeline_backend.PipelineBackend,
          contribution_histograms: histograms.DatasetHistograms,
@@ -325,7 +323,7 @@ def tune_new(col,
         utility_result, per_partition_utility_result = result
     else:
         utility_result = result
-    # utility_result: (UtilityReport,)
+    # utility_result: (UtilityReport)
     # per_partition_utility_result: (pk, (PerPartitionMetrics))
     use_public_partitions = public_partitions is not None
 
@@ -357,7 +355,7 @@ def _convert_utility_analysis_to_tune_result_new(
     utility_reports.sort(key=lambda e: e.configuration_index)
 
     index_best = -1  # not found
-    # Find best index if there are metrics to compute. Absence metrics to
+    # Find best index if there are metrics to compute. Absence of metrics to
     # compute means that this is SelectPartition analysis.
     if tune_options.aggregate_params.metrics:
         rmse = [
