@@ -147,8 +147,8 @@ def tune_parameters():
         parameters_to_tune=parameters_to_tune,
         pre_aggregated_data=FLAGS.run_on_preaggregated_data)
 
-    if FLAGS.output_file_per_partition_analysis:
-        result, per_partition = parameter_tuning.tune(
+    if True:  # FLAGS.output_file_per_partition_analysis:
+        result, per_partition = parameter_tuning.tune_new(
             input,
             backend,
             hist,
@@ -158,9 +158,9 @@ def tune_parameters():
             return_utility_analysis_per_partition=True)
         write_to_file(per_partition, FLAGS.output_file_per_partition_analysis)
     else:
-        result = parameter_tuning.tune(restaurant_visits_rows, backend, hist,
-                                       tune_options, data_extractors,
-                                       public_partitions, False)
+        result = parameter_tuning.tune_new(restaurant_visits_rows, backend,
+                                           hist, tune_options, data_extractors,
+                                           public_partitions, False)
 
     # Here's where the lazy iterator initiates computations and gets transformed
     # into actual results
