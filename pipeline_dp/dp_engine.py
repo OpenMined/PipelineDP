@@ -93,6 +93,12 @@ class DPEngine:
         self._check_calculate_private_contribution_bounds_params(
             col, params, data_extractors)
 
+        if not partitions_already_filtered:
+            col = self._drop_partitions(col, partitions, data_extractors)
+            self._add_report_stage(
+                f"Private contribution bounds calculation: data has been "
+                f"filtered for the provided partitions.")
+
     def explain_computations_report(self):
         return [
             report_generator.report()
@@ -159,8 +165,9 @@ class DPEngine:
 
         if (public_partitions is not None and
                 not params.public_partitions_already_filtered):
-            col = self._drop_not_public_partitions(col, public_partitions,
-                                                   data_extractors)
+            col = self._drop_partitions(col, public_partitions, data_extractors)
+            self._add_report_stage(
+                f"Public partition selection: dropped non public partitions")
         if not params.contribution_bounds_already_enforced:
             col = self._extract_columns(col, data_extractors)
             # col : (privacy_id, partition_key, value)
@@ -288,8 +295,9 @@ class DPEngine:
         def sample_unique_elements_fn(pid_and_pks):
             pid, pks = pid_and_pks
             unique_pks = list(set(pks))
-            sampled_elements = sampling_utils.choose_from_list_without_replacement(
-                unique_pks, max_partitions_contributed)
+            sampled_elements = \
+                sampling_utils.choose_from_list_without_replacement(
+                    unique_pks, max_partitions_contributed)
             return ((pid, pk) for pk in sampled_elements)
 
         col = self._backend.flat_map(col, sample_unique_elements_fn,
@@ -319,16 +327,14 @@ class DPEngine:
 
         return col
 
-    def _drop_not_public_partitions(self, col, public_partitions,
-                                    data_extractors: DataExtractors):
+    def _drop_partitions(self, col, partitions,
+                         data_extractors: DataExtractors):
         """Drops partitions in `col` which are not in `public_partitions`."""
         col = self._backend.map(
             col, lambda row: (data_extractors.partition_extractor(row), row),
             "Extract partition id")
-        col = self._backend.filter_by_key(
-            col, public_partitions, "Filtering out non-public partitions")
-        self._add_report_stage(
-            f"Public partition selection: dropped non public partitions")
+        col = self._backend.filter_by_key(col, partitions,
+                                          "Filtering out partitions")
         return self._backend.map_tuple(col, lambda k, v: v, "Drop key")
 
     def _add_empty_public_partitions(self, col, public_partitions,
@@ -386,8 +392,9 @@ class DPEngine:
             privacy_id_count = divide_and_round_up(row_count,
                                                    max_rows_per_privacy_id)
 
-            strategy_object = partition_selection.create_partition_selection_strategy(
-                strategy, budget.eps, budget.delta, max_partitions)
+            strategy_object = \
+                partition_selection.create_partition_selection_strategy(
+                    strategy, budget.eps, budget.delta, max_partitions)
             return strategy_object.should_keep(privacy_id_count)
 
         # make filter_fn serializable
@@ -412,11 +419,13 @@ class DPEngine:
     ) -> contribution_bounders.ContributionBounder:
         """Creates ContributionBounder based on aggregation parameters."""
         if params.max_contributions:
-            return contribution_bounders.SamplingPerPrivacyIdContributionBounder(
-            )
+            return \
+                contribution_bounders.SamplingPerPrivacyIdContributionBounder(
+                )
         else:
-            return contribution_bounders.SamplingCrossAndPerPartitionContributionBounder(
-            )
+            return \
+                contribution_bounders.SamplingCrossAndPerPartitionContributionBounder(
+                )
 
     def _extract_columns(self, col, data_extractors: DataExtractors):
         """Extract columns using data_extractors."""
