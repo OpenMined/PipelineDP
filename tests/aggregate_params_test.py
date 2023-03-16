@@ -14,7 +14,6 @@
 from absl.testing import parameterized
 
 import pipeline_dp
-from pipeline_dp import aggregate_params
 from pipeline_dp import budget_accounting
 """Aggregate Params Test"""
 
@@ -205,29 +204,28 @@ class AggregateParamsTest(parameterized.TestCase):
                              self._get_default_extractors())
 
     @parameterized.named_parameters(
-        dict(
-            testcase_name=
-            'min_sum_per_partition is set, max_sum_per_partition is not set',
-            error_msg=
-            'min_sum_per_partition and max_sum_per_partition should be both set or both None',
-            min_sum_per_partition=0,
-            max_sum_per_partition=None,
-            metrics=[pipeline_dp.Metrics.SUM]),
-        dict(
-            testcase_name=
-            'min_sum_per_partition is not set, max_sum_per_partition is set',
-            error_msg=
-            'min_sum_per_partition and max_sum_per_partition should be both set or both None',
-            min_sum_per_partition=None,
-            max_sum_per_partition=1,
-            metrics=[pipeline_dp.Metrics.SUM]),
-        dict(
-            testcase_name='min_sum_per_partition > max_sum_per_partition',
-            error_msg=
-            'max_sum_per_partition must be equal to or greater than min_sum_per_partition',
-            min_sum_per_partition=1,
-            max_sum_per_partition=0,
-            metrics=[pipeline_dp.Metrics.SUM]),
+        dict(testcase_name=
+             'min_sum_per_partition is set, max_sum_per_partition is not set',
+             error_msg=
+             'min_sum_per_partition and max_sum_per_partition should be both '
+             'set or both None',
+             min_sum_per_partition=0,
+             max_sum_per_partition=None,
+             metrics=[pipeline_dp.Metrics.SUM]),
+        dict(testcase_name=
+             'min_sum_per_partition is not set, max_sum_per_partition is set',
+             error_msg=
+             'min_sum_per_partition and max_sum_per_partition should be both '
+             'set or both None',
+             min_sum_per_partition=None,
+             max_sum_per_partition=1,
+             metrics=[pipeline_dp.Metrics.SUM]),
+        dict(testcase_name='min_sum_per_partition > max_sum_per_partition',
+             error_msg='max_sum_per_partition must be equal to or greater than '
+             'min_sum_per_partition',
+             min_sum_per_partition=1,
+             max_sum_per_partition=0,
+             metrics=[pipeline_dp.Metrics.SUM]),
         dict(testcase_name='min_sum_per_partition not compatible with mean',
              error_msg='min_sum_per_partition is not compatible with metrics',
              min_sum_per_partition=0,
@@ -282,14 +280,14 @@ class AggregateParamsTest(parameterized.TestCase):
              metrics=[pipeline_dp.Metrics.SUM],
              custom_combiners=[0],
              contribution_bounds_already_enforced=None),
-        dict(
-            testcase_name=
-            'metrics is PRIVACY_ID_COUNT and contribution_bounds_already_enforced is True',
-            error_msg=
-            'PRIVACY_ID_COUNT when contribution_bounds_already_enforced is set to True',
-            metrics=[pipeline_dp.Metrics.PRIVACY_ID_COUNT],
-            custom_combiners=None,
-            contribution_bounds_already_enforced=True),
+        dict(testcase_name='metrics is PRIVACY_ID_COUNT and '
+             'contribution_bounds_already_enforced is True',
+             error_msg=
+             'PRIVACY_ID_COUNT when contribution_bounds_already_enforced is '
+             'set to True',
+             metrics=[pipeline_dp.Metrics.PRIVACY_ID_COUNT],
+             custom_combiners=None,
+             contribution_bounds_already_enforced=True),
     )
     def test_check_metrics_with_parameters_not_allowed(
             self, error_msg, metrics, custom_combiners,
@@ -309,3 +307,53 @@ class AggregateParamsTest(parameterized.TestCase):
                                  contribution_bounds_already_enforced=
                                  contribution_bounds_already_enforced),
                              self._get_default_extractors())
+
+
+class CalculatePrivateContributionBoundsParamsTest(parameterized.TestCase):
+
+    @parameterized.named_parameters(
+        dict(testcase_name='invalid aggregation_noise_kind',
+             error_msg='aggregation_noise_kind must be set',
+             aggregation_noise_kind=None,
+             aggregation_eps=0.01,
+             aggregation_delta=0.0001,
+             calculation_eps=0.01,
+             max_partitions_contributed_upper_bound=100),
+        dict(testcase_name='invalid aggregation_eps',
+             error_msg='epsilon must be positive',
+             aggregation_noise_kind=pipeline_dp.NoiseKind.LAPLACE,
+             aggregation_eps=0,
+             aggregation_delta=0.0001,
+             calculation_eps=0.01,
+             max_partitions_contributed_upper_bound=100),
+        dict(testcase_name='invalid aggregation_delta',
+             error_msg='.*Gaussian noise.*aggregation_delta.*greater than 0.*',
+             aggregation_noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+             aggregation_eps=0.001,
+             aggregation_delta=0,
+             calculation_eps=0.01,
+             max_partitions_contributed_upper_bound=100),
+        dict(testcase_name='invalid calculation_eps',
+             error_msg='epsilon must be positive',
+             aggregation_noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+             aggregation_eps=0.01,
+             aggregation_delta=0.0001,
+             calculation_eps=-1,
+             max_partitions_contributed_upper_bound=100),
+        dict(testcase_name='invalid max_partitions_contributed_upper_bound',
+             error_msg='max_partitions_contributed_upper_bound has to be '
+             'positive integer',
+             aggregation_noise_kind=pipeline_dp.NoiseKind.LAPLACE,
+             aggregation_eps=0.001,
+             aggregation_delta=0,
+             calculation_eps=0.01,
+             max_partitions_contributed_upper_bound=0),
+    )
+    def test_parameters_validation(self, error_msg, aggregation_noise_kind,
+                                   aggregation_eps, aggregation_delta,
+                                   calculation_eps,
+                                   max_partitions_contributed_upper_bound):
+        with self.assertRaisesRegex(ValueError, error_msg):
+            pipeline_dp.CalculatePrivateContributionBoundsParams(
+                aggregation_noise_kind, aggregation_eps, aggregation_delta,
+                calculation_eps, max_partitions_contributed_upper_bound)
