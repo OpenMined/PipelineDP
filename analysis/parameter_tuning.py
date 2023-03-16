@@ -107,7 +107,8 @@ class TuneResult:
     contribution_histograms: histograms.DatasetHistograms
     utility_analysis_parameters: analysis.MultiParameterConfiguration
     index_best: int
-    utility_analysis_results: List[metrics.AggregateMetrics]
+    utility_analysis_results: List[metrics.AggregateMetrics]  # deprecated
+    utility_reports: List[metrics.UtilityReport]
 
 
 def _find_candidate_parameters(
@@ -175,8 +176,12 @@ def _convert_utility_analysis_to_tune_result(
         ]
     index_best = np.argmin(rmse)
 
-    return TuneResult(tune_options, contribution_histograms, run_configurations,
-                      index_best, utility_analysis_result)
+    return TuneResult(tune_options,
+                      contribution_histograms,
+                      run_configurations,
+                      index_best,
+                      utility_analysis_result,
+                      utility_reports=[])
 
 
 def tune(col,
@@ -311,18 +316,55 @@ def tune_new(col,
         col, backend, utility_analysis_options, data_extractors,
         public_partitions, return_utility_analysis_per_partition)
     if return_utility_analysis_per_partition:
-        utility_analysis_result, utility_analysis_result_per_partition = result
+        utility_result, per_partition_utility_result = result
     else:
-        utility_analysis_result = result
+        utility_result = result
+    # utility_result: (UtilityReport,)
+    # per_partition_utility_result: (pk, (PerPartitionMetrics))
     use_public_partitions = public_partitions is not None
-    utility_analysis_result = backend.map(
-        utility_analysis_result,
-        lambda result: _convert_utility_analysis_to_tune_result(
+
+    utility_result = backend.to_list(utility_result, "To list")
+    # 1 element collection with list[UtilityReport]
+    utility_result = backend.map(
+        utility_result,
+        lambda result: _convert_utility_analysis_to_tune_result_new(
             result, options, candidates, use_public_partitions,
             contribution_histograms), "To Tune result")
     if return_utility_analysis_per_partition:
-        return utility_analysis_result, utility_analysis_result_per_partition
-    return utility_analysis_result
+        return utility_result, per_partition_utility_result
+    return utility_result
+
+
+def _convert_utility_analysis_to_tune_result_new(
+        utility_reports: Tuple[metrics.UtilityReport],
+        tune_options: TuneOptions,
+        run_configurations: analysis.MultiParameterConfiguration,
+        use_public_partitions: bool,
+        contribution_histograms: histograms.DatasetHistograms):
+    assert len(utility_reports) == run_configurations.size
+    # TODO(dvadym): implement relative error.
+    # TODO(dvadym): take into consideration partition selection from private
+    # partition selection.
+    assert tune_options.function_to_minimize == MinimizingFunction.ABSOLUTE_ERROR
+
+    # Sort utility reports by configuration index.
+    utility_reports.sort(key=lambda e: e.configuration_index)
+
+    index_best = -1  # not found
+    # Find best index if there are metrics to compute. Absence metrics to
+    # compute means that this is SelectPartition analysis.
+    if tune_options.aggregate_params.metrics:
+        rmse = [
+            ur.metric_errors[0].absolute_error.rmse for ur in utility_reports
+        ]
+        index_best = np.argmin(rmse)
+
+    return TuneResult(tune_options,
+                      contribution_histograms,
+                      run_configurations,
+                      index_best,
+                      utility_analysis_results=[],
+                      utility_reports=utility_reports)
 
 
 def _check_tune_args(options: TuneOptions):

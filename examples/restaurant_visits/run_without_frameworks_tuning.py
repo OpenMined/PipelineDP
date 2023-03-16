@@ -147,7 +147,7 @@ def tune_parameters():
         parameters_to_tune=parameters_to_tune,
         pre_aggregated_data=FLAGS.run_on_preaggregated_data)
 
-    if True:  # FLAGS.output_file_per_partition_analysis:
+    if FLAGS.output_file_per_partition_analysis:
         result, per_partition = parameter_tuning.tune_new(
             input,
             backend,
