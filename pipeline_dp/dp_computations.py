@@ -15,6 +15,8 @@
 
 import abc
 import math
+import typing
+
 import numpy as np
 from typing import Any, Optional, Union
 
@@ -185,7 +187,7 @@ class AdditiveVectorNoiseParams:
     max_norm: float
     l0_sensitivity: float
     linf_sensitivity: float
-    norm_kind: pipeline_dp.aggregate_params.NormKind
+    norm_kind: pipeline_dp.NormKind
     noise_kind: pipeline_dp.NoiseKind
 
 
@@ -641,3 +643,42 @@ def create_additive_mechanism(
         return GaussianMechanism(spec.epsilon, spec.delta, sensitivities.l2)
 
     assert False, f"{spec.noise_kind} not supported."
+
+
+class ExponentialMechanism:
+
+    class ScoringFunction(abc.ABC):
+
+        def __init__(self) -> None:
+            super().__init__()
+
+        @abc.abstractmethod
+        def score(self, k) -> float:
+            """"""
+
+        @abc.abstractmethod
+        def global_sensitivity(self) -> float:
+            """"""
+
+        @abc.abstractmethod
+        def is_monotonic(self) -> bool:
+            """"""
+
+    def __init__(self, scoring_function: ScoringFunction) -> None:
+        self._scoring_function = scoring_function
+
+    def apply(self, eps: float, inputs_to_score_col: typing.List[Any]) -> Any:
+        probs = self._calculate_probabilities(eps, inputs_to_score_col)
+        return np.random.default_rng().choice(inputs_to_score_col, p=probs)
+
+    def _calculate_probabilities(self, eps: float,
+                                 inputs_to_score_col: typing.List[Any]):
+        scores = np.array(
+            list(
+                map(lambda k: self._scoring_function.score(k),
+                    inputs_to_score_col)))
+        denominator = self._scoring_function.global_sensitivity
+        if not self._scoring_function.is_monotonic:
+            denominator *= 2
+        weights = np.exp(scores * eps / denominator)
+        return weights / weights.sum()

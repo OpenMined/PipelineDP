@@ -12,29 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """DP aggregations."""
-import dataclasses
 import functools
-from typing import Any, Callable, Optional, Tuple
+from typing import Any, Optional, Tuple
 
 import pipeline_dp
-from pipeline_dp import combiners
+from pipeline_dp import combiners, PrivateContributionBounds, DataExtractors
 from pipeline_dp import contribution_bounders
 from pipeline_dp import partition_selection
 from pipeline_dp import report_generator
 from pipeline_dp import sampling_utils
-
-
-@dataclasses.dataclass
-class DataExtractors:
-    """Data extractors.
-
-    A set of functions that, given a piece of input, return the privacy id, 
-    partition key, and value respectively.
-    """
-
-    privacy_id_extractor: Callable = None
-    partition_extractor: Callable = None
-    value_extractor: Callable = None
+from pipeline_dp.histograms import compute_dataset_histograms
+from pipeline_dp.private_contribution_bounds import PrivateL0Calculator
 
 
 class DPEngine:
@@ -99,8 +87,14 @@ class DPEngine:
                 f"Private contribution bounds calculation: data has been "
                 f"filtered for the provided partitions.")
 
-        distinct_partitions = self._backend.distinct(partitions)
-        number_of_partitions = self._backend.size(distinct_partitions, "Calculate number of paritions")
+        histograms = compute_dataset_histograms(col, data_extractors,
+                                                self._backend)
+        l0_calculator = PrivateL0Calculator(params, partitions, histograms,
+                                            self._backend)
+        return self._backend.collect(
+            [l0_calculator.calculate()], PrivateContributionBounds,
+            "Collect calculated private contribution bounds into PrivateContributionBounds dataclass"
+        )
 
     def explain_computations_report(self):
         return [
