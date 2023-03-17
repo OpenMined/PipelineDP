@@ -150,7 +150,6 @@ class PrivateContributionBounds:
           one unit of privacy (e.g., a user) can contribute
           (also referred to as l_0).
     """
-
     max_partitions_contributed: int
 
 

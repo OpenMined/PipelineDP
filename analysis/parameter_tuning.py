@@ -13,10 +13,9 @@
 # limitations under the License.
 
 import pipeline_dp
-from pipeline_dp import pipeline_backend
+from pipeline_dp import pipeline_backend, histograms
 from pipeline_dp import input_validators
 import analysis
-from analysis import histograms
 from analysis import metrics
 from analysis import utility_analysis
 

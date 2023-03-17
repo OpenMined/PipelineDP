@@ -17,8 +17,8 @@ from absl.testing import parameterized
 
 import pipeline_dp
 import analysis
-from analysis import histograms as hist
-from analysis.histograms import FrequencyBin
+from pipeline_dp import histograms as hist
+from pipeline_dp.histograms import FrequencyBin
 from analysis import pre_aggregation
 
 

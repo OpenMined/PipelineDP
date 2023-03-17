@@ -18,8 +18,8 @@ import operator
 from typing import List
 
 import pipeline_dp
-import analysis
 from pipeline_dp import pipeline_backend
+from pipeline_dp.data_extractors import PreAggregateExtractors
 
 
 @dataclass
@@ -474,7 +474,7 @@ def _compute_partition_privacy_id_count_histogram_on_preaggregated_data(
 
 
 def compute_dataset_histograms_on_preaggregated_data(
-        col, data_extractors: analysis.PreAggregateExtractors,
+        col, data_extractors: PreAggregateExtractors,
         backend: pipeline_backend.PipelineBackend):
     """Computes dataset histograms on pre-aggregated dataset.
 
