@@ -235,6 +235,7 @@ class PrivacyIdCountCombiner(Combiner):
 
     def __init__(self, params: CombinerParams):
         self._params = params
+        self._mechanism = None
 
     def create_accumulator(self, values: Sized) -> AccumulatorType:
         return 1 if values else 0
@@ -243,18 +244,34 @@ class PrivacyIdCountCombiner(Combiner):
                            accumulator2: AccumulatorType):
         return accumulator1 + accumulator2
 
-    def compute_metrics(self, accumulator: AccumulatorType) -> dict:
-        return {
-            'privacy_id_count':
-                dp_computations.compute_dp_count(
-                    accumulator, self._params.scalar_noise_params)
-        }
+    def compute_metrics(self, count: AccumulatorType) -> dict:
+        return {"privacy_id_count": self._get_mechanism().add_noise(count)}
 
     def metrics_names(self) -> List[str]:
-        return ['privacy_id_count']
+        return ["privacy_id_count"]
 
     def explain_computation(self) -> ExplainComputationReport:
         return lambda: f"Computed privacy id count with (eps={self._params.eps} delta={self._params.delta})"
+
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        # Do not serialize _mechanism. It can be created from params.
+        del state["_mechanism"]
+        return state
+
+    def _get_mechanism(self) -> dp_computations.AdditiveMechanism:
+        if not self._mechanism:
+            params = self._params
+            noise_params = params.scalar_noise_params
+            spec = dp_computations.AdditiveMechanismSpec(
+                epsilon=params.eps,
+                delta=params.delta,
+                noise_kind=noise_params.noise_kind)
+            sensitivities = dp_computations.Sensitivities(
+                l0=noise_params.l0_sensitivity(), linf=1)
+            self._mechanism = dp_computations.create_additive_mechanism(
+                spec, sensitivities)
+        return self._mechanism
 
 
 class SumCombiner(Combiner):
@@ -268,6 +285,7 @@ class SumCombiner(Combiner):
     def __init__(self, params: CombinerParams):
         self._params = params
         self._bouding_per_partition = params.aggregate_params.bounds_per_partition_are_set
+        self._mechanism = None
 
     def create_accumulator(self, values: Iterable[float]) -> AccumulatorType:
         agg_params = self._params.aggregate_params
@@ -282,17 +300,38 @@ class SumCombiner(Combiner):
         return sum1 + sum2
 
     def compute_metrics(self, sum_: AccumulatorType) -> dict:
-        return {
-            'sum':
-                dp_computations.compute_dp_sum(sum_,
-                                               self._params.scalar_noise_params)
-        }
+        return {"sum": self._get_mechanism().add_noise(sum_)}
 
     def metrics_names(self) -> List[str]:
         return ['sum']
 
     def explain_computation(self) -> ExplainComputationReport:
         return lambda: f"Computed sum with (eps={self._params.eps} delta={self._params.delta})"
+
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        # Do not serialize _mechanism. It can be created from params.
+        del state["_mechanism"]
+        return state
+
+    def _get_mechanism(self) -> dp_computations.AdditiveMechanism:
+        if not self._mechanism:
+            params = self._params
+            noise_params = params.scalar_noise_params
+            spec = dp_computations.AdditiveMechanismSpec(
+                epsilon=params.eps,
+                delta=params.delta,
+                noise_kind=noise_params.noise_kind)
+            if self._bouding_per_partition:
+                linf = noise_params.max_sum_per_partition  # todo
+            else:
+                linf = noise_params.max_contributions_per_partition * max(
+                    abs(noise_params.min_value), abs(noise_params.max_value))
+            sensitivities = dp_computations.Sensitivities(
+                l0=noise_params.l0_sensitivity(), linf=linf)
+            self._mechanism = dp_computations.create_additive_mechanism(
+                spec, sensitivities)
+        return self._mechanism
 
 
 class MeanCombiner(Combiner):

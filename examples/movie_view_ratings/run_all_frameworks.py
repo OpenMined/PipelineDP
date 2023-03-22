@@ -74,7 +74,10 @@ def calc_dp_rating_metrics(movie_views, backend, public_partitions):
 
     params = pipeline_dp.AggregateParams(
         noise_kind=pipeline_dp.NoiseKind.LAPLACE,
-        metrics=[pipeline_dp.Metrics.COUNT],
+        metrics=[
+            pipeline_dp.Metrics.COUNT, pipeline_dp.Metrics.PRIVACY_ID_COUNT,
+            pipeline_dp.Metrics.SUM
+        ],
         max_partitions_contributed=2,
         max_contributions_per_partition=1,
         min_value=1,
