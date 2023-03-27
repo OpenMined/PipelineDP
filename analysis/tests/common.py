@@ -35,10 +35,10 @@ def assert_dataclasses_are_equal(test: parameterized.TestCase,
 
   For floats, it uses approximate equality with given delta (defaults to 1e-5).
   """
-    test.assertEquals(type(expected),
-                      type(actual),
-                      msg=f"expected={type(expected)} and actual={type(actual)}"
-                      f"need to be the same type")
+    test.assertEqual(type(expected),
+                     type(actual),
+                     msg=f"expected={type(expected)} and actual={type(actual)}"
+                     f"need to be the same type")
     expected = dataclasses.asdict(expected)
     actual = dataclasses.asdict(actual)
     assert_dictionaries_are_equal(test, expected, actual, delta)
@@ -61,7 +61,7 @@ def assert_fields_are_equal(
             msg=f"expected={expected} and actual={actual} differ in {field_name}"
         )
     elif isinstance(expected, float):
-        test.assertAlmostEquals(
+        test.assertAlmostEqual(
             expected,
             actual,
             delta=delta,
