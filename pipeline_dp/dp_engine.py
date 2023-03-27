@@ -60,7 +60,7 @@ class DPEngine:
         WARNINGS:
           * This API is experimental, there is a possibility that it will
             slightly change in the future.
-          * Use it ONLY for COUNT and PRIVACY_ID_COUNT metrics.
+          * It is supported only for COUNT and PRIVACY_ID_COUNT.
 
         Args:
           col: collection where all elements are of the same type.

@@ -126,6 +126,7 @@ class L0ScoringFunction(dp_computations.ExponentialMechanism.ScoringFunction):
                 dp_computations.compute_dp_count_noise_std(noise_params))
 
     def _l0_impact_dropped(self, k):
+        # TODO: precalculate it and make it work in O(1) time.
         capped_contributions = map(
             lambda bin: max(
                 min(
