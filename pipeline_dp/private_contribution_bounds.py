@@ -43,28 +43,21 @@ class PrivateL0Calculator:
 
     @lru_cache(maxsize=None)
     def calculate(self):
-        l0_histogram = self._backend.map(
-            self._histograms, lambda h: h.l0_contributions_histogram,
-            "Extract l0_contributions_histogram from DatasetHistograms")
         l0_histogram = self._backend.to_multi_transformable_collection(
-            l0_histogram)
+            self._backend.map(
+                self._histograms, lambda h: h.l0_contributions_histogram,
+                "Extract l0_contributions_histogram from DatasetHistograms"))
         number_of_partitions = self._calculate_number_of_partitions()
-        number_of_partitions = self._backend.to_multi_transformable_collection(
-            number_of_partitions)
         possible_contribution_bounds = self._lower_bounds_of_bins(l0_histogram)
-        possible_contribution_bounds = self._backend.to_multi_transformable_collection(
-            possible_contribution_bounds)
 
-        l0_calculation_input_col = composite_funcs.collect_to_container(
-            self._backend, {
-                "l0_histogram": l0_histogram,
-                "number_of_partitions": number_of_partitions,
-                "possible_contribution_bounds": possible_contribution_bounds
-            }, PrivateL0Calculator.Inputs,
-            "Collecting L0 calculation inputs into one object")
-        l0_calculation_input_col = \
-            self._backend.to_multi_transformable_collection(
-            l0_calculation_input_col)
+        l0_calculation_input_col = self._backend.to_multi_transformable_collection(
+            composite_funcs.collect_to_container(
+                self._backend, {
+                    "l0_histogram": l0_histogram,
+                    "number_of_partitions": number_of_partitions,
+                    "possible_contribution_bounds": possible_contribution_bounds
+                }, PrivateL0Calculator.Inputs,
+                "Collecting L0 calculation inputs into one object"))
         return self._backend.map(l0_calculation_input_col,
                                  lambda inputs: self._calculate_l0(inputs),
                                  "Calculate private l0 bound")
@@ -84,10 +77,10 @@ class PrivateL0Calculator:
 
     def _lower_bounds_of_bins(self, histogram_col):
 
-        def histogram_to_bins(hist: Histogram):
+        def histogram_to_bin_lowers(hist: Histogram) -> List[int]:
             return list(map(lambda bin: bin.lower, hist.bins))
 
-        return self._backend.map(histogram_col, histogram_to_bins,
+        return self._backend.map(histogram_col, histogram_to_bin_lowers,
                                  "Extract lowers of bins from histogram")
 
 

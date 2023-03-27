@@ -24,7 +24,7 @@ def key_by(backend: pipeline_backend.PipelineBackend, col,
            key_extractor: Callable, stage_name: str):
     return backend.map(
         col, lambda el: (key_extractor(el), el),
-        f"{stage_name}: key collection with provided key extractor.")
+        f"{stage_name}: key collection by keys from key extractor.")
 
 
 def size(backend: pipeline_backend.PipelineBackend, col, stage_name: str):
@@ -49,6 +49,7 @@ def collect_to_container(backend: pipeline_backend.PipelineBackend,
 
     Important: pCollections in col have to be keyed by the names that are
     exactly the same as the arguments' names in the container class constructor.
+    Also, pCollections should contain exactly one element.
 
     Example:
        @dataclass
@@ -58,12 +59,13 @@ def collect_to_container(backend: pipeline_backend.PipelineBackend,
 
        col_x = [2]
        col_y = [3]
-       collect({"x": col_x, "y": col_y}, Container)
+       container = collect({"x": col_x, "y": col_y}, Container)
+       # container will be equal to Container(x=2, y=3).
 
     Args:
       backend: backend to use to perform the computation.
-      cols: collections to collect in the given container class keyed by
-        argument names of the container class constructor.
+      cols: one element collections to collect in the given container class
+        keyed by argument names of the container class constructor.
       container_class: container where to put all the cols, has to be callable,
         i.e. container_class(**args_dict).
       stage_name: name of the stage.
@@ -81,9 +83,6 @@ def collect_to_container(backend: pipeline_backend.PipelineBackend,
         key_by(backend, col, create_key_fn(key),
                f"{stage_name}: key input cols by their keys")
         for key, col in cols.items()
-    ]
-    input_list = [
-        backend.to_multi_transformable_collection(l) for l in input_list
     ]
     input_list = backend.flatten(
         input_list, f"{stage_name}: input cols to one PCollection")
