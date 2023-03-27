@@ -49,18 +49,22 @@ def collect_to_container(backend: pipeline_backend.PipelineBackend,
 
     Important: pCollections in col have to be keyed by the names that are
     exactly the same as the arguments' names in the container class constructor.
-    Also, pCollections should contain exactly one element.
+    Also, pCollections should contain exactly one element, otherwise behaviour
+    is undefined.
 
     Example:
        @dataclass
        class Container:
-           x: Int
-           y: Int
+           x: int
+           y: str
+           z: List[str]
 
        col_x = [2]
-       col_y = [3]
-       container = collect({"x": col_x, "y": col_y}, Container)
-       # container will be equal to Container(x=2, y=3).
+       col_y = ["str"]
+       col_z = [["str1", "str2"]]
+       container = collect({"x": col_x, "y": col_y, "z": col_z}, Container,
+                           "stage name")
+       # container will be equal to Container(x=2, y="str", z=["str1", "str2"]).
 
     Args:
       backend: backend to use to perform the computation.

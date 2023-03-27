@@ -11,8 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import sys
-
+import unittest
 from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
@@ -864,7 +863,7 @@ class AdditiveMechanismTests(parameterized.TestCase):
                                delta=1e-6)
 
 
-class ExponentialMechanismTests(parameterized.TestCase):
+class ExponentialMechanismTests(unittest.TestCase):
 
     def test_one_parameter_that_has_much_greater_score_than_the_others_is_always_returned(
             self):
