@@ -15,12 +15,19 @@
 their implementation is framework-agnostic because they use only other primitive
  operations declared in PipelineBackend interface."""
 
-from typing import List, Type
+from typing import Type, Dict, Any, Callable
 
-import pipeline_dp
+from pipeline_dp import pipeline_backend
 
 
-def size(backend: pipeline_dp.PipelineBackend, col, stage_name: str):
+def key_by(backend: pipeline_backend.PipelineBackend, col,
+           key_extractor: Callable, stage_name: str):
+    return backend.map(
+        col, lambda el: (key_extractor(el), el),
+        f"{stage_name}: key collection with provided key extractor.")
+
+
+def size(backend: pipeline_backend.PipelineBackend, col, stage_name: str):
     """Returns a one element collection that contains the size of the input
     collection."""
 
@@ -31,16 +38,17 @@ def size(backend: pipeline_dp.PipelineBackend, col, stage_name: str):
     return backend.values(col, f"{stage_name}: dropping the fake_common_key")
 
 
-def collect(backend: pipeline_dp.PipelineBackend, cols: List,
-            container_class: Type, stage_name: str):
+def collect_to_container(backend: pipeline_backend.PipelineBackend,
+                         cols: Dict[str, Any], container_class: Type,
+                         stage_name: str):
     """Collects pCollections to one collection containing one element of
     a container class.
 
     It can be useful if you have different objects in pCollections,
     and you want to store all of them in one container object.
 
-    Important: the order of cols has to be the same as the order of
-    arguments in the constructor of the container class.
+    Important: pCollections in col have to be keyed by the names that are
+    exactly the same as the arguments' names in the container class constructor.
 
     Example:
        @dataclass
@@ -50,21 +58,39 @@ def collect(backend: pipeline_dp.PipelineBackend, cols: List,
 
        col_x = [2]
        col_y = [3]
-       collect([col_x, col_y], Container)
+       collect({"x": col_x, "y": col_y}, Container)
 
     Args:
       backend: backend to use to perform the computation.
-      cols: collections to collect in the given container class.
+      cols: collections to collect in the given container class keyed by
+        argument names of the container class constructor.
       container_class: container where to put all the cols, has to be callable,
-        i.e. container_class(*args).
+        i.e. container_class(**args_dict).
       stage_name: name of the stage.
 
     Returns:
-      A collection that contains one instance of container class.
+      A collection that contains one instance of the container class.
     """
+
+    def create_key_fn(key):
+        # we cannot inline it due to lambda function closures capture
+        # (https://stackoverflow.com/questions/2295290/what-do-lambda-function-closures-capture)
+        return lambda _: key
+
+    input_list = [
+        key_by(backend, col, create_key_fn(key),
+               f"{stage_name}: key input cols by their keys")
+        for key, col in cols.items()
+    ]
+    input_list = [
+        backend.to_multi_transformable_collection(l) for l in input_list
+    ]
     input_list = backend.flatten(
-        cols, f"{stage_name}: input cols to one PCollection")
+        input_list, f"{stage_name}: input cols to one PCollection")
     input_list = backend.to_list(input_list,
                                  f"{stage_name}: inputs col to one list")
-    return backend.map(input_list, lambda l: container_class(*l),
+    input_dict = backend.map(
+        input_list, dict,
+        f"{stage_name}: list of inputs to dictionary of inputs")
+    return backend.map(input_dict, lambda d: container_class(**d),
                        f"{stage_name}: construct container class from inputs")

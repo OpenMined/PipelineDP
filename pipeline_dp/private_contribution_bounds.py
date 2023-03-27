@@ -21,7 +21,7 @@ import pipeline_dp
 from pipeline_dp import dp_computations
 
 from pipeline_dp.histograms import Histogram
-from pipeline_dp.pipeline_composite_functions import size, collect
+from pipeline_dp import pipeline_composite_functions as composite_funcs
 
 
 class PrivateL0Calculator:
@@ -55,9 +55,12 @@ class PrivateL0Calculator:
         possible_contribution_bounds = self._backend.to_multi_transformable_collection(
             possible_contribution_bounds)
 
-        l0_calculation_input_col = collect(
-            [l0_histogram, number_of_partitions, possible_contribution_bounds],
-            PrivateL0Calculator.Inputs,
+        l0_calculation_input_col = composite_funcs.collect_to_container(
+            self._backend, {
+                "l0_histogram": l0_histogram,
+                "number_of_partitions": number_of_partitions,
+                "possible_contribution_bounds": possible_contribution_bounds
+            }, PrivateL0Calculator.Inputs,
             "Collecting L0 calculation inputs into one object")
         l0_calculation_input_col = \
             self._backend.to_multi_transformable_collection(
@@ -76,7 +79,8 @@ class PrivateL0Calculator:
     def _calculate_number_of_partitions(self):
         distinct_partitions = self._backend.distinct(
             self._partitions, "Keep only distinct partitions")
-        return size(distinct_partitions, "Calculate number of partitions")
+        return composite_funcs.size(self._backend, distinct_partitions,
+                                    "Calculate number of partitions")
 
     def _lower_bounds_of_bins(self, histogram_col):
 
