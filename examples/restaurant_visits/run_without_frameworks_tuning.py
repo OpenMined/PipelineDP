@@ -26,7 +26,6 @@ import collections
 
 from analysis import parameter_tuning
 from pipeline_dp import histograms
-from pipeline_dp.data_extractors import PreAggregateExtractors
 
 FLAGS = flags.FLAGS
 flags.DEFINE_string('input_file', 'restaurants_week_data.csv',
@@ -123,7 +122,7 @@ def tune_parameters():
 
     if FLAGS.run_on_preaggregated_data:
         input = preaggregate(restaurant_visits_rows, get_data_extractors())
-        data_extractors = PreAggregateExtractors(
+        data_extractors = pipeline_dp.PreAggregateExtractors(
             partition_extractor=lambda row: row[0],
             preaggregate_extractor=lambda row: row[1])
         hist = histograms.compute_dataset_histograms_on_preaggregated_data(

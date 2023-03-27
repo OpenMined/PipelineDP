@@ -26,8 +26,6 @@ from absl.testing import parameterized
 
 import pipeline_dp
 from pipeline_dp import aggregate_params as agg
-from pipeline_dp.aggregate_params import SelectPartitionsParams, \
-    CalculatePrivateContributionBoundsParams, PrivateContributionBounds
 from pipeline_dp.budget_accounting import NaiveBudgetAccountant
 from pipeline_dp.pipeline_backend import PipelineBackend
 from pipeline_dp.report_generator import ReportGenerator
@@ -132,7 +130,7 @@ class DpEngineTest(parameterized.TestCase):
         # Arrange
         engine, accountant = self._create_dp_engine_default(
             return_accountant=True)
-        params = CalculatePrivateContributionBoundsParams(
+        params = pipeline_dp.CalculatePrivateContributionBoundsParams(
             aggregation_eps=0.9,
             aggregation_delta=1e-10,
             calculation_eps=0.1,
@@ -158,7 +156,8 @@ class DpEngineTest(parameterized.TestCase):
 
         # Assert
         self.assertEqual(
-            result, PrivateContributionBounds(max_partitions_contributed=2))
+            result,
+            pipeline_dp.PrivateContributionBounds(max_partitions_contributed=2))
 
     def _create_params_default(self):
         return (pipeline_dp.AggregateParams(
@@ -256,7 +255,7 @@ class DpEngineTest(parameterized.TestCase):
             metrics=[pipeline_dp.Metrics.SUM, pipeline_dp.Metrics.MEAN],
         )
 
-        select_partitions_params = SelectPartitionsParams(
+        select_partitions_params = pipeline_dp.SelectPartitionsParams(
             max_partitions_contributed=2)
 
         budget_accountant = NaiveBudgetAccountant(total_epsilon=1,
@@ -550,7 +549,8 @@ class DpEngineTest(parameterized.TestCase):
         # the test has passed at least 10000 runs.
 
         # Arrange
-        params = SelectPartitionsParams(max_partitions_contributed=1)
+        params = pipeline_dp.SelectPartitionsParams(
+            max_partitions_contributed=1)
 
         budget_accountant = NaiveBudgetAccountant(total_epsilon=1,
                                                   total_delta=1e-5)
@@ -892,7 +892,7 @@ class DpEngineTest(parameterized.TestCase):
                                                   num_aggregations=3)
         dp_engine = self._create_dp_engine_default(budget_accountant)
         aggregate_params, public_partitions = self._create_params_default()
-        select_partition_params = SelectPartitionsParams(2)
+        select_partition_params = pipeline_dp.SelectPartitionsParams(2)
         extractors = self._get_default_extractors()
         input = [1, 2, 3]
 
