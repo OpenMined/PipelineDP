@@ -690,7 +690,7 @@ class ExponentialMechanism:
             list(
                 map(lambda k: self._scoring_function.score(k),
                     inputs_to_score_col)))
-        denominator = self._scoring_function.global_sensitivity
+        denominator = self._scoring_function.global_sensitivity()
         if not self._scoring_function.is_monotonic:
             denominator *= 2
         weights = np.exp(scores * eps / denominator)
