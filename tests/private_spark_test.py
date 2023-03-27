@@ -21,7 +21,7 @@ import collections
 import pipeline_dp
 from pipeline_dp import aggregate_params as agg
 from pipeline_dp import budget_accounting, private_spark
-from pipeline_dp.pipeline_composite_functions import collect
+from pipeline_dp.pipeline_composite_functions import collect_to_container
 
 
 @unittest.skipIf(
@@ -59,7 +59,7 @@ class PrivateRDDTest(parameterized.TestCase):
 
         result = prdd.map(lambda x: (x[0], x[1] * 2))
 
-        self.assertEqual(collect(), [(1, (1, 22)), (2, (2, 24))])
+        self.assertEqual(collect_to_container(), [(1, (1, 22)), (2, (2, 24))])
         self.assertEqual(result._budget_accountant, prdd._budget_accountant)
 
     def test_flatmap(self):
@@ -76,8 +76,8 @@ class PrivateRDDTest(parameterized.TestCase):
         result = prdd.flat_map(lambda x: [(x[0], x[1] * 2),
                                           (x[0], x[1] * 2 + 1)])
 
-        self.assertEqual(collect(), [(1, (1, 22)), (1, (1, 23)), (2, (2, 24)),
-                                     (2, (2, 25))])
+        self.assertEqual(collect_to_container(), [(1, (1, 22)), (1, (1, 23)),
+                                                  (2, (2, 24)), (2, (2, 25))])
         self.assertEqual(result._budget_accountant, prdd._budget_accountant)
 
     @parameterized.parameters(True, False)
@@ -118,7 +118,7 @@ class PrivateRDDTest(parameterized.TestCase):
         args = mock_aggregate.call_args[0]
 
         rdd = dist_data.map(lambda x: (privacy_id_extractor(x), x))
-        self.assertListEqual(collect(), collect())
+        self.assertListEqual(collect_to_container(), collect_to_container())
 
         params = pipeline_dp.AggregateParams(
             noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
@@ -255,7 +255,7 @@ class PrivateRDDTest(parameterized.TestCase):
         args = mock_aggregate.call_args[0]
 
         rdd = dist_data.map(lambda x: (privacy_id_extractor(x), x))
-        self.assertListEqual(collect(), collect())
+        self.assertListEqual(collect_to_container(), collect_to_container())
 
         params = pipeline_dp.AggregateParams(
             noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
@@ -391,7 +391,7 @@ class PrivateRDDTest(parameterized.TestCase):
         args = mock_aggregate.call_args[0]
 
         rdd = dist_data.map(lambda x: (privacy_id_extractor(x), x))
-        self.assertListEqual(collect(), collect())
+        self.assertListEqual(collect_to_container(), collect_to_container())
 
         params = pipeline_dp.AggregateParams(
             noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
@@ -521,7 +521,7 @@ class PrivateRDDTest(parameterized.TestCase):
         mock_aggregate.assert_called_once()
         args = mock_aggregate.call_args[0]
         rdd = dist_data.map(lambda x: (privacy_id_extractor(x), x))
-        self.assertListEqual(collect(), collect())
+        self.assertListEqual(collect_to_container(), collect_to_container())
 
         params = pipeline_dp.AggregateParams(
             noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
@@ -644,7 +644,7 @@ class PrivateRDDTest(parameterized.TestCase):
         args = mock_aggregate.call_args[0]
 
         rdd = dist_data.map(lambda x: (privacy_id_extractor(x), x))
-        self.assertListEqual(collect(), collect())
+        self.assertListEqual(collect_to_container(), collect_to_container())
 
         params = pipeline_dp.AggregateParams(
             noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
@@ -758,7 +758,7 @@ class PrivateRDDTest(parameterized.TestCase):
         # Assert
         mock_aggregate.assert_called_once()
         actual_args = mock_aggregate.call_args[0]
-        actual_rdd = collect()
+        actual_rdd = collect_to_container()
         actual_select_partition_params = actual_args[1]
 
         self.assertListEqual(actual_rdd, [(1, (1, "pk1")), (2, (2, "pk2"))])

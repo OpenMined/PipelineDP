@@ -28,7 +28,7 @@ import pipeline_dp
 from pipeline_dp import aggregate_params as agg
 from pipeline_dp.budget_accounting import NaiveBudgetAccountant
 from pipeline_dp.pipeline_backend import PipelineBackend
-from pipeline_dp.pipeline_composite_functions import collect
+from pipeline_dp.pipeline_composite_functions import collect_to_container
 from pipeline_dp.report_generator import ReportGenerator
 
 
@@ -848,7 +848,7 @@ class DpEngineTest(parameterized.TestCase):
         output = self.run_e2e_private_partition_selection_large_budget(
             input, pipeline_dp.SparkRDDBackend(sc))
 
-        self.assertEqual(5, len(collect()))
+        self.assertEqual(5, len(collect_to_container()))
 
     def test_run_e2e_beam(self):
         with test_pipeline.TestPipeline() as p:
