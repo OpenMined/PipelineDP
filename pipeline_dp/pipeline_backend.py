@@ -172,46 +172,6 @@ class PipelineBackend(abc.ABC):
     def distinct(self, col, stage_name: str):
         """Returns a collection containing distinct elements of the input collection."""
 
-    def size(self, col, stage_name: str):
-        """Returns a one element collection that contains the size of the input collection."""
-
-        col = self.map(col, lambda x: "fake_common_key",
-                       f"{stage_name}: mapping to the same key")
-        col = self.count_per_element(
-            col, f"{stage_name}: counting the number of elements")
-        return self.values(col, f"{stage_name}: dropping the fake_common_key")
-
-    def collect(self, cols: typing.List, container_class: typing.Type,
-                stage_name: str):
-        """Collects pCollections to one collection containing one element of a container class.
-        It can be useful if you have different objects in pCollections and you want to store all of them in one container object.
-        Important: the order of cols has to be the same as the order of arguments in the constructor of the container class.
-
-        Example:
-           @dataclass
-           class Container:
-               x: Int
-               y: Int
-
-           col_x = [2]
-           col_y = [3]
-           collect([col_x, col_y], Container)
-
-        Args:
-          cols: collections to collect in the given container class.
-          container_class: container where to put all the cols, has to be callable, i.e. container_class(*args).
-          stage_name: name of the stage.
-
-        Returns:
-          A collection that contains one instance of container class.
-        """
-        input_list = self.flatten(
-            cols, f"{stage_name}: input cols to one PCollection")
-        input_list = self.to_list(input_list,
-                                  f"{stage_name}: inputs col to one list")
-        return self.map(input_list, lambda l: container_class(*l),
-                        f"{stage_name}: construct container class from inputs")
-
     @abc.abstractmethod
     def to_list(self, col, stage_name: str):
         """Returns a 1-element collection with a list of all elements."""

@@ -1,3 +1,18 @@
+# Copyright 2022 OpenMined.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+"""Computation of contribution bounds in a differentially private way."""
+
 from dataclasses import dataclass
 from functools import lru_cache
 from typing import List
@@ -6,6 +21,7 @@ import pipeline_dp
 from pipeline_dp import dp_computations
 
 from pipeline_dp.histograms import Histogram
+from pipeline_dp.pipeline_composite_functions import size, collect
 
 
 class PrivateL0Calculator:
@@ -39,7 +55,7 @@ class PrivateL0Calculator:
         possible_contribution_bounds = self._backend.to_multi_transformable_collection(
             possible_contribution_bounds)
 
-        l0_calculation_input_col = self._backend.collect(
+        l0_calculation_input_col = collect(
             [l0_histogram, number_of_partitions, possible_contribution_bounds],
             PrivateL0Calculator.Inputs,
             "Collecting L0 calculation inputs into one object")
@@ -60,8 +76,7 @@ class PrivateL0Calculator:
     def _calculate_number_of_partitions(self):
         distinct_partitions = self._backend.distinct(
             self._partitions, "Keep only distinct partitions")
-        return self._backend.size(distinct_partitions,
-                                  "Calculate number of partitions")
+        return size(distinct_partitions, "Calculate number of partitions")
 
     def _lower_bounds_of_bins(self, histogram_col):
 
