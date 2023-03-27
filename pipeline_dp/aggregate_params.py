@@ -20,7 +20,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Iterable, Sequence, Callable, Union, Optional, List
 
-from pipeline_dp.input_validators import validate_epsilon_delta
+from pipeline_dp import input_validators
 
 
 @dataclass
@@ -123,8 +123,9 @@ class CalculatePrivateContributionBoundsParams:
     max_partitions_contributed_upper_bound: int
 
     def __post_init__(self):
-        validate_epsilon_delta(self.aggregation_eps, self.aggregation_delta,
-                               "CalculatePrivateContributionBoundsParams")
+        input_validators.validate_epsilon_delta(
+            self.aggregation_eps, self.aggregation_delta,
+            "CalculatePrivateContributionBoundsParams")
         if self.aggregation_noise_kind is None:
             raise ValueError("aggregation_noise_kind must be set.")
         if (self.aggregation_noise_kind == NoiseKind.GAUSSIAN and
@@ -132,8 +133,8 @@ class CalculatePrivateContributionBoundsParams:
             raise ValueError(
                 "The Gaussian noise requires that the aggregation_delta is "
                 "greater than 0.")
-        validate_epsilon_delta(self.calculation_eps, 0,
-                               "CalculatePrivateContributionBoundsParams")
+        input_validators.validate_epsilon_delta(
+            self.calculation_eps, 0, "CalculatePrivateContributionBoundsParams")
         _check_is_positive_int(self.max_partitions_contributed_upper_bound,
                                "max_partitions_contributed_upper_bound")
 

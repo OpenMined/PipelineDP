@@ -29,6 +29,7 @@ from pipeline_dp.budget_accounting import NaiveBudgetAccountant
 from pipeline_dp.combiners import Combiner
 from pipeline_dp.combiners import CustomCombiner
 from pipeline_dp.data_extractors import DataExtractors
+from pipeline_dp.data_extractors import PreAggregateExtractors
 from pipeline_dp.dp_engine import DPEngine
 from pipeline_dp.pipeline_backend import BeamBackend
 from pipeline_dp.pipeline_backend import LocalBackend

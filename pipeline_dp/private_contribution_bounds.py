@@ -3,7 +3,7 @@ from functools import lru_cache
 from typing import List
 
 import pipeline_dp
-from pipeline_dp.dp_computations import ScalarNoiseParams, compute_dp_count_noise_std, ExponentialMechanism
+from pipeline_dp import dp_computations
 
 from pipeline_dp.histograms import Histogram
 
@@ -54,7 +54,7 @@ class PrivateL0Calculator:
         scoring_function = L0ScoringFunction(self._params,
                                              inputs.number_of_partitions,
                                              inputs.l0_histogram)
-        return ExponentialMechanism(scoring_function).apply(
+        return dp_computations.ExponentialMechanism(scoring_function).apply(
             self._params.calculation_eps, inputs.possible_contribution_bounds)
 
     def _calculate_number_of_partitions(self):
@@ -72,7 +72,7 @@ class PrivateL0Calculator:
                                  "Extract lowers of bins from histogram")
 
 
-class L0ScoringFunction(ExponentialMechanism.ScoringFunction):
+class L0ScoringFunction(dp_computations.ExponentialMechanism.ScoringFunction):
 
     def __init__(self,
                  params: pipeline_dp.CalculatePrivateContributionBoundsParams,
@@ -100,7 +100,7 @@ class L0ScoringFunction(ExponentialMechanism.ScoringFunction):
         return True
 
     def _l0_impact_noise(self, k):
-        noise_params = ScalarNoiseParams(
+        noise_params = dp_computations.ScalarNoiseParams(
             eps=self._params.aggregation_eps,
             delta=self._params.aggregation_delta,
             max_partitions_contributed=k,
@@ -111,7 +111,7 @@ class L0ScoringFunction(ExponentialMechanism.ScoringFunction):
             min_sum_per_partition=None,
             max_sum_per_partition=None)
         return (self._number_of_partitions *
-                compute_dp_count_noise_std(noise_params))
+                dp_computations.compute_dp_count_noise_std(noise_params))
 
     def _l0_impact_dropped(self, k):
         capped_contributions = map(
