@@ -54,7 +54,7 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
                 col,
                 options: analysis.UtilityAnalysisOptions,
                 data_extractors: Union[pipeline_dp.DataExtractors,
-                                       analysis.PreAggregateExtractors],
+                                       pipeline_dp.PreAggregateExtractors],
                 public_partitions=None):
         """Performs utility analysis for DP aggregations per partition.
 
@@ -152,7 +152,7 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
 
     def _extract_columns(
         self, col, data_extractors: Union[pipeline_dp.DataExtractors,
-                                          analysis.PreAggregateExtractors]):
+                                          pipeline_dp.PreAggregateExtractors]):
         """Extract columns using data_extractors."""
         if self._options.pre_aggregated_data:
             return self._backend.map(
@@ -164,7 +164,7 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
     def _check_aggregate_params(
         self, col, params: pipeline_dp.AggregateParams,
         data_extractors: Union[pipeline_dp.DataExtractors,
-                               analysis.PreAggregateExtractors]):
+                               pipeline_dp.PreAggregateExtractors]):
         # Do not check data_extractors. The parent implementation does not
         # support PreAggregateExtractors.
         super()._check_aggregate_params(col,
@@ -176,10 +176,10 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
 def _check_utility_analysis_params(
     options: analysis.UtilityAnalysisOptions,
     data_extractors: Union[pipeline_dp.DataExtractors,
-                           analysis.PreAggregateExtractors]):
+                           pipeline_dp.PreAggregateExtractors]):
     # Check correctness of data extractors.
     if options.pre_aggregated_data:
-        if not isinstance(data_extractors, analysis.PreAggregateExtractors):
+        if not isinstance(data_extractors, pipeline_dp.PreAggregateExtractors):
             raise ValueError(
                 "options.pre_aggregated_data is set to true but "
                 "PreAggregateExtractors aren't provided. PreAggregateExtractors"

@@ -399,7 +399,7 @@ class ParameterTuning(parameterized.TestCase):
         if pre_aggregated:
             input = pre_aggregation.preaggregate(input, backend,
                                                  data_extractors)
-            data_extractors = analysis.PreAggregateExtractors(
+            data_extractors = pipeline_dp.PreAggregateExtractors(
                 partition_extractor=lambda x: x[0],
                 preaggregate_extractor=lambda x: x[1])
             compute_histograms = hist.compute_dataset_histograms_on_preaggregated_data
