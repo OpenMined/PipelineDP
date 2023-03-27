@@ -22,6 +22,7 @@ from pipeline_dp import partition_selection
 from pipeline_dp import report_generator
 from pipeline_dp import sampling_utils
 from pipeline_dp.histograms import compute_dataset_histograms
+from pipeline_dp.pipeline_composite_functions import collect
 from pipeline_dp.private_contribution_bounds import PrivateL0Calculator
 
 
@@ -91,7 +92,7 @@ class DPEngine:
                                                 self._backend)
         l0_calculator = PrivateL0Calculator(params, partitions, histograms,
                                             self._backend)
-        return self._backend.collect(
+        return collect(
             [l0_calculator.calculate()], pipeline_dp.PrivateContributionBounds,
             "Collect calculated private contribution bounds into PrivateContributionBounds dataclass"
         )

@@ -26,6 +26,7 @@ from pipeline_dp.pipeline_backend import MultiProcLocalBackend, SparkRDDBackend
 from pipeline_dp.pipeline_backend import LocalBackend
 from pipeline_dp.pipeline_backend import BeamBackend
 import pipeline_dp.combiners as dp_combiners
+from pipeline_dp.pipeline_composite_functions import size, collect
 
 
 class BeamBackendTest(parameterized.TestCase):
@@ -138,7 +139,7 @@ class BeamBackendTest(parameterized.TestCase):
     def test_size(self):
         with test_pipeline.TestPipeline() as p:
             input = p | beam.Create([3, 2, 1, 1])
-            output = self.backend.size(input, "size")
+            output = size(input, "size")
             beam_util.assert_that(output, beam_util.equal_to([4]))
 
     def test_sum_per_key(self):
@@ -299,7 +300,7 @@ class SparkRDDBackendTest(parameterized.TestCase):
         keys_to_keep = []
         if distributed:
             keys_to_keep = self.sc.parallelize(keys_to_keep)
-        result = self.backend.filter_by_key(dist_data, keys_to_keep).collect()
+        result = collect()
         self.assertListEqual(result, [])
 
     @parameterized.parameters({'distributed': False}, {'distributed': True})
@@ -309,14 +310,14 @@ class SparkRDDBackendTest(parameterized.TestCase):
         keys_to_keep = [1, 3, 3]
         if distributed:
             keys_to_keep = self.sc.parallelize(keys_to_keep)
-        result = self.backend.filter_by_key(dist_data, keys_to_keep).collect()
+        result = collect()
         self.assertListEqual(result, [(1, 11)])
 
     def test_sample_fixed_per_key(self):
         data = [(1, 11), (2, 22), (3, 33), (1, 14), (2, 25), (1, 16)]
         dist_data = self.sc.parallelize(data)
         rdd = self.backend.sample_fixed_per_key(dist_data, 2)
-        result = dict(rdd.collect())
+        result = dict(collect())
         self.assertEqual(len(result[1]), 2)
         self.assertTrue(set(result[1]).issubset({11, 14, 16}))
         self.assertSetEqual(set(result[2]), {22, 25})
@@ -326,14 +327,14 @@ class SparkRDDBackendTest(parameterized.TestCase):
         data = ['a', 'b', 'a']
         dist_data = self.sc.parallelize(data)
         rdd = self.backend.count_per_element(dist_data)
-        result = rdd.collect()
+        result = collect()
         result = dict(result)
         self.assertDictEqual(result, {'a': 2, 'b': 1})
 
     def test_sum_per_key(self):
         data = self.sc.parallelize([(1, 2), (2, 1), (1, 4), (3, 8), (2, -3),
                                     (10, 5)])
-        result = self.backend.sum_per_key(data).collect()
+        result = collect()
         self.assertEqual(set(result), set([(1, 6), (2, -2), (3, 8), (10, 5)]))
 
     def test_combine_accumulators_per_key(self):
@@ -343,55 +344,40 @@ class SparkRDDBackendTest(parameterized.TestCase):
         rdd = self.backend.map_values(rdd, sum_combiner.create_accumulator)
         rdd = self.backend.combine_accumulators_per_key(rdd, sum_combiner)
         rdd = self.backend.map_values(rdd, sum_combiner.compute_metrics)
-        result = dict(rdd.collect())
+        result = dict(collect())
         self.assertDictEqual(result, {1: 6, 2: 4, 3: 8})
 
     def test_map_tuple(self):
         data = [(1, 2), (3, 4)]
         dist_data = self.sc.parallelize(data)
-        result = self.backend.map_tuple(dist_data, lambda a, b: a + b).collect()
+        result = collect()
         self.assertEqual(result, [3, 7])
 
     def test_flat_map(self):
         data = [[1, 2, 3, 4], [5, 6, 7, 8]]
         dist_data = self.sc.parallelize(data)
-        self.assertEqual(
-            self.backend.flat_map(dist_data, lambda x: x).collect(),
-            [1, 2, 3, 4, 5, 6, 7, 8])
+        self.assertEqual(collect(), [1, 2, 3, 4, 5, 6, 7, 8])
 
         data = [("a", [1, 2, 3, 4]), ("b", [5, 6, 7, 8])]
         dist_data = self.sc.parallelize(data)
-        self.assertEqual(
-            self.backend.flat_map(dist_data, lambda x: x[1]).collect(),
-            [1, 2, 3, 4, 5, 6, 7, 8])
-        self.assertEqual(
-            self.backend.flat_map(
-                dist_data,
-                lambda x: [(x[0], y) for y in x[1]]).collect(), [("a", 1),
-                                                                 ("a", 2),
-                                                                 ("a", 3),
-                                                                 ("a", 4),
-                                                                 ("b", 5),
-                                                                 ("b", 6),
-                                                                 ("b", 7),
-                                                                 ("b", 8)])
+        self.assertEqual(collect(), [1, 2, 3, 4, 5, 6, 7, 8])
+        self.assertEqual(collect(), [("a", 1), ("a", 2), ("a", 3), ("a", 4),
+                                     ("b", 5), ("b", 6), ("b", 7), ("b", 8)])
 
     def test_flatten(self):
         data1 = self.sc.parallelize([1, 2, 3, 4])
         data2 = self.sc.parallelize([5, 6, 7, 8])
 
-        self.assertEqual(
-            self.backend.flatten((data1, data2)).collect(),
-            [1, 2, 3, 4, 5, 6, 7, 8])
+        self.assertEqual(collect(), [1, 2, 3, 4, 5, 6, 7, 8])
 
     def test_distinct(self):
         input = self.sc.parallelize([3, 2, 1, 3, 5, 4, 1, 1, 2])
-        output = self.backend.distinct(input, "distinct").collect()
+        output = collect()
         self.assertSetEqual(set([1, 2, 3, 4, 5]), set(output))
 
     def test_size(self):
         input = self.sc.parallelize([3, 2, 1, 1])
-        output = self.backend.size(input, "size").collect()
+        output = collect()
         self.assertListEqual([4], list(output))
 
     @classmethod
@@ -621,7 +607,7 @@ class LocalBackendTest(unittest.TestCase):
 
     def test_size(self):
         input = [3, 2, 1, 1]
-        output = self.backend.size(input, "size")
+        output = size(input, "size")
         self.assertListEqual([4], list(output))
 
 
