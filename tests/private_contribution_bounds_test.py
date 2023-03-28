@@ -230,7 +230,7 @@ class PrivateL0CalculatorTest(unittest.TestCase):
         # Assert
         self.assertIn(l0_bound, [1, 2, 6])
 
-    def test_calculate_one_partition_has_much_higher_score_returns_it(self):
+    def test_calculate_one_bound_has_much_higher_score_returns_it(self):
         # Arrange
         params = construct_params(
             aggregation_eps=0.9,

@@ -61,6 +61,7 @@ class DPEngine:
           * This API is experimental, there is a possibility that it will
             slightly change in the future.
           * It is supported only for COUNT and PRIVACY_ID_COUNT.
+          * It is supported only on Beam and Local backends.
 
         Args:
           col: collection where all elements are of the same type.
@@ -84,9 +85,6 @@ class DPEngine:
 
         if not partitions_already_filtered:
             col = self._drop_partitions(col, partitions, data_extractors)
-            self._add_report_stage(
-                f"Private contribution bounds calculation: data has been "
-                f"filtered for the provided partitions.")
 
         histograms = compute_dataset_histograms(col, data_extractors,
                                                 self._backend)
