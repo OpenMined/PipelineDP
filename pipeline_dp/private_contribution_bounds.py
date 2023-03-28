@@ -25,11 +25,21 @@ from pipeline_dp import pipeline_composite_functions as composite_funcs
 
 
 class PrivateL0Calculator:
-    """Calculates differentially-private l0 bound (i.e. max_partitions_contributed)."""
+    """Calculates differentially-private l0 bound (i.e.
+    max_partitions_contributed)."""
 
     def __init__(self,
                  params: pipeline_dp.CalculatePrivateContributionBoundsParams,
                  partitions, histograms, backend) -> None:
+        """
+        Args:
+          params: calculation parameters.
+          partitions: pCollection of all partitions present in the data
+            the calculated bound will be used for.
+          histograms: pCollection consisting of one element of DatasetHistograms
+            object.
+          backend: pipeline backend to use for calculations.
+        """
         self._params = params
         self._backend = backend
         self._partitions = partitions
@@ -43,6 +53,10 @@ class PrivateL0Calculator:
 
     @lru_cache(maxsize=None)
     def calculate(self):
+        """Chooses l0 contribution bound in a differentially private way.
+
+        Returns a one element pCollection containing the value for the l0
+        bound."""
         l0_histogram = self._backend.to_multi_transformable_collection(
             self._backend.map(
                 self._histograms, lambda h: h.l0_contributions_histogram,
@@ -85,6 +99,9 @@ class PrivateL0Calculator:
 
 
 class L0ScoringFunction(dp_computations.ExponentialMechanism.ScoringFunction):
+    """Function to score different max_partitions_contributed bounds.
+
+    Suitable only for COUNT and PRIVACY_ID_COUNT aggregations."""
 
     def __init__(self,
                  params: pipeline_dp.CalculatePrivateContributionBoundsParams,
@@ -94,7 +111,29 @@ class L0ScoringFunction(dp_computations.ExponentialMechanism.ScoringFunction):
         self._number_of_partitions = number_of_partitions
         self._l0_histogram = l0_histogram
 
-    def score(self, k) -> float:
+    def score(self, k: int) -> float:
+        """
+        P := number_of_partitions
+        std := count_noise_std
+        B := _max_partitions_contributed_best_upper_bound (= global_sensitivity)
+        D := dataset
+        uid := user identifier
+        #contributions(uid, D) = number of partitions in D where uid contributed
+        at least once.
+
+        score(k) = -0.5 * impact_noise(k) - 0.5 * impact_dropped(k) =(1)
+        -0.5 * P * std - 0.5 * Σ_uid max(min(#contributions(uid, D), B) - k, 0)
+
+        Note: linf = 1, because impact_noise and impact_dropped are proportional
+        to linf, and we can omit it in (1) equality.
+
+        k is l0 for which std is calculated.
+        Laplace noise:
+        std = sqrt(2 * (l0 / ε)^2) = k / ε * sqrt(2)
+        Gaussian noise:
+        std = sqrt(2 * l0^2 * ln(1.25 / δ) / ε^2) =
+        k / ε * sqrt(2 * ln(1.25 / δ))
+        """
         impact_noise_weight = 0.5
         return -(impact_noise_weight * self._l0_impact_noise(k) +
                  (1 - impact_noise_weight) * self._l0_impact_dropped(k))
@@ -105,13 +144,19 @@ class L0ScoringFunction(dp_computations.ExponentialMechanism.ScoringFunction):
 
     @property
     def global_sensitivity(self) -> float:
+        """Global sensitivity of the scoring function.
+
+        Equals min(l0_upper_bound, number_of_partitions), because
+        max_partitions_contributed upper bound is always at least
+        number of partitions."""
         return self._max_partitions_contributed_best_upper_bound()
 
     @property
     def is_monotonic(self) -> bool:
+        """score(k) for l0 is monotonic."""
         return True
 
-    def _l0_impact_noise(self, k):
+    def _l0_impact_noise(self, k: int):
         noise_params = dp_computations.ScalarNoiseParams(
             eps=self._params.aggregation_eps,
             delta=self._params.aggregation_delta,
@@ -125,7 +170,7 @@ class L0ScoringFunction(dp_computations.ExponentialMechanism.ScoringFunction):
         return (self._number_of_partitions *
                 dp_computations.compute_dp_count_noise_std(noise_params))
 
-    def _l0_impact_dropped(self, k):
+    def _l0_impact_dropped(self, k: int):
         # TODO: precalculate it and make it work in O(1) time.
         capped_contributions = map(
             lambda bin: max(

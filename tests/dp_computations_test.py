@@ -876,9 +876,11 @@ class ExponentialMechanismTests(unittest.TestCase):
                 # e^(-40 / 2) = 2.06e-9
                 return 40 if k == 0 else -40
 
+            @property
             def global_sensitivity(self) -> float:
                 return 1
 
+            @property
             def is_monotonic(self) -> bool:
                 return False
 
@@ -902,9 +904,11 @@ class ExponentialMechanismTests(unittest.TestCase):
                 # e^(-20) = 2.06e-9
                 return 20 if k == 2 else -20
 
+            @property
             def global_sensitivity(self) -> float:
                 return 1
 
+            @property
             def is_monotonic(self) -> bool:
                 return True
 
@@ -927,9 +931,11 @@ class ExponentialMechanismTests(unittest.TestCase):
             def score(self, k) -> float:
                 return 1
 
+            @property
             def global_sensitivity(self) -> float:
                 return 1
 
+            @property
             def is_monotonic(self) -> bool:
                 return True
 
