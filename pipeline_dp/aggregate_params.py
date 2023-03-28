@@ -36,6 +36,8 @@ class Metric:
     parameter: Optional[float] = None
 
     def __eq__(self, other: 'Metric') -> bool:
+        if not isinstance(other, Metric):
+            return False
         return self.name == other.name and self.parameter == other.parameter
 
     def __str__(self):

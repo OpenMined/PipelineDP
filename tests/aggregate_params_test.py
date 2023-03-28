@@ -17,6 +17,26 @@ import pipeline_dp
 from pipeline_dp import budget_accounting
 """Aggregate Params Test"""
 
+Metric = aggregate_params.Metric
+
+
+class MetricsTest(parameterized.TestCase):
+
+    def test_eq(self):
+        self.assertEqual(Metric("name"), Metric("name"))
+        self.assertEqual(Metric("name", 1), Metric("name", 1))
+        self.assertNotEqual(Metric("name"), Metric("other_name"))
+        self.assertNotEqual(Metric("name", 1), Metric("name", 2))
+        self.assertNotEqual(Metric("name"), "name")  # different type
+
+    def test_str(self):
+        self.assertEqual(str(Metric("name")), "name")
+        self.assertEqual(str(Metric("name", 10)), "name(10)")
+
+    def test_hash(self):
+        self.assertEqual(hash(Metric("name")), hash("name"))
+        self.assertEqual(hash(Metric("name", 10)), hash("name(10)"))
+
 
 class AggregateParamsTest(parameterized.TestCase):
 
