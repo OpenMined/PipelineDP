@@ -664,10 +664,12 @@ class ExponentialMechanism:
             The higher the score the greater the probability that
             this parameter will be chosen."""
 
+        @property
         @abc.abstractmethod
         def global_sensitivity(self) -> float:
             """Global sensitivity of the scoring function."""
 
+        @property
         @abc.abstractmethod
         def is_monotonic(self) -> bool:
             """Whether score(k) is monotonic.
@@ -690,7 +692,7 @@ class ExponentialMechanism:
             list(
                 map(lambda k: self._scoring_function.score(k),
                     inputs_to_score_col)))
-        denominator = self._scoring_function.global_sensitivity()
+        denominator = self._scoring_function.global_sensitivity
         if not self._scoring_function.is_monotonic:
             denominator *= 2
         weights = np.exp(scores * eps / denominator)
