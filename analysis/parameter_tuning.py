@@ -265,7 +265,7 @@ def tune_new(col,
              contribution_histograms: histograms.DatasetHistograms,
              options: TuneOptions,
              data_extractors: Union[pipeline_dp.DataExtractors,
-                                    analysis.PreAggregateExtractors],
+                                    pipeline_dp.PreAggregateExtractors],
              public_partitions=None,
              return_utility_analysis_per_partition: bool = False):
     """Tunes parameters.
