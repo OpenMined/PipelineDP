@@ -175,7 +175,35 @@ class CombinerParams:
             noise_kind=self.aggregate_params.noise_kind)
 
 
-class CountCombiner(Combiner):
+class NumericalMechanismMixin(abc.ABC):
+
+    @abc.abstractmethod
+    def linf(self):
+        pass
+
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        # _mechanism is not serializable. And it can be recreated.
+        if "_mechanism" in state:
+            del state["_mechanism"]
+        return state
+
+    def _get_mechanism(self) -> dp_computations.AdditiveMechanism:
+        if not self._mechanism:
+            params = self._params
+            noise_params = params.scalar_noise_params
+            spec = dp_computations.AdditiveMechanismSpec(
+                epsilon=params.eps,
+                delta=params.delta,
+                noise_kind=noise_params.noise_kind)
+            sensitivities = dp_computations.Sensitivities(
+                l0=noise_params.l0_sensitivity(), linf=self.linf())
+            self._mechanism = dp_computations.create_additive_mechanism(
+                spec, sensitivities)
+        return self._mechanism
+
+
+class CountCombiner(Combiner, NumericalMechanismMixin):
     """Combiner for computing DP Count.
 
     The type of the accumulator is int, which represents count of the elements
@@ -204,29 +232,11 @@ class CountCombiner(Combiner):
         # TODO: add information in this and others combiners about amount of noise.
         return lambda: f"Computed count with (eps={self._params.eps} delta={self._params.delta})"
 
-    def __getstate__(self):
-        state = self.__dict__.copy()
-        # Do not serialize _mechanism. It can be created from params.
-        del state["_mechanism"]
-        return state
-
-    def _get_mechanism(self) -> dp_computations.AdditiveMechanism:
-        if not self._mechanism:
-            params = self._params
-            noise_params = params.scalar_noise_params
-            spec = dp_computations.AdditiveMechanismSpec(
-                epsilon=params.eps,
-                delta=params.delta,
-                noise_kind=noise_params.noise_kind)
-            sensitivities = dp_computations.Sensitivities(
-                l0=noise_params.l0_sensitivity(),
-                linf=noise_params.max_contributions_per_partition)
-            self._mechanism = dp_computations.create_additive_mechanism(
-                spec, sensitivities)
-        return self._mechanism
+    def linf(self):
+        return self._params.scalar_noise_params.max_contributions_per_partition
 
 
-class PrivacyIdCountCombiner(Combiner):
+class PrivacyIdCountCombiner(Combiner, NumericalMechanismMixin):
     """Combiner for computing DP privacy id count.
     The type of the accumulator is int, which represents count of the elements
     in the dataset for which this accumulator is computed.
@@ -253,28 +263,11 @@ class PrivacyIdCountCombiner(Combiner):
     def explain_computation(self) -> ExplainComputationReport:
         return lambda: f"Computed privacy id count with (eps={self._params.eps} delta={self._params.delta})"
 
-    def __getstate__(self):
-        state = self.__dict__.copy()
-        # Do not serialize _mechanism. It can be created from params.
-        del state["_mechanism"]
-        return state
-
-    def _get_mechanism(self) -> dp_computations.AdditiveMechanism:
-        if not self._mechanism:
-            params = self._params
-            noise_params = params.scalar_noise_params
-            spec = dp_computations.AdditiveMechanismSpec(
-                epsilon=params.eps,
-                delta=params.delta,
-                noise_kind=noise_params.noise_kind)
-            sensitivities = dp_computations.Sensitivities(
-                l0=noise_params.l0_sensitivity(), linf=1)
-            self._mechanism = dp_computations.create_additive_mechanism(
-                spec, sensitivities)
-        return self._mechanism
+    def linf(self):
+        return 1
 
 
-class SumCombiner(Combiner):
+class SumCombiner(Combiner, NumericalMechanismMixin):
     """Combiner for computing dp sum.
 
     the type of the accumulator is int, which represents sum of the elements
@@ -308,30 +301,14 @@ class SumCombiner(Combiner):
     def explain_computation(self) -> ExplainComputationReport:
         return lambda: f"Computed sum with (eps={self._params.eps} delta={self._params.delta})"
 
-    def __getstate__(self):
-        state = self.__dict__.copy()
-        # Do not serialize _mechanism. It can be created from params.
-        del state["_mechanism"]
-        return state
+    def linf(self):
+        noise_params = self._params.scalar_noise_params
+        if self._bouding_per_partition:
+            return max(abs(noise_params.min_sum_per_partition),
+                       abs(noise_params.max_sum_per_partition))
 
-    def _get_mechanism(self) -> dp_computations.AdditiveMechanism:
-        if not self._mechanism:
-            params = self._params
-            noise_params = params.scalar_noise_params
-            spec = dp_computations.AdditiveMechanismSpec(
-                epsilon=params.eps,
-                delta=params.delta,
-                noise_kind=noise_params.noise_kind)
-            if self._bouding_per_partition:
-                linf = noise_params.max_sum_per_partition  # todo
-            else:
-                linf = noise_params.max_contributions_per_partition * max(
-                    abs(noise_params.min_value), abs(noise_params.max_value))
-            sensitivities = dp_computations.Sensitivities(
-                l0=noise_params.l0_sensitivity(), linf=linf)
-            self._mechanism = dp_computations.create_additive_mechanism(
-                spec, sensitivities)
-        return self._mechanism
+        return noise_params.max_contributions_per_partition * max(
+            abs(noise_params.min_value), abs(noise_params.max_value))
 
 
 class MeanCombiner(Combiner):
