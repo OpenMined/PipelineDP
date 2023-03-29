@@ -178,7 +178,11 @@ class CombinerParams:
 class NumericalMechanismMixin(abc.ABC):
 
     @abc.abstractmethod
-    def linf(self):
+    def linf(self) -> int:
+        pass
+
+    @abc.abstractmethod
+    def combiner_params(self) -> CombinerParams:
         pass
 
     def __getstate__(self):
@@ -190,7 +194,7 @@ class NumericalMechanismMixin(abc.ABC):
 
     def _get_mechanism(self) -> dp_computations.AdditiveMechanism:
         if not self._mechanism:
-            params = self._params
+            params = self.combiner_params()
             noise_params = params.scalar_noise_params
             spec = dp_computations.AdditiveMechanismSpec(
                 epsilon=params.eps,
@@ -235,6 +239,9 @@ class CountCombiner(Combiner, NumericalMechanismMixin):
     def linf(self):
         return self._params.scalar_noise_params.max_contributions_per_partition
 
+    def combiner_params(self) -> CombinerParams:
+        return self._params
+
 
 class PrivacyIdCountCombiner(Combiner, NumericalMechanismMixin):
     """Combiner for computing DP privacy id count.
@@ -265,6 +272,9 @@ class PrivacyIdCountCombiner(Combiner, NumericalMechanismMixin):
 
     def linf(self):
         return 1
+
+    def combiner_params(self) -> CombinerParams:
+        return self._params
 
 
 class SumCombiner(Combiner, NumericalMechanismMixin):
@@ -310,6 +320,9 @@ class SumCombiner(Combiner, NumericalMechanismMixin):
         return noise_params.max_contributions_per_partition * max(
             abs(noise_params.min_value), abs(noise_params.max_value))
 
+    def combiner_params(self) -> CombinerParams:
+        return self._params
+
 
 class MeanCombiner(Combiner):
     """Combiner for computing DP Mean.
@@ -328,7 +341,7 @@ class MeanCombiner(Combiner):
         if len(metrics_to_compute) != len(set(metrics_to_compute)):
             raise ValueError(f"{metrics_to_compute} cannot contain duplicates")
         for metric in metrics_to_compute:
-            mean_metrics = ['count', 'sum', 'mean']
+            mean_metrics = ["count", 'sum', 'mean']
             if metric not in mean_metrics:
                 raise ValueError(f"{metric} should be one of {mean_metrics}")
         if 'mean' not in metrics_to_compute:
@@ -355,7 +368,7 @@ class MeanCombiner(Combiner):
         noisy_count, noisy_sum, noisy_mean = dp_computations.compute_dp_mean(
             total_count, total_normalized_sum, self._params.scalar_noise_params)
         mean_dict = {'mean': noisy_mean}
-        if 'count' in self._metrics_to_compute:
+        if "count" in self._metrics_to_compute:
             mean_dict['count'] = noisy_count
         if 'sum' in self._metrics_to_compute:
             mean_dict['sum'] = noisy_sum
