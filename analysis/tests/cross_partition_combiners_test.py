@@ -277,6 +277,9 @@ class CrossPartitionCombiner(parameterized.TestCase):
         expected_report = _get_utility_report(coef=7)
         self.assertEqual(combiner.merge_accumulators(report1, report2),
                          expected_report)
+        # Check that input reports were not modified.
+        self.assertEqual(report1, _get_utility_report(coef=2))
+        self.assertEqual(report2, _get_utility_report(coef=5))
 
     @parameterized.parameters(False, True)
     @patch("analysis.cross_partition_combiners._average_utility_report")
@@ -284,9 +287,11 @@ class CrossPartitionCombiner(parameterized.TestCase):
                              mock_average_utility_report):
         combiner = self._create_combiner(public_partitions)
         report = _get_utility_report(coef=1)
-        combiner.compute_metrics(report)
+        output = combiner.compute_metrics(report)
         mock_average_utility_report.assert_called_once_with(
-            report, public_partitions)
+            output, public_partitions)
+        # Check that the input report was not modified.
+        self.assertEqual(report, _get_utility_report(coef=1))
 
 
 if __name__ == '__main__':
