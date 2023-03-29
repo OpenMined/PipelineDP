@@ -265,7 +265,7 @@ class PrivacyIdCountCombiner(Combiner, NumericalMechanismMixin):
         return {"privacy_id_count": self._get_mechanism().add_noise(count)}
 
     def metrics_names(self) -> List[str]:
-        return ["privacy_id_count"]
+        return ['privacy_id_count']
 
     def explain_computation(self) -> ExplainComputationReport:
         return lambda: f"Computed privacy id count with (eps={self._params.eps} delta={self._params.delta})"
@@ -341,7 +341,7 @@ class MeanCombiner(Combiner):
         if len(metrics_to_compute) != len(set(metrics_to_compute)):
             raise ValueError(f"{metrics_to_compute} cannot contain duplicates")
         for metric in metrics_to_compute:
-            mean_metrics = ["count", 'sum', 'mean']
+            mean_metrics = ['count', 'sum', 'mean']
             if metric not in mean_metrics:
                 raise ValueError(f"{metric} should be one of {mean_metrics}")
         if 'mean' not in metrics_to_compute:
@@ -368,7 +368,7 @@ class MeanCombiner(Combiner):
         noisy_count, noisy_sum, noisy_mean = dp_computations.compute_dp_mean(
             total_count, total_normalized_sum, self._params.scalar_noise_params)
         mean_dict = {'mean': noisy_mean}
-        if "count" in self._metrics_to_compute:
+        if 'count' in self._metrics_to_compute:
             mean_dict['count'] = noisy_count
         if 'sum' in self._metrics_to_compute:
             mean_dict['sum'] = noisy_sum
