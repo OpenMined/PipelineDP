@@ -20,6 +20,9 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Iterable, Sequence, Callable, Union, Optional, List
 
+import numpy
+import numpy as np
+
 from pipeline_dp import input_validators
 
 
@@ -607,14 +610,18 @@ def _not_a_proper_number(num: Any) -> bool:
     return math.isnan(num) or math.isinf(num)
 
 
-def _check_is_positive_int(num: Any, field_name: str) -> bool:
-    if not (isinstance(num, int) and num > 0):
+def _check_is_positive_int(num: Any, field_name: str) -> None:
+    if not (_is_int(num) and num > 0):
         raise ValueError(
             f"{field_name} has to be positive integer, but {num} given.")
 
 
 def _count_not_none(*args):
     return sum([1 for arg in args if arg is not None])
+
+
+def _is_int(value: Any) -> bool:
+    return isinstance(value, (int, np.integer))
 
 
 def _add_if_obj_has_property(obj: Any, property_name: str, n_spaces,

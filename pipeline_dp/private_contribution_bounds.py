@@ -90,6 +90,12 @@ class PrivateL0Calculator:
                                     "Calculate number of partitions")
 
     def _lower_bounds_of_bins(self, histogram_col):
+        # TODO: is correct to do so? does it preserve dp? The problem is that
+        # we infer it from the histogram that used raw data and if for example
+        # there are 7 different public partitions but each user contributed to 6
+        # partitions max, then we will choose only from 1..6 and not 1..7, but
+        # it seems incorrect because we eliminate one of the options by
+        # observing the data. (Example taken from restaurant visits).
 
         def histogram_to_bin_lowers(hist: Histogram) -> List[int]:
             return list(map(lambda bin: bin.lower, hist.bins))
