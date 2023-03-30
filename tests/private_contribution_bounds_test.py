@@ -127,10 +127,6 @@ class L0ScoringFunctionTest(unittest.TestCase):
 
     def test_score_gaussian_noise_valid_value_returns_value_of_a_correct_order_of_magnitude(
             self):
-        # We don't check for exact value because PyDP uses different algorithm
-        # to calculate std of a Gaussian noise. Therefore, we just check
-        # the order of magnitude of the returned value and also check
-        # that for Gaussian noise l0 scoring function works in general.
         params = construct_params(
             aggregation_noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
             aggregation_eps=0.9,
@@ -157,6 +153,7 @@ class L0ScoringFunctionTest(unittest.TestCase):
 
         score = l0_scoring_function.score(1)
 
+        # TODO: assert on the approximate expected value, not a range.
         self.assertLess(-1000, score)
         self.assertGreater(0, score)
 
@@ -201,18 +198,22 @@ class PrivateL0CalculatorTest(unittest.TestCase):
             aggregation_delta=1e-10,
             calculation_eps=0.1,
             aggregation_noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
-            max_partitions_contributed_upper_bound=2)
+            max_partitions_contributed_upper_bound=100)
         partitions = [i + 1 for i in range(200)]
         l0_histogram = hist.Histogram(name=hist.HistogramType.L0_CONTRIBUTIONS,
                                       bins=[
                                           hist.FrequencyBin(lower=1,
-                                                            count=1000,
-                                                            sum=1000,
+                                                            count=100,
+                                                            sum=100,
                                                             max=1),
                                           hist.FrequencyBin(lower=2,
-                                                            count=1,
-                                                            sum=1,
-                                                            max=5)
+                                                            count=10,
+                                                            sum=10,
+                                                            max=5),
+                                          hist.FrequencyBin(lower=6,
+                                                            count=20,
+                                                            sum=20,
+                                                            max=60)
                                       ])
         histograms = [
             hist.DatasetHistograms(l0_histogram,
@@ -228,7 +229,7 @@ class PrivateL0CalculatorTest(unittest.TestCase):
         l0_bound = list(calculator.calculate())[0]
 
         # Assert
-        self.assertIn(l0_bound, [1, 2, 6])
+        self.assertIn(l0_bound, list(range(1, 101)))
 
     def test_calculate_one_bound_has_much_higher_score_returns_it(self):
         # Arrange
@@ -272,6 +273,19 @@ class PrivateL0CalculatorTest(unittest.TestCase):
         # e^(0.1 * (-314) / 2) = 1.52e-7
         # probability of 2 = 1, i.e. 2 has to be returned
         self.assertEqual(l0_bound, 2)
+
+    def test_generate_possible_contribution_bounds(self):
+        # Even though it is private function, we test it explicitly because
+        # testing it through public API requires a complicated test setup.
+        upper_bound = 999999
+
+        bounds = private_contribution_bounds._generate_possible_contribution_bounds(
+            upper_bound)
+
+        expected = list(range(1, 1000, 1)) + list(range(
+            1000, 10000, 10)) + list(range(10000, 100000, 100)) + list(
+                range(100000, 1000000, 1000))
+        self.assertEqual(bounds, expected)
 
 
 if __name__ == '__main__':

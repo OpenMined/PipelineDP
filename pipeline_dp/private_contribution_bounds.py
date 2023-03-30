@@ -49,7 +49,6 @@ class PrivateL0Calculator:
     class Inputs:
         l0_histogram: Histogram
         number_of_partitions: int
-        possible_contribution_bounds: List[int]
 
     @lru_cache(maxsize=None)
     def calculate(self):
@@ -62,14 +61,12 @@ class PrivateL0Calculator:
                 self._histograms, lambda h: h.l0_contributions_histogram,
                 "Extract l0_contributions_histogram from DatasetHistograms"))
         number_of_partitions = self._calculate_number_of_partitions()
-        possible_contribution_bounds = self._lower_bounds_of_bins(l0_histogram)
 
         l0_calculation_input_col = self._backend.to_multi_transformable_collection(
             composite_funcs.collect_to_container(
                 self._backend, {
                     "l0_histogram": l0_histogram,
-                    "number_of_partitions": number_of_partitions,
-                    "possible_contribution_bounds": possible_contribution_bounds
+                    "number_of_partitions": number_of_partitions
                 }, PrivateL0Calculator.Inputs,
                 "Collecting L0 calculation inputs into one object"))
         return self._backend.map(l0_calculation_input_col,
@@ -81,7 +78,10 @@ class PrivateL0Calculator:
                                              inputs.number_of_partitions,
                                              inputs.l0_histogram)
         return dp_computations.ExponentialMechanism(scoring_function).apply(
-            self._params.calculation_eps, inputs.possible_contribution_bounds)
+            self._params.calculation_eps,
+            _generate_possible_contribution_bounds(
+                scoring_function._max_partitions_contributed_best_upper_bound())
+        )
 
     def _calculate_number_of_partitions(self):
         distinct_partitions = self._backend.distinct(
@@ -188,3 +188,23 @@ class L0ScoringFunction(dp_computations.ExponentialMechanism.ScoringFunction):
             self._l0_histogram.bins,
         )
         return sum(capped_contributions)
+
+
+def _generate_possible_contribution_bounds(upper_bound: int) -> List[int]:
+    """Generates bounds that are optimized for scalability.
+    Keep in sync with histograms._to_bin_lower.
+
+    This method generates bounds that have 3 left-most digits non-zero and
+    others are zero. I.e., it will be [1, 2, 3, ..., 999, 1000, 1010, 1020,
+    ..., 9990, 10000, 10100, 10200.
+    The method has logarithmic complexity.
+    """
+    bounds = []
+    current_bound = 1
+    power = 10
+    while current_bound <= upper_bound:
+        bounds.append(current_bound)
+        if current_bound >= power:
+            power *= 10
+        current_bound += max(1, power // 1000)
+    return bounds
