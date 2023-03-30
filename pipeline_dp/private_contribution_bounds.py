@@ -137,8 +137,7 @@ class L0ScoringFunction(dp_computations.ExponentialMechanism.ScoringFunction):
         Laplace noise:
         std = sqrt(2 * (l0 / ε)^2) = k / ε * sqrt(2)
         Gaussian noise:
-        std = sqrt(2 * l0^2 * ln(1.25 / δ) / ε^2) =
-        k / ε * sqrt(2 * ln(1.25 / δ))
+        std is calculated based on https://arxiv.org/abs/1805.06530v2.
         """
         impact_noise_weight = 0.5
         return -(impact_noise_weight * self._l0_impact_noise(k) +
