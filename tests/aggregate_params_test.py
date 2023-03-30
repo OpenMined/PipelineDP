@@ -14,7 +14,7 @@
 from absl.testing import parameterized
 
 import pipeline_dp
-from pipeline_dp import budget_accounting
+from pipeline_dp import budget_accounting, aggregate_params
 """Aggregate Params Test"""
 
 Metric = aggregate_params.Metric
