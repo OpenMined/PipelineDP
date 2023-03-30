@@ -244,8 +244,7 @@ class DPEngine:
         if data_extractors is None:
             raise ValueError(
                 "data_extractors must be set to a pipeline_dp.DataExtractors")
-        if not isinstance(data_extractors,
-                          pipeline_dp.pipeline_dp.DataExtractors):
+        if not isinstance(data_extractors, pipeline_dp.DataExtractors):
             raise TypeError(
                 "data_extractors must be set to a pipeline_dp.DataExtractors")
 
