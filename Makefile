@@ -12,7 +12,7 @@ lint:
 
 .PHONY: test
 test:
-	pytest tests
+	pytest tests analysis/tests
 
 .PHONY: clean
 clean:
