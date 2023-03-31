@@ -27,6 +27,7 @@ from pipeline_dp import budget_accounting, private_spark
     sys.platform == "win32" or
     (sys.version_info.minor <= 7 and sys.version_info.major == 3),
     "There are some problems with PySpark setup on older python and Windows")
+# TODO: check whether win32 can be enabled.
 class PrivateRDDTest(parameterized.TestCase):
 
     @classmethod
