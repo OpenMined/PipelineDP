@@ -649,13 +649,13 @@ class ExponentialMechanism:
     """Exponential mechanism that can be used to choose a parameter
     from a set of possible parameters in a differentially private way.
 
+    All computations are in memory, meaning that the set of possible parameters
+    should fit in memory.
+
     https://en.wikipedia.org/wiki/Exponential_mechanism"""
 
     class ScoringFunction(abc.ABC):
         """Represents scoring function used in exponential mechanism."""
-
-        def __init__(self) -> None:
-            super().__init__()
 
         @abc.abstractmethod
         def score(self, k) -> float:
@@ -680,8 +680,10 @@ class ExponentialMechanism:
         self._scoring_function = scoring_function
 
     def apply(self, eps: float, inputs_to_score_col: typing.List[Any]) -> Any:
-        """Applies exponential mechanism and chooses a parameter from the list
-        of possible parameters in a differentially private way."""
+        """Applies exponential mechanism.
+
+        I.e. chooses a parameter from the list of possible parameters in a
+        differentially private way."""
 
         probs = self._calculate_probabilities(eps, inputs_to_score_col)
         return np.random.default_rng().choice(inputs_to_score_col, p=probs)
@@ -689,9 +691,7 @@ class ExponentialMechanism:
     def _calculate_probabilities(self, eps: float,
                                  inputs_to_score_col: typing.List[Any]):
         scores = np.array(
-            list(
-                map(lambda k: self._scoring_function.score(k),
-                    inputs_to_score_col)))
+            list(map(self._scoring_function.score, inputs_to_score_col)))
         denominator = self._scoring_function.global_sensitivity
         if not self._scoring_function.is_monotonic:
             denominator *= 2

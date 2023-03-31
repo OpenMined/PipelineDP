@@ -31,7 +31,7 @@ class PreAggregateExtractors:
         partition_extractor: a callable, that takes a row of preaggraged data,
           and returns partition key.
         preaggregate_extractor: a callable, that takes a row of preaggraged
-        data, and returns (count, sum, n_partitions).
+          data, and returns (count, sum, n_partitions).
     """
     partition_extractor: Callable
     preaggregate_extractor: Callable

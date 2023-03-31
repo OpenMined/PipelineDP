@@ -105,8 +105,7 @@ class PartitionSelectionStrategy(Enum):
 
 @dataclass
 class CalculatePrivateContributionBoundsParams:
-    """Specifies parameters for function
-    DPEngine.calculate_private_contribution_bounds()
+    """Specifies parameters for function DPEngine.calculate_private_contribution_bounds()
 
     WARNING: Aggregation, where the calculated bounds will be used, should be
     one of the following: COUNT, PRIVACY_ID_COUNT.
