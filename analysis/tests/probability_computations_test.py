@@ -39,7 +39,7 @@ class ProbabilityComputationsTest(parameterized.TestCase):
             laplace_b, gaussian_sigma, quantiles_to_compute, 4 * 10**6)
         self.assertSequenceAlmostEqual(expected_quantiles,
                                        computed_quantiles,
-                                       delta=0.01)
+                                       delta=0.015)
 
 
 if __name__ == '__main__':

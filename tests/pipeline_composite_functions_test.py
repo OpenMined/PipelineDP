@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import sys
+import unittest
 from dataclasses import dataclass
 from typing import List, Set
 
@@ -135,9 +136,29 @@ class PipelineCompositeFunctionsTest(parameterized.TestCase):
         self.assertIn(container.y, col_y)
         self.assertIn(container.z, col_z)
 
-    @parameterized.parameters(
-        _create_platform_supported_backends({"spark", "multi_proc_local"}))
-    def test_collect_to_container_backend_is_not_supported(self, backend):
+    @unittest.skipIf(sys.version_info.minor <= 7 and
+                     sys.version_info.major == 3,
+                     "If python3 <= 3.7 then there are serialization problems")
+    def test_collect_to_container_spark_is_not_supported(self):
+        backend = pipeline_dp.SparkRDDBackend(
+            pyspark.SparkContext.getOrCreate(pyspark.SparkConf()))
+        col_x = [2]
+        col_y = ["str"]
+        col_z = [["str1", "str2"]]
+
+        with self.assertRaises(NotImplementedError):
+            composite_funcs.collect_to_container(backend, {
+                "x": col_x,
+                "y": col_y,
+                "z": col_z
+            }, TestContainer, "Collect to container")
+
+    # TODO: either delete or uncomment.
+    #@unittest.skipIf(
+    #    sys.platform == 'win32' or sys.platform == 'darwin',
+    #    "Serialization problems on MacOS and Windows.")
+    def test_collect_to_container_multi_proc_local_is_not_supported(self):
+        backend = pipeline_dp.pipeline_backend.MultiProcLocalBackend(n_jobs=1)
         col_x = [2]
         col_y = ["str"]
         col_z = [["str1", "str2"]]

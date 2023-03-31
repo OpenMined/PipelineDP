@@ -266,6 +266,7 @@ class BeamBackendStageNameTest(unittest.TestCase):
     sys.version_info.minor <= 7 and sys.version_info.major == 3
 ), "There are some problems with PySpark setup on older python and Windows and macOS"
                 )
+# TODO: check whether win32 and darwin can be enabled.
 class SparkRDDBackendTest(parameterized.TestCase):
 
     @classmethod
