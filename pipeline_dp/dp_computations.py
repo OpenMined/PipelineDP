@@ -674,7 +674,10 @@ class ExponentialMechanism:
         def is_monotonic(self) -> bool:
             """Whether score(k) is monotonic.
 
-            If true then results will be more precise."""
+            Definition of a monotonic function:
+            https://en.wikipedia.org/wiki/Monotonic_function.
+            If the score function you define is monotonic then results will be
+            more precise."""
 
     def __init__(self, scoring_function: ScoringFunction) -> None:
         self._scoring_function = scoring_function

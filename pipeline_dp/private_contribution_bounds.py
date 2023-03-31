@@ -25,8 +25,7 @@ from pipeline_dp import pipeline_composite_functions as composite_funcs
 
 
 class PrivateL0Calculator:
-    """Calculates differentially-private l0 bound (i.e.
-    max_partitions_contributed)."""
+    """Calculates differentially-private l0 bound (i.e. max_partitions_contributed)."""
 
     def __init__(self,
                  params: pipeline_dp.CalculatePrivateContributionBoundsParams,
@@ -62,15 +61,13 @@ class PrivateL0Calculator:
                 "Extract l0_contributions_histogram from DatasetHistograms"))
         number_of_partitions = self._calculate_number_of_partitions()
 
-        l0_calculation_input_col = self._backend.to_multi_transformable_collection(
-            composite_funcs.collect_to_container(
-                self._backend, {
-                    "l0_histogram": l0_histogram,
-                    "number_of_partitions": number_of_partitions
-                }, PrivateL0Calculator.Inputs,
-                "Collecting L0 calculation inputs into one object"))
-        return self._backend.map(l0_calculation_input_col,
-                                 lambda inputs: self._calculate_l0(inputs),
+        l0_calculation_input_col = composite_funcs.collect_to_container(
+            self._backend, {
+                "l0_histogram": l0_histogram,
+                "number_of_partitions": number_of_partitions
+            }, PrivateL0Calculator.Inputs,
+            "Collecting L0 calculation inputs into one object")
+        return self._backend.map(l0_calculation_input_col, self._calculate_l0,
                                  "Calculate private l0 bound")
 
     def _calculate_l0(self, inputs: Inputs):
@@ -88,20 +85,6 @@ class PrivateL0Calculator:
             self._partitions, "Keep only distinct partitions")
         return composite_funcs.size(self._backend, distinct_partitions,
                                     "Calculate number of partitions")
-
-    def _lower_bounds_of_bins(self, histogram_col):
-        # TODO: is correct to do so? does it preserve dp? The problem is that
-        # we infer it from the histogram that used raw data and if for example
-        # there are 7 different public partitions but each user contributed to 6
-        # partitions max, then we will choose only from 1..6 and not 1..7, but
-        # it seems incorrect because we eliminate one of the options by
-        # observing the data. (Example taken from restaurant visits).
-
-        def histogram_to_bin_lowers(hist: Histogram) -> List[int]:
-            return list(map(lambda bin: bin.lower, hist.bins))
-
-        return self._backend.map(histogram_col, histogram_to_bin_lowers,
-                                 "Extract lowers of bins from histogram")
 
 
 class L0ScoringFunction(dp_computations.ExponentialMechanism.ScoringFunction):
