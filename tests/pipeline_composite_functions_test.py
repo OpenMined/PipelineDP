@@ -54,22 +54,13 @@ def _create_platform_supported_backends(backends_in_scope: Set[str]):
 _ALL_BACKENDS = {"local", "beam", "spark", "multi_proc_local"}
 
 
-# TODO: check whether possible to move it inside.
-@dataclass
-class TestContainer:
-    x: int
-    y: str
-    z: List[str]
-
-
 class PipelineCompositeFunctionsTest(parameterized.TestCase):
 
-    @classmethod
-    def setUpClass(cls):
-        cls.data_extractors = pipeline_dp.DataExtractors(
-            partition_extractor=lambda x: x[1],
-            privacy_id_extractor=lambda x: x[0],
-            value_extractor=lambda x: x[2])
+    @dataclass
+    class TestContainer:
+        x: int
+        y: str
+        z: List[str]
 
     @parameterized.parameters(_create_platform_supported_backends(_ALL_BACKENDS)
                              )
@@ -110,9 +101,9 @@ class PipelineCompositeFunctionsTest(parameterized.TestCase):
                 "x": col_x,
                 "y": col_y,
                 "z": col_z
-            }, TestContainer, "Collect to container")
+            }, self.TestContainer, "Collect to container")
 
-        self.assertEqual([TestContainer(x=2, y="str", z=["str1", "str2"])],
+        self.assertEqual([self.TestContainer(x=2, y="str", z=["str1", "str2"])],
                          list(_materialize_col(backend, container)))
 
     @parameterized.parameters(
@@ -129,9 +120,10 @@ class PipelineCompositeFunctionsTest(parameterized.TestCase):
                 "x": col_x,
                 "y": col_y,
                 "z": col_z
-            }, TestContainer, "Collect to container")
+            }, self.TestContainer, "Collect to container")
 
-        container: TestContainer = list(_materialize_col(backend, container))[0]
+        container: PipelineCompositeFunctionsTest.TestContainer = list(
+            _materialize_col(backend, container))[0]
         self.assertIn(container.x, col_x)
         self.assertIn(container.y, col_y)
         self.assertIn(container.z, col_z)
@@ -151,12 +143,8 @@ class PipelineCompositeFunctionsTest(parameterized.TestCase):
                 "x": col_x,
                 "y": col_y,
                 "z": col_z
-            }, TestContainer, "Collect to container")
+            }, self.TestContainer, "Collect to container")
 
-    # TODO: either delete or uncomment.
-    #@unittest.skipIf(
-    #    sys.platform == 'win32' or sys.platform == 'darwin',
-    #    "Serialization problems on MacOS and Windows.")
     def test_collect_to_container_multi_proc_local_is_not_supported(self):
         backend = pipeline_dp.pipeline_backend.MultiProcLocalBackend(n_jobs=1)
         col_x = [2]
@@ -168,4 +156,4 @@ class PipelineCompositeFunctionsTest(parameterized.TestCase):
                 "x": col_x,
                 "y": col_y,
                 "z": col_z
-            }, TestContainer, "Collect to container")
+            }, self.TestContainer, "Collect to container")
