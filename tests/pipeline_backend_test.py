@@ -262,11 +262,8 @@ class BeamBackendStageNameTest(unittest.TestCase):
                       backend._ulg._labels)
 
 
-@unittest.skipIf(sys.platform == "win32" or sys.platform == 'darwin' or (
-    sys.version_info.minor <= 7 and sys.version_info.major == 3
-), "There are some problems with PySpark setup on older python and Windows and macOS"
-                )
-# TODO: check whether win32 and darwin can be enabled.
+@unittest.skipIf(sys.version_info.minor <= 7 and sys.version_info.major == 3,
+                 "There are some problems with PySpark setup on older python.")
 class SparkRDDBackendTest(parameterized.TestCase):
 
     @classmethod
