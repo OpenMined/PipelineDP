@@ -37,9 +37,11 @@ def _create_platform_supported_backends(backends_in_scope: Set[str]):
         elif backend == "beam":
             result.add(pipeline_dp.BeamBackend())
         elif backend == "spark":
-            result.add(
-                pipeline_dp.SparkRDDBackend(
-                    pyspark.SparkContext.getOrCreate(pyspark.SparkConf())))
+            if sys.version_info.minor > 7 or sys.version_info.major != 3:
+                # if python3 <= 3.7 then there are serialization problems.
+                result.add(
+                    pipeline_dp.SparkRDDBackend(
+                        pyspark.SparkContext.getOrCreate(pyspark.SparkConf())))
         elif backend == "multi_proc_local":
             if sys.platform != 'win32' and sys.platform != 'darwin':
                 result.add(
@@ -51,6 +53,7 @@ def _create_platform_supported_backends(backends_in_scope: Set[str]):
 _ALL_BACKENDS = {"local", "beam", "spark", "multi_proc_local"}
 
 
+# TODO: check whether possible to move it inside.
 @dataclass
 class TestContainer:
     x: int
@@ -94,7 +97,8 @@ class PipelineCompositeFunctionsTest(parameterized.TestCase):
         self.assertEqual([4], list(_materialize_col(backend, result)))
 
     @parameterized.parameters(
-        _create_platform_supported_backends(_ALL_BACKENDS - {"spark"}))
+        _create_platform_supported_backends(_ALL_BACKENDS -
+                                            {"spark", "multi_proc_local"}))
     def test_collect_to_container_one_element_collections_works(self, backend):
         col_x = [2]
         col_y = ["str"]
@@ -111,7 +115,8 @@ class PipelineCompositeFunctionsTest(parameterized.TestCase):
                          list(_materialize_col(backend, container)))
 
     @parameterized.parameters(
-        _create_platform_supported_backends(_ALL_BACKENDS - {"spark"}))
+        _create_platform_supported_backends(_ALL_BACKENDS -
+                                            {"spark", "multi_proc_local"}))
     def test_collect_to_container_collections_with_multiple_elements_preserves_only_one_element(
             self, backend):
         col_x = [2, 1]
@@ -130,8 +135,9 @@ class PipelineCompositeFunctionsTest(parameterized.TestCase):
         self.assertIn(container.y, col_y)
         self.assertIn(container.z, col_z)
 
-    @parameterized.parameters(_create_platform_supported_backends({"spark"}))
-    def test_collect_to_container_spark_is_not_supported(self, backend):
+    @parameterized.parameters(
+        _create_platform_supported_backends({"spark", "multi_proc_local"}))
+    def test_collect_to_container_backend_is_not_supported(self, backend):
         col_x = [2]
         col_y = ["str"]
         col_z = [["str1", "str2"]]
