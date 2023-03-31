@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """DPEngine Test"""
-
+import sys
 import unittest
 from typing import List
 from unittest.mock import patch
@@ -302,6 +302,9 @@ class DpEngineTest(parameterized.TestCase):
             engine.calculate_private_contribution_bounds(
                 data, params, data_extractors, partitions)
 
+    @unittest.skipIf(
+        sys.version_info.minor <= 7 and sys.version_info.major == 3,
+        "There are some problems with PySpark setup on older python")
     def test_calculate_private_contribution_does_not_work_on_spark_due_to_unsupported_operations(
             self):
         # Arrange
