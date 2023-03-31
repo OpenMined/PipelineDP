@@ -239,7 +239,7 @@ class PrivateL0CalculatorTest(unittest.TestCase):
             calculation_eps=0.1,
             aggregation_noise_kind=pipeline_dp.NoiseKind.LAPLACE,
             max_partitions_contributed_upper_bound=2)
-        partitions = [i + 1 for i in range(200)]
+        partitions = list(range(1, 201))
         l0_histogram = hist.Histogram(name=hist.HistogramType.L0_CONTRIBUTIONS,
                                       bins=[
                                           hist.FrequencyBin(lower=1,
