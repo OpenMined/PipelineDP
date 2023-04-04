@@ -24,7 +24,7 @@ from pipeline_dp import pipeline_backend
 
 @dataclass
 class FrequencyBin:
-    """Represents 1 bin of a histogram.
+    """Represents a single bin of a histogram.
 
   The bin represents integers between 'lower' (inclusive) and 'upper'
    (exclusive, not stored in this class, but uniquely determined by 'lower').
