@@ -54,7 +54,7 @@ class ParametersToTune:
 
 @dataclass
 class TuneOptions:
-    """Options for tuning process.
+    """Options for the tuning process.
 
     Note that parameters that are not tuned (e.g. metrics, noise kind) are taken
     from aggregate_params.
@@ -100,7 +100,7 @@ class TuneResult:
          (best) configuration in utility_analysis_parameters. Note, that those
           parameters might not necessarily be optimal, since finding the optimal
           parameters is not always feasible.
-        utility_analysis_results: the results of all utility analysis runs that
+        utility_reports: the results of all utility analysis runs that
           were performed during the tuning process.
     """
     options: TuneOptions
