@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Utility Analysis cross partition combiners."""
+import copy
 
 import pipeline_dp
 from analysis import metrics
@@ -276,14 +277,16 @@ class CrossPartitionCombiner(pipeline_dp.combiners.Combiner):
             self, report1: metrics.UtilityReport,
             report2: metrics.UtilityReport) -> metrics.UtilityReport:
         """Merges UtilityReports."""
-        _merge_utility_reports(report1, report2)
-        return report1
+        report1_copy = copy.deepcopy(report1)
+        _merge_utility_reports(report1_copy, report2)
+        return report1_copy
 
     def compute_metrics(self,
                         report: metrics.UtilityReport) -> metrics.UtilityReport:
         """Returns UtilityReport with final metrics."""
-        _average_utility_report(report, self._public_partitions)
-        return report
+        report_copy = copy.deepcopy(report)
+        _average_utility_report(report_copy, self._public_partitions)
+        return report_copy
 
     def metrics_names(self):
         return []  # Not used for utility analysis

@@ -152,6 +152,82 @@ class ParameterTuning(parameterized.TestCase):
         self.assertIsInstance(utility_results[0], metrics.AggregateMetrics)
         self.assertIsNotNone(utility_results[0].privacy_id_count_metrics)
 
+    @parameterized.parameters(False, True)
+    def test_tune_count_new(self, return_utility_analysis_per_partition: bool):
+        # Arrange.
+        input = [(i % 10, f"pk{i/10}") for i in range(10)]
+        public_partitions = [f"pk{i}" for i in range(10)]
+        data_extractors = pipeline_dp.DataExtractors(
+            privacy_id_extractor=lambda x: x[0],
+            partition_extractor=lambda x: x[1],
+            value_extractor=lambda x: None)
+
+        contribution_histograms = list(
+            histograms.compute_dataset_histograms(
+                input, data_extractors, pipeline_dp.LocalBackend()))[0]
+
+        tune_options = _get_tune_options()
+
+        # Act.
+        result = parameter_tuning.tune_new(
+            input, pipeline_dp.LocalBackend(), contribution_histograms,
+            tune_options, data_extractors, public_partitions,
+            return_utility_analysis_per_partition)
+
+        # Assert.
+        if return_utility_analysis_per_partition:
+            tune_result, per_partition_utility_anlaysis = result
+            self.assertLen(per_partition_utility_anlaysis, 10)
+        else:
+            tune_result = result
+        tune_result = list(tune_result)[0]
+
+        self.assertEqual(tune_options, tune_result.options)
+        self.assertEqual(contribution_histograms,
+                         tune_result.contribution_histograms)
+        utility_reports = tune_result.utility_reports
+        self.assertLen(utility_reports, 4)
+        self.assertIsInstance(utility_reports[0], metrics.UtilityReport)
+        self.assertLen(utility_reports[0].metric_errors, 1)
+        self.assertEqual(utility_reports[0].metric_errors[0].metric,
+                         pipeline_dp.Metrics.COUNT)
+
+    def test_tune_privacy_id_count_new(self):
+        # Arrange.
+        input = [(i % 10, f"pk{i/10}") for i in range(10)]
+        public_partitions = [f"pk{i}" for i in range(10)]
+        data_extractors = pipeline_dp.DataExtractors(
+            privacy_id_extractor=lambda x: x[0],
+            partition_extractor=lambda x: x[1],
+            value_extractor=lambda x: None)
+
+        contribution_histograms = list(
+            histograms.compute_dataset_histograms(
+                input, data_extractors, pipeline_dp.LocalBackend()))[0]
+
+        tune_options = _get_tune_options()
+        tune_options.aggregate_params.metrics = [
+            pipeline_dp.Metrics.PRIVACY_ID_COUNT
+        ]
+
+        # Act.
+        result = parameter_tuning.tune_new(input, pipeline_dp.LocalBackend(),
+                                           contribution_histograms,
+                                           tune_options, data_extractors,
+                                           public_partitions)
+
+        # Assert.
+        result = list(result)[0]
+
+        self.assertEqual(tune_options, result.options)
+        self.assertEqual(contribution_histograms,
+                         result.contribution_histograms)
+        utility_reports = result.utility_reports
+        self.assertIsInstance(utility_reports[0], metrics.UtilityReport)
+        self.assertLen(utility_reports[0].metric_errors, 1)
+        self.assertEqual(utility_reports[0].metric_errors[0].metric,
+                         pipeline_dp.Metrics.PRIVACY_ID_COUNT)
+
 
 if __name__ == '__main__':
     absltest.main()
