@@ -143,6 +143,32 @@ class PerPartitionToCrossPartitionMetrics(parameterized.TestCase):
             output,
             metrics.DataDropInfo(l0=2.0, linf=5.0, partition_selection=1.5))
 
+    def test_sum_metrics_to_data_dropped_public_partition(self):
+        input = _get_sum_metrics()
+        output = cross_partition_combiners._sum_metrics_to_data_dropped(
+            input,
+            partition_keep_probability=1.0,
+            dp_metric=pipeline_dp.Metrics.COUNT)
+        self.assertEqual(
+            output,
+            metrics.DataDropInfo(l0=2.0, linf=5.0, partition_selection=0.0))
+
+    def test_sum_metrics_to_data_dropped_empty_public(self):
+        input = metrics.SumMetrics(0,
+                                   0,
+                                   0,
+                                   0,
+                                   0,
+                                   std_noise=1.0,
+                                   noise_kind=pipeline_dp.NoiseKind.LAPLACE)
+        output = cross_partition_combiners._sum_metrics_to_data_dropped(
+            input,
+            partition_keep_probability=1.0,
+            dp_metric=pipeline_dp.Metrics.COUNT)
+        self.assertEqual(
+            output,
+            metrics.DataDropInfo(l0=0.0, linf=0.0, partition_selection=0.0))
+
 
 # Dataclasses for DataclassHelpersTests
 @dataclasses.dataclass
@@ -292,9 +318,6 @@ class CrossPartitionCombiner(parameterized.TestCase):
         sum_actual, output_report = combiner.merge_accumulators(acc1, acc2)
         self.assertEqual(output_report, expected_report)
         self.assertEqual(sum_actual, (4,))
-        # Check that input reports were not modified.
-        self.assertEqual(report1, _get_utility_report(coef=2))
-        self.assertEqual(report2, _get_utility_report(coef=5))
 
     @parameterized.parameters(False, True)
     @patch("analysis.cross_partition_combiners._average_utility_report")

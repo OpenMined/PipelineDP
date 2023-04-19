@@ -28,14 +28,18 @@ def _sum_metrics_to_data_dropped(
     # TODO(dvadym): implement for Sum
     assert dp_metric != pipeline_dp.Metrics.SUM, "Cross-partition metrics are not implemented for SUM"
 
+    # This function attributed the data that is dropped, to different reasons
+    # how they are dropped.
+
+    # 1. linf/l0 contribution bounding
     # Contribution bounding errors are negative, negate to keep data dropped
     # to be positive.
-    l0_dropped = -sum_metrics.expected_cross_partition_error
     linf_dropped = -sum_metrics.per_partition_error_max  # not correct for SUM
+    l0_dropped = -sum_metrics.expected_cross_partition_error
 
-    # Partition selection is performed after l0/linf contribution bounding.
-    # So as a result of partition selection data which survived contribution
-    # bounding is dropped with probability = 1 - partition_keep_probability.
+    # 2. Partition selection (in case of private partition selection).
+    # The data which survived contribution bounding is dropped with probability
+    # = 1 - partition_keep_probability.
     expected_after_contribution_bounding = sum_metrics.sum - l0_dropped - linf_dropped
     partition_selection_dropped = expected_after_contribution_bounding * (
         1 - partition_keep_probability)
@@ -262,8 +266,9 @@ def _average_utility_report(report: metrics.UtilityReport,
                 metric_error,
                 1.0 / num_output_partitions,
                 fields_to_ignore=["noise_std", "ratio_data_dropped"])
+            scaling_factor = 1 if sum_actual == 0 else 1.0 / sum_actual
             _multiply_float_dataclasses_field(metric_error.ratio_data_dropped,
-                                              1.0 / sum_actual)
+                                              scaling_factor)
 
 
 class CrossPartitionCombiner(pipeline_dp.combiners.Combiner):
@@ -290,9 +295,8 @@ class CrossPartitionCombiner(pipeline_dp.combiners.Combiner):
         sum_actual1, report1 = acc1
         sum_actual2, report2 = acc2
         sum_actual = tuple(x + y for x, y in zip(sum_actual1, sum_actual2))
-        report_copy = copy.deepcopy(report1)
-        _merge_utility_reports(report_copy, report2)
-        return sum_actual, report_copy
+        _merge_utility_reports(report1, report2)
+        return sum_actual, report1
 
     def compute_metrics(self, acc: AccumulatorType) -> metrics.UtilityReport:
         """Returns UtilityReport with final metrics."""

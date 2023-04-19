@@ -93,7 +93,10 @@ class UtilityAnalysis(parameterized.TestCase):
                     metric=pipeline_dp.Metrics.COUNT,
                     noise_std=1.380859375,
                     noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
-                    ratio_data_dropped=None,
+                    ratio_data_dropped=metrics.DataDropInfo(
+                        l0=0.6,
+                        linf=0.333333333,
+                        partition_selection=0.04322517259988915),
                     absolute_error=metrics.ValueErrors(
                         bounding_errors=metrics.ContributionBoundingErrors(
                             l0=metrics.MeanVariance(mean=-51.191276314622854,
@@ -122,7 +125,10 @@ class UtilityAnalysis(parameterized.TestCase):
                     metric=pipeline_dp.Metrics.PRIVACY_ID_COUNT,
                     noise_std=0.6904296875,
                     noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
-                    ratio_data_dropped=None,
+                    ratio_data_dropped=metrics.DataDropInfo(
+                        l0=0.9,
+                        linf=-0.0,
+                        partition_selection=0.06483775889983372),
                     absolute_error=metrics.ValueErrors(
                         bounding_errors=metrics.ContributionBoundingErrors(
                             l0=metrics.MeanVariance(mean=-25.595638157311427,
