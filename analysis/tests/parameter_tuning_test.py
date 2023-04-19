@@ -176,8 +176,8 @@ class ParameterTuning(parameterized.TestCase):
 
         # Assert.
         if return_utility_analysis_per_partition:
-            tune_result, per_partition_utility_anlaysis = result
-            self.assertLen(per_partition_utility_anlaysis, 10)
+            tune_result, per_partition_utility_analysis = result
+            self.assertLen(per_partition_utility_analysis, 10)
         else:
             tune_result = result
         tune_result = list(tune_result)[0]

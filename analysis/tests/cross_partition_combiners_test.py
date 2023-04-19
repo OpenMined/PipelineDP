@@ -133,6 +133,42 @@ class PerPartitionToCrossPartitionMetrics(parameterized.TestCase):
         mock_create_for_public_partitions.assert_not_called()
         mock_create_for_private_partitions.assert_called_once_with(0.5)
 
+    def test_sum_metrics_to_data_dropped(self):
+        input = _get_sum_metrics()
+        output = cross_partition_combiners._sum_metrics_to_data_dropped(
+            input,
+            partition_keep_probability=0.5,
+            dp_metric=pipeline_dp.Metrics.COUNT)
+        self.assertEqual(
+            output,
+            metrics.DataDropInfo(l0=2.0, linf=5.0, partition_selection=1.5))
+
+    def test_sum_metrics_to_data_dropped_public_partition(self):
+        input = _get_sum_metrics()
+        output = cross_partition_combiners._sum_metrics_to_data_dropped(
+            input,
+            partition_keep_probability=1.0,
+            dp_metric=pipeline_dp.Metrics.COUNT)
+        self.assertEqual(
+            output,
+            metrics.DataDropInfo(l0=2.0, linf=5.0, partition_selection=0.0))
+
+    def test_sum_metrics_to_data_dropped_empty_public(self):
+        input = metrics.SumMetrics(0,
+                                   0,
+                                   0,
+                                   0,
+                                   0,
+                                   std_noise=1.0,
+                                   noise_kind=pipeline_dp.NoiseKind.LAPLACE)
+        output = cross_partition_combiners._sum_metrics_to_data_dropped(
+            input,
+            partition_keep_probability=1.0,
+            dp_metric=pipeline_dp.Metrics.COUNT)
+        self.assertEqual(
+            output,
+            metrics.DataDropInfo(l0=0.0, linf=0.0, partition_selection=0.0))
+
 
 # Dataclasses for DataclassHelpersTests
 @dataclasses.dataclass
@@ -252,7 +288,9 @@ class CrossPartitionCombiner(parameterized.TestCase):
         combiner = self._create_combiner()
         per_partition_metrics = metrics.PerPartitionMetrics(
             0.2, metric_errors=[_get_sum_metrics()])
-        utility_report = combiner.create_accumulator(per_partition_metrics)
+        sum_actual, utility_report = combiner.create_accumulator(
+            per_partition_metrics)
+        self.assertEqual(sum_actual, (10.0,))
         self.assertEqual(utility_report.partitions_info.num_dataset_partitions,
                          1)
         self.assertLen(utility_report.metric_errors, 1)
@@ -273,13 +311,13 @@ class CrossPartitionCombiner(parameterized.TestCase):
     def test_create_accumulator(self):
         combiner = self._create_combiner()
         report1 = _get_utility_report(coef=2)
+        acc1 = ((1,), report1)
         report2 = _get_utility_report(coef=5)
+        acc2 = ((3,), report2)
         expected_report = _get_utility_report(coef=7)
-        self.assertEqual(combiner.merge_accumulators(report1, report2),
-                         expected_report)
-        # Check that input reports were not modified.
-        self.assertEqual(report1, _get_utility_report(coef=2))
-        self.assertEqual(report2, _get_utility_report(coef=5))
+        sum_actual, output_report = combiner.merge_accumulators(acc1, acc2)
+        self.assertEqual(output_report, expected_report)
+        self.assertEqual(sum_actual, (4,))
 
     @parameterized.parameters(False, True)
     @patch("analysis.cross_partition_combiners._average_utility_report")
@@ -287,9 +325,11 @@ class CrossPartitionCombiner(parameterized.TestCase):
                              mock_average_utility_report):
         combiner = self._create_combiner(public_partitions)
         report = _get_utility_report(coef=1)
-        output = combiner.compute_metrics(report)
+        sum_actual_metrics = (1000,)
+        acc = (sum_actual_metrics, report)
+        output = combiner.compute_metrics(acc)
         mock_average_utility_report.assert_called_once_with(
-            output, public_partitions)
+            output, public_partitions, sum_actual_metrics)
         # Check that the input report was not modified.
         self.assertEqual(report, _get_utility_report(coef=1))
 

@@ -118,8 +118,8 @@ class PartitionSelectionCalculator:
 
     def __post_init__(self):
         assert (self.probabilities is None) != (
-            self.moments is
-            None), "Only one of probabilities and moments must be set."
+            self.moments
+            is None), "Only one of probabilities and moments must be set."
 
     def compute_probability_to_keep(self,
                                     partition_selection_strategy: pipeline_dp.
