@@ -14,149 +14,244 @@
 import sys
 import unittest
 from dataclasses import dataclass
-from typing import List, Set
+from typing import List
 
-import pyspark
-from absl.testing import parameterized
+import apache_beam as beam
+import apache_beam.testing.test_pipeline as test_pipeline
+import apache_beam.testing.util as beam_util
 
 import pipeline_dp
 from pipeline_dp import pipeline_functions as composite_funcs
+from pipeline_dp import pipeline_backend
 
 
-def _materialize_col(backend: pipeline_dp.PipelineBackend, col):
-    if isinstance(backend, pipeline_dp.SparkRDDBackend):
-        return col.collect()
-    else:
-        return list(col)
+@dataclass
+class TestContainer:
+    x: int
+    y: str
+    z: List[str]
 
 
-# Has to be created only once.
-_SPARK_BACKEND = pipeline_dp.SparkRDDBackend(
-    pyspark.SparkContext.getOrCreate(conf=pyspark.SparkConf()))
+class BeamBackendTest(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        cls.backend = pipeline_dp.BeamBackend()
+
+    def test_key_by_extracts_keys_and_keeps_values_untouched(self):
+        with test_pipeline.TestPipeline() as p:
+            col = p | beam.Create(["key1_value1", "key1_value2", "key2_value1"])
+
+            def underscore_separated_key_extractor(el):
+                return el.split("_")[0]
+
+            result = composite_funcs.key_by(self.backend,
+                                            col,
+                                            underscore_separated_key_extractor,
+                                            stage_name="Key by")
+
+            beam_util.assert_that(
+                result,
+                beam_util.equal_to({("key1", "key1_value1"),
+                                    ("key1", "key1_value2"),
+                                    ("key2", "key2_value1")}))
+
+    def test_size_accounts_for_duplicates(self):
+        with test_pipeline.TestPipeline() as p:
+            col = p | beam.Create([3, 2, 1, 1])
+
+            result = composite_funcs.size(self.backend, col, stage_name="Size")
+
+            beam_util.assert_that(result, beam_util.equal_to([4]))
+
+    def test_collect_to_container_one_element_collections_works(self):
+        with test_pipeline.TestPipeline() as p:
+            col_x = p | beam.Create([2])
+            col_y = p | beam.Create(["str"])
+            col_z = p | beam.Create([["str1", "str2"]])
+
+            container = composite_funcs.collect_to_container(
+                self.backend, {
+                    "x": col_x,
+                    "y": col_y,
+                    "z": col_z
+                }, TestContainer, "Collect to container")
+
+            beam_util.assert_that(
+                container,
+                beam_util.equal_to(
+                    [TestContainer(x=2, y="str", z=["str1", "str2"])]))
+
+    def test_collect_to_container_collections_with_multiple_elements_preserves_only_one_element(
+            self):
+        with test_pipeline.TestPipeline() as p:
+            col_x_as_list = [2, 1]
+            col_x = p | beam.Create(col_x_as_list)
+            col_y_as_list = ["str1", "str2"]
+            col_y = p | beam.Create(col_y_as_list)
+            col_z_as_list = [["str1", "str2"], ["str3", "str4"]]
+            col_z = p | beam.Create(col_z_as_list)
+
+            container = composite_funcs.collect_to_container(
+                self.backend, {
+                    "x": col_x,
+                    "y": col_y,
+                    "z": col_z
+                }, TestContainer, "Collect to container")
+
+            container: TestContainer = list(container)[0]
+            self.assertIn(container.x, col_x)
+            self.assertIn(container.y, col_y)
+            self.assertIn(container.z, col_z)
 
 
-def _create_platform_supported_backends(backends_in_scope: Set[str]):
-    result = set()
-    for backend in backends_in_scope:
-        if backend == "local":
-            result.add(pipeline_dp.LocalBackend())
-        elif backend == "beam":
-            result.add(pipeline_dp.BeamBackend())
-        elif backend == "spark":
-            if sys.version_info.minor > 7 or sys.version_info.major != 3:
-                # if python3 <= 3.7 then there are serialization problems.
-                result.add(_SPARK_BACKEND)
-        elif backend == "multi_proc_local":
-            if sys.platform != 'win32' and sys.platform != 'darwin':
-                result.add(
-                    pipeline_dp.pipeline_backend.MultiProcLocalBackend(
-                        n_jobs=1))
-    return result
+@unittest.skipIf(sys.version_info.minor <= 7 and sys.version_info.major == 3,
+                 "There are some problems with PySpark setup on older python.")
+class SparkRDDBackendTest(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        import pyspark
+        conf = pyspark.SparkConf()
+        cls.sc = pyspark.SparkContext.getOrCreate(conf=conf)
+        cls.backend = pipeline_dp.SparkRDDBackend(cls.sc)
+
+    def test_key_by_extracts_keys_and_keeps_values_untouched(self):
+        col = self.sc.parallelize(["key1_value1", "key1_value2", "key2_value1"])
+
+        def underscore_separated_key_extractor(el):
+            return el.split("_")[0]
+
+        result = composite_funcs.key_by(self.backend,
+                                        col,
+                                        underscore_separated_key_extractor,
+                                        stage_name="Key by").collect()
+
+        self.assertSetEqual(
+            {("key1", "key1_value1"), ("key1", "key1_value2"),
+             ("key2", "key2_value1")}, set(result))
+
+    def test_size_accounts_for_duplicates(self):
+        col = self.sc.parallelize([3, 2, 1, 1])
+
+        result = composite_funcs.size(self.backend, col,
+                                      stage_name="Size").collect()
+
+        self.assertEqual([4], result)
+
+    def test_collect_to_container_spark_is_not_supported(self):
+        col_x = self.sc.parallelize([2])
+        col_y = self.sc.parallelize(["str"])
+        col_z = self.sc.parallelize([["str1", "str2"]])
+
+        with self.assertRaises(NotImplementedError):
+            composite_funcs.collect_to_container(self.backend, {
+                "x": col_x,
+                "y": col_y,
+                "z": col_z
+            }, TestContainer, "Collect to container")
 
 
-_ALL_BACKENDS = {"local", "beam", "spark", "multi_proc_local"}
+class LocalBackendTest(unittest.TestCase):
 
+    @classmethod
+    def setUpClass(cls):
+        cls.backend = pipeline_dp.LocalBackend()
 
-class PipelineFunctionsTest(parameterized.TestCase):
-
-    @dataclass
-    class TestContainer:
-        x: int
-        y: str
-        z: List[str]
-
-    @parameterized.parameters(_create_platform_supported_backends(_ALL_BACKENDS)
-                             )
-    def test_key_by_extracts_keys_and_keeps_values_untouched(self, backend):
+    def test_key_by_extracts_keys_and_keeps_values_untouched(self):
         col = ["key1_value1", "key1_value2", "key2_value1"]
 
         def underscore_separated_key_extractor(el):
             return el.split("_")[0]
 
-        result = composite_funcs.key_by(backend,
+        result = composite_funcs.key_by(self.backend,
                                         col,
                                         underscore_separated_key_extractor,
                                         stage_name="Key by")
 
         self.assertSetEqual(
             {("key1", "key1_value1"), ("key1", "key1_value2"),
-             ("key2", "key2_value1")}, set(_materialize_col(backend, result)))
+             ("key2", "key2_value1")}, set(result))
 
-    @parameterized.parameters(_create_platform_supported_backends(_ALL_BACKENDS)
-                             )
-    def test_size_accounts_duplicates(self, backend):
+    def test_size_accounts_for_duplicates(self):
         col = [3, 2, 1, 1]
 
-        result = composite_funcs.size(backend, col, stage_name="Size")
+        result = composite_funcs.size(self.backend, col, stage_name="Size")
 
-        self.assertEqual([4], list(_materialize_col(backend, result)))
+        self.assertEqual([4], list(result))
 
-    @parameterized.parameters(
-        _create_platform_supported_backends(_ALL_BACKENDS -
-                                            {"spark", "multi_proc_local"}))
-    def test_collect_to_container_one_element_collections_works(self, backend):
+    def test_collect_to_container_one_element_collections_works(self):
         col_x = [2]
         col_y = ["str"]
         col_z = [["str1", "str2"]]
 
         container = composite_funcs.collect_to_container(
-            backend, {
+            self.backend, {
                 "x": col_x,
                 "y": col_y,
                 "z": col_z
-            }, self.TestContainer, "Collect to container")
+            }, TestContainer, "Collect to container")
 
-        self.assertEqual([self.TestContainer(x=2, y="str", z=["str1", "str2"])],
-                         list(_materialize_col(backend, container)))
+        self.assertEqual([TestContainer(x=2, y="str", z=["str1", "str2"])],
+                         list(container))
 
-    @parameterized.parameters(
-        _create_platform_supported_backends(_ALL_BACKENDS -
-                                            {"spark", "multi_proc_local"}))
     def test_collect_to_container_collections_with_multiple_elements_preserves_only_one_element(
-            self, backend):
+            self):
         col_x = [2, 1]
         col_y = ["str1", "str2"]
         col_z = [["str1", "str2"], ["str3", "str4"]]
 
         container = composite_funcs.collect_to_container(
-            backend, {
+            self.backend, {
                 "x": col_x,
                 "y": col_y,
                 "z": col_z
-            }, self.TestContainer, "Collect to container")
+            }, TestContainer, "Collect to container")
 
-        container: PipelineFunctionsTest.TestContainer = list(
-            _materialize_col(backend, container))[0]
+        container: TestContainer = list(container)[0]
         self.assertIn(container.x, col_x)
         self.assertIn(container.y, col_y)
         self.assertIn(container.z, col_z)
 
-    @unittest.skipIf(sys.version_info.minor <= 7 and
-                     sys.version_info.major == 3,
-                     "If python3 <= 3.7 then there are serialization problems")
-    def test_collect_to_container_spark_is_not_supported(self):
-        backend = pipeline_dp.SparkRDDBackend(
-            pyspark.SparkContext.getOrCreate(pyspark.SparkConf()))
-        col_x = [2]
-        col_y = ["str"]
-        col_z = [["str1", "str2"]]
 
-        with self.assertRaises(NotImplementedError):
-            composite_funcs.collect_to_container(backend, {
-                "x": col_x,
-                "y": col_y,
-                "z": col_z
-            }, self.TestContainer, "Collect to container")
+@unittest.skipIf(sys.platform == 'win32' or sys.platform == 'darwin',
+                 "Problems with serialisation on Windows and macOS")
+class MultiProcLocalBackendTest(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        cls.backend = pipeline_backend.MultiProcLocalBackend(n_jobs=1)
+
+    def test_key_by_extracts_keys_and_keeps_values_untouched(self):
+        col = ["key1_value1", "key1_value2", "key2_value1"]
+
+        def underscore_separated_key_extractor(el):
+            return el.split("_")[0]
+
+        result = composite_funcs.key_by(self.backend,
+                                        col,
+                                        underscore_separated_key_extractor,
+                                        stage_name="Key by")
+
+        self.assertSetEqual(
+            {("key1", "key1_value1"), ("key1", "key1_value2"),
+             ("key2", "key2_value1")}, set(result))
+
+    def test_size_accounts_for_duplicates(self):
+        col = [3, 2, 1, 1]
+
+        result = composite_funcs.size(self.backend, col, stage_name="Size")
+
+        self.assertEqual([4], list(result))
 
     def test_collect_to_container_multi_proc_local_is_not_supported(self):
-        backend = pipeline_dp.pipeline_backend.MultiProcLocalBackend(n_jobs=1)
         col_x = [2]
         col_y = ["str"]
         col_z = [["str1", "str2"]]
 
         with self.assertRaises(NotImplementedError):
-            composite_funcs.collect_to_container(backend, {
+            composite_funcs.collect_to_container(self.backend, {
                 "x": col_x,
                 "y": col_y,
                 "z": col_z
-            }, self.TestContainer, "Collect to container")
+            }, TestContainer, "Collect to container")
