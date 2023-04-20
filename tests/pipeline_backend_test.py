@@ -326,7 +326,7 @@ class SparkRDDBackendTest(parameterized.TestCase):
         data = self.sc.parallelize([(1, 2), (2, 1), (1, 4), (3, 8), (2, -3),
                                     (10, 5)])
         result = self.backend.sum_per_key(data).collect()
-        self.assertEqual(set(result), set([(1, 6), (2, -2), (3, 8), (10, 5)]))
+        self.assertEqual(set(result), {(1, 6), (2, -2), (3, 8), (10, 5)})
 
     @unittest.skipIf(
         sys.platform == "darwin" and sys.version_info.major == 3 and
@@ -609,7 +609,7 @@ class LocalBackendTest(unittest.TestCase):
     def test_distinct(self):
         input = [3, 2, 1, 3, 5, 4, 1, 1, 2]
         output = set(self.backend.distinct(input, "distinct"))
-        self.assertSetEqual(set([1, 2, 3, 4, 5]), output)
+        self.assertSetEqual({1, 2, 3, 4, 5}, output)
 
 
 @unittest.skipIf(sys.platform == 'win32' or sys.platform == 'darwin',
