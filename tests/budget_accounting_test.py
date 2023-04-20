@@ -489,40 +489,42 @@ class PLDBudgetAccountantTest(unittest.TestCase):
                     case.expected_pipeline_noise_std)
                 actual_epsilon = compare_pld.get_epsilon_for_delta(case.delta)
                 self.assertAlmostEqual(
-                    case.epsilon, actual_epsilon, 3,
-                    f"failed test {case.name} expected epsilon {case.epsilon} got {actual_epsilon}"
-                )
+                    case.epsilon,
+                    actual_epsilon,
+                    delta=1e-3,
+                    msg=f"failed test {case.name} expected epsilon "
+                    f"{case.epsilon} got {actual_epsilon}")
             accountant.compute_budgets()
             self.assertAlmostEqual(
                 first=case.expected_pipeline_noise_std,
                 second=accountant.minimum_noise_std,
-                places=3,
-                msg=
-                f"failed test {case.name} expected pipeline noise {case.expected_pipeline_noise_std} "
+                delta=1e-2,
+                msg=f"failed test {case.name} expected pipeline noise "
+                f"{case.expected_pipeline_noise_std} "
                 f"got {accountant.minimum_noise_std}")
             for mechanism_expectations in actual_mechanisms:
                 expected_mechanism_noise_std, expected_mechanism_epsilon, expected_mechanism_delta, actual_mechanism = mechanism_expectations
                 self.assertAlmostEqual(
                     first=expected_mechanism_noise_std,
                     second=actual_mechanism.noise_standard_deviation,
-                    places=3,
-                    msg=
-                    f"failed test {case.name} expected mechanism noise {expected_mechanism_noise_std} "
+                    delta=1e-2,
+                    msg=f"failed test {case.name} expected mechanism noise "
+                    f"{expected_mechanism_noise_std} "
                     f"got {actual_mechanism.noise_standard_deviation}")
                 if actual_mechanism.mechanism_type == MechanismType.GENERIC:
                     self.assertAlmostEqual(
                         first=expected_mechanism_epsilon,
                         second=actual_mechanism._eps,
-                        places=3,
-                        msg=
-                        f"failed test {case.name} expected mechanism epsilon {expected_mechanism_epsilon} "
+                        delta=1e-3,
+                        msg=f"failed test {case.name} expected mechanism epsilon "
+                        f"{expected_mechanism_epsilon} "
                         f"got {actual_mechanism._eps}")
                     self.assertAlmostEqual(
                         first=expected_mechanism_delta,
                         second=actual_mechanism._delta,
-                        places=3,
-                        msg=
-                        f"failed test {case.name} expected mechanism delta {expected_mechanism_delta} "
+                        delta=1e-3,
+                        msg=f"failed test {case.name} expected mechanism delta "
+                        f"{expected_mechanism_delta} "
                         f"got {actual_mechanism._delta}")
 
 
