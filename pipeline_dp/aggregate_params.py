@@ -11,13 +11,19 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Contains utility classes used for specifying DP aggregation parameters, noise types, and norms."""
+"""Contains utility classes used for specifying DP aggregation parameters,
+noise types, and norms."""
 
+import logging
+import math
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Iterable, Sequence, Callable, Union, Optional, List
-import math
-import logging
+
+import numpy
+import numpy as np
+
+from pipeline_dp import input_validators
 
 
 @dataclass
@@ -98,18 +104,71 @@ class PartitionSelectionStrategy(Enum):
 
 
 @dataclass
+class CalculatePrivateContributionBoundsParams:
+    """Specifies parameters for function DPEngine.calculate_private_contribution_bounds()
+
+    WARNING: Aggregation, where the calculated bounds will be used, should be
+    one of the following: COUNT, PRIVACY_ID_COUNT.
+    Other aggregations (metrics in AggregateParams) are not supported.
+
+    Attributes:
+        aggregation_noise_kind: noise that will be used in the aggregation.
+        aggregation_eps: epsilon that will be used in the aggregation.
+        aggregation_delta: delta that will be used in the aggregation.
+        calculation_eps: epsilon that will be used in the computation
+          of private contribution bounds.
+        max_partitions_contributed_upper_bound: The biggest ever possible value
+          for max_partitions_contributed.
+    """
+    aggregation_noise_kind: NoiseKind
+    aggregation_eps: float
+    aggregation_delta: float
+    calculation_eps: float
+    max_partitions_contributed_upper_bound: int
+
+    def __post_init__(self):
+        input_validators.validate_epsilon_delta(
+            self.aggregation_eps, self.aggregation_delta,
+            "CalculatePrivateContributionBoundsParams")
+        if self.aggregation_noise_kind is None:
+            raise ValueError("aggregation_noise_kind must be set.")
+        if (self.aggregation_noise_kind == NoiseKind.GAUSSIAN and
+                self.aggregation_delta == 0):
+            raise ValueError(
+                "The Gaussian noise requires that the aggregation_delta is "
+                "greater than 0.")
+        input_validators.validate_epsilon_delta(
+            self.calculation_eps, 0, "CalculatePrivateContributionBoundsParams")
+        _check_is_positive_int(self.max_partitions_contributed_upper_bound,
+                               "max_partitions_contributed_upper_bound")
+
+
+@dataclass
+class PrivateContributionBounds:
+    """Contribution bounds computed in a differential private way that can be
+    used in COUNT and PRIVACY_ID_COUNT aggregations.
+
+    Attributes:
+        max_partitions_contributed: A bound on the number of partitions to which
+          one unit of privacy (e.g., a user) can contribute
+          (also referred to as l_0).
+    """
+    max_partitions_contributed: int
+
+
+@dataclass
 class AggregateParams:
     """Specifies parameters for function DPEngine.aggregate()
 
     Attributes:
         metrics: A list of metrics to compute.
         noise_kind: The type of noise to use for the DP calculations.
-        max_partitions_contributed: A bound on the number of partitions to which one
-          unit of privacy (e.g., a user) can contribute.
-        max_contributions_per_partition: A bound on the number of times one unit of
-          privacy (e.g. a user) can contribute to a partition.
-        max_contributions: A bound on the total number of times one unit of privacy
-          (e.g., a user) can contribute.
+        max_partitions_contributed: A bound on the number of partitions to
+          which one unit of privacy (e.g., a user) can contribute.
+        max_contributions_per_partition: A bound on the number of times one
+          unit of privacy (e.g. a user) can contribute to a partition.
+        max_contributions: A bound on the total number of times one unit of
+          privacy (e.g., a user) can contribute.
         budget_weight: Relative weight of the privacy budget allocated to this
           aggregation.
         min_value: Lower bound on each value.
@@ -172,7 +231,8 @@ class AggregateParams:
 
     @property
     def bounds_per_partition_are_set(self) -> bool:
-        return self.min_sum_per_partition is not None and self.max_sum_per_partition is not None
+        return (self.min_sum_per_partition is not None and
+                self.max_sum_per_partition is not None)
 
     def __post_init__(self):
         if self.low is not None:
@@ -202,10 +262,12 @@ class AggregateParams:
 
         if self.metrics:
             if Metrics.VECTOR_SUM in self.metrics:
-                if Metrics.SUM in self.metrics or Metrics.MEAN in self.metrics or Metrics.VARIANCE in self.metrics:
+                if (Metrics.SUM in self.metrics or
+                        Metrics.MEAN in self.metrics or
+                        Metrics.VARIANCE in self.metrics):
                     raise ValueError(
-                        "AggregateParams: vector sum can not be computed together"
-                        " with scalar metrics such as sum, mean etc")
+                        "AggregateParams: vector sum can not be computed "
+                        "together with scalar metrics such as sum, mean etc")
             elif partition_bound:
                 all_allowed_metrics = set(
                     [Metrics.SUM, Metrics.PRIVACY_ID_COUNT, Metrics.COUNT])
@@ -227,7 +289,8 @@ class AggregateParams:
                         f"bounds per partition are required (e.g. min_value,"
                         f"max_value).")
 
-            if self.contribution_bounds_already_enforced and Metrics.PRIVACY_ID_COUNT in self.metrics:
+            if (self.contribution_bounds_already_enforced and
+                    Metrics.PRIVACY_ID_COUNT in self.metrics):
                 raise ValueError(
                     "AggregateParams: Cannot calculate PRIVACY_ID_COUNT when "
                     "contribution_bounds_already_enforced is set to True.")
@@ -243,8 +306,8 @@ class AggregateParams:
                 "Custom combiners can not be used with standard metrics")
         if self.public_partitions:
             raise ValueError(
-                "AggregateParams.public_partitions is deprecated. Please use public_partitions argument in DPEngine.aggregate insead."
-            )
+                "AggregateParams.public_partitions is deprecated. Please use "
+                "public_partitions argument in DPEngine.aggregate instead.")
         if self.max_contributions is not None:
             _check_is_positive_int(self.max_contributions, "max_contributions")
             if ((self.max_partitions_contributed is not None) or
@@ -369,8 +432,8 @@ class SumParams:
 
         if self.public_partitions:
             raise ValueError(
-                "SumParams.public_partitions is deprecated. Please read API documentation for anonymous Sum transform."
-            )
+                "SumParams.public_partitions is deprecated. Please read API "
+                "documentation for anonymous Sum transform.")
 
 
 @dataclass
@@ -383,10 +446,12 @@ class VarianceParams:
             unit of privacy (e.g., a user) can participate.
         max_contributions_per_partition: Bounds the number of times one unit of
             privacy (e.g. a user) can contribute to a partition.
-        min_value: Lower bound on a value contributed by a unit of privacy in a partition.
+        min_value: Lower bound on a value contributed by a unit of privacy in
+            a partition.
         max_value: Upper bound on a value contributed by a unit of privacy in a
             partition.
-        partition_extractor: A function for partition id extraction from a collection record.
+        partition_extractor: A function for partition id extraction from a
+            collection record.
         value_extractor: A function for extraction of value
             for which the sum will be calculated.
         budget_weight: Relative weight of the privacy budget allocated to
@@ -413,8 +478,8 @@ class VarianceParams:
     def __post_init__(self):
         if self.public_partitions:
             raise ValueError(
-                "VarianceParams.public_partitions is deprecated. Please read API documentation for anonymous Variance transform."
-            )
+                "VarianceParams.public_partitions is deprecated. Please read "
+                "API documentation for anonymous Variance transform.")
 
 
 @dataclass
@@ -427,11 +492,12 @@ class MeanParams:
             unit of privacy (e.g., a user) can participate.
         max_contributions_per_partition: Bounds the number of times one unit of
             privacy (e.g. a user) can contribute to a partition.
-        min_value: Lower bound on a value contributed by a unit of privacy in a partition.
+        min_value: Lower bound on a value contributed by a unit of privacy in
+            a partition.
         max_value: Upper bound on a value contributed by a unit of privacy in a
             partition.
-        public_partitions: A collection of partition keys that will be present in
-            the result.
+        public_partitions: A collection of partition keys that will be present
+            in the result.
         value_extractor: A function for extraction of value
             for which the sum will be calculated.
         budget_weight: Relative weight of the privacy budget allocated to
@@ -458,8 +524,8 @@ class MeanParams:
     def __post_init__(self):
         if self.public_partitions:
             raise ValueError(
-                "MeanParams.public_partitions is deprecated. Please read API documentation for anonymous Mean transform."
-            )
+                "MeanParams.public_partitions is deprecated. Please read API "
+                "documentation for anonymous Mean transform.")
 
 
 @dataclass
@@ -495,13 +561,14 @@ class CountParams:
     def __post_init__(self):
         if self.public_partitions:
             raise ValueError(
-                "CountParams.public_partitions is deprecated. Please read API documentation for anonymous Count transform."
-            )
+                "CountParams.public_partitions is deprecated. Please read API "
+                "documentation for anonymous Count transform.")
 
 
 @dataclass
 class PrivacyIdCountParams:
-    """Specifies parameters for differentially-private privacy id count calculation.
+    """Specifies parameters for differentially-private privacy id count
+    calculation.
 
     Attributes:
         noise_kind: The type of noise to use for the DP calculations.
@@ -541,14 +608,18 @@ def _not_a_proper_number(num: Any) -> bool:
     return math.isnan(num) or math.isinf(num)
 
 
-def _check_is_positive_int(num: Any, field_name: str) -> bool:
-    if not (isinstance(num, int) and num > 0):
+def _check_is_positive_int(num: Any, field_name: str) -> None:
+    if not (_is_int(num) and num > 0):
         raise ValueError(
             f"{field_name} has to be positive integer, but {num} given.")
 
 
 def _count_not_none(*args):
     return sum([1 for arg in args if arg is not None])
+
+
+def _is_int(value: Any) -> bool:
+    return isinstance(value, (int, np.integer))
 
 
 def _add_if_obj_has_property(obj: Any, property_name: str, n_spaces,

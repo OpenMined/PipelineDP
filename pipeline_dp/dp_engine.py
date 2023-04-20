@@ -12,29 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """DP aggregations."""
-import dataclasses
 import functools
-from typing import Any, Callable, Optional, Tuple
+from typing import Any, Optional, Tuple
 
 import pipeline_dp
 from pipeline_dp import combiners
 from pipeline_dp import contribution_bounders
+from pipeline_dp import partition_selection
 from pipeline_dp import report_generator
 from pipeline_dp import sampling_utils
-from pipeline_dp import partition_selection
-
-
-@dataclasses.dataclass
-class DataExtractors:
-    """Data extractors.
-
-    A set of functions that, given a piece of input, return the privacy id, 
-    partition key, and value respectively.
-    """
-
-    privacy_id_extractor: Callable = None
-    partition_extractor: Callable = None
-    value_extractor: Callable = None
+from pipeline_dp.histograms import compute_dataset_histograms
+from pipeline_dp import pipeline_functions
+from pipeline_dp.private_contribution_bounds import PrivateL0Calculator
 
 
 class DPEngine:
@@ -66,9 +55,9 @@ class DPEngine:
     def aggregate(self,
                   col,
                   params: pipeline_dp.AggregateParams,
-                  data_extractors: DataExtractors,
+                  data_extractors: pipeline_dp.DataExtractors,
                   public_partitions=None,
-                  out_explain_computaton_report: Optional[
+                  out_explain_computation_report: Optional[
                       pipeline_dp.ExplainComputationReport] = None):
         """Computes DP aggregate metrics.
 
@@ -80,7 +69,7 @@ class DPEngine:
           public_partitions: A collection of partition keys that will be present
             in the result. If not provided, partitions will be selected in a DP
             manner.
-          out_explain_computaton_report: an output argument, if specified,
+          out_explain_computation_report: an output argument, if specified,
             it will contain the Explain Computation report for this aggregation.
             For more details see the docstring to report_generator.py.
 
@@ -96,8 +85,8 @@ class DPEngine:
             self._report_generators.append(
                 report_generator.ReportGenerator(params, "aggregate",
                                                  public_partitions is not None))
-            if out_explain_computaton_report is not None:
-                out_explain_computaton_report._set_report_generator(
+            if out_explain_computation_report is not None:
+                out_explain_computation_report._set_report_generator(
                     self._current_report_generator)
             col = self._aggregate(col, params, data_extractors,
                                   public_partitions)
@@ -109,7 +98,8 @@ class DPEngine:
                                           budget=budget)
 
     def _aggregate(self, col, params: pipeline_dp.AggregateParams,
-                   data_extractors: DataExtractors, public_partitions):
+                   data_extractors: pipeline_dp.DataExtractors,
+                   public_partitions):
 
         if params.custom_combiners:
             # TODO(dvadym): after finishing implementation of custom combiners
@@ -121,9 +111,11 @@ class DPEngine:
         else:
             combiner = self._create_compound_combiner(params)
 
-        if public_partitions is not None and not params.public_partitions_already_filtered:
-            col = self._drop_not_public_partitions(col, public_partitions,
-                                                   data_extractors)
+        if (public_partitions is not None and
+                not params.public_partitions_already_filtered):
+            col = self._drop_partitions(col, public_partitions, data_extractors)
+            self._add_report_stage(
+                f"Public partition selection: dropped non public partitions")
         if not params.contribution_bounds_already_enforced:
             col = self._extract_columns(col, data_extractors)
             # col : (privacy_id, partition_key, value)
@@ -166,7 +158,9 @@ class DPEngine:
                 # This regime assumes the input data doesn't have privacy IDs,
                 # and therefore we didn't group by them and cannot guarantee one
                 # row corresponds to exactly one privacy ID.
-                max_rows_per_privacy_id = params.max_contributions or params.max_contributions_per_partition
+                max_rows_per_privacy_id = (
+                    params.max_contributions or
+                    params.max_contributions_per_partition)
 
             col = self._select_private_partitions_internal(
                 col, params.max_partitions_contributed, max_rows_per_privacy_id,
@@ -182,7 +176,7 @@ class DPEngine:
 
     def _check_select_private_partitions(
             self, col, params: pipeline_dp.SelectPartitionsParams,
-            data_extractors: DataExtractors):
+            data_extractors: pipeline_dp.DataExtractors):
         """Verifies that arguments for select_partitions are correct."""
         if col is None or not col:
             raise ValueError("col must be non-empty")
@@ -197,12 +191,14 @@ class DPEngine:
             raise ValueError("params.max_partitions_contributed must be set "
                              "(to a positive integer)")
         if data_extractors is None:
-            raise ValueError("data_extractors must be set to a DataExtractors")
+            raise ValueError(
+                "data_extractors must be set to a pipeline_dp.DataExtractors")
         if not isinstance(data_extractors, pipeline_dp.DataExtractors):
-            raise TypeError("data_extractors must be set to a DataExtractors")
+            raise TypeError(
+                "data_extractors must be set to a pipeline_dp.DataExtractors")
 
     def select_partitions(self, col, params: pipeline_dp.SelectPartitionsParams,
-                          data_extractors: DataExtractors):
+                          data_extractors: pipeline_dp.DataExtractors):
         """Retrieves a collection of differentially-private partitions.
 
         Args:
@@ -228,7 +224,7 @@ class DPEngine:
 
     def _select_partitions(self, col,
                            params: pipeline_dp.SelectPartitionsParams,
-                           data_extractors: DataExtractors):
+                           data_extractors: pipeline_dp.DataExtractors):
         """Implementation of select_partitions computational graph."""
         max_partitions_contributed = params.max_partitions_contributed
 
@@ -249,8 +245,9 @@ class DPEngine:
         def sample_unique_elements_fn(pid_and_pks):
             pid, pks = pid_and_pks
             unique_pks = list(set(pks))
-            sampled_elements = sampling_utils.choose_from_list_without_replacement(
-                unique_pks, max_partitions_contributed)
+            sampled_elements = \
+                sampling_utils.choose_from_list_without_replacement(
+                    unique_pks, max_partitions_contributed)
             return ((pid, pk) for pk in sampled_elements)
 
         col = self._backend.flat_map(col, sample_unique_elements_fn,
@@ -280,16 +277,14 @@ class DPEngine:
 
         return col
 
-    def _drop_not_public_partitions(self, col, public_partitions,
-                                    data_extractors: DataExtractors):
+    def _drop_partitions(self, col, partitions,
+                         data_extractors: pipeline_dp.DataExtractors):
         """Drops partitions in `col` which are not in `public_partitions`."""
         col = self._backend.map(
             col, lambda row: (data_extractors.partition_extractor(row), row),
             "Extract partition id")
-        col = self._backend.filter_by_key(
-            col, public_partitions, "Filtering out non-public partitions")
-        self._add_report_stage(
-            f"Public partition selection: dropped non public partitions")
+        col = self._backend.filter_by_key(col, partitions,
+                                          "Filtering out partitions")
         return self._backend.map_tuple(col, lambda k, v: v, "Drop key")
 
     def _add_empty_public_partitions(self, col, public_partitions,
@@ -347,8 +342,9 @@ class DPEngine:
             privacy_id_count = divide_and_round_up(row_count,
                                                    max_rows_per_privacy_id)
 
-            strategy_object = partition_selection.create_partition_selection_strategy(
-                strategy, budget.eps, budget.delta, max_partitions)
+            strategy_object = \
+                partition_selection.create_partition_selection_strategy(
+                    strategy, budget.eps, budget.delta, max_partitions)
             return strategy_object.should_keep(privacy_id_count)
 
         # make filter_fn serializable
@@ -373,13 +369,16 @@ class DPEngine:
     ) -> contribution_bounders.ContributionBounder:
         """Creates ContributionBounder based on aggregation parameters."""
         if params.max_contributions:
-            return contribution_bounders.SamplingPerPrivacyIdContributionBounder(
-            )
+            return \
+                contribution_bounders.SamplingPerPrivacyIdContributionBounder(
+                )
         else:
-            return contribution_bounders.SamplingCrossAndPerPartitionContributionBounder(
-            )
+            return \
+                contribution_bounders.SamplingCrossAndPerPartitionContributionBounder(
+                )
 
-    def _extract_columns(self, col, data_extractors: DataExtractors):
+    def _extract_columns(self, col,
+                         data_extractors: pipeline_dp.DataExtractors):
         """Extract columns using data_extractors."""
         return self._backend.map(
             col, lambda row: (data_extractors.privacy_id_extractor(row),
@@ -390,23 +389,17 @@ class DPEngine:
     def _check_aggregate_params(self,
                                 col,
                                 params: pipeline_dp.AggregateParams,
-                                data_extractors: DataExtractors,
+                                data_extractors: pipeline_dp.DataExtractors,
                                 check_data_extractors: bool = True):
         if params.max_contributions is not None:
             raise NotImplementedError("max_contributions is not supported yet.")
-        if col is None or not col:
-            raise ValueError("col must be non-empty")
+        _check_col(col)
         if params is None:
             raise ValueError("params must be set to a valid AggregateParams")
         if not isinstance(params, pipeline_dp.AggregateParams):
             raise TypeError("params must be set to a valid AggregateParams")
         if check_data_extractors:
-            if data_extractors is None:
-                raise ValueError(
-                    "data_extractors must be set to a DataExtractors")
-            if not isinstance(data_extractors, pipeline_dp.DataExtractors):
-                raise TypeError(
-                    "data_extractors must be set to a DataExtractors")
+            _check_data_extractors(data_extractors)
         if params.contribution_bounds_already_enforced:
             if data_extractors.privacy_id_extractor:
                 raise ValueError(
@@ -416,3 +409,85 @@ class DPEngine:
                 raise ValueError(
                     "PRIVACY_ID_COUNT cannot be computed when "
                     "contribution_bounds_already_enforced is True.")
+
+    def calculate_private_contribution_bounds(
+            self,
+            col,
+            params: pipeline_dp.CalculatePrivateContributionBoundsParams,
+            data_extractors: pipeline_dp.DataExtractors,
+            partitions: Any,
+            partitions_already_filtered: bool = False):
+        """Computes contribution bounds in a differentially private way.
+
+        Computes contribution bounds for COUNT and PRIVACY_ID_COUNT
+        metrics in a differentially private way.
+        Currently only max_partitions_contributed is calculated.
+
+        WARNINGS:
+          * This API is experimental, there is a possibility that it will
+            slightly change in the future.
+          * It is supported only for COUNT and PRIVACY_ID_COUNT.
+          * It is supported only on Beam and Local backends.
+
+        Args:
+          col: collection where all elements are of the same type.
+          params: specifies computation parameters necessary for the algorithm.
+          data_extractors: functions that extract needed pieces of
+            information from elements of 'col'.
+          partitions: A collection of partition keys that will be present in
+            the result. It can be either the list of public partitions or
+            private partitions that were selected before calling this function.
+          partitions_already_filtered: if false, then filtering will be made
+            and only provided partitions will be kept in col. You can set it to
+            true if you have already filtered for these partitions (e.g. you
+            did partition selection), it will save you some computation time.
+
+        Returns:
+          Collection consisting of 1 element:
+          pipeline_dp.PrivateContributionBounds.
+        """
+        self._check_calculate_private_contribution_bounds_params(
+            col, params, data_extractors)
+
+        if not partitions_already_filtered:
+            col = self._drop_partitions(col, partitions, data_extractors)
+
+        histograms = compute_dataset_histograms(col, data_extractors,
+                                                self._backend)
+        l0_calculator = PrivateL0Calculator(params, partitions, histograms,
+                                            self._backend)
+        return pipeline_functions.collect_to_container(
+            self._backend,
+            {"max_partitions_contributed": l0_calculator.calculate()},
+            pipeline_dp.PrivateContributionBounds,
+            "Collect calculated private contribution bounds into "
+            "PrivateContributionBounds dataclass")
+
+    def _check_calculate_private_contribution_bounds_params(
+            self,
+            col,
+            params: pipeline_dp.CalculatePrivateContributionBoundsParams,
+            data_extractors: pipeline_dp.DataExtractors,
+            check_data_extractors: bool = True):
+        _check_col(col)
+        if params is None:
+            raise ValueError("params must be set to a valid "
+                             "CalculatePrivateContributionBoundsParams")
+        if not isinstance(params,
+                          pipeline_dp.CalculatePrivateContributionBoundsParams):
+            raise TypeError("params must be set to a valid "
+                            "CalculatePrivateContributionBoundsParams")
+        if check_data_extractors:
+            _check_data_extractors(data_extractors)
+
+
+def _check_col(col):
+    if col is None or not col:
+        raise ValueError("col must be non-empty")
+
+
+def _check_data_extractors(data_extractors: pipeline_dp.DataExtractors):
+    if data_extractors is None:
+        raise ValueError("data_extractors must be set to a DataExtractors")
+    if not isinstance(data_extractors, pipeline_dp.DataExtractors):
+        raise TypeError("data_extractors must be set to a DataExtractors")

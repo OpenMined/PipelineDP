@@ -23,10 +23,8 @@ from pipeline_dp import aggregate_params as agg
 from pipeline_dp import budget_accounting, private_spark
 
 
-@unittest.skipIf(
-    sys.platform == "win32" or
-    (sys.version_info.minor <= 7 and sys.version_info.major == 3),
-    "There are some problems with PySpark setup on older python and Windows")
+@unittest.skipIf(sys.version_info.minor <= 7 and sys.version_info.major == 3,
+                 "There are some problems with PySpark setup on older python.")
 class PrivateRDDTest(parameterized.TestCase):
 
     @classmethod

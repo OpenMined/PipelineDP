@@ -331,8 +331,8 @@ class SparkRDDBackendTest(parameterized.TestCase):
     @unittest.skipIf(
         sys.platform == "darwin" and sys.version_info.major == 3 and
         (sys.version_info.minor == 8 or sys.version_info.minor == 9),
-        "There are some problems with PySpark setup on macOS in python 3.8 "
-        "and 3.9.")
+        "There are some problems with PySpark setup on macOS in python 3.8 and 3.9."
+    )
     def test_combine_accumulators_per_key(self):
         data = self.sc.parallelize([(1, 2), (2, 1), (1, 4), (3, 8), (2, 3)])
         rdd = self.backend.group_by_key(data)

@@ -13,6 +13,8 @@
 # limitations under the License.
 from pipeline_dp.report_generator import ExplainComputationReport
 from pipeline_dp.aggregate_params import AggregateParams
+from pipeline_dp.aggregate_params import CalculatePrivateContributionBoundsParams
+from pipeline_dp.aggregate_params import PrivateContributionBounds
 from pipeline_dp.aggregate_params import CountParams
 from pipeline_dp.aggregate_params import MechanismType
 from pipeline_dp.aggregate_params import Metrics
@@ -26,7 +28,8 @@ from pipeline_dp.budget_accounting import BudgetAccountant
 from pipeline_dp.budget_accounting import NaiveBudgetAccountant
 from pipeline_dp.combiners import Combiner
 from pipeline_dp.combiners import CustomCombiner
-from pipeline_dp.dp_engine import DataExtractors
+from pipeline_dp.data_extractors import DataExtractors
+from pipeline_dp.data_extractors import PreAggregateExtractors
 from pipeline_dp.dp_engine import DPEngine
 from pipeline_dp.pipeline_backend import BeamBackend
 from pipeline_dp.pipeline_backend import LocalBackend

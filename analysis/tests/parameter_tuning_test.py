@@ -21,7 +21,7 @@ from typing import List
 import pipeline_dp
 from analysis import metrics
 from analysis import parameter_tuning
-from analysis import histograms
+from pipeline_dp import histograms
 
 
 def _get_aggregate_params():
