@@ -147,10 +147,10 @@ class AggregateParams:
     budget_weight: float = 1
     low: float = None  # deprecated
     high: float = None  # deprecated
-    min_value: float = None
-    max_value: float = None
-    min_sum_per_partition: float = None
-    max_sum_per_partition: float = None
+    min_value: Optional[float] = None
+    max_value: Optional[float] = None
+    min_sum_per_partition: Optional[float] = None
+    max_sum_per_partition: Optional[float] = None
     public_partitions: Any = None  # deprecated
     custom_combiners: Sequence['CustomCombiner'] = None
     vector_norm_kind: Optional[NormKind] = None
@@ -262,10 +262,9 @@ class AggregateParams:
                     "both max_partitions_contributed and "
                     "max_contributions_per_partition must be set.")
             elif n_not_none == 1:
-                raise ValueError(
-                    "AggregateParams: either none or both from "
-                    "max_partitions_contributed and "
-                    " max_contributions_per_partition must be set.")
+                raise ValueError("AggregateParams: either none or both from "
+                                 "max_partitions_contributed and "
+                                 "max_contributions_per_partition must be set.")
             _check_is_positive_int(self.max_partitions_contributed,
                                    "max_partitions_contributed")
             _check_is_positive_int(self.max_contributions_per_partition,
