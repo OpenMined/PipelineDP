@@ -84,25 +84,22 @@ class BeamBackendTest(unittest.TestCase):
 
     def test_collect_to_container_collections_with_multiple_elements_preserves_only_one_element(
             self):
-        with test_pipeline.TestPipeline() as p:
-            col_x_as_list = [2, 1]
-            col_x = p | "col_x" >> beam.Create(col_x_as_list)
-            col_y_as_list = ["str1", "str2"]
-            col_y = p | "col_y" >> beam.Create(col_y_as_list)
-            col_z_as_list = [["str1", "str2"], ["str3", "str4"]]
-            col_z = p | "col_z" >> beam.Create(col_z_as_list)
+        # We don't use beam package methods and TestPipeline because in beam_util there is no assertIn method.
+        col_x = [2, 1]
+        col_y = ["str1", "str2"]
+        col_z = [["str1", "str2"], ["str3", "str4"]]
 
-            container = composite_funcs.collect_to_container(
-                self.backend, {
-                    "x": col_x,
-                    "y": col_y,
-                    "z": col_z
-                }, TestContainer, "Collect to container")
+        container = composite_funcs.collect_to_container(
+            self.backend, {
+                "x": col_x,
+                "y": col_y,
+                "z": col_z
+            }, TestContainer, "Collect to container")
 
-            container: TestContainer = list(container)[0]
-            self.assertIn(container.x, col_x)
-            self.assertIn(container.y, col_y)
-            self.assertIn(container.z, col_z)
+        container: TestContainer = list(container)[0]
+        self.assertIn(container.x, col_x)
+        self.assertIn(container.y, col_y)
+        self.assertIn(container.z, col_z)
 
 
 @unittest.skipIf(sys.version_info.minor <= 7 and sys.version_info.major == 3,
