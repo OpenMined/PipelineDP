@@ -700,3 +700,28 @@ class ExponentialMechanism:
             denominator *= 2
         weights = np.exp(scores * eps / denominator)
         return weights / weights.sum()
+
+
+def compute_sensitivities_for_count(
+        params: pipeline_dp.AggregateParams) -> Sensitivities:
+    return Sensitivities(l0=params.max_partitions_contributed,
+                         linf=params.max_contributions_per_partition)
+
+
+def compute_sensitivities_for_privacy_id_count(
+        params: pipeline_dp.AggregateParams) -> Sensitivities:
+    return Sensitivities(l0=params.max_partitions_contributed, linf=1)
+
+
+def compute_sensitivities_for_sum(
+        params: pipeline_dp.AggregateParams) -> Sensitivities:
+    l0_sensitivity = params.max_partitions_contributed
+    max_abs_values = lambda x, y: max(abs(x), abs(y))
+    if params.bounds_per_contribution_are_set:
+        linf_sensitivity = max_abs_values(
+            params.min_value,
+            params.max_value) * params.max_contributions_per_partition
+    else:
+        linf_sensitivity = max_abs_values(params.min_sum_per_partition,
+                                          params.max_sum_per_partition)
+    return Sensitivities(l0=l0_sensitivity, linf=linf_sensitivity)
