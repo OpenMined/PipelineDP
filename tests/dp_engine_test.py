@@ -28,7 +28,7 @@ import pipeline_dp
 from pipeline_dp import aggregate_params as agg
 from pipeline_dp.budget_accounting import NaiveBudgetAccountant
 from pipeline_dp.pipeline_backend import PipelineBackend
-from pipeline_dp.pipeline_composite_functions import collect_to_container
+from pipeline_dp.pipeline_functions import collect_to_container
 from pipeline_dp.report_generator import ReportGenerator
 
 

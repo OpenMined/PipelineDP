@@ -20,7 +20,7 @@ import pyspark
 from absl.testing import parameterized
 
 import pipeline_dp
-from pipeline_dp import pipeline_composite_functions as composite_funcs
+from pipeline_dp import pipeline_functions as composite_funcs
 
 
 def _materialize_col(backend: pipeline_dp.PipelineBackend, col):
@@ -57,7 +57,7 @@ def _create_platform_supported_backends(backends_in_scope: Set[str]):
 _ALL_BACKENDS = {"local", "beam", "spark", "multi_proc_local"}
 
 
-class PipelineCompositeFunctionsTest(parameterized.TestCase):
+class PipelineFunctionsTest(parameterized.TestCase):
 
     @dataclass
     class TestContainer:
@@ -125,7 +125,7 @@ class PipelineCompositeFunctionsTest(parameterized.TestCase):
                 "z": col_z
             }, self.TestContainer, "Collect to container")
 
-        container: PipelineCompositeFunctionsTest.TestContainer = list(
+        container: PipelineFunctionsTest.TestContainer = list(
             _materialize_col(backend, container))[0]
         self.assertIn(container.x, col_x)
         self.assertIn(container.y, col_y)

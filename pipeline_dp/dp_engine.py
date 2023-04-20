@@ -22,7 +22,7 @@ from pipeline_dp import partition_selection
 from pipeline_dp import report_generator
 from pipeline_dp import sampling_utils
 from pipeline_dp.histograms import compute_dataset_histograms
-from pipeline_dp import pipeline_composite_functions
+from pipeline_dp import pipeline_functions
 from pipeline_dp.private_contribution_bounds import PrivateL0Calculator
 
 
