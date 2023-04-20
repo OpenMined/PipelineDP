@@ -98,6 +98,18 @@ class Histogram:
         return result[::-1]
 
 
+def histogram_precomputed_tails(hist: Histogram):
+    result = [None] * len(hist.bins)
+    accumulated_weight = 0
+    accumulated_count = 0
+    for i in range(1, len(hist.bins) + 1):
+        b = hist.bins[-i]
+        accumulated_weight += b.lower * b.count
+        accumulated_count += b.count
+        result[-i] = (b.lower, (accumulated_weight, accumulated_count))
+    return result
+
+
 @dataclass
 class DatasetHistograms:
     """Contains histograms useful for parameter tuning."""
