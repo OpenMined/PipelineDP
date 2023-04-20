@@ -66,9 +66,9 @@ class BeamBackendTest(unittest.TestCase):
 
     def test_collect_to_container_one_element_collections_works(self):
         with test_pipeline.TestPipeline() as p:
-            col_x = p | beam.Create([2])
-            col_y = p | beam.Create(["str"])
-            col_z = p | beam.Create([["str1", "str2"]])
+            col_x = p | "col_x" >> beam.Create([2])
+            col_y = p | "col_y" >> beam.Create(["str"])
+            col_z = p | "col_z" >> beam.Create([["str1", "str2"]])
 
             container = composite_funcs.collect_to_container(
                 self.backend, {
@@ -86,11 +86,11 @@ class BeamBackendTest(unittest.TestCase):
             self):
         with test_pipeline.TestPipeline() as p:
             col_x_as_list = [2, 1]
-            col_x = p | beam.Create(col_x_as_list)
+            col_x = p | "col_x" >> beam.Create(col_x_as_list)
             col_y_as_list = ["str1", "str2"]
-            col_y = p | beam.Create(col_y_as_list)
+            col_y = p | "col_y" >> beam.Create(col_y_as_list)
             col_z_as_list = [["str1", "str2"], ["str3", "str4"]]
-            col_z = p | beam.Create(col_z_as_list)
+            col_z = p | "col_z" >> beam.Create(col_z_as_list)
 
             container = composite_funcs.collect_to_container(
                 self.backend, {
