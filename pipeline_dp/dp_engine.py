@@ -46,57 +46,6 @@ class DPEngine:
         for stage_description in stages_description:
             self._add_report_stage(stage_description)
 
-    def calculate_private_contribution_bounds(
-            self,
-            col,
-            params: pipeline_dp.CalculatePrivateContributionBoundsParams,
-            data_extractors: pipeline_dp.DataExtractors,
-            partitions: Any,
-            partitions_already_filtered: bool = False):
-        """Computes contribution bounds for COUNT and PRIVACY_ID_COUNT
-        metrics in a differentially private way.
-        Currently only max_partitions_contributed is calculated.
-
-        WARNINGS:
-          * This API is experimental, there is a possibility that it will
-            slightly change in the future.
-          * It is supported only for COUNT and PRIVACY_ID_COUNT.
-          * It is supported only on Beam and Local backends.
-
-        Args:
-          col: collection where all elements are of the same type.
-          params: specifies computation parameters necessary for the algorithm.
-          data_extractors: functions that extract needed pieces of
-            information from elements of 'col'.
-          partitions: A collection of partition keys that will be present in
-            the result. It can be either the list of public partitions or
-            private partitions that were selected before calling this function.
-          partitions_already_filtered: if false, then filtering will be made
-            and only provided partitions will be kept in col. You can set it to
-            true if you have already filtered for these partitions (e.g. you
-            did partition selection), it will save you some computation time.
-
-        Returns:
-          Collection consisting of 1 element:
-          pipeline_dp.PrivateContributionBounds.
-        """
-        self._check_calculate_private_contribution_bounds_params(
-            col, params, data_extractors)
-
-        if not partitions_already_filtered:
-            col = self._drop_partitions(col, partitions, data_extractors)
-
-        histograms = compute_dataset_histograms(col, data_extractors,
-                                                self._backend)
-        l0_calculator = PrivateL0Calculator(params, partitions, histograms,
-                                            self._backend)
-        return pipeline_composite_functions.collect_to_container(
-            self._backend,
-            {"max_partitions_contributed": l0_calculator.calculate()},
-            pipeline_dp.PrivateContributionBounds,
-            "Collect calculated private contribution bounds into "
-            "PrivateContributionBounds dataclass")
-
     def explain_computations_report(self):
         return [
             report_generator.report()
@@ -437,23 +386,6 @@ class DPEngine:
                               data_extractors.value_extractor(row)),
             "Extract (privacy_id, partition_key, value))")
 
-    def _check_calculate_private_contribution_bounds_params(
-            self,
-            col,
-            params: pipeline_dp.CalculatePrivateContributionBoundsParams,
-            data_extractors: pipeline_dp.DataExtractors,
-            check_data_extractors: bool = True):
-        _check_col(col)
-        if params is None:
-            raise ValueError("params must be set to a valid "
-                             "CalculatePrivateContributionBoundsParams")
-        if not isinstance(params,
-                          pipeline_dp.CalculatePrivateContributionBoundsParams):
-            raise TypeError("params must be set to a valid "
-                            "CalculatePrivateContributionBoundsParams")
-        if check_data_extractors:
-            _check_data_extractors(data_extractors)
-
     def _check_aggregate_params(self,
                                 col,
                                 params: pipeline_dp.AggregateParams,
@@ -477,6 +409,74 @@ class DPEngine:
                 raise ValueError(
                     "PRIVACY_ID_COUNT cannot be computed when "
                     "contribution_bounds_already_enforced is True.")
+
+    def calculate_private_contribution_bounds(
+            self,
+            col,
+            params: pipeline_dp.CalculatePrivateContributionBoundsParams,
+            data_extractors: pipeline_dp.DataExtractors,
+            partitions: Any,
+            partitions_already_filtered: bool = False):
+        """Computes contribution bounds for COUNT and PRIVACY_ID_COUNT
+        metrics in a differentially private way.
+        Currently only max_partitions_contributed is calculated.
+
+        WARNINGS:
+          * This API is experimental, there is a possibility that it will
+            slightly change in the future.
+          * It is supported only for COUNT and PRIVACY_ID_COUNT.
+          * It is supported only on Beam and Local backends.
+
+        Args:
+          col: collection where all elements are of the same type.
+          params: specifies computation parameters necessary for the algorithm.
+          data_extractors: functions that extract needed pieces of
+            information from elements of 'col'.
+          partitions: A collection of partition keys that will be present in
+            the result. It can be either the list of public partitions or
+            private partitions that were selected before calling this function.
+          partitions_already_filtered: if false, then filtering will be made
+            and only provided partitions will be kept in col. You can set it to
+            true if you have already filtered for these partitions (e.g. you
+            did partition selection), it will save you some computation time.
+
+        Returns:
+          Collection consisting of 1 element:
+          pipeline_dp.PrivateContributionBounds.
+        """
+        self._check_calculate_private_contribution_bounds_params(
+            col, params, data_extractors)
+
+        if not partitions_already_filtered:
+            col = self._drop_partitions(col, partitions, data_extractors)
+
+        histograms = compute_dataset_histograms(col, data_extractors,
+                                                self._backend)
+        l0_calculator = PrivateL0Calculator(params, partitions, histograms,
+                                            self._backend)
+        return pipeline_functions.collect_to_container(
+            self._backend,
+            {"max_partitions_contributed": l0_calculator.calculate()},
+            pipeline_dp.PrivateContributionBounds,
+            "Collect calculated private contribution bounds into "
+            "PrivateContributionBounds dataclass")
+
+    def _check_calculate_private_contribution_bounds_params(
+            self,
+            col,
+            params: pipeline_dp.CalculatePrivateContributionBoundsParams,
+            data_extractors: pipeline_dp.DataExtractors,
+            check_data_extractors: bool = True):
+        _check_col(col)
+        if params is None:
+            raise ValueError("params must be set to a valid "
+                             "CalculatePrivateContributionBoundsParams")
+        if not isinstance(params,
+                          pipeline_dp.CalculatePrivateContributionBoundsParams):
+            raise TypeError("params must be set to a valid "
+                            "CalculatePrivateContributionBoundsParams")
+        if check_data_extractors:
+            _check_data_extractors(data_extractors)
 
 
 def _check_col(col):
