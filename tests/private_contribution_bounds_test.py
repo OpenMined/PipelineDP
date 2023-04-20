@@ -125,8 +125,7 @@ class L0ScoringFunctionTest(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             l0_scoring_function.score(0)
 
-    def test_score_gaussian_noise_valid_value_returns_value_of_a_correct_order_of_magnitude(
-            self):
+    def test_score_gaussian_noise_valid_values_calculates_score_correctly(self):
         params = construct_params(
             aggregation_noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
             aggregation_eps=0.9,
@@ -151,11 +150,32 @@ class L0ScoringFunctionTest(unittest.TestCase):
         l0_scoring_function = private_contribution_bounds.L0ScoringFunction(
             params, number_of_partitions, l0_histogram)
 
-        score = l0_scoring_function.score(1)
+        score_1 = l0_scoring_function.score(1)
+        score_2 = l0_scoring_function.score(2)
+        score_5 = l0_scoring_function.score(5)
+        score_6 = l0_scoring_function.score(6)
+        score_60 = l0_scoring_function.score(60)
+        score_61 = l0_scoring_function.score(61)
+        score_101 = l0_scoring_function.score(101)
+        score_200 = l0_scoring_function.score(200)
 
-        # TODO: assert on the approximate expected value, not a range.
-        self.assertLess(-1000, score)
-        self.assertGreater(0, score)
+        # sigma = gaussian_std(eps=0.9, delta=0.001) = 2.8127255538420286
+        # -0.5 * 200 * sqrt(1) * sigma - 0.5 * ((2 - 1) * 10 + (6 - 1) * 20)
+        self.assertAlmostEqual(-336, score_1, delta=10)
+        # -0.5 * 200 * sqrt(2) * sigma - 0.5 * ((6 - 2) * 20)
+        self.assertAlmostEqual(-437, score_2, delta=10)
+        # -0.5 * 200 * sqrt(5) * sigma - 0.5 * ((6 - 5) * 20)
+        self.assertAlmostEqual(-638, score_5, delta=10)
+        # -0.5 * 200 * sqrt(6) * sigma - 0.5 * 0
+        self.assertAlmostEqual(-688, score_6, delta=10)
+        # -0.5 * 200 * sqrt(60) * sigma - 0.5 * 0
+        self.assertAlmostEqual(-2178, score_60, delta=10)
+        # -0.5 * 200 * sqrt(61) * sigma - 0.5 * 0
+        self.assertAlmostEqual(-2196, score_61, delta=10)
+        # -0.5 * 200 * sqrt(101) * sigma - 0.5 * 0
+        self.assertAlmostEqual(-2826, score_101, delta=10)
+        # -0.5 * 200 * sqrt(200) * sigma - 0.5 * 0
+        self.assertAlmostEqual(-3977, score_200, delta=10)
 
     def test_score_gaussian_noise_invalid_values_throws_exception(self):
         params = construct_params(
