@@ -23,6 +23,7 @@ from analysis import metrics
 from analysis import utility_analysis_engine
 import analysis.combiners as utility_analysis_combiners
 from analysis import cross_partition_combiners
+import copy
 
 
 ############# Deprected code #################
@@ -250,8 +251,9 @@ def perform_utility_analysis_new(
 
     def add_index(index,
                   report: metrics.UtilityReport) -> metrics.UtilityReport:
-        report.configuration_index = index
-        return report
+        copy_report = copy.deepcopy(report)
+        copy_report.configuration_index = index
+        return copy_report
 
     result = backend.map_tuple(cross_partition_metrics, add_index, "Add index")
     # result: (UtilityReport)

@@ -39,8 +39,8 @@ class ScalarNoiseParams:
 
     def __post_init__(self):
         assert (self.min_value is None) == (
-            self.max_value is
-            None), "min_value and max_value should be or both set or both None."
+            self.max_value is None
+        ), "min_value and max_value should be or both set or both None."
         assert (self.min_sum_per_partition is None) == (
             self.max_sum_per_partition is None
         ), "min_sum_per_partition and max_sum_per_partition should be or both set or both None."

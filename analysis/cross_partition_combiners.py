@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Utility Analysis cross partition combiners."""
+import copy
 
 import pipeline_dp
 from analysis import metrics
@@ -21,11 +22,31 @@ import math
 
 
 def _sum_metrics_to_data_dropped(
-        sum_metrics: metrics.SumMetrics,
-        dp_metric: pipeline_dp.Metrics) -> Optional[metrics.DataDropInfo]:
+        sum_metrics: metrics.SumMetrics, partition_keep_probability: float,
+        dp_metric: pipeline_dp.Metrics) -> metrics.DataDropInfo:
     """Finds Data drop information from per-partition metrics."""
-    # TODO(dvadym): implement
-    return None
+    # TODO(dvadym): implement for Sum
+    assert dp_metric != pipeline_dp.Metrics.SUM, "Cross-partition metrics are not implemented for SUM"
+
+    # This function attributed the data that is dropped, to different reasons
+    # how they are dropped.
+
+    # 1. linf/l0 contribution bounding
+    # Contribution bounding errors are negative, negate to keep data dropped
+    # to be positive.
+    linf_dropped = -sum_metrics.per_partition_error_max  # not correct for SUM
+    l0_dropped = -sum_metrics.expected_cross_partition_error
+
+    # 2. Partition selection (in case of private partition selection).
+    # The data which survived contribution bounding is dropped with probability
+    # = 1 - partition_keep_probability.
+    expected_after_contribution_bounding = sum_metrics.sum - l0_dropped - linf_dropped
+    partition_selection_dropped = expected_after_contribution_bounding * (
+        1 - partition_keep_probability)
+
+    return metrics.DataDropInfo(l0=l0_dropped,
+                                linf=linf_dropped,
+                                partition_selection=partition_selection_dropped)
 
 
 def _create_contribution_bounding_errors(
@@ -75,10 +96,9 @@ def _sum_metrics_to_metric_utility(
         dp_metric: metric for which utility is computed (e.g. COUNT)
         partition_keep_probability: partition selection probability.
     """
-    assert dp_metric != pipeline_dp.Metrics.SUM, "Cross-partition metrics are not implemented for SUM"
-    # The next line does not work for SUM because the user can contribute 0.
-    is_empty_public = sum_metrics.sum == 0
-    data_dropped = _sum_metrics_to_data_dropped(sum_metrics, dp_metric)
+    data_dropped = _sum_metrics_to_data_dropped(sum_metrics,
+                                                partition_keep_probability,
+                                                dp_metric)
     absolute_error = _sum_metrics_to_value_error(
         sum_metrics, keep_prob=partition_keep_probability)
     relative_error = absolute_error.to_relative(sum_metrics.sum)
@@ -230,7 +250,8 @@ def _merge_utility_reports(report1: metrics.UtilityReport,
 
 
 def _average_utility_report(report: metrics.UtilityReport,
-                            public_partitions: bool) -> None:
+                            public_partitions: bool,
+                            sums_actual: Tuple) -> None:
     """Averages fields of the 'report' across partitions."""
     partitions = report.partitions_info
     if public_partitions:
@@ -240,14 +261,23 @@ def _average_utility_report(report: metrics.UtilityReport,
     _multiply_float_dataclasses_field(report.partitions_info,
                                       1.0 / num_output_partitions)
     if report.metric_errors:
-        for metric_error in report.metric_errors:
-            _multiply_float_dataclasses_field(metric_error,
-                                              1.0 / num_output_partitions,
-                                              fields_to_ignore=["noise_std"])
+        for sum_actual, metric_error in zip(sums_actual, report.metric_errors):
+            _multiply_float_dataclasses_field(
+                metric_error,
+                1.0 / num_output_partitions,
+                fields_to_ignore=["noise_std", "ratio_data_dropped"])
+            scaling_factor = 1 if sum_actual == 0 else 1.0 / sum_actual
+            _multiply_float_dataclasses_field(metric_error.ratio_data_dropped,
+                                              scaling_factor)
 
 
 class CrossPartitionCombiner(pipeline_dp.combiners.Combiner):
     """A combiner for aggregating error metrics across partitions"""
+    # Accumulator is a tuple of
+    # 1. The sum of non dp metrics, which is used for averaging of error
+    # metrics.
+    # 2. metrics.UtilityReport contains error metrics.
+    AccumulatorType = Tuple[Tuple, metrics.UtilityReport]
 
     def __init__(self, dp_metrics: List[pipeline_dp.Metrics],
                  public_partitions: bool):
@@ -255,23 +285,26 @@ class CrossPartitionCombiner(pipeline_dp.combiners.Combiner):
         self._public_partitions = public_partitions
 
     def create_accumulator(
-            self,
-            metrics: metrics.PerPartitionMetrics) -> metrics.UtilityReport:
-        return _per_partition_to_utility_report(metrics, self._dp_metrics,
-                                                self._public_partitions)
+            self, metrics: metrics.PerPartitionMetrics) -> AccumulatorType:
+        actual_metrics = tuple(me.sum for me in metrics.metric_errors)
+        return actual_metrics, _per_partition_to_utility_report(
+            metrics, self._dp_metrics, self._public_partitions)
 
-    def merge_accumulators(
-            self, report1: metrics.UtilityReport,
-            report2: metrics.UtilityReport) -> metrics.UtilityReport:
-        """Merges UtilityReports."""
+    def merge_accumulators(self, acc1: AccumulatorType,
+                           acc2: AccumulatorType) -> AccumulatorType:
+        sum_actual1, report1 = acc1
+        sum_actual2, report2 = acc2
+        sum_actual = tuple(x + y for x, y in zip(sum_actual1, sum_actual2))
         _merge_utility_reports(report1, report2)
-        return report1
+        return sum_actual, report1
 
-    def compute_metrics(self,
-                        report: metrics.UtilityReport) -> metrics.UtilityReport:
+    def compute_metrics(self, acc: AccumulatorType) -> metrics.UtilityReport:
         """Returns UtilityReport with final metrics."""
-        _average_utility_report(report, self._public_partitions)
-        return report
+        sum_actual, report = acc
+        report_copy = copy.deepcopy(report)
+        _average_utility_report(report_copy, self._public_partitions,
+                                sum_actual)
+        return report_copy
 
     def metrics_names(self):
         return []  # Not used for utility analysis

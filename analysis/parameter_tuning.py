@@ -54,7 +54,7 @@ class ParametersToTune:
 
 @dataclass
 class TuneOptions:
-    """Options for tuning process.
+    """Options for the tuning process.
 
     Note that parameters that are not tuned (e.g. metrics, noise kind) are taken
     from aggregate_params.
@@ -100,14 +100,15 @@ class TuneResult:
          (best) configuration in utility_analysis_parameters. Note, that those
           parameters might not necessarily be optimal, since finding the optimal
           parameters is not always feasible.
-        utility_analysis_results: the results of all utility analysis runs that
+        utility_reports: the results of all utility analysis runs that
           were performed during the tuning process.
     """
     options: TuneOptions
     contribution_histograms: histograms.DatasetHistograms
     utility_analysis_parameters: analysis.MultiParameterConfiguration
     index_best: int
-    utility_analysis_results: List[metrics.AggregateMetrics]
+    utility_analysis_results: List[metrics.AggregateMetrics]  # deprecated
+    utility_reports: List[metrics.UtilityReport]
 
 
 def _find_candidate_parameters(
@@ -175,10 +176,16 @@ def _convert_utility_analysis_to_tune_result(
         ]
     index_best = np.argmin(rmse)
 
-    return TuneResult(tune_options, contribution_histograms, run_configurations,
-                      index_best, utility_analysis_result)
+    return TuneResult(tune_options,
+                      contribution_histograms,
+                      run_configurations,
+                      index_best,
+                      utility_analysis_result,
+                      utility_reports=[])
 
 
+############# Deprecated code #################
+# TODO(dvadym): Rename tune_new to tune
 def tune(col,
          backend: pipeline_backend.PipelineBackend,
          contribution_histograms: histograms.DatasetHistograms,
@@ -250,6 +257,118 @@ def tune(col,
     if return_utility_analysis_per_partition:
         return utility_analysis_result, utility_analysis_result_per_partition
     return utility_analysis_result
+
+
+################# New code  ##################
+# tune_new will be renamed to tune.
+def tune_new(col,
+             backend: pipeline_backend.PipelineBackend,
+             contribution_histograms: histograms.DatasetHistograms,
+             options: TuneOptions,
+             data_extractors: Union[pipeline_dp.DataExtractors,
+                                    analysis.PreAggregateExtractors],
+             public_partitions=None,
+             return_utility_analysis_per_partition: bool = False):
+    """Tunes parameters.
+
+    It works in the following way:
+        1. Based on quantiles of privacy id contributions, candidates for
+        contribution bounding parameters chosen.
+        2. Utility analysis run for those parameters.
+        3. The best parameter set is chosen according to
+          options.minimizing_function.
+
+    The result contains output metrics for all utility analysis which were
+    performed.
+
+    Args:
+        col: collection where all elements are of the same type.
+          contribution_histograms:
+        backend: PipelineBackend with which the utility analysis will be run.
+        contribution_histograms: contribution histograms that should be
+         computed with compute_contribution_histograms().
+        options: options for tuning.
+        data_extractors: functions that extract needed pieces of information
+          from elements of 'col'. In case if the analysis performed on
+          pre-aggregated data, it should have type PreAggregateExtractors
+          otherwise DataExtractors.
+        public_partitions: A collection of partition keys that will be present
+          in the result. If not provided, tuning will be performed assuming
+          private partition selection is used.
+        return_per_partition: if true, it returns tuple, with the 2nd element
+          utility analysis per partitions.
+    Returns:
+        if return_per_partition == False:
+            returns 1 element collection which contains TuneResult
+        else returns tuple (1 element collection which contains TuneResult,
+        a collection which contains utility analysis results per partition).
+    """
+    _check_tune_args(options)
+
+    candidates = _find_candidate_parameters(contribution_histograms,
+                                            options.parameters_to_tune,
+                                            options.aggregate_params.metrics[0])
+
+    utility_analysis_options = analysis.UtilityAnalysisOptions(
+        epsilon=options.epsilon,
+        delta=options.delta,
+        aggregate_params=options.aggregate_params,
+        multi_param_configuration=candidates,
+        partitions_sampling_prob=options.partitions_sampling_prob,
+        pre_aggregated_data=options.pre_aggregated_data)
+    result = utility_analysis.perform_utility_analysis_new(
+        col, backend, utility_analysis_options, data_extractors,
+        public_partitions, return_utility_analysis_per_partition)
+    if return_utility_analysis_per_partition:
+        utility_result, per_partition_utility_result = result
+    else:
+        utility_result = result
+    # utility_result: (UtilityReport)
+    # per_partition_utility_result: (pk, (PerPartitionMetrics))
+    use_public_partitions = public_partitions is not None
+
+    utility_result = backend.to_list(utility_result, "To list")
+    # 1 element collection with list[UtilityReport]
+    utility_result = backend.map(
+        utility_result,
+        lambda result: _convert_utility_analysis_to_tune_result_new(
+            result, options, candidates, use_public_partitions,
+            contribution_histograms), "To Tune result")
+    if return_utility_analysis_per_partition:
+        return utility_result, per_partition_utility_result
+    return utility_result
+
+
+def _convert_utility_analysis_to_tune_result_new(
+        utility_reports: Tuple[metrics.UtilityReport],
+        tune_options: TuneOptions,
+        run_configurations: analysis.MultiParameterConfiguration,
+        use_public_partitions: bool,
+        contribution_histograms: histograms.DatasetHistograms):
+    assert len(utility_reports) == run_configurations.size
+    # TODO(dvadym): implement relative error.
+    # TODO(dvadym): take into consideration partition selection from private
+    # partition selection.
+    assert tune_options.function_to_minimize == MinimizingFunction.ABSOLUTE_ERROR
+
+    # Sort utility reports by configuration index.
+    utility_reports.sort(key=lambda e: e.configuration_index)
+
+    index_best = -1  # not found
+    # Find best index if there are metrics to compute. Absence of metrics to
+    # compute means that this is SelectPartition analysis.
+    if tune_options.aggregate_params.metrics:
+        rmse = [
+            ur.metric_errors[0].absolute_error.rmse for ur in utility_reports
+        ]
+        index_best = np.argmin(rmse)
+
+    return TuneResult(tune_options,
+                      contribution_histograms,
+                      run_configurations,
+                      index_best,
+                      utility_analysis_results=[],
+                      utility_reports=utility_reports)
 
 
 def _check_tune_args(options: TuneOptions):
