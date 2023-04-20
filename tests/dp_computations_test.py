@@ -14,7 +14,7 @@
 from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
-import typing
+from typing import Iterable, Optional
 from scipy import stats
 import math
 from unittest.mock import patch
@@ -158,7 +158,7 @@ class DPComputationsTest(parameterized.TestCase):
         self._test_gaussian_kolmogorov_smirnov(num_trials, results,
                                                expected_mean, expected_sigma)
 
-    def _not_all_integers(self, results: typing.Iterable[float]):
+    def _not_all_integers(self, results: Iterable[float]):
         return any(map(lambda x: not x.is_integer(), results))
 
     def test_apply_laplace_mechanism(self):
@@ -657,6 +657,23 @@ class DPComputationsTest(parameterized.TestCase):
         self.assertAlmostEqual(scale, expected_std)
 
 
+def create_aggregate_params(
+        max_partitions_contributed: Optional[int] = None,
+        max_contributions_per_partition: Optional[int] = None,
+        min_value: Optional[float] = None,
+        max_value: Optional[float] = None,
+        min_sum_per_partition: Optional[float] = None,
+        max_sum_per_partition: Optional[float] = None):
+    return pipeline_dp.AggregateParams(
+        metrics=[pipeline_dp.Metrics.COUNT],
+        max_partitions_contributed=max_partitions_contributed,
+        max_contributions_per_partition=max_contributions_per_partition,
+        min_value=min_value,
+        max_value=max_value,
+        min_sum_per_partition=min_sum_per_partition,
+        max_sum_per_partition=max_sum_per_partition)
+
+
 class AdditiveMechanismTests(parameterized.TestCase):
 
     @parameterized.parameters(
@@ -829,11 +846,12 @@ class AdditiveMechanismTests(parameterized.TestCase):
                                       expected_noise_parameter):
         spec = dp_computations.AdditiveMechanismSpec(
             epsilon, delta=0, noise_kind=pipeline_dp.NoiseKind.LAPLACE)
-        sensitivies = dp_computations.Sensitivities(l0=l0_sensitivity,
-                                                    linf=linf_sensitivity,
-                                                    l1=l1_sensitivity)
+        sensitivities = dp_computations.Sensitivities(l0=l0_sensitivity,
+                                                      linf=linf_sensitivity,
+                                                      l1=l1_sensitivity)
 
-        mechanism = dp_computations.create_additive_mechanism(spec, sensitivies)
+        mechanism = dp_computations.create_additive_mechanism(
+            spec, sensitivities)
 
         self.assertAlmostEqual(mechanism.noise_parameter,
                                expected_noise_parameter,
@@ -853,13 +871,55 @@ class AdditiveMechanismTests(parameterized.TestCase):
                                        expected_noise_parameter):
         spec = dp_computations.AdditiveMechanismSpec(
             epsilon, delta=delta, noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)
-        sensitivies = dp_computations.Sensitivities(l2=l2_sensitivity)
+        sensitivities = dp_computations.Sensitivities(l2=l2_sensitivity)
 
-        mechanism = dp_computations.create_additive_mechanism(spec, sensitivies)
+        mechanism = dp_computations.create_additive_mechanism(
+            spec, sensitivities)
 
         self.assertAlmostEqual(mechanism.noise_parameter,
                                expected_noise_parameter,
                                delta=1e-6)
+
+    def test_compute_sensitivities_for_count(self):
+        params = create_aggregate_params(max_partitions_contributed=4,
+                                         max_contributions_per_partition=11)
+        sensitivities = dp_computations.compute_sensitivities_for_count(params)
+        self.assertEqual(sensitivities.l0, 4)
+        self.assertEqual(sensitivities.linf, 11)
+        self.assertEqual(sensitivities.l1, 44)
+        self.assertEqual(sensitivities.l2, 22.0)
+
+    def test_compute_sensitivities_for_privacy_id_count(self):
+        params = create_aggregate_params(max_partitions_contributed=4,
+                                         max_contributions_per_partition=11)
+        sensitivities = dp_computations.compute_sensitivities_for_privacy_id_count(
+            params)
+        self.assertEqual(sensitivities.l0, 4)
+        self.assertEqual(sensitivities.linf, 1)
+        self.assertEqual(sensitivities.l1, 4)
+        self.assertEqual(sensitivities.l2, 2.0)
+
+    def test_compute_sensitivities_for_sum_min_max_values(self):
+        params = create_aggregate_params(max_partitions_contributed=4,
+                                         max_contributions_per_partition=11,
+                                         min_value=-2,
+                                         max_value=5)
+        sensitivities = dp_computations.compute_sensitivities_for_sum(params)
+        self.assertEqual(sensitivities.l0, 4)
+        self.assertEqual(sensitivities.linf, 55)
+        self.assertEqual(sensitivities.l1, 220)
+        self.assertEqual(sensitivities.l2, 110.0)
+
+    def test_compute_sensitivities_for_sum_min_max_per_partition(self):
+        params = create_aggregate_params(max_partitions_contributed=4,
+                                         max_contributions_per_partition=11,
+                                         min_sum_per_partition=-2,
+                                         max_sum_per_partition=5)
+        sensitivities = dp_computations.compute_sensitivities_for_sum(params)
+        self.assertEqual(sensitivities.l0, 4)
+        self.assertEqual(sensitivities.linf, 5)
+        self.assertEqual(sensitivities.l1, 20)
+        self.assertEqual(sensitivities.l2, 10.0)
 
 
 if __name__ == '__main__':
