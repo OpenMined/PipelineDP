@@ -262,7 +262,7 @@ class AggregateParams:
                     "both max_partitions_contributed and "
                     "max_contributions_per_partition must be set.")
             elif n_not_none == 1:
-                raise ValueError("AggregateParams: either none or both from "
+                raise ValueError("AggregateParams: either none or both "
                                  "max_partitions_contributed and "
                                  "max_contributions_per_partition must be set.")
             _check_is_positive_int(self.max_partitions_contributed,
