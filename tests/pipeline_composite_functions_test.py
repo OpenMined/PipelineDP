@@ -31,7 +31,8 @@ def _materialize_col(backend: pipeline_dp.PipelineBackend, col):
 
 
 # Has to be created only once.
-_SPARK_CONTEXT = pyspark.SparkContext.getOrCreate(conf=pyspark.SparkConf())
+_SPARK_BACKEND = pipeline_dp.SparkRDDBackend(
+    pyspark.SparkContext.getOrCreate(conf=pyspark.SparkConf()))
 
 
 def _create_platform_supported_backends(backends_in_scope: Set[str]):
@@ -44,7 +45,7 @@ def _create_platform_supported_backends(backends_in_scope: Set[str]):
         elif backend == "spark":
             if sys.version_info.minor > 7 or sys.version_info.major != 3:
                 # if python3 <= 3.7 then there are serialization problems.
-                result.add(pipeline_dp.SparkRDDBackend(_SPARK_CONTEXT))
+                result.add(_SPARK_BACKEND)
         elif backend == "multi_proc_local":
             if sys.platform != 'win32' and sys.platform != 'darwin':
                 result.add(
