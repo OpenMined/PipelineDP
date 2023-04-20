@@ -74,7 +74,7 @@ class NoiseKind(Enum):
     def convert_to_mechanism_type(self):
         if self.value == NoiseKind.LAPLACE.value:
             return MechanismType.LAPLACE
-        elif self.value == NoiseKind.GAUSSIAN.value:
+        if self.value == NoiseKind.GAUSSIAN.value:
             return MechanismType.GAUSSIAN
 
 
@@ -82,6 +82,14 @@ class MechanismType(Enum):
     LAPLACE = 'Laplace'
     GAUSSIAN = 'Gaussian'
     GENERIC = 'Generic'
+
+    def to_noise_kind(self):
+        if self.value == MechanismType.LAPLACE.value:
+            return NoiseKind.LAPLACE
+        if self.value == MechanismType.GAUSSIAN.value:
+            return NoiseKind.GAUSSIAN
+        raise ValueError(f"MechanismType {self.value} can not be converted to "
+                         f"NoiseKind")
 
 
 class NormKind(Enum):

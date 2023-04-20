@@ -175,39 +175,38 @@ class CombinerParams:
             noise_kind=self.aggregate_params.noise_kind)
 
 
-class NumericalMechanismMixin(abc.ABC):
+class MechanismContainerMixin(abc.ABC):
+
+    def __init__(self):
+        self._mechanism = None
 
     @abc.abstractmethod
-    def linf(self) -> int:
+    def sensitivities(self) -> dp_computations.Sensitivities:
         pass
 
     @abc.abstractmethod
-    def combiner_params(self) -> CombinerParams:
+    def mechanism_spec(self) -> budget_accounting.MechanismSpec:
         pass
 
     def __getstate__(self):
         state = self.__dict__.copy()
-        # _mechanism is not serializable. And it can be recreated.
+        # _mechanism is not serializable. And it is created on demand.
         if "_mechanism" in state:
             del state["_mechanism"]
         return state
 
     def _get_mechanism(self) -> dp_computations.AdditiveMechanism:
-        if not self._mechanism:
-            params = self.combiner_params()
-            noise_params = params.scalar_noise_params
-            spec = dp_computations.AdditiveMechanismSpec(
-                epsilon=params.eps,
-                delta=params.delta,
-                noise_kind=noise_params.noise_kind)
-            sensitivities = dp_computations.Sensitivities(
-                l0=noise_params.l0_sensitivity(), linf=self.linf())
+        if not hasattr(self, "_mechanism"):
+            mechanism_spec = self.mechanism_spec()
+            noise_kind = mechanism_spec.mechanism_type.to_noise_kind()
+            additive_mechanism_spec = dp_computations.AdditiveMechanismSpec(
+                mechanism_spec.eps, mechanism_spec.delta, noise_kind)
             self._mechanism = dp_computations.create_additive_mechanism(
-                spec, sensitivities)
+                additive_mechanism_spec, self.sensitivities())
         return self._mechanism
 
 
-class CountCombiner(Combiner, NumericalMechanismMixin):
+class CountCombiner(Combiner, MechanismContainerMixin):
     """Combiner for computing DP Count.
 
     The type of the accumulator is int, which represents count of the elements
@@ -215,9 +214,11 @@ class CountCombiner(Combiner, NumericalMechanismMixin):
     """
     AccumulatorType = int
 
-    def __init__(self, params: CombinerParams):
-        self._params = params
-        self._mechanism = None
+    def __init__(self, mechanism_spec: budget_accounting.MechanismSpec,
+                 aggregate_params: pipeline_dp.AggregateParams):
+        self._mechanism_spec = mechanism_spec
+        self._sensitivities = dp_computations.compute_sensitivities_for_count(
+            aggregate_params)
 
     def create_accumulator(self, values: Sized) -> AccumulatorType:
         return len(values)
@@ -234,25 +235,27 @@ class CountCombiner(Combiner, NumericalMechanismMixin):
 
     def explain_computation(self) -> ExplainComputationReport:
         # TODO: add information in this and others combiners about amount of noise.
-        return lambda: f"Computed count with (eps={self._params.eps} delta={self._params.delta})"
+        return lambda: f"Computed count with (eps={self._mechanism_spec.eps} delta={self._mechanism_spec.delta})"
 
-    def linf(self):
-        return self._params.scalar_noise_params.max_contributions_per_partition
+    def mechanism_spec(self) -> budget_accounting.MechanismSpec:
+        return self._mechanism_spec
 
-    def combiner_params(self) -> CombinerParams:
-        return self._params
+    def sensitivities(self) -> dp_computations.Sensitivities:
+        return self._sensitivities
 
 
-class PrivacyIdCountCombiner(Combiner, NumericalMechanismMixin):
+class PrivacyIdCountCombiner(Combiner, MechanismContainerMixin):
     """Combiner for computing DP privacy id count.
     The type of the accumulator is int, which represents count of the elements
     in the dataset for which this accumulator is computed.
     """
     AccumulatorType = int
 
-    def __init__(self, params: CombinerParams):
-        self._params = params
-        self._mechanism = None
+    def __init__(self, mechanism_spec: budget_accounting.MechanismSpec,
+                 aggregate_params: pipeline_dp.AggregateParams):
+        self._mechanism_spec = mechanism_spec
+        self._sensitivities = dp_computations.compute_sensitivities_for_privacy_id_count(
+            aggregate_params)
 
     def create_accumulator(self, values: Sized) -> AccumulatorType:
         return 1 if values else 0
@@ -268,16 +271,16 @@ class PrivacyIdCountCombiner(Combiner, NumericalMechanismMixin):
         return ['privacy_id_count']
 
     def explain_computation(self) -> ExplainComputationReport:
-        return lambda: f"Computed privacy id count with (eps={self._params.eps} delta={self._params.delta})"
+        return lambda: f"Computed privacy id count with (eps={self._mechanism_spec.eps} delta={self._mechanism_spec.delta})"
 
-    def linf(self):
-        return 1
+    def mechanism_spec(self) -> budget_accounting.MechanismSpec:
+        return self._mechanism_spec
 
-    def combiner_params(self) -> CombinerParams:
-        return self._params
+    def sensitivities(self) -> dp_computations.Sensitivities:
+        return self._sensitivities
 
 
-class SumCombiner(Combiner, NumericalMechanismMixin):
+class SumCombiner(Combiner, MechanismContainerMixin):
     """Combiner for computing dp sum.
 
     the type of the accumulator is int, which represents sum of the elements
@@ -285,19 +288,25 @@ class SumCombiner(Combiner, NumericalMechanismMixin):
     """
     AccumulatorType = float
 
-    def __init__(self, params: CombinerParams):
-        self._params = params
-        self._bouding_per_partition = params.aggregate_params.bounds_per_partition_are_set
-        self._mechanism = None
+    def __init__(self, mechanism_spec: budget_accounting.MechanismSpec,
+                 aggregate_params: pipeline_dp.AggregateParams):
+        self._mechanism_spec = mechanism_spec
+        self._sensitivities = dp_computations.compute_sensitivities_for_sum(
+            aggregate_params)
+        self._bouding_per_partition = aggregate_params.bounds_per_partition_are_set
+        if self._bouding_per_partition:
+            self._min_bound = aggregate_params.min_sum_per_partition
+            self._max_bound = aggregate_params.max_sum_per_partition
+        else:
+            self._min_bound = aggregate_params.min_value
+            self._max_bound = aggregate_params.max_value
 
     def create_accumulator(self, values: Iterable[float]) -> AccumulatorType:
-        agg_params = self._params.aggregate_params
         if self._bouding_per_partition:
             # Sum values and clip.
-            return np.clip(sum(values), agg_params.min_sum_per_partition,
-                           agg_params.max_sum_per_partition)
+            return np.clip(sum(values), self._min_bound, self._max_bound)
         # Clip each value and sum.
-        return np.clip(values, agg_params.min_value, agg_params.max_value).sum()
+        return np.clip(values, self._min_bound, self._max_bound).sum()
 
     def merge_accumulators(self, sum1: AccumulatorType, sum2: AccumulatorType):
         return sum1 + sum2
@@ -309,19 +318,13 @@ class SumCombiner(Combiner, NumericalMechanismMixin):
         return ['sum']
 
     def explain_computation(self) -> ExplainComputationReport:
-        return lambda: f"Computed sum with (eps={self._params.eps} delta={self._params.delta})"
+        return lambda: f"Computed sum with (eps={self._mechanism_spec.eps} delta={self._mechanism_spec.delta})"
 
-    def linf(self):
-        noise_params = self._params.scalar_noise_params
-        if self._bouding_per_partition:
-            return max(abs(noise_params.min_sum_per_partition),
-                       abs(noise_params.max_sum_per_partition))
+    def mechanism_spec(self) -> budget_accounting.MechanismSpec:
+        return self._mechanism_spec
 
-        return noise_params.max_contributions_per_partition * max(
-            abs(noise_params.min_value), abs(noise_params.max_value))
-
-    def combiner_params(self) -> CombinerParams:
-        return self._params
+    def sensitivities(self) -> dp_computations.Sensitivities:
+        return self._sensitivities
 
 
 class MeanCombiner(Combiner):
@@ -731,19 +734,16 @@ def create_compound_combiner(
         if pipeline_dp.Metrics.COUNT in aggregate_params.metrics:
             budget_count = budget_accountant.request_budget(
                 mechanism_type, weight=aggregate_params.budget_weight)
-            combiners.append(
-                CountCombiner(CombinerParams(budget_count, aggregate_params)))
+            combiners.append(CountCombiner(budget_count, aggregate_params))
         if pipeline_dp.Metrics.SUM in aggregate_params.metrics:
             budget_sum = budget_accountant.request_budget(
                 mechanism_type, weight=aggregate_params.budget_weight)
-            combiners.append(
-                SumCombiner(CombinerParams(budget_sum, aggregate_params)))
+            combiners.append(SumCombiner(budget_sum, aggregate_params))
     if pipeline_dp.Metrics.PRIVACY_ID_COUNT in aggregate_params.metrics:
         budget_privacy_id_count = budget_accountant.request_budget(
             mechanism_type, weight=aggregate_params.budget_weight)
         combiners.append(
-            PrivacyIdCountCombiner(
-                CombinerParams(budget_privacy_id_count, aggregate_params)))
+            PrivacyIdCountCombiner(budget_privacy_id_count, aggregate_params))
     if pipeline_dp.Metrics.VECTOR_SUM in aggregate_params.metrics:
         budget_vector_sum = budget_accountant.request_budget(
             mechanism_type, weight=aggregate_params.budget_weight)
