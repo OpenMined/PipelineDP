@@ -177,9 +177,6 @@ class CombinerParams:
 
 class MechanismContainerMixin(abc.ABC):
 
-    def __init__(self):
-        self._mechanism = None
-
     @abc.abstractmethod
     def sensitivities(self) -> dp_computations.Sensitivities:
         pass
