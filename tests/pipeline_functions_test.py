@@ -84,7 +84,8 @@ class BeamBackendTest(unittest.TestCase):
 
     def test_collect_to_container_collections_with_multiple_elements_preserves_only_one_element(
             self):
-        # We don't use beam package methods and TestPipeline because in beam_util there is no assertIn method.
+        # We don't use beam package methods and TestPipeline because in
+        # beam_util there is no assertIn method.
         col_x = [2, 1]
         col_y = ["str1", "str2"]
         col_z = [["str1", "str2"], ["str3", "str4"]]
