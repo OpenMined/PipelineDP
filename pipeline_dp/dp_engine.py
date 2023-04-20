@@ -417,7 +417,9 @@ class DPEngine:
             data_extractors: pipeline_dp.DataExtractors,
             partitions: Any,
             partitions_already_filtered: bool = False):
-        """Computes contribution bounds for COUNT and PRIVACY_ID_COUNT
+        """Computes contribution bounds in a differentially private way.
+
+        Computes contribution bounds for COUNT and PRIVACY_ID_COUNT
         metrics in a differentially private way.
         Currently only max_partitions_contributed is calculated.
 

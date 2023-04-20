@@ -21,7 +21,7 @@ import pipeline_dp
 from pipeline_dp import dp_computations
 
 from pipeline_dp.histograms import Histogram
-from pipeline_dp import pipeline_functions as composite_funcs
+from pipeline_dp import pipeline_functions
 
 
 class PrivateL0Calculator:
@@ -61,7 +61,7 @@ class PrivateL0Calculator:
                 "Extract l0_contributions_histogram from DatasetHistograms"))
         number_of_partitions = self._calculate_number_of_partitions()
 
-        l0_calculation_input_col = composite_funcs.collect_to_container(
+        l0_calculation_input_col = pipeline_functions.collect_to_container(
             self._backend, {
                 "l0_histogram": l0_histogram,
                 "number_of_partitions": number_of_partitions
@@ -83,8 +83,8 @@ class PrivateL0Calculator:
     def _calculate_number_of_partitions(self):
         distinct_partitions = self._backend.distinct(
             self._partitions, "Keep only distinct partitions")
-        return composite_funcs.size(self._backend, distinct_partitions,
-                                    "Calculate number of partitions")
+        return pipeline_functions.size(self._backend, distinct_partitions,
+                                       "Calculate number of partitions")
 
 
 class L0ScoringFunction(dp_computations.ExponentialMechanism.ScoringFunction):
@@ -101,7 +101,9 @@ class L0ScoringFunction(dp_computations.ExponentialMechanism.ScoringFunction):
         self._l0_histogram = l0_histogram
 
     def score(self, k: int) -> float:
-        """
+        """Computes score of a given parameter k.
+
+        Let
         P := number_of_partitions
         std := count_noise_std
         B := _max_partitions_contributed_best_upper_bound (= global_sensitivity)
@@ -110,6 +112,7 @@ class L0ScoringFunction(dp_computations.ExponentialMechanism.ScoringFunction):
         #contributions(uid, D) = number of partitions in D where uid contributed
         at least once.
 
+        Then
         score(k) = -0.5 * impact_noise(k) - 0.5 * impact_dropped(k) =(1)
         -0.5 * P * std - 0.5 * Σ_uid max(min(#contributions(uid, D), B) - k, 0)
 

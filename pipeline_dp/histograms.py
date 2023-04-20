@@ -109,6 +109,7 @@ class DatasetHistograms:
 
 def _to_bin_lower(n: int) -> int:
     """Finds the lower bound of the histogram bin which contains the given integer.
+
     Keep in sync with private_contribution_bounds._generate_possible_contribution_bounds.
     """
     # For scalability reasons bins can not be all width=1. For the goals of
