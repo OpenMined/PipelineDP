@@ -196,16 +196,15 @@ class CountCombinerTest(parameterized.TestCase):
                                combiner.compute_metrics(3)['count'],
                                delta=1e-5)
 
-    def test_compute_metrics_with_noise(self):
+    @patch("pipeline_dp.dp_computations.GaussianMechanism.add_noise")
+    def test_compute_metrics_with_noise(self, mock_add_noise):
         combiner = self._create_combiner(no_noise=False)
         accumulator = 500
-        noisy_values = [
-            combiner.compute_metrics(accumulator)['count'] for _ in range(1000)
-        ]
-        # Standard deviation for the noise is about 1.37. So we set a large
-        # delta here.
-        self.assertAlmostEqual(accumulator, np.mean(noisy_values), delta=10)
-        self.assertTrue(np.var(noisy_values) > 1)  # check that noise is added
+        noised_value = 510
+        mock_add_noise.return_value = noised_value
+        noisy_value = combiner.compute_metrics(accumulator)['count']
+        self.assertEqual(noisy_value, noised_value)
+        mock_add_noise.assert_called_once_with(accumulator)
 
     @parameterized.named_parameters(
         dict(testcase_name='gaussian',
@@ -263,18 +262,15 @@ class PrivacyIdCountCombinerTest(parameterized.TestCase):
                                combiner.compute_metrics(3)['privacy_id_count'],
                                delta=1e-5)
 
-    def test_compute_metrics_with_noise(self):
+    @patch("pipeline_dp.dp_computations.GaussianMechanism.add_noise")
+    def test_compute_metrics_with_noise(self, mock_add_noise):
         combiner = self._create_combiner(no_noise=False)
-        accumulator = 5
-        noisy_values = [
-            combiner.compute_metrics(accumulator)['privacy_id_count']
-            for _ in range(1000)
-        ]
-        # Standard deviation for the noise is about 1.37. So we set a large
-        # delta here.
-        self.assertAlmostEqual(accumulator, np.mean(noisy_values), delta=0.5)
-        self.assertTrue(np.var(noisy_values)
-                        > 0.01)  # check that noise is added
+        accumulator = 500
+        noised_value = 510
+        mock_add_noise.return_value = noised_value
+        noisy_value = combiner.compute_metrics(accumulator)['privacy_id_count']
+        self.assertEqual(noisy_value, noised_value)
+        mock_add_noise.assert_called_once_with(accumulator)
 
     @parameterized.named_parameters(
         dict(testcase_name='gaussian',
@@ -363,20 +359,16 @@ class SumCombinerTest(parameterized.TestCase):
                                combiner.compute_metrics(3)['sum'],
                                delta=1e-5)
 
-    @parameterized.named_parameters(
-        # dict(testcase_name='per_contribution_bound', per_partition_bound=True),
-        dict(testcase_name='per_partition_bound', per_partition_bound=False),)
-    def test_compute_metrics_with_noise(self, per_partition_bound):
-        combiner = self._create_combiner(
-            no_noise=False, per_partition_bound=per_partition_bound)
+    @patch("pipeline_dp.dp_computations.GaussianMechanism.add_noise")
+    def test_compute_metrics_with_noise(self, mock_add_noise):
+        combiner = self._create_combiner(no_noise=False,
+                                         per_partition_bound=False)
         accumulator = 500
-        noisy_values = [
-            combiner.compute_metrics(accumulator)['sum'] for _ in range(1000)
-        ]
-        # Standard deviation for the noise is about 1.37. So we set a large
-        # delta here.
-        self.assertAlmostEqual(accumulator, np.mean(noisy_values), delta=10)
-        self.assertTrue(np.var(noisy_values) > 1)  # check that noise is added
+        noised_value = 510
+        mock_add_noise.return_value = noised_value
+        noisy_value = combiner.compute_metrics(accumulator)['sum']
+        self.assertEqual(noisy_value, noised_value)
+        mock_add_noise.assert_called_once_with(accumulator)
 
     @parameterized.named_parameters(
         dict(testcase_name='gaussian_per_partition_bounding',
