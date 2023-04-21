@@ -481,7 +481,7 @@ class DpEngineTest(parameterized.TestCase):
         )
 
     @patch(
-        'pipeline_dp.contribution_bounders.add_noise'
+        'pipeline_dp.contribution_bounders'
         '.SamplingCrossAndPerPartitionContributionBounder.bound_contributions')
     def test_aggregate_computation_graph(self, mock_bound_contributions):
         # Arrange

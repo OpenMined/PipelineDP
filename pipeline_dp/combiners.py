@@ -176,6 +176,7 @@ class CombinerParams:
 
 
 class MechanismContainerMixin(abc.ABC):
+    """Abstract class with implementation of handling DP mechanism."""
 
     @abc.abstractmethod
     def sensitivities(self) -> dp_computations.Sensitivities:
@@ -187,7 +188,8 @@ class MechanismContainerMixin(abc.ABC):
 
     def __getstate__(self):
         state = self.__dict__.copy()
-        # _mechanism is not serializable. And it is created on demand.
+        # Do not serialize _mechanism, because it is not serializable and it is
+        # created on demand.
         if "_mechanism" in state:
             del state["_mechanism"]
         return state
