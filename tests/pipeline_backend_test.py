@@ -262,10 +262,8 @@ class BeamBackendStageNameTest(unittest.TestCase):
                       backend._ulg._labels)
 
 
-@unittest.skipIf(sys.platform == "win32" or sys.platform == 'darwin' or (
-    sys.version_info.minor <= 7 and sys.version_info.major == 3
-), "There are some problems with PySpark setup on older python and Windows and macOS"
-                )
+@unittest.skipIf(sys.version_info.minor <= 7 and sys.version_info.major == 3,
+                 "There are some problems with PySpark setup on older python.")
 class SparkRDDBackendTest(parameterized.TestCase):
 
     @classmethod
@@ -328,8 +326,13 @@ class SparkRDDBackendTest(parameterized.TestCase):
         data = self.sc.parallelize([(1, 2), (2, 1), (1, 4), (3, 8), (2, -3),
                                     (10, 5)])
         result = self.backend.sum_per_key(data).collect()
-        self.assertEqual(set(result), set([(1, 6), (2, -2), (3, 8), (10, 5)]))
+        self.assertEqual(set(result), {(1, 6), (2, -2), (3, 8), (10, 5)})
 
+    @unittest.skipIf(
+        sys.platform == "darwin" and sys.version_info.major == 3 and
+        (sys.version_info.minor == 8 or sys.version_info.minor == 9),
+        "There are some problems with PySpark setup on macOS in python 3.8 and 3.9."
+    )
     def test_combine_accumulators_per_key(self):
         data = self.sc.parallelize([(1, 2), (2, 1), (1, 4), (3, 8), (2, 3)])
         rdd = self.backend.group_by_key(data)
@@ -381,7 +384,7 @@ class SparkRDDBackendTest(parameterized.TestCase):
     def test_distinct(self):
         input = self.sc.parallelize([3, 2, 1, 3, 5, 4, 1, 1, 2])
         output = self.backend.distinct(input, "distinct").collect()
-        self.assertSetEqual(set([1, 2, 3, 4, 5]), set(output))
+        self.assertSetEqual({1, 2, 3, 4, 5}, set(output))
 
     @classmethod
     def tearDownClass(cls):
@@ -606,7 +609,7 @@ class LocalBackendTest(unittest.TestCase):
     def test_distinct(self):
         input = [3, 2, 1, 3, 5, 4, 1, 1, 2]
         output = set(self.backend.distinct(input, "distinct"))
-        self.assertSetEqual(set([1, 2, 3, 4, 5]), output)
+        self.assertSetEqual({1, 2, 3, 4, 5}, output)
 
 
 @unittest.skipIf(sys.platform == 'win32' or sys.platform == 'darwin',

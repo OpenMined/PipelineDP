@@ -58,7 +58,7 @@ class UtilityAnalysis(parameterized.TestCase):
                 partition_extractor=lambda x: f"pk{x[1]}",
                 value_extractor=lambda x: 1)
         else:
-            data_extractors = analysis.PreAggregateExtractors(
+            data_extractors = pipeline_dp.PreAggregateExtractors(
                 partition_extractor=lambda x: f"pk{x[0]}",
                 preaggregate_extractor=lambda x: x[1])
 
@@ -302,7 +302,7 @@ class UtilityAnalysisOld(parameterized.TestCase):
                 partition_extractor=lambda x: f"pk{x[1]}",
                 value_extractor=lambda x: 1)
         else:
-            data_extractors = analysis.PreAggregateExtractors(
+            data_extractors = pipeline_dp.PreAggregateExtractors(
                 partition_extractor=lambda x: f"pk{x[0]}",
                 preaggregate_extractor=lambda x: x[1])
 

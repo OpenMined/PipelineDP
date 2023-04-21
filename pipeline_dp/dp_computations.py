@@ -15,6 +15,8 @@
 
 import abc
 import math
+import typing
+
 import numpy as np
 from typing import Any, Optional, Union
 
@@ -185,7 +187,7 @@ class AdditiveVectorNoiseParams:
     max_norm: float
     l0_sensitivity: float
     linf_sensitivity: float
-    norm_kind: pipeline_dp.aggregate_params.NormKind
+    norm_kind: pipeline_dp.NormKind
     noise_kind: pipeline_dp.NoiseKind
 
 
@@ -641,6 +643,63 @@ def create_additive_mechanism(
         return GaussianMechanism(spec.epsilon, spec.delta, sensitivities.l2)
 
     assert False, f"{spec.noise_kind} not supported."
+
+
+class ExponentialMechanism:
+    """Exponential mechanism that can be used to choose a parameter
+    from a set of possible parameters in a differentially private way.
+
+    All computations are in memory, meaning that the set of possible parameters
+    should fit in memory.
+
+    https://en.wikipedia.org/wiki/Exponential_mechanism"""
+
+    class ScoringFunction(abc.ABC):
+        """Represents scoring function used in exponential mechanism."""
+
+        @abc.abstractmethod
+        def score(self, k) -> float:
+            """Calculates score for the given parameter.
+
+            The higher the score the greater the probability that
+            this parameter will be chosen."""
+
+        @property
+        @abc.abstractmethod
+        def global_sensitivity(self) -> float:
+            """Global sensitivity of the scoring function."""
+
+        @property
+        @abc.abstractmethod
+        def is_monotonic(self) -> bool:
+            """Whether score(k) is monotonic.
+
+            score(D, k), where D is the dataset, is monotonic
+            if for any neighboring datasets D and D',
+            either score(D, k) >= score(D', k) for any k or
+            score(D, k) <= score(D', k) for any k."""
+
+    def __init__(self, scoring_function: ScoringFunction) -> None:
+        self._scoring_function = scoring_function
+
+    def apply(self, eps: float, inputs_to_score_col: typing.List[Any]) -> Any:
+        """Applies exponential mechanism.
+
+        I.e. chooses a parameter from the list of possible parameters in a
+        differentially private way."""
+
+        probs = self._calculate_probabilities(eps, inputs_to_score_col)
+        return np.random.default_rng().choice(inputs_to_score_col, p=probs)
+
+    def _calculate_probabilities(self, eps: float,
+                                 inputs_to_score_col: typing.List[Any]):
+        scores = np.array(
+            list(map(self._scoring_function.score, inputs_to_score_col)))
+        denominator = self._scoring_function.global_sensitivity
+        if not self._scoring_function.is_monotonic:
+            denominator *= 2
+        weights = np.exp(scores * eps / denominator)
+        return weights / weights.sum()
 
 
 def compute_sensitivities_for_count(

@@ -10,5 +10,5 @@ pytest-timeout
 
 pylint
 yapf
-git+https://github.com/google/differential-privacy.git@327972c1ae710e8cd0a4754fffdd78c3500272ee#subdirectory=python
+dp-accounting==0.4.0
 python-dp==1.1.3rc2

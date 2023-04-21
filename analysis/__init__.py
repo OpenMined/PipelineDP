@@ -13,10 +13,7 @@
 # limitations under the License.
 
 from analysis.data_structures import MultiParameterConfiguration
-from analysis.data_structures import PreAggregateExtractors
 from analysis.data_structures import UtilityAnalysisOptions
-from analysis.histograms import compute_dataset_histograms
-from analysis.histograms import DatasetHistograms
 from analysis.metrics import AggregateMetrics
 from analysis.parameter_tuning import tune
 from analysis.parameter_tuning import MinimizingFunction

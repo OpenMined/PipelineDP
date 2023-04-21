@@ -24,8 +24,8 @@ import pipeline_dp.aggregate_params as agg_params
 from pipeline_dp import input_validators
 
 try:
-    from dp_accounting import privacy_loss_distribution as pldlib
-    from dp_accounting import common
+    from dp_accounting.pld import privacy_loss_distribution as pldlib
+    from dp_accounting.pld import common
 except:
     # dp_accounting library is needed only for PLDBudgetAccountant which is
     # currently in experimental mode.
@@ -573,13 +573,13 @@ class PLDBudgetAccountant(BudgetAccountant):
         for mechanism_spec_internal in self._mechanisms:
             if mechanism_spec_internal.mechanism_spec.mechanism_type == agg_params.MechanismType.LAPLACE:
                 # The Laplace distribution parameter = std/sqrt(2).
-                pld = pldlib.PrivacyLossDistribution.from_laplace_mechanism(
+                pld = pldlib.from_laplace_mechanism(
                     mechanism_spec_internal.sensitivity *
                     noise_standard_deviation / math.sqrt(2) /
                     mechanism_spec_internal.weight,
                     value_discretization_interval=self._pld_discretization)
             elif mechanism_spec_internal.mechanism_spec.mechanism_type == agg_params.MechanismType.GAUSSIAN:
-                pld = pldlib.PrivacyLossDistribution.from_gaussian_mechanism(
+                pld = pldlib.from_gaussian_mechanism(
                     mechanism_spec_internal.sensitivity *
                     noise_standard_deviation / mechanism_spec_internal.weight,
                     value_discretization_interval=self._pld_discretization)
@@ -590,7 +590,7 @@ class PLDBudgetAccountant(BudgetAccountant):
                 # mechanism and epsilon is computed based on this. The delta is computed to be proportional to epsilon.
                 epsilon_0_interim = math.sqrt(2) / noise_standard_deviation
                 delta_0_interim = epsilon_0_interim / self._total_epsilon * self._total_delta
-                pld = pldlib.PrivacyLossDistribution.from_privacy_parameters(
+                pld = pldlib.from_privacy_parameters(
                     common.DifferentialPrivacyParameters(
                         epsilon_0_interim, delta_0_interim),
                     value_discretization_interval=self._pld_discretization)

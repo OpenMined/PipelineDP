@@ -12,8 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """DPEngine Test"""
-
+import sys
 import unittest
+from typing import List
 from unittest.mock import patch
 
 import apache_beam as beam
@@ -22,13 +23,12 @@ import apache_beam.testing.util as beam_util
 import pydp.algorithms.partition_selection as partition_selection
 from absl.testing import absltest
 from absl.testing import parameterized
-from typing import List
 
 import pipeline_dp
 from pipeline_dp import aggregate_params as agg
-from pipeline_dp.aggregate_params import SelectPartitionsParams
 from pipeline_dp.budget_accounting import NaiveBudgetAccountant
 from pipeline_dp.pipeline_backend import PipelineBackend
+from pipeline_dp.pipeline_functions import collect_to_container
 from pipeline_dp.report_generator import ReportGenerator
 
 
@@ -62,6 +62,277 @@ class DpEngineTest(parameterized.TestCase):
         if return_accountant:
             return dp_engine, accountant
         return dp_engine
+
+    def test_calculate_private_contribution_bounds_none(self):
+        with self.assertRaises(Exception):
+            pipeline_dp.DPEngine(None,
+                                 None).calculate_private_contribution_bounds(
+                                     None, None, None, None)
+
+    def test_check_calculate_private_contribution_bounds_params(self):
+        default_extractors = pipeline_dp.DataExtractors(
+            privacy_id_extractor=lambda x: x,
+            partition_extractor=lambda x: x,
+            value_extractor=lambda x: x,
+        )
+        default_params = pipeline_dp.CalculatePrivateContributionBoundsParams(
+            aggregation_noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+            aggregation_eps=0.01,
+            aggregation_delta=0.0001,
+            calculation_eps=0.001,
+            max_partitions_contributed_upper_bound=100)
+
+        test_cases = [
+            {
+                "desc": "None col",
+                "col": None,
+                "params": default_params,
+                "data_extractor": default_extractors,
+            },
+            {
+                "desc": "empty col",
+                "col": [],
+                "params": default_params,
+                "data_extractor": default_extractors
+            },
+            {
+                "desc": "none params",
+                "col": [0],
+                "params": None,
+                "data_extractor": default_extractors,
+            },
+            {
+                "desc": "params with incorrect type",
+                "col": [0],
+                "params": 1,
+                "data_extractor": default_extractors,
+            },
+            {
+                "desc": "None data_extractor",
+                "col": [0],
+                "params": default_params,
+                "data_extractor": None,
+            },
+            {
+                "desc": "data_extractor with an incorrect type",
+                "col": [0],
+                "params": default_params,
+                "data_extractor": 1,
+            },
+        ]
+
+        for test_case in test_cases:
+            with self.assertRaises(Exception, msg=test_case["desc"]):
+                engine = pipeline_dp.DPEngine(
+                    budget_accountant=None, backend=pipeline_dp.LocalBackend())
+                engine.calculate_private_contribution_bounds(
+                    test_case["col"],
+                    test_case["params"],
+                    test_case["data_extractor"],
+                    partitions=None)
+
+    def test_calculate_private_contribution_bounds_chooses_one_of_the_possible_values(
+            self):
+        # Arrange
+        engine = pipeline_dp.DPEngine(budget_accountant=None,
+                                      backend=pipeline_dp.LocalBackend())
+        params = pipeline_dp.CalculatePrivateContributionBoundsParams(
+            aggregation_eps=0.9,
+            aggregation_delta=1e-10,
+            calculation_eps=0.1,
+            aggregation_noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+            max_partitions_contributed_upper_bound=2)
+        # user 1 contributes 3 times to partition 0 and 2 times to partitions 1.
+        # user 2 contributes 2 times to partition 0 and 3 times to partitions 1.
+        data = [("pk0", 1), ("pk0", 1), ("pk0", 1), ("pk0", 2), ("pk1", 2),
+                ("pk1", 1), ("pk1", 1), ("pk1", 2), ("pk0", 2), ("pk1", 2)]
+        data_extractors = pipeline_dp.DataExtractors(
+            partition_extractor=lambda x: x[0],
+            privacy_id_extractor=lambda x: x[1],
+            value_extractor=lambda _: None,
+        )
+        partitions = ["pk0", "pk1"]
+
+        # Act
+        result = engine.calculate_private_contribution_bounds(
+            data, params, data_extractors, partitions)
+        result = list(result)[0]
+
+        # Assert
+        self.assertIn(result, [
+            pipeline_dp.PrivateContributionBounds(max_partitions_contributed=1),
+            pipeline_dp.PrivateContributionBounds(max_partitions_contributed=2)
+        ])
+
+    def test_calculate_private_contribution_bounds_one_bound_is_much_better_returns_it(
+            self):
+        # Arrange
+        engine = pipeline_dp.DPEngine(budget_accountant=None,
+                                      backend=pipeline_dp.LocalBackend())
+        params = pipeline_dp.CalculatePrivateContributionBoundsParams(
+            aggregation_eps=0.9,
+            aggregation_delta=0.001,
+            calculation_eps=0.1,
+            aggregation_noise_kind=pipeline_dp.NoiseKind.LAPLACE,
+            max_partitions_contributed_upper_bound=2)
+        # user 0 contributes only 1 partitions, others contribute to both
+        data = [("pk0", 0)]
+        for i in range(10000):
+            data += [("pk0", i + 1), ("pk1", i + 1)]
+        data_extractors = pipeline_dp.DataExtractors(
+            partition_extractor=lambda x: x[0],
+            privacy_id_extractor=lambda x: x[1],
+            value_extractor=lambda _: None,
+        )
+        partitions = ["pk0", "pk1"]
+
+        # Act
+        result = engine.calculate_private_contribution_bounds(
+            data,
+            params,
+            data_extractors,
+            partitions,
+            partitions_already_filtered=True)
+        result = list(result)[0]
+
+        # Assert
+        # Almost all users contributed to 2 partitions, so it has to be chosen.
+        # The probability of 1 to be chosen has to be very close to 0
+        # and therefore 1 should never be chosen.
+        self.assertEqual(
+            result,
+            pipeline_dp.PrivateContributionBounds(max_partitions_contributed=2))
+
+    def test_calculate_private_contribution_filters_partitions(self):
+        # Arrange
+        engine = pipeline_dp.DPEngine(budget_accountant=None,
+                                      backend=pipeline_dp.LocalBackend())
+        params = pipeline_dp.CalculatePrivateContributionBoundsParams(
+            aggregation_eps=0.9,
+            aggregation_delta=0.001,
+            calculation_eps=0.1,
+            aggregation_noise_kind=pipeline_dp.NoiseKind.LAPLACE,
+            max_partitions_contributed_upper_bound=2)
+        # user 0 contributes only 1 partitions, others contribute to both
+        data = [("pk0", 0)]
+        for i in range(10000):
+            data += [("pk0", i + 1), ("pk1", i + 1)]
+        data_extractors = pipeline_dp.DataExtractors(
+            partition_extractor=lambda x: x[0],
+            privacy_id_extractor=lambda x: x[1],
+            value_extractor=lambda _: None,
+        )
+        partitions = ["pk0"]
+
+        # Act
+        result = engine.calculate_private_contribution_bounds(
+            data,
+            params,
+            data_extractors,
+            partitions,
+            partitions_already_filtered=False)
+        result = list(result)[0]
+
+        # Assert
+        # If partitions were not filtered, it would return 2 as in the previous
+        # test.
+        self.assertEqual(
+            result,
+            pipeline_dp.PrivateContributionBounds(max_partitions_contributed=1))
+
+    def test_calculate_private_contribution_works_on_beam(self):
+        # Arrange
+        engine = pipeline_dp.DPEngine(budget_accountant=None,
+                                      backend=pipeline_dp.BeamBackend())
+        params = pipeline_dp.CalculatePrivateContributionBoundsParams(
+            aggregation_eps=0.9,
+            aggregation_delta=0.001,
+            calculation_eps=0.1,
+            aggregation_noise_kind=pipeline_dp.NoiseKind.LAPLACE,
+            max_partitions_contributed_upper_bound=2)
+        # user 0 contributes only 1 partitions, others contribute to both
+        data = [("pk0", 0)]
+        for i in range(10000):
+            data += [("pk0", i + 1), ("pk1", i + 1)]
+        data_extractors = pipeline_dp.DataExtractors(
+            partition_extractor=lambda x: x[0],
+            privacy_id_extractor=lambda x: x[1],
+            value_extractor=lambda _: None,
+        )
+        partitions = ["pk0", "pk1"]
+
+        # Act
+        result = engine.calculate_private_contribution_bounds(
+            data, params, data_extractors, partitions)
+        result = list(result)[0]
+
+        # Assert
+        # Almost all users contributed to 2 partitions, so it has to be chosen.
+        # The probability of 1 to be chosen has to be very close to 0
+        # and therefore 1 should never be chosen.
+        self.assertEqual(
+            result,
+            pipeline_dp.PrivateContributionBounds(max_partitions_contributed=2))
+
+    def test_calculate_private_contribution_does_not_work_on_multi_proc_local_due_to_unsupported_operations(
+            self):
+        # Arrange
+        engine = pipeline_dp.DPEngine(
+            budget_accountant=None,
+            backend=pipeline_dp.pipeline_backend.MultiProcLocalBackend(
+                n_jobs=1))
+        params = pipeline_dp.CalculatePrivateContributionBoundsParams(
+            aggregation_eps=0.9,
+            aggregation_delta=0.001,
+            calculation_eps=0.1,
+            aggregation_noise_kind=pipeline_dp.NoiseKind.LAPLACE,
+            max_partitions_contributed_upper_bound=2)
+        # user 0 contributes only 1 partitions, others contribute to both
+        data = [("pk0", 0)]
+        for i in range(10000):
+            data += [("pk0", i + 1), ("pk1", i + 1)]
+        data_extractors = pipeline_dp.DataExtractors(
+            partition_extractor=lambda x: x[0],
+            privacy_id_extractor=lambda x: x[1],
+            value_extractor=lambda _: None,
+        )
+        partitions = ["pk0", "pk1"]
+
+        with self.assertRaises(NotImplementedError):
+            engine.calculate_private_contribution_bounds(
+                data, params, data_extractors, partitions)
+
+    @unittest.skipIf(
+        sys.version_info.minor <= 7 and sys.version_info.major == 3,
+        "There are some problems with PySpark setup on older python")
+    def test_calculate_private_contribution_does_not_work_on_spark_due_to_unsupported_operations(
+            self):
+        # Arrange
+        import pyspark
+        engine = pipeline_dp.DPEngine(budget_accountant=None,
+                                      backend=pipeline_dp.SparkRDDBackend(
+                                          pyspark.SparkContext.getOrCreate(
+                                              pyspark.SparkConf())))
+        params = pipeline_dp.CalculatePrivateContributionBoundsParams(
+            aggregation_eps=0.9,
+            aggregation_delta=0.001,
+            calculation_eps=0.1,
+            aggregation_noise_kind=pipeline_dp.NoiseKind.LAPLACE,
+            max_partitions_contributed_upper_bound=2)
+        # user 0 contributes only 1 partitions, others contribute to both
+        data = [("pk0", 0)]
+        for i in range(10000):
+            data += [("pk0", i + 1), ("pk1", i + 1)]
+        data_extractors = pipeline_dp.DataExtractors(
+            partition_extractor=lambda x: x[0],
+            privacy_id_extractor=lambda x: x[1],
+            value_extractor=lambda _: None,
+        )
+        partitions = ["pk0", "pk1"]
+
+        with self.assertRaises(NotImplementedError):
+            engine.calculate_private_contribution_bounds(
+                data, params, data_extractors, partitions)
 
     def _create_params_default(self):
         return (pipeline_dp.AggregateParams(
@@ -159,7 +430,7 @@ class DpEngineTest(parameterized.TestCase):
             metrics=[pipeline_dp.Metrics.SUM, pipeline_dp.Metrics.MEAN],
         )
 
-        select_partitions_params = SelectPartitionsParams(
+        select_partitions_params = pipeline_dp.SelectPartitionsParams(
             max_partitions_contributed=2)
 
         budget_accountant = NaiveBudgetAccountant(total_epsilon=1,
@@ -178,8 +449,10 @@ class DpEngineTest(parameterized.TestCase):
                 "metrics=['PRIVACY_ID_COUNT', 'COUNT', 'MEAN']",
                 " noise_kind=gaussian", "max_value=5",
                 "Partition selection: private partitions",
-                "Cross-partition contribution bounding: for each privacy id randomly select max(actual_partition_contributed, 3)",
-                "Private Partition selection: using Truncated Geometric method with (eps="
+                "Cross-partition contribution bounding: for each privacy id "
+                "randomly select max(actual_partition_contributed, 3)",
+                "Private Partition selection: using Truncated Geometric "
+                "method with (eps="
             ],
         )
 
@@ -188,8 +461,11 @@ class DpEngineTest(parameterized.TestCase):
             [
                 "metrics=['SUM', 'MEAN']", " noise_kind=gaussian",
                 "max_value=5", "Partition selection: public partitions",
-                "Per-partition contribution bounding: for each privacy_id and eachpartition, randomly select max(actual_contributions_per_partition, 3)",
-                "Adding empty partitions for public partitions that are missing in data"
+                "Per-partition contribution bounding: for each privacy_id and "
+                "eachpartition, randomly select max("
+                "actual_contributions_per_partition, 3)",
+                "Adding empty partitions for public partitions that are "
+                "missing in data"
             ],
         )
 
@@ -199,13 +475,14 @@ class DpEngineTest(parameterized.TestCase):
                 "DPEngine method: select_partitions",
                 " budget_weight=1",
                 "max_partitions_contributed=2",
-                "Private Partition selection: using Truncated Geometric method with",
+                "Private Partition selection: using Truncated Geometric "
+                "method with",
             ],
         )
 
     @patch(
-        'pipeline_dp.contribution_bounders.SamplingCrossAndPerPartitionContributionBounder.bound_contributions'
-    )
+        'pipeline_dp.contribution_bounders'
+        '.SamplingCrossAndPerPartitionContributionBounder.bound_contributions')
     def test_aggregate_computation_graph(self, mock_bound_contributions):
         # Arrange
         aggregate_params = pipeline_dp.AggregateParams(
@@ -241,9 +518,9 @@ class DpEngineTest(parameterized.TestCase):
                                                     unittest.mock.ANY)
 
     @patch(
-        'pipeline_dp.dp_engine.DPEngine._drop_not_public_partitions',)
+        'pipeline_dp.dp_engine.DPEngine._drop_partitions',)
     def test_aggregate_no_partition_filtering_public_partitions(
-            self, mock_drop_not_public_partitions):
+            self, mock_drop_partitions):
         # Arrange
         engine, accountant = self._create_dp_engine_default(
             return_accountant=True)
@@ -261,7 +538,7 @@ class DpEngineTest(parameterized.TestCase):
         result = list(result)
 
         # Assert
-        mock_drop_not_public_partitions.assert_not_called()
+        mock_drop_partitions.assert_not_called()
         partition_keys = [kv[0] for kv in result]  # extract partition keys
         self.assertEqual(set(partition_keys), set(["pk0", "pk1", "pk2"]))
 
@@ -297,7 +574,8 @@ class DpEngineTest(parameterized.TestCase):
                 return num_users > self.min_users
 
         with patch(
-                "pipeline_dp.partition_selection.create_partition_selection_strategy",
+                "pipeline_dp.partition_selection"
+                ".create_partition_selection_strategy",
                 return_value=MockPartitionStrategy(min_users)) as mock_method:
             max_partitions_contributed = 2
             data_filtered = engine._select_private_partitions_internal(
@@ -329,7 +607,7 @@ class DpEngineTest(parameterized.TestCase):
         col = list(range(10)) + list(range(100, 120))
         data_extractor = pipeline_dp.DataExtractors(
             privacy_id_extractor=lambda x: x,
-            partition_extractor=lambda x: f"pk{x//100}",
+            partition_extractor=lambda x: f"pk{x // 100}",
             value_extractor=lambda x: None)
 
         engine = pipeline_dp.DPEngine(budget_accountant=budget_accountant,
@@ -384,7 +662,7 @@ class DpEngineTest(parameterized.TestCase):
         # Assert
 
         # Most partition should be dropped by private partition selection.
-        # This tests is non-deterministic, but it should pass with probability
+        # This test is non-deterministic, but it should pass with probability
         # very close to 1.
         self.assertLess(len(col), 5)
 
@@ -446,7 +724,8 @@ class DpEngineTest(parameterized.TestCase):
         # the test has passed at least 10000 runs.
 
         # Arrange
-        params = SelectPartitionsParams(max_partitions_contributed=1)
+        params = pipeline_dp.SelectPartitionsParams(
+            max_partitions_contributed=1)
 
         budget_accountant = NaiveBudgetAccountant(total_epsilon=1,
                                                   total_delta=1e-5)
@@ -711,7 +990,7 @@ class DpEngineTest(parameterized.TestCase):
 
         data_extractor = pipeline_dp.DataExtractors(
             privacy_id_extractor=lambda x: x,
-            partition_extractor=lambda x: f"pk{x//2}",
+            partition_extractor=lambda x: f"pk{x // 2}",
             value_extractor=lambda x: x)
 
         engine = pipeline_dp.DPEngine(budget_accountant, backend)
@@ -743,7 +1022,7 @@ class DpEngineTest(parameterized.TestCase):
         output = self.run_e2e_private_partition_selection_large_budget(
             input, pipeline_dp.SparkRDDBackend(sc))
 
-        self.assertEqual(5, len(output.collect()))
+        self.assertEqual(5, len(collect_to_container()))
 
     def test_run_e2e_beam(self):
         with test_pipeline.TestPipeline() as p:
@@ -788,7 +1067,7 @@ class DpEngineTest(parameterized.TestCase):
                                                   num_aggregations=3)
         dp_engine = self._create_dp_engine_default(budget_accountant)
         aggregate_params, public_partitions = self._create_params_default()
-        select_partition_params = SelectPartitionsParams(2)
+        select_partition_params = pipeline_dp.SelectPartitionsParams(2)
         extractors = self._get_default_extractors()
         input = [1, 2, 3]
 

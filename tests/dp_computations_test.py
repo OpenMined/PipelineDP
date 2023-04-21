@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import unittest
 from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
@@ -920,6 +921,94 @@ class AdditiveMechanismTests(parameterized.TestCase):
         self.assertEqual(sensitivities.linf, 5)
         self.assertEqual(sensitivities.l1, 20)
         self.assertEqual(sensitivities.l2, 10.0)
+
+
+class ExponentialMechanismTests(unittest.TestCase):
+
+    def test_one_parameter_that_has_much_greater_score_than_the_others_is_always_returned(
+            self):
+
+        class SingleValueScoringFunction(
+                dp_computations.ExponentialMechanism.ScoringFunction):
+
+            def score(self, k) -> float:
+                # e^(40 / 2) = 4e9
+                # e^(-40 / 2) = 2.06e-9
+                return 40 if k == 0 else -40
+
+            @property
+            def global_sensitivity(self) -> float:
+                return 1
+
+            @property
+            def is_monotonic(self) -> bool:
+                return False
+
+        exponential_mechanism = dp_computations.ExponentialMechanism(
+            SingleValueScoringFunction())
+
+        # weights should be: e^(40 / 2), e^(-40 / 2), e^(-40 / 2)
+        # probs should be: ~1, 4.2e-18, 4.2e-18
+        chosen_value = exponential_mechanism.apply(
+            eps=1, inputs_to_score_col=[0, 1, 2])
+
+        self.assertEqual(chosen_value, 0)
+
+    def test_monotonic_single_value_scoring_function_returns_last_number(self):
+
+        class SingleValueScoringFunction(
+                dp_computations.ExponentialMechanism.ScoringFunction):
+
+            def score(self, k) -> float:
+                # e^(20) = 4e9
+                # e^(-20) = 2.06e-9
+                return 20 if k == 2 else -20
+
+            @property
+            def global_sensitivity(self) -> float:
+                return 1
+
+            @property
+            def is_monotonic(self) -> bool:
+                return True
+
+        exponential_mechanism = dp_computations.ExponentialMechanism(
+            SingleValueScoringFunction())
+
+        # weights should be: e^(20), e^(-20), e^(-20)
+        # probs should be: ~1, 4.2e-18, 4.2e-18
+        chosen_value = exponential_mechanism.apply(
+            eps=1, inputs_to_score_col=[0, 1, 2])
+
+        self.assertEqual(chosen_value, 2)
+
+    def test_constant_scoring_function_returns_all_elements_after_many_runs(
+            self):
+
+        class ConstantScoringFunction(
+                dp_computations.ExponentialMechanism.ScoringFunction):
+
+            def score(self, k) -> float:
+                return 1
+
+            @property
+            def global_sensitivity(self) -> float:
+                return 1
+
+            @property
+            def is_monotonic(self) -> bool:
+                return True
+
+        exponential_mechanism = dp_computations.ExponentialMechanism(
+            ConstantScoringFunction())
+
+        # probability of only 1 value is (0.5)^100 = 7.9e-31
+        chosen_values = {
+            exponential_mechanism.apply(eps=1, inputs_to_score_col=[0, 1])
+            for _ in range(100)
+        }
+
+        self.assertSetEqual(chosen_values, {0, 1})
 
 
 if __name__ == '__main__':

@@ -35,7 +35,7 @@ def perform_utility_analysis(
         backend: pipeline_backend.PipelineBackend,
         options: analysis.UtilityAnalysisOptions,
         data_extractors: Union[pipeline_dp.DataExtractors,
-                               analysis.PreAggregateExtractors],
+                               pipeline_dp.PreAggregateExtractors],
         public_partitions=None,
         return_per_partition: bool = False):
     """Performs utility analysis for DP aggregations.
@@ -175,7 +175,7 @@ def perform_utility_analysis_new(
         backend: pipeline_backend.PipelineBackend,
         options: analysis.UtilityAnalysisOptions,
         data_extractors: Union[pipeline_dp.DataExtractors,
-                               analysis.PreAggregateExtractors],
+                               pipeline_dp.PreAggregateExtractors],
         public_partitions=None,
         return_per_partition: bool = False):
     """Performs utility analysis for DP aggregations.
