@@ -192,7 +192,7 @@ class MechanismContainerMixin(abc.ABC):
             del state["_mechanism"]
         return state
 
-    def _get_mechanism(self) -> dp_computations.AdditiveMechanism:
+    def get_mechanism(self) -> dp_computations.AdditiveMechanism:
         if not hasattr(self, "_mechanism"):
             mechanism_spec = self.mechanism_spec()
             noise_kind = mechanism_spec.mechanism_type.to_noise_kind()
@@ -225,7 +225,7 @@ class CountCombiner(Combiner, MechanismContainerMixin):
         return count1 + count2
 
     def compute_metrics(self, count: AccumulatorType) -> dict:
-        return {'count': self._get_mechanism().add_noise(count)}
+        return {'count': self.get_mechanism().add_noise(count)}
 
     def metrics_names(self) -> List[str]:
         return ['count']
@@ -262,7 +262,7 @@ class PrivacyIdCountCombiner(Combiner, MechanismContainerMixin):
         return accumulator1 + accumulator2
 
     def compute_metrics(self, count: AccumulatorType) -> dict:
-        return {"privacy_id_count": self._get_mechanism().add_noise(count)}
+        return {"privacy_id_count": self.get_mechanism().add_noise(count)}
 
     def metrics_names(self) -> List[str]:
         return ['privacy_id_count']
@@ -309,7 +309,7 @@ class SumCombiner(Combiner, MechanismContainerMixin):
         return sum1 + sum2
 
     def compute_metrics(self, sum_: AccumulatorType) -> dict:
-        return {"sum": self._get_mechanism().add_noise(sum_)}
+        return {"sum": self.get_mechanism().add_noise(sum_)}
 
     def metrics_names(self) -> List[str]:
         return ['sum']
