@@ -187,11 +187,13 @@ class MechanismContainerMixin(abc.ABC):
         pass
 
     def __getstate__(self):
+        # This method is called when serialization happens and its output is
+        # serialized. So we can choose what will be serialized. It is needed
+        # because '_mechanism' is not serializable, and it can be created on
+        # demand. So '_mechanism' is dropped from serialization.
         state = self.__dict__.copy()
-        # Do not serialize _mechanism, because it is not serializable and it is
-        # created on demand.
         if "_mechanism" in state:
-            del state["_mechanism"]
+            del state["_mechanism"]  # do not serialize _mechanism.
         return state
 
     def get_mechanism(self) -> dp_computations.AdditiveMechanism:
@@ -292,8 +294,8 @@ class SumCombiner(Combiner, MechanismContainerMixin):
         self._mechanism_spec = mechanism_spec
         self._sensitivities = dp_computations.compute_sensitivities_for_sum(
             aggregate_params)
-        self._bouding_per_partition = aggregate_params.bounds_per_partition_are_set
-        if self._bouding_per_partition:
+        self._bounding_per_partition = aggregate_params.bounds_per_partition_are_set
+        if self._bounding_per_partition:
             self._min_bound = aggregate_params.min_sum_per_partition
             self._max_bound = aggregate_params.max_sum_per_partition
         else:
@@ -301,7 +303,7 @@ class SumCombiner(Combiner, MechanismContainerMixin):
             self._max_bound = aggregate_params.max_value
 
     def create_accumulator(self, values: Iterable[float]) -> AccumulatorType:
-        if self._bouding_per_partition:
+        if self._bounding_per_partition:
             # Sum values and clip.
             return np.clip(sum(values), self._min_bound, self._max_bound)
         # Clip each value and sum.
