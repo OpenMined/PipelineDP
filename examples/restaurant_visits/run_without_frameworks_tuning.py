@@ -24,9 +24,8 @@ import pipeline_dp
 import pandas as pd
 import collections
 
-import analysis
-from analysis import histograms
 from analysis import parameter_tuning
+from pipeline_dp import histograms
 
 FLAGS = flags.FLAGS
 flags.DEFINE_string('input_file', 'restaurants_week_data.csv',
@@ -123,7 +122,7 @@ def tune_parameters():
 
     if FLAGS.run_on_preaggregated_data:
         input = preaggregate(restaurant_visits_rows, get_data_extractors())
-        data_extractors = analysis.PreAggregateExtractors(
+        data_extractors = pipeline_dp.PreAggregateExtractors(
             partition_extractor=lambda row: row[0],
             preaggregate_extractor=lambda row: row[1])
         hist = histograms.compute_dataset_histograms_on_preaggregated_data(
@@ -148,7 +147,7 @@ def tune_parameters():
         pre_aggregated_data=FLAGS.run_on_preaggregated_data)
 
     if FLAGS.output_file_per_partition_analysis:
-        result, per_partition = parameter_tuning.tune(
+        result, per_partition = parameter_tuning.tune_new(
             input,
             backend,
             hist,
@@ -158,9 +157,9 @@ def tune_parameters():
             return_utility_analysis_per_partition=True)
         write_to_file(per_partition, FLAGS.output_file_per_partition_analysis)
     else:
-        result = parameter_tuning.tune(restaurant_visits_rows, backend, hist,
-                                       tune_options, data_extractors,
-                                       public_partitions, False)
+        result = parameter_tuning.tune_new(restaurant_visits_rows, backend,
+                                           hist, tune_options, data_extractors,
+                                           public_partitions, False)
 
     # Here's where the lazy iterator initiates computations and gets transformed
     # into actual results

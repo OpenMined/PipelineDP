@@ -374,7 +374,7 @@ class UtilityAnalysisPrivacyIdCountCombinerTest(parameterized.TestCase):
                  sum=0.0,
                  per_partition_error_min=0.0,
                  per_partition_error_max=0.0,
-                 std_noise=10.556883272246033,
+                 std_noise=5.278441636123016,
                  expected_cross_partition_error=0.0,
                  std_cross_partition_error=0.0,
                  noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)),
@@ -388,7 +388,7 @@ class UtilityAnalysisPrivacyIdCountCombinerTest(parameterized.TestCase):
                  per_partition_error_max=0.0,
                  expected_cross_partition_error=-0.5,
                  std_cross_partition_error=0.5,
-                 std_noise=10.556883272246033,
+                 std_noise=5.278441636123016,
                  noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)),
         dict(testcase_name='multiple_contributions_keep_half',
              num_partitions=4,
@@ -400,7 +400,7 @@ class UtilityAnalysisPrivacyIdCountCombinerTest(parameterized.TestCase):
                  per_partition_error_max=0.0,
                  expected_cross_partition_error=-0.5,
                  std_cross_partition_error=0.5,
-                 std_noise=10.556883272246033,
+                 std_noise=5.278441636123016,
                  noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)),
         dict(testcase_name='multiple_contributions_keep_all_no_error',
              num_partitions=1,
@@ -412,7 +412,7 @@ class UtilityAnalysisPrivacyIdCountCombinerTest(parameterized.TestCase):
                  per_partition_error_max=0.0,
                  expected_cross_partition_error=0.0,
                  std_cross_partition_error=0.0,
-                 std_noise=10.556883272246033,
+                 std_noise=5.278441636123016,
                  noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)))
     def test_compute_metrics(self, num_partitions, contribution_values, params,
                              expected_metrics):
@@ -504,6 +504,19 @@ class UtilityAnalysisCompoundCombinerTest(parameterized.TestCase):
         self.assertIsNone(sparse)
         self.assertEqual(dense, (4, ((0.5, 1.5, 2, -1),)))
 
+    def test_merge_mix_sparse_dense(self):
+        combiner = self._create_combiner()
+        sparse_acc1 = ([1], [10], [100])
+        dense_count_acc1 = (0, 1, 2, 3)
+        acc1 = (sparse_acc1, (1, (dense_count_acc1,)))
+        dense_count_acc2 = (0.5, 0.5, 0, -4)
+        sparse_acc2 = ([11], [2], [300])
+        acc2 = (sparse_acc2, (3, (dense_count_acc2,)))
+        sparse, dense = combiner.merge_accumulators(acc1, acc2)
+
+        self.assertEqual(sparse, ([1, 11], [10, 2], [100, 300]))
+        self.assertEqual(dense, (4, ((0.5, 1.5, 2, -1),)))
+
     @parameterized.named_parameters(
         dict(testcase_name='empty',
              num_partitions=0,
@@ -545,6 +558,26 @@ class UtilityAnalysisCompoundCombinerTest(parameterized.TestCase):
             (len(contribution_values), sum(contribution_values),
              num_partitions))
         self.assertEqual(expected_metrics, combiner.compute_metrics(acc)[0])
+
+    def test_compute_metrics_mix_sparse_dense(self):
+        combiner = self._create_combiner()
+        sparse = ([1, 11], [10, 2], [100, 300])
+        dense = (4, ((2, 1.5, 2, -1, 3),))
+        acc = (sparse, dense)
+
+        output = self._create_combiner().compute_metrics(acc)
+
+        self.assertLen(output, 1)  # only 1 combiner.
+        common.assert_dataclasses_are_equal(
+            self,
+            metrics.SumMetrics(
+                sum=14,
+                per_partition_error_min=1.5,
+                per_partition_error_max=-7.0,
+                expected_cross_partition_error=-3.9833333333333334,
+                std_cross_partition_error=1.738731977300955,
+                std_noise=7.46484375,
+                noise_kind=pipeline_dp.NoiseKind.GAUSSIAN), output[0])
 
     def test_two_internal_combiners(self):
         count_combiner = combiners.CountCombiner(

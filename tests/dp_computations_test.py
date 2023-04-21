@@ -11,10 +11,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import unittest
 from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
-import typing
+from typing import Iterable, Optional
 from scipy import stats
 import math
 from unittest.mock import patch
@@ -158,7 +159,7 @@ class DPComputationsTest(parameterized.TestCase):
         self._test_gaussian_kolmogorov_smirnov(num_trials, results,
                                                expected_mean, expected_sigma)
 
-    def _not_all_integers(self, results: typing.Iterable[float]):
+    def _not_all_integers(self, results: Iterable[float]):
         return any(map(lambda x: not x.is_integer(), results))
 
     def test_apply_laplace_mechanism(self):
@@ -655,6 +656,359 @@ class DPComputationsTest(parameterized.TestCase):
         scale = dp_computations.compute_dp_sum_noise_std(params)
 
         self.assertAlmostEqual(scale, expected_std)
+
+
+def create_aggregate_params(
+        max_partitions_contributed: Optional[int] = None,
+        max_contributions_per_partition: Optional[int] = None,
+        min_value: Optional[float] = None,
+        max_value: Optional[float] = None,
+        min_sum_per_partition: Optional[float] = None,
+        max_sum_per_partition: Optional[float] = None):
+    return pipeline_dp.AggregateParams(
+        metrics=[pipeline_dp.Metrics.COUNT],
+        max_partitions_contributed=max_partitions_contributed,
+        max_contributions_per_partition=max_contributions_per_partition,
+        min_value=min_value,
+        max_value=max_value,
+        min_sum_per_partition=min_sum_per_partition,
+        max_sum_per_partition=max_sum_per_partition)
+
+
+class AdditiveMechanismTests(parameterized.TestCase):
+
+    @parameterized.parameters(
+        dict(epsilon=2, l1_sensitivity=4.5, expected_noise=2.25),
+        dict(epsilon=0.1, l1_sensitivity=0.55, expected_noise=5.5),
+    )
+    def test_laplace_mechanism_creation(self, epsilon, l1_sensitivity,
+                                        expected_noise):
+        mechanism = dp_computations.LaplaceMechanism(
+            epsilon=epsilon, l1_sensitivity=l1_sensitivity)
+
+        self.assertEqual(mechanism.noise_kind, pipeline_dp.NoiseKind.LAPLACE)
+        self.assertAlmostEqual(mechanism.noise_parameter,
+                               expected_noise,
+                               delta=1e-12)
+        self.assertAlmostEqual(mechanism.std,
+                               expected_noise * math.sqrt(2),
+                               delta=1e-12)
+        self.assertEqual(mechanism.sensitivity, l1_sensitivity)
+        self.assertIsInstance(mechanism.add_noise(1000), float)
+
+    @parameterized.parameters(
+        dict(epsilon=2, l1_sensitivity=4.5, value=0, expected_noise_scale=2.25),
+        dict(epsilon=0.1,
+             l1_sensitivity=0.55,
+             value=1000,
+             expected_noise_scale=5.5),
+        dict(epsilon=0.001,
+             l1_sensitivity=10,
+             value=-100,
+             expected_noise_scale=10000),
+    )
+    def test_laplace_mechanism_distribution(self, epsilon, l1_sensitivity,
+                                            value, expected_noise_scale):
+        # Use Kolmogorov-Smirnov test to verify the output noise distribution.
+        # https://en.wikipedia.org/wiki/Kolmogorov-Smirnov_test
+        mechanism = dp_computations.LaplaceMechanism(
+            epsilon=epsilon, l1_sensitivity=l1_sensitivity)
+        expected_cdf = stats.laplace(loc=value, scale=expected_noise_scale).cdf
+
+        noised_values = [mechanism.add_noise(value) for _ in range(30000)]
+
+        res = stats.ks_1samp(noised_values, expected_cdf)
+        self.assertGreater(res.pvalue, 1e-4)
+
+    @parameterized.parameters(
+        dict(epsilon=2,
+             delta=1e-15,
+             l2_sensitivity=4.5,
+             expected_noise_scale=17.1826171875),
+        dict(epsilon=0.1,
+             delta=1e-5,
+             l2_sensitivity=0.55,
+             expected_noise_scale=16.9125),
+    )
+    def test_gaussian_mechanism_creation(self, epsilon, delta, l2_sensitivity,
+                                         expected_noise_scale):
+        mechanism = dp_computations.GaussianMechanism(
+            epsilon=epsilon, delta=delta, l2_sensitivity=l2_sensitivity)
+
+        self.assertEqual(mechanism.noise_kind, pipeline_dp.NoiseKind.GAUSSIAN)
+        self.assertAlmostEqual(mechanism.noise_parameter,
+                               expected_noise_scale,
+                               delta=1e-6)
+        self.assertAlmostEqual(mechanism.std, expected_noise_scale, delta=6)
+        self.assertEqual(mechanism.sensitivity, l2_sensitivity)
+        self.assertIsInstance(mechanism.add_noise(1000), float)
+
+    @parameterized.parameters(
+        dict(epsilon=2,
+             delta=1e-15,
+             l2_sensitivity=4.5,
+             value=0,
+             expected_noise_scale=17.1826171875),
+        dict(epsilon=0.1,
+             delta=1e-5,
+             l2_sensitivity=0.55,
+             value=2000,
+             expected_noise_scale=16.9125),
+        dict(epsilon=0.2,
+             delta=1e-10,
+             l2_sensitivity=10,
+             value=-500,
+             expected_noise_scale=277.34375),
+    )
+    def test_gaussian_mechanism_distribution(self, epsilon, delta,
+                                             l2_sensitivity, value,
+                                             expected_noise_scale):
+        # Use Kolmogorov-Smirnov test to verify the output noise distribution.
+        # https://en.wikipedia.org/wiki/Kolmogorov-Smirnov_test
+        mechanism = dp_computations.GaussianMechanism(
+            epsilon=epsilon, delta=delta, l2_sensitivity=l2_sensitivity)
+        self.assertEqual(mechanism.std, expected_noise_scale)
+
+        expected_cdf = stats.norm(loc=value, scale=expected_noise_scale).cdf
+        noised_values = [mechanism.add_noise(value) for _ in range(30000)]
+
+        res = stats.ks_1samp(noised_values, expected_cdf)
+        self.assertGreater(res.pvalue, 1e-4)
+
+    @parameterized.parameters(
+        dict(l0_sensitivity=-2,
+             linf_sensitivity=2,
+             l1_sensitivity=None,
+             l2_sensitivity=None,
+             expected_error="L0 must be positive"),
+        dict(l0_sensitivity=2,
+             linf_sensitivity=-2,
+             l1_sensitivity=-1,
+             l2_sensitivity=None,
+             expected_error="Linf must be positive"),
+        dict(l0_sensitivity=None,
+             linf_sensitivity=None,
+             l1_sensitivity=0,
+             l2_sensitivity=None,
+             expected_error="L1 must be positive"),
+        dict(l0_sensitivity=None,
+             linf_sensitivity=None,
+             l1_sensitivity=None,
+             l2_sensitivity=-5,
+             expected_error="L2 must be positive"),
+        dict(l0_sensitivity=4,
+             linf_sensitivity=None,
+             l1_sensitivity=None,
+             l2_sensitivity=None,
+             expected_error="both set or both unset"),
+        dict(l0_sensitivity=4,
+             linf_sensitivity=2,
+             l1_sensitivity=7,
+             l2_sensitivity=None,
+             expected_error="L1=7 != .*=8"),
+        dict(l0_sensitivity=4,
+             linf_sensitivity=5,
+             l1_sensitivity=None,
+             l2_sensitivity=9,
+             expected_error="L2=9 != .*=10"),
+    )
+    def test_sensitivities_post_init_validation(self, l0_sensitivity,
+                                                linf_sensitivity,
+                                                l1_sensitivity, l2_sensitivity,
+                                                expected_error):
+        with self.assertRaisesRegex(ValueError, expected_error):
+            dp_computations.Sensitivities(l0_sensitivity, linf_sensitivity,
+                                          l1_sensitivity, l2_sensitivity)
+
+    def test_sensitivities_post_init_l1_l2_computation(self):
+        sensitivities = dp_computations.Sensitivities(l0=4, linf=5)
+        self.assertEqual(sensitivities.l1, 20)
+        self.assertEqual(sensitivities.l2, 10)
+
+    @parameterized.parameters(
+        dict(epsilon=2,
+             l0_sensitivity=None,
+             linf_sensitivity=None,
+             l1_sensitivity=5,
+             expected_noise_parameter=2.5),
+        dict(epsilon=0.1,
+             l0_sensitivity=None,
+             linf_sensitivity=None,
+             l1_sensitivity=3,
+             expected_noise_parameter=30),
+        dict(epsilon=0.5,
+             l0_sensitivity=8,
+             linf_sensitivity=3,
+             l1_sensitivity=None,
+             expected_noise_parameter=48),
+    )
+    def test_create_laplace_mechanism(self, epsilon, l0_sensitivity,
+                                      linf_sensitivity, l1_sensitivity,
+                                      expected_noise_parameter):
+        spec = dp_computations.AdditiveMechanismSpec(
+            epsilon, delta=0, noise_kind=pipeline_dp.NoiseKind.LAPLACE)
+        sensitivities = dp_computations.Sensitivities(l0=l0_sensitivity,
+                                                      linf=linf_sensitivity,
+                                                      l1=l1_sensitivity)
+
+        mechanism = dp_computations.create_additive_mechanism(
+            spec, sensitivities)
+
+        self.assertAlmostEqual(mechanism.noise_parameter,
+                               expected_noise_parameter,
+                               delta=1e-12)
+
+    @parameterized.parameters(
+        dict(epsilon=2,
+             delta=1e-10,
+             l2_sensitivity=10,
+             expected_noise_parameter=30.2734375),
+        dict(epsilon=0.1,
+             delta=1e-15,
+             l2_sensitivity=3,
+             expected_noise_parameter=213.9375),
+    )
+    def test_create_gaussian_mechanism(self, epsilon, delta, l2_sensitivity,
+                                       expected_noise_parameter):
+        spec = dp_computations.AdditiveMechanismSpec(
+            epsilon, delta=delta, noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)
+        sensitivities = dp_computations.Sensitivities(l2=l2_sensitivity)
+
+        mechanism = dp_computations.create_additive_mechanism(
+            spec, sensitivities)
+
+        self.assertAlmostEqual(mechanism.noise_parameter,
+                               expected_noise_parameter,
+                               delta=1e-6)
+
+    def test_compute_sensitivities_for_count(self):
+        params = create_aggregate_params(max_partitions_contributed=4,
+                                         max_contributions_per_partition=11)
+        sensitivities = dp_computations.compute_sensitivities_for_count(params)
+        self.assertEqual(sensitivities.l0, 4)
+        self.assertEqual(sensitivities.linf, 11)
+        self.assertEqual(sensitivities.l1, 44)
+        self.assertEqual(sensitivities.l2, 22.0)
+
+    def test_compute_sensitivities_for_privacy_id_count(self):
+        params = create_aggregate_params(max_partitions_contributed=4,
+                                         max_contributions_per_partition=11)
+        sensitivities = dp_computations.compute_sensitivities_for_privacy_id_count(
+            params)
+        self.assertEqual(sensitivities.l0, 4)
+        self.assertEqual(sensitivities.linf, 1)
+        self.assertEqual(sensitivities.l1, 4)
+        self.assertEqual(sensitivities.l2, 2.0)
+
+    def test_compute_sensitivities_for_sum_min_max_values(self):
+        params = create_aggregate_params(max_partitions_contributed=4,
+                                         max_contributions_per_partition=11,
+                                         min_value=-2,
+                                         max_value=5)
+        sensitivities = dp_computations.compute_sensitivities_for_sum(params)
+        self.assertEqual(sensitivities.l0, 4)
+        self.assertEqual(sensitivities.linf, 55)
+        self.assertEqual(sensitivities.l1, 220)
+        self.assertEqual(sensitivities.l2, 110.0)
+
+    def test_compute_sensitivities_for_sum_min_max_per_partition(self):
+        params = create_aggregate_params(max_partitions_contributed=4,
+                                         max_contributions_per_partition=11,
+                                         min_sum_per_partition=-2,
+                                         max_sum_per_partition=5)
+        sensitivities = dp_computations.compute_sensitivities_for_sum(params)
+        self.assertEqual(sensitivities.l0, 4)
+        self.assertEqual(sensitivities.linf, 5)
+        self.assertEqual(sensitivities.l1, 20)
+        self.assertEqual(sensitivities.l2, 10.0)
+
+
+class ExponentialMechanismTests(unittest.TestCase):
+
+    def test_one_parameter_that_has_much_greater_score_than_the_others_is_always_returned(
+            self):
+
+        class SingleValueScoringFunction(
+                dp_computations.ExponentialMechanism.ScoringFunction):
+
+            def score(self, k) -> float:
+                # e^(40 / 2) = 4e9
+                # e^(-40 / 2) = 2.06e-9
+                return 40 if k == 0 else -40
+
+            @property
+            def global_sensitivity(self) -> float:
+                return 1
+
+            @property
+            def is_monotonic(self) -> bool:
+                return False
+
+        exponential_mechanism = dp_computations.ExponentialMechanism(
+            SingleValueScoringFunction())
+
+        # weights should be: e^(40 / 2), e^(-40 / 2), e^(-40 / 2)
+        # probs should be: ~1, 4.2e-18, 4.2e-18
+        chosen_value = exponential_mechanism.apply(
+            eps=1, inputs_to_score_col=[0, 1, 2])
+
+        self.assertEqual(chosen_value, 0)
+
+    def test_monotonic_single_value_scoring_function_returns_last_number(self):
+
+        class SingleValueScoringFunction(
+                dp_computations.ExponentialMechanism.ScoringFunction):
+
+            def score(self, k) -> float:
+                # e^(20) = 4e9
+                # e^(-20) = 2.06e-9
+                return 20 if k == 2 else -20
+
+            @property
+            def global_sensitivity(self) -> float:
+                return 1
+
+            @property
+            def is_monotonic(self) -> bool:
+                return True
+
+        exponential_mechanism = dp_computations.ExponentialMechanism(
+            SingleValueScoringFunction())
+
+        # weights should be: e^(20), e^(-20), e^(-20)
+        # probs should be: ~1, 4.2e-18, 4.2e-18
+        chosen_value = exponential_mechanism.apply(
+            eps=1, inputs_to_score_col=[0, 1, 2])
+
+        self.assertEqual(chosen_value, 2)
+
+    def test_constant_scoring_function_returns_all_elements_after_many_runs(
+            self):
+
+        class ConstantScoringFunction(
+                dp_computations.ExponentialMechanism.ScoringFunction):
+
+            def score(self, k) -> float:
+                return 1
+
+            @property
+            def global_sensitivity(self) -> float:
+                return 1
+
+            @property
+            def is_monotonic(self) -> bool:
+                return True
+
+        exponential_mechanism = dp_computations.ExponentialMechanism(
+            ConstantScoringFunction())
+
+        # probability of only 1 value is (0.5)^100 = 7.9e-31
+        chosen_values = {
+            exponential_mechanism.apply(eps=1, inputs_to_score_col=[0, 1])
+            for _ in range(100)
+        }
+
+        self.assertSetEqual(chosen_values, {0, 1})
 
 
 if __name__ == '__main__':

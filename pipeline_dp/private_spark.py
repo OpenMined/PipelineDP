@@ -108,7 +108,7 @@ class PrivateRDD:
             params,
             data_extractors,
             public_partitions,
-            out_explain_computaton_report=out_explain_computaton_report)
+            out_explain_computation_report=out_explain_computaton_report)
         # dp_result : (partition_key, (variance=dp_variance))
 
         # aggregate() returns a namedtuple of metrics for each partition key.
@@ -164,7 +164,7 @@ class PrivateRDD:
             params,
             data_extractors,
             public_partitions,
-            out_explain_computaton_report=out_explain_computaton_report)
+            out_explain_computation_report=out_explain_computaton_report)
         # dp_result : (partition_key, (mean=dp_mean))
 
         # aggregate() returns a namedtuple of metrics for each partition key.
@@ -220,7 +220,7 @@ class PrivateRDD:
             params,
             data_extractors,
             public_partitions,
-            out_explain_computaton_report=out_explain_computaton_report)
+            out_explain_computation_report=out_explain_computaton_report)
         # dp_result : (partition_key, (sum=dp_sum))
 
         # aggregate() returns a namedtuple of metrics for each partition key.
@@ -275,7 +275,7 @@ class PrivateRDD:
             params,
             data_extractors,
             public_partitions,
-            out_explain_computaton_report=out_explain_computaton_report)
+            out_explain_computation_report=out_explain_computaton_report)
         # dp_result : (partition_key, (count=dp_count))
 
         # aggregate() returns a namedtuple of metrics for each partition key.
@@ -330,7 +330,7 @@ class PrivateRDD:
             params,
             data_extractors,
             public_partitions,
-            out_explain_computaton_report=out_explain_computaton_report)
+            out_explain_computation_report=out_explain_computaton_report)
         # dp_result : (partition_key, (privacy_id_count=dp_privacy_id_count))
 
         # aggregate() returns a namedtuple of metrics for each partition key.

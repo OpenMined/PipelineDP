@@ -118,8 +118,8 @@ class PartitionSelectionCalculator:
 
     def __post_init__(self):
         assert (self.probabilities is None) != (
-            self.moments is
-            None), "Only one of probabilities and moments must be set."
+            self.moments
+            is None), "Only one of probabilities and moments must be set."
 
     def compute_probability_to_keep(self,
                                     partition_selection_strategy: pipeline_dp.
@@ -299,6 +299,10 @@ class PrivacyIdCountCombiner(SumCombiner):
     # expected_cross_partition_error, var_cross_partition_error)
     AccumulatorType = Tuple[float, float, float, float, float]
 
+    def __init__(self, params: pipeline_dp.combiners.CombinerParams):
+        self._params = copy.copy(params)
+        self._params.aggregate_params.max_contributions_per_partition = 1
+
     def create_accumulator(
         self, sparse_acc: Tuple[np.ndarray, np.ndarray,
                                 np.ndarray]) -> AccumulatorType:
@@ -354,9 +358,33 @@ class CompoundCombiner(pipeline_dp.combiners.CompoundCombiner):
             ]),
         )
 
+    def _merge_sparse(self, acc1, acc2):
+        if acc1 is None:
+            return acc2
+        if acc2 is None:
+            return acc1
+        return tuple(_merge_list(s, t) for s, t in zip(acc1, acc2))
+
+    def _merge_dense(self, acc1, acc2):
+        if acc1 is None:
+            return acc2
+        if acc2 is None:
+            return acc1
+        return super().merge_accumulators(acc1, acc2)
+
     def merge_accumulators(self, acc1: AccumulatorType, acc2: AccumulatorType):
         sparse1, dense1 = acc1
         sparse2, dense2 = acc2
+
+        sparse_res = self._merge_sparse(sparse1, sparse2)
+        merge_res = self._merge_dense(dense1, dense2)
+        is_sparse_gr_dense = sparse_res is not None and len(
+            sparse_res[0]) > 2 * len(self._combiners)
+        if is_sparse_gr_dense:
+            merge_res = self._merge_dense(merge_res, self._to_dense(sparse_res))
+            sparse_res = None
+        return sparse_res, merge_res
+
         if sparse1 and sparse2:
             merged_sparse = tuple(
                 [_merge_list(s, t) for s, t in zip(sparse1, sparse2)])
@@ -377,7 +405,7 @@ class CompoundCombiner(pipeline_dp.combiners.CompoundCombiner):
     def compute_metrics(self, acc: AccumulatorType):
         sparse, dense = acc
         if sparse:
-            dense = self._to_dense(sparse)
+            dense = self._merge_dense(dense, self._to_dense(sparse))
         return super().compute_metrics(dense)
 
 

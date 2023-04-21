@@ -34,8 +34,8 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
         )
 
     def _get_default_pre_aggregated_extractors(
-            self) -> analysis.PreAggregateExtractors:
-        return analysis.PreAggregateExtractors(
+            self) -> pipeline_dp.PreAggregateExtractors:
+        return pipeline_dp.PreAggregateExtractors(
             partition_extractor=lambda x: x[0],
             preaggregate_extractor=lambda x: x[1])
 
@@ -127,7 +127,7 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
                 partition_extractor=lambda x: f"pk{x}",
                 value_extractor=lambda x: 0)
         else:
-            data_extractors = analysis.PreAggregateExtractors(
+            data_extractors = pipeline_dp.PreAggregateExtractors(
                 partition_extractor=lambda x: f"pk{x}",
                 preaggregate_extractor=lambda x: (1, 0, 1))
 

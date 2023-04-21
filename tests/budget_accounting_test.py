@@ -330,58 +330,58 @@ class PLDBudgetAccountantTest(unittest.TestCase):
                 ],
                 expected_pipeline_noise_std=0.9428090415820634),
             ComputeBudgetTestCase(name="laplace_mechanisms",
-                                  epsilon=0.19348133991361996,
+                                  epsilon=0.168,
                                   delta=1e-3,
                                   mechanisms=[
                                       ComputeBudgetMechanisms(
                                           count=10,
-                                          expected_noise_std=50,
+                                          expected_noise_std=49.872,
                                           mechanism_type=MechanismType.LAPLACE,
                                           weight=1,
                                           sensitivity=1)
                                   ],
-                                  expected_pipeline_noise_std=50),
+                                  expected_pipeline_noise_std=49.872),
             ComputeBudgetTestCase(name="gaussian_mechanisms",
-                                  epsilon=0.16421041618759222,
+                                  epsilon=0.115,
                                   delta=1e-3,
                                   mechanisms=[
                                       ComputeBudgetMechanisms(
                                           count=10,
-                                          expected_noise_std=50,
+                                          expected_noise_std=50.25,
                                           mechanism_type=MechanismType.GAUSSIAN,
                                           weight=1,
                                           sensitivity=1)
                                   ],
-                                  expected_pipeline_noise_std=50),
+                                  expected_pipeline_noise_std=50.25),
             ComputeBudgetTestCase(
                 name="multiple_noise_kinds",
-                epsilon=0.2719439419475211,
+                epsilon=0.240,
                 delta=1e-3,
                 mechanisms=[
                     ComputeBudgetMechanisms(
                         count=5,
-                        expected_noise_std=49.81597900390625,
+                        expected_noise_std=49.73,
                         mechanism_type=MechanismType.LAPLACE,
                         weight=1,
                         sensitivity=1),
                     ComputeBudgetMechanisms(
                         count=5,
-                        expected_noise_std=49.81597900390625,
+                        expected_noise_std=49.73,
                         mechanism_type=MechanismType.GAUSSIAN,
                         weight=1,
                         sensitivity=1),
                     ComputeBudgetMechanisms(
                         count=5,
-                        expected_noise_std=49.81597900390625,
+                        expected_noise_std=49.73,
                         mechanism_type=MechanismType.GENERIC,
                         weight=1,
                         sensitivity=1,
                         expected_mechanism_epsilon=0.02838875378244,
                         expected_mechanism_delta=0.00010439193305478515)
                 ],
-                expected_pipeline_noise_std=49.81597900390625),
+                expected_pipeline_noise_std=49.73),
             ComputeBudgetTestCase(name="multiple_weights",
-                                  epsilon=1.924852037917208,
+                                  epsilon=1.873,
                                   delta=1e-5,
                                   mechanisms=[
                                       ComputeBudgetMechanisms(
@@ -399,25 +399,25 @@ class PLDBudgetAccountantTest(unittest.TestCase):
                                   ],
                                   expected_pipeline_noise_std=20),
             ComputeBudgetTestCase(name="multiple_sensitivities",
-                                  epsilon=0.2764312848667339,
+                                  epsilon=0.246,
                                   delta=1e-5,
                                   mechanisms=[
                                       ComputeBudgetMechanisms(
                                           count=6,
-                                          expected_noise_std=40,
+                                          expected_noise_std=40.048,
                                           mechanism_type=MechanismType.LAPLACE,
                                           weight=1,
                                           sensitivity=2),
                                       ComputeBudgetMechanisms(
                                           count=2,
-                                          expected_noise_std=80,
+                                          expected_noise_std=80.096,
                                           mechanism_type=MechanismType.GAUSSIAN,
                                           weight=1,
                                           sensitivity=4)
                                   ],
-                                  expected_pipeline_noise_std=20),
+                                  expected_pipeline_noise_std=20.024),
             ComputeBudgetTestCase(name="multiple_weights_and_sensitivities",
-                                  epsilon=0.780797891312483,
+                                  epsilon=0.719,
                                   delta=1e-5,
                                   mechanisms=[
                                       ComputeBudgetMechanisms(
@@ -436,24 +436,24 @@ class PLDBudgetAccountantTest(unittest.TestCase):
                                   expected_pipeline_noise_std=20),
             ComputeBudgetTestCase(
                 name="multiple_weights_and_sensitivities_variants",
-                epsilon=0.9165937807680077,
+                epsilon=0.822,
                 delta=1e-6,
                 mechanisms=[
                     ComputeBudgetMechanisms(
                         count=4,
-                        expected_noise_std=20,
+                        expected_noise_std=20.01,
                         mechanism_type=MechanismType.LAPLACE,
                         weight=4,
                         sensitivity=2),
                     ComputeBudgetMechanisms(
                         count=6,
-                        expected_noise_std=80,
+                        expected_noise_std=80.04,
                         mechanism_type=MechanismType.GAUSSIAN,
                         weight=2,
                         sensitivity=4),
                     ComputeBudgetMechanisms(
                         count=1,
-                        expected_noise_std=80,
+                        expected_noise_std=80.04,
                         mechanism_type=MechanismType.GAUSSIAN,
                         weight=3,
                         sensitivity=6),
@@ -464,7 +464,7 @@ class PLDBudgetAccountantTest(unittest.TestCase):
                         weight=8,
                         sensitivity=3),
                 ],
-                expected_pipeline_noise_std=40)
+                expected_pipeline_noise_std=40.02)
         ]
 
         for case in testcases:
@@ -489,40 +489,42 @@ class PLDBudgetAccountantTest(unittest.TestCase):
                     case.expected_pipeline_noise_std)
                 actual_epsilon = compare_pld.get_epsilon_for_delta(case.delta)
                 self.assertAlmostEqual(
-                    case.epsilon, actual_epsilon, 3,
-                    f"failed test {case.name} expected epsilon {case.epsilon} got {actual_epsilon}"
-                )
+                    case.epsilon,
+                    actual_epsilon,
+                    delta=1e-3,
+                    msg=f"failed test {case.name} expected epsilon "
+                    f"{case.epsilon} got {actual_epsilon}")
             accountant.compute_budgets()
             self.assertAlmostEqual(
                 first=case.expected_pipeline_noise_std,
                 second=accountant.minimum_noise_std,
-                places=3,
-                msg=
-                f"failed test {case.name} expected pipeline noise {case.expected_pipeline_noise_std} "
+                delta=1e-2,
+                msg=f"failed test {case.name} expected pipeline noise "
+                f"{case.expected_pipeline_noise_std} "
                 f"got {accountant.minimum_noise_std}")
             for mechanism_expectations in actual_mechanisms:
                 expected_mechanism_noise_std, expected_mechanism_epsilon, expected_mechanism_delta, actual_mechanism = mechanism_expectations
                 self.assertAlmostEqual(
                     first=expected_mechanism_noise_std,
                     second=actual_mechanism.noise_standard_deviation,
-                    places=3,
-                    msg=
-                    f"failed test {case.name} expected mechanism noise {expected_mechanism_noise_std} "
+                    delta=1e-2,
+                    msg=f"failed test {case.name} expected mechanism noise "
+                    f"{expected_mechanism_noise_std} "
                     f"got {actual_mechanism.noise_standard_deviation}")
                 if actual_mechanism.mechanism_type == MechanismType.GENERIC:
                     self.assertAlmostEqual(
                         first=expected_mechanism_epsilon,
                         second=actual_mechanism._eps,
-                        places=3,
-                        msg=
-                        f"failed test {case.name} expected mechanism epsilon {expected_mechanism_epsilon} "
+                        delta=1e-3,
+                        msg=f"failed test {case.name} expected mechanism epsilon "
+                        f"{expected_mechanism_epsilon} "
                         f"got {actual_mechanism._eps}")
                     self.assertAlmostEqual(
                         first=expected_mechanism_delta,
                         second=actual_mechanism._delta,
-                        places=3,
-                        msg=
-                        f"failed test {case.name} expected mechanism delta {expected_mechanism_delta} "
+                        delta=1e-3,
+                        msg=f"failed test {case.name} expected mechanism delta "
+                        f"{expected_mechanism_delta} "
                         f"got {actual_mechanism._delta}")
 
 

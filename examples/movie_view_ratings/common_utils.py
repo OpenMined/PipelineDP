@@ -19,6 +19,8 @@ in the actual example scripts.
 from dataclasses import dataclass
 import os
 import shutil
+from typing import List, Any
+
 import apache_beam as beam
 
 
@@ -61,7 +63,11 @@ def parse_file(filename):  # used for the local run
 
 def write_to_file(col, filename):
     with open(filename, 'w') as out:
-        out.write('\n'.join(map(str, col)))
+        out.write('\n'.join(sorted(map(str, col))))
+
+
+def get_partitions(partition_extractor, data: List[Any]) -> List[Any]:
+    return list(sorted(set(map(partition_extractor, data))))
 
 
 def delete_if_exists(filename):
