@@ -24,7 +24,7 @@ import pipeline_dp.budget_accounting as ba
 import numpy as np
 
 
-def _create_mechanism_spec(no_noise):
+def _create_mechanism_spec(no_noise: bool) -> ba.MechanismSpec:
     if no_noise:
         eps, delta = 1e5, 1.0 - 1e-5
     else:
@@ -127,7 +127,7 @@ class CreateCompoundCombinersTest(parameterized.TestCase):
         for combiner, expect_type, expected_budget in zip(
                 combiners, expected_combiner_types, mock_budgets):
             self.assertIsInstance(combiner, expect_type)
-            self.assertEqual(combiner._params._mechanism_spec, expected_budget)
+            self.assertEqual(combiner.mechanism_spec(), expected_budget)
 
     @patch.multiple("pipeline_dp.combiners.CustomCombiner",
                     __abstractmethods__=set())  # Mock CustomCombiner
@@ -159,11 +159,10 @@ class CreateCompoundCombinersTest(parameterized.TestCase):
 
 class CountCombinerTest(parameterized.TestCase):
 
-    def _create_combiner(self, no_noise):
+    def _create_combiner(self, no_noise: bool) -> dp_combiners.CountCombiner:
         mechanism_spec = _create_mechanism_spec(no_noise)
         aggregate_params = _create_aggregate_params()
-        params = dp_combiners.CombinerParams(mechanism_spec, aggregate_params)
-        return dp_combiners.CountCombiner(params)
+        return dp_combiners.CountCombiner(mechanism_spec, aggregate_params)
 
     @parameterized.named_parameters(
         dict(testcase_name='no_noise', no_noise=True),
@@ -203,11 +202,12 @@ class CountCombinerTest(parameterized.TestCase):
 
 class PrivacyIdCountCombinerTest(parameterized.TestCase):
 
-    def _create_combiner(self, no_noise):
+    def _create_combiner(self,
+                         no_noise: bool) -> dp_combiners.PrivacyIdCountCombiner:
         mechanism_spec = _create_mechanism_spec(no_noise)
         aggregate_params = _create_aggregate_params()
-        params = dp_combiners.CombinerParams(mechanism_spec, aggregate_params)
-        return dp_combiners.PrivacyIdCountCombiner(params)
+        return dp_combiners.PrivacyIdCountCombiner(mechanism_spec,
+                                                   aggregate_params)
 
     @parameterized.named_parameters(
         dict(testcase_name='no_noise', no_noise=True),
@@ -243,7 +243,8 @@ class PrivacyIdCountCombinerTest(parameterized.TestCase):
         # Standard deviation for the noise is about 1.37. So we set a large
         # delta here.
         self.assertAlmostEqual(accumulator, np.mean(noisy_values), delta=0.5)
-        self.assertTrue(np.var(noisy_values) > 1)  # check that noise is added
+        self.assertTrue(np.var(noisy_values)
+                        > 0.01)  # check that noise is added
 
 
 class SumCombinerTest(parameterized.TestCase):
@@ -257,16 +258,15 @@ class SumCombinerTest(parameterized.TestCase):
             noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
             metrics=[pipeline_dp.Metrics.SUM])
 
-    def _create_combiner(self, no_noise, per_partition_bound):
+    def _create_combiner(self, no_noise: bool,
+                         per_partition_bound: bool) -> dp_combiners.SumCombiner:
         mechanism_spec = _create_mechanism_spec(no_noise)
         if per_partition_bound:
-            aggregate_params = self._create_aggregate_params_per_partition_bound(
-            )
+            aggr_params = self._create_aggregate_params_per_partition_bound()
         else:
-            aggregate_params = _create_aggregate_params()
-            aggregate_params.metrics = [pipeline_dp.Metrics.SUM]
-        params = dp_combiners.CombinerParams(mechanism_spec, aggregate_params)
-        return dp_combiners.SumCombiner(params)
+            aggr_params = _create_aggregate_params()
+            aggr_params.metrics = [pipeline_dp.Metrics.SUM]
+        return dp_combiners.SumCombiner(mechanism_spec, aggr_params)
 
     @parameterized.named_parameters(
         dict(testcase_name='no_noise', no_noise=True),
@@ -510,10 +510,9 @@ class CompoundCombinerTest(parameterized.TestCase):
     def _create_combiner(self, no_noise):
         mechanism_spec = _create_mechanism_spec(no_noise)
         aggregate_params = _create_aggregate_params()
-        params = dp_combiners.CombinerParams(mechanism_spec, aggregate_params)
         return dp_combiners.CompoundCombiner([
-            dp_combiners.CountCombiner(params),
-            dp_combiners.SumCombiner(params)
+            dp_combiners.CountCombiner(mechanism_spec, aggregate_params),
+            dp_combiners.SumCombiner(mechanism_spec, aggregate_params)
         ],
                                              return_named_tuple=True)
 

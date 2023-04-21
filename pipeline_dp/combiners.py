@@ -380,6 +380,9 @@ class MeanCombiner(Combiner):
     def explain_computation(self) -> ExplainComputationReport:
         return lambda: f"Computed mean with (eps={self._params.eps} delta={self._params.delta})"
 
+    def mechanism_spec(self) -> budget_accounting.MechanismSpec:
+        return self._params._mechanism_spec
+
 
 class VarianceCombiner(Combiner):
     """Combiner for computing DP Variance.
@@ -444,6 +447,9 @@ class VarianceCombiner(Combiner):
 
     def explain_computation(self) -> ExplainComputationReport:
         return lambda: f"Computed variance with (eps={self._params.eps} delta={self._params.delta})"
+
+    def mechanism_spec(self) -> budget_accounting.MechanismSpec:
+        return self._params._mechanism_spec
 
 
 class QuantileCombiner(Combiner):
@@ -523,6 +529,9 @@ class QuantileCombiner(Combiner):
         if noise_kind == pipeline_dp.NoiseKind.GAUSSIAN:
             return "gaussian"
         assert False, f"{noise_kind} is not support by PyDP quantile tree."
+
+    def mechanism_spec(self) -> budget_accounting.MechanismSpec:
+        return self._params._mechanism_spec
 
 
 # Cache for namedtuple types. It should be used only in
@@ -694,6 +703,9 @@ class VectorSumCombiner(Combiner):
     def explain_computation(self) -> ExplainComputationReport:
         # TODO: add information about vector size, norm, amount of noise.
         lambda: f"Computed vector sum with (eps={self._params.eps} delta={self._params.delta})"
+
+    def mechanism_spec(self) -> budget_accounting.MechanismSpec:
+        return self._params._mechanism_spec
 
 
 def create_compound_combiner(
