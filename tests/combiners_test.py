@@ -224,6 +224,12 @@ class CountCombinerTest(parameterized.TestCase):
                                expected_noise_param,
                                delta=1e-3)
 
+    def test_explain_computation(self):
+        combiner = self._create_combiner(no_noise=False)
+        expected = ("Computed DP count.*\n.*Gaussian mechanism:  "
+                    "parameter=15.8.*eps=1.0  delta=1e-05.*l2_sensitivity=4.2")
+        self.assertRegex(combiner.explain_computation()(), expected)
+
 
 class PrivacyIdCountCombinerTest(parameterized.TestCase):
 
@@ -289,6 +295,12 @@ class PrivacyIdCountCombinerTest(parameterized.TestCase):
         self.assertAlmostEqual(mechanism.noise_parameter,
                                expected_noise_param,
                                delta=1e-3)
+
+    def test_explain_computation(self):
+        combiner = self._create_combiner(no_noise=False)
+        expected = ("Computed DP privacy_id_count.*\n.*Gaussian mechanism:  "
+                    "parameter=5.2.*eps=1.0  delta=1e-05.*l2_sensitivity=1.4")
+        self.assertRegex(combiner.explain_computation()(), expected)
 
 
 class SumCombinerTest(parameterized.TestCase):
@@ -400,6 +412,13 @@ class SumCombinerTest(parameterized.TestCase):
         self.assertAlmostEqual(mechanism.noise_parameter,
                                expected_noise_param,
                                delta=1e-3)
+
+    def test_explain_computation(self):
+        combiner = self._create_combiner(no_noise=False,
+                                         per_partition_bound=False)
+        expected = ("Computed DP sum.*\n.*Gaussian mechanism:  "
+                    "parameter=15.*eps=1.0  delta=1e-05.*l2_sensitivity=4.2")
+        self.assertRegex(combiner.explain_computation()(), expected)
 
 
 class MeanCombinerTest(parameterized.TestCase):

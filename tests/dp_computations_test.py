@@ -720,6 +720,14 @@ class AdditiveMechanismTests(parameterized.TestCase):
         res = stats.ks_1samp(noised_values, expected_cdf)
         self.assertGreater(res.pvalue, 1e-4)
 
+    def test_gaussian_mechanism_describe(self):
+        mechanism = dp_computations.GaussianMechanism(epsilon=1.0,
+                                                      delta=1e-10,
+                                                      l2_sensitivity=15)
+        expected = ("Gaussian mechanism:  parameter=88.06640625  eps=1.0  "
+                    "delta=1e-10  l2_sensitivity=15.0")
+        self.assertEqual(mechanism.describe(), expected)
+
     @parameterized.parameters(
         dict(epsilon=2,
              delta=1e-15,
@@ -774,6 +782,13 @@ class AdditiveMechanismTests(parameterized.TestCase):
 
         res = stats.ks_1samp(noised_values, expected_cdf)
         self.assertGreater(res.pvalue, 1e-4)
+
+    def test_laplace_mechanism_describe(self):
+        mechanism = dp_computations.LaplaceMechanism(epsilon=2.0,
+                                                     l1_sensitivity=25)
+        expected = ("Laplace mechanism:  parameter=12.5  eps=2.0  "
+                    "l1_sensitivity=25.0")
+        self.assertEqual(mechanism.describe(), expected)
 
     @parameterized.parameters(
         dict(l0_sensitivity=-2,
