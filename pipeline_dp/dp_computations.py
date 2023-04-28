@@ -521,6 +521,10 @@ class AdditiveMechanism(abc.ABC):
     def sensitivity(self) -> float:
         """Mechanism sensitivity."""
 
+    @abc.abstractmethod
+    def describe(self) -> float:
+        """Mechanism sensitivity."""
+
 
 class LaplaceMechanism(AdditiveMechanism):
 
@@ -582,6 +586,26 @@ class GaussianMechanism(AdditiveMechanism):
         return (f"Gaussian mechanism:  parameter={self.noise_parameter}  eps="
                 f"{self._mechanism.epsilon}  delta={self._mechanism.delta}  "
                 f"l2_sensitivity={self.sensitivity}")
+
+
+class MeanMechanism:
+
+    def __init__(self, mid_values_range: float,
+                 count_mechanism: AdditiveMechanism,
+                 sum_mechanism: AdditiveMechanism):
+        self._mid_values_range = mid_values_range
+        self.count_mechanism = count_mechanism
+        self.sum_mechanism = sum_mechanism
+
+    def compute_mean(self, count: int, normalized_sum: float):
+        dp_count = self.count_mechanism(count)
+        dp_normalized_sum = self.sum_mechanism(normalized_sum)
+        dp_mean = self._mid_values_range + dp_normalized_sum / dp_count
+        dp_sum = dp_mean * dp_count
+        return dp_count, dp_sum, dp_mean
+
+    def describe(self) -> str:
+        return (f"Computing sum: {self.sum_mechanism.describe()}")
 
 
 @dataclass
@@ -652,6 +676,18 @@ def create_additive_mechanism(
         return GaussianMechanism(spec.epsilon, spec.delta, sensitivities.l2)
 
     assert False, f"{spec.noise_kind} not supported."
+
+
+def create_mean_mechanism(
+        mid_values_range: float, count_spec: AdditiveMechanismSpec,
+        count_sensitivities: Sensitivities,
+        normalized_sum_spec: AdditiveMechanismSpec,
+        normalized_sum_sensitivities: Sensitivities) -> MeanMechanism:
+    """Creates MeanMechanism from a mechanism specs and sensitivities."""
+    count_mechanism = create_additive_mechanism(count_spec, count_sensitivities)
+    sum_mechanism = create_additive_mechanism(normalized_sum_spec,
+                                              normalized_sum_sensitivities)
+    return MeanMechanism(mid_values_range, count_mechanism, sum_mechanism)
 
 
 class ExponentialMechanism:
@@ -733,4 +769,13 @@ def compute_sensitivities_for_sum(
     else:
         linf_sensitivity = max_abs_values(params.min_sum_per_partition,
                                           params.max_sum_per_partition)
+    return Sensitivities(l0=l0_sensitivity, linf=linf_sensitivity)
+
+
+def compute_sensitivities_for_normalized_sum(
+        params: pipeline_dp.AggregateParams) -> Sensitivities:
+    l0_sensitivity = params.max_partitions_contributed
+    linf_sensitivity = (params.max_value - params.min_value
+                       ) / 2 * params.max_contributions_per_partition
+
     return Sensitivities(l0=l0_sensitivity, linf=linf_sensitivity)

@@ -179,11 +179,10 @@ class MechanismContainerMixin(abc.ABC):
     """Abstract class with implementation of handling DP mechanism."""
 
     @abc.abstractmethod
-    def sensitivities(self) -> dp_computations.Sensitivities:
-        pass
-
-    @abc.abstractmethod
-    def mechanism_spec(self) -> budget_accounting.MechanismSpec:
+    def create_mechanism(
+        self
+    ) -> Union[dp_computations.AdditiveMechanism,
+               dp_computations.MeanMechanism]:
         pass
 
     def __getstate__(self):
@@ -198,6 +197,7 @@ class MechanismContainerMixin(abc.ABC):
 
     def get_mechanism(self) -> dp_computations.AdditiveMechanism:
         if not hasattr(self, "_mechanism"):
+            self._mechanism = self.create_mechanism()
             mechanism_spec = self.mechanism_spec()
             noise_kind = mechanism_spec.mechanism_type.to_noise_kind()
             additive_mechanism_spec = dp_computations.AdditiveMechanismSpec(
@@ -342,7 +342,7 @@ class SumCombiner(Combiner, MechanismContainerMixin):
         return self._sensitivities
 
 
-class MeanCombiner(Combiner):
+class MeanCombiner(Combiner, MechanismContainerMixin):
     """Combiner for computing DP Mean.
 
     It can also return sum and count in addition to the mean.
@@ -353,9 +353,10 @@ class MeanCombiner(Combiner):
     """
     AccumulatorType = Tuple[int, float]
 
-    def __init__(self, params: CombinerParams,
+    def __init__(self, count_spec: budget_accounting.MechanismSpec,
+                 sum_spec: budget_accounting.MechanismSpec,
+                 params: pipeline_dp.AggregateParams,
                  metrics_to_compute: Iterable[str]):
-        self._params = params
         if len(metrics_to_compute) != len(set(metrics_to_compute)):
             raise ValueError(f"{metrics_to_compute} cannot contain duplicates")
         for metric in metrics_to_compute:
@@ -366,12 +367,14 @@ class MeanCombiner(Combiner):
             raise ValueError(
                 f"one of the {metrics_to_compute} should be 'mean'")
         self._metrics_to_compute = metrics_to_compute
+        self._min_value = params.min_value
+        self._max_value = params.max_value
 
     def create_accumulator(self, values: Iterable[float]) -> AccumulatorType:
-        min_value = self._params.aggregate_params.min_value
-        max_value = self._params.aggregate_params.max_value
-        middle = dp_computations.compute_middle(min_value, max_value)
-        normalized_values = np.clip(values, min_value, max_value) - middle
+        middle = dp_computations.compute_middle(self._min_value,
+                                                self._max_value)
+        normalized_values = np.clip(values, self._min_value,
+                                    self._max_value) - middle
 
         return len(values), normalized_values.sum()
 
