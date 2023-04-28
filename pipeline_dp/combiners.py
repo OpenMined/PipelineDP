@@ -237,8 +237,8 @@ class CountCombiner(Combiner, MechanismContainerMixin):
     def explain_computation(self) -> ExplainComputationReport:
 
         def explain_computation_fn():
-            return (f"Computed DP count with:\n"
-                    f"    {self.get_mechanism().describe()}")
+            return (f"Computed DP count with\n"
+                    f"     {self.get_mechanism().describe()}")
 
         return explain_computation_fn
 
@@ -278,8 +278,8 @@ class PrivacyIdCountCombiner(Combiner, MechanismContainerMixin):
     def explain_computation(self) -> ExplainComputationReport:
 
         def explain_computation_fn():
-            return (f"Computed DP privacy_id_count with:\n"
-                    f"    {self.get_mechanism().describe()}")
+            return (f"Computed DP privacy_id_count with\n"
+                    f"     {self.get_mechanism().describe()}")
 
         return explain_computation_fn
 
@@ -330,8 +330,8 @@ class SumCombiner(Combiner, MechanismContainerMixin):
     def explain_computation(self) -> ExplainComputationReport:
 
         def explain_computation_fn():
-            return (f"Computed DP sum with:\n"
-                    f"    {self.get_mechanism().describe()}")
+            return (f"Computed DP sum with\n"
+                    f"     {self.get_mechanism().describe()}")
 
         return explain_computation_fn
 
