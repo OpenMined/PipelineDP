@@ -235,8 +235,12 @@ class CountCombiner(Combiner, MechanismContainerMixin):
         return ['count']
 
     def explain_computation(self) -> ExplainComputationReport:
-        # TODO: add information in this and others combiners about amount of noise.
-        return lambda: f"Computed count with (eps={self._mechanism_spec.eps} delta={self._mechanism_spec.delta})"
+
+        def explain_computation_fn():
+            return (f"Computed DP count with:\n"
+                    f"    {self.get_mechanism().describe()}")
+
+        return explain_computation_fn
 
     def mechanism_spec(self) -> budget_accounting.MechanismSpec:
         return self._mechanism_spec
@@ -272,7 +276,12 @@ class PrivacyIdCountCombiner(Combiner, MechanismContainerMixin):
         return ['privacy_id_count']
 
     def explain_computation(self) -> ExplainComputationReport:
-        return lambda: f"Computed privacy id count with (eps={self._mechanism_spec.eps} delta={self._mechanism_spec.delta})"
+
+        def explain_computation_fn():
+            return (f"Computed DP privacy_id_count with:\n"
+                    f"    {self.get_mechanism().describe()}")
+
+        return explain_computation_fn
 
     def mechanism_spec(self) -> budget_accounting.MechanismSpec:
         return self._mechanism_spec
@@ -319,7 +328,12 @@ class SumCombiner(Combiner, MechanismContainerMixin):
         return ['sum']
 
     def explain_computation(self) -> ExplainComputationReport:
-        return lambda: f"Computed sum with (eps={self._mechanism_spec.eps} delta={self._mechanism_spec.delta})"
+
+        def explain_computation_fn():
+            return (f"Computed DP sum with:\n"
+                    f"    {self.get_mechanism().describe()}")
+
+        return explain_computation_fn
 
     def mechanism_spec(self) -> budget_accounting.MechanismSpec:
         return self._mechanism_spec

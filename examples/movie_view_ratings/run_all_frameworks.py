@@ -73,10 +73,11 @@ def calc_dp_rating_metrics(movie_views, backend, public_partitions):
     dp_engine = pipeline_dp.DPEngine(budget_accountant, backend)
 
     params = pipeline_dp.AggregateParams(
-        noise_kind=pipeline_dp.NoiseKind.LAPLACE,
+        noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
         metrics=[
-            pipeline_dp.Metrics.COUNT, pipeline_dp.Metrics.SUM,
-            pipeline_dp.Metrics.MEAN, pipeline_dp.Metrics.VARIANCE
+            pipeline_dp.Metrics.COUNT,
+            pipeline_dp.Metrics.SUM,
+            # pipeline_dp.Metrics.MEAN, pipeline_dp.Metrics.VARIANCE
         ] + ([pipeline_dp.Metrics.PRIVACY_ID_COUNT]
              if not FLAGS.contribution_bounds_already_enforced else []),
         max_partitions_contributed=2,

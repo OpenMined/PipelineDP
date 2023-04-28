@@ -547,6 +547,10 @@ class LaplaceMechanism(AdditiveMechanism):
     def sensitivity(self) -> float:
         return self._mechanism.sensitivity
 
+    def describe(self) -> str:
+        return (f"Laplace mechanism:  parameter={self.noise_parameter}  eps="
+                f"{self._mechanism.epsilon}  l1_sensitivity={self.sensitivity}")
+
 
 class GaussianMechanism(AdditiveMechanism):
 
@@ -573,6 +577,11 @@ class GaussianMechanism(AdditiveMechanism):
     @property
     def sensitivity(self) -> float:
         return self._mechanism.l2_sensitivity
+
+    def describe(self) -> str:
+        return (f"Gaussian mechanism:  parameter={self.noise_parameter}  eps="
+                f"{self._mechanism.epsilon}  delta={self._mechanism.delta}  "
+                f"l2_sensitivity={self.sensitivity}")
 
 
 @dataclass
