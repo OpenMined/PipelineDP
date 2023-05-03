@@ -172,6 +172,9 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
                                         data_extractors=None,
                                         check_data_extractors=False)
 
+    def _annotate(self, col, params, budget):
+        return col
+
 
 def _check_utility_analysis_params(
     options: analysis.UtilityAnalysisOptions,

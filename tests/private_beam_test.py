@@ -194,7 +194,7 @@ class PrivateBeamTest(unittest.TestCase):
             # Use very high epsilon and delta to minimize noise and test
             # flakiness.
             budget_accountant = budget_accounting.NaiveBudgetAccountant(
-                total_epsilon=800, total_delta=0.999)
+                total_epsilon=800, total_delta=0.999, num_aggregations=1)
             private_collection = (
                 pcol | 'Create private collection' >> private_beam.MakePrivate(
                     budget_accountant=budget_accountant,
@@ -234,7 +234,7 @@ class PrivateBeamTest(unittest.TestCase):
             # Use very high epsilon and delta to minimize noise and test
             # flakiness.
             budget_accountant = budget_accounting.NaiveBudgetAccountant(
-                total_epsilon=8000, total_delta=0.9999999)
+                total_epsilon=8000, total_delta=0.9999999, num_aggregations=1)
             private_collection = (
                 pcol | 'Create private collection' >> private_beam.MakePrivate(
                     budget_accountant=budget_accountant,
@@ -321,7 +321,7 @@ class PrivateBeamTest(unittest.TestCase):
             # Use very high epsilon and delta to minimize noise and test
             # flakiness.
             budget_accountant = budget_accounting.NaiveBudgetAccountant(
-                total_epsilon=800, total_delta=0.999)
+                total_epsilon=800, total_delta=0.999, num_aggregations=1)
             private_collection = (
                 pcol | 'Create private collection' >> private_beam.MakePrivate(
                     budget_accountant=budget_accountant,
@@ -361,7 +361,7 @@ class PrivateBeamTest(unittest.TestCase):
             # Use very high epsilon and delta to minimize noise and test
             # flakiness.
             budget_accountant = budget_accounting.NaiveBudgetAccountant(
-                total_epsilon=800, total_delta=0.999)
+                total_epsilon=800, total_delta=0.999, num_aggregations=1)
             private_collection = (
                 pcol | 'Create private collection' >> private_beam.MakePrivate(
                     budget_accountant=budget_accountant,
@@ -447,7 +447,7 @@ class PrivateBeamTest(unittest.TestCase):
             # Use very high epsilon and delta to minimize noise and test
             # flakiness.
             budget_accountant = budget_accounting.NaiveBudgetAccountant(
-                total_epsilon=800, total_delta=0.999)
+                total_epsilon=800, total_delta=0.999, num_aggregations=1)
             private_collection = (
                 pcol | 'Create private collection' >> private_beam.MakePrivate(
                     budget_accountant=budget_accountant,
@@ -487,7 +487,7 @@ class PrivateBeamTest(unittest.TestCase):
             # Use very high epsilon and delta to minimize noise and test
             # flakiness.
             budget_accountant = budget_accounting.NaiveBudgetAccountant(
-                total_epsilon=800, total_delta=0.999)
+                total_epsilon=800, total_delta=0.999, num_aggregations=1)
             private_collection = (
                 pcol | 'Create private collection' >> private_beam.MakePrivate(
                     budget_accountant=budget_accountant,
@@ -565,7 +565,7 @@ class PrivateBeamTest(unittest.TestCase):
             # Use very high epsilon and delta to minimize noise and test
             # flakiness.
             budget_accountant = budget_accounting.NaiveBudgetAccountant(
-                total_epsilon=800, total_delta=0.999)
+                total_epsilon=800, total_delta=0.999, num_aggregations=1)
             private_collection = (
                 pcol | 'Create private collection' >> private_beam.MakePrivate(
                     budget_accountant=budget_accountant,
@@ -601,7 +601,7 @@ class PrivateBeamTest(unittest.TestCase):
             # Use very high epsilon and delta to minimize noise and test
             # flakiness.
             budget_accountant = budget_accounting.NaiveBudgetAccountant(
-                total_epsilon=800, total_delta=0.999)
+                total_epsilon=800, total_delta=0.999, num_aggregations=1)
             private_collection = (
                 pcol | 'Create private collection' >> private_beam.MakePrivate(
                     budget_accountant=budget_accountant,
@@ -711,7 +711,7 @@ class PrivateBeamTest(unittest.TestCase):
             # Use very high epsilon and delta to minimize noise and test
             # flakiness.
             budget_accountant = budget_accounting.NaiveBudgetAccountant(
-                total_epsilon=800, total_delta=0.999)
+                total_epsilon=800, total_delta=0.999, num_aggregations=1)
             private_collection = (
                 pcol | 'Create private collection' >> private_beam.MakePrivate(
                     budget_accountant=budget_accountant,
@@ -842,7 +842,7 @@ class PrivateBeamTest(unittest.TestCase):
             # Use very high epsilon and delta to minimize noise and test
             # flakiness.
             budget_accountant = budget_accounting.NaiveBudgetAccountant(
-                total_epsilon=800, total_delta=0.999)
+                total_epsilon=800, total_delta=0.999, num_aggregations=1)
             private_collection = (
                 pcol | 'Create private collection' >> private_beam.MakePrivate(
                     budget_accountant=budget_accountant,
@@ -850,8 +850,7 @@ class PrivateBeamTest(unittest.TestCase):
 
             select_partitions_params = \
                 aggregate_params.SelectPartitionsParams(
-                    max_partitions_contributed=2,
-                    budget_weight=0.9)
+                    max_partitions_contributed=2)
             partition_extractor = lambda x: x[1]
 
             # Act
@@ -875,7 +874,7 @@ class PrivateBeamTest(unittest.TestCase):
             # Use very high epsilon and delta to minimize noise and test
             # flakiness.
             budget_accountant = budget_accounting.NaiveBudgetAccountant(
-                total_epsilon=800, total_delta=0.999)
+                total_epsilon=800, total_delta=0.999, num_aggregations=1)
             private_collection = (
                 pcol | 'Create private collection' >> private_beam.MakePrivate(
                     budget_accountant=budget_accountant,

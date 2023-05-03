@@ -92,10 +92,7 @@ class DPEngine:
                                   public_partitions)
             budget = self._budget_accountant._compute_budget_for_aggregation(
                 params.budget_weight)
-            return self._backend.annotate(col,
-                                          "annotation",
-                                          params=params,
-                                          budget=budget)
+            return self._annotate(col, params=params, budget=budget)
 
     def _aggregate(self, col, params: pipeline_dp.AggregateParams,
                    data_extractors: pipeline_dp.DataExtractors,
@@ -217,10 +214,7 @@ class DPEngine:
             col = self._select_partitions(col, params, data_extractors)
             budget = self._budget_accountant._compute_budget_for_aggregation(
                 params.budget_weight)
-            return self._backend.annotate(col,
-                                          "annotation",
-                                          params=params,
-                                          budget=budget)
+            return self._annotate(col, params=params, budget=budget)
 
     def _select_partitions(self, col,
                            params: pipeline_dp.SelectPartitionsParams,
@@ -479,6 +473,13 @@ class DPEngine:
                             "CalculatePrivateContributionBoundsParams")
         if check_data_extractors:
             _check_data_extractors(data_extractors)
+
+    def _annotate(self, col, params: pipeline_dp.SelectPartitionsParams,
+                  budget: pipeline_dp.budget_accounting.Budget):
+        return self._backend.annotate(col,
+                                      "annotation",
+                                      params=params,
+                                      budget=budget)
 
 
 def _check_col(col):

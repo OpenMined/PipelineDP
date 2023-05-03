@@ -986,7 +986,8 @@ class DpEngineTest(parameterized.TestCase):
         # Set a large budget for having the small noise and keeping all
         # partition keys.
         budget_accountant = NaiveBudgetAccountant(total_epsilon=100000,
-                                                  total_delta=0.99)
+                                                  total_delta=0.99,
+                                                  num_aggregations=1)
 
         data_extractor = pipeline_dp.DataExtractors(
             privacy_id_extractor=lambda x: x,
