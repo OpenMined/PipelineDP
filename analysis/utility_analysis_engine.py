@@ -173,6 +173,7 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
                                         check_data_extractors=False)
 
     def _annotate(self, col, params, budget):
+        # Annotations are not needed because DP computations are not performed.
         return col
 
 
