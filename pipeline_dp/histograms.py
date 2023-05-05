@@ -48,6 +48,7 @@ class FrequencyBin:
 
 class HistogramType(enum.Enum):
     L0_CONTRIBUTIONS = 'l0_contributions'
+    L1_CONTRIBUTIONS = 'l1_contributions'
     LINF_CONTRIBUTIONS = 'linf_contributions'
     COUNT_PER_PARTITION = 'count_per_partition'
     COUNT_PRIVACY_ID_PER_PARTITION = 'privacy_id_per_partition_count'
@@ -102,6 +103,7 @@ class Histogram:
 class DatasetHistograms:
     """Contains histograms useful for parameter tuning."""
     l0_contributions_histogram: Histogram
+    l1_contributions_histogram: Histogram
     linf_contributions_histogram: Histogram
     count_per_partition_histogram: Histogram
     count_privacy_id_per_partition: Histogram
@@ -230,6 +232,30 @@ def _compute_l0_contributions_histogram(
                                         HistogramType.L0_CONTRIBUTIONS)
 
 
+def _compute_l1_contributions_histogram(
+        col, backend: pipeline_backend.PipelineBackend):
+    """Computes histogram of the number of distinct records contributed by a privacy id.
+    This histogram contains: number of privacy ids which contributes to 1
+    record, to 2 records etc.
+    Args:
+      col: collection with elements (privacy_id, partition_key).
+      backend: PipelineBackend to run operations on the collection.
+    Returns:
+      1 element collection, which contains the computed Histogram.
+    """
+    col = backend.keys(col, "Drop partition id")
+    # col: (pid)
+
+    col = backend.count_per_element(col, "Compute records per privacy id")
+    # col: (pid, num_records)
+
+    col = backend.values(col, "Drop privacy id")
+    # col: (int)
+
+    return _compute_frequency_histogram(col, backend,
+                                        HistogramType.L1_CONTRIBUTIONS)
+
+
 def _compute_linf_contributions_histogram(
         col, backend: pipeline_backend.PipelineBackend):
     """Computes histogram of per partition privacy id contributions.
@@ -332,6 +358,8 @@ def compute_dataset_histograms(col, data_extractors: pipeline_dp.DataExtractors,
     # Compute histograms.
     l0_contributions_histogram = _compute_l0_contributions_histogram(
         col_distinct, backend)
+    l1_contributions_histogram = _compute_l1_contributions_histogram(
+        col, backend)
     linf_contributions_histogram = _compute_linf_contributions_histogram(
         col, backend)
     partition_count_histogram = _compute_partition_count_histogram(col, backend)
@@ -341,8 +369,9 @@ def compute_dataset_histograms(col, data_extractors: pipeline_dp.DataExtractors,
 
     # Combine histograms to DatasetHistograms.
     return _to_dataset_histograms([
-        l0_contributions_histogram, linf_contributions_histogram,
-        partition_count_histogram, partition_privacy_id_count_histogram
+        l0_contributions_histogram, l1_contributions_histogram,
+        linf_contributions_histogram, partition_count_histogram,
+        partition_privacy_id_count_histogram
     ], backend)
 
 
@@ -372,6 +401,30 @@ def _compute_l0_contributions_histogram_on_preaggregated_data(
     return _compute_frequency_histogram(col,
                                         backend,
                                         HistogramType.L0_CONTRIBUTIONS,
+                                        deduplicate=True)
+
+
+def _compute_l1_contributions_histogram_on_preaggregated_data(
+        col, backend: pipeline_backend.PipelineBackend):
+    """Computes histogram of the number of distinct partitions contributed by a privacy id.
+    This histogram contains: number of privacy ids which contributes to 1
+    partition, to 2 partitions etc.
+    Args:
+      col: collection with a pre-aggregated dataset, each element is
+      (partition_key, (count, sum, n_partitions)).
+      backend: PipelineBackend to run operations on the collection.
+    Returns:
+      1 element collection, which contains the computed Histogram.
+    """
+    col = backend.map_tuple(
+        col,
+        lambda _, x: x[2],  # x is (count, sum, n_partitions)
+        "Extract n_partitions")
+    # col: (int,), where each element is the number of partitions the
+    # corresponding privacy_id contributes.
+    return _compute_frequency_histogram(col,
+                                        backend,
+                                        HistogramType.L1_CONTRIBUTIONS,
                                         deduplicate=True)
 
 
