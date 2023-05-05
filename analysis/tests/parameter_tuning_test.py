@@ -65,7 +65,7 @@ class ParameterTuning(parameterized.TestCase):
         mock_linf_histogram = histograms.Histogram(None, None)
         mock_linf_histogram.quantiles = mock.Mock(return_value=[3, 6, 6])
 
-        mock_histograms = histograms.DatasetHistograms(mock_l0_histogram,
+        mock_histograms = histograms.DatasetHistograms(mock_l0_histogram, None,
                                                        mock_linf_histogram,
                                                        None, None)
         parameters_to_tune = parameter_tuning.ParametersToTune(

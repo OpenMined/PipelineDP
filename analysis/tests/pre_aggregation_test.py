@@ -30,14 +30,14 @@ class PreaggregationTests(parameterized.TestCase):
                 ("pid0", "pk1", 10),
                 ("pid0", "pk1", 5),
             ],
-            # element format (partition_key, (count, sum, n_partitions)
-            expected_output=[('pk0', (1, 1, 2)), ('pk1', (2, 15, 2))]),
+            # element format (partition_key, (count, sum, n_partitions, n_contributions))
+            expected_output=[('pk0', (1, 1, 2, 3)), ('pk1', (2, 15, 2, 3))]),
         dict(
             testcase_name="10 privacy ids where each privacy id contributes to "
             "the same 10 partitions, 3 times in each partition",
             input=[(i, j, 0) for i in range(10) for j in range(10)] * 3,
             # element format (partition_key, (count, sum, n_partitions)
-            expected_output=[(i, (3, 0, 10)) for i in range(10)] * 10),
+            expected_output=[(i, (3, 0, 10, 30)) for i in range(10)] * 10),
     )
     def test_preaggregate(self, input, expected_output):
         data_extractors = pipeline_dp.DataExtractors(

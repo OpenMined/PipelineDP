@@ -48,14 +48,14 @@ def preaggregate(col,
                           data_extractors.value_extractor(row)),
         "Extract (privacy_id, partition_key, value))")
     # col: (privacy_id, partition_key, value):
-    bounder = utility_contribution_bounders.SamplingL0LinfContributionBounder(
+    bounder = utility_contribution_bounders.AnalysisContributionBounder(
         partitions_sampling_prob)
     col = bounder.bound_contributions(col,
                                       params=None,
                                       backend=backend,
                                       report_generator=None,
                                       aggregate_fn=lambda x: x)
-    # col: ((privacy_id, partition_key), (count, sum, n_partitions)).
+    # col: ((privacy_id, partition_key), (count, sum, n_partitions, n_contributions)).
 
     return backend.map(col, lambda row: (row[0][1], row[1]), "Drop privacy id")
     # (partition_key, (count, sum, n_partitions))
