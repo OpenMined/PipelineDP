@@ -20,7 +20,7 @@ from typing import List
 import pipeline_dp
 from pipeline_dp import dp_computations
 
-from pipeline_dp.histograms import Histogram
+from pipeline_dp import histograms
 from pipeline_dp import pipeline_functions
 
 
@@ -46,7 +46,7 @@ class PrivateL0Calculator:
 
     @dataclass
     class Inputs:
-        l0_histogram: Histogram
+        l0_histogram: histograms.Histogram
         number_of_partitions: int
 
     @lru_cache(maxsize=None)
@@ -94,11 +94,14 @@ class L0ScoringFunction(dp_computations.ExponentialMechanism.ScoringFunction):
 
     def __init__(self,
                  params: pipeline_dp.CalculatePrivateContributionBoundsParams,
-                 number_of_partitions: int, l0_histogram: Histogram):
+                 number_of_partitions: int, l0_histogram: histograms.Histogram):
         super().__init__()
         self._params = params
         self._number_of_partitions = number_of_partitions
         self._l0_histogram = l0_histogram
+        tails = histograms.histogram_precomputed_tails(l0_histogram)
+        self._max_bin_lower = 0 if len(tails) == 0 else tails[-1][0]
+        self._precomputed_tails = dict(tails)
 
     def score(self, k: int) -> float:
         """Computes score of a given parameter k.
@@ -162,18 +165,10 @@ class L0ScoringFunction(dp_computations.ExponentialMechanism.ScoringFunction):
                 dp_computations.compute_dp_count_noise_std(noise_params))
 
     def _l0_impact_dropped(self, k: int):
-        # TODO: precalculate it and make it work in O(1) time.
-        capped_contributions = map(
-            lambda bin: max(
-                min(
-                    bin.lower,
-                    self._max_partitions_contributed_best_upper_bound(),
-                ) - k,
-                0,
-            ) * bin.count,
-            self._l0_histogram.bins,
-        )
-        return sum(capped_contributions)
+        if k > self._max_bin_lower:
+            return 0
+        tail = self._precomputed_tails[k]
+        return tail[0] - k * tail[1]
 
 
 def _generate_possible_contribution_bounds(upper_bound: int) -> List[int]:
