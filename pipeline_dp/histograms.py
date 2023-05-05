@@ -128,8 +128,9 @@ def _to_bin_lower(n: int) -> int:
 
 
 def _compute_frequency_histogram(col, backend: pipeline_backend.PipelineBackend,
-                                 histogram_type: HistogramType):
+                                 name: HistogramType):
     """Computes histogram of element frequencies in collection.
+
     Args:
       col: collection with positive integers.
       backend: PipelineBackend to run operations on the collection.
@@ -142,18 +143,17 @@ def _compute_frequency_histogram(col, backend: pipeline_backend.PipelineBackend,
 
     # Combiner elements to histogram buckets of increasing sizes. Having buckets
     # of width = 1 is not scalable.
-    return _compute_todo(backend, col, histogram_type)
+    return _compute_frequency_histogram_helper(backend, col, name)
 
 
 def _compute_weighted_frequency_histogram(
-        col, backend: pipeline_backend.PipelineBackend,
-        histogram_type: HistogramType):
+        col, backend: pipeline_backend.PipelineBackend, name: HistogramType):
     """Computes histogram of element frequencies in collection.
 
     Args:
-      col: collection with positive integers.
+      col: collection of (positive integers, weight).
       backend: PipelineBackend to run operations on the collection.
-      histogram_type: name which is assigned to the computed histogram.
+      name: name which is assigned to the computed histogram.
     Returns:
       1 element collection which contains Histogram.
     """
@@ -166,10 +166,22 @@ def _compute_weighted_frequency_histogram(
 
     # Combiner elements to histogram buckets of increasing sizes. Having buckets
     # of width = 1 is not scalable.
-    return _compute_todo(backend, col, histogram_type)
+    return _compute_frequency_histogram_helper(backend, col, name)
 
 
-def _compute_todo(backend, col, histogram_type: HistogramType):
+def _compute_frequency_histogram_helper(backend, col, name: HistogramType):
+    """Computes histogram of element frequencies in collection.
+
+    This is a helper function for _compute_frequency_histogram and
+    _compute_weighted_frequency_histogram.
+
+    Args:
+      col: collection of (n:int, frequency_of_n: int)
+      backend: PipelineBackend to run operations on the collection.
+      name: name which is assigned to the computed histogram.
+    Returns:
+      1 element collection which contains Histogram.
+    """
     col = backend.map_tuple(
         col, lambda n, f:
         (_to_bin_lower(n),
@@ -185,7 +197,7 @@ def _compute_todo(backend, col, histogram_type: HistogramType):
     # 1 element collection: [FrequencyBin]
     def bins_to_histogram(bins):
         bins.sort(key=lambda bin: bin.lower)
-        return Histogram(histogram_type, bins)
+        return Histogram(name, bins)
 
     return backend.map(col, bins_to_histogram, "To histogram")
 
@@ -440,7 +452,7 @@ def _compute_l1_contributions_histogram_on_preaggregated_data(
     col = backend.map_tuple(
         col,
         lambda _, x:
-        (x[3], x[3] / x[2]),  # x is (count, sum, n_partitions, n_contributions)
+        (x[3], 1 / x[2]),  # x is (count, sum, n_partitions, n_contributions)
         "Extract n_partitions")
     # col: (int,), where each element is the number of partitions the
     # corresponding privacy_id contributes.
