@@ -16,8 +16,7 @@ from pipeline_dp import contribution_bounders
 from pipeline_dp import sampling_utils
 
 
-class SamplingL0LinfContributionBounder(
-        contribution_bounders.ContributionBounder):
+class AnalysisContributionBounder(contribution_bounders.ContributionBounder):
     """'Bounds' the contribution by privacy_id per and cross partitions.
 
     Because this is for Utility Analysis, it doesn't actually ensure that

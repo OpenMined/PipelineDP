@@ -169,7 +169,8 @@ def _compute_weighted_frequency_histogram(
     return _compute_frequency_histogram_helper(backend, col, name)
 
 
-def _compute_frequency_histogram_helper(backend, col, name: HistogramType):
+def _compute_frequency_histogram_helper(
+        backend: pipeline_backend.PipelineBackend, col, name: HistogramType):
     """Computes histogram of element frequencies in collection.
 
     This is a helper function for _compute_frequency_histogram and
@@ -240,8 +241,10 @@ def _to_dataset_histograms(histogram_list,
 def _compute_l0_contributions_histogram(
         col, backend: pipeline_backend.PipelineBackend):
     """Computes histogram of the number of distinct partitions contributed by a privacy id.
-    This histogram contains: number of privacy ids which contributes to 1
-    partition, to 2 partitions etc.
+
+    This histogram contains: number of privacy ids which contributes 1 record, 2
+    records, etc.
+
     Args:
       col: collection with elements (privacy_id, partition_key).
         Assumption: 'col' contains distinct elements!
@@ -265,8 +268,10 @@ def _compute_l0_contributions_histogram(
 def _compute_l1_contributions_histogram(
         col, backend: pipeline_backend.PipelineBackend):
     """Computes histogram of the number of distinct records contributed by a privacy id.
+
     This histogram contains: number of privacy ids which contributes to 1
     record, to 2 records etc.
+
     Args:
       col: collection with elements (privacy_id, partition_key).
       backend: PipelineBackend to run operations on the collection.
@@ -289,8 +294,10 @@ def _compute_l1_contributions_histogram(
 def _compute_linf_contributions_histogram(
         col, backend: pipeline_backend.PipelineBackend):
     """Computes histogram of per partition privacy id contributions.
+
     This histogram contains: the number of (privacy id, partition_key)-pairs
     which have 1 row in the datasets, 2 rows etc.
+
     Args:
       col: collection with elements (privacy_id, partition_key).
       backend: PipelineBackend to run operations on the collection.
@@ -311,8 +318,10 @@ def _compute_linf_contributions_histogram(
 def _compute_partition_count_histogram(
         col, backend: pipeline_backend.PipelineBackend):
     """Computes histogram of counts per partition.
+
     This histogram contains: the number of partitions with total count of
     contributions = 1, 2 etc.
+
     Args:
       col: collection with elements (privacy_id, partition_key).
       backend: PipelineBackend to run operations on the collection.
@@ -336,8 +345,10 @@ def _compute_partition_count_histogram(
 def _compute_partition_privacy_id_count_histogram(
         col, backend: pipeline_backend.PipelineBackend):
     """Computes histogram of privacy id counts per partition.
+
     This histogram contains: the number of partitions with privacy_id_count=1,
     with privacy_id_count=2 etc.
+
     Args:
       col: collection with elements (privacy_id, partition_key).
        Assumption: 'col' contains distinct elements!
@@ -362,6 +373,7 @@ def _compute_partition_privacy_id_count_histogram(
 def compute_dataset_histograms(col, data_extractors: pipeline_dp.DataExtractors,
                                backend: pipeline_backend.PipelineBackend):
     """Computes dataset histograms.
+
     Args:
       col: collection with elements of the same type.
       backend: PipelineBackend to run operations on the collection.

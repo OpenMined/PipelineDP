@@ -91,7 +91,7 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
         """Creates ContributionBounder for utility analysis."""
         if self._options.pre_aggregated_data:
             return utility_contribution_bounders.NoOpContributionBounder()
-        return utility_contribution_bounders.SamplingL0LinfContributionBounder(
+        return utility_contribution_bounders.AnalysisContributionBounder(
             self._options.partitions_sampling_prob)
 
     def _create_compound_combiner(
