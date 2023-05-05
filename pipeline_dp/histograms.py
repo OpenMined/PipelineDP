@@ -127,37 +127,54 @@ def _to_bin_lower(n: int) -> int:
     return n // round_base * round_base
 
 
-def _compute_frequency_histogram(col,
-                                 backend: pipeline_backend.PipelineBackend,
-                                 name: HistogramType,
-                                 deduplicate: bool = False):
+def _compute_frequency_histogram(col, backend: pipeline_backend.PipelineBackend,
+                                 histogram_type: HistogramType):
     """Computes histogram of element frequencies in collection.
     Args:
       col: collection with positive integers.
       backend: PipelineBackend to run operations on the collection.
       name: name which is assigned to the computed histogram.
-      deduplicate: performs deduplication of elements in the histogram. Namely,
-       if true, the histogram (n, count_n) is transformed to (n, count_n/n).
-       It should be used, when collection is generated in a way, that each
-       element n (col contains integers) duplicated n times.
     Returns:
       1 element collection which contains Histogram.
     """
 
     col = backend.count_per_element(col, "Frequency of elements")
-    if deduplicate:
-        col = backend.map_tuple(
-            col, lambda element, frequency:
-            (element, int(round(frequency / element))), "Deduplicate")
 
     # Combiner elements to histogram buckets of increasing sizes. Having buckets
     # of width = 1 is not scalable.
+    return _compute_todo(backend, col, histogram_type)
+
+
+def _compute_weighted_frequency_histogram(
+        col, backend: pipeline_backend.PipelineBackend,
+        histogram_type: HistogramType):
+    """Computes histogram of element frequencies in collection.
+
+    Args:
+      col: collection with positive integers.
+      backend: PipelineBackend to run operations on the collection.
+      histogram_type: name which is assigned to the computed histogram.
+    Returns:
+      1 element collection which contains Histogram.
+    """
+
+    col = backend.sum_per_key(col, "Frequency of elements")
+    # (int, sum_weights:float)
+
+    col = backend.map_values(col, lambda x: int(round(x)), "Round")
+    # (int, sum_weights:int)
+
+    # Combiner elements to histogram buckets of increasing sizes. Having buckets
+    # of width = 1 is not scalable.
+    return _compute_todo(backend, col, histogram_type)
+
+
+def _compute_todo(backend, col, histogram_type: HistogramType):
     col = backend.map_tuple(
         col, lambda n, f:
         (_to_bin_lower(n),
          FrequencyBin(lower=_to_bin_lower(n), count=f, sum=f * n, max=n)),
         "To FrequencyBin")
-
     # (lower_bin_value, FrequencyBin)
     col = backend.reduce_per_key(col, operator.add, "Combine FrequencyBins")
     # (lower_bin_value, FrequencyBin)
@@ -166,10 +183,9 @@ def _compute_frequency_histogram(col,
     col = backend.to_list(col, "To 1 element collection")
 
     # 1 element collection: [FrequencyBin]
-
     def bins_to_histogram(bins):
         bins.sort(key=lambda bin: bin.lower)
-        return Histogram(name, bins)
+        return Histogram(histogram_type, bins)
 
     return backend.map(col, bins_to_histogram, "To histogram")
 
@@ -177,19 +193,21 @@ def _compute_frequency_histogram(col,
 def _list_to_contribution_histograms(
         histograms: List[Histogram]) -> DatasetHistograms:
     """Packs histograms from a list to ContributionHistograms."""
-    l0_contributions = linf_contributions = None
+    l0_contributions = l1_contributions = linf_contributions = None
     count_per_partition = privacy_id_per_partition_count = None
     for histogram in histograms:
         if histogram.name == HistogramType.L0_CONTRIBUTIONS:
             l0_contributions = histogram
+        if histogram.name == HistogramType.L1_CONTRIBUTIONS:
+            l1_contributions = histogram
         elif histogram.name == HistogramType.LINF_CONTRIBUTIONS:
             linf_contributions = histogram
         elif histogram.name == HistogramType.COUNT_PER_PARTITION:
             count_per_partition = histogram
         elif histogram.name == HistogramType.COUNT_PRIVACY_ID_PER_PARTITION:
             privacy_id_per_partition_count = histogram
-    return DatasetHistograms(l0_contributions, linf_contributions,
-                             count_per_partition,
+    return DatasetHistograms(l0_contributions, l1_contributions,
+                             linf_contributions, count_per_partition,
                              privacy_id_per_partition_count)
 
 
@@ -383,8 +401,10 @@ def compute_dataset_histograms(col, data_extractors: pipeline_dp.DataExtractors,
 def _compute_l0_contributions_histogram_on_preaggregated_data(
         col, backend: pipeline_backend.PipelineBackend):
     """Computes histogram of the number of distinct partitions contributed by a privacy id.
+
     This histogram contains: number of privacy ids which contributes to 1
     partition, to 2 partitions etc.
+
     Args:
       col: collection with a pre-aggregated dataset, each element is
       (partition_key, (count, sum, n_partitions)).
@@ -394,21 +414,22 @@ def _compute_l0_contributions_histogram_on_preaggregated_data(
     """
     col = backend.map_tuple(
         col,
-        lambda _, x: x[2],  # x is (count, sum, n_partitions)
+        lambda _, x:
+        (x[2], 1.0 / x[2]),  # x is (count, sum, n_partitions, n_contributions)
         "Extract n_partitions")
     # col: (int,), where each element is the number of partitions the
     # corresponding privacy_id contributes.
-    return _compute_frequency_histogram(col,
-                                        backend,
-                                        HistogramType.L0_CONTRIBUTIONS,
-                                        deduplicate=True)
+    return _compute_weighted_frequency_histogram(col, backend,
+                                                 HistogramType.L0_CONTRIBUTIONS)
 
 
 def _compute_l1_contributions_histogram_on_preaggregated_data(
         col, backend: pipeline_backend.PipelineBackend):
     """Computes histogram of the number of distinct partitions contributed by a privacy id.
+
     This histogram contains: number of privacy ids which contributes to 1
     partition, to 2 partitions etc.
+
     Args:
       col: collection with a pre-aggregated dataset, each element is
       (partition_key, (count, sum, n_partitions)).

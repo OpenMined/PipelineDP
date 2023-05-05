@@ -55,7 +55,7 @@ def preaggregate(col,
                                       backend=backend,
                                       report_generator=None,
                                       aggregate_fn=lambda x: x)
-    # col: ((privacy_id, partition_key), (count, sum, n_partitions)).
+    # col: ((privacy_id, partition_key), (count, sum, n_partitions, n_contributions)).
 
     return backend.map(col, lambda row: (row[0][1], row[1]), "Drop privacy id")
     # (partition_key, (count, sum, n_partitions))

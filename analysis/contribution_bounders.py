@@ -61,11 +61,14 @@ class SamplingL0LinfContributionBounder(
         def rekey_per_privacy_id_per_partition_key_and_unnest(pid_pk_v_values):
             privacy_id, partition_values = pid_pk_v_values
             num_partitions_contributed = len(partition_values)
+            num_contributions = sum(
+                (len(values) for _, values in partition_values))
             for partition_key, values in partition_values:
                 if sampler is not None and not sampler.keep(partition_key):
                     continue
                 yield (privacy_id, partition_key), (len(values), sum(values),
-                                                    num_partitions_contributed)
+                                                    num_partitions_contributed,
+                                                    num_contributions)
 
         # Unnest the list per privacy id.
         col = backend.flat_map(
