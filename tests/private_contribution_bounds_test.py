@@ -237,6 +237,7 @@ class PrivateL0CalculatorTest(unittest.TestCase):
                                       ])
         histograms = [
             hist.DatasetHistograms(l0_histogram,
+                                   l1_contributions_histogram=None,
                                    linf_contributions_histogram=None,
                                    count_per_partition_histogram=None,
                                    count_privacy_id_per_partition=None)
@@ -273,6 +274,7 @@ class PrivateL0CalculatorTest(unittest.TestCase):
                                       ])
         histograms = [
             hist.DatasetHistograms(l0_histogram,
+                                   l1_contributions_histogram=None,
                                    linf_contributions_histogram=None,
                                    count_per_partition_histogram=None,
                                    count_privacy_id_per_partition=None)

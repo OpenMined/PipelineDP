@@ -439,24 +439,25 @@ def _compute_l1_contributions_histogram_on_preaggregated_data(
     """
     col = backend.map_tuple(
         col,
-        lambda _, x: x[2],  # x is (count, sum, n_partitions)
+        lambda _, x:
+        (x[3], x[3] / x[2]),  # x is (count, sum, n_partitions, n_contributions)
         "Extract n_partitions")
     # col: (int,), where each element is the number of partitions the
     # corresponding privacy_id contributes.
-    return _compute_frequency_histogram(col,
-                                        backend,
-                                        HistogramType.L1_CONTRIBUTIONS,
-                                        deduplicate=True)
+    return _compute_weighted_frequency_histogram(col, backend,
+                                                 HistogramType.L1_CONTRIBUTIONS)
 
 
 def _compute_linf_contributions_histogram_on_preaggregated_data(
         col, backend: pipeline_backend.PipelineBackend):
     """Computes histogram of per partition privacy id contributions.
+
     This histogram contains: the number of (privacy id, partition_key)-pairs
     which have 1 row in the datasets, 2 rows etc.
+
     Args:
       col: collection with a pre-aggregated dataset, each element is
-      (partition_key, (count, sum, n_partitions)).
+      (partition_key, (count, sum, n_partitions, n_contributions)).
       backend: PipelineBackend to run operations on the collection.
     Returns:
       1 element collection, which contains the computed Histogram.
@@ -544,6 +545,8 @@ def compute_dataset_histograms_on_preaggregated_data(
     # Compute histograms.
     l0_contributions_histogram = _compute_l0_contributions_histogram_on_preaggregated_data(
         col, backend)
+    l1_contributions_histogram = _compute_l1_contributions_histogram_on_preaggregated_data(
+        col, backend)
     linf_contributions_histogram = _compute_linf_contributions_histogram_on_preaggregated_data(
         col, backend)
     partition_count_histogram = _compute_partition_count_histogram_on_preaggregated_data(
@@ -553,6 +556,7 @@ def compute_dataset_histograms_on_preaggregated_data(
 
     # Combine histograms to DatasetHistograms.
     return _to_dataset_histograms([
-        l0_contributions_histogram, linf_contributions_histogram,
-        partition_count_histogram, partition_privacy_id_count_histogram
+        l0_contributions_histogram, l1_contributions_histogram,
+        linf_contributions_histogram, partition_count_histogram,
+        partition_privacy_id_count_histogram
     ], backend)
