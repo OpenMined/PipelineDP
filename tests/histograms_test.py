@@ -513,6 +513,29 @@ class ParameterTuning(parameterized.TestCase):
         output = histogram.quantiles(q)
         self.assertListEqual(expected_quantiles, output)
 
+    @parameterized.named_parameters(
+        dict(testcase_name='1 bins histogram',
+             bins=[
+                 hist.FrequencyBin(lower=1000, count=10, sum=10100, max=1020),
+             ],
+             expected_ratios=[(1000, 100 / 10100), (1020, 0.0)]),
+        dict(testcase_name='7 bins histogram',
+             bins=[
+                 hist.FrequencyBin(lower=1, count=8, sum=8, max=1),
+                 hist.FrequencyBin(lower=2, count=2, sum=4, max=2),
+                 hist.FrequencyBin(lower=3, count=1, sum=3, max=3),
+                 hist.FrequencyBin(lower=4, count=2, sum=8, max=4),
+                 hist.FrequencyBin(lower=5, count=2, sum=10, max=5),
+                 hist.FrequencyBin(lower=6, count=1, sum=6, max=6),
+                 hist.FrequencyBin(lower=11, count=1, sum=11, max=11),
+             ],
+             expected_ratios=[(1, 0.66), (2, 0.48), (3, 0.34), (4, 0.22),
+                              (5, 0.14), (6, 0.1), (11, 0.0)]))
+    def test_quantile_contributions(self, bins, expected_ratios):
+        histogram = hist.Histogram("name", bins)
+        output = hist.compute_ratio_dropped(histogram)
+        self.assertListEqual(output, expected_ratios)
+
 
 if __name__ == '__main__':
     absltest.main()
