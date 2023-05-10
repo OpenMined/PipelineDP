@@ -21,7 +21,7 @@ from pipeline_dp import contribution_bounders
 from pipeline_dp import partition_selection
 from pipeline_dp import report_generator
 from pipeline_dp import sampling_utils
-from pipeline_dp.histograms import compute_dataset_histograms
+from pipeline_dp.dataset_histograms import computing_histograms
 from pipeline_dp import pipeline_functions
 from pipeline_dp.private_contribution_bounds import PrivateL0Calculator
 
@@ -446,8 +446,8 @@ class DPEngine:
         if not partitions_already_filtered:
             col = self._drop_partitions(col, partitions, data_extractors)
 
-        histograms = compute_dataset_histograms(col, data_extractors,
-                                                self._backend)
+        histograms = computing_histograms.compute_dataset_histograms(
+            col, data_extractors, self._backend)
         l0_calculator = PrivateL0Calculator(params, partitions, histograms,
                                             self._backend)
         return pipeline_functions.collect_to_container(
