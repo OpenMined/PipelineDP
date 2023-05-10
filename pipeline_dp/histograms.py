@@ -15,7 +15,7 @@
 from dataclasses import dataclass
 import enum
 import operator
-from typing import List
+from typing import List, Sequence, Tuple
 
 import pipeline_dp
 from pipeline_dp import pipeline_backend
@@ -24,15 +24,15 @@ from pipeline_dp import pipeline_backend
 @dataclass
 class FrequencyBin:
     """Represents a single bin of a histogram.
-  The bin represents integers between 'lower' (inclusive) and 'upper'
-   (exclusive, not stored in this class, but uniquely determined by 'lower').
-  Attributes:
+    The bin represents integers between 'lower' (inclusive) and 'upper'
+    (exclusive, not stored in this class, but uniquely determined by 'lower').
+    Attributes:
       lower: the lower bound of the bin.
       count: the number of elements in the bin.
       sum: the sum of elements in the bin.
       max: the maximum element in the bin, which is smaller or equal to the
        upper-1.
-  """
+    """
     lower: int
     count: int
     sum: int
@@ -43,7 +43,8 @@ class FrequencyBin:
                             self.sum + other.sum, max(self.max, other.max))
 
     def __eq__(self, other):
-        return self.lower == other.lower and self.count == other.count and self.sum == other.sum and self.max == other.max
+        return (self.lower == other.lower and self.count == other.count and
+                self.sum == other.sum and self.max == other.max)
 
 
 class HistogramType(enum.Enum):
@@ -97,6 +98,46 @@ class Histogram:
         while i_q >= 0:
             result.append(bin[0].lower)
         return result[::-1]
+
+
+def compute_ratio_dropped(
+        contribution_histogram: Histogram) -> Sequence[Tuple[int, float]]:
+    """Computes ratio of dropped data for different bounding thresholds.
+
+    For each FrequencyBin.lower in contribution_histogram it computes what would
+    the ratio of data dropped because of contribution bounding when it is taken
+    as bounding threshold (e.g. in case of L0 histogram bounding_threshold it is
+    max_partition_contribution).
+
+    Args:
+        contribution_histogram: histogram of contributions. It can be L0, L1,
+          Linf contribution bounding histogram.
+
+    Returns:
+        A sequence of sorted pairs
+        (bounding_threshold:int, ratio_data_draped:float), where
+        bounding_thresholds are all lower of histogram.bins and
+        contribution_histogram.max_value.
+    """
+    if not contribution_histogram.bins:
+        return []
+    dropped = elements_larger = 0
+    total_sum = contribution_histogram.total_sum()
+    ratio_dropped = []
+    bins = contribution_histogram.bins
+    previous_value = bins[-1].lower  # lower of the largest bin.
+    if contribution_histogram.max_value != previous_value:
+        # Add ratio for max_value when max_value is not lower in bins.
+        ratio_dropped.append((contribution_histogram.max_value, 0.0))
+
+    for bin in bins[::-1]:
+        current_value = bin.lower
+        dropped += elements_larger * (previous_value - current_value) + (
+            bin.sum - bin.count * current_value)
+        ratio_dropped.append((current_value, dropped / total_sum))
+        previous_value = current_value
+        elements_larger += bin.count
+    return ratio_dropped[::-1]
 
 
 @dataclass
