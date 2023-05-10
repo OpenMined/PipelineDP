@@ -514,6 +514,7 @@ class ParameterTuning(parameterized.TestCase):
         self.assertListEqual(expected_quantiles, output)
 
     @parameterized.named_parameters(
+        dict(testcase_name='empty', bins=[], expected_ratios=[]),
         dict(testcase_name='1 bins histogram',
              bins=[
                  hist.FrequencyBin(lower=1000, count=10, sum=10100, max=1020),

@@ -104,9 +104,9 @@ def compute_ratio_dropped(
         contribution_histogram: Histogram) -> Sequence[Tuple[int, float]]:
     """Computes ratio of dropped data for different bounding thresholds.
 
-    For each histogram bin.lower it computes what would the ratio of data
-    dropped because of contribution bounding when it is taken as bounding
-    threshold (e.g. in case of L0 histogram bounding_threshold is
+    For each FrequencyBin.lower in contribution_histogram it computes what would
+    the ratio of data dropped because of contribution bounding when it is taken
+    as bounding threshold (e.g. in case of L0 histogram bounding_threshold it is
     max_partition_contribution).
 
     Args:
@@ -115,9 +115,9 @@ def compute_ratio_dropped(
 
     Returns:
         A sequence of sorted pairs
-        (bounding_threshold:int, ratio_data_draped:float). Where
+        (bounding_threshold:int, ratio_data_draped:float), where
         bounding_thresholds are all lower of histogram.bins and
-        histogram.max_value.
+        contribution_histogram.max_value.
     """
     if not contribution_histogram.bins:
         return []
@@ -126,7 +126,7 @@ def compute_ratio_dropped(
     ratio_dropped = []
     bins = contribution_histogram.bins
     previous_value = bins[-1].lower  # lower of the largest bin.
-    if contribution_histogram.max_value != bins[-1].lower:
+    if contribution_histogram.max_value != previous_value:
         # Add ratio for max_value when max_value is not lower in bins.
         ratio_dropped.append((contribution_histogram.max_value, 0.0))
 
