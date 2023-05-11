@@ -21,7 +21,8 @@ from typing import List
 import pipeline_dp
 from analysis import metrics
 from analysis import parameter_tuning
-from pipeline_dp import histograms
+from pipeline_dp.dataset_histograms import histograms
+from pipeline_dp.dataset_histograms import computing_histograms
 
 
 def _get_aggregate_params():
@@ -91,7 +92,7 @@ class ParameterTuning(parameterized.TestCase):
             value_extractor=lambda x: None)
 
         contribution_histograms = list(
-            histograms.compute_dataset_histograms(
+            computing_histograms.compute_dataset_histograms(
                 input, data_extractors, pipeline_dp.LocalBackend()))[0]
 
         tune_options = _get_tune_options()
@@ -128,7 +129,7 @@ class ParameterTuning(parameterized.TestCase):
             value_extractor=lambda x: None)
 
         contribution_histograms = list(
-            histograms.compute_dataset_histograms(
+            computing_histograms.compute_dataset_histograms(
                 input, data_extractors, pipeline_dp.LocalBackend()))[0]
 
         tune_options = _get_tune_options()
@@ -163,7 +164,7 @@ class ParameterTuning(parameterized.TestCase):
             value_extractor=lambda x: None)
 
         contribution_histograms = list(
-            histograms.compute_dataset_histograms(
+            computing_histograms.compute_dataset_histograms(
                 input, data_extractors, pipeline_dp.LocalBackend()))[0]
 
         tune_options = _get_tune_options()
@@ -202,7 +203,7 @@ class ParameterTuning(parameterized.TestCase):
             value_extractor=lambda x: None)
 
         contribution_histograms = list(
-            histograms.compute_dataset_histograms(
+            computing_histograms.compute_dataset_histograms(
                 input, data_extractors, pipeline_dp.LocalBackend()))[0]
 
         tune_options = _get_tune_options()

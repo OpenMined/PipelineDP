@@ -1,11 +1,8 @@
 import unittest
 
 import pipeline_dp
-from pipeline_dp import NaiveBudgetAccountant, PipelineBackend, \
-    CalculatePrivateContributionBoundsParams, PrivateContributionBounds
-from pipeline_dp import histograms as hist
+from pipeline_dp.dataset_histograms import histograms as hist
 from pipeline_dp import private_contribution_bounds
-from pipeline_dp.report_generator import ReportGenerator
 
 
 def construct_params(
