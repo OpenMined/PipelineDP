@@ -222,7 +222,9 @@ class DPComputationsTest(parameterized.TestCase):
             value=20, eps=0.5, delta=1e-10, l2_sensitivity=3)
 
         # Assert
-        gaussian_mechanism.assert_called_with(0.5, 1e-10, 3)
+        gaussian_mechanism.assert_called_with(epsilon=0.5,
+                                              delta=1e-10,
+                                              sensitivity=3)
         mock_gaussian_mechanism.add_noise.assert_called_with(20)
         self.assertEqual("value_with_noise", anonymized_value)
 
