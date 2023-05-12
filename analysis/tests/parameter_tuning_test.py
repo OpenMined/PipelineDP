@@ -98,10 +98,10 @@ class ParameterTuning(parameterized.TestCase):
         tune_options = _get_tune_options()
 
         # Act.
-        result = parameter_tuning.tune_new(
-            input, pipeline_dp.LocalBackend(), contribution_histograms,
-            tune_options, data_extractors, public_partitions,
-            return_utility_analysis_per_partition)
+        result = parameter_tuning.tune(input, pipeline_dp.LocalBackend(),
+                                       contribution_histograms, tune_options,
+                                       data_extractors, public_partitions,
+                                       return_utility_analysis_per_partition)
 
         # Assert.
         if return_utility_analysis_per_partition:
@@ -140,10 +140,9 @@ class ParameterTuning(parameterized.TestCase):
         ]
 
         # Act.
-        result = parameter_tuning.tune_new(input, pipeline_dp.LocalBackend(),
-                                           contribution_histograms,
-                                           tune_options, data_extractors,
-                                           public_partitions)
+        result = parameter_tuning.tune(input, pipeline_dp.LocalBackend(),
+                                       contribution_histograms, tune_options,
+                                       data_extractors, public_partitions)
 
         # Assert.
         result = list(result)[0]

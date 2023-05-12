@@ -23,9 +23,7 @@ from analysis import cross_partition_combiners
 import copy
 
 
-################# New code  ##################
-# perform_utility_analysis_new will be renamed to perform_utility_analysis.
-def perform_utility_analysis_new(
+def perform_utility_analysis(
         col,
         backend: pipeline_backend.PipelineBackend,
         options: analysis.UtilityAnalysisOptions,
