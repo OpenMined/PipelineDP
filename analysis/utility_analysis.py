@@ -22,7 +22,8 @@ from analysis import utility_analysis_engine
 from analysis import cross_partition_combiners
 import copy
 
-def perform_utility_analysis_new(
+
+def perform_utility_analysis(
         col,
         backend: pipeline_backend.PipelineBackend,
         options: analysis.UtilityAnalysisOptions,

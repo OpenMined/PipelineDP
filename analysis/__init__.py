@@ -22,4 +22,4 @@ from analysis.parameter_tuning import TuneOptions
 from analysis.parameter_tuning import TuneResult
 from analysis.parameter_tuning import UtilityAnalysisRun
 from analysis.pre_aggregation import preaggregate
-from analysis.utility_analysis import perform_utility_analysis_new
+from analysis.utility_analysis import perform_utility_analysis

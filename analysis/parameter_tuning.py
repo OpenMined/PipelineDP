@@ -239,7 +239,7 @@ def tune(col,
         multi_param_configuration=candidates,
         partitions_sampling_prob=options.partitions_sampling_prob,
         pre_aggregated_data=options.pre_aggregated_data)
-    result = utility_analysis.perform_utility_analysis_new(
+    result = utility_analysis.perform_utility_analysis(
         col, backend, utility_analysis_options, data_extractors,
         public_partitions, return_utility_analysis_per_partition)
     if return_utility_analysis_per_partition:
