@@ -184,16 +184,14 @@ def _convert_utility_analysis_to_tune_result(
                       utility_reports=[])
 
 
-################# New code  ##################
-# tune_new will be renamed to tune.
-def tune_new(col,
-             backend: pipeline_backend.PipelineBackend,
-             contribution_histograms: histograms.DatasetHistograms,
-             options: TuneOptions,
-             data_extractors: Union[pipeline_dp.DataExtractors,
-                                    pipeline_dp.PreAggregateExtractors],
-             public_partitions=None,
-             return_utility_analysis_per_partition: bool = False):
+def tune(col,
+         backend: pipeline_backend.PipelineBackend,
+         contribution_histograms: histograms.DatasetHistograms,
+         options: TuneOptions,
+         data_extractors: Union[pipeline_dp.DataExtractors,
+                                pipeline_dp.PreAggregateExtractors],
+         public_partitions=None,
+         return_utility_analysis_per_partition: bool = False):
     """Tunes parameters.
 
     It works in the following way:
