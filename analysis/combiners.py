@@ -132,7 +132,7 @@ class PartitionSelectionCalculator:
         otherwise it is an approximation computed from self.moments.
         """
         pmf = self._compute_pmf()
-        ps_strategy = partition_selection.create_partition_selection_strategy(
+        ps_strategy = partition_selection._create_partition_selection_strategy(
             partition_selection_strategy, eps, delta,
             max_partitions_contributed)
         probability = 0

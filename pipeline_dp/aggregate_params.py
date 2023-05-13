@@ -20,7 +20,6 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Iterable, Sequence, Callable, Union, Optional, List
 
-import numpy
 import numpy as np
 
 from pipeline_dp import input_validators
@@ -205,6 +204,7 @@ class AggregateParams:
          removed from the dataset. It can only be used with public partitions.
         partition_selection_strategy: which strategy to use for private
          partition selection. It is ignored when public partitions are used.
+        pre_threshold: todo
     """
     metrics: List[Metric]
     noise_kind: NoiseKind = NoiseKind.LAPLACE
@@ -226,6 +226,7 @@ class AggregateParams:
     contribution_bounds_already_enforced: bool = False
     public_partitions_already_filtered: bool = False
     partition_selection_strategy: PartitionSelectionStrategy = PartitionSelectionStrategy.TRUNCATED_GEOMETRIC
+    pre_threshold: int = 1
 
     @property
     def metrics_str(self) -> str:
@@ -340,6 +341,8 @@ class AggregateParams:
                                    "max_partitions_contributed")
             _check_is_positive_int(self.max_contributions_per_partition,
                                    "max_contributions_per_partition")
+        if not isinstance(self.pre_threshold, int) or self.pre_threshold < 1:
+            raise ValueError("todo")
 
     def _check_both_property_set_or_not(self, property1_name: str,
                                         property2_name: str):

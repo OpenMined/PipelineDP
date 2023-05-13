@@ -84,7 +84,8 @@ def calc_dp_rating_metrics(movie_views, backend, public_partitions):
         min_value=1,
         max_value=5,
         contribution_bounds_already_enforced=FLAGS.
-        contribution_bounds_already_enforced)
+        contribution_bounds_already_enforced,
+        pre_threshold=5)
 
     value_extractor = lambda mv: mv.rating
 

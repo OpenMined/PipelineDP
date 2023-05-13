@@ -14,9 +14,25 @@
 
 import pipeline_dp
 import pydp.algorithms.partition_selection as partition_selection
+from typing import Optional
 
 
-def create_partition_selection_strategy(
+class PartitionSelector:
+
+    def __init__(self, strategy: "PartitionSelectionStrategy",
+                 pre_threshold: int):
+        self._strategy = strategy
+        self._pre_threshold = pre_threshold
+
+    def should_keep(self, num_privacy_units: int):
+        if num_privacy_units <= self._pre_threshold:
+            return False
+
+        return self._strategy.should_keep(num_privacy_units -
+                                          (self._pre_threshold - 1))
+
+
+def _create_partition_selection_strategy(
         strategy: pipeline_dp.PartitionSelectionStrategy, epsilon: float,
         delta: float,
         max_partitions_contributed: int) -> "PartitionSelectionStrategy":
@@ -31,3 +47,12 @@ def create_partition_selection_strategy(
         raise ValueError(f"Unknown partition selection strategy {strategy}")
 
     return create_strategy(epsilon, delta, max_partitions_contributed)
+
+
+def create_partition_selector(strategy: pipeline_dp.PartitionSelectionStrategy,
+                              epsilon: float, delta: float,
+                              max_partitions_contributed: int,
+                              pre_threshold: int) -> PartitionSelector:
+    strategy_object = _create_partition_selection_strategy(
+        strategy, epsilon, delta, max_partitions_contributed)
+    return PartitionSelector(strategy_object, pre_threshold)
