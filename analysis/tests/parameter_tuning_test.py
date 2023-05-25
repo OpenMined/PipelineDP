@@ -83,7 +83,8 @@ class ParameterTuning(parameterized.TestCase):
         self.assertEqual(expected_max_contributions_per_partition,
                          candidates.max_contributions_per_partition)
 
-    def test_find_candidate_parameters_constant_relative_step_strategy(self):
+    def test_find_candidate_parameters_constant_relative_step_strategy_big_n_max(
+            self):
         mock_l0_histogram = histograms.Histogram(None, None)
         setattr(histograms.Histogram, 'max_value', 999999)
 
@@ -94,8 +95,11 @@ class ParameterTuning(parameterized.TestCase):
             max_contributions_per_partition=False)
 
         candidates = parameter_tuning._find_candidate_parameters(
-            mock_histograms, parameters_to_tune, pipeline_dp.Metrics.COUNT,
-            ParametersSearchStrategy.CONSTANT_RELATIVE_STEP)
+            mock_histograms,
+            parameters_to_tune,
+            pipeline_dp.Metrics.COUNT,
+            ParametersSearchStrategy.CONSTANT_RELATIVE_STEP,
+            n_max=1000)
 
         expected_superset = set(
             list(range(1, 1000, 1)) + list(range(1000, 10000, 10)) +
@@ -109,6 +113,51 @@ class ParameterTuning(parameterized.TestCase):
         self.assertLessEqual(len(candidates.max_partitions_contributed), 1001)
         self.assertEqual(sorted(candidates.max_partitions_contributed),
                          candidates.max_partitions_contributed)
+
+    def test_find_candidate_parameters_constant_relative_step_strategy_small_n_max(
+            self):
+        mock_linf_histogram = histograms.Histogram(None, None)
+        setattr(histograms.Histogram, 'max_value', 999999)
+
+        mock_histograms = histograms.DatasetHistograms(None, None,
+                                                       mock_linf_histogram,
+                                                       None, None)
+        parameters_to_tune = parameter_tuning.ParametersToTune(
+            max_partitions_contributed=False,
+            max_contributions_per_partition=True)
+
+        candidates = parameter_tuning._find_candidate_parameters(
+            mock_histograms,
+            parameters_to_tune,
+            pipeline_dp.Metrics.COUNT,
+            ParametersSearchStrategy.CONSTANT_RELATIVE_STEP,
+            n_max=10)
+
+        self.assertEqual(11, len(candidates.max_contributions_per_partition))
+        self.assertEqual(1, candidates.max_contributions_per_partition[0])
+        self.assertEqual(999999, candidates.max_contributions_per_partition[-1])
+
+    def test_find_candidate_parameters_constant_relative_step_strategy_values_less_than_n_max(
+            self):
+        mock_linf_histogram = histograms.Histogram(None, None)
+        setattr(histograms.Histogram, 'max_value', 50)
+
+        mock_histograms = histograms.DatasetHistograms(None, None,
+                                                       mock_linf_histogram,
+                                                       None, None)
+        parameters_to_tune = parameter_tuning.ParametersToTune(
+            max_partitions_contributed=False,
+            max_contributions_per_partition=True)
+
+        candidates = parameter_tuning._find_candidate_parameters(
+            mock_histograms,
+            parameters_to_tune,
+            pipeline_dp.Metrics.COUNT,
+            ParametersSearchStrategy.CONSTANT_RELATIVE_STEP,
+            n_max=100)
+
+        self.assertEqual([i for i in range(1, 51)],
+                         candidates.max_contributions_per_partition)
 
     @parameterized.parameters(False, True)
     def test_tune_count_new(self, return_utility_analysis_per_partition: bool):
