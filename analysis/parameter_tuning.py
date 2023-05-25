@@ -115,18 +115,19 @@ class ParametersSearchStrategy(Enum):
 
 
 def _find_candidate_parameters(
-    hist: histograms.DatasetHistograms,
-    parameters_to_tune: ParametersToTune,
-    metric: pipeline_dp.Metrics,
-    strategy: ParametersSearchStrategy = ParametersSearchStrategy.QUANTILES
-) -> analysis.MultiParameterConfiguration:
+        hist: histograms.DatasetHistograms,
+        parameters_to_tune: ParametersToTune,
+        metric: pipeline_dp.Metrics,
+        strategy: ParametersSearchStrategy = ParametersSearchStrategy.QUANTILES,
+        n_max: int = None) -> analysis.MultiParameterConfiguration:
     """Uses some heuristics to find (hopefully) good enough parameters."""
     l0_candidates = linf_candidates = None
 
     if strategy is ParametersSearchStrategy.QUANTILES:
         _find_candidates_func = _find_candidates_quantiles
     elif strategy is ParametersSearchStrategy.CONSTANT_RELATIVE_STEP:
-        _find_candidates_func = _find_candidates_constant_relative_step
+        _find_candidates_func = _find_candidates_constant_relative_step_func(
+            n_max)
 
     if parameters_to_tune.max_partitions_contributed:
         l0_candidates = _find_candidates_func(hist.l0_contributions_histogram)
@@ -164,17 +165,20 @@ def _find_candidates_quantiles(histogram: histograms.Histogram) -> List:
     return candidates
 
 
-def _find_candidates_constant_relative_step(
-        histogram: histograms.Histogram) -> List:
-    n_max = 1000
-    max_value = histogram.max_value
-    # relative step varies from 1% to 0.1%
-    candidates = _generate_possible_contribution_bounds(max_value)
-    if len(candidates) > n_max:
-        candidates = candidates[::math.ceil(len(candidates) / n_max)]
-    if candidates[-1] != max_value:
-        candidates.append(max_value)
-    return candidates
+def _find_candidates_constant_relative_step_func(n_max: int):
+
+    def _find_candidates_constant_relative_step(
+            histogram: histograms.Histogram) -> List:
+        max_value = histogram.max_value
+        # relative step varies from 1% to 0.1%
+        candidates = _generate_possible_contribution_bounds(max_value)
+        if len(candidates) > n_max:
+            candidates = candidates[::math.ceil(len(candidates) / n_max)]
+        if candidates[-1] != max_value:
+            candidates.append(max_value)
+        return candidates
+
+    return _find_candidates_constant_relative_step
 
 
 def _convert_utility_analysis_to_tune_result(
