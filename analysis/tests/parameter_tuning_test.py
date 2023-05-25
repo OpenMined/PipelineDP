@@ -83,30 +83,7 @@ class ParameterTuning(parameterized.TestCase):
         self.assertEqual(expected_max_contributions_per_partition,
                          candidates.max_contributions_per_partition)
 
-    def test_find_candidate_parameters_constant_relative_step_strategy_clamps_the_candidates_number(
-            self):
-        mock_l0_histogram = histograms.Histogram(None, None)
-        mock_linf_histogram = histograms.Histogram(None, None)
-        # for both histograms
-        setattr(histograms.Histogram, 'max_value', 20405)
-
-        mock_histograms = histograms.DatasetHistograms(mock_l0_histogram, None,
-                                                       mock_linf_histogram,
-                                                       None, None)
-        parameters_to_tune = parameter_tuning.ParametersToTune(
-            max_partitions_contributed=True,
-            max_contributions_per_partition=True)
-
-        candidates = parameter_tuning._find_candidate_parameters(
-            mock_histograms, parameters_to_tune, pipeline_dp.Metrics.COUNT,
-            ParametersSearchStrategy.CONSTANT_RELATIVE_STEP)
-
-        self.assertLess(len(candidates.max_partitions_contributed), 1000000)
-        self.assertLess(len(candidates.max_contributions_per_partition),
-                        1000000)
-
-    def test_find_candidate_parameters_constant_relative_step_strategy_generates_correct_numbers(
-            self):
+    def test_find_candidate_parameters_constant_relative_step_strategy(self):
         mock_l0_histogram = histograms.Histogram(None, None)
         setattr(histograms.Histogram, 'max_value', 999999)
 
@@ -127,6 +104,11 @@ class ParameterTuning(parameterized.TestCase):
         self.assertTrue(
             set(candidates.max_partitions_contributed).issubset(
                 expected_superset))
+        self.assertEqual(len(set(candidates.max_partitions_contributed)),
+                         len(candidates.max_partitions_contributed))
+        self.assertLessEqual(len(candidates.max_partitions_contributed), 1001)
+        self.assertEqual(sorted(candidates.max_partitions_contributed),
+                         candidates.max_partitions_contributed)
 
     @parameterized.parameters(False, True)
     def test_tune_count_new(self, return_utility_analysis_per_partition: bool):
