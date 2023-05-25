@@ -11,6 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import math
+import typing
 
 import pipeline_dp
 from pipeline_dp import pipeline_backend
@@ -25,6 +27,9 @@ from dataclasses import dataclass
 from typing import Callable, List, Tuple, Union
 from enum import Enum
 import numpy as np
+
+from pipeline_dp.private_contribution_bounds import \
+    _generate_possible_contribution_bounds
 
 
 class MinimizingFunction(Enum):
@@ -104,27 +109,31 @@ class TuneResult:
     utility_reports: List[metrics.UtilityReport]
 
 
+class ParametersSearchStrategy(Enum):
+    QUANTILES = 1
+    CONSTANT_RELATIVE_STEP = 2
+
+
 def _find_candidate_parameters(
-        hist: histograms.DatasetHistograms,
-        parameters_to_tune: ParametersToTune,
-        metric: pipeline_dp.Metrics) -> analysis.MultiParameterConfiguration:
+    hist: histograms.DatasetHistograms,
+    parameters_to_tune: ParametersToTune,
+    metric: pipeline_dp.Metrics,
+    strategy: ParametersSearchStrategy = ParametersSearchStrategy.QUANTILES
+) -> analysis.MultiParameterConfiguration:
     """Uses some heuristics to find (hopefully) good enough parameters."""
-    # TODO: decide where to put QUANTILES_TO_USE, maybe TuneOptions?
-    QUANTILES_TO_USE = [0.9, 0.95, 0.98, 0.99, 0.995]
     l0_candidates = linf_candidates = None
 
-    def _find_candidates(histogram: histograms.Histogram) -> List:
-        candidates = histogram.quantiles(QUANTILES_TO_USE)
-        candidates.append(histogram.max_value)
-        candidates = list(set(candidates))  # remove duplicates
-        candidates.sort()
-        return candidates
+    if strategy is ParametersSearchStrategy.QUANTILES:
+        _find_candidates_func = _find_candidates_quantiles
+    elif strategy is ParametersSearchStrategy.CONSTANT_RELATIVE_STEP:
+        _find_candidates_func = _find_candidates_constant_relative_step
 
     if parameters_to_tune.max_partitions_contributed:
-        l0_candidates = _find_candidates(hist.l0_contributions_histogram)
+        l0_candidates = _find_candidates_func(hist.l0_contributions_histogram)
 
     if parameters_to_tune.max_contributions_per_partition and metric == pipeline_dp.Metrics.COUNT:
-        linf_candidates = _find_candidates(hist.linf_contributions_histogram)
+        linf_candidates = _find_candidates_func(
+            hist.linf_contributions_histogram)
 
     l0_bounds = linf_bounds = None
 
@@ -144,6 +153,59 @@ def _find_candidate_parameters(
     return analysis.MultiParameterConfiguration(
         max_partitions_contributed=l0_bounds,
         max_contributions_per_partition=linf_bounds)
+
+
+def _find_candidates_quantiles(histogram: histograms.Histogram) -> List:
+    QUANTILES_TO_USE = [0.9, 0.95, 0.98, 0.99, 0.995]
+    candidates = histogram.quantiles(QUANTILES_TO_USE)
+    candidates.append(histogram.max_value)
+    candidates = list(set(candidates))  # remove duplicates
+    candidates.sort()
+    return candidates
+
+
+def _find_candidates_constant_relative_step(
+        histogram: histograms.Histogram) -> List:
+    n_max = 1000
+    max_value = histogram.max_value
+    # relative step varies from 1% to 0.1%
+    candidates = _generate_possible_contribution_bounds(max_value)
+    if len(candidates) > n_max:
+        candidates = candidates[::math.ceil(len(candidates) / n_max)]
+    if candidates[-1] != max_value:
+        candidates.append(max_value)
+    return candidates
+
+
+def _convert_utility_analysis_to_tune_result(
+        utility_analysis_result: Tuple, tune_options: TuneOptions,
+        run_configurations: analysis.MultiParameterConfiguration,
+        use_public_partitions: bool,
+        contribution_histograms: histograms.DatasetHistograms):
+    assert len(utility_analysis_result) == run_configurations.size
+    # TODO(dvadym): implement relative error.
+    # TODO(dvadym): take into consideration partition selection from private
+    # partition selection.
+    assert tune_options.function_to_minimize == MinimizingFunction.ABSOLUTE_ERROR
+
+    metrics = tune_options.aggregate_params.metrics[0]
+    if metrics == pipeline_dp.Metrics.COUNT:
+        rmse = [
+            ae.count_metrics.absolute_rmse() for ae in utility_analysis_result
+        ]
+    else:
+        rmse = [
+            ae.privacy_id_count_metrics.absolute_rmse()
+            for ae in utility_analysis_result
+        ]
+    index_best = np.argmin(rmse)
+
+    return TuneResult(tune_options,
+                      contribution_histograms,
+                      run_configurations,
+                      index_best,
+                      utility_analysis_result,
+                      utility_reports=[])
 
 
 def tune(col,
