@@ -124,16 +124,16 @@ def _find_candidate_parameters(
     l0_candidates = linf_candidates = None
 
     if strategy is ParametersSearchStrategy.QUANTILES:
-        _find_candidates_func = _find_candidates_quantiles
+        find_candidates_func = _find_candidates_quantiles
     elif strategy is ParametersSearchStrategy.CONSTANT_RELATIVE_STEP:
-        _find_candidates_func = _find_candidates_constant_relative_step_func(
+        find_candidates_func = _find_candidates_constant_relative_step_func(
             n_max)
 
     if parameters_to_tune.max_partitions_contributed:
-        l0_candidates = _find_candidates_func(hist.l0_contributions_histogram)
+        l0_candidates = find_candidates_func(hist.l0_contributions_histogram)
 
     if parameters_to_tune.max_contributions_per_partition and metric == pipeline_dp.Metrics.COUNT:
-        linf_candidates = _find_candidates_func(
+        linf_candidates = find_candidates_func(
             hist.linf_contributions_histogram)
 
     l0_bounds = linf_bounds = None
