@@ -802,7 +802,7 @@ def create_compound_combiner_with_custom_combiners(
         budget_accountant: budget_accounting.BudgetAccountant,
         custom_combiners: Iterable[CustomCombiner]) -> CompoundCombiner:
     for combiner in custom_combiners:
-        combiner.request_budget(budget_accountant)
         combiner.set_aggregate_params(aggregate_params)
+        combiner.request_budget(budget_accountant)
 
     return CompoundCombiner(custom_combiners, return_named_tuple=False)

@@ -44,7 +44,7 @@ class SamplingL0LinfContributionBounderTest(parameterized.TestCase):
         params = CrossAndPerPartitionContributionParams(
             max_partitions_contributed, max_contributions_per_partition)
 
-        bounder = contribution_bounders.SamplingL0LinfContributionBounder(
+        bounder = contribution_bounders.AnalysisContributionBounder(
             partitions_sampling_prob)
         return list(
             bounder.bound_contributions(input, params,

@@ -21,7 +21,7 @@ from pipeline_dp import contribution_bounders
 from pipeline_dp import partition_selection
 from pipeline_dp import report_generator
 from pipeline_dp import sampling_utils
-from pipeline_dp.histograms import compute_dataset_histograms
+from pipeline_dp.dataset_histograms import computing_histograms
 from pipeline_dp import pipeline_functions
 from pipeline_dp.private_contribution_bounds import PrivateL0Calculator
 
@@ -92,10 +92,7 @@ class DPEngine:
                                   public_partitions)
             budget = self._budget_accountant._compute_budget_for_aggregation(
                 params.budget_weight)
-            return self._backend.annotate(col,
-                                          "annotation",
-                                          params=params,
-                                          budget=budget)
+            return self._annotate(col, params=params, budget=budget)
 
     def _aggregate(self, col, params: pipeline_dp.AggregateParams,
                    data_extractors: pipeline_dp.DataExtractors,
@@ -217,10 +214,7 @@ class DPEngine:
             col = self._select_partitions(col, params, data_extractors)
             budget = self._budget_accountant._compute_budget_for_aggregation(
                 params.budget_weight)
-            return self._backend.annotate(col,
-                                          "annotation",
-                                          params=params,
-                                          budget=budget)
+            return self._annotate(col, params=params, budget=budget)
 
     def _select_partitions(self, col,
                            params: pipeline_dp.SelectPartitionsParams,
@@ -452,8 +446,8 @@ class DPEngine:
         if not partitions_already_filtered:
             col = self._drop_partitions(col, partitions, data_extractors)
 
-        histograms = compute_dataset_histograms(col, data_extractors,
-                                                self._backend)
+        histograms = computing_histograms.compute_dataset_histograms(
+            col, data_extractors, self._backend)
         l0_calculator = PrivateL0Calculator(params, partitions, histograms,
                                             self._backend)
         return pipeline_functions.collect_to_container(
@@ -479,6 +473,13 @@ class DPEngine:
                             "CalculatePrivateContributionBoundsParams")
         if check_data_extractors:
             _check_data_extractors(data_extractors)
+
+    def _annotate(self, col, params: pipeline_dp.SelectPartitionsParams,
+                  budget: pipeline_dp.budget_accounting.Budget):
+        return self._backend.annotate(col,
+                                      "annotation",
+                                      params=params,
+                                      budget=budget)
 
 
 def _check_col(col):

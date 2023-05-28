@@ -257,61 +257,6 @@ def equally_split_budget(eps: float, delta: float, no_mechanisms: int):
     return budgets
 
 
-def compute_dp_count(count: int, dp_params: ScalarNoiseParams):
-    """Computes DP count.
-
-    Args:
-        count: Non-DP count.
-        dp_params: The parameters used at computing the noise.
-
-    Raises:
-        ValueError: The noise kind is invalid.
-    """
-    l0_sensitivity = dp_params.l0_sensitivity()
-    linf_sensitivity = dp_params.max_contributions_per_partition
-
-    return _add_random_noise(
-        count,
-        dp_params.eps,
-        dp_params.delta,
-        l0_sensitivity,
-        linf_sensitivity,
-        dp_params.noise_kind,
-    )
-
-
-def compute_dp_sum(sum: float, dp_params: ScalarNoiseParams):
-    """Computes DP sum.
-
-    Args:
-        sum: Non-DP sum.
-        dp_params: The parameters used at computing the noise.
-
-    Raises:
-        ValueError: The noise kind is invalid.
-    """
-    l0_sensitivity = dp_params.l0_sensitivity()
-
-    if dp_params.bounds_per_contribution_are_set:
-        max_abs = max(abs(dp_params.min_value), abs(dp_params.max_value))
-        linf_sensitivity = dp_params.max_contributions_per_partition * max_abs
-    else:
-        linf_sensitivity = max(abs(dp_params.min_sum_per_partition),
-                               abs(dp_params.max_sum_per_partition))
-
-    if linf_sensitivity == 0:
-        return 0
-
-    return _add_random_noise(
-        sum,
-        dp_params.eps,
-        dp_params.delta,
-        l0_sensitivity,
-        linf_sensitivity,
-        dp_params.noise_kind,
-    )
-
-
 def _compute_mean_for_normalized_sum(
     dp_count: float,
     sum: float,

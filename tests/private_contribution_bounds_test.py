@@ -1,11 +1,8 @@
 import unittest
 
 import pipeline_dp
-from pipeline_dp import NaiveBudgetAccountant, PipelineBackend, \
-    CalculatePrivateContributionBoundsParams, PrivateContributionBounds
-from pipeline_dp import histograms as hist
+from pipeline_dp.dataset_histograms import histograms as hist
 from pipeline_dp import private_contribution_bounds
-from pipeline_dp.report_generator import ReportGenerator
 
 
 def construct_params(
@@ -237,6 +234,7 @@ class PrivateL0CalculatorTest(unittest.TestCase):
                                       ])
         histograms = [
             hist.DatasetHistograms(l0_histogram,
+                                   l1_contributions_histogram=None,
                                    linf_contributions_histogram=None,
                                    count_per_partition_histogram=None,
                                    count_privacy_id_per_partition=None)
@@ -273,6 +271,7 @@ class PrivateL0CalculatorTest(unittest.TestCase):
                                       ])
         histograms = [
             hist.DatasetHistograms(l0_histogram,
+                                   l1_contributions_histogram=None,
                                    linf_contributions_histogram=None,
                                    count_per_partition_histogram=None,
                                    count_privacy_id_per_partition=None)

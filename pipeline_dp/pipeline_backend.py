@@ -354,7 +354,7 @@ class BeamBackend(PipelineBackend):
         if not _annotators:
             return col
         for annotator in _annotators:
-            col = annotator.annotate(col, self._ulg.unique(stage_name),
+            col = annotator.annotate(col, self, self._ulg.unique(stage_name),
                                      **kwargs)
         return col
 
@@ -795,10 +795,12 @@ class Annotator(abc.ABC):
     pipeline."""
 
     @abc.abstractmethod
-    def annotate(self, col, stage_name: str, **kwargs):
+    def annotate(self, col, backend: PipelineBackend, stage_name: str,
+                 **kwargs):
         """Annotates a collection.
 
         Args:
+          backend: PipelineBackend of the pipeline.
           stage_name: annotation stage_name, it needs to be correctly propagated
           kwargs: additional arguments about the current aggregation.
 

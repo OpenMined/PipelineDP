@@ -21,7 +21,8 @@ from typing import List
 import pipeline_dp
 from analysis import metrics
 from analysis import parameter_tuning
-from pipeline_dp import histograms
+from pipeline_dp.dataset_histograms import histograms
+from pipeline_dp.dataset_histograms import computing_histograms
 
 
 def _get_aggregate_params():
@@ -65,7 +66,7 @@ class ParameterTuning(parameterized.TestCase):
         mock_linf_histogram = histograms.Histogram(None, None)
         mock_linf_histogram.quantiles = mock.Mock(return_value=[3, 6, 6])
 
-        mock_histograms = histograms.DatasetHistograms(mock_l0_histogram,
+        mock_histograms = histograms.DatasetHistograms(mock_l0_histogram, None,
                                                        mock_linf_histogram,
                                                        None, None)
         parameters_to_tune = parameter_tuning.ParametersToTune(
@@ -81,78 +82,6 @@ class ParameterTuning(parameterized.TestCase):
                          candidates.max_contributions_per_partition)
 
     @parameterized.parameters(False, True)
-    def test_tune_count(self, return_utility_analysis_per_partition: bool):
-        # Arrange.
-        input = [(i % 10, f"pk{i/10}") for i in range(10)]
-        public_partitions = [f"pk{i}" for i in range(10)]
-        data_extractors = pipeline_dp.DataExtractors(
-            privacy_id_extractor=lambda x: x[0],
-            partition_extractor=lambda x: x[1],
-            value_extractor=lambda x: None)
-
-        contribution_histograms = list(
-            histograms.compute_dataset_histograms(
-                input, data_extractors, pipeline_dp.LocalBackend()))[0]
-
-        tune_options = _get_tune_options()
-
-        # Act.
-        result = parameter_tuning.tune(input, pipeline_dp.LocalBackend(),
-                                       contribution_histograms, tune_options,
-                                       data_extractors, public_partitions,
-                                       return_utility_analysis_per_partition)
-
-        # Assert.
-        if return_utility_analysis_per_partition:
-            tune_result, per_partition_utility_anlaysis = result
-            self.assertLen(per_partition_utility_anlaysis, 10)
-        else:
-            tune_result = result
-        tune_result = list(tune_result)[0]
-
-        self.assertEqual(tune_options, tune_result.options)
-        self.assertEqual(contribution_histograms,
-                         tune_result.contribution_histograms)
-        utility_results = tune_result.utility_analysis_results
-        self.assertLen(utility_results, 4)
-        self.assertIsInstance(utility_results[0], metrics.AggregateMetrics)
-        self.assertIsNotNone(utility_results[0].count_metrics)
-
-    def test_tune_privacy_id_count(self):
-        # Arrange.
-        input = [(i % 10, f"pk{i/10}") for i in range(10)]
-        public_partitions = [f"pk{i}" for i in range(10)]
-        data_extractors = pipeline_dp.DataExtractors(
-            privacy_id_extractor=lambda x: x[0],
-            partition_extractor=lambda x: x[1],
-            value_extractor=lambda x: None)
-
-        contribution_histograms = list(
-            histograms.compute_dataset_histograms(
-                input, data_extractors, pipeline_dp.LocalBackend()))[0]
-
-        tune_options = _get_tune_options()
-        tune_options.aggregate_params.metrics = [
-            pipeline_dp.Metrics.PRIVACY_ID_COUNT
-        ]
-
-        # Act.
-        result = parameter_tuning.tune(input, pipeline_dp.LocalBackend(),
-                                       contribution_histograms, tune_options,
-                                       data_extractors, public_partitions)
-
-        # Assert.
-        result = list(result)[0]
-
-        self.assertEqual(tune_options, result.options)
-        self.assertEqual(contribution_histograms,
-                         result.contribution_histograms)
-        utility_results = result.utility_analysis_results
-        self.assertLen(utility_results, 2)
-        self.assertIsInstance(utility_results[0], metrics.AggregateMetrics)
-        self.assertIsNotNone(utility_results[0].privacy_id_count_metrics)
-
-    @parameterized.parameters(False, True)
     def test_tune_count_new(self, return_utility_analysis_per_partition: bool):
         # Arrange.
         input = [(i % 10, f"pk{i/10}") for i in range(10)]
@@ -163,16 +92,16 @@ class ParameterTuning(parameterized.TestCase):
             value_extractor=lambda x: None)
 
         contribution_histograms = list(
-            histograms.compute_dataset_histograms(
+            computing_histograms.compute_dataset_histograms(
                 input, data_extractors, pipeline_dp.LocalBackend()))[0]
 
         tune_options = _get_tune_options()
 
         # Act.
-        result = parameter_tuning.tune_new(
-            input, pipeline_dp.LocalBackend(), contribution_histograms,
-            tune_options, data_extractors, public_partitions,
-            return_utility_analysis_per_partition)
+        result = parameter_tuning.tune(input, pipeline_dp.LocalBackend(),
+                                       contribution_histograms, tune_options,
+                                       data_extractors, public_partitions,
+                                       return_utility_analysis_per_partition)
 
         # Assert.
         if return_utility_analysis_per_partition:
@@ -202,7 +131,7 @@ class ParameterTuning(parameterized.TestCase):
             value_extractor=lambda x: None)
 
         contribution_histograms = list(
-            histograms.compute_dataset_histograms(
+            computing_histograms.compute_dataset_histograms(
                 input, data_extractors, pipeline_dp.LocalBackend()))[0]
 
         tune_options = _get_tune_options()
@@ -211,10 +140,9 @@ class ParameterTuning(parameterized.TestCase):
         ]
 
         # Act.
-        result = parameter_tuning.tune_new(input, pipeline_dp.LocalBackend(),
-                                           contribution_histograms,
-                                           tune_options, data_extractors,
-                                           public_partitions)
+        result = parameter_tuning.tune(input, pipeline_dp.LocalBackend(),
+                                       contribution_histograms, tune_options,
+                                       data_extractors, public_partitions)
 
         # Assert.
         result = list(result)[0]
