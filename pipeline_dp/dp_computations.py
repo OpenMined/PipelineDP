@@ -18,7 +18,7 @@ import math
 import typing
 
 import numpy as np
-from typing import Any, Optional, Union
+from typing import Any, Optional, Tuple, Union
 
 import pipeline_dp
 from dataclasses import dataclass
@@ -60,21 +60,23 @@ class ScalarNoiseParams:
         return self.min_sum_per_partition is not None and self.max_sum_per_partition is not None
 
 
-def compute_squares_interval(min_value: float, max_value: float):
+def compute_squares_interval(min_value: float,
+                             max_value: float) -> Tuple[float, float]:
     """Returns the bounds of the interval [min_value^2, max_value^2]."""
     if min_value < 0 < max_value:
         return 0, max(min_value**2, max_value**2)
     return min_value**2, max_value**2
 
 
-def compute_middle(min_value: float, max_value: float):
+def compute_middle(min_value: float, max_value: float) -> float:
     """"Returns the middle point of the interval [min_value, max_value]."""
     # (min_value + max_value) / 2 may cause an overflow or loss of precision if
     # min_value and max_value are large.
     return min_value + (max_value - min_value) / 2
 
 
-def compute_l1_sensitivity(l0_sensitivity: float, linf_sensitivity: float):
+def compute_l1_sensitivity(l0_sensitivity: float,
+                           linf_sensitivity: float) -> float:
     """Calculates the L1 sensitivity based on the L0 and Linf sensitivities.
 
     Args:
@@ -87,7 +89,8 @@ def compute_l1_sensitivity(l0_sensitivity: float, linf_sensitivity: float):
     return l0_sensitivity * linf_sensitivity
 
 
-def compute_l2_sensitivity(l0_sensitivity: float, linf_sensitivity: float):
+def compute_l2_sensitivity(l0_sensitivity: float,
+                           linf_sensitivity: float) -> float:
     """Calculates the L2 sensitivity based on the L0 and Linf sensitivities.
 
     Args:
@@ -100,7 +103,7 @@ def compute_l2_sensitivity(l0_sensitivity: float, linf_sensitivity: float):
     return np.sqrt(l0_sensitivity) * linf_sensitivity
 
 
-def compute_sigma(eps: float, delta: float, l2_sensitivity: float):
+def compute_sigma(eps: float, delta: float, l2_sensitivity: float) -> float:
     """Returns the optimal value of sigma for the Gaussian mechanism.
 
     Args:
@@ -155,7 +158,7 @@ def _add_random_noise(
     l0_sensitivity: float,
     linf_sensitivity: float,
     noise_kind: pipeline_dp.NoiseKind,
-):
+) -> float:
     """Adds random noise according to the parameters.
 
     Args:
@@ -496,7 +499,7 @@ class LaplaceMechanism(AdditiveMechanism):
     def sensitivity(self) -> float:
         return self._mechanism.sensitivity
 
-    def describe(self) -> str:
+    def describe(self) -> str:  # todo in this PR
         return (f"Laplace mechanism:  parameter={self.noise_parameter}  eps="
                 f"{self._mechanism.epsilon}  l1_sensitivity={self.sensitivity}")
 
@@ -535,22 +538,22 @@ class GaussianMechanism(AdditiveMechanism):
 
 class MeanMechanism:
 
-    def __init__(self, mid_values_range: float,
-                 count_mechanism: AdditiveMechanism,
+    def __init__(self, range_middle: float, count_mechanism: AdditiveMechanism,
                  sum_mechanism: AdditiveMechanism):
-        self._mid_values_range = mid_values_range
+        self._range_middle = range_middle
         self.count_mechanism = count_mechanism
         self.sum_mechanism = sum_mechanism
 
     def compute_mean(self, count: int, normalized_sum: float):
-        dp_count = self.count_mechanism(count)
-        dp_normalized_sum = self.sum_mechanism(normalized_sum)
-        dp_mean = self._mid_values_range + dp_normalized_sum / dp_count
+        dp_count = self.count_mechanism.add_noise(count)
+        dp_normalized_sum = self.sum_mechanism.add_noise(normalized_sum)
+        dp_mean = self._range_middle + dp_normalized_sum / dp_count
         dp_sum = dp_mean * dp_count
         return dp_count, dp_sum, dp_mean
 
     def describe(self) -> str:
-        return (f"Computing sum: {self.sum_mechanism.describe()}")
+        return ""  # todo in this PR
+        # return (f"Computing sum: {self.sum_mechanism.describe()}")
 
 
 @dataclass
@@ -604,6 +607,13 @@ class AdditiveMechanismSpec:
     noise_kind: pipeline_dp.NoiseKind
 
 
+def to_additive_mechanism_spec(
+        spec: pipeline_dp.budget_accounting.MechanismSpec
+) -> AdditiveMechanismSpec:
+    noise_kind = spec.mechanism_type.to_noise_kind()
+    return AdditiveMechanismSpec(spec.eps, spec.delta, noise_kind)
+
+
 def create_additive_mechanism(
         spec: AdditiveMechanismSpec,
         sensitivities: Sensitivities) -> AdditiveMechanism:
@@ -624,7 +634,7 @@ def create_additive_mechanism(
 
 
 def create_mean_mechanism(
-        mid_values_range: float, count_spec: AdditiveMechanismSpec,
+        range_middle: float, count_spec: AdditiveMechanismSpec,
         count_sensitivities: Sensitivities,
         normalized_sum_spec: AdditiveMechanismSpec,
         normalized_sum_sensitivities: Sensitivities) -> MeanMechanism:
@@ -632,7 +642,7 @@ def create_mean_mechanism(
     count_mechanism = create_additive_mechanism(count_spec, count_sensitivities)
     sum_mechanism = create_additive_mechanism(normalized_sum_spec,
                                               normalized_sum_sensitivities)
-    return MeanMechanism(mid_values_range, count_mechanism, sum_mechanism)
+    return MeanMechanism(range_middle, count_mechanism, sum_mechanism)
 
 
 class ExponentialMechanism:
