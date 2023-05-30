@@ -471,7 +471,7 @@ class AdditiveMechanism(abc.ABC):
 
     @abc.abstractmethod
     def describe(self) -> float:
-        """Mechanism sensitivity."""
+        """Mechanism description for explain computation reports."""
 
 
 class LaplaceMechanism(AdditiveMechanism):
@@ -499,7 +499,7 @@ class LaplaceMechanism(AdditiveMechanism):
     def sensitivity(self) -> float:
         return self._mechanism.sensitivity
 
-    def describe(self) -> str:  # todo in this PR
+    def describe(self) -> str:
         return (f"Laplace mechanism:  parameter={self.noise_parameter}  eps="
                 f"{self._mechanism.epsilon}  l1_sensitivity={self.sensitivity}")
 
@@ -561,13 +561,17 @@ class MeanMechanism:
     def compute_mean(self, count: int, normalized_sum: float):
         dp_count = self._count_mechanism.add_noise(count)
         dp_normalized_sum = self._sum_mechanism.add_noise(normalized_sum)
-        dp_mean = self._range_middle + dp_normalized_sum / dp_count
+        denominator = max(1.0, dp_count)  # to avoid division on a small number.
+        dp_mean = self._range_middle + dp_normalized_sum / denominator
         dp_sum = dp_mean * dp_count
         return dp_count, dp_sum, dp_mean
 
     def describe(self) -> str:
-        return ""  # todo in this PR
-        # return (f"Computing sum: {self.sum_mechanism.describe()}")
+        return (
+            f"    a. Computed 'normalized_sum' = sum of (value - {self._range_middle})\n"
+            f"    b. Applied to 'count' {self._count_mechanism.describe()}\n"
+            f"    c. Applied to 'normalized_sum' {self._sum_mechanism.describe()}"
+        )
 
 
 @dataclass

@@ -176,7 +176,11 @@ class CombinerParams:
 
 
 class MechanismContainerMixin(abc.ABC):
-    """Abstract class with implementation of handling DP mechanism."""
+    """Abstract class with implementation of handling DP mechanism.
+
+    A class that inherits this Mixin and implements create_mechanism() will get
+     a support for managing a DP mechanism instance.
+    """
 
     @abc.abstractmethod
     def create_mechanism(
@@ -203,7 +207,12 @@ class MechanismContainerMixin(abc.ABC):
 
 
 class AdditiveMechanismMixin(MechanismContainerMixin):
-    """Abstract class with implementation of handling DP mechanism."""
+    """Abstract class with implementation of handling DP Additive mechanism.
+
+    A class that inherits this Mixin and implements sensitivities() and
+    mechanism_spec() will get a support for creating and managing
+    AdditiveMechanism instance.
+    """
 
     def create_mechanism(self) -> dp_computations.AdditiveMechanism:
         return dp_computations.create_additive_mechanism(
@@ -417,8 +426,8 @@ class MeanCombiner(Combiner, MechanismContainerMixin):
         return self._metrics_to_compute
 
     def explain_computation(self) -> ExplainComputationReport:
-        # return lambda: f"Computed mean with (eps={self._params.eps} delta={self._params.delta})"
-        return ""  # todo
+        return lambda: f"DP mean computation: \n" + self.get_mechanism(
+        ).describe()
 
     def create_mechanism(self) -> dp_computations.MeanMechanism:
         range_middle = dp_computations.compute_middle(self._min_value,
