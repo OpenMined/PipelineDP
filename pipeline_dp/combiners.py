@@ -432,6 +432,12 @@ class MeanCombiner(Combiner, MechanismContainerMixin):
                                                      sum_spec,
                                                      self._sum_sensitivities)
 
+    def mechanism_spec(
+        self
+    ) -> Tuple[budget_accounting.MechanismSpec,
+               budget_accounting.MechanismSpec]:
+        return (self._count_spec, self._sum_spec)
+
 
 class VarianceCombiner(Combiner):
     """Combiner for computing DP Variance.

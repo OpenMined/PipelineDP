@@ -537,16 +537,30 @@ class GaussianMechanism(AdditiveMechanism):
 
 
 class MeanMechanism:
+    """Computes DP mean.
+
+    It computes DP mean as a ratio of DP sum and DP count. For improving
+    utility the normalization to [min_value, max_value] is performed.
+    It works in the following way:
+    1. normalized_sum = \sum(x_i-mid), where mid = (min_value+max_value)/2.
+    2. dp_normalized_sum, dp_count are computed by adding Laplace or Gaussian
+      noise.
+    3. dp_mean = dp_normalized_sum/dp_count + mid.
+
+    This normalization has benefits that normalized_sum has sensitivity
+    (max_value-min_value)/2 which is smaller that
+     sum_sensitivity = max(|min_value|, |max_value|).
+    """
 
     def __init__(self, range_middle: float, count_mechanism: AdditiveMechanism,
                  sum_mechanism: AdditiveMechanism):
         self._range_middle = range_middle
-        self.count_mechanism = count_mechanism
-        self.sum_mechanism = sum_mechanism
+        self._count_mechanism = count_mechanism
+        self._sum_mechanism = sum_mechanism
 
     def compute_mean(self, count: int, normalized_sum: float):
-        dp_count = self.count_mechanism.add_noise(count)
-        dp_normalized_sum = self.sum_mechanism.add_noise(normalized_sum)
+        dp_count = self._count_mechanism.add_noise(count)
+        dp_normalized_sum = self._sum_mechanism.add_noise(normalized_sum)
         dp_mean = self._range_middle + dp_normalized_sum / dp_count
         dp_sum = dp_mean * dp_count
         return dp_count, dp_sum, dp_mean

@@ -111,9 +111,21 @@ class CreateCompoundCombinersTest(parameterized.TestCase):
 
         # Mock budget accountant.
         budget_accountant = mock.Mock()
-        mock_budgets = [
-            f"budget{i}" for i in range(len(expected_combiner_types))
-        ]
+        n_budget_requests = len(expected_combiner_types)
+        if dp_combiners.MeanCombiner in expected_combiner_types:
+            n_budget_requests += 1
+        mock_budgets, expected_budgets = [], []
+        for i, expeced_type in enumerate(expected_combiner_types):
+            if expeced_type == dp_combiners.MeanCombiner:
+                # MeanCombiner requests budgets twice, for Count and for Sum.
+                budgets = (f"budget{i}_count", f"budget{i}_sum")
+                mock_budgets.extend(budgets)
+                expected_budgets.append(budgets)
+            else:
+                budget = f"budget{i}"
+                mock_budgets.append(budget)
+                expected_budgets.append(budget)
+
         budget_accountant.request_budget = mock.Mock(side_effect=mock_budgets)
 
         # Act.
@@ -128,7 +140,7 @@ class CreateCompoundCombinersTest(parameterized.TestCase):
         combiners = compound_combiner._combiners
         self.assertLen(combiners, len(expected_combiner_types))
         for combiner, expect_type, expected_budget in zip(
-                combiners, expected_combiner_types, mock_budgets):
+                combiners, expected_combiner_types, expected_budgets):
             self.assertIsInstance(combiner, expect_type)
             self.assertEqual(combiner.mechanism_spec(), expected_budget)
 
@@ -427,8 +439,8 @@ class MeanCombinerTest(parameterized.TestCase):
         mechanism_spec = _create_mechanism_spec(no_noise)
         aggregate_params = _create_aggregate_params(max_value=4)
         metrics_to_compute = ['count', 'sum', 'mean']
-        params = dp_combiners.CombinerParams(mechanism_spec, aggregate_params)
-        return dp_combiners.MeanCombiner(params, metrics_to_compute)
+        return dp_combiners.MeanCombiner(mechanism_spec, mechanism_spec,
+                                         aggregate_params, metrics_to_compute)
 
     def test_create_accumulator(self):
         for no_noise in [False, True]:
@@ -451,28 +463,21 @@ class MeanCombinerTest(parameterized.TestCase):
         self.assertAlmostEqual(9, res['sum'], delta=1e-5)
         self.assertAlmostEqual(3, res['mean'], delta=1e-5)
 
-    def test_compute_metrics_with_noise(self):
+    @patch("pipeline_dp.dp_computations.GaussianMechanism.add_noise")
+    def test_compute_metrics_with_noise(self, mock_add_noise):
         combiner = self._create_combiner(no_noise=False)
-        count = 500
-        sum_ = 1000
-        normalized_sum = 0
-        mean = 2
-        noisy_values = [
-            combiner.compute_metrics((count, normalized_sum))
-            for _ in range(1000)
-        ]
+        count, normalized_sum = 100, 150
 
-        noisy_counts = [noisy_value['count'] for noisy_value in noisy_values]
-        self.assertAlmostEqual(count, np.mean(noisy_counts), delta=5)
-        self.assertTrue(np.var(noisy_counts) > 1)  # check that noise is added
+        # Set mock noise to be a deterministic addition of 1, which can be
+        # easily tested.
+        mock_add_noise.side_effect = lambda x: x + 1
 
-        noisy_sums = [noisy_value['sum'] for noisy_value in noisy_values]
-        self.assertAlmostEqual(sum_, np.mean(noisy_sums), delta=5)
-        self.assertTrue(np.var(noisy_sums) > 1)  # check that noise is added
-
-        noisy_means = [noisy_value['mean'] for noisy_value in noisy_values]
-        self.assertAlmostEqual(mean, np.mean(noisy_means), delta=5e-1)
-        self.assertTrue(np.var(noisy_means) > 0.01)  # check that noise is added
+        output = combiner.compute_metrics((count, normalized_sum))
+        self.assertEqual(output["count"], 101)  # add_noise(100)
+        # expected_sum = add_noise(normalized_sum) + mid_range*noisy_count = 353
+        # More details are in dp_computations.MeanMechanism docsting.
+        self.assertEqual(output["sum"], 353)
+        self.assertAlmostEqual(output["mean"], 353 / 101, delta=1e-12)
 
 
 class VarianceCombinerTest(parameterized.TestCase):
