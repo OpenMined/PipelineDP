@@ -207,11 +207,11 @@ class MechanismContainerMixin(abc.ABC):
 
 
 class AdditiveMechanismMixin(MechanismContainerMixin):
-    """Abstract class with implementation of handling DP Additive mechanism.
+    """Abstract class with implementation of DP Additive mechanism handling.
 
     A class that inherits this Mixin and implements sensitivities() and
     mechanism_spec() will get a support for creating and managing
-    AdditiveMechanism instance.
+    an AdditiveMechanism instance.
     """
 
     def create_mechanism(self) -> dp_computations.AdditiveMechanism:

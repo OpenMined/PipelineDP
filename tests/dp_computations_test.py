@@ -823,9 +823,9 @@ class MeanMechanismTests(parameterized.TestCase):
         mock_count_add_noise.return_value = -1  # dp_count
         mock_sum_add_noise.return_value = 20  # dp_sum
 
-        expected_mean = 7  # range_middle + dp_sum/max(dp_count, 1) = 5 + 20/1 = 25
+        expected_mean = 25  # range_middle + dp_sum/max(dp_count, 1) = 5 + 20/1 = 25
         self.assertEqual(mechanism.compute_mean(count=11, normalized_sum=21),
-                         (10, 70, expected_mean))
+                         (-1, -25, expected_mean))
         mock_count_add_noise.assert_called_with(11)
         mock_sum_add_noise.assert_called_with(21)
 

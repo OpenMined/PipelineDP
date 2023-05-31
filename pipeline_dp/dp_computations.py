@@ -560,8 +560,8 @@ class MeanMechanism:
 
     def compute_mean(self, count: int, normalized_sum: float):
         dp_count = self._count_mechanism.add_noise(count)
-        dp_normalized_sum = self._sum_mechanism.add_noise(normalized_sum)
         denominator = max(1.0, dp_count)  # to avoid division on a small number.
+        dp_normalized_sum = self._sum_mechanism.add_noise(normalized_sum)
         dp_mean = self._range_middle + dp_normalized_sum / denominator
         dp_sum = dp_mean * dp_count
         return dp_count, dp_sum, dp_mean
