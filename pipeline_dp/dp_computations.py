@@ -540,9 +540,9 @@ class MeanMechanism:
     """Computes DP mean.
 
     It computes DP mean as a ratio of DP sum and DP count. For improving
-    utility the normalization to [min_value, max_value] is performed.
+    utility the normalization to mid = (min_value + max_value)/2 is performed.
     It works in the following way:
-    1. normalized_sum = \sum(x_i-mid), where mid = (min_value+max_value)/2.
+    1. normalized_sum = sum(x_i-mid), where mid = (min_value+max_value)/2.
     2. dp_normalized_sum, dp_count are computed by adding Laplace or Gaussian
       noise.
     3. dp_mean = dp_normalized_sum/dp_count + mid.

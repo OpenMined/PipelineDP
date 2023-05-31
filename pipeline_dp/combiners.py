@@ -426,7 +426,7 @@ class MeanCombiner(Combiner, MechanismContainerMixin):
         return self._metrics_to_compute
 
     def explain_computation(self) -> ExplainComputationReport:
-        return lambda: f"DP mean computation: \n" + self.get_mechanism(
+        return lambda: f"DP mean computation:\n" + self.get_mechanism(
         ).describe()
 
     def create_mechanism(self) -> dp_computations.MeanMechanism:

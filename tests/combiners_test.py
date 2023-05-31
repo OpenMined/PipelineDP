@@ -117,7 +117,8 @@ class CreateCompoundCombinersTest(parameterized.TestCase):
         mock_budgets, expected_budgets = [], []
         for i, expeced_type in enumerate(expected_combiner_types):
             if expeced_type == dp_combiners.MeanCombiner:
-                # MeanCombiner requests budgets twice, for Count and for Sum.
+                # MeanCombiner requests budgets twice, one for Count and one for
+                # Sum.
                 budgets = (f"budget{i}_count", f"budget{i}_sum")
                 mock_budgets.extend(budgets)
                 expected_budgets.append(budgets)
@@ -475,7 +476,7 @@ class MeanCombinerTest(parameterized.TestCase):
         output = combiner.compute_metrics((count, normalized_sum))
         self.assertEqual(output["count"], 101)  # add_noise(100)
         # expected_sum = add_noise(normalized_sum) + mid_range*noisy_count = 353
-        # More details are in dp_computations.MeanMechanism docsting.
+        # More details are in dp_computations.MeanMechanism docstring.
         self.assertEqual(output["sum"], 353)
         self.assertAlmostEqual(output["mean"], 353 / 101, delta=1e-12)
 
