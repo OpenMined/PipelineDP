@@ -110,19 +110,18 @@ class DPComputationsTest(parameterized.TestCase):
             elif minus_two_std <= x <= plus_two_std:
                 num_results_one_to_two_stds += 1
 
-        # 99% confidence interval
+        # 99.993% confidence interval (probability normal 4 sigma from mean).
         # https://en.wikipedia.org/wiki/Binomial_proportion_confidence_interval
-        # http://www.sjsu.edu/faculty/gerstman/EpiInfo/z-table.htm
         num_trials_double = 1.0 * num_trials
         self.assertAlmostEqual(
             num_results_within_one_std / num_trials_double,
             prob_mass_within_one_std,
-            delta=2.4 * math.sqrt(prob_mass_within_one_std *
+            delta=4.0 * math.sqrt(prob_mass_within_one_std *
                                   (1 - prob_mass_within_one_std) / num_trials))
         self.assertAlmostEqual(
             num_results_one_to_two_stds / num_trials_double,
             prob_mass_one_to_two_stds,
-            delta=2.4 * math.sqrt(prob_mass_one_to_two_stds *
+            delta=4.0 * math.sqrt(prob_mass_one_to_two_stds *
                                   (1 - prob_mass_one_to_two_stds) / num_trials))
         return 0
 
