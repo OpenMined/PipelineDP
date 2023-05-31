@@ -303,53 +303,6 @@ def _compute_mean_for_normalized_sum(
     return dp_normalized_sum / dp_count_clamped
 
 
-def compute_dp_mean(count: int, normalized_sum: float,
-                    dp_params: ScalarNoiseParams):
-    """Computes DP mean.
-
-    Args:
-        count: Non-DP count.
-        normalized_sum: Non-DP normalized sum.
-        dp_params: The parameters used at computing the noise.
-
-    Raises:
-        ValueError: The noise kind is invalid.
-
-    Returns:
-        The tuple of anonymized count, sum and mean.
-    """
-    # Splits the budget equally between the two mechanisms.
-    (count_eps, count_delta), (sum_eps, sum_delta) = equally_split_budget(
-        dp_params.eps, dp_params.delta, 2)
-    l0_sensitivity = dp_params.l0_sensitivity()
-
-    dp_count = _add_random_noise(
-        count,
-        count_eps,
-        count_delta,
-        l0_sensitivity,
-        dp_params.max_contributions_per_partition,
-        dp_params.noise_kind,
-    )
-
-    dp_mean = _compute_mean_for_normalized_sum(
-        dp_count,
-        normalized_sum,
-        dp_params.min_value,
-        dp_params.max_value,
-        sum_eps,
-        sum_delta,
-        l0_sensitivity,
-        dp_params.max_contributions_per_partition,
-        dp_params.noise_kind,
-    )
-
-    if dp_params.min_value != dp_params.max_value:
-        dp_mean += compute_middle(dp_params.min_value, dp_params.max_value)
-
-    return dp_count, dp_mean * dp_count, dp_mean
-
-
 def compute_dp_var(count: int, normalized_sum: float,
                    normalized_sum_squares: float, dp_params: ScalarNoiseParams):
     """Computes DP variance.
