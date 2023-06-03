@@ -350,6 +350,10 @@ class BeamBackend(PipelineBackend):
     def to_list(self, col, stage_name: str):
         return col | self._ulg.unique(stage_name) >> beam.combiners.ToList()
 
+    def to_pcollection(self, col, not_col, stage_name: str):
+        return col.pipeline | self._ulg.unique(stage_name) >> beam.Create(
+            not_col)
+
     def annotate(self, col, stage_name: str, **kwargs):
         if not _annotators:
             return col
