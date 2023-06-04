@@ -16,6 +16,7 @@ import typing
 
 import pipeline_dp
 from pipeline_dp import pipeline_backend
+from functools import partial
 from pipeline_dp import input_validators
 from pipeline_dp.dataset_histograms import histograms
 import analysis
@@ -28,8 +29,7 @@ from typing import Callable, List, Tuple, Union
 from enum import Enum
 import numpy as np
 
-from pipeline_dp.private_contribution_bounds import \
-    _generate_possible_contribution_bounds
+from pipeline_dp.private_contribution_bounds import generate_possible_contribution_bounds
 
 
 class MinimizingFunction(Enum):
@@ -110,8 +110,13 @@ class TuneResult:
 
 
 class ParametersSearchStrategy(Enum):
+    """Strategy types for selecting candidate parameters."""
+
     QUANTILES = 1
+    """Picks up candidates that correspond tp a predefined list of quantiles."""
     CONSTANT_RELATIVE_STEP = 2
+    """Candidates are a sequence starting from 1 where where relative difference 
+    between two neighbouring elements is (almost) the same."""
 
 
 def _find_candidate_parameters(
@@ -119,35 +124,46 @@ def _find_candidate_parameters(
         parameters_to_tune: ParametersToTune,
         metric: pipeline_dp.Metrics,
         strategy: ParametersSearchStrategy = ParametersSearchStrategy.QUANTILES,
-        n_max: int = None) -> analysis.MultiParameterConfiguration:
-    """Uses some heuristics to find (hopefully) good enough parameters."""
-    l0_candidates = linf_candidates = None
+        max_candidates: int = 100) -> analysis.MultiParameterConfiguration:
+    """Finds candidates for l0 and/or l_inf parameters.
 
-    if strategy is ParametersSearchStrategy.QUANTILES:
+    Args:
+        strategy: determines the strategy how to select candidates, see comments
+          to enum values for full description of the respective strategies.
+        max_candidates: how many candidates ((l0, linf) pairs) can be in the
+        output. Note that output can contain fewer candidates. 100 is default
+        heuristically chosen value, better to adjust it for your use-case.
+    """
+    if strategy == ParametersSearchStrategy.QUANTILES:
         find_candidates_func = _find_candidates_quantiles
-    elif strategy is ParametersSearchStrategy.CONSTANT_RELATIVE_STEP:
-        find_candidates_func = _find_candidates_constant_relative_step_func(
-            n_max)
+    elif strategy == ParametersSearchStrategy.CONSTANT_RELATIVE_STEP:
+        find_candidates_func = _find_candidates_constant_relative_step
+    else:
+        raise ValueError("Unknown strategy for candidate parameters search.")
 
-    if parameters_to_tune.max_partitions_contributed:
-        l0_candidates = find_candidates_func(hist.l0_contributions_histogram)
-
-    if parameters_to_tune.max_contributions_per_partition and metric == pipeline_dp.Metrics.COUNT:
-        linf_candidates = find_candidates_func(
-            hist.linf_contributions_histogram)
-
+    calculate_l0_param = parameters_to_tune.max_partitions_contributed
+    calculate_linf_param = (parameters_to_tune.max_contributions_per_partition
+                            and metric == pipeline_dp.Metrics.COUNT)
     l0_bounds = linf_bounds = None
 
-    if l0_candidates and linf_candidates:
+    if calculate_l0_param and calculate_linf_param:
+        n_max = int(math.sqrt(max_candidates))
+        l0_candidates = find_candidates_func(hist.l0_contributions_histogram,
+                                             n_max)
+        linf_candidates = find_candidates_func(
+            hist.linf_contributions_histogram, n_max)
         l0_bounds, linf_bounds = [], []
         for l0 in l0_candidates:
             for linf in linf_candidates:
                 l0_bounds.append(l0)
                 linf_bounds.append(linf)
-    elif l0_candidates:
-        l0_bounds = l0_candidates
-    elif linf_candidates:
-        linf_bounds = linf_candidates
+    elif calculate_l0_param:
+        n_max = max_candidates
+        l0_bounds = find_candidates_func(hist.l0_contributions_histogram, n_max)
+    elif calculate_linf_param:
+        n_max = max_candidates
+        linf_bounds = find_candidates_func(hist.linf_contributions_histogram,
+                                           n_max)
     else:
         assert False, "Nothing to tune."
 
@@ -156,29 +172,33 @@ def _find_candidate_parameters(
         max_contributions_per_partition=linf_bounds)
 
 
-def _find_candidates_quantiles(histogram: histograms.Histogram) -> List:
-    QUANTILES_TO_USE = [0.9, 0.95, 0.98, 0.99, 0.995]
-    candidates = histogram.quantiles(QUANTILES_TO_USE)
+def _find_candidates_quantiles(histogram: histograms.Histogram,
+                               n_max: int) -> List[int]:
+    """Implementation of ParametersSearchStrategy.QUANTILES strategy."""
+    quantiles_to_use = [0.9, 0.95, 0.98, 0.99, 0.995]
+    candidates = histogram.quantiles(quantiles_to_use)
     candidates.append(histogram.max_value)
     candidates = list(set(candidates))  # remove duplicates
     candidates.sort()
+    return candidates[:n_max]
+
+
+def _find_candidates_constant_relative_step(histogram: histograms.Histogram,
+                                            n_max: int) -> List[int]:
+    """Implementation of ParametersSearchStrategy.CONSTANT_RELATIVE_STEP
+       strategy."""
+    max_value = histogram.max_value
+    # relative step varies from 1% to 0.1%
+    candidates = generate_possible_contribution_bounds(max_value)
+    n_max_without_max_value = n_max - 1
+    if len(candidates) > n_max_without_max_value:
+        delta = len(candidates) / n_max_without_max_value
+        candidates = [
+            candidates[int(i * delta)] for i in range(n_max_without_max_value)
+        ]
+    if candidates[-1] != max_value:
+        candidates.append(max_value)
     return candidates
-
-
-def _find_candidates_constant_relative_step_func(n_max: int):
-
-    def _find_candidates_constant_relative_step(
-            histogram: histograms.Histogram) -> List:
-        max_value = histogram.max_value
-        # relative step varies from 1% to 0.1%
-        candidates = _generate_possible_contribution_bounds(max_value)
-        if len(candidates) > n_max:
-            candidates = candidates[::math.ceil(len(candidates) / n_max)]
-        if candidates[-1] != max_value:
-            candidates.append(max_value)
-        return candidates
-
-    return _find_candidates_constant_relative_step
 
 
 def _convert_utility_analysis_to_tune_result(
