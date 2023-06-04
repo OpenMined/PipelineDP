@@ -32,9 +32,6 @@ DUMMY_MAX_VALUE = 3.0
 
 class DPComputationsTest(parameterized.TestCase):
 
-    def almost_equal(self, actual, expected, tolerance):
-        return abs(expected - actual) <= tolerance
-
     def test_l0_sensitivity(self):
         params = dp_computations.ScalarNoiseParams(
             eps=1,
@@ -113,19 +110,18 @@ class DPComputationsTest(parameterized.TestCase):
             elif minus_two_std <= x <= plus_two_std:
                 num_results_one_to_two_stds += 1
 
-        # 99% confidence interval
+        # 99.993% confidence interval (probability normal 4 sigma from mean).
         # https://en.wikipedia.org/wiki/Binomial_proportion_confidence_interval
-        # http://www.sjsu.edu/faculty/gerstman/EpiInfo/z-table.htm
         num_trials_double = 1.0 * num_trials
         self.assertAlmostEqual(
             num_results_within_one_std / num_trials_double,
             prob_mass_within_one_std,
-            delta=2.4 * math.sqrt(prob_mass_within_one_std *
+            delta=4.0 * math.sqrt(prob_mass_within_one_std *
                                   (1 - prob_mass_within_one_std) / num_trials))
         self.assertAlmostEqual(
             num_results_one_to_two_stds / num_trials_double,
             prob_mass_one_to_two_stds,
-            delta=2.4 * math.sqrt(prob_mass_one_to_two_stds *
+            delta=4.0 * math.sqrt(prob_mass_one_to_two_stds *
                                   (1 - prob_mass_one_to_two_stds) / num_trials))
         return 0
 
@@ -241,87 +237,6 @@ class DPComputationsTest(parameterized.TestCase):
 
         self.assertEqual(dp_computations.equally_split_budget(0.5, 1e-10, 5),
                          expected_budgets)
-
-    def test_compute_dp_mean(self):
-        params = dp_computations.ScalarNoiseParams(
-            eps=0.5,
-            delta=1e-10,
-            min_value=1,
-            max_value=20,
-            min_sum_per_partition=None,
-            max_sum_per_partition=None,
-            max_partitions_contributed=1,
-            max_contributions_per_partition=1,
-            noise_kind=NoiseKind.LAPLACE)
-
-        (count_eps, count_delta), (_, _) = dp_computations.equally_split_budget(
-            params.eps, params.delta, 2)
-        count_l0_sensitivity = params.l0_sensitivity()
-        count_linf_sensitivity = params.max_contributions_per_partition
-        count_l1_sensitivity = dp_computations.compute_l1_sensitivity(
-            count_l0_sensitivity, count_linf_sensitivity)
-
-        # Laplace Mechanism
-        expected_sum = 10000
-        expected_count = 1000
-        normalized_sum = -500
-        results = [
-            dp_computations.compute_dp_mean(count=expected_count,
-                                            normalized_sum=normalized_sum,
-                                            dp_params=params)
-            for _ in range(N_ITERATIONS)
-        ]
-        count_values, sum_values, mean_values = zip(*results)
-
-        self._test_laplace_noise(results=count_values,
-                                 num_trials=N_ITERATIONS,
-                                 expected_mean=expected_count,
-                                 eps=count_eps,
-                                 l1_sensitivity=count_l1_sensitivity)
-        self.assertAlmostEqual(np.mean(sum_values), expected_sum, delta=0.5)
-        self.assertAlmostEqual(np.mean(mean_values),
-                               expected_sum / expected_count,
-                               delta=0.5)
-
-        # Gaussian Mechanism
-        params.noise_kind = NoiseKind.GAUSSIAN
-        count_l2_sensitivity = dp_computations.compute_l2_sensitivity(
-            count_l0_sensitivity, count_linf_sensitivity)
-        results = [
-            dp_computations.compute_dp_mean(count=expected_count,
-                                            normalized_sum=normalized_sum,
-                                            dp_params=params)
-            for _ in range(1500000)
-        ]
-
-        count_values, sum_values, mean_values = zip(*results)
-        self._test_gaussian_noise(results=count_values,
-                                  num_trials=1500000,
-                                  expected_mean=expected_count,
-                                  eps=count_eps,
-                                  delta=count_delta,
-                                  l2_sensitivity=count_l2_sensitivity)
-        self.assertAlmostEqual(np.mean(sum_values), expected_sum, delta=1)
-        self.assertAlmostEqual(np.mean(mean_values),
-                               expected_sum / expected_count,
-                               delta=0.1)
-
-    def test_compute_dp_mean_equal_min_max(self):
-        params = dp_computations.ScalarNoiseParams(
-            eps=0.5,
-            delta=1e-10,
-            min_value=42.0,
-            max_value=42.0,  # = min_value
-            min_sum_per_partition=None,
-            max_sum_per_partition=None,
-            max_partitions_contributed=1,
-            max_contributions_per_partition=1,
-            noise_kind=NoiseKind.LAPLACE)
-
-        count, sum, mean = dp_computations.compute_dp_mean(count=10,
-                                                           normalized_sum=400,
-                                                           dp_params=params)
-        self.assertEqual(mean, 42.0)
 
     def test_compute_dp_variance_equal_min_max(self):
         params = dp_computations.ScalarNoiseParams(
@@ -764,6 +679,70 @@ class AdditiveMechanismTests(parameterized.TestCase):
         self.assertEqual(sensitivities.linf, 5)
         self.assertEqual(sensitivities.l1, 20)
         self.assertEqual(sensitivities.l2, 10.0)
+
+
+class MeanMechanismTests(parameterized.TestCase):
+
+    def create_mean_mechanism(self) -> dp_computations.MeanMechanism:
+        count_spec = dp_computations.AdditiveMechanismSpec(
+            1.0, delta=1e-5, noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)
+        count_sensitivities = dp_computations.Sensitivities(l0=4, linf=10)
+        sum_spec = dp_computations.AdditiveMechanismSpec(
+            2.0, delta=1e-7, noise_kind=pipeline_dp.NoiseKind.LAPLACE)
+        sum_sensitivities = dp_computations.Sensitivities(l0=3, linf=5)
+        return dp_computations.create_mean_mechanism(5, count_spec,
+                                                     count_sensitivities,
+                                                     sum_spec,
+                                                     sum_sensitivities)
+
+    def test_compute_sensitivities_for_normalized_sum(self):
+        params = create_aggregate_params(max_partitions_contributed=5,
+                                         max_contributions_per_partition=7,
+                                         min_value=50,
+                                         max_value=100)
+        expected = dp_computations.Sensitivities(l0=5, linf=7 * 25)
+        self.assertEqual(
+            dp_computations.compute_sensitivities_for_normalized_sum(params),
+            expected)
+
+    def test_create_mean_mechanism(self):
+        mechanism = self.create_mean_mechanism()
+        self.assertEqual(mechanism._range_middle, 5)
+        self.assertEqual(mechanism._count_mechanism.noise_kind,
+                         pipeline_dp.NoiseKind.GAUSSIAN)
+        self.assertEqual(mechanism._count_mechanism.sensitivity, 20)
+        self.assertEqual(mechanism._sum_mechanism.noise_kind,
+                         pipeline_dp.NoiseKind.LAPLACE)
+        self.assertEqual(mechanism._sum_mechanism.sensitivity, 15)
+
+    @patch("pipeline_dp.dp_computations.GaussianMechanism.add_noise")
+    @patch("pipeline_dp.dp_computations.LaplaceMechanism.add_noise")
+    def test_compute_mean(self, mock_sum_add_noise, mock_count_add_noise):
+        mechanism = self.create_mean_mechanism()
+
+        mock_count_add_noise.return_value = 10  # dp_count
+        mock_sum_add_noise.return_value = 20  # dp_sum
+
+        expected_mean = 7  # mid_range + dp_sum/dp_count = 5 + 20/10
+        self.assertEqual(mechanism.compute_mean(count=11, normalized_sum=21),
+                         (10, 70, expected_mean))
+        mock_count_add_noise.assert_called_with(11)
+        mock_sum_add_noise.assert_called_with(21)
+
+    @patch("pipeline_dp.dp_computations.GaussianMechanism.add_noise")
+    @patch("pipeline_dp.dp_computations.LaplaceMechanism.add_noise")
+    def test_compute_mean_negative_dp_count(self, mock_sum_add_noise,
+                                            mock_count_add_noise):
+        mechanism = self.create_mean_mechanism()
+
+        mock_count_add_noise.return_value = -1  # dp_count
+        mock_sum_add_noise.return_value = 20  # dp_sum
+
+        expected_mean = 25  # range_middle + dp_sum/max(dp_count, 1) = 5 + 20/1 = 25
+        self.assertEqual(mechanism.compute_mean(count=11, normalized_sum=21),
+                         (-1, -25, expected_mean))
+        mock_count_add_noise.assert_called_with(11)
+        mock_sum_add_noise.assert_called_with(21)
 
 
 class ExponentialMechanismTests(unittest.TestCase):

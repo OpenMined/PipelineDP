@@ -18,7 +18,7 @@ import math
 import typing
 
 import numpy as np
-from typing import Any, Optional, Union
+from typing import Any, Optional, Tuple, Union
 
 import pipeline_dp
 from dataclasses import dataclass
@@ -60,21 +60,23 @@ class ScalarNoiseParams:
         return self.min_sum_per_partition is not None and self.max_sum_per_partition is not None
 
 
-def compute_squares_interval(min_value: float, max_value: float):
+def compute_squares_interval(min_value: float,
+                             max_value: float) -> Tuple[float, float]:
     """Returns the bounds of the interval [min_value^2, max_value^2]."""
     if min_value < 0 < max_value:
         return 0, max(min_value**2, max_value**2)
     return min_value**2, max_value**2
 
 
-def compute_middle(min_value: float, max_value: float):
+def compute_middle(min_value: float, max_value: float) -> float:
     """"Returns the middle point of the interval [min_value, max_value]."""
     # (min_value + max_value) / 2 may cause an overflow or loss of precision if
     # min_value and max_value are large.
     return min_value + (max_value - min_value) / 2
 
 
-def compute_l1_sensitivity(l0_sensitivity: float, linf_sensitivity: float):
+def compute_l1_sensitivity(l0_sensitivity: float,
+                           linf_sensitivity: float) -> float:
     """Calculates the L1 sensitivity based on the L0 and Linf sensitivities.
 
     Args:
@@ -87,7 +89,8 @@ def compute_l1_sensitivity(l0_sensitivity: float, linf_sensitivity: float):
     return l0_sensitivity * linf_sensitivity
 
 
-def compute_l2_sensitivity(l0_sensitivity: float, linf_sensitivity: float):
+def compute_l2_sensitivity(l0_sensitivity: float,
+                           linf_sensitivity: float) -> float:
     """Calculates the L2 sensitivity based on the L0 and Linf sensitivities.
 
     Args:
@@ -100,7 +103,7 @@ def compute_l2_sensitivity(l0_sensitivity: float, linf_sensitivity: float):
     return np.sqrt(l0_sensitivity) * linf_sensitivity
 
 
-def compute_sigma(eps: float, delta: float, l2_sensitivity: float):
+def compute_sigma(eps: float, delta: float, l2_sensitivity: float) -> float:
     """Returns the optimal value of sigma for the Gaussian mechanism.
 
     Args:
@@ -155,7 +158,7 @@ def _add_random_noise(
     l0_sensitivity: float,
     linf_sensitivity: float,
     noise_kind: pipeline_dp.NoiseKind,
-):
+) -> float:
     """Adds random noise according to the parameters.
 
     Args:
@@ -300,53 +303,6 @@ def _compute_mean_for_normalized_sum(
     return dp_normalized_sum / dp_count_clamped
 
 
-def compute_dp_mean(count: int, normalized_sum: float,
-                    dp_params: ScalarNoiseParams):
-    """Computes DP mean.
-
-    Args:
-        count: Non-DP count.
-        normalized_sum: Non-DP normalized sum.
-        dp_params: The parameters used at computing the noise.
-
-    Raises:
-        ValueError: The noise kind is invalid.
-
-    Returns:
-        The tuple of anonymized count, sum and mean.
-    """
-    # Splits the budget equally between the two mechanisms.
-    (count_eps, count_delta), (sum_eps, sum_delta) = equally_split_budget(
-        dp_params.eps, dp_params.delta, 2)
-    l0_sensitivity = dp_params.l0_sensitivity()
-
-    dp_count = _add_random_noise(
-        count,
-        count_eps,
-        count_delta,
-        l0_sensitivity,
-        dp_params.max_contributions_per_partition,
-        dp_params.noise_kind,
-    )
-
-    dp_mean = _compute_mean_for_normalized_sum(
-        dp_count,
-        normalized_sum,
-        dp_params.min_value,
-        dp_params.max_value,
-        sum_eps,
-        sum_delta,
-        l0_sensitivity,
-        dp_params.max_contributions_per_partition,
-        dp_params.noise_kind,
-    )
-
-    if dp_params.min_value != dp_params.max_value:
-        dp_mean += compute_middle(dp_params.min_value, dp_params.max_value)
-
-    return dp_count, dp_mean * dp_count, dp_mean
-
-
 def compute_dp_var(count: int, normalized_sum: float,
                    normalized_sum_squares: float, dp_params: ScalarNoiseParams):
     """Computes DP variance.
@@ -466,6 +422,10 @@ class AdditiveMechanism(abc.ABC):
     def sensitivity(self) -> float:
         """Mechanism sensitivity."""
 
+    @abc.abstractmethod
+    def describe(self) -> float:
+        """Mechanism description for explain computation reports."""
+
 
 class LaplaceMechanism(AdditiveMechanism):
 
@@ -529,6 +489,44 @@ class GaussianMechanism(AdditiveMechanism):
                 f"l2_sensitivity={self.sensitivity}")
 
 
+class MeanMechanism:
+    """Computes DP mean.
+
+    It computes DP mean as a ratio of DP sum and DP count. For improving
+    utility the normalization to mid = (min_value + max_value)/2 is performed.
+    It works in the following way:
+    1. normalized_sum = sum(x_i-mid), where mid = (min_value+max_value)/2.
+    2. dp_normalized_sum, dp_count are computed by adding Laplace or Gaussian
+      noise.
+    3. dp_mean = dp_normalized_sum/dp_count + mid.
+
+    This normalization has benefits that normalized_sum has sensitivity
+    (max_value-min_value)/2 which is smaller that
+     sum_sensitivity = max(|min_value|, |max_value|).
+    """
+
+    def __init__(self, range_middle: float, count_mechanism: AdditiveMechanism,
+                 sum_mechanism: AdditiveMechanism):
+        self._range_middle = range_middle
+        self._count_mechanism = count_mechanism
+        self._sum_mechanism = sum_mechanism
+
+    def compute_mean(self, count: int, normalized_sum: float):
+        dp_count = self._count_mechanism.add_noise(count)
+        denominator = max(1.0, dp_count)  # to avoid division on a small number.
+        dp_normalized_sum = self._sum_mechanism.add_noise(normalized_sum)
+        dp_mean = self._range_middle + dp_normalized_sum / denominator
+        dp_sum = dp_mean * dp_count
+        return dp_count, dp_sum, dp_mean
+
+    def describe(self) -> str:
+        return (
+            f"    a. Computed 'normalized_sum' = sum of (value - {self._range_middle})\n"
+            f"    b. Applied to 'count' {self._count_mechanism.describe()}\n"
+            f"    c. Applied to 'normalized_sum' {self._sum_mechanism.describe()}"
+        )
+
+
 @dataclass
 class Sensitivities:
     """Contains sensitivities of the additive DP mechanism."""
@@ -580,6 +578,13 @@ class AdditiveMechanismSpec:
     noise_kind: pipeline_dp.NoiseKind
 
 
+def to_additive_mechanism_spec(
+        spec: pipeline_dp.budget_accounting.MechanismSpec
+) -> AdditiveMechanismSpec:
+    noise_kind = spec.mechanism_type.to_noise_kind()
+    return AdditiveMechanismSpec(spec.eps, spec.delta, noise_kind)
+
+
 def create_additive_mechanism(
         spec: AdditiveMechanismSpec,
         sensitivities: Sensitivities) -> AdditiveMechanism:
@@ -597,6 +602,18 @@ def create_additive_mechanism(
         return GaussianMechanism(spec.epsilon, spec.delta, sensitivities.l2)
 
     assert False, f"{spec.noise_kind} not supported."
+
+
+def create_mean_mechanism(
+        range_middle: float, count_spec: AdditiveMechanismSpec,
+        count_sensitivities: Sensitivities,
+        normalized_sum_spec: AdditiveMechanismSpec,
+        normalized_sum_sensitivities: Sensitivities) -> MeanMechanism:
+    """Creates MeanMechanism from a mechanism specs and sensitivities."""
+    count_mechanism = create_additive_mechanism(count_spec, count_sensitivities)
+    sum_mechanism = create_additive_mechanism(normalized_sum_spec,
+                                              normalized_sum_sensitivities)
+    return MeanMechanism(range_middle, count_mechanism, sum_mechanism)
 
 
 class ExponentialMechanism:
@@ -678,4 +695,13 @@ def compute_sensitivities_for_sum(
     else:
         linf_sensitivity = max_abs_values(params.min_sum_per_partition,
                                           params.max_sum_per_partition)
+    return Sensitivities(l0=l0_sensitivity, linf=linf_sensitivity)
+
+
+def compute_sensitivities_for_normalized_sum(
+        params: pipeline_dp.AggregateParams) -> Sensitivities:
+    l0_sensitivity = params.max_partitions_contributed
+    linf_sensitivity = (params.max_value - params.min_value
+                       ) / 2 * params.max_contributions_per_partition
+
     return Sensitivities(l0=l0_sensitivity, linf=linf_sensitivity)

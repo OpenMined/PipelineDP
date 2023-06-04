@@ -176,14 +176,17 @@ class CombinerParams:
 
 
 class MechanismContainerMixin(abc.ABC):
-    """Abstract class with implementation of handling DP mechanism."""
+    """Abstract class with implementation of handling DP mechanism.
+
+    A class that inherits this Mixin and implements create_mechanism() will get
+     a support for managing a DP mechanism instance.
+    """
 
     @abc.abstractmethod
-    def sensitivities(self) -> dp_computations.Sensitivities:
-        pass
-
-    @abc.abstractmethod
-    def mechanism_spec(self) -> budget_accounting.MechanismSpec:
+    def create_mechanism(
+        self
+    ) -> Union[dp_computations.AdditiveMechanism,
+               dp_computations.MeanMechanism]:
         pass
 
     def __getstate__(self):
@@ -198,16 +201,34 @@ class MechanismContainerMixin(abc.ABC):
 
     def get_mechanism(self) -> dp_computations.AdditiveMechanism:
         if not hasattr(self, "_mechanism"):
-            mechanism_spec = self.mechanism_spec()
-            noise_kind = mechanism_spec.mechanism_type.to_noise_kind()
-            additive_mechanism_spec = dp_computations.AdditiveMechanismSpec(
-                mechanism_spec.eps, mechanism_spec.delta, noise_kind)
-            self._mechanism = dp_computations.create_additive_mechanism(
-                additive_mechanism_spec, self.sensitivities())
+            self._mechanism = self.create_mechanism()
+
         return self._mechanism
 
 
-class CountCombiner(Combiner, MechanismContainerMixin):
+class AdditiveMechanismMixin(MechanismContainerMixin):
+    """Abstract class with implementation of DP Additive mechanism handling.
+
+    A class that inherits this Mixin and implements sensitivities() and
+    mechanism_spec() will get a support for creating and managing
+    an AdditiveMechanism instance.
+    """
+
+    def create_mechanism(self) -> dp_computations.AdditiveMechanism:
+        return dp_computations.create_additive_mechanism(
+            dp_computations.to_additive_mechanism_spec(self.mechanism_spec()),
+            self.sensitivities())
+
+    @abc.abstractmethod
+    def sensitivities(self) -> dp_computations.Sensitivities:
+        pass
+
+    @abc.abstractmethod
+    def mechanism_spec(self) -> budget_accounting.MechanismSpec:
+        pass
+
+
+class CountCombiner(Combiner, AdditiveMechanismMixin):
     """Combiner for computing DP Count.
 
     The type of the accumulator is int, which represents count of the elements
@@ -249,7 +270,7 @@ class CountCombiner(Combiner, MechanismContainerMixin):
         return self._sensitivities
 
 
-class PrivacyIdCountCombiner(Combiner, MechanismContainerMixin):
+class PrivacyIdCountCombiner(Combiner, AdditiveMechanismMixin):
     """Combiner for computing DP privacy id count.
     The type of the accumulator is int, which represents count of the elements
     in the dataset for which this accumulator is computed.
@@ -290,7 +311,7 @@ class PrivacyIdCountCombiner(Combiner, MechanismContainerMixin):
         return self._sensitivities
 
 
-class SumCombiner(Combiner, MechanismContainerMixin):
+class SumCombiner(Combiner, AdditiveMechanismMixin):
     """Combiner for computing dp sum.
 
     the type of the accumulator is int, which represents sum of the elements
@@ -342,7 +363,7 @@ class SumCombiner(Combiner, MechanismContainerMixin):
         return self._sensitivities
 
 
-class MeanCombiner(Combiner):
+class MeanCombiner(Combiner, MechanismContainerMixin):
     """Combiner for computing DP Mean.
 
     It can also return sum and count in addition to the mean.
@@ -353,9 +374,10 @@ class MeanCombiner(Combiner):
     """
     AccumulatorType = Tuple[int, float]
 
-    def __init__(self, params: CombinerParams,
+    def __init__(self, count_spec: budget_accounting.MechanismSpec,
+                 sum_spec: budget_accounting.MechanismSpec,
+                 params: pipeline_dp.AggregateParams,
                  metrics_to_compute: Iterable[str]):
-        self._params = params
         if len(metrics_to_compute) != len(set(metrics_to_compute)):
             raise ValueError(f"{metrics_to_compute} cannot contain duplicates")
         for metric in metrics_to_compute:
@@ -365,13 +387,21 @@ class MeanCombiner(Combiner):
         if 'mean' not in metrics_to_compute:
             raise ValueError(
                 f"one of the {metrics_to_compute} should be 'mean'")
+        self._count_spec = count_spec
+        self._sum_spec = sum_spec
         self._metrics_to_compute = metrics_to_compute
+        self._min_value = params.min_value
+        self._max_value = params.max_value
+        self._count_sensitivities = dp_computations.compute_sensitivities_for_count(
+            params)
+        self._sum_sensitivities = dp_computations.compute_sensitivities_for_normalized_sum(
+            params)
 
     def create_accumulator(self, values: Iterable[float]) -> AccumulatorType:
-        min_value = self._params.aggregate_params.min_value
-        max_value = self._params.aggregate_params.max_value
-        middle = dp_computations.compute_middle(min_value, max_value)
-        normalized_values = np.clip(values, min_value, max_value) - middle
+        middle = dp_computations.compute_middle(self._min_value,
+                                                self._max_value)
+        normalized_values = np.clip(values, self._min_value,
+                                    self._max_value) - middle
 
         return len(values), normalized_values.sum()
 
@@ -383,8 +413,8 @@ class MeanCombiner(Combiner):
 
     def compute_metrics(self, accum: AccumulatorType) -> dict:
         total_count, total_normalized_sum = accum
-        noisy_count, noisy_sum, noisy_mean = dp_computations.compute_dp_mean(
-            total_count, total_normalized_sum, self._params.scalar_noise_params)
+        noisy_count, noisy_sum, noisy_mean = self.get_mechanism().compute_mean(
+            total_count, total_normalized_sum)
         mean_dict = {'mean': noisy_mean}
         if 'count' in self._metrics_to_compute:
             mean_dict['count'] = noisy_count
@@ -396,10 +426,26 @@ class MeanCombiner(Combiner):
         return self._metrics_to_compute
 
     def explain_computation(self) -> ExplainComputationReport:
-        return lambda: f"Computed mean with (eps={self._params.eps} delta={self._params.delta})"
+        return lambda: f"DP mean computation:\n" + self.get_mechanism(
+        ).describe()
 
-    def mechanism_spec(self) -> budget_accounting.MechanismSpec:
-        return self._params._mechanism_spec
+    def create_mechanism(self) -> dp_computations.MeanMechanism:
+        range_middle = dp_computations.compute_middle(self._min_value,
+                                                      self._max_value)
+
+        count_spec = dp_computations.to_additive_mechanism_spec(
+            self._count_spec)
+        sum_spec = dp_computations.to_additive_mechanism_spec(self._sum_spec)
+        return dp_computations.create_mean_mechanism(range_middle, count_spec,
+                                                     self._count_sensitivities,
+                                                     sum_spec,
+                                                     self._sum_sensitivities)
+
+    def mechanism_spec(
+        self
+    ) -> Tuple[budget_accounting.MechanismSpec,
+               budget_accounting.MechanismSpec]:
+        return (self._count_spec, self._sum_spec)
 
 
 class VarianceCombiner(Combiner):
@@ -747,7 +793,9 @@ def create_compound_combiner(
             VarianceCombiner(CombinerParams(budget_variance, aggregate_params),
                              metrics_to_compute))
     elif pipeline_dp.Metrics.MEAN in aggregate_params.metrics:
-        budget_mean = budget_accountant.request_budget(
+        budget_count = budget_accountant.request_budget(
+            mechanism_type, weight=aggregate_params.budget_weight)
+        budget_sum = budget_accountant.request_budget(
             mechanism_type, weight=aggregate_params.budget_weight)
         metrics_to_compute = ['mean']
         if pipeline_dp.Metrics.COUNT in aggregate_params.metrics:
@@ -755,7 +803,7 @@ def create_compound_combiner(
         if pipeline_dp.Metrics.SUM in aggregate_params.metrics:
             metrics_to_compute.append('sum')
         combiners.append(
-            MeanCombiner(CombinerParams(budget_mean, aggregate_params),
+            MeanCombiner(budget_count, budget_sum, aggregate_params,
                          metrics_to_compute))
     else:
         if pipeline_dp.Metrics.COUNT in aggregate_params.metrics:
