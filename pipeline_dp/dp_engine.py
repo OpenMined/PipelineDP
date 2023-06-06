@@ -265,7 +265,8 @@ class DPEngine:
             col,
             max_partitions_contributed,
             max_rows_per_privacy_id=1,
-            strategy=params.partition_selection_strategy)
+            strategy=params.partition_selection_strategy,
+            pre_threshold=params.pre_threshold)
         col = self._backend.keys(col,
                                  "Drop accumulators, keep only partition keys")
 

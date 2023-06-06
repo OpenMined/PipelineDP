@@ -226,7 +226,7 @@ class AggregateParams:
     contribution_bounds_already_enforced: bool = False
     public_partitions_already_filtered: bool = False
     partition_selection_strategy: PartitionSelectionStrategy = PartitionSelectionStrategy.TRUNCATED_GEOMETRIC
-    pre_threshold: int = 1
+    pre_threshold: Optional[int] = None
 
     @property
     def metrics_str(self) -> str:
@@ -341,8 +341,10 @@ class AggregateParams:
                                    "max_partitions_contributed")
             _check_is_positive_int(self.max_contributions_per_partition,
                                    "max_contributions_per_partition")
-        if not isinstance(self.pre_threshold, int) or self.pre_threshold < 1:
-            raise ValueError("todo")
+        if self.pre_threshold is not None:
+            if not isinstance(self.pre_threshold,
+                              int) or self.pre_threshold < 1:
+                raise ValueError("todo")
 
     def _check_both_property_set_or_not(self, property1_name: str,
                                         property2_name: str):
@@ -389,6 +391,7 @@ class SelectPartitionsParams:
     max_partitions_contributed: int
     budget_weight: float = 1
     partition_selection_strategy: PartitionSelectionStrategy = PartitionSelectionStrategy.TRUNCATED_GEOMETRIC
+    pre_threshold: Optional[int] = None
 
     # TODO: Add support for contribution_bounds_already_enforced
 

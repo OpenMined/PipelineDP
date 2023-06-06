@@ -582,14 +582,15 @@ class DpEngineTest(parameterized.TestCase):
                 input,
                 max_partitions_contributed,
                 max_rows_per_privacy_id=1,
-                strategy=strategy)
+                strategy=strategy,
+                pre_threshold=None)
             engine._budget_accountant.compute_budgets()
             self.assertListEqual(list(data_filtered), expected_data_filtered)
             args = list(mock_method.call_args_list)
             self.assertLen(args, 2)  # there are 2 input data.
             self.assertEqual(args[0], args[1])
             self.assertTupleEqual(
-                (strategy, 1, 1e-10, max_partitions_contributed),
+                (strategy, 1, 1e-10, max_partitions_contributed, None),
                 tuple(args[0])[0])
 
     def test_aggregate_private_partition_selection_keep_everything(self):
