@@ -302,7 +302,7 @@ class DPEngine:
             self, col, max_partitions_contributed: int,
             max_rows_per_privacy_id: int,
             strategy: pipeline_dp.PartitionSelectionStrategy,
-            pre_threshold: int):
+            pre_threshold: Optional[int]):
         """Selects and returns private partitions.
 
         Args:
@@ -322,7 +322,7 @@ class DPEngine:
             budget: 'MechanismSpec', max_partitions: int,
             max_rows_per_privacy_id: int,
             strategy: pipeline_dp.PartitionSelectionStrategy,
-            pre_threshold: int,
+            pre_threshold: Optional[int],
             row: Tuple[Any,
                        combiners.CompoundCombiner.AccumulatorType]) -> bool:
             """Lazily creates a partition selection strategy and uses it to
@@ -338,7 +338,7 @@ class DPEngine:
             privacy_id_count = divide_and_round_up(row_count,
                                                    max_rows_per_privacy_id)
 
-            selector = partition_selection.create_partition_selector(
+            selector = partition_selection.create_partition_selection_strategy(
                 strategy, budget.eps, budget.delta, max_partitions,
                 pre_threshold)
             return selector.should_keep(privacy_id_count)
