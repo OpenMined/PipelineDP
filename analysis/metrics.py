@@ -344,3 +344,10 @@ class UtilityReport:
 
     partitions_info: PartitionsInfo
     metric_errors: Optional[List[MetricUtility]] = None
+
+@dataclass
+class UtilityReportHistogram:
+    configuration_index: int
+    partition_size_from: List[int]
+    partition_size_to: List[int]
+    reports: List[UtilityReport]

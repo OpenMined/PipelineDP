@@ -22,7 +22,7 @@ from analysis import utility_analysis
 
 import dataclasses
 from dataclasses import dataclass
-from typing import Callable, List, Tuple, Union
+from typing import Callable, List, Optional, Tuple, Union
 from enum import Enum
 import numpy as np
 
@@ -109,6 +109,7 @@ class TuneResult:
     index_best: int
     utility_analysis_results: List[metrics.AggregateMetrics]  # deprecated
     utility_reports: List[metrics.UtilityReport]
+    utility_report_histogram: Optional[metrics.UtilityReportHistogram]
 
 
 def _find_candidate_parameters(
