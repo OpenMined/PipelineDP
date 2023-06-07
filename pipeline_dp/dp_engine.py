@@ -349,7 +349,7 @@ class DPEngine:
                                       max_partitions_contributed,
                                       max_rows_per_privacy_id, strategy,
                                       pre_threshold)
-        pre_threshold_str = f", {pre_threshold=}" if pre_threshold else ""
+        pre_threshold_str = f", pre_threshold={pre_threshold}" if pre_threshold else ""
         self._add_report_stage(
             lambda: f"Private Partition selection: using {strategy.value} "
             f"method with (eps={budget.eps}, delta={budget.delta}"
