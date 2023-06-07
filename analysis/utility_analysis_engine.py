@@ -13,7 +13,7 @@
 # limitations under the License.
 """DPEngine for utility analysis."""
 
-from typing import Iterable, Union
+from typing import Optional, Union
 
 import pipeline_dp
 from pipeline_dp import budget_accounting
@@ -144,7 +144,8 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
     def _select_private_partitions_internal(
             self, col, max_partitions_contributed: int,
             max_rows_per_privacy_id: int,
-            strategy: pipeline_dp.PartitionSelectionStrategy):
+            strategy: pipeline_dp.PartitionSelectionStrategy,
+            pre_threshold: Optional[int]):
         # Utility analysis of private partition selection is performed in a
         # corresponding combiners (unlike actual DP computations). So this
         # function is no-op.

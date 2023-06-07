@@ -14,20 +14,31 @@
 
 import pipeline_dp
 import pydp.algorithms.partition_selection as partition_selection
+from typing import Optional
+
+PARTITION_STRATEGY_ENUM_TO_STR = {
+    pipeline_dp.PartitionSelectionStrategy.TRUNCATED_GEOMETRIC:
+        "truncated_geometric",
+    pipeline_dp.PartitionSelectionStrategy.LAPLACE_THRESHOLDING:
+        "laplace",
+    pipeline_dp.PartitionSelectionStrategy.GAUSSIAN_THRESHOLDING:
+        "gaussian"
+}
 
 
 def create_partition_selection_strategy(
-        strategy: pipeline_dp.PartitionSelectionStrategy, epsilon: float,
+        strategy: pipeline_dp.PartitionSelectionStrategy,
+        epsilon: float,
         delta: float,
-        max_partitions_contributed: int) -> "PartitionSelectionStrategy":
+        max_partitions_contributed: int,
+        pre_threshold: Optional[int] = None) -> "PartitionSelectionStrategy":
+    """Creates PyDP partition selection object."""
+    strategy_name = PARTITION_STRATEGY_ENUM_TO_STR[strategy]
 
-    if strategy == pipeline_dp.PartitionSelectionStrategy.TRUNCATED_GEOMETRIC:
-        create_strategy = partition_selection.create_truncated_geometric_partition_strategy
-    elif strategy == pipeline_dp.PartitionSelectionStrategy.LAPLACE_THRESHOLDING:
-        create_strategy = partition_selection.create_laplace_partition_strategy
-    elif strategy == pipeline_dp.PartitionSelectionStrategy.GAUSSIAN_THRESHOLDING:
-        create_strategy = partition_selection.create_gaussian_partition_strategy
+    if pre_threshold is None:
+        return partition_selection.create_partition_strategy(
+            strategy_name, epsilon, delta, max_partitions_contributed)
     else:
-        raise ValueError(f"Unknown partition selection strategy {strategy}")
-
-    return create_strategy(epsilon, delta, max_partitions_contributed)
+        return partition_selection.create_partition_strategy(
+            strategy_name, epsilon, delta, max_partitions_contributed,
+            pre_threshold)

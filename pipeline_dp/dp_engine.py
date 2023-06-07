@@ -161,7 +161,7 @@ class DPEngine:
 
             col = self._select_private_partitions_internal(
                 col, params.max_partitions_contributed, max_rows_per_privacy_id,
-                params.partition_selection_strategy)
+                params.partition_selection_strategy, params.pre_threshold)
         # col : (partition_key, accumulator)
 
         # Compute DP metrics.
@@ -265,7 +265,8 @@ class DPEngine:
             col,
             max_partitions_contributed,
             max_rows_per_privacy_id=1,
-            strategy=params.partition_selection_strategy)
+            strategy=params.partition_selection_strategy,
+            pre_threshold=params.pre_threshold)
         col = self._backend.keys(col,
                                  "Drop accumulators, keep only partition keys")
 
@@ -301,7 +302,8 @@ class DPEngine:
     def _select_private_partitions_internal(
             self, col, max_partitions_contributed: int,
             max_rows_per_privacy_id: int,
-            strategy: pipeline_dp.PartitionSelectionStrategy):
+            strategy: pipeline_dp.PartitionSelectionStrategy,
+            pre_threshold: Optional[int]):
         """Selects and returns private partitions.
 
         Args:
@@ -321,6 +323,7 @@ class DPEngine:
             budget: 'MechanismSpec', max_partitions: int,
             max_rows_per_privacy_id: int,
             strategy: pipeline_dp.PartitionSelectionStrategy,
+            pre_threshold: Optional[int],
             row: Tuple[Any,
                        combiners.CompoundCombiner.AccumulatorType]) -> bool:
             """Lazily creates a partition selection strategy and uses it to
@@ -336,18 +339,21 @@ class DPEngine:
             privacy_id_count = divide_and_round_up(row_count,
                                                    max_rows_per_privacy_id)
 
-            strategy_object = \
-                partition_selection.create_partition_selection_strategy(
-                    strategy, budget.eps, budget.delta, max_partitions)
-            return strategy_object.should_keep(privacy_id_count)
+            selector = partition_selection.create_partition_selection_strategy(
+                strategy, budget.eps, budget.delta, max_partitions,
+                pre_threshold)
+            return selector.should_keep(privacy_id_count)
 
         # make filter_fn serializable
         filter_fn = functools.partial(filter_fn, budget,
                                       max_partitions_contributed,
-                                      max_rows_per_privacy_id, strategy)
+                                      max_rows_per_privacy_id, strategy,
+                                      pre_threshold)
+        pre_threshold_str = f", pre_threshold={pre_threshold}" if pre_threshold else ""
         self._add_report_stage(
             lambda: f"Private Partition selection: using {strategy.value} "
-            f"method with (eps={budget.eps}, delta={budget.delta})")
+            f"method with (eps={budget.eps}, delta={budget.delta}"
+            f"{pre_threshold_str})")
 
         return self._backend.filter(col, filter_fn, "Filter private partitions")
 

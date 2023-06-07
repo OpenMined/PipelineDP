@@ -14,7 +14,7 @@
 """DPEngine Test"""
 import sys
 import unittest
-from typing import List
+from typing import List, Optional, Tuple
 from unittest.mock import patch
 
 import apache_beam as beam
@@ -32,6 +32,15 @@ from pipeline_dp.pipeline_functions import collect_to_container
 from pipeline_dp.report_generator import ReportGenerator
 
 
+class MockPartitionStrategy(partition_selection.PartitionSelectionStrategy):
+
+    def __init__(self, min_users):
+        self.min_users = min_users
+
+    def should_keep(self, num_users: int) -> bool:
+        return num_users > self.min_users
+
+
 class DpEngineTest(parameterized.TestCase):
 
     def _get_default_extractors(self) -> pipeline_dp.DataExtractors:
@@ -44,10 +53,12 @@ class DpEngineTest(parameterized.TestCase):
     def _create_dp_engine_default(self,
                                   accountant: NaiveBudgetAccountant = None,
                                   backend: PipelineBackend = None,
-                                  return_accountant: bool = False):
+                                  return_accountant: bool = False,
+                                  epsilon=1,
+                                  delta=1e-10):
         if not accountant:
-            accountant = NaiveBudgetAccountant(total_epsilon=1,
-                                               total_delta=1e-10)
+            accountant = NaiveBudgetAccountant(total_epsilon=epsilon,
+                                               total_delta=delta)
         if not backend:
             backend = pipeline_dp.LocalBackend()
         dp_engine = pipeline_dp.DPEngine(accountant, backend)
@@ -334,7 +345,9 @@ class DpEngineTest(parameterized.TestCase):
             engine.calculate_private_contribution_bounds(
                 data, params, data_extractors, partitions)
 
-    def _create_params_default(self):
+    def _create_params_default(
+            self) -> Tuple[pipeline_dp.AggregateParams, list]:
+        """Returns default params and default public partitions."""
         return (pipeline_dp.AggregateParams(
             noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
             metrics=[agg.Metrics.COUNT, agg.Metrics.SUM, agg.Metrics.MEAN],
@@ -543,35 +556,35 @@ class DpEngineTest(parameterized.TestCase):
         self.assertEqual(set(partition_keys), set(["pk0", "pk1", "pk2"]))
 
     @parameterized.named_parameters(
-        dict(testcase_name='all_data_kept',
-             min_users=1,
-             strategy=pipeline_dp.PartitionSelectionStrategy.TRUNCATED_GEOMETRIC
-            ),
+        dict(
+            testcase_name='all_data_kept',
+            min_users=1,
+            strategy=pipeline_dp.PartitionSelectionStrategy.TRUNCATED_GEOMETRIC,
+            pre_threshold=None),
         dict(testcase_name='1 partition left',
              min_users=5,
              strategy=pipeline_dp.PartitionSelectionStrategy.
-             GAUSSIAN_THRESHOLDING),
+             GAUSSIAN_THRESHOLDING,
+             pre_threshold=None),
         dict(testcase_name='empty result',
              min_users=20,
              strategy=pipeline_dp.PartitionSelectionStrategy.
-             LAPLACE_THRESHOLDING),
+             LAPLACE_THRESHOLDING,
+             pre_threshold=None),
+        dict(testcase_name='pre_threshold',
+             min_users=20,
+             strategy=pipeline_dp.PartitionSelectionStrategy.
+             LAPLACE_THRESHOLDING,
+             pre_threshold=10),
     )
     def test_select_private_partitions_internal(
             self, min_users: int,
-            strategy: pipeline_dp.PartitionSelectionStrategy):
+            strategy: pipeline_dp.PartitionSelectionStrategy,
+            pre_threshold: Optional[int]):
         input = [("pk1", (3, None)), ("pk2", (10, None))]
 
         engine = self._create_dp_engine_default()
         expected_data_filtered = [x for x in input if x[1][0] > min_users]
-
-        class MockPartitionStrategy(
-                partition_selection.PartitionSelectionStrategy):
-
-            def __init__(self, min_users):
-                self.min_users = min_users
-
-            def should_keep(self, num_users: int) -> bool:
-                return num_users > self.min_users
 
         with patch(
                 "pipeline_dp.partition_selection"
@@ -582,15 +595,67 @@ class DpEngineTest(parameterized.TestCase):
                 input,
                 max_partitions_contributed,
                 max_rows_per_privacy_id=1,
-                strategy=strategy)
+                strategy=strategy,
+                pre_threshold=pre_threshold)
             engine._budget_accountant.compute_budgets()
             self.assertListEqual(list(data_filtered), expected_data_filtered)
             args = list(mock_method.call_args_list)
             self.assertLen(args, 2)  # there are 2 input data.
             self.assertEqual(args[0], args[1])
             self.assertTupleEqual(
-                (strategy, 1, 1e-10, max_partitions_contributed),
+                (strategy, 1, 1e-10, max_partitions_contributed, pre_threshold),
                 tuple(args[0])[0])
+
+    @parameterized.named_parameters(
+        dict(
+            testcase_name='all_data_kept',
+            min_users=1,
+            strategy=pipeline_dp.PartitionSelectionStrategy.TRUNCATED_GEOMETRIC,
+            pre_threshold=None),
+        dict(testcase_name='empty result',
+             min_users=20,
+             strategy=pipeline_dp.PartitionSelectionStrategy.
+             LAPLACE_THRESHOLDING,
+             pre_threshold=None),
+        dict(testcase_name='pre_threshold',
+             min_users=5,
+             strategy=pipeline_dp.PartitionSelectionStrategy.
+             GAUSSIAN_THRESHOLDING,
+             pre_threshold=10),
+    )
+    def test_aggregate_private_partitions_selection(
+            self, min_users: int,
+            strategy: pipeline_dp.PartitionSelectionStrategy,
+            pre_threshold: Optional[int]):
+        input = [(f"privacy_id{i}", "partition") for i in range(10)]
+        extractors = pipeline_dp.DataExtractors(
+            privacy_id_extractor=lambda x: x[0],
+            partition_extractor=lambda x: x[1],
+            value_extractor=lambda x: 0)
+
+        params, _ = self._create_params_default()
+        params.metrics = [pipeline_dp.Metrics.COUNT]
+        # Set partition selection strategy and pre-threshold.
+        params.partition_selection_strategy = strategy
+        params.pre_threshold = pre_threshold
+
+        # epsilon, delta have an exact representation as float
+        epsilon, delta = 2, 1 / 1024
+
+        engine = self._create_dp_engine_default(epsilon=epsilon, delta=delta)
+        expected_len = 0 if 10 < min_users else 1
+
+        with patch(
+                "pipeline_dp.partition_selection"
+                ".create_partition_selection_strategy",
+                return_value=MockPartitionStrategy(min_users)) as mock_method:
+
+            output = engine.aggregate(input, params, extractors)
+            engine._budget_accountant.compute_budgets()
+            output = list(output)  # trigger computation
+            self.assertLen(output, expected_len)
+            mock_method.assert_called_once_with(strategy, epsilon / 2,
+                                                delta / 2, 1, pre_threshold)
 
     def test_aggregate_private_partition_selection_keep_everything(self):
         # Arrange
