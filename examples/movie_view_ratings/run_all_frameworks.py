@@ -52,6 +52,8 @@ flags.DEFINE_boolean(
     'bounds. Ignore the user identifiers.')
 flags.DEFINE_boolean('vector_metrics', False,
                      'Compute DP vector metrics for rating values')
+flags.DEFINE_integer('pre_threshold', None,
+                     'Pre-threshold for private partition selection')
 
 
 def calculate_private_result(movie_views, pipeline_backend):
@@ -85,7 +87,7 @@ def calc_dp_rating_metrics(movie_views, backend, public_partitions):
         max_value=5,
         contribution_bounds_already_enforced=FLAGS.
         contribution_bounds_already_enforced,
-        pre_threshold=5)
+        pre_threshold=FLAGS.pre_threshold)
 
     value_extractor = lambda mv: mv.rating
 

@@ -204,9 +204,12 @@ class AggregateParams:
          removed from the dataset. It can only be used with public partitions.
         partition_selection_strategy: which strategy to use for private
          partition selection. It is ignored when public partitions are used.
-        pre_threshold: the minimum amount of privacy units which require for
-         keeping a partition in private partition selection. More details on
-         pre-thresholding are in
+        pre_threshold: the minimum amount of privacy units which are required
+         for keeping a partition in private partition selection. Note that this
+         is in addition to a differentially private partition selection, so a
+         partition with pre_threshold privacy units isn't necessarily kept. It
+         is ignored when public partitions are used.
+         More details on pre-thresholding are in
          https://github.com/google/differential-privacy/blob/main/common_docs/pre_thresholding.md
     """
     metrics: List[Metric]

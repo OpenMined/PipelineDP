@@ -635,11 +635,11 @@ class DpEngineTest(parameterized.TestCase):
 
         params, _ = self._create_params_default()
         params.metrics = [pipeline_dp.Metrics.COUNT]
-        # Set partition selection strategy and pre threshold.
+        # Set partition selection strategy and pre-threshold.
         params.partition_selection_strategy = strategy
         params.pre_threshold = pre_threshold
 
-        # epsilon, delta have am exact representation as float
+        # epsilon, delta have an exact representation as float
         epsilon, delta = 2, 1 / 1024
 
         engine = self._create_dp_engine_default(epsilon=epsilon, delta=delta)
