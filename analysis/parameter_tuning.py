@@ -27,12 +27,6 @@ from enum import Enum
 import numpy as np
 
 
-@dataclass
-class UtilityAnalysisRun:
-    params: analysis.UtilityAnalysisOptions
-    result: metrics.AggregateErrorMetrics
-
-
 class MinimizingFunction(Enum):
     ABSOLUTE_ERROR = 'absolute_error'
     RELATIVE_ERROR = 'relative_error'
@@ -107,7 +101,6 @@ class TuneResult:
     contribution_histograms: histograms.DatasetHistograms
     utility_analysis_parameters: analysis.MultiParameterConfiguration
     index_best: int
-    utility_analysis_results: List[metrics.AggregateMetrics]  # deprecated
     utility_reports: List[metrics.UtilityReport]
 
 
@@ -151,37 +144,6 @@ def _find_candidate_parameters(
     return analysis.MultiParameterConfiguration(
         max_partitions_contributed=l0_bounds,
         max_contributions_per_partition=linf_bounds)
-
-
-def _convert_utility_analysis_to_tune_result(
-        utility_analysis_result: Tuple, tune_options: TuneOptions,
-        run_configurations: analysis.MultiParameterConfiguration,
-        use_public_partitions: bool,
-        contribution_histograms: histograms.DatasetHistograms):
-    assert len(utility_analysis_result) == run_configurations.size
-    # TODO(dvadym): implement relative error.
-    # TODO(dvadym): take into consideration partition selection from private
-    # partition selection.
-    assert tune_options.function_to_minimize == MinimizingFunction.ABSOLUTE_ERROR
-
-    metrics = tune_options.aggregate_params.metrics[0]
-    if metrics == pipeline_dp.Metrics.COUNT:
-        rmse = [
-            ae.count_metrics.absolute_rmse() for ae in utility_analysis_result
-        ]
-    else:
-        rmse = [
-            ae.privacy_id_count_metrics.absolute_rmse()
-            for ae in utility_analysis_result
-        ]
-    index_best = np.argmin(rmse)
-
-    return TuneResult(tune_options,
-                      contribution_histograms,
-                      run_configurations,
-                      index_best,
-                      utility_analysis_result,
-                      utility_reports=[])
 
 
 def tune(col,
@@ -290,7 +252,6 @@ def _convert_utility_analysis_to_tune_result_new(
                       contribution_histograms,
                       run_configurations,
                       index_best,
-                      utility_analysis_results=[],
                       utility_reports=utility_reports)
 
 

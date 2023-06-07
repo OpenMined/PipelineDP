@@ -675,7 +675,7 @@ class PrivateBeamTest(unittest.TestCase):
             # Use very high epsilon and delta to minimize noise and test
             # flakiness.
             budget_accountant = budget_accounting.NaiveBudgetAccountant(
-                total_epsilon=800, total_delta=0.999)
+                total_epsilon=800, total_delta=0.999, num_aggregations=1)
             private_collection = (
                 pcol | 'Create private collection' >> private_beam.MakePrivate(
                     budget_accountant=budget_accountant,

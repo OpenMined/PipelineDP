@@ -16,7 +16,7 @@
 This demo outputs a utility analysis of errors and noise for each partition in the dataset.
 
 1. Install Python and run on the command line `pip install pipeline-dp absl-py`
-2. Run python python run_without_frameworks_utility_analysis.py --output_file=<...>
+2. Run python run_without_frameworks_utility_analysis.py --output_file=<...>
 """
 from absl import app
 from absl import flags
