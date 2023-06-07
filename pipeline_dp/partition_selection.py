@@ -27,9 +27,11 @@ PARTITION_STRATEGY_ENUM_TO_STR = {
 
 
 def create_partition_selection_strategy(
-        strategy: pipeline_dp.PartitionSelectionStrategy, epsilon: float,
-        delta: float, max_partitions_contributed: int,
-        pre_threshold: Optional[int]) -> "PartitionSelectionStrategy":
+        strategy: pipeline_dp.PartitionSelectionStrategy,
+        epsilon: float,
+        delta: float,
+        max_partitions_contributed: int,
+        pre_threshold: Optional[int] = None) -> "PartitionSelectionStrategy":
     """Creates PyDP partition selection object."""
     strategy_name = PARTITION_STRATEGY_ENUM_TO_STR[strategy]
 
