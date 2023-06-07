@@ -204,7 +204,10 @@ class AggregateParams:
          removed from the dataset. It can only be used with public partitions.
         partition_selection_strategy: which strategy to use for private
          partition selection. It is ignored when public partitions are used.
-        pre_threshold: todo
+        pre_threshold: the minimum amount of privacy units which require for
+         keeping a partition in private partition selection. More details on
+         pre-thresholding are in
+         https://github.com/google/differential-privacy/blob/main/common_docs/pre_thresholding.md
     """
     metrics: List[Metric]
     noise_kind: NoiseKind = NoiseKind.LAPLACE
@@ -342,9 +345,7 @@ class AggregateParams:
             _check_is_positive_int(self.max_contributions_per_partition,
                                    "max_contributions_per_partition")
         if self.pre_threshold is not None:
-            if not isinstance(self.pre_threshold,
-                              int) or self.pre_threshold < 1:
-                raise ValueError("todo")
+            _check_is_positive_int(self.pre_threshold, "pre_threshold")
 
     def _check_both_property_set_or_not(self, property1_name: str,
                                         property2_name: str):
@@ -394,6 +395,10 @@ class SelectPartitionsParams:
     pre_threshold: Optional[int] = None
 
     # TODO: Add support for contribution_bounds_already_enforced
+
+    def __post_init__(self):
+        if self.pre_threshold is not None:
+            _check_is_positive_int(self.pre_threshold, "pre_threshold")
 
     def __str__(self):
         return "Private Partitions"

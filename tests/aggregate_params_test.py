@@ -328,6 +328,40 @@ class AggregateParamsTest(parameterized.TestCase):
                                  contribution_bounds_already_enforced),
                              self._get_default_extractors())
 
+    @parameterized.parameters(0.1, -1, 0)
+    def test_invalid_pre_threshold(self, pre_threshold):
+        with self.assertRaisesRegex(ValueError,
+                                    "pre_threshold has to be positive integer"):
+            pipeline_dp.AggregateParams(
+                noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+                max_partitions_contributed=1,
+                max_contributions_per_partition=1,
+                metrics=[pipeline_dp.Metrics.COUNT],
+                pre_threshold=pre_threshold)
+
+    @parameterized.parameters(1, 42)
+    def test_valid_pre_threshold(self, pre_threshold):
+        pipeline_dp.AggregateParams(noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+                                    max_partitions_contributed=1,
+                                    max_contributions_per_partition=1,
+                                    metrics=[pipeline_dp.Metrics.COUNT],
+                                    pre_threshold=pre_threshold)
+
+
+class SelectPartitionsParamsTest(parameterized.TestCase):
+
+    @parameterized.parameters(0.1, -1, 0)
+    def test_invalid_pre_threshold(self, pre_threshold):
+        with self.assertRaisesRegex(ValueError,
+                                    "pre_threshold has to be positive integer"):
+            pipeline_dp.SelectPartitionsParams(max_partitions_contributed=1,
+                                               pre_threshold=pre_threshold)
+
+    @parameterized.parameters(1, 42)
+    def test_valid_pre_threshold(self, pre_threshold):
+        pipeline_dp.SelectPartitionsParams(max_partitions_contributed=1,
+                                           pre_threshold=pre_threshold)
+
 
 class CalculatePrivateContributionBoundsParamsTest(parameterized.TestCase):
 

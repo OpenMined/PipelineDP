@@ -14,7 +14,7 @@
 """DPEngine Test"""
 import sys
 import unittest
-from typing import List
+from typing import List, Optional
 from unittest.mock import patch
 
 import apache_beam as beam
@@ -543,22 +543,31 @@ class DpEngineTest(parameterized.TestCase):
         self.assertEqual(set(partition_keys), set(["pk0", "pk1", "pk2"]))
 
     @parameterized.named_parameters(
-        dict(testcase_name='all_data_kept',
-             min_users=1,
-             strategy=pipeline_dp.PartitionSelectionStrategy.TRUNCATED_GEOMETRIC
-            ),
+        dict(
+            testcase_name='all_data_kept',
+            min_users=1,
+            strategy=pipeline_dp.PartitionSelectionStrategy.TRUNCATED_GEOMETRIC,
+            pre_threshold=None),
         dict(testcase_name='1 partition left',
              min_users=5,
              strategy=pipeline_dp.PartitionSelectionStrategy.
-             GAUSSIAN_THRESHOLDING),
+             GAUSSIAN_THRESHOLDING,
+             pre_threshold=None),
         dict(testcase_name='empty result',
              min_users=20,
              strategy=pipeline_dp.PartitionSelectionStrategy.
-             LAPLACE_THRESHOLDING),
+             LAPLACE_THRESHOLDING,
+             pre_threshold=None),
+        dict(testcase_name='pre_threshold',
+             min_users=20,
+             strategy=pipeline_dp.PartitionSelectionStrategy.
+             LAPLACE_THRESHOLDING,
+             pre_threshold=10),
     )
     def test_select_private_partitions_internal(
             self, min_users: int,
-            strategy: pipeline_dp.PartitionSelectionStrategy):
+            strategy: pipeline_dp.PartitionSelectionStrategy,
+            pre_threshold: Optional[int]):
         input = [("pk1", (3, None)), ("pk2", (10, None))]
 
         engine = self._create_dp_engine_default()
@@ -583,14 +592,14 @@ class DpEngineTest(parameterized.TestCase):
                 max_partitions_contributed,
                 max_rows_per_privacy_id=1,
                 strategy=strategy,
-                pre_threshold=None)
+                pre_threshold=pre_threshold)
             engine._budget_accountant.compute_budgets()
             self.assertListEqual(list(data_filtered), expected_data_filtered)
             args = list(mock_method.call_args_list)
             self.assertLen(args, 2)  # there are 2 input data.
             self.assertEqual(args[0], args[1])
             self.assertTupleEqual(
-                (strategy, 1, 1e-10, max_partitions_contributed, None),
+                (strategy, 1, 1e-10, max_partitions_contributed, pre_threshold),
                 tuple(args[0])[0])
 
     def test_aggregate_private_partition_selection_keep_everything(self):
