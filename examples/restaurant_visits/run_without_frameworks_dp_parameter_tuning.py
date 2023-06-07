@@ -16,7 +16,7 @@ Shows how to use compute the best contribution bounds
 (e.g. max_partitions_contributed) in a differential private way.
 
 1. Install Python and run on the command line `pip install pipeline-dp absl-py`
-2. Run python python run_without_frameworks_dp_parameter_tuning.py
+2. Run python run_without_frameworks_dp_parameter_tuning.py
 --input_file=<path to data.txt from 3> --output_file=<...>
 """
 

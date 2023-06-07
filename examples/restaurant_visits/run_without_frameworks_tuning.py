@@ -25,7 +25,8 @@ import pandas as pd
 import collections
 
 from analysis import parameter_tuning
-from pipeline_dp import histograms
+from pipeline_dp.dataset_histograms import histograms
+from pipeline_dp.dataset_histograms import computing_histograms
 
 FLAGS = flags.FLAGS
 flags.DEFINE_string('input_file', 'restaurants_week_data.csv',
@@ -125,13 +126,13 @@ def tune_parameters():
         data_extractors = pipeline_dp.PreAggregateExtractors(
             partition_extractor=lambda row: row[0],
             preaggregate_extractor=lambda row: row[1])
-        hist = histograms.compute_dataset_histograms_on_preaggregated_data(
+        hist = computing_histograms.compute_dataset_histograms_on_preaggregated_data(
             input, data_extractors, backend)
     else:
         input = restaurant_visits_rows
         data_extractors = get_data_extractors()
-        hist = histograms.compute_dataset_histograms(input, data_extractors,
-                                                     backend)
+        hist = computing_histograms.compute_dataset_histograms(
+            input, data_extractors, backend)
     # Hist is 1-element iterable and the single element is a computed histogram.
     hist = list(hist)[0]
 

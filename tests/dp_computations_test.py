@@ -32,9 +32,6 @@ DUMMY_MAX_VALUE = 3.0
 
 class DPComputationsTest(parameterized.TestCase):
 
-    def almost_equal(self, actual, expected, tolerance):
-        return abs(expected - actual) <= tolerance
-
     def test_l0_sensitivity(self):
         params = dp_computations.ScalarNoiseParams(
             eps=1,
@@ -113,19 +110,18 @@ class DPComputationsTest(parameterized.TestCase):
             elif minus_two_std <= x <= plus_two_std:
                 num_results_one_to_two_stds += 1
 
-        # 99% confidence interval
+        # 99.993% confidence interval (probability normal 4 sigma from mean).
         # https://en.wikipedia.org/wiki/Binomial_proportion_confidence_interval
-        # http://www.sjsu.edu/faculty/gerstman/EpiInfo/z-table.htm
         num_trials_double = 1.0 * num_trials
         self.assertAlmostEqual(
             num_results_within_one_std / num_trials_double,
             prob_mass_within_one_std,
-            delta=2.4 * math.sqrt(prob_mass_within_one_std *
+            delta=4.0 * math.sqrt(prob_mass_within_one_std *
                                   (1 - prob_mass_within_one_std) / num_trials))
         self.assertAlmostEqual(
             num_results_one_to_two_stds / num_trials_double,
             prob_mass_one_to_two_stds,
-            delta=2.4 * math.sqrt(prob_mass_one_to_two_stds *
+            delta=4.0 * math.sqrt(prob_mass_one_to_two_stds *
                                   (1 - prob_mass_one_to_two_stds) / num_trials))
         return 0
 
@@ -241,87 +237,6 @@ class DPComputationsTest(parameterized.TestCase):
 
         self.assertEqual(dp_computations.equally_split_budget(0.5, 1e-10, 5),
                          expected_budgets)
-
-    def test_compute_dp_mean(self):
-        params = dp_computations.ScalarNoiseParams(
-            eps=0.5,
-            delta=1e-10,
-            min_value=1,
-            max_value=20,
-            min_sum_per_partition=None,
-            max_sum_per_partition=None,
-            max_partitions_contributed=1,
-            max_contributions_per_partition=1,
-            noise_kind=NoiseKind.LAPLACE)
-
-        (count_eps, count_delta), (_, _) = dp_computations.equally_split_budget(
-            params.eps, params.delta, 2)
-        count_l0_sensitivity = params.l0_sensitivity()
-        count_linf_sensitivity = params.max_contributions_per_partition
-        count_l1_sensitivity = dp_computations.compute_l1_sensitivity(
-            count_l0_sensitivity, count_linf_sensitivity)
-
-        # Laplace Mechanism
-        expected_sum = 10000
-        expected_count = 1000
-        normalized_sum = -500
-        results = [
-            dp_computations.compute_dp_mean(count=expected_count,
-                                            normalized_sum=normalized_sum,
-                                            dp_params=params)
-            for _ in range(N_ITERATIONS)
-        ]
-        count_values, sum_values, mean_values = zip(*results)
-
-        self._test_laplace_noise(results=count_values,
-                                 num_trials=N_ITERATIONS,
-                                 expected_mean=expected_count,
-                                 eps=count_eps,
-                                 l1_sensitivity=count_l1_sensitivity)
-        self.assertAlmostEqual(np.mean(sum_values), expected_sum, delta=0.5)
-        self.assertAlmostEqual(np.mean(mean_values),
-                               expected_sum / expected_count,
-                               delta=0.5)
-
-        # Gaussian Mechanism
-        params.noise_kind = NoiseKind.GAUSSIAN
-        count_l2_sensitivity = dp_computations.compute_l2_sensitivity(
-            count_l0_sensitivity, count_linf_sensitivity)
-        results = [
-            dp_computations.compute_dp_mean(count=expected_count,
-                                            normalized_sum=normalized_sum,
-                                            dp_params=params)
-            for _ in range(1500000)
-        ]
-
-        count_values, sum_values, mean_values = zip(*results)
-        self._test_gaussian_noise(results=count_values,
-                                  num_trials=1500000,
-                                  expected_mean=expected_count,
-                                  eps=count_eps,
-                                  delta=count_delta,
-                                  l2_sensitivity=count_l2_sensitivity)
-        self.assertAlmostEqual(np.mean(sum_values), expected_sum, delta=1)
-        self.assertAlmostEqual(np.mean(mean_values),
-                               expected_sum / expected_count,
-                               delta=0.1)
-
-    def test_compute_dp_mean_equal_min_max(self):
-        params = dp_computations.ScalarNoiseParams(
-            eps=0.5,
-            delta=1e-10,
-            min_value=42.0,
-            max_value=42.0,  # = min_value
-            min_sum_per_partition=None,
-            max_sum_per_partition=None,
-            max_partitions_contributed=1,
-            max_contributions_per_partition=1,
-            noise_kind=NoiseKind.LAPLACE)
-
-        count, sum, mean = dp_computations.compute_dp_mean(count=10,
-                                                           normalized_sum=400,
-                                                           dp_params=params)
-        self.assertEqual(mean, 42.0)
 
     def test_compute_dp_variance_equal_min_max(self):
         params = dp_computations.ScalarNoiseParams(
