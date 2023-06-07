@@ -243,6 +243,7 @@ class UtilityReport:
     partitions_info: PartitionsInfo
     metric_errors: Optional[List[MetricUtility]] = None
 
+
 @dataclass
 class UtilityReportHistogram:
     configuration_index: int
