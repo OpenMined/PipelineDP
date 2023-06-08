@@ -102,7 +102,6 @@ class TuneResult:
     utility_analysis_parameters: analysis.MultiParameterConfiguration
     index_best: int
     utility_reports: List[metrics.UtilityReport]
-    utility_report_histogram: Optional[metrics.UtilityReportHistogram]
 
 
 def _find_candidate_parameters(
@@ -249,11 +248,13 @@ def _convert_utility_analysis_to_tune_result_new(
         ]
         index_best = np.argmin(rmse)
 
-    return TuneResult(tune_options,
-                      contribution_histograms,
-                      run_configurations,
-                      index_best,
-                      utility_reports=utility_reports)
+    return TuneResult(
+        tune_options,
+        contribution_histograms,
+        run_configurations,
+        index_best,
+        utility_reports=utility_reports,
+    )
 
 
 def _check_tune_args(options: TuneOptions):

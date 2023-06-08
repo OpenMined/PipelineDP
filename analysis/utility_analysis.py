@@ -21,6 +21,7 @@ from analysis import metrics
 from analysis import utility_analysis_engine
 from analysis import cross_partition_combiners
 import copy
+import bisect
 
 
 def perform_utility_analysis(
@@ -80,35 +81,64 @@ def perform_utility_analysis(
     col = backend.values(per_partition_result, "Drop partition key")
     # ((metrics.PerPartitionMetrics))
 
-    col = backend.flat_map(
-        col, lambda metrics: ((i, metric) for i, metric in enumerate(metrics)),
-        "Unnest metrics")
-    # (configuration_index, metrics.PerPartitionMetrics)
+    buckets_bound = _generate_bucket_bounds()
+
+    def unnest_metrics(metrics: List[metrics.PerPartitionMetrics]):
+        for i, metric in enumerate(metrics):
+            yield ((i, None), metric)
+        if metrics[0].metric_errors:
+            actual_bucket_value = metrics[0].metric_errors[0].sum
+            bucket = _get_lower(actual_bucket_value, buckets_bound)
+            for i, metric in enumerate(metrics):
+                yield ((i, bucket), metric)
+
+    col = backend.flat_map(col, unnest_metrics, "Unnest metrics")
+    # ((configuration_index, bucket), metrics.PerPartitionMetrics)
 
     combiner = cross_partition_combiners.CrossPartitionCombiner(
         options.aggregate_params.metrics, public_partitions is not None)
 
     accumulators = backend.map_values(col, combiner.create_accumulator,
                                       "Create accumulators")
-    # accumulators : (configuration_index, accumulator)
+    # accumulators : ((configuration_index, bucket), accumulator)
 
     accumulators = backend.combine_accumulators_per_key(
         accumulators, combiner, "Combine cross-partition metrics")
-    # accumulators : (configuration_index, accumulator)
+    # accumulators : ((configuration_index, bucket), accumulator)
 
     cross_partition_metrics = backend.map_values(
         accumulators, combiner.compute_metrics,
         "Compute cross-partition metrics")
+    # cross_partition_metrics : ((configuration_index, bucket), UtilityReport)
 
-    # cross_partition_metrics : (configuration_index, UtilityReport)
+    cross_partition_metrics = backend.map_tuple(
+        cross_partition_metrics, lambda key, value: (key[0], (key[1], value)),
+        "todo")
 
-    def add_index(index,
-                  report: metrics.UtilityReport) -> metrics.UtilityReport:
-        copy_report = copy.deepcopy(report)
-        copy_report.configuration_index = index
-        return copy_report
+    def group_utility_reports(
+            index,
+            reports: List[metrics.UtilityReport]) -> metrics.UtilityReport:
+        main_report = None
+        histogram_reports = []
+        for bucket, report in reports:
+            report = copy.deepcopy(report)  # todo add comment
+            report.configuration_index = index
+            if bucket is None:  # main report
+                main_report = report
+            else:
+                histogram_reports.append((bucket, report))
+        if main_report == None:  # it shouldn't happen
+            return None
+        histogram_reports.sort()
+        lowers, histogram_reports = zip(*histogram_reports)
+        uppers = [_get_upper(lower, buckets_bound) for lower in lowers]
+        histogram = metrics.UtilityReportHistogram(lowers, uppers,
+                                                   histogram_reports)
+        main_report.utility_report_histogram = histogram
+        return main_report
 
-    result = backend.map_tuple(cross_partition_metrics, add_index, "Add index")
+    col = backend.group_by_key(cross_partition_metrics, "Add index")
+    result = backend.map_tuple(col, group_utility_reports, "todo")
     # result: (UtilityReport)
 
     if return_per_partition:
@@ -146,3 +176,21 @@ def _pack_per_partition_metrics(
         else:
             ith_result.metric_errors.append(metric)
     return result
+
+
+def _generate_bucket_bounds():  # todo
+    return [
+        0, 1, 10, 100, 200, 500, 1000, 2000, 5000, 10**4, 2 * 10**4, 5 * 10**4,
+        10**5
+    ]
+
+
+def _get_lower(n: int, buckets: List[int]) -> int:
+    return buckets[bisect.bisect_right(buckets, n) - 1]
+
+
+def _get_upper(lower: int, buckets: List[int]) -> int:
+    index = bisect.bisect_right(buckets, lower)
+    if index > len(buckets):
+        return -1  # todo
+    return buckets[index]
