@@ -32,7 +32,7 @@ part of it. You can get a part of it by running in bash:
 from absl import app
 from absl import flags
 from apache_beam.runners.portability import fn_api_runner
-import pyspark
+# import pyspark
 from examples.movie_view_ratings.common_utils import *
 import pipeline_dp
 
@@ -77,12 +77,12 @@ def calc_dp_rating_metrics(movie_views, backend, public_partitions):
     params = pipeline_dp.AggregateParams(
         noise_kind=pipeline_dp.NoiseKind.LAPLACE,
         metrics=[
-            pipeline_dp.Metrics.COUNT, pipeline_dp.Metrics.SUM,
-            pipeline_dp.Metrics.MEAN, pipeline_dp.Metrics.VARIANCE
-        ] + ([pipeline_dp.Metrics.PRIVACY_ID_COUNT]
-             if not FLAGS.contribution_bounds_already_enforced else []),
-        max_partitions_contributed=2,
-        max_contributions_per_partition=1,
+            pipeline_dp.Metrics.COUNT,
+            pipeline_dp.Metrics.SUM,
+            pipeline_dp.Metrics.MEAN  #, pipeline_dp.Metrics.VARIANCE
+        ],  #+ ([pipeline_dp.Metrics.PRIVACY_ID_COUNT]
+        #   if not FLAGS.contribution_bounds_already_enforced else []),
+        max_contributions=10,
         min_value=1,
         max_value=5,
         contribution_bounds_already_enforced=FLAGS.
