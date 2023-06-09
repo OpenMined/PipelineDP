@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Public API for performing utility analysis."""
-from typing import Any, List, Tuple, Union
+from typing import Any, Iterable, List, Tuple, Union
 
 import pipeline_dp
 from pipeline_dp import pipeline_backend
@@ -81,18 +81,7 @@ def perform_utility_analysis(
     col = backend.values(per_partition_result, "Drop partition key")
     # ((metrics.PerPartitionMetrics))
 
-    buckets_bound = _generate_bucket_bounds()
-
-    def unnest_metrics(metrics: List[metrics.PerPartitionMetrics]):
-        for i, metric in enumerate(metrics):
-            yield ((i, None), metric)
-        if metrics[0].metric_errors:
-            actual_bucket_value = metrics[0].metric_errors[0].sum
-            bucket = _get_lower(actual_bucket_value, buckets_bound)
-            for i, metric in enumerate(metrics):
-                yield ((i, bucket), metric)
-
-    col = backend.flat_map(col, unnest_metrics, "Unnest metrics")
+    col = backend.flat_map(col, _unnest_metrics, "Unnest metrics")
     # ((configuration_index, bucket), metrics.PerPartitionMetrics)
 
     combiner = cross_partition_combiners.CrossPartitionCombiner(
@@ -115,30 +104,8 @@ def perform_utility_analysis(
         cross_partition_metrics, lambda key, value: (key[0], (key[1], value)),
         "todo")
 
-    def group_utility_reports(
-            index,
-            reports: List[metrics.UtilityReport]) -> metrics.UtilityReport:
-        main_report = None
-        histogram_reports = []
-        for bucket, report in reports:
-            report = copy.deepcopy(report)  # todo add comment
-            report.configuration_index = index
-            if bucket is None:  # main report
-                main_report = report
-            else:
-                histogram_reports.append((bucket, report))
-        if main_report == None:  # it shouldn't happen
-            return None
-        histogram_reports.sort()
-        lowers, histogram_reports = zip(*histogram_reports)
-        uppers = [_get_upper(lower, buckets_bound) for lower in lowers]
-        histogram = metrics.UtilityReportHistogram(lowers, uppers,
-                                                   histogram_reports)
-        main_report.utility_report_histogram = histogram
-        return main_report
-
     col = backend.group_by_key(cross_partition_metrics, "Add index")
-    result = backend.map_tuple(col, group_utility_reports, "todo")
+    result = backend.map_tuple(col, _group_utility_reports, "todo")
     # result: (UtilityReport)
 
     if return_per_partition:
@@ -178,19 +145,53 @@ def _pack_per_partition_metrics(
     return result
 
 
-def _generate_bucket_bounds():  # todo
-    return [
-        0, 1, 10, 100, 200, 500, 1000, 2000, 5000, 10**4, 2 * 10**4, 5 * 10**4,
-        10**5
-    ]
+BUCKET_BOUNDS = [
+    0, 1, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10**4, 2 * 10**4,
+    5 * 10**4, 10**5
+]
 
 
-def _get_lower(n: int, buckets: List[int]) -> int:
-    return buckets[bisect.bisect_right(buckets, n) - 1]
+def _get_lower_bound(n: int) -> int:
+    return BUCKET_BOUNDS[bisect.bisect_right(BUCKET_BOUNDS, n) - 1]
 
 
-def _get_upper(lower: int, buckets: List[int]) -> int:
-    index = bisect.bisect_right(buckets, lower)
-    if index > len(buckets):
+def _get_upper_bound(lower: int) -> int:
+    index = bisect.bisect_right(BUCKET_BOUNDS, lower)
+    if index > len(BUCKET_BOUNDS):
         return -1  # todo
-    return buckets[index]
+    return BUCKET_BOUNDS[index]
+
+
+def _unnest_metrics(
+    metrics: List[metrics.PerPartitionMetrics]
+) -> Iterable[Tuple[Any, metrics.PerPartitionMetrics]]:
+    for i, metric in enumerate(metrics):
+        yield ((i, None), metric)
+    if metrics[0].metric_errors:
+        actual_bucket_value = metrics[0].metric_errors[0].sum
+        bucket = _get_lower_bound(actual_bucket_value)
+        for i, metric in enumerate(metrics):
+            yield ((i, bucket), metric)
+
+
+def _group_utility_reports(
+        index, reports: List[metrics.UtilityReport]) -> metrics.UtilityReport:
+    """TODO"""
+    main_report = None
+    histogram_reports = []
+    for bucket, report in reports:
+        report = copy.deepcopy(report)  # todo add comment
+        report.configuration_index = index
+        if bucket is None:  # main report
+            main_report = report
+        else:
+            histogram_reports.append((bucket, report))
+    if main_report == None:  # it shouldn't happen
+        return None
+    histogram_reports.sort()
+    lowers, histogram_reports = zip(*histogram_reports)
+    uppers = list(map(_get_upper_bound, lowers))
+    histogram = metrics.UtilityReportHistogram(list(lowers), uppers,
+                                               list(histogram_reports))
+    main_report.utility_report_histogram = histogram
+    return main_report

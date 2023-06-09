@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Utility Analysis Public API Test"""
+import copy
+
 from absl.testing import absltest
 from absl.testing import parameterized
 
@@ -154,6 +156,11 @@ class UtilityAnalysis(parameterized.TestCase):
                         rmse_with_dropped_partitions=2.751575865814092,
                         l1_with_dropped_partitions=0.0))
             ])
+        expected_copy = copy.deepcopy(expected)
+        expected.utility_report_histogram = metrics.UtilityReportHistogram(
+            partition_size_from=[20],
+            partition_size_to=[50],
+            reports=[expected_copy])
         common.assert_dataclasses_are_equal(self, report, expected)
 
     @parameterized.named_parameters(
