@@ -247,6 +247,14 @@ class UtilityReport:
 
 @dataclass
 class UtilityReportHistogram:
+    """Stores histograms of UtilityReports by partition size.
+
+    Attributes:
+        partition_size_from: lower bound of partitions size.
+        partition_size_to: upper bound of partitions size.
+        reports: i-th element stores the result of utility analysis for
+          partitions of size [partition_size_from[i], partition_size_to[i]).
+    """
     partition_size_from: List[int]
     partition_size_to: List[int]
     reports: List[UtilityReport]

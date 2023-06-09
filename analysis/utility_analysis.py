@@ -24,6 +24,20 @@ import copy
 import bisect
 
 
+def _generate_bucket_bounds():
+    result = [0, 1]
+    for i in range(1, 10):
+        result.append(10**i)
+        result.append(2 * 10**i)
+        result.append(5 * 10**i)
+    return tuple(result)
+
+
+# Bucket bounds for metrics. UtilityReportHistogram.
+# Bounds are logarithmic: [0, 1] + [1, 2, 5]*10**i , for i = 1, 10.
+BUCKET_BOUNDS = _generate_bucket_bounds()
+
+
 def perform_utility_analysis(
         col,
         backend: pipeline_backend.PipelineBackend,
@@ -98,14 +112,18 @@ def perform_utility_analysis(
     cross_partition_metrics = backend.map_values(
         accumulators, combiner.compute_metrics,
         "Compute cross-partition metrics")
-    # cross_partition_metrics : ((configuration_index, bucket), UtilityReport)
+    #  ((configuration_index, bucket), UtilityReport)
 
     cross_partition_metrics = backend.map_tuple(
         cross_partition_metrics, lambda key, value: (key[0], (key[1], value)),
-        "todo")
+        "Rekey")
+    # (configuration_index, (bucket, UtilityReport))
 
-    col = backend.group_by_key(cross_partition_metrics, "Add index")
-    result = backend.map_tuple(col, _group_utility_reports, "todo")
+    cross_partition_metrics = backend.group_by_key(cross_partition_metrics,
+                                                   "Group by configuration")
+    # (configuration_index, Iterable[(bucket, UtilityReport)])
+    result = backend.map_tuple(cross_partition_metrics, _group_utility_reports,
+                               "Group utility reports")
     # result: (UtilityReport)
 
     if return_per_partition:
@@ -145,18 +163,16 @@ def _pack_per_partition_metrics(
     return result
 
 
-BUCKET_BOUNDS = [
-    0, 1, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10**4, 2 * 10**4,
-    5 * 10**4, 10**5
-]
-
-
 def _get_lower_bound(n: int) -> int:
+    if n < 0:
+        return 0
     return BUCKET_BOUNDS[bisect.bisect_right(BUCKET_BOUNDS, n) - 1]
 
 
-def _get_upper_bound(lower: int) -> int:
-    index = bisect.bisect_right(BUCKET_BOUNDS, lower)
+def _get_upper_bound(n: int) -> int:
+    if n < 0:
+        return 0
+    index = bisect.bisect_right(BUCKET_BOUNDS, n)
     if index > len(BUCKET_BOUNDS):
         return -1  # todo
     return BUCKET_BOUNDS[index]
@@ -165,9 +181,11 @@ def _get_upper_bound(lower: int) -> int:
 def _unnest_metrics(
     metrics: List[metrics.PerPartitionMetrics]
 ) -> Iterable[Tuple[Any, metrics.PerPartitionMetrics]]:
+    """Unnest metrics from different configurations."""
     for i, metric in enumerate(metrics):
         yield ((i, None), metric)
     if metrics[0].metric_errors:
+        # Emits metrics for computing histogram by partition size.
         actual_bucket_value = metrics[0].metric_errors[0].sum
         bucket = _get_lower_bound(actual_bucket_value)
         for i, metric in enumerate(metrics):
@@ -175,23 +193,42 @@ def _unnest_metrics(
 
 
 def _group_utility_reports(
-        index, reports: List[metrics.UtilityReport]) -> metrics.UtilityReport:
-    """TODO"""
-    main_report = None
+        configuration_index: int,
+        reports: List[metrics.UtilityReport]) -> metrics.UtilityReport:
+    """Groups utility reports for one configuration.
+
+    'reports' contains the global report, i.e. which corresponds to all
+    partitions and reports that corresponds to partitions of some size range.
+    This function creates UtilityReportHistogram from reports by size range and
+    sets it to the global report.
+    """
+    global_report = None
     histogram_reports = []
-    for bucket, report in reports:
-        report = copy.deepcopy(report)  # todo add comment
-        report.configuration_index = index
-        if bucket is None:  # main report
-            main_report = report
+    for lower_bucket_bound, report in reports:
+        #  Apache Beam does not allow input data to be changed during a map
+        #  stage. So 'report' has to be copied.
+        report = copy.deepcopy(report)
+        report.configuration_index = configuration_index
+        if lower_bucket_bound is None:
+            # only the report which corresponds to all partitions does not have
+            # the bucket.
+            global_report = report
         else:
-            histogram_reports.append((bucket, report))
-    if main_report == None:  # it shouldn't happen
+            histogram_reports.append((lower_bucket_bound, report))
+    if global_report is None:
+        # it should not happen, but it better to process gracefully in case
+        # if it happens and return None.
         return None
-    histogram_reports.sort()
-    lowers, histogram_reports = zip(*histogram_reports)
-    uppers = list(map(_get_upper_bound, lowers))
-    histogram = metrics.UtilityReportHistogram(list(lowers), uppers,
+
+    if not histogram_reports:
+        # It happens in SelectPartitions case.
+        # TODO(dvadym): cover SelectPartitions case as well.
+        return global_report
+    histogram_reports.sort()  # sort by lower_bucket_bound
+    lower_bucket_bound, histogram_reports = zip(*histogram_reports)
+    uppers_bucket_bound = list(map(_get_upper_bound, lower_bucket_bound))
+    histogram = metrics.UtilityReportHistogram(list(lower_bucket_bound),
+                                               uppers_bucket_bound,
                                                list(histogram_reports))
-    main_report.utility_report_histogram = histogram
-    return main_report
+    global_report.utility_report_histogram = histogram
+    return global_report

@@ -20,6 +20,7 @@ from absl.testing import parameterized
 import pipeline_dp
 import analysis
 from analysis import metrics
+from analysis import utility_analysis
 from analysis.tests import common
 
 
@@ -31,6 +32,23 @@ class UtilityAnalysis(parameterized.TestCase):
             partition_extractor=lambda x: x,
             value_extractor=lambda x: x,
         )
+
+    def _get_sum_metrics(self, sum_value: float) -> metrics.SumMetrics:
+        return metrics.SumMetrics(sum=sum_value,
+                                  per_partition_error_max=1,
+                                  per_partition_error_min=0,
+                                  expected_cross_partition_error=0,
+                                  std_cross_partition_error=0,
+                                  std_noise=1,
+                                  noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)
+
+    def _get_per_partition_metrics(self, n_configurations=3):
+        result = []
+        for i in range(n_configurations):
+            result.append(
+                metrics.PerPartitionMetrics(
+                    0.1, metric_errors=[self._get_sum_metrics(150)]))
+        return result
 
     @parameterized.parameters(False, True)
     def test_wo_public_partitions(self, pre_aggregated: bool):
@@ -267,6 +285,38 @@ class UtilityAnalysis(parameterized.TestCase):
                              expected_noise_std[i_configuration])
             self.assertEqual(errors.absolute_error.bounding_errors.l0.mean,
                              expected_l0_error[i_configuration])
+
+    def test_generate_bucket_bounds(self):
+        self.assertLen(utility_analysis._generate_bucket_bounds(), 29)
+        self.assertEqual(utility_analysis._generate_bucket_bounds()[:10],
+                         [0, 1, 10, 10, 20, 50, 100, 200, 500, 1000])
+
+    def test_get_lower_bound(self):
+        self.assertEqual(utility_analysis._get_lower_bound(-1), 0)
+        self.assertEqual(utility_analysis._get_lower_bound(0), 0)
+        self.assertEqual(utility_analysis._get_lower_bound(1), 1)
+        self.assertEqual(utility_analysis._get_lower_bound(5), 1)
+        self.assertEqual(utility_analysis._get_lower_bound(11), 10)
+        self.assertEqual(utility_analysis._get_lower_bound(20), 20)
+        self.assertEqual(utility_analysis._get_lower_bound(1234), 1000)
+
+    def test_get_upper_bound(self):
+        self.assertEqual(utility_analysis._get_upper_bound(-1), 0)
+        self.assertEqual(utility_analysis._get_upper_bound(0), 1)
+        self.assertEqual(utility_analysis._get_upper_bound(1), 10)
+        self.assertEqual(utility_analysis._get_upper_bound(5), 10)
+        self.assertEqual(utility_analysis._get_upper_bound(11), 20)
+        self.assertEqual(utility_analysis._get_upper_bound(20), 50)
+        self.assertEqual(utility_analysis._get_upper_bound(1234), 2000)
+
+    def test_unnest_metrics(self):
+        input_data = self._get_per_partition_metrics(n_configurations=2)
+        output = list(utility_analysis._unnest_metrics(input_data))
+        self.assertLen(output, 4)
+        self.assertEqual(output[0], ((0, None), input_data[0]))
+        self.assertEqual(output[1], ((1, None), input_data[1]))
+        self.assertEqual(output[2], ((0, 100), input_data[0]))
+        self.assertEqual(output[3], ((1, 100), input_data[1]))
 
 
 if __name__ == '__main__':

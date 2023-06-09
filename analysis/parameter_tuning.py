@@ -22,7 +22,7 @@ from analysis import utility_analysis
 
 import dataclasses
 from dataclasses import dataclass
-from typing import Callable, List, Optional, Tuple, Union
+from typing import Callable, List, Tuple, Union
 from enum import Enum
 import numpy as np
 
@@ -248,13 +248,11 @@ def _convert_utility_analysis_to_tune_result_new(
         ]
         index_best = np.argmin(rmse)
 
-    return TuneResult(
-        tune_options,
-        contribution_histograms,
-        run_configurations,
-        index_best,
-        utility_reports=utility_reports,
-    )
+    return TuneResult(tune_options,
+                      contribution_histograms,
+                      run_configurations,
+                      index_best,
+                      utility_reports=utility_reports)
 
 
 def _check_tune_args(options: TuneOptions):
