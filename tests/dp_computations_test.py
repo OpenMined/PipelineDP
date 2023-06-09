@@ -70,7 +70,8 @@ class DPComputationsTest(parameterized.TestCase):
         laplace_sample = np.random.laplace(expected_mean, expected_beta,
                                            num_trials)
         statistic, pvalue = stats.ks_2samp(results, laplace_sample)
-        self.assertGreaterEqual(pvalue, 10e-4)
+        # By the p-value definition, the next line has flakiness 1e-4.
+        self.assertGreaterEqual(pvalue, 1e-4)
 
     def _test_gaussian_kolmogorov_smirnov(self, num_trials: int, results,
                                           expected_mean: float,
@@ -78,7 +79,8 @@ class DPComputationsTest(parameterized.TestCase):
         guassian_sample = np.random.normal(expected_mean, expected_sigma,
                                            num_trials)
         statistic, pvalue = stats.ks_2samp(results, guassian_sample)
-        self.assertGreaterEqual(pvalue, 10e-4)
+        # By the p-value definition, the next line has flakiness 1e-4.
+        self.assertGreaterEqual(pvalue, 1e-4)
 
     def _laplace_prob_mass_within_one_std(self):
         return 1.0 - math.exp(-math.sqrt(2.0))
@@ -128,7 +130,7 @@ class DPComputationsTest(parameterized.TestCase):
     def _test_laplace_noise(self, num_trials: int, results,
                             expected_mean: float, l1_sensitivity: float,
                             eps: float):
-        expected_beta = (l1_sensitivity / eps)
+        expected_beta = l1_sensitivity / eps
         self._test_samples_from_distribution(
             values=results,
             num_trials=num_trials,
