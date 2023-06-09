@@ -289,7 +289,7 @@ class UtilityAnalysis(parameterized.TestCase):
     def test_generate_bucket_bounds(self):
         self.assertLen(utility_analysis._generate_bucket_bounds(), 29)
         self.assertEqual(utility_analysis._generate_bucket_bounds()[:10],
-                         [0, 1, 10, 10, 20, 50, 100, 200, 500, 1000])
+                         (0, 1, 10, 20, 50, 100, 200, 500, 1000, 2000))
 
     def test_get_lower_bound(self):
         self.assertEqual(utility_analysis._get_lower_bound(-1), 0)
