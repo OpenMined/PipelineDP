@@ -69,16 +69,16 @@ class DPComputationsTest(parameterized.TestCase):
                                          expected_beta: float):
         laplace_sample = np.random.laplace(expected_mean, expected_beta,
                                            num_trials)
-        (statistic, pvalue) = stats.ks_2samp(results, laplace_sample)
-        self.assertGreaterEqual(pvalue, 0.001)
+        statistic, pvalue = stats.ks_2samp(results, laplace_sample)
+        self.assertGreaterEqual(pvalue, 10e-4)
 
     def _test_gaussian_kolmogorov_smirnov(self, num_trials: int, results,
                                           expected_mean: float,
                                           expected_sigma: float):
         guassian_sample = np.random.normal(expected_mean, expected_sigma,
                                            num_trials)
-        (statistic, pvalue) = stats.ks_2samp(results, guassian_sample)
-        self.assertGreaterEqual(pvalue, 0.001)
+        statistic, pvalue = stats.ks_2samp(results, guassian_sample)
+        self.assertGreaterEqual(pvalue, 10e-4)
 
     def _laplace_prob_mass_within_one_std(self):
         return 1.0 - math.exp(-math.sqrt(2.0))
