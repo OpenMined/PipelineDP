@@ -225,10 +225,10 @@ def _group_utility_reports(
         # TODO(dvadym): cover SelectPartitions case as well.
         return global_report
     histogram_reports.sort()  # sort by lower_bucket_bound
-    lower_bucket_bound, histogram_reports = zip(*histogram_reports)
-    uppers_bucket_bound = list(map(_get_upper_bound, lower_bucket_bound))
-    histogram = metrics.UtilityReportHistogram(list(lower_bucket_bound),
-                                               uppers_bucket_bound,
-                                               list(histogram_reports))
-    global_report.utility_report_histogram = histogram
+    utility_report_histogram = [
+        metrics.UtilityReportBin(lower_bound, _get_upper_bound(lower_bound),
+                                 report)
+        for lower_bound, report in histogram_reports
+    ]
+    global_report.utility_report_histogram = utility_report_histogram
     return global_report

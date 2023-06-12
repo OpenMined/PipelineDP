@@ -175,10 +175,11 @@ class UtilityAnalysis(parameterized.TestCase):
                         l1_with_dropped_partitions=0.0))
             ])
         expected_copy = copy.deepcopy(expected)
-        expected.utility_report_histogram = metrics.UtilityReportHistogram(
-            partition_size_from=[20],
-            partition_size_to=[50],
-            reports=[expected_copy])
+        expected.utility_report_histogram = [
+            metrics.UtilityReportBin(size_from=20,
+                                     size_to=50,
+                                     report=expected_copy)
+        ]
         common.assert_dataclasses_are_equal(self, report, expected)
 
     @parameterized.named_parameters(
