@@ -237,8 +237,25 @@ class UtilityReport:
         partition_metrics: utility analysis of selected partition.
         metric_errors: utility analysis of metrics (e.g. COUNT, SUM,
           PRIVACY_ID_COUNT).
+        utility_report_histogram:
     """
     configuration_index: int
 
     partitions_info: PartitionsInfo
     metric_errors: Optional[List[MetricUtility]] = None
+    utility_report_histogram: Optional[List['UtilityReportBin']] = None
+
+
+@dataclass
+class UtilityReportBin:
+    """Stores a bin for a histogram of UtilityReports by partition size.
+
+     Attributes:
+        size_from: lower bound of partitions size.
+        size_to: upper bound of partitions size.
+        report: the result of utility analysis for partitions of size
+          [size_from, size_to).
+    """
+    size_from: int
+    size_to: int
+    report: UtilityReport
