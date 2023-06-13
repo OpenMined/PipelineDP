@@ -684,8 +684,9 @@ def compute_sensitivities_for_count(
 
 def compute_sensitivities_for_privacy_id_count(
         params: pipeline_dp.AggregateParams) -> Sensitivities:
-    return Sensitivities(l1=params.max_contributions,
-                         l2=math.sqrt(params.max_contributions))
+    if params.max_contributions is not None:
+        return Sensitivities(l1=params.max_contributions,
+                             l2=math.sqrt(params.max_contributions))
     return Sensitivities(l0=params.max_partitions_contributed, linf=1)
 
 
