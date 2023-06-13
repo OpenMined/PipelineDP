@@ -16,7 +16,7 @@ import dataclasses
 import typing
 from apache_beam.transforms import ptransform
 from abc import abstractmethod
-from typing import Callable, Optional
+from typing import Any, Callable, Optional
 from apache_beam import pvalue
 import apache_beam as beam
 
@@ -503,7 +503,7 @@ class PrivateCombineFn(beam.CombineFn):
     """
 
     @abc.abstractmethod
-    def add_input_for_private_output(self, accumulator, input):
+    def add_input_for_private_output(self, accumulator, input) -> Any:
         """Add input, which contributes to private output.
 
          This is a DP counterpart of `add_input()`. The same CombinerFn can
@@ -512,11 +512,12 @@ class PrivateCombineFn(beam.CombineFn):
 
          Typically, this function should perform input clipping to ensure
          differential privacy.
+
+         Returns the accumulator with added 'input'.
          """
 
     @abc.abstractmethod
-    def extract_private_output(self, accumulator,
-                               budget: budget_accounting.MechanismSpec):
+    def extract_private_output(self, accumulator, budget: Any):
         """Computes private output.
 
         'budget' is the object which returned from 'request_budget()'.
@@ -524,15 +525,16 @@ class PrivateCombineFn(beam.CombineFn):
 
     @abc.abstractmethod
     def request_budget(
-        self, budget_accountant: budget_accounting.BudgetAccountant
-    ) -> budget_accounting.MechanismSpec:
+            self, budget_accountant: budget_accounting.BudgetAccountant) -> Any:
         """Requests the budget.
 
         It is called by PipelineDP during the construction of the computations.
-        The custom combiner can request a DP budget by calling
-        'budget_accountant.request_budget()'. The budget object needs to be
-        returned. It will be serialized and distributed to the workers together
-        with 'self'.
+        The custom combiner can request DP budgets by calling
+        'budget_accountant.request_budget()' (one or more time). The budget
+        objects need to be returned in any serializable object. They will be
+        serialized and distributed to the workers together with 'self'.
+        E.g. it's possible to return budget or to return a dictionary
+        {"key1": budget1, "key2": budget2}.
 
         Warning: do not store 'budget_accountant' in 'self'. It is assumed to
         live in the driver process.
