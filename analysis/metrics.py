@@ -254,11 +254,11 @@ class UtilityReportBin:
     was computed. The metric can be COUNT, PRIVACY_ID_COUNT, SUM.
 
      Attributes:
-        partition_sizefrom: lower bound of partitions size.
-        partition_sizeto: upper bound of partitions size.
+        partition_size_from: lower bound of partitions size.
+        partition_size_to: upper bound of partitions size.
         report: the result of utility analysis for partitions of size
-          [partition_sizefrom, partition_sizeto).
+          [partition_size_from, partition_size_to).
     """
-    partition_sizefrom: int
-    partition_sizeto: int
+    partition_size_from: int
+    partition_size_to: int
     report: UtilityReport
