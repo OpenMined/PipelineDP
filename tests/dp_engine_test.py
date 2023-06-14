@@ -530,8 +530,7 @@ class DpEngineTest(parameterized.TestCase):
                                                     unittest.mock.ANY,
                                                     unittest.mock.ANY)
 
-    @patch(
-        'pipeline_dp.dp_engine.DPEngine._drop_partitions',)
+    @patch('pipeline_dp.dp_engine.DPEngine._drop_partitions',)
     def test_aggregate_no_partition_filtering_public_partitions(
             self, mock_drop_partitions):
         # Arrange

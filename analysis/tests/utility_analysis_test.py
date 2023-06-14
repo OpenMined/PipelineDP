@@ -176,8 +176,8 @@ class UtilityAnalysis(parameterized.TestCase):
             ])
         expected_copy = copy.deepcopy(expected)
         expected.utility_report_histogram = [
-            metrics.UtilityReportBin(size_from=20,
-                                     size_to=50,
+            metrics.UtilityReportBin(partition_size_from=20,
+                                     partition_size_to=50,
                                      report=expected_copy)
         ]
         common.assert_dataclasses_are_equal(self, report, expected)
