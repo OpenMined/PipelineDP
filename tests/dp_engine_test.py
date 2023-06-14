@@ -368,6 +368,13 @@ class DpEngineTest(parameterized.TestCase):
             max_contributions_per_partition=1,
             metrics=[pipeline_dp.Metrics.PRIVACY_ID_COUNT])
 
+        var_max_contribtions_params = pipeline_dp.AggregateParams(
+            noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+            min_value=0,
+            max_value=1,
+            max_contributions=1,
+            metrics=[pipeline_dp.Metrics.VARIANCE])
+
         test_cases = [
             {
                 "desc": "None col",
@@ -398,6 +405,12 @@ class DpEngineTest(parameterized.TestCase):
                 "col": [0],
                 "params": default_params,
                 "data_extractor": 1,
+            },
+            {
+                "desc": "max_contributions is not supported for VARIANCE",
+                "col": [0],
+                "params": var_max_contribtions_params,
+                "data_extractor": default_extractors,
             },
         ]
 
