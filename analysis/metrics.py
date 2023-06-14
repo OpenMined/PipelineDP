@@ -261,12 +261,15 @@ class UtilityReport:
 class UtilityReportBin:
     """Stores a bin for a histogram of UtilityReports by partition size.
 
+    The partition size is the non-DP value of the metric whose utility analysis
+    was computed. The metric can be COUNT, PRIVACY_ID_COUNT, SUM.
+
      Attributes:
-        size_from: lower bound of partitions size.
-        size_to: upper bound of partitions size.
+        partition_size_from: lower bound of partitions size.
+        partition_size_to: upper bound of partitions size.
         report: the result of utility analysis for partitions of size
-          [size_from, size_to).
+          [partition_size_from, partition_size_to).
     """
-    size_from: int
-    size_to: int
+    partition_size_from: int
+    partition_size_to: int
     report: UtilityReport
