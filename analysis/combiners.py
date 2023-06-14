@@ -227,8 +227,8 @@ class PartitionSelectionCombiner(UtilityAnalysisCombiner):
 
 class SumCombiner(UtilityAnalysisCombiner):
     """A combiner for utility analysis sums."""
-    # (partition_sum, per_partition_error_min, per_partition_error_max,
-    # expected_cross_partition_error, var_cross_partition_error)
+    # (partition_sum, clipping_to_min_error, clipping_to_max_error,
+    # expected_l0_bounding_error, var_cross_partition_error)
     AccumulatorType = Tuple[float, float, float, float, float]
 
     def __init__(self, params: pipeline_dp.combiners.CombinerParams):
@@ -247,40 +247,39 @@ class SumCombiner(UtilityAnalysisCombiner):
         per_partition_contribution = np.clip(partition_sum, min_bound,
                                              max_bound)
         per_partition_error = per_partition_contribution - partition_sum
-        per_partition_error_min = np.where(partition_sum < min_bound,
-                                           per_partition_error, 0)
-        per_partition_error_max = np.where(partition_sum > max_bound,
-                                           per_partition_error, 0)
-        expected_cross_partition_error = -per_partition_contribution * (
+        clipping_to_min_error = np.where(partition_sum < min_bound,
+                                         per_partition_error, 0)
+        clipping_to_max_error = np.where(partition_sum > max_bound,
+                                         per_partition_error, 0)
+        expected_l0_bounding_error = -per_partition_contribution * (
             1 - l0_prob_keep_contribution)
         var_cross_partition_error = per_partition_contribution**2 * l0_prob_keep_contribution * (
             1 - l0_prob_keep_contribution)
 
-        return (partition_sum.sum().item(),
-                per_partition_error_min.sum().item(),
-                per_partition_error_max.sum().item(),
-                expected_cross_partition_error.sum().item(),
+        return (partition_sum.sum().item(), clipping_to_min_error.sum().item(),
+                clipping_to_max_error.sum().item(),
+                expected_l0_bounding_error.sum().item(),
                 var_cross_partition_error.sum().item())
 
     def compute_metrics(self, acc: AccumulatorType) -> metrics.SumMetrics:
         """Computes metrics based on the accumulator properties."""
-        partition_sum, per_partition_error_min, per_partition_error_max, expected_cross_partition_error, var_cross_partition_error = acc
+        partition_sum, clipping_to_min_error, clipping_to_max_error, expected_l0_bounding_error, var_cross_partition_error = acc
         std_noise = dp_computations.compute_dp_count_noise_std(
             self._params.scalar_noise_params)
         return metrics.SumMetrics(
             sum=partition_sum,
-            per_partition_error_min=per_partition_error_min,
-            per_partition_error_max=per_partition_error_max,
-            expected_cross_partition_error=expected_cross_partition_error,
-            std_cross_partition_error=math.sqrt(var_cross_partition_error),
+            clipping_to_min_error=clipping_to_min_error,
+            clipping_to_max_error=clipping_to_max_error,
+            expected_l0_bounding_error=expected_l0_bounding_error,
+            std_l0_bounding_error=math.sqrt(var_cross_partition_error),
             std_noise=std_noise,
             noise_kind=self._params.aggregate_params.noise_kind)
 
 
 class CountCombiner(SumCombiner):
     """A combiner for utility analysis counts."""
-    # (partition_sum, per_partition_error_min, per_partition_error_max,
-    # expected_cross_partition_error, var_cross_partition_error)
+    # (partition_sum, clipping_to_min_error, clipping_to_max_error,
+    # expected_l0_bounding_error, var_cross_partition_error)
     AccumulatorType = Tuple[float, float, float, float, float]
 
     def create_accumulator(
@@ -295,8 +294,8 @@ class CountCombiner(SumCombiner):
 
 class PrivacyIdCountCombiner(SumCombiner):
     """A combiner for utility analysis privacy ID counts."""
-    # (partition_sum, per_partition_error_min, per_partition_error_max,
-    # expected_cross_partition_error, var_cross_partition_error)
+    # (partition_sum, clipping_to_min_error, clipping_to_max_error,
+    # expected_l0_bounding_error, var_cross_partition_error)
     AccumulatorType = Tuple[float, float, float, float, float]
 
     def __init__(self, params: pipeline_dp.combiners.CombinerParams):

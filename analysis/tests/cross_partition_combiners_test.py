@@ -26,10 +26,10 @@ import pipeline_dp
 
 def _get_sum_metrics():
     return metrics.SumMetrics(sum=10.0,
-                              per_partition_error_min=3.0,
-                              per_partition_error_max=-5.0,
-                              expected_cross_partition_error=-2.0,
-                              std_cross_partition_error=3.0,
+                              clipping_to_min_error=3.0,
+                              clipping_to_max_error=-5.0,
+                              expected_l0_bounding_error=-2.0,
+                              std_l0_bounding_error=3.0,
                               std_noise=4.0,
                               noise_kind=pipeline_dp.NoiseKind.LAPLACE)
 
@@ -295,8 +295,8 @@ class CrossPartitionCombiner(parameterized.TestCase):
                          1)
         self.assertLen(utility_report.metric_errors, 1)
 
-    @patch("analysis.cross_partition_combiners._per_partition_to_utility_report"
-          )
+    @patch(
+        "analysis.cross_partition_combiners._per_partition_to_utility_report")
     def test_create_report_with_mocks(self,
                                       mock_per_partition_to_utility_report):
         combiner = self._create_combiner()
