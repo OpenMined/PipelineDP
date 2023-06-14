@@ -231,8 +231,11 @@ class SumCombiner(UtilityAnalysisCombiner):
     # expected_l0_bounding_error, var_cross_partition_error)
     AccumulatorType = Tuple[float, float, float, float, float]
 
-    def __init__(self, params: pipeline_dp.combiners.CombinerParams):
+    def __init__(self,
+                 params: pipeline_dp.combiners.CombinerParams,
+                 metric: pipeline_dp.Metrics = pipeline_dp.Metrics.SUM):
         self._params = copy.copy(params)
+        self._metric = metric
 
     def create_accumulator(
             self, data: Tuple[np.ndarray, np.ndarray,
@@ -267,6 +270,7 @@ class SumCombiner(UtilityAnalysisCombiner):
         std_noise = dp_computations.compute_dp_count_noise_std(
             self._params.scalar_noise_params)
         return metrics.SumMetrics(
+            aggregation=self._metric,
             sum=partition_sum,
             clipping_to_min_error=clipping_to_min_error,
             clipping_to_max_error=clipping_to_max_error,
@@ -281,6 +285,9 @@ class CountCombiner(SumCombiner):
     # (partition_sum, clipping_to_min_error, clipping_to_max_error,
     # expected_l0_bounding_error, var_cross_partition_error)
     AccumulatorType = Tuple[float, float, float, float, float]
+
+    def __init__(self, params: pipeline_dp.combiners.CombinerParams):
+        super().__init__(params, pipeline_dp.Metrics.COUNT)
 
     def create_accumulator(
         self, sparse_acc: Tuple[np.ndarray, np.ndarray,
@@ -299,7 +306,7 @@ class PrivacyIdCountCombiner(SumCombiner):
     AccumulatorType = Tuple[float, float, float, float, float]
 
     def __init__(self, params: pipeline_dp.combiners.CombinerParams):
-        self._params = copy.copy(params)
+        super().__init__(params, pipeline_dp.Metrics.PRIVACY_ID_COUNT)
         self._params.aggregate_params.max_contributions_per_partition = 1
 
     def create_accumulator(

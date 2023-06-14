@@ -27,6 +27,8 @@ class SumMetrics:
     It is also used to store COUNT and PRIVACY_ID_COUNT per-partition metrics.
 
     Attributes:
+        aggregation: DP aggregation for which this analysis was performed. It
+          can be COUNT, PRIVACY_ID_COUNT or SUM.
         sum: Non-DP sum of contributions to the aggregated metric being
           analyzed. In case of SUM, this field stores the sum of all values
           contributed by privacy IDs, in  case of COUNT, it is the count of
@@ -47,7 +49,7 @@ class SumMetrics:
     E(sum_after_contribution_bounding) = sum + E(error)
     where E(error) = clipping_to_min_error + clipping_to_max_error + expected_l0_bounding_error
     """
-    # metric: pipeline_dp.Metrics
+    aggregation: pipeline_dp.Metrics
     sum: float
     clipping_to_min_error: float
     clipping_to_max_error: float

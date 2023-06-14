@@ -266,14 +266,16 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
         [self.assertLen(partition_metrics, 2) for partition_metrics in output]
 
         expected_pk0 = [
-            metrics.SumMetrics(sum=1.0,
+            metrics.SumMetrics(aggregation=pipeline_dp.Metrics.COUNT,
+                               sum=1.0,
                                clipping_to_min_error=0.0,
                                clipping_to_max_error=0.0,
                                expected_l0_bounding_error=-0.5,
                                std_l0_bounding_error=0.5,
                                std_noise=5.87109375,
                                noise_kind=pipeline_dp.NoiseKind.GAUSSIAN),
-            metrics.SumMetrics(sum=1.0,
+            metrics.SumMetrics(aggregation=pipeline_dp.Metrics.COUNT,
+                               sum=1.0,
                                clipping_to_min_error=0.0,
                                clipping_to_max_error=0.0,
                                expected_l0_bounding_error=0,
@@ -282,14 +284,16 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
                                noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)
         ]
         expected_pk1 = [
-            metrics.SumMetrics(sum=2.0,
+            metrics.SumMetrics(aggregation=pipeline_dp.Metrics.COUNT,
+                               sum=2.0,
                                clipping_to_min_error=0.0,
                                clipping_to_max_error=-1.0,
                                expected_l0_bounding_error=-0.5,
                                std_l0_bounding_error=0.5,
                                std_noise=5.87109375,
                                noise_kind=pipeline_dp.NoiseKind.GAUSSIAN),
-            metrics.SumMetrics(sum=2.0,
+            metrics.SumMetrics(aggregation=pipeline_dp.Metrics.COUNT,
+                               sum=2.0,
                                clipping_to_min_error=0.0,
                                clipping_to_max_error=0.0,
                                expected_l0_bounding_error=0,

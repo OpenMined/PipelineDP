@@ -65,6 +65,7 @@ class UtilityAnalysisCountCombinerTest(parameterized.TestCase):
              contribution_values=(),
              params=_create_combiner_params_for_count(),
              expected_metrics=metrics.SumMetrics(
+                 aggregation=pipeline_dp.Metrics.COUNT,
                  sum=0.0,
                  clipping_to_min_error=0.0,
                  clipping_to_max_error=0.0,
@@ -77,6 +78,7 @@ class UtilityAnalysisCountCombinerTest(parameterized.TestCase):
              contribution_values=(1, 2),
              params=_create_combiner_params_for_count(),
              expected_metrics=metrics.SumMetrics(
+                 aggregation=pipeline_dp.Metrics.COUNT,
                  sum=2.0,
                  clipping_to_min_error=0.0,
                  clipping_to_max_error=0.0,
@@ -89,6 +91,7 @@ class UtilityAnalysisCountCombinerTest(parameterized.TestCase):
              contribution_values=(1, 2, 3, 4),
              params=_create_combiner_params_for_count(),
              expected_metrics=metrics.SumMetrics(
+                 aggregation=pipeline_dp.Metrics.COUNT,
                  sum=4.0,
                  clipping_to_min_error=0.0,
                  clipping_to_max_error=-2.0,
@@ -267,6 +270,7 @@ class UtilityAnalysisSumCombinerTest(parameterized.TestCase):
              contribution_values=[()],
              params=_create_combiner_params_for_sum(0, 0),
              expected_metrics=metrics.SumMetrics(
+                 aggregation=pipeline_dp.Metrics.SUM,
                  sum=0,
                  clipping_to_min_error=0,
                  clipping_to_max_error=0,
@@ -279,6 +283,7 @@ class UtilityAnalysisSumCombinerTest(parameterized.TestCase):
              contribution_values=[(1.1, 2.2)],
              params=_create_combiner_params_for_sum(0, 3.4),
              expected_metrics=metrics.SumMetrics(
+                 aggregation=pipeline_dp.Metrics.SUM,
                  sum=3.3,
                  clipping_to_min_error=0,
                  clipping_to_max_error=0,
@@ -291,6 +296,7 @@ class UtilityAnalysisSumCombinerTest(parameterized.TestCase):
              contribution_values=[(1.1, 2.2, 3.3, 4.4)],
              params=_create_combiner_params_for_sum(0, 5.5),
              expected_metrics=metrics.SumMetrics(
+                 aggregation=pipeline_dp.Metrics.SUM,
                  sum=11.0,
                  clipping_to_min_error=0,
                  clipping_to_max_error=-5.5,
@@ -303,6 +309,7 @@ class UtilityAnalysisSumCombinerTest(parameterized.TestCase):
              contribution_values=[(0.1, 0.2, 0.3, 0.4)],
              params=_create_combiner_params_for_sum(2, 20),
              expected_metrics=metrics.SumMetrics(
+                 aggregation=pipeline_dp.Metrics.SUM,
                  sum=1.0,
                  clipping_to_min_error=1,
                  clipping_to_max_error=0,
@@ -315,6 +322,7 @@ class UtilityAnalysisSumCombinerTest(parameterized.TestCase):
              contribution_values=[(1,), (0.1, 0.2, 0.3, 0.4)],
              params=_create_combiner_params_for_sum(0, 0.5),
              expected_metrics=metrics.SumMetrics(
+                 aggregation=pipeline_dp.Metrics.SUM,
                  sum=2.0,
                  clipping_to_min_error=0,
                  clipping_to_max_error=-1.0,
@@ -371,6 +379,7 @@ class UtilityAnalysisPrivacyIdCountCombinerTest(parameterized.TestCase):
              contribution_values=(),
              params=_create_combiner_params_for_privacy_id_count(),
              expected_metrics=metrics.SumMetrics(
+                 aggregation=pipeline_dp.Metrics.PRIVACY_ID_COUNT,
                  sum=0.0,
                  clipping_to_min_error=0.0,
                  clipping_to_max_error=0.0,
@@ -383,6 +392,7 @@ class UtilityAnalysisPrivacyIdCountCombinerTest(parameterized.TestCase):
              contribution_values=(2,),
              params=_create_combiner_params_for_privacy_id_count(),
              expected_metrics=metrics.SumMetrics(
+                 aggregation=pipeline_dp.Metrics.PRIVACY_ID_COUNT,
                  sum=1.0,
                  clipping_to_min_error=0.0,
                  clipping_to_max_error=0.0,
@@ -395,6 +405,7 @@ class UtilityAnalysisPrivacyIdCountCombinerTest(parameterized.TestCase):
              contribution_values=(2, 2, 2, 2),
              params=_create_combiner_params_for_privacy_id_count(),
              expected_metrics=metrics.SumMetrics(
+                 aggregation=pipeline_dp.Metrics.PRIVACY_ID_COUNT,
                  sum=1.0,
                  clipping_to_min_error=0.0,
                  clipping_to_max_error=0.0,
@@ -407,6 +418,7 @@ class UtilityAnalysisPrivacyIdCountCombinerTest(parameterized.TestCase):
              contribution_values=(2, 2),
              params=_create_combiner_params_for_privacy_id_count(),
              expected_metrics=metrics.SumMetrics(
+                 aggregation=pipeline_dp.Metrics.PRIVACY_ID_COUNT,
                  sum=1.0,
                  clipping_to_min_error=0.0,
                  clipping_to_max_error=0.0,
@@ -522,6 +534,7 @@ class UtilityAnalysisCompoundCombinerTest(parameterized.TestCase):
              num_partitions=0,
              contribution_values=(),
              expected_metrics=metrics.SumMetrics(
+                 aggregation=pipeline_dp.Metrics.COUNT,
                  sum=0,
                  clipping_to_min_error=0.0,
                  clipping_to_max_error=0.0,
@@ -533,6 +546,7 @@ class UtilityAnalysisCompoundCombinerTest(parameterized.TestCase):
              num_partitions=1,
              contribution_values=(1, 2),
              expected_metrics=metrics.SumMetrics(
+                 aggregation=pipeline_dp.Metrics.COUNT,
                  sum=2.0,
                  clipping_to_min_error=0.0,
                  clipping_to_max_error=0.0,
@@ -544,6 +558,7 @@ class UtilityAnalysisCompoundCombinerTest(parameterized.TestCase):
              num_partitions=4,
              contribution_values=(1, 2, 3, 4),
              expected_metrics=metrics.SumMetrics(
+                 aggregation=pipeline_dp.Metrics.COUNT,
                  sum=4.0,
                  clipping_to_min_error=0.0,
                  clipping_to_max_error=-2.0,
@@ -560,7 +575,6 @@ class UtilityAnalysisCompoundCombinerTest(parameterized.TestCase):
         self.assertEqual(expected_metrics, combiner.compute_metrics(acc)[0])
 
     def test_compute_metrics_mix_sparse_dense(self):
-        combiner = self._create_combiner()
         sparse = ([1, 11], [10, 2], [100, 300])
         dense = (4, ((2, 1.5, 2, -1, 3),))
         acc = (sparse, dense)
@@ -570,7 +584,8 @@ class UtilityAnalysisCompoundCombinerTest(parameterized.TestCase):
         self.assertLen(output, 1)  # only 1 combiner.
         common.assert_dataclasses_are_equal(
             self,
-            metrics.SumMetrics(sum=14,
+            metrics.SumMetrics(aggregation=pipeline_dp.Metrics.COUNT,
+                               sum=14,
                                clipping_to_min_error=1.5,
                                clipping_to_max_error=-7.0,
                                expected_l0_bounding_error=-3.9833333333333334,

@@ -25,7 +25,8 @@ import pipeline_dp
 
 
 def _get_sum_metrics():
-    return metrics.SumMetrics(sum=10.0,
+    return metrics.SumMetrics(aggregation=pipeline_dp.Metrics.SUM,
+                              sum=10.0,
                               clipping_to_min_error=3.0,
                               clipping_to_max_error=-5.0,
                               expected_l0_bounding_error=-2.0,
@@ -154,11 +155,12 @@ class PerPartitionToCrossPartitionMetrics(parameterized.TestCase):
             metrics.DataDropInfo(l0=2.0, linf=5.0, partition_selection=0.0))
 
     def test_sum_metrics_to_data_dropped_empty_public(self):
-        input = metrics.SumMetrics(0,
-                                   0,
-                                   0,
-                                   0,
-                                   0,
+        input = metrics.SumMetrics(aggregation=pipeline_dp.Metrics.SUM,
+                                   sum=0.0,
+                                   clipping_to_min_error=0.0,
+                                   clipping_to_max_error=0.0,
+                                   expected_l0_bounding_error=0.0,
+                                   std_l0_bounding_error=0.0,
                                    std_noise=1.0,
                                    noise_kind=pipeline_dp.NoiseKind.LAPLACE)
         output = cross_partition_combiners._sum_metrics_to_data_dropped(

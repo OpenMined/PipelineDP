@@ -34,7 +34,8 @@ class UtilityAnalysis(parameterized.TestCase):
         )
 
     def _get_sum_metrics(self, sum_value: float) -> metrics.SumMetrics:
-        return metrics.SumMetrics(sum=sum_value,
+        return metrics.SumMetrics(aggregation=pipeline_dp.Metrics.COUNT,
+                                  sum=sum_value,
                                   clipping_to_max_error=1,
                                   clipping_to_min_error=0,
                                   expected_l0_bounding_error=0,
