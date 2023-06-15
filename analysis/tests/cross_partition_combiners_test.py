@@ -297,8 +297,8 @@ class CrossPartitionCombiner(parameterized.TestCase):
                          1)
         self.assertLen(utility_report.metric_errors, 1)
 
-    @patch(
-        "analysis.cross_partition_combiners._per_partition_to_utility_report")
+    @patch("analysis.cross_partition_combiners._per_partition_to_utility_report"
+          )
     def test_create_report_with_mocks(self,
                                       mock_per_partition_to_utility_report):
         combiner = self._create_combiner()

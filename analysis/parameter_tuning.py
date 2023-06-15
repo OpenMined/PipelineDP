@@ -29,7 +29,7 @@ from typing import Callable, List, Tuple, Union
 from enum import Enum
 import numpy as np
 
-from pipeline_dp.private_contribution_bounds import generate_possible_contribution_bounds
+from pipeline_dp import private_contribution_bounds
 
 
 class MinimizingFunction(Enum):
@@ -147,23 +147,22 @@ def _find_candidate_parameters(
     l0_bounds = linf_bounds = None
 
     if calculate_l0_param and calculate_linf_param:
-        n_max = int(math.sqrt(max_candidates))
+        max_candidates_per_parameter = int(math.sqrt(max_candidates))
         l0_candidates = find_candidates_func(hist.l0_contributions_histogram,
-                                             n_max)
+                                             max_candidates_per_parameter)
         linf_candidates = find_candidates_func(
-            hist.linf_contributions_histogram, n_max)
+            hist.linf_contributions_histogram, max_candidates_per_parameter)
         l0_bounds, linf_bounds = [], []
         for l0 in l0_candidates:
             for linf in linf_candidates:
                 l0_bounds.append(l0)
                 linf_bounds.append(linf)
     elif calculate_l0_param:
-        n_max = max_candidates
-        l0_bounds = find_candidates_func(hist.l0_contributions_histogram, n_max)
+        l0_bounds = find_candidates_func(hist.l0_contributions_histogram,
+                                         max_candidates)
     elif calculate_linf_param:
-        n_max = max_candidates
         linf_bounds = find_candidates_func(hist.linf_contributions_histogram,
-                                           n_max)
+                                           max_candidates)
     else:
         assert False, "Nothing to tune."
 
@@ -173,24 +172,30 @@ def _find_candidate_parameters(
 
 
 def _find_candidates_quantiles(histogram: histograms.Histogram,
-                               n_max: int) -> List[int]:
+                               max_candidates: int) -> List[int]:
     """Implementation of ParametersSearchStrategy.QUANTILES strategy."""
     quantiles_to_use = [0.9, 0.95, 0.98, 0.99, 0.995]
     candidates = histogram.quantiles(quantiles_to_use)
     candidates.append(histogram.max_value)
     candidates = list(set(candidates))  # remove duplicates
     candidates.sort()
-    return candidates[:n_max]
+    return candidates[:max_candidates]
 
 
 def _find_candidates_constant_relative_step(histogram: histograms.Histogram,
-                                            n_max: int) -> List[int]:
+                                            max_candidates: int) -> List[int]:
     """Implementation of ParametersSearchStrategy.CONSTANT_RELATIVE_STEP
        strategy."""
     max_value = histogram.max_value
     # relative step varies from 1% to 0.1%
-    candidates = generate_possible_contribution_bounds(max_value)
-    n_max_without_max_value = n_max - 1
+    # because generate_possible_contribution_bounds generate bounds by changing
+    # only up to first 3 digits, for example 100000, 101000, 102000... Then
+    # relative step between neighbouring elements
+    # varies (101000 - 100000) / 100000 = 0.01 and
+    # (1000000 - 999000) / 999000 ~= 0.001.
+    candidates = private_contribution_bounds.generate_possible_contribution_bounds(
+        max_value)
+    n_max_without_max_value = max_candidates - 1
     if len(candidates) > n_max_without_max_value:
         delta = len(candidates) / n_max_without_max_value
         candidates = [

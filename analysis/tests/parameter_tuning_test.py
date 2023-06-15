@@ -133,9 +133,9 @@ class ParameterTuning(parameterized.TestCase):
         self.assertTrue(
             set(candidates.max_partitions_contributed).issubset(
                 expected_superset))
-        self.assertEqual(len(set(candidates.max_partitions_contributed)),
-                         len(candidates.max_partitions_contributed))
-        self.assertEqual(len(candidates.max_partitions_contributed), 1000)
+        self.assertLen(set(candidates.max_partitions_contributed),
+                       len(candidates.max_partitions_contributed))
+        self.assertLen(candidates.max_partitions_contributed, 1000)
         self.assertEqual(sorted(candidates.max_partitions_contributed),
                          candidates.max_partitions_contributed)
 
@@ -158,9 +158,9 @@ class ParameterTuning(parameterized.TestCase):
             ParametersSearchStrategy.CONSTANT_RELATIVE_STEP,
             max_candidates=10)
 
-        self.assertEqual(10, len(candidates.max_contributions_per_partition))
-        self.assertEqual(1, candidates.max_contributions_per_partition[0])
-        self.assertEqual(999999, candidates.max_contributions_per_partition[-1])
+        self.assertEqual(
+            [1, 412, 823, 3340, 7450, 25600, 66700, 178000, 589000, 999999],
+            candidates.max_contributions_per_partition)
 
     def test_find_candidate_parameters_constant_relative_step_strategy_number_of_candidates_returned_is_less_than_maximum_number_of_candidates(
             self):
@@ -181,7 +181,7 @@ class ParameterTuning(parameterized.TestCase):
             ParametersSearchStrategy.CONSTANT_RELATIVE_STEP,
             max_candidates=100)
 
-        self.assertEqual([i for i in range(1, 51)],
+        self.assertEqual(list(range(1, 51)),
                          candidates.max_contributions_per_partition)
 
     @parameterized.parameters(False, True)
