@@ -77,11 +77,17 @@ class TuneOptions:
           AggregateErrorMetrics and return float.
         parameters_to_tune: specifies which parameters to tune.
         partitions_sampling_prob: the probability with which each partition
-        will be sampled before running tuning. It is useful for speed-up
-        computations on the large datasets.
+          will be sampled before running tuning. It is useful for speed-up
+          computations on the large datasets.
         pre_aggregated_data: when True the input data is already pre-aggregated,
-        otherwise the input data are raw. Preaggregated data also can be
-        sampled.
+          otherwise the input data are raw. Preaggregated data also can be
+          sampled.
+        parameters_search_strategy: specifies how to select candidates for
+          parameters.
+        number_of_parameter_candidates: how many candidates to generate for
+          parameter tuning. This is an upper bound, there can be fewer
+          candidates generated.
+
     """
     epsilon: float
     delta: float
