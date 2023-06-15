@@ -27,23 +27,34 @@ class SumMetrics:
     It is also used to store COUNT and PRIVACY_ID_COUNT per-partition metrics.
 
     Attributes:
-        sum: actual sum of contributions per partition.
-        per_partition_error_min: the amount of error due to contribution min clipping.
-        per_partition_error_max: the amount of error due to contribution max clipping.
-        expected_cross_partition_error: the expected amount of error due to cross-partition contribution bounding.
-        std_cross_partition_error: the standard deviation of the error due to cross-partition contribution bounding.
+        aggregation: DP aggregation for which this analysis was performed. It
+          can be COUNT, PRIVACY_ID_COUNT or SUM.
+        sum: Non-DP sum of contributions to the aggregated metric being
+          analyzed. In case of SUM, this field stores the sum of all values
+          contributed by privacy IDs, in  case of COUNT, it is the count of
+          contributed values, and in case of PRIVACY_ID_COUNT, the field
+          contains count of privacy IDs that contribute to a partition.
+        clipping_to_min_error: the amount of error due to contribution min
+          clipping.
+        clipping_to_max_error: the amount of error due to contribution max
+          clipping.
+        expected_l0_bounding_error: the mathematical expectation of error due to
+          cross-partition contribution bounding.
+        std_l0_bounding_error : the standard deviation of the error due to
+          cross-partition contribution bounding.
         std_noise: the noise standard deviation.
         noise_kind: the type of noise used.
 
     s.t. the following holds (where E stands for Expectation):
     E(sum_after_contribution_bounding) = sum + E(error)
-    where E(error) = per_partition_error_min + per_partition_error_max + expected_cross_partition_error
+    where E(error) = clipping_to_min_error + clipping_to_max_error + expected_l0_bounding_error
     """
+    aggregation: pipeline_dp.Metrics
     sum: float
-    per_partition_error_min: float
-    per_partition_error_max: float
-    expected_cross_partition_error: float
-    std_cross_partition_error: float
+    clipping_to_min_error: float
+    clipping_to_max_error: float
+    expected_l0_bounding_error: float
+    std_l0_bounding_error: float
     std_noise: float
     noise_kind: pipeline_dp.NoiseKind
 
