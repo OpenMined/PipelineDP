@@ -228,6 +228,7 @@ def _convert_utility_analysis_to_tune_result(
             for ae in utility_analysis_result
         ]
     index_best = np.argmin(rmse)
+    a = 0
 
     return TuneResult(tune_options,
                       contribution_histograms,
