@@ -12,11 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import math
-import typing
 
 import pipeline_dp
 from pipeline_dp import pipeline_backend
-from functools import partial
 from pipeline_dp import input_validators
 from pipeline_dp.dataset_histograms import histograms
 import analysis
