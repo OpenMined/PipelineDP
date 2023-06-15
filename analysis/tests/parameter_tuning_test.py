@@ -76,8 +76,11 @@ class ParameterTuning(parameterized.TestCase):
         )
 
         candidates = parameter_tuning._find_candidate_parameters(
-            mock_histograms, parameters_to_tune, metric,
-            ParametersSearchStrategy.QUANTILES)
+            mock_histograms,
+            parameters_to_tune,
+            metric,
+            ParametersSearchStrategy.QUANTILES,
+            max_candidates=100)
         self.assertEqual(expected_max_partitions_contributed,
                          candidates.max_partitions_contributed)
         self.assertEqual(expected_max_contributions_per_partition,

@@ -37,6 +37,17 @@ class MinimizingFunction(Enum):
     RELATIVE_ERROR = 'relative_error'
 
 
+class ParametersSearchStrategy(Enum):
+    """Strategy types for selecting candidate parameters."""
+
+    # Picks up candidates that correspond tp a predefined list of quantiles.
+    QUANTILES = 1
+    # Candidates are a sequence starting from 1 where where relative
+    # difference
+    # between two neighbouring elements is (almost) the same."""
+    CONSTANT_RELATIVE_STEP = 2
+
+
 @dataclass
 class ParametersToTune:
     """Contains parameters to tune."""
@@ -80,6 +91,8 @@ class TuneOptions:
     parameters_to_tune: ParametersToTune
     partitions_sampling_prob: float = 1
     pre_aggregated_data: bool = False
+    parameters_search_strategy: ParametersSearchStrategy = ParametersSearchStrategy.QUANTILES
+    number_of_parameter_candidates: int = 100
 
     def __post_init__(self):
         input_validators.validate_epsilon_delta(self.epsilon, self.delta,
@@ -109,22 +122,10 @@ class TuneResult:
     utility_reports: List[metrics.UtilityReport]
 
 
-class ParametersSearchStrategy(Enum):
-    """Strategy types for selecting candidate parameters."""
-
-    QUANTILES = 1
-    """Picks up candidates that correspond tp a predefined list of quantiles."""
-    CONSTANT_RELATIVE_STEP = 2
-    """Candidates are a sequence starting from 1 where where relative difference 
-    between two neighbouring elements is (almost) the same."""
-
-
 def _find_candidate_parameters(
         hist: histograms.DatasetHistograms,
-        parameters_to_tune: ParametersToTune,
-        metric: pipeline_dp.Metrics,
-        strategy: ParametersSearchStrategy = ParametersSearchStrategy.QUANTILES,
-        max_candidates: int = 100) -> analysis.MultiParameterConfiguration:
+        parameters_to_tune: ParametersToTune, metric: pipeline_dp.Metrics,
+        strategy, max_candidates) -> analysis.MultiParameterConfiguration:
     """Finds candidates for l0 and/or l_inf parameters.
 
     Args:
@@ -173,7 +174,7 @@ def _find_candidate_parameters(
 
 def _find_candidates_quantiles(histogram: histograms.Histogram,
                                max_candidates: int) -> List[int]:
-    """Implementation of ParametersSearchStrategy.QUANTILES strategy."""
+    """Implementation of QUANTILES strategy."""
     quantiles_to_use = [0.9, 0.95, 0.98, 0.99, 0.995]
     candidates = histogram.quantiles(quantiles_to_use)
     candidates.append(histogram.max_value)
@@ -184,8 +185,7 @@ def _find_candidates_quantiles(histogram: histograms.Histogram,
 
 def _find_candidates_constant_relative_step(histogram: histograms.Histogram,
                                             max_candidates: int) -> List[int]:
-    """Implementation of ParametersSearchStrategy.CONSTANT_RELATIVE_STEP
-       strategy."""
+    """Implementation of CONSTANT_RELATIVE_STEP strategy."""
     max_value = histogram.max_value
     # relative step varies from 1% to 0.1%
     # because generate_possible_contribution_bounds generate bounds by changing
@@ -204,37 +204,6 @@ def _find_candidates_constant_relative_step(histogram: histograms.Histogram,
     if candidates[-1] != max_value:
         candidates.append(max_value)
     return candidates
-
-
-def _convert_utility_analysis_to_tune_result(
-        utility_analysis_result: Tuple, tune_options: TuneOptions,
-        run_configurations: analysis.MultiParameterConfiguration,
-        use_public_partitions: bool,
-        contribution_histograms: histograms.DatasetHistograms):
-    assert len(utility_analysis_result) == run_configurations.size
-    # TODO(dvadym): implement relative error.
-    # TODO(dvadym): take into consideration partition selection from private
-    # partition selection.
-    assert tune_options.function_to_minimize == MinimizingFunction.ABSOLUTE_ERROR
-
-    metrics = tune_options.aggregate_params.metrics[0]
-    if metrics == pipeline_dp.Metrics.COUNT:
-        rmse = [
-            ae.count_metrics.absolute_rmse() for ae in utility_analysis_result
-        ]
-    else:
-        rmse = [
-            ae.privacy_id_count_metrics.absolute_rmse()
-            for ae in utility_analysis_result
-        ]
-    index_best = np.argmin(rmse)
-
-    return TuneResult(tune_options,
-                      contribution_histograms,
-                      run_configurations,
-                      index_best,
-                      utility_analysis_result,
-                      utility_reports=[])
 
 
 def tune(col,
@@ -281,9 +250,10 @@ def tune(col,
     """
     _check_tune_args(options)
 
-    candidates = _find_candidate_parameters(contribution_histograms,
-                                            options.parameters_to_tune,
-                                            options.aggregate_params.metrics[0])
+    candidates = _find_candidate_parameters(
+        contribution_histograms, options.parameters_to_tune,
+        options.aggregate_params.metrics[0], options.parameters_search_strategy,
+        options.number_of_parameter_candidates)
 
     utility_analysis_options = analysis.UtilityAnalysisOptions(
         epsilon=options.epsilon,
