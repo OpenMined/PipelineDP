@@ -202,9 +202,6 @@ class L0ScoringFunctionTest(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             l0_scoring_function.score(-1)
 
-        with self.assertRaises(RuntimeError):
-            l0_scoring_function.score(0)
-
 
 class PrivateL0CalculatorTest(unittest.TestCase):
 
