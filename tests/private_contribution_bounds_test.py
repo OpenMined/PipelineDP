@@ -298,7 +298,7 @@ class PrivateL0CalculatorTest(unittest.TestCase):
         # testing it through public API requires a complicated test setup.
         upper_bound = 999999
 
-        bounds = private_contribution_bounds._generate_possible_contribution_bounds(
+        bounds = private_contribution_bounds.generate_possible_contribution_bounds(
             upper_bound)
 
         expected = list(range(1, 1000, 1)) + list(range(

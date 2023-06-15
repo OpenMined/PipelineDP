@@ -76,7 +76,7 @@ class PrivateL0Calculator:
                                              inputs.l0_histogram)
         return dp_computations.ExponentialMechanism(scoring_function).apply(
             self._params.calculation_eps,
-            _generate_possible_contribution_bounds(
+            generate_possible_contribution_bounds(
                 scoring_function._max_partitions_contributed_best_upper_bound())
         )
 
@@ -176,7 +176,7 @@ class L0ScoringFunction(dp_computations.ExponentialMechanism.ScoringFunction):
         return sum(capped_contributions)
 
 
-def _generate_possible_contribution_bounds(upper_bound: int) -> List[int]:
+def generate_possible_contribution_bounds(upper_bound: int) -> List[int]:
     """Generates bounds that are optimized for scalability.
     Keep in sync with histograms._to_bin_lower.
 

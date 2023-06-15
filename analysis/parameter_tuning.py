@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import math
 
 import pipeline_dp
 from pipeline_dp import pipeline_backend
@@ -26,10 +27,22 @@ from typing import Callable, List, Tuple, Union
 from enum import Enum
 import numpy as np
 
+from pipeline_dp import private_contribution_bounds
+
 
 class MinimizingFunction(Enum):
     ABSOLUTE_ERROR = 'absolute_error'
     RELATIVE_ERROR = 'relative_error'
+
+
+class ParametersSearchStrategy(Enum):
+    """Strategy types for selecting candidate parameters."""
+
+    # Picks up candidates that correspond tp a predefined list of quantiles.
+    QUANTILES = 1
+    # Candidates are a sequence starting from 1 where relative difference
+    # between two neighbouring elements is (almost) the same.
+    CONSTANT_RELATIVE_STEP = 2
 
 
 @dataclass
@@ -62,11 +75,17 @@ class TuneOptions:
           AggregateErrorMetrics and return float.
         parameters_to_tune: specifies which parameters to tune.
         partitions_sampling_prob: the probability with which each partition
-        will be sampled before running tuning. It is useful for speed-up
-        computations on the large datasets.
+          will be sampled before running tuning. It is useful for speed-up
+          computations on the large datasets.
         pre_aggregated_data: when True the input data is already pre-aggregated,
-        otherwise the input data are raw. Preaggregated data also can be
-        sampled.
+          otherwise the input data are raw. Preaggregated data also can be
+          sampled.
+        parameters_search_strategy: specifies how to select candidates for
+          parameters.
+        number_of_parameter_candidates: how many candidates to generate for
+          parameter tuning. This is an upper bound, there can be fewer
+          candidates generated.
+
     """
     epsilon: float
     delta: float
@@ -75,6 +94,8 @@ class TuneOptions:
     parameters_to_tune: ParametersToTune
     partitions_sampling_prob: float = 1
     pre_aggregated_data: bool = False
+    parameters_search_strategy: ParametersSearchStrategy = ParametersSearchStrategy.QUANTILES
+    number_of_parameter_candidates: int = 100
 
     def __post_init__(self):
         input_validators.validate_epsilon_delta(self.epsilon, self.delta,
@@ -106,44 +127,86 @@ class TuneResult:
 
 def _find_candidate_parameters(
         hist: histograms.DatasetHistograms,
-        parameters_to_tune: ParametersToTune,
-        metric: pipeline_dp.Metrics) -> analysis.MultiParameterConfiguration:
-    """Uses some heuristics to find (hopefully) good enough parameters."""
-    # TODO: decide where to put QUANTILES_TO_USE, maybe TuneOptions?
-    QUANTILES_TO_USE = [0.9, 0.95, 0.98, 0.99, 0.995]
-    l0_candidates = linf_candidates = None
+        parameters_to_tune: ParametersToTune, metric: pipeline_dp.Metrics,
+        strategy, max_candidates) -> analysis.MultiParameterConfiguration:
+    """Finds candidates for l0 and/or l_inf parameters.
 
-    def _find_candidates(histogram: histograms.Histogram) -> List:
-        candidates = histogram.quantiles(QUANTILES_TO_USE)
-        candidates.append(histogram.max_value)
-        candidates = list(set(candidates))  # remove duplicates
-        candidates.sort()
-        return candidates
+    Args:
+        strategy: determines the strategy how to select candidates, see comments
+          to enum values for full description of the respective strategies.
+        max_candidates: how many candidates ((l0, linf) pairs) can be in the
+        output. Note that output can contain fewer candidates. 100 is default
+        heuristically chosen value, better to adjust it for your use-case.
+    """
+    if strategy == ParametersSearchStrategy.QUANTILES:
+        find_candidates_func = _find_candidates_quantiles
+    elif strategy == ParametersSearchStrategy.CONSTANT_RELATIVE_STEP:
+        find_candidates_func = _find_candidates_constant_relative_step
+    else:
+        raise ValueError("Unknown strategy for candidate parameters search.")
 
-    if parameters_to_tune.max_partitions_contributed:
-        l0_candidates = _find_candidates(hist.l0_contributions_histogram)
-
-    if parameters_to_tune.max_contributions_per_partition and metric == pipeline_dp.Metrics.COUNT:
-        linf_candidates = _find_candidates(hist.linf_contributions_histogram)
-
+    calculate_l0_param = parameters_to_tune.max_partitions_contributed
+    calculate_linf_param = (parameters_to_tune.max_contributions_per_partition
+                            and metric == pipeline_dp.Metrics.COUNT)
     l0_bounds = linf_bounds = None
 
-    if l0_candidates and linf_candidates:
+    if calculate_l0_param and calculate_linf_param:
+        max_candidates_per_parameter = int(math.sqrt(max_candidates))
+        l0_candidates = find_candidates_func(hist.l0_contributions_histogram,
+                                             max_candidates_per_parameter)
+        linf_candidates = find_candidates_func(
+            hist.linf_contributions_histogram, max_candidates_per_parameter)
         l0_bounds, linf_bounds = [], []
         for l0 in l0_candidates:
             for linf in linf_candidates:
                 l0_bounds.append(l0)
                 linf_bounds.append(linf)
-    elif l0_candidates:
-        l0_bounds = l0_candidates
-    elif linf_candidates:
-        linf_bounds = linf_candidates
+    elif calculate_l0_param:
+        l0_bounds = find_candidates_func(hist.l0_contributions_histogram,
+                                         max_candidates)
+    elif calculate_linf_param:
+        linf_bounds = find_candidates_func(hist.linf_contributions_histogram,
+                                           max_candidates)
     else:
         assert False, "Nothing to tune."
 
     return analysis.MultiParameterConfiguration(
         max_partitions_contributed=l0_bounds,
         max_contributions_per_partition=linf_bounds)
+
+
+def _find_candidates_quantiles(histogram: histograms.Histogram,
+                               max_candidates: int) -> List[int]:
+    """Implementation of QUANTILES strategy."""
+    quantiles_to_use = [0.9, 0.95, 0.98, 0.99, 0.995]
+    candidates = histogram.quantiles(quantiles_to_use)
+    candidates.append(histogram.max_value)
+    candidates = list(set(candidates))  # remove duplicates
+    candidates.sort()
+    return candidates[:max_candidates]
+
+
+def _find_candidates_constant_relative_step(histogram: histograms.Histogram,
+                                            max_candidates: int) -> List[int]:
+    """Implementation of CONSTANT_RELATIVE_STEP strategy."""
+    max_value = histogram.max_value
+    # relative step varies from 1% to 0.1%
+    # because generate_possible_contribution_bounds generate bounds by changing
+    # only up to first 3 digits, for example 100000, 101000, 102000... Then
+    # relative step between neighbouring elements
+    # varies (101000 - 100000) / 100000 = 0.01 and
+    # (1000000 - 999000) / 999000 ~= 0.001.
+    candidates = private_contribution_bounds.generate_possible_contribution_bounds(
+        max_value)
+    n_max_without_max_value = max_candidates - 1
+    if len(candidates) > n_max_without_max_value:
+        delta = len(candidates) / n_max_without_max_value
+        candidates = [
+            candidates[int(i * delta)] for i in range(n_max_without_max_value)
+        ]
+    if candidates[-1] != max_value:
+        candidates.append(max_value)
+    return candidates
 
 
 def tune(col,
@@ -190,9 +253,10 @@ def tune(col,
     """
     _check_tune_args(options)
 
-    candidates = _find_candidate_parameters(contribution_histograms,
-                                            options.parameters_to_tune,
-                                            options.aggregate_params.metrics[0])
+    candidates = _find_candidate_parameters(
+        contribution_histograms, options.parameters_to_tune,
+        options.aggregate_params.metrics[0], options.parameters_search_strategy,
+        options.number_of_parameter_candidates)
 
     utility_analysis_options = analysis.UtilityAnalysisOptions(
         epsilon=options.epsilon,
