@@ -215,8 +215,7 @@ def tune(col,
          options: TuneOptions,
          data_extractors: Union[pipeline_dp.DataExtractors,
                                 pipeline_dp.PreAggregateExtractors],
-         public_partitions=None,
-         return_utility_analysis_per_partition: bool = False):
+         public_partitions=None):
     """Tunes parameters.
 
     It works in the following way:
@@ -243,12 +242,8 @@ def tune(col,
         public_partitions: A collection of partition keys that will be present
           in the result. If not provided, tuning will be performed assuming
           private partition selection is used.
-        return_per_partition: if true, it returns tuple, with the 2nd element
-          utility analysis per partitions.
     Returns:
-        if return_per_partition == False:
-            returns 1 element collection which contains TuneResult
-        else returns tuple (1 element collection which contains TuneResult,
+       returns tuple (1 element collection which contains TuneResult,
         a collection which contains utility analysis results per partition).
     """
     _check_tune_args(options)
@@ -265,13 +260,10 @@ def tune(col,
         multi_param_configuration=candidates,
         partitions_sampling_prob=options.partitions_sampling_prob,
         pre_aggregated_data=options.pre_aggregated_data)
-    result = utility_analysis.perform_utility_analysis(
+
+    utility_result, per_partition_utility_result = utility_analysis.perform_utility_analysis(
         col, backend, utility_analysis_options, data_extractors,
-        public_partitions, return_utility_analysis_per_partition)
-    if return_utility_analysis_per_partition:
-        utility_result, per_partition_utility_result = result
-    else:
-        utility_result = result
+        public_partitions)
     # utility_result: (UtilityReport)
     # per_partition_utility_result: (pk, (PerPartitionMetrics))
     use_public_partitions = public_partitions is not None
@@ -279,16 +271,13 @@ def tune(col,
     utility_result = backend.to_list(utility_result, "To list")
     # 1 element collection with list[UtilityReport]
     utility_result = backend.map(
-        utility_result,
-        lambda result: _convert_utility_analysis_to_tune_result_new(
+        utility_result, lambda result: _convert_utility_analysis_to_tune_result(
             result, options, candidates, use_public_partitions,
             contribution_histograms), "To Tune result")
-    if return_utility_analysis_per_partition:
-        return utility_result, per_partition_utility_result
-    return utility_result
+    return utility_result, per_partition_utility_result
 
 
-def _convert_utility_analysis_to_tune_result_new(
+def _convert_utility_analysis_to_tune_result(
         utility_reports: Tuple[metrics.UtilityReport],
         tune_options: TuneOptions,
         run_configurations: analysis.MultiParameterConfiguration,

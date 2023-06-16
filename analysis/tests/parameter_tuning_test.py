@@ -187,8 +187,7 @@ class ParameterTuning(parameterized.TestCase):
         self.assertEqual(list(range(1, 51)),
                          candidates.max_contributions_per_partition)
 
-    @parameterized.parameters(False, True)
-    def test_tune_count_new(self, return_utility_analysis_per_partition: bool):
+    def test_tune_count_new(self):
         # Arrange.
         input = [(i % 10, f"pk{i/10}") for i in range(10)]
         public_partitions = [f"pk{i}" for i in range(10)]
@@ -206,15 +205,13 @@ class ParameterTuning(parameterized.TestCase):
         # Act.
         result = parameter_tuning.tune(input, pipeline_dp.LocalBackend(),
                                        contribution_histograms, tune_options,
-                                       data_extractors, public_partitions,
-                                       return_utility_analysis_per_partition)
+                                       data_extractors, public_partitions)
 
         # Assert.
-        if return_utility_analysis_per_partition:
-            tune_result, per_partition_utility_analysis = result
-            self.assertLen(per_partition_utility_analysis, 10)
-        else:
-            tune_result = result
+        tune_result, per_partition_utility_analysis = result
+        per_partition_utility_analysis = list(per_partition_utility_analysis)
+        self.assertLen(per_partition_utility_analysis, 40)
+
         tune_result = list(tune_result)[0]
 
         self.assertEqual(tune_options, tune_result.options)
@@ -246,9 +243,9 @@ class ParameterTuning(parameterized.TestCase):
         ]
 
         # Act.
-        result = parameter_tuning.tune(input, pipeline_dp.LocalBackend(),
-                                       contribution_histograms, tune_options,
-                                       data_extractors, public_partitions)
+        result, _ = parameter_tuning.tune(input, pipeline_dp.LocalBackend(),
+                                          contribution_histograms, tune_options,
+                                          data_extractors, public_partitions)
 
         # Assert.
         result = list(result)[0]
