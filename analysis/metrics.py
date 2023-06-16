@@ -49,7 +49,7 @@ class SumMetrics:
     E(sum_after_contribution_bounding) = sum + E(error)
     where E(error) = clipping_to_min_error + clipping_to_max_error + expected_l0_bounding_error
     """
-    aggregation: pipeline_dp.Metrics
+    aggregation: pipeline_dp.Metric
     sum: float
     clipping_to_min_error: float
     clipping_to_max_error: float
