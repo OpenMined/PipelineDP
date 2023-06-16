@@ -59,10 +59,10 @@ def perform_utility_analysis(
         in the result. If not provided, the utility analysis with private
         partition selection will be performed.
     Returns:
-        returns a tuple, with the 1st element is a collection which contains
-          metrics.UtilityReport with one report per each input configuration and
-          the 2nd a collection with elements
-          (partition_key, [metrics.PerPartitionMetrics]).
+        returns a tuple. Its 1st element is a collection which contains
+          metrics.UtilityReport with one report per each input configuration.
+          The 2nd element of the tuple is a collection with elements
+          ((partition_key, configuration_index), metrics.PerPartitionMetrics).
     """
     budget_accountant = pipeline_dp.NaiveBudgetAccountant(
         total_epsilon=options.epsilon, total_delta=options.delta)
@@ -91,6 +91,12 @@ def perform_utility_analysis(
 
     col = backend.flat_map(col, _unnest_metrics, "Unnest metrics")
     # ((configuration_index, bucket), metrics.PerPartitionMetrics)
+
+    per_partition_result = backend.flat_map(
+        per_partition_result, lambda kv: (
+            ((kv[0], i), result) for i, result in enumerate(kv[1])),
+        "Unpack PerPartitionMetrics from list")
+    # ((partition_key, configuration_index), metrics.PerPartitionMetrics)
 
     combiner = cross_partition_combiners.CrossPartitionCombiner(
         options.aggregate_params.metrics, public_partitions is not None)
