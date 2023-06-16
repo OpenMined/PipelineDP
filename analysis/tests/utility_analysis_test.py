@@ -83,7 +83,7 @@ class UtilityAnalysis(parameterized.TestCase):
                 partition_extractor=lambda x: f"pk{x[0]}",
                 preaggregate_extractor=lambda x: x[1])
 
-        col = analysis.perform_utility_analysis(
+        col, per_partition_result = analysis.perform_utility_analysis(
             col=col,
             backend=pipeline_dp.LocalBackend(),
             options=analysis.UtilityAnalysisOptions(
@@ -94,6 +94,7 @@ class UtilityAnalysis(parameterized.TestCase):
             data_extractors=data_extractors)
 
         col = list(col)
+        per_partition_result = list(per_partition_result)
 
         # Assert
         self.assertLen(col, 1)
@@ -182,6 +183,7 @@ class UtilityAnalysis(parameterized.TestCase):
                                      report=expected_copy)
         ]
         common.assert_dataclasses_are_equal(self, report, expected)
+        self.assertLen(per_partition_result, 10)
 
     @parameterized.named_parameters(
         dict(testcase_name="Gaussian noise",
@@ -211,7 +213,7 @@ class UtilityAnalysis(parameterized.TestCase):
             partition_extractor=lambda x: f"pk{x}",
             value_extractor=lambda x: 0)
 
-        col = analysis.perform_utility_analysis(
+        col, _ = analysis.perform_utility_analysis(
             col=col,
             backend=pipeline_dp.LocalBackend(),
             options=analysis.UtilityAnalysisOptions(
@@ -252,7 +254,7 @@ class UtilityAnalysis(parameterized.TestCase):
 
         public_partitions = ["pk0", "pk1"]
 
-        output = analysis.perform_utility_analysis(
+        output, _ = analysis.perform_utility_analysis(
             col=input,
             backend=pipeline_dp.LocalBackend(),
             options=analysis.UtilityAnalysisOptions(
