@@ -675,12 +675,18 @@ class ExponentialMechanism:
 
 def compute_sensitivities_for_count(
         params: pipeline_dp.AggregateParams) -> Sensitivities:
+    if params.max_contributions is not None:
+        return Sensitivities(l1=params.max_contributions,
+                             l2=params.max_contributions)
     return Sensitivities(l0=params.max_partitions_contributed,
                          linf=params.max_contributions_per_partition)
 
 
 def compute_sensitivities_for_privacy_id_count(
         params: pipeline_dp.AggregateParams) -> Sensitivities:
+    if params.max_contributions is not None:
+        return Sensitivities(l1=params.max_contributions,
+                             l2=math.sqrt(params.max_contributions))
     return Sensitivities(l0=params.max_partitions_contributed, linf=1)
 
 
@@ -689,9 +695,11 @@ def compute_sensitivities_for_sum(
     l0_sensitivity = params.max_partitions_contributed
     max_abs_values = lambda x, y: max(abs(x), abs(y))
     if params.bounds_per_contribution_are_set:
-        linf_sensitivity = max_abs_values(
-            params.min_value,
-            params.max_value) * params.max_contributions_per_partition
+        max_abs_val = max_abs_values(params.min_value, params.max_value)
+        if params.max_contributions:
+            l1_l2_sensitivity = max_abs_val * params.max_contributions
+            return Sensitivities(l1=l1_l2_sensitivity, l2=l1_l2_sensitivity)
+        linf_sensitivity = max_abs_val * params.max_contributions_per_partition
     else:
         linf_sensitivity = max_abs_values(params.min_sum_per_partition,
                                           params.max_sum_per_partition)
@@ -700,8 +708,11 @@ def compute_sensitivities_for_sum(
 
 def compute_sensitivities_for_normalized_sum(
         params: pipeline_dp.AggregateParams) -> Sensitivities:
+    max_abs_value = (params.max_value - params.min_value) / 2
+    if params.max_contributions:
+        l1_l2_sensitivity = max_abs_value * params.max_contributions
+        return Sensitivities(l1=l1_l2_sensitivity, l2=l1_l2_sensitivity)
     l0_sensitivity = params.max_partitions_contributed
-    linf_sensitivity = (params.max_value - params.min_value
-                       ) / 2 * params.max_contributions_per_partition
+    linf_sensitivity = max_abs_value * params.max_contributions_per_partition
 
     return Sensitivities(l0=l0_sensitivity, linf=linf_sensitivity)

@@ -392,7 +392,16 @@ class DPEngine:
                                 data_extractors: pipeline_dp.DataExtractors,
                                 check_data_extractors: bool = True):
         if params.max_contributions is not None:
-            raise NotImplementedError("max_contributions is not supported yet.")
+            supported_metrics = [
+                pipeline_dp.Metrics.PRIVACY_ID_COUNT, pipeline_dp.Metrics.COUNT,
+                pipeline_dp.Metrics.SUM, pipeline_dp.Metrics.MEAN
+            ]
+            not_supported_metrics = set(
+                params.metrics).difference(supported_metrics)
+            if not_supported_metrics:
+                raise NotImplementedError(
+                    f"max_contributions is not supported for {not_supported_metrics}"
+                )
         _check_col(col)
         if params is None:
             raise ValueError("params must be set to a valid AggregateParams")

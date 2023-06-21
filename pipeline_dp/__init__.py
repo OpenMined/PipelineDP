@@ -17,6 +17,7 @@ from pipeline_dp.aggregate_params import CalculatePrivateContributionBoundsParam
 from pipeline_dp.aggregate_params import PrivateContributionBounds
 from pipeline_dp.aggregate_params import CountParams
 from pipeline_dp.aggregate_params import MechanismType
+from pipeline_dp.aggregate_params import Metric
 from pipeline_dp.aggregate_params import Metrics
 from pipeline_dp.aggregate_params import NoiseKind
 from pipeline_dp.aggregate_params import NormKind

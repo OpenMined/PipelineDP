@@ -44,8 +44,7 @@ def perform_utility_analysis(
         options: analysis.UtilityAnalysisOptions,
         data_extractors: Union[pipeline_dp.DataExtractors,
                                pipeline_dp.PreAggregateExtractors],
-        public_partitions=None,
-        return_per_partition: bool = False):
+        public_partitions=None):
     """Performs utility analysis for DP aggregations.
 
     Args:
@@ -59,16 +58,11 @@ def perform_utility_analysis(
       public_partitions: A collection of partition keys that will be present
         in the result. If not provided, the utility analysis with private
         partition selection will be performed.
-      return_per_partition: if true, in addition it returns utility analysis per
-        partitions as a 2nd element.
     Returns:
-         if return_per_partition == False:
-            returns collections which contains metrics.UtilityReport with
-            one report per each input configuration
-         else:
-            returns a tuple, with the 1st element as in first 'if' clause and
-            the 2nd a collection with elements
-            (partition_key, [metrics.PerPartitionMetrics]).
+        returns a tuple. Its 1st element is a collection which contains
+          metrics.UtilityReport with one report per each input configuration.
+          The 2nd element of the tuple is a collection with elements
+          ((partition_key, configuration_index), metrics.PerPartitionMetrics).
     """
     budget_accountant = pipeline_dp.NaiveBudgetAccountant(
         total_epsilon=options.epsilon, total_delta=options.delta)
@@ -98,6 +92,12 @@ def perform_utility_analysis(
     col = backend.flat_map(col, _unnest_metrics, "Unnest metrics")
     # ((configuration_index, bucket), metrics.PerPartitionMetrics)
 
+    per_partition_result = backend.flat_map(
+        per_partition_result, lambda kv: (
+            ((kv[0], i), result) for i, result in enumerate(kv[1])),
+        "Unpack PerPartitionMetrics from list")
+    # ((partition_key, configuration_index), metrics.PerPartitionMetrics)
+
     combiner = cross_partition_combiners.CrossPartitionCombiner(
         options.aggregate_params.metrics, public_partitions is not None)
 
@@ -126,9 +126,7 @@ def perform_utility_analysis(
                                "Group utility reports")
     # result: (UtilityReport)
 
-    if return_per_partition:
-        return result, per_partition_result
-    return result
+    return result, per_partition_result
 
 
 def _pack_per_partition_metrics(

@@ -203,14 +203,14 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
         # Assert
         self.assertLen(output, 10)
         # Assert count metrics are correct.
-        [self.assertEqual(v[1][1].per_partition_error_max, -10) for v in output]
+        [self.assertEqual(v[1][1].clipping_to_max_error, -10) for v in output]
         [
-            self.assertAlmostEqual(v[1][1].expected_cross_partition_error,
+            self.assertAlmostEqual(v[1][1].expected_l0_bounding_error,
                                    -18.0,
                                    delta=1e-5) for v in output
         ]
         [
-            self.assertAlmostEqual(v[1][1].std_cross_partition_error,
+            self.assertAlmostEqual(v[1][1].std_l0_bounding_error,
                                    1.89736,
                                    delta=1e-5) for v in output
         ]
@@ -266,34 +266,38 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
         [self.assertLen(partition_metrics, 2) for partition_metrics in output]
 
         expected_pk0 = [
-            metrics.SumMetrics(sum=1.0,
-                               per_partition_error_min=0.0,
-                               per_partition_error_max=0.0,
-                               expected_cross_partition_error=-0.5,
-                               std_cross_partition_error=0.5,
+            metrics.SumMetrics(aggregation=pipeline_dp.Metrics.COUNT,
+                               sum=1.0,
+                               clipping_to_min_error=0.0,
+                               clipping_to_max_error=0.0,
+                               expected_l0_bounding_error=-0.5,
+                               std_l0_bounding_error=0.5,
                                std_noise=5.87109375,
                                noise_kind=pipeline_dp.NoiseKind.GAUSSIAN),
-            metrics.SumMetrics(sum=1.0,
-                               per_partition_error_min=0.0,
-                               per_partition_error_max=0.0,
-                               expected_cross_partition_error=0,
-                               std_cross_partition_error=0.0,
+            metrics.SumMetrics(aggregation=pipeline_dp.Metrics.COUNT,
+                               sum=1.0,
+                               clipping_to_min_error=0.0,
+                               clipping_to_max_error=0.0,
+                               expected_l0_bounding_error=0,
+                               std_l0_bounding_error=0.0,
                                std_noise=16.60596081442783,
                                noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)
         ]
         expected_pk1 = [
-            metrics.SumMetrics(sum=2.0,
-                               per_partition_error_min=0.0,
-                               per_partition_error_max=-1.0,
-                               expected_cross_partition_error=-0.5,
-                               std_cross_partition_error=0.5,
+            metrics.SumMetrics(aggregation=pipeline_dp.Metrics.COUNT,
+                               sum=2.0,
+                               clipping_to_min_error=0.0,
+                               clipping_to_max_error=-1.0,
+                               expected_l0_bounding_error=-0.5,
+                               std_l0_bounding_error=0.5,
                                std_noise=5.87109375,
                                noise_kind=pipeline_dp.NoiseKind.GAUSSIAN),
-            metrics.SumMetrics(sum=2.0,
-                               per_partition_error_min=0.0,
-                               per_partition_error_max=0.0,
-                               expected_cross_partition_error=0,
-                               std_cross_partition_error=0.0,
+            metrics.SumMetrics(aggregation=pipeline_dp.Metrics.COUNT,
+                               sum=2.0,
+                               clipping_to_min_error=0.0,
+                               clipping_to_max_error=0.0,
+                               expected_l0_bounding_error=0,
+                               std_l0_bounding_error=0.0,
                                std_noise=16.60596081442783,
                                noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)
         ]

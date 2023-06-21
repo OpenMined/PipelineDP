@@ -409,11 +409,13 @@ def create_aggregate_params(
         min_value: Optional[float] = None,
         max_value: Optional[float] = None,
         min_sum_per_partition: Optional[float] = None,
-        max_sum_per_partition: Optional[float] = None):
+        max_sum_per_partition: Optional[float] = None,
+        max_contributions: Optional[int] = None):
     return pipeline_dp.AggregateParams(
         metrics=[pipeline_dp.Metrics.COUNT],
         max_partitions_contributed=max_partitions_contributed,
         max_contributions_per_partition=max_contributions_per_partition,
+        max_contributions=max_contributions,
         min_value=min_value,
         max_value=max_value,
         min_sum_per_partition=min_sum_per_partition,
@@ -650,6 +652,14 @@ class AdditiveMechanismTests(parameterized.TestCase):
         self.assertEqual(sensitivities.l1, 44)
         self.assertEqual(sensitivities.l2, 22.0)
 
+    def test_compute_sensitivities_for_count_max_contributions(self):
+        params = create_aggregate_params(max_contributions=11)
+        sensitivities = dp_computations.compute_sensitivities_for_count(params)
+        self.assertIsNone(sensitivities.l0)
+        self.assertIsNone(sensitivities.linf)
+        self.assertEqual(sensitivities.l1, 11)
+        self.assertEqual(sensitivities.l2, 11)
+
     def test_compute_sensitivities_for_privacy_id_count(self):
         params = create_aggregate_params(max_partitions_contributed=4,
                                          max_contributions_per_partition=11)
@@ -659,6 +669,15 @@ class AdditiveMechanismTests(parameterized.TestCase):
         self.assertEqual(sensitivities.linf, 1)
         self.assertEqual(sensitivities.l1, 4)
         self.assertEqual(sensitivities.l2, 2.0)
+
+    def test_compute_sensitivities_for_privacy_id_count_max_contributions(self):
+        params = create_aggregate_params(max_contributions=9)
+        sensitivities = dp_computations.compute_sensitivities_for_privacy_id_count(
+            params)
+        self.assertIsNone(sensitivities.l0)
+        self.assertIsNone(sensitivities.linf)
+        self.assertEqual(sensitivities.l1, 9)
+        self.assertEqual(sensitivities.l2, 3)
 
     def test_compute_sensitivities_for_sum_min_max_values(self):
         params = create_aggregate_params(max_partitions_contributed=4,
@@ -682,6 +701,16 @@ class AdditiveMechanismTests(parameterized.TestCase):
         self.assertEqual(sensitivities.l1, 20)
         self.assertEqual(sensitivities.l2, 10.0)
 
+    def test_compute_sensitivities_for_sum_max_contributions(self):
+        params = create_aggregate_params(max_contributions=5,
+                                         min_value=-1,
+                                         max_value=3)
+        sensitivities = dp_computations.compute_sensitivities_for_sum(params)
+        self.assertIsNone(sensitivities.l0)
+        self.assertIsNone(sensitivities.linf)
+        self.assertEqual(sensitivities.l1, 3 * 5)
+        self.assertEqual(sensitivities.l2, 3 * 5)
+
 
 class MeanMechanismTests(parameterized.TestCase):
 
@@ -703,6 +732,15 @@ class MeanMechanismTests(parameterized.TestCase):
                                          min_value=50,
                                          max_value=100)
         expected = dp_computations.Sensitivities(l0=5, linf=7 * 25)
+        self.assertEqual(
+            dp_computations.compute_sensitivities_for_normalized_sum(params),
+            expected)
+
+    def test_compute_sensitivities_for_normalized_sum_max_contributions(self):
+        params = create_aggregate_params(max_contributions=7,
+                                         min_value=50,
+                                         max_value=100)
+        expected = dp_computations.Sensitivities(l1=7 * 25, l2=7 * 25)
         self.assertEqual(
             dp_computations.compute_sensitivities_for_normalized_sum(params),
             expected)

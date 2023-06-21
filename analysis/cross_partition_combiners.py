@@ -34,8 +34,8 @@ def _sum_metrics_to_data_dropped(
     # 1. linf/l0 contribution bounding
     # Contribution bounding errors are negative, negate to keep data dropped
     # to be positive.
-    linf_dropped = -sum_metrics.per_partition_error_max  # not correct for SUM
-    l0_dropped = -sum_metrics.expected_cross_partition_error
+    linf_dropped = -sum_metrics.clipping_to_max_error  # not correct for SUM
+    l0_dropped = -sum_metrics.expected_l0_bounding_error
 
     # 2. Partition selection (in case of private partition selection).
     # The data which survived contribution bounding is dropped with probability
@@ -52,11 +52,11 @@ def _sum_metrics_to_data_dropped(
 def _create_contribution_bounding_errors(
         sum_metrics: metrics.SumMetrics) -> metrics.ContributionBoundingErrors:
     """Creates ContributionBoundingErrors from per-partition metrics."""
-    l0_mean = sum_metrics.expected_cross_partition_error
-    l0_var = sum_metrics.std_cross_partition_error**2
+    l0_mean = sum_metrics.expected_l0_bounding_error
+    l0_var = sum_metrics.std_l0_bounding_error**2
     l0_mean_var = metrics.MeanVariance(mean=l0_mean, var=l0_var)
-    linf_min = sum_metrics.per_partition_error_min
-    linf_max = sum_metrics.per_partition_error_max
+    linf_min = sum_metrics.clipping_to_min_error
+    linf_max = sum_metrics.clipping_to_max_error
     return metrics.ContributionBoundingErrors(l0=l0_mean_var,
                                               linf_min=linf_min,
                                               linf_max=linf_max)
@@ -68,7 +68,7 @@ def _sum_metrics_to_value_error(sum_metrics: metrics.SumMetrics,
     value = sum_metrics.sum
     bounding_errors = _create_contribution_bounding_errors(sum_metrics)
     mean = bounding_errors.l0.mean + bounding_errors.linf_min + bounding_errors.linf_max
-    variance = sum_metrics.std_cross_partition_error**2 + sum_metrics.std_noise**2
+    variance = sum_metrics.std_l0_bounding_error**2 + sum_metrics.std_noise**2
 
     rmse = math.sqrt(mean**2 + variance)
     l1 = 0  # TODO(dvadym) compute it.
