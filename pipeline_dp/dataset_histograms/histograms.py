@@ -104,7 +104,8 @@ def compute_ratio_dropped(
     For each FrequencyBin.lower in contribution_histogram it computes what would
     the ratio of data dropped because of contribution bounding when it is taken
     as bounding threshold (e.g. in case of L0 histogram bounding_threshold it is
-    max_partition_contribution).
+    max_partition_contribution). For convenience the (0, 1) is added as 1st
+    element.
 
     Args:
         contribution_histogram: histogram of contributions. It can be L0, L1,

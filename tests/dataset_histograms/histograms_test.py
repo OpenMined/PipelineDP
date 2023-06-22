@@ -50,7 +50,7 @@ class HistogramTest(parameterized.TestCase):
              bins=[
                  hist.FrequencyBin(lower=1000, count=10, sum=10100, max=1020),
              ],
-             expected_ratios=[(1000, 100 / 10100), (1020, 0.0)]),
+             expected_ratios=[(0, 1), (1000, 100 / 10100), (1020, 0.0)]),
         dict(testcase_name='7 bins histogram',
              bins=[
                  hist.FrequencyBin(lower=1, count=8, sum=8, max=1),
@@ -61,8 +61,8 @@ class HistogramTest(parameterized.TestCase):
                  hist.FrequencyBin(lower=6, count=1, sum=6, max=6),
                  hist.FrequencyBin(lower=11, count=1, sum=11, max=11),
              ],
-             expected_ratios=[(1, 0.66), (2, 0.48), (3, 0.34), (4, 0.22),
-                              (5, 0.14), (6, 0.1), (11, 0.0)]))
+             expected_ratios=[(0, 1), (1, 0.66), (2, 0.48), (3, 0.34),
+                              (4, 0.22), (5, 0.14), (6, 0.1), (11, 0.0)]))
     def test_ratio_dropped(self, bins, expected_ratios):
         histogram = hist.Histogram("name", bins)
         output = hist.compute_ratio_dropped(histogram)
