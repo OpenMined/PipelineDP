@@ -134,6 +134,7 @@ def compute_ratio_dropped(
         ratio_dropped.append((current_value, dropped / total_sum))
         previous_value = current_value
         elements_larger += bin.count
+    ratio_dropped.append((0, 1))
     return ratio_dropped[::-1]
 
 
