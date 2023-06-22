@@ -41,7 +41,7 @@ class ParametersSearchStrategy(Enum):
     # Picks up candidates that correspond tp a predefined list of quantiles.
     QUANTILES = 1
     # Candidates are a sequence starting from 1 where relative difference
-    # between two neighbouring elements is (almost) the same.
+    # between two neighbouring elements is the same.
     CONSTANT_RELATIVE_STEP = 2
 
 
@@ -204,22 +204,28 @@ def _find_candidates_constant_relative_step(histogram: histograms.Histogram,
                                             max_candidates: int) -> List[int]:
     """Implementation of CONSTANT_RELATIVE_STEP strategy."""
     max_value = histogram.max_value
-    # relative step varies from 1% to 0.1%
-    # because generate_possible_contribution_bounds generate bounds by changing
-    # only up to first 3 digits, for example 100000, 101000, 102000... Then
-    # relative step between neighbouring elements
-    # varies (101000 - 100000) / 100000 = 0.01 and
-    # (1000000 - 999000) / 999000 ~= 0.001.
-    candidates = private_contribution_bounds.generate_possible_contribution_bounds(
-        max_value)
-    n_max_without_max_value = max_candidates - 1
-    if len(candidates) > n_max_without_max_value:
-        delta = len(candidates) / n_max_without_max_value
-        candidates = [
-            candidates[int(i * delta)] for i in range(n_max_without_max_value)
-        ]
-    if candidates[-1] != max_value:
-        candidates.append(max_value)
+    if max_value < 1:
+        raise Exception("max_value has to be >= 1.")
+    max_candidates = min(max_candidates, max_value)
+    if max_candidates <= 0:
+        raise Exception("max_candidates have to be positive")
+    elif max_candidates == 1:
+        return [1]
+    step = pow(max_value, 1 / (max_candidates - 1))
+    candidates = [1]
+    accumulated = candidates[-1]
+    for i in range(1, max_candidates):
+        previous_candidate = candidates[-1]
+        if previous_candidate >= max_value:
+            break
+        accumulated = accumulated * step
+        next_candidate = math.ceil(accumulated)
+        if next_candidate <= previous_candidate:
+            next_candidate = previous_candidate + 1
+        candidates.append(next_candidate)
+    # float calculations might be not precise enough but the last candidate has
+    # to be always max_value
+    candidates[-1] = max_value
     return candidates
 
 
