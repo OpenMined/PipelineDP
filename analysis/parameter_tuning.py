@@ -41,7 +41,9 @@ class ParametersSearchStrategy(Enum):
     # Picks up candidates that correspond tp a predefined list of quantiles.
     QUANTILES = 1
     # Candidates are a sequence starting from 1 where relative difference
-    # between two neighbouring elements is the same.
+    # between two neighbouring elements is the same. Mathematically it means
+    # that candidates are a sequence a_i, where
+    # a_i = max_value^(i / (max_candidates - 1)), i in [0..(max_candidates - 1)]
     CONSTANT_RELATIVE_STEP = 2
 
 
