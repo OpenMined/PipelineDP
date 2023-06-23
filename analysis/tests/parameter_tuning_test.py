@@ -111,6 +111,64 @@ class ParameterTuning(parameterized.TestCase):
         self.assertEqual([4, 5, 4, 5],
                          candidates.max_contributions_per_partition)
 
+    def test_find_candidate_parameters_more_candidates_for_l_0_when_not_so_many_l_inf_candidates(
+            self):
+        mock_l0_histogram = histograms.Histogram(None, None)
+        mock_l0_histogram.quantiles = mock.Mock(return_value=[1, 2, 3, 4, 5])
+        setattr(mock_l0_histogram.__class__, 'max_value', 6)
+        mock_linf_histogram = histograms.Histogram(None, None)
+        mock_linf_histogram.quantiles = mock.Mock(return_value=[6, 7])
+
+        mock_histograms = histograms.DatasetHistograms(mock_l0_histogram, None,
+                                                       mock_linf_histogram,
+                                                       None, None)
+        parameters_to_tune = parameter_tuning.ParametersToTune(
+            max_partitions_contributed=True,
+            max_contributions_per_partition=True)
+
+        candidates = parameter_tuning._find_candidate_parameters(
+            mock_histograms,
+            parameters_to_tune,
+            pipeline_dp.Metrics.COUNT,
+            ParametersSearchStrategy.QUANTILES,
+            max_candidates=9)
+        # sqrt(9) = 3, but l_inf has only 2 quantiles, therefore for l_0 we can
+        # take 9 / 2 = 4 quantiles, we take first 4 quantiles (1, 2, 3, 4).
+        # Addition of max_value (6) to l_inf does not change anything because
+        # l_inf set already contains 6.
+        self.assertEqual([1, 1, 2, 2, 3, 3, 4, 4],
+                         candidates.max_partitions_contributed)
+        self.assertEqual([6, 7, 6, 7, 6, 7, 6, 7],
+                         candidates.max_contributions_per_partition)
+
+    def test_find_candidate_parameters_more_candidates_for_l_inf_when_not_so_many_l_0_candidates(
+            self):
+        mock_l0_histogram = histograms.Histogram(None, None)
+        mock_l0_histogram.quantiles = mock.Mock(return_value=[1])
+        setattr(mock_l0_histogram.__class__, 'max_value', 8)
+        mock_linf_histogram = histograms.Histogram(None, None)
+        mock_linf_histogram.quantiles = mock.Mock(return_value=[3, 4, 5, 6, 7])
+
+        mock_histograms = histograms.DatasetHistograms(mock_l0_histogram, None,
+                                                       mock_linf_histogram,
+                                                       None, None)
+        parameters_to_tune = parameter_tuning.ParametersToTune(
+            max_partitions_contributed=True,
+            max_contributions_per_partition=True)
+
+        candidates = parameter_tuning._find_candidate_parameters(
+            mock_histograms,
+            parameters_to_tune,
+            pipeline_dp.Metrics.COUNT,
+            ParametersSearchStrategy.QUANTILES,
+            max_candidates=10)
+        # sqrt(10) = 3, but l_0 has only 2 quantiles (1 and 8 -- max_value),
+        # therefore for l_inf we can take 10 / 2 = 5 quantiles.
+        self.assertEqual([1, 1, 1, 1, 1, 8, 8, 8, 8, 8],
+                         candidates.max_partitions_contributed)
+        self.assertEqual([3, 4, 5, 6, 7, 3, 4, 5, 6, 7],
+                         candidates.max_contributions_per_partition)
+
     def test_find_candidate_parameters_constant_relative_step_strategy_big_n_max(
             self):
         mock_l0_histogram = histograms.Histogram(None, None)
