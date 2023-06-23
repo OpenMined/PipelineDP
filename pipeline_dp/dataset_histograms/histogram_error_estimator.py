@@ -50,7 +50,7 @@ class CountErrorEstimator:
         1. From l0_bound and l0_contributions_histogram the ratio data dropped
           from l0 contribution bounding is computed.
         2. From linf_bound and linf_contributions_histogram the
-          ratio data dropped from l0 contribution bounding is computed.
+          ratio data dropped from linf contribution bounding is computed.
         3. The total 'ratio_data_dropped' for contribution bounding is estimated
           from l0 and linf ratios data dropped.
         4. Then under the assumption that contribution bounding drops data
