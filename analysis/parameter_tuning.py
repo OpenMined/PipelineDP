@@ -157,6 +157,20 @@ def _find_candidate_parameters(
         linf_candidates = find_candidates_func(
             hist.linf_contributions_histogram, max_candidates_per_parameter)
         l0_bounds, linf_bounds = [], []
+
+        # if linf or l0 has fewer candidates than requested then we can add more
+        # candidates for the other parameter.
+        if (len(linf_candidates) < max_candidates_per_parameter and
+                len(l0_candidates) == max_candidates_per_parameter):
+            l0_candidates = find_candidates_func(
+                hist.l0_contributions_histogram,
+                int(max_candidates / len(linf_candidates)))
+        elif (len(l0_candidates) < max_candidates_per_parameter and
+              len(linf_candidates) == max_candidates_per_parameter):
+            linf_candidates = find_candidates_func(
+                hist.linf_contributions_histogram,
+                int(max_candidates / len(l0_candidates)))
+
         for l0 in l0_candidates:
             for linf in linf_candidates:
                 l0_bounds.append(l0)
