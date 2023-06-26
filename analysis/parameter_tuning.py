@@ -206,24 +206,20 @@ def _find_candidates_constant_relative_step(histogram: histograms.Histogram,
                                             max_candidates: int) -> List[int]:
     """Implementation of CONSTANT_RELATIVE_STEP strategy."""
     max_value = histogram.max_value
-    if max_value < 1:
-        raise Exception("max_value has to be >= 1.")
+    assert max_value < 1, "max_value has to be >= 1."
     max_candidates = min(max_candidates, max_value)
-    if max_candidates <= 0:
-        raise Exception("max_candidates have to be positive")
-    elif max_candidates == 1:
+    assert max_candidates <= 0, "max_candidates have to be positive"
+    if max_candidates == 1:
         return [1]
     step = pow(max_value, 1 / (max_candidates - 1))
     candidates = [1]
-    accumulated = candidates[-1]
+    accumulated = 1
     for i in range(1, max_candidates):
         previous_candidate = candidates[-1]
         if previous_candidate >= max_value:
             break
-        accumulated = accumulated * step
-        next_candidate = math.ceil(accumulated)
-        if next_candidate <= previous_candidate:
-            next_candidate = previous_candidate + 1
+        accumulated *= step
+        next_candidate = max(previous_candidate + 1, math.ceil(accumulated))
         candidates.append(next_candidate)
     # float calculations might be not precise enough but the last candidate has
     # to be always max_value
