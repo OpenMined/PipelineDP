@@ -304,14 +304,16 @@ def _convert_utility_analysis_to_tune_result(
     assert tune_options.function_to_minimize == MinimizingFunction.ABSOLUTE_ERROR
 
     # Sort utility reports by configuration index.
-    utility_reports.sort(key=lambda e: e.configuration_index)
+    sorted_utility_reports = sorted(utility_reports,
+                                    key=lambda e: e.configuration_index)
 
     index_best = -1  # not found
     # Find best index if there are metrics to compute. Absence of metrics to
     # compute means that this is SelectPartition analysis.
     if tune_options.aggregate_params.metrics:
         rmse = [
-            ur.metric_errors[0].absolute_error.rmse for ur in utility_reports
+            ur.metric_errors[0].absolute_error.rmse
+            for ur in sorted_utility_reports
         ]
         index_best = np.argmin(rmse)
 
@@ -319,7 +321,7 @@ def _convert_utility_analysis_to_tune_result(
                       contribution_histograms,
                       run_configurations,
                       index_best,
-                      utility_reports=utility_reports)
+                      utility_reports=sorted_utility_reports)
 
 
 def _check_tune_args(options: TuneOptions):
