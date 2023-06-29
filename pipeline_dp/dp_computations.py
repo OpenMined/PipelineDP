@@ -570,44 +570,32 @@ class Sensitivities:
                     raise ValueError(f"L2={self.l2} != sqrt(L0)*Linf={l2}")
 
 
-@dataclass
-class AdditiveMechanismSpec:
-    """Contains the budget and noise_kind."""
-    epsilon: float
-    delta: float
-    noise_kind: pipeline_dp.NoiseKind
-
-
-def to_additive_mechanism_spec(
-        spec: pipeline_dp.budget_accounting.MechanismSpec
-) -> AdditiveMechanismSpec:
-    noise_kind = spec.mechanism_type.to_noise_kind()
-    return AdditiveMechanismSpec(spec.eps, spec.delta, noise_kind)
-
-
 def create_additive_mechanism(
-        spec: AdditiveMechanismSpec,
+        mechanism_spec: pipeline_dp.budget_accounting.MechanismSpec,
         sensitivities: Sensitivities) -> AdditiveMechanism:
     """Creates AdditiveMechanism from a mechanism spec and sensitivities."""
-    if spec.noise_kind == pipeline_dp.NoiseKind.LAPLACE:
+    noise_kind = mechanism_spec.mechanism_type.to_noise_kind()
+    if noise_kind == pipeline_dp.NoiseKind.LAPLACE:
         if sensitivities.l1 is None:
             raise ValueError("L1 or (L0 and Linf) sensitivities must be set for"
                              " Laplace mechanism.")
-        return LaplaceMechanism(spec.epsilon, sensitivities.l1)
+        return LaplaceMechanism(mechanism_spec.eps, sensitivities.l1)
 
-    if spec.noise_kind == pipeline_dp.NoiseKind.GAUSSIAN:
+    if noise_kind == pipeline_dp.NoiseKind.GAUSSIAN:
         if sensitivities.l2 is None:
             raise ValueError("L2 or (L0 and Linf) sensitivities must be set for"
                              " Gaussian mechanism.")
-        return GaussianMechanism(spec.epsilon, spec.delta, sensitivities.l2)
+        return GaussianMechanism(mechanism_spec.eps, mechanism_spec.delta,
+                                 sensitivities.l2)
 
-    assert False, f"{spec.noise_kind} not supported."
+    assert False, f"{noise_kind} not supported."
 
 
 def create_mean_mechanism(
-        range_middle: float, count_spec: AdditiveMechanismSpec,
+        range_middle: float,
+        count_spec: pipeline_dp.budget_accounting.MechanismSpec,
         count_sensitivities: Sensitivities,
-        normalized_sum_spec: AdditiveMechanismSpec,
+        normalized_sum_spec: pipeline_dp.budget_accounting.MechanismSpec,
         normalized_sum_sensitivities: Sensitivities) -> MeanMechanism:
     """Creates MeanMechanism from a mechanism specs and sensitivities."""
     count_mechanism = create_additive_mechanism(count_spec, count_sensitivities)
