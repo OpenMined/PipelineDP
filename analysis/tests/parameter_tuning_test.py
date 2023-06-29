@@ -111,10 +111,100 @@ class ParameterTuning(parameterized.TestCase):
         self.assertEqual([4, 5, 4, 5],
                          candidates.max_contributions_per_partition)
 
-    def test_find_candidate_parameters_constant_relative_step_strategy_big_n_max(
+    def test_find_candidate_parameters_more_candidates_for_l_0_when_not_so_many_l_inf_candidates(
             self):
         mock_l0_histogram = histograms.Histogram(None, None)
-        setattr(histograms.Histogram, 'max_value', 999999)
+        mock_l0_histogram.quantiles = mock.Mock(return_value=[1, 2, 3, 4, 5])
+        setattr(mock_l0_histogram.__class__, 'max_value', 6)
+        mock_linf_histogram = histograms.Histogram(None, None)
+        mock_linf_histogram.quantiles = mock.Mock(return_value=[6, 7])
+
+        mock_histograms = histograms.DatasetHistograms(mock_l0_histogram, None,
+                                                       mock_linf_histogram,
+                                                       None, None)
+        parameters_to_tune = parameter_tuning.ParametersToTune(
+            max_partitions_contributed=True,
+            max_contributions_per_partition=True)
+
+        candidates = parameter_tuning._find_candidate_parameters(
+            mock_histograms,
+            parameters_to_tune,
+            pipeline_dp.Metrics.COUNT,
+            ParametersSearchStrategy.QUANTILES,
+            max_candidates=9)
+        # sqrt(9) = 3, but l_inf has only 2 quantiles, therefore for l_0 we can
+        # take 9 / 2 = 4 quantiles, we take first 4 quantiles (1, 2, 3, 4).
+        # Addition of max_value (6) to l_inf does not change anything because
+        # l_inf set already contains 6.
+        self.assertEqual([1, 1, 2, 2, 3, 3, 4, 4],
+                         candidates.max_partitions_contributed)
+        self.assertEqual([6, 7, 6, 7, 6, 7, 6, 7],
+                         candidates.max_contributions_per_partition)
+
+    def test_find_candidate_parameters_more_candidates_for_l_inf_when_not_so_many_l_0_candidates(
+            self):
+        mock_l0_histogram = histograms.Histogram(None, None)
+        mock_l0_histogram.quantiles = mock.Mock(return_value=[1])
+        setattr(mock_l0_histogram.__class__, 'max_value', 8)
+        mock_linf_histogram = histograms.Histogram(None, None)
+        mock_linf_histogram.quantiles = mock.Mock(return_value=[3, 4, 5, 6, 7])
+
+        mock_histograms = histograms.DatasetHistograms(mock_l0_histogram, None,
+                                                       mock_linf_histogram,
+                                                       None, None)
+        parameters_to_tune = parameter_tuning.ParametersToTune(
+            max_partitions_contributed=True,
+            max_contributions_per_partition=True)
+
+        candidates = parameter_tuning._find_candidate_parameters(
+            mock_histograms,
+            parameters_to_tune,
+            pipeline_dp.Metrics.COUNT,
+            ParametersSearchStrategy.QUANTILES,
+            max_candidates=10)
+        # sqrt(10) = 3, but l_0 has only 2 quantiles (1 and 8 -- max_value),
+        # therefore for l_inf we can take 10 / 2 = 5 quantiles.
+        self.assertEqual([1, 1, 1, 1, 1, 8, 8, 8, 8, 8],
+                         candidates.max_partitions_contributed)
+        self.assertEqual([3, 4, 5, 6, 7, 3, 4, 5, 6, 7],
+                         candidates.max_contributions_per_partition)
+
+    @parameterized.named_parameters(
+        dict(testcase_name='max_value=1, returns [1]',
+             max_value=1,
+             max_candidates=1000,
+             expected_candidates=[1]),
+        dict(testcase_name='max_candidates=1, returns [1]',
+             max_value=1000,
+             max_candidates=1,
+             expected_candidates=[1]),
+        dict(testcase_name='max_candidates=2, returns 1 and max_value',
+             max_value=1003,
+             max_candidates=2,
+             expected_candidates=[1, 1003]),
+        dict(testcase_name='max_candidates is equal to max_value, returns '
+             'all possible candidates',
+             max_value=10,
+             max_candidates=10,
+             expected_candidates=list(range(1, 11))),
+        dict(
+            testcase_name='max_candidates is larger than max_value, returns all'
+            ' possible candidates up to max_value',
+            max_value=10,
+            max_candidates=100,
+            expected_candidates=list(range(1, 11))),
+        dict(
+            testcase_name='max_candidates is smaller than max_value, returns '
+            'logarithmic subset of values and last value is '
+            'max_value',
+            max_value=1000,
+            max_candidates=5,
+            # ceil(1000^(i / 4)), where i in [0, 1, 2, 3, 4]
+            expected_candidates=[1, 6, 32, 178, 1000]))
+    def test_find_candidate_parameters_constant_relative_ste_strategy(
+            self, max_value, max_candidates, expected_candidates):
+        mock_l0_histogram = histograms.Histogram(None, None)
+        setattr(histograms.Histogram, 'max_value', max_value)
 
         mock_histograms = histograms.DatasetHistograms(mock_l0_histogram, None,
                                                        None, None, None)
@@ -127,67 +217,12 @@ class ParameterTuning(parameterized.TestCase):
             parameters_to_tune,
             pipeline_dp.Metrics.COUNT,
             ParametersSearchStrategy.CONSTANT_RELATIVE_STEP,
-            max_candidates=1000)
+            max_candidates=max_candidates)
 
-        expected_superset = set(
-            list(range(1, 1000, 1)) + list(range(1000, 10000, 10)) +
-            list(range(10000, 100000, 100)) +
-            list(range(100000, 1000000, 1000))).union({999999})
-        self.assertTrue(
-            set(candidates.max_partitions_contributed).issubset(
-                expected_superset))
-        self.assertLen(set(candidates.max_partitions_contributed),
-                       len(candidates.max_partitions_contributed))
-        self.assertLen(candidates.max_partitions_contributed, 1000)
-        self.assertEqual(sorted(candidates.max_partitions_contributed),
+        self.assertEqual(expected_candidates,
                          candidates.max_partitions_contributed)
 
-    def test_find_candidate_parameters_constant_relative_step_strategy_small_n_max(
-            self):
-        mock_linf_histogram = histograms.Histogram(None, None)
-        setattr(histograms.Histogram, 'max_value', 999999)
-
-        mock_histograms = histograms.DatasetHistograms(None, None,
-                                                       mock_linf_histogram,
-                                                       None, None)
-        parameters_to_tune = parameter_tuning.ParametersToTune(
-            max_partitions_contributed=False,
-            max_contributions_per_partition=True)
-
-        candidates = parameter_tuning._find_candidate_parameters(
-            mock_histograms,
-            parameters_to_tune,
-            pipeline_dp.Metrics.COUNT,
-            ParametersSearchStrategy.CONSTANT_RELATIVE_STEP,
-            max_candidates=10)
-
-        self.assertEqual(
-            [1, 412, 823, 3340, 7450, 25600, 66700, 178000, 589000, 999999],
-            candidates.max_contributions_per_partition)
-
-    def test_find_candidate_parameters_constant_relative_step_strategy_number_of_candidates_returned_is_less_than_maximum_number_of_candidates(
-            self):
-        mock_linf_histogram = histograms.Histogram(None, None)
-        setattr(histograms.Histogram, 'max_value', 50)
-
-        mock_histograms = histograms.DatasetHistograms(None, None,
-                                                       mock_linf_histogram,
-                                                       None, None)
-        parameters_to_tune = parameter_tuning.ParametersToTune(
-            max_partitions_contributed=False,
-            max_contributions_per_partition=True)
-
-        candidates = parameter_tuning._find_candidate_parameters(
-            mock_histograms,
-            parameters_to_tune,
-            pipeline_dp.Metrics.COUNT,
-            ParametersSearchStrategy.CONSTANT_RELATIVE_STEP,
-            max_candidates=100)
-
-        self.assertEqual(list(range(1, 51)),
-                         candidates.max_contributions_per_partition)
-
-    def test_tune_count_new(self):
+    def test_tune_count(self):
         # Arrange.
         input = [(i % 10, f"pk{i/10}") for i in range(10)]
         public_partitions = [f"pk{i}" for i in range(10)]
@@ -224,7 +259,7 @@ class ParameterTuning(parameterized.TestCase):
         self.assertEqual(utility_reports[0].metric_errors[0].metric,
                          pipeline_dp.Metrics.COUNT)
 
-    def test_tune_privacy_id_count_new(self):
+    def test_tune_privacy_id_count(self):
         # Arrange.
         input = [(i % 10, f"pk{i/10}") for i in range(10)]
         public_partitions = [f"pk{i}" for i in range(10)]

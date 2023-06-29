@@ -41,7 +41,9 @@ class ParametersSearchStrategy(Enum):
     # Picks up candidates that correspond tp a predefined list of quantiles.
     QUANTILES = 1
     # Candidates are a sequence starting from 1 where relative difference
-    # between two neighbouring elements is (almost) the same.
+    # between two neighbouring elements is the same. Mathematically it means
+    # that candidates are a sequence a_i, where
+    # a_i = max_value^(i / (max_candidates - 1)), i in [0..(max_candidates - 1)]
     CONSTANT_RELATIVE_STEP = 2
 
 
@@ -157,6 +159,20 @@ def _find_candidate_parameters(
         linf_candidates = find_candidates_func(
             hist.linf_contributions_histogram, max_candidates_per_parameter)
         l0_bounds, linf_bounds = [], []
+
+        # if linf or l0 has fewer candidates than requested then we can add more
+        # candidates for the other parameter.
+        if (len(linf_candidates) < max_candidates_per_parameter and
+                len(l0_candidates) == max_candidates_per_parameter):
+            l0_candidates = find_candidates_func(
+                hist.l0_contributions_histogram,
+                int(max_candidates / len(linf_candidates)))
+        elif (len(l0_candidates) < max_candidates_per_parameter and
+              len(linf_candidates) == max_candidates_per_parameter):
+            linf_candidates = find_candidates_func(
+                hist.linf_contributions_histogram,
+                int(max_candidates / len(l0_candidates)))
+
         for l0 in l0_candidates:
             for linf in linf_candidates:
                 l0_bounds.append(l0)
@@ -190,22 +206,24 @@ def _find_candidates_constant_relative_step(histogram: histograms.Histogram,
                                             max_candidates: int) -> List[int]:
     """Implementation of CONSTANT_RELATIVE_STEP strategy."""
     max_value = histogram.max_value
-    # relative step varies from 1% to 0.1%
-    # because generate_possible_contribution_bounds generate bounds by changing
-    # only up to first 3 digits, for example 100000, 101000, 102000... Then
-    # relative step between neighbouring elements
-    # varies (101000 - 100000) / 100000 = 0.01 and
-    # (1000000 - 999000) / 999000 ~= 0.001.
-    candidates = private_contribution_bounds.generate_possible_contribution_bounds(
-        max_value)
-    n_max_without_max_value = max_candidates - 1
-    if len(candidates) > n_max_without_max_value:
-        delta = len(candidates) / n_max_without_max_value
-        candidates = [
-            candidates[int(i * delta)] for i in range(n_max_without_max_value)
-        ]
-    if candidates[-1] != max_value:
-        candidates.append(max_value)
+    assert max_value >= 1, "max_value has to be >= 1."
+    max_candidates = min(max_candidates, max_value)
+    assert max_candidates > 0, "max_candidates have to be positive"
+    if max_candidates == 1:
+        return [1]
+    step = pow(max_value, 1 / (max_candidates - 1))
+    candidates = [1]
+    accumulated = 1
+    for i in range(1, max_candidates):
+        previous_candidate = candidates[-1]
+        if previous_candidate >= max_value:
+            break
+        accumulated *= step
+        next_candidate = max(previous_candidate + 1, math.ceil(accumulated))
+        candidates.append(next_candidate)
+    # float calculations might be not precise enough but the last candidate has
+    # to be always max_value
+    candidates[-1] = max_value
     return candidates
 
 
@@ -290,14 +308,16 @@ def _convert_utility_analysis_to_tune_result(
     assert tune_options.function_to_minimize == MinimizingFunction.ABSOLUTE_ERROR
 
     # Sort utility reports by configuration index.
-    utility_reports.sort(key=lambda e: e.configuration_index)
+    sorted_utility_reports = sorted(utility_reports,
+                                    key=lambda e: e.configuration_index)
 
     index_best = -1  # not found
     # Find best index if there are metrics to compute. Absence of metrics to
     # compute means that this is SelectPartition analysis.
     if tune_options.aggregate_params.metrics:
         rmse = [
-            ur.metric_errors[0].absolute_error.rmse for ur in utility_reports
+            ur.metric_errors[0].absolute_error.rmse
+            for ur in sorted_utility_reports
         ]
         index_best = np.argmin(rmse)
 
@@ -305,7 +325,7 @@ def _convert_utility_analysis_to_tune_result(
                       contribution_histograms,
                       run_configurations,
                       index_best,
-                      utility_reports=utility_reports)
+                      utility_reports=sorted_utility_reports)
 
 
 def _check_tune_args(options: TuneOptions):

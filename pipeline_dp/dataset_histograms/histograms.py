@@ -21,8 +21,10 @@ from typing import List, Sequence, Tuple
 @dataclass
 class FrequencyBin:
     """Represents a single bin of a histogram.
+
     The bin represents integers between 'lower' (inclusive) and 'upper'
     (exclusive, not stored in this class, but uniquely determined by 'lower').
+
     Attributes:
       lower: the lower bound of the bin.
       count: the number of elements in the bin.
@@ -70,21 +72,27 @@ class Histogram:
 
     def quantiles(self, q: List[float]) -> List[int]:
         """Computes approximate quantiles over datasets.
-    The output quantiles are chosen only from lower bounds of bins in
-    this histogram. For each target quantile q it returns the lower bound of
-    the first bin, such that all bins from the left contain not more than
-    q part of the data.
-    E.g. for quantile 0.8, the returned value is bin.lower for the first
-    bin such that the ratio of data in bins to left from 'bin' is <= 0.8.
-    Args:
-        q: a list of quantiles to compute. It must be sorted in ascending order.
-    Returns:
-        A list of computed quantiles in the same order as in q.
-    """
+
+        The output quantiles are chosen only from lower bounds of bins in
+        this histogram. For each target quantile q it returns the lower bound of
+        the first bin, such that all bins from the left contain not more than
+        q part of the data.
+        E.g. for quantile 0.8, the returned value is bin.lower for the first
+        bin such that the ratio of data in bins to left from 'bin' is <= 0.8.
+
+        Args:
+            q: a list of quantiles to compute. It must be sorted in ascending
+            order.
+
+        Returns:
+            A list of computed quantiles in the same order as in q.
+        """
         assert sorted(q) == q, "Quantiles to compute must be sorted."
 
         result = []
         total_count_up_to_current_bin = count_smaller = self.total_count()
+        if total_count_up_to_current_bin == 0:
+            raise ValueError("Cannot compute quantiles of an empty histogram")
         i_q = len(q) - 1
         for bin in self.bins[::-1]:
             count_smaller -= bin.count

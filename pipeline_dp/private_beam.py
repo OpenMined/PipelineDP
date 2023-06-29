@@ -517,7 +517,9 @@ class PrivateCombineFn(beam.CombineFn):
          """
 
     @abc.abstractmethod
-    def extract_private_output(self, accumulator, budget: Any):
+    def extract_private_output(
+            self, accumulator, budget: Any,
+            aggregate_params: pipeline_dp.AggregateParams) -> Any:
         """Computes private output.
 
         'budget' is the object which returned from 'request_budget()'.
@@ -539,15 +541,6 @@ class PrivateCombineFn(beam.CombineFn):
         Warning: do not store 'budget_accountant' in 'self'. It is assumed to
         live in the driver process.
         """
-
-    def set_aggregate_params(self,
-                             aggregate_params: pipeline_dp.AggregateParams):
-        """Sets aggregate parameters
-
-        The custom combiner can optionally use it for own DP parameter
-        computations.
-        """
-        self._aggregate_params = aggregate_params
 
 
 class _CombineFnCombiner(pipeline_dp.CustomCombiner):
@@ -571,7 +564,7 @@ class _CombineFnCombiner(pipeline_dp.CustomCombiner):
     def compute_metrics(self, accumulator):
         """Computes and returns the result of aggregation."""
         return self._private_combine_fn.extract_private_output(
-            accumulator, self._budget)
+            accumulator, self._budget, self._aggregate_params)
 
     def explain_computation(self) -> str:
         # TODO: implement
@@ -583,7 +576,7 @@ class _CombineFnCombiner(pipeline_dp.CustomCombiner):
             budget_accountant)
 
     def set_aggregate_params(self, aggregate_params):
-        self._private_combine_fn.set_aggregate_params(aggregate_params)
+        self._aggregate_params = aggregate_params
 
 
 @dataclasses.dataclass
