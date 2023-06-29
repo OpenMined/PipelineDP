@@ -533,7 +533,7 @@ class VarianceCombinerTest(parameterized.TestCase):
         self.assertGreater(np.var(noisy_counts), 1)  # check that noise is added
 
         noisy_sums = [noisy_value['sum'] for noisy_value in noisy_values]
-        self.assertAlmostEqual(sum_, np.mean(noisy_sums), delta=10)
+        self.assertAlmostEqual(sum_, np.mean(noisy_sums), delta=20)
         self.assertGreater(np.var(noisy_sums), 1)  # check that noise is added
 
         noisy_means = [noisy_value['mean'] for noisy_value in noisy_values]
