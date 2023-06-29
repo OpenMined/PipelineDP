@@ -201,7 +201,7 @@ class ParameterTuning(parameterized.TestCase):
             max_candidates=5,
             # ceil(1000^(i / 4)), where i in [0, 1, 2, 3, 4]
             expected_candidates=[1, 6, 32, 178, 1000]))
-    def test_find_candidate_parameters_constant_relative_strategy(
+    def test_find_candidate_parameters_constant_relative_ste_strategy(
             self, max_value, max_candidates, expected_candidates):
         mock_l0_histogram = histograms.Histogram(None, None)
         setattr(histograms.Histogram, 'max_value', max_value)

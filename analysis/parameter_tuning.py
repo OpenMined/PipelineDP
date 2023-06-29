@@ -206,9 +206,9 @@ def _find_candidates_constant_relative_step(histogram: histograms.Histogram,
                                             max_candidates: int) -> List[int]:
     """Implementation of CONSTANT_RELATIVE_STEP strategy."""
     max_value = histogram.max_value
-    assert max_value < 1, "max_value has to be >= 1."
+    assert max_value >= 1, "max_value has to be >= 1."
     max_candidates = min(max_candidates, max_value)
-    assert max_candidates <= 0, "max_candidates have to be positive"
+    assert max_candidates > 0, "max_candidates have to be positive"
     if max_candidates == 1:
         return [1]
     step = pow(max_value, 1 / (max_candidates - 1))
