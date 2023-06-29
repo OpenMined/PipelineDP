@@ -216,8 +216,7 @@ class AdditiveMechanismMixin(MechanismContainerMixin):
 
     def create_mechanism(self) -> dp_computations.AdditiveMechanism:
         return dp_computations.create_additive_mechanism(
-            dp_computations.to_additive_mechanism_spec(self.mechanism_spec()),
-            self.sensitivities())
+            self.mechanism_spec(), self.sensitivities())
 
     @abc.abstractmethod
     def sensitivities(self) -> dp_computations.Sensitivities:
@@ -432,13 +431,10 @@ class MeanCombiner(Combiner, MechanismContainerMixin):
     def create_mechanism(self) -> dp_computations.MeanMechanism:
         range_middle = dp_computations.compute_middle(self._min_value,
                                                       self._max_value)
-
-        count_spec = dp_computations.to_additive_mechanism_spec(
-            self._count_spec)
-        sum_spec = dp_computations.to_additive_mechanism_spec(self._sum_spec)
-        return dp_computations.create_mean_mechanism(range_middle, count_spec,
+        return dp_computations.create_mean_mechanism(range_middle,
+                                                     self._count_spec,
                                                      self._count_sensitivities,
-                                                     sum_spec,
+                                                     self._sum_spec,
                                                      self._sum_sensitivities)
 
     def mechanism_spec(

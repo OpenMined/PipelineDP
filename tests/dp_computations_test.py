@@ -24,6 +24,8 @@ from unittest.mock import MagicMock
 import pipeline_dp
 import pipeline_dp.dp_computations as dp_computations
 from pipeline_dp.aggregate_params import NoiseKind
+from pipeline_dp import aggregate_params
+from pipeline_dp import budget_accounting
 
 N_ITERATIONS = 200000
 DUMMY_MIN_VALUE = 2.0
@@ -607,8 +609,9 @@ class AdditiveMechanismTests(parameterized.TestCase):
     def test_create_laplace_mechanism(self, epsilon, l0_sensitivity,
                                       linf_sensitivity, l1_sensitivity,
                                       expected_noise_parameter):
-        spec = dp_computations.AdditiveMechanismSpec(
-            epsilon, delta=0, noise_kind=pipeline_dp.NoiseKind.LAPLACE)
+        spec = budget_accounting.MechanismSpec(
+            aggregate_params.MechanismType.LAPLACE)
+        spec.set_eps_delta(epsilon, delta=0)
         sensitivities = dp_computations.Sensitivities(l0=l0_sensitivity,
                                                       linf=linf_sensitivity,
                                                       l1=l1_sensitivity)
@@ -632,8 +635,9 @@ class AdditiveMechanismTests(parameterized.TestCase):
     )
     def test_create_gaussian_mechanism(self, epsilon, delta, l2_sensitivity,
                                        expected_noise_parameter):
-        spec = dp_computations.AdditiveMechanismSpec(
-            epsilon, delta=delta, noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)
+        spec = budget_accounting.MechanismSpec(
+            aggregate_params.MechanismType.GAUSSIAN)
+        spec.set_eps_delta(epsilon, delta)
         sensitivities = dp_computations.Sensitivities(l2=l2_sensitivity)
 
         mechanism = dp_computations.create_additive_mechanism(
@@ -715,11 +719,13 @@ class AdditiveMechanismTests(parameterized.TestCase):
 class MeanMechanismTests(parameterized.TestCase):
 
     def create_mean_mechanism(self) -> dp_computations.MeanMechanism:
-        count_spec = dp_computations.AdditiveMechanismSpec(
-            1.0, delta=1e-5, noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)
+        count_spec = budget_accounting.MechanismSpec(
+            aggregate_params.MechanismType.GAUSSIAN)
+        count_spec.set_eps_delta(eps=1.0, delta=1e-5)
         count_sensitivities = dp_computations.Sensitivities(l0=4, linf=10)
-        sum_spec = dp_computations.AdditiveMechanismSpec(
-            2.0, delta=1e-7, noise_kind=pipeline_dp.NoiseKind.LAPLACE)
+        sum_spec = budget_accounting.MechanismSpec(
+            aggregate_params.MechanismType.LAPLACE)
+        sum_spec.set_eps_delta(eps=2.0, delta=1e-7)
         sum_sensitivities = dp_computations.Sensitivities(l0=3, linf=5)
         return dp_computations.create_mean_mechanism(5, count_spec,
                                                      count_sensitivities,
