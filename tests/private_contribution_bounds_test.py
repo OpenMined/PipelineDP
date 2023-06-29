@@ -200,7 +200,7 @@ class L0ScoringFunctionTest(unittest.TestCase):
             params, number_of_partitions, l0_histogram)
 
         with self.assertRaises(RuntimeError):
-            l0_scoring_function.score(-1)
+            l0_scoring_function.score(0)
 
 
 class PrivateL0CalculatorTest(unittest.TestCase):
