@@ -222,7 +222,7 @@ class ParameterTuning(parameterized.TestCase):
         self.assertEqual(expected_candidates,
                          candidates.max_partitions_contributed)
 
-    def test_tune_count_new(self):
+    def test_tune_count(self):
         # Arrange.
         input = [(i % 10, f"pk{i/10}") for i in range(10)]
         public_partitions = [f"pk{i}" for i in range(10)]
@@ -259,7 +259,7 @@ class ParameterTuning(parameterized.TestCase):
         self.assertEqual(utility_reports[0].metric_errors[0].metric,
                          pipeline_dp.Metrics.COUNT)
 
-    def test_tune_privacy_id_count_new(self):
+    def test_tune_privacy_id_count(self):
         # Arrange.
         input = [(i % 10, f"pk{i/10}") for i in range(10)]
         public_partitions = [f"pk{i}" for i in range(10)]
