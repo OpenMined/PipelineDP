@@ -118,7 +118,7 @@ def tune_parameters():
     restaurant_visits_rows = load_data(FLAGS.input_file)
     # Create aggregate_params, data_extractors and public partitions.
     aggregate_params = get_aggregate_params()
-    public_partitions = list(range(1, 8)) if FLAGS.public_partitions else None
+    public_partitions = list(range(2, 9)) if FLAGS.public_partitions else None
     backend = pipeline_dp.LocalBackend()
 
     if FLAGS.run_on_preaggregated_data:

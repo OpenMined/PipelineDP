@@ -62,7 +62,7 @@ class CountErrorEstimator:
 
         Args:
             l0_bound: l0 contribution bound, AKA max_partition_contributed.
-            linf_bound: l0 contribution bound, AKA for COUNT as
+            linf_bound: linf contribution bound, AKA for COUNT as
               max_contributions_per_partition. This parameter is ignored for
               PRIVACY_ID_COUNT
         Returns:
@@ -77,8 +77,8 @@ class CountErrorEstimator:
             ratio_dropped_linf = self.get_ratio_dropped_linf(linf_bound)
         ratio_dropped = 1 - (1 - ratio_dropped_l0) * (1 - ratio_dropped_linf)
         stddev = self._get_stddev(l0_bound, linf_bound)
-        return _estate_rmse_impl(ratio_dropped, stddev,
-                                 self._partition_histogram)
+        return _estimate_rmse_impl(ratio_dropped, stddev,
+                                   self._partition_histogram)
 
     def get_ratio_dropped_l0(self, l0_bound: int) -> float:
         """Computes ratio"""
@@ -114,9 +114,19 @@ class CountErrorEstimator:
 
 
 def create_error_estimator(histograms: hist.DatasetHistograms, base_std: float,
-                           metric: pipeline_dp.Metrics,
+                           metric: pipeline_dp.Metric,
                            noise: pipeline_dp.NoiseKind) -> CountErrorEstimator:
-    """Creates histogram based error estimator for COUNT or PRIVACY_ID_COUNT."""
+    """Creates histogram based error estimator for COUNT or PRIVACY_ID_COUNT.
+
+    Args:
+        histograms: dataset histograms.
+        base_std: what's standard deviation of the noise, when l0 and linf
+         bounds equal to 1.
+        metric: DP aggregation, COUNT or PRIVACY_ID_COUNT.
+        noise: type of DP noise.
+    Returns:
+        Error estimator.
+    """
     if metric not in [
             pipeline_dp.Metrics.COUNT, pipeline_dp.Metrics.PRIVACY_ID_COUNT
     ]:
@@ -135,8 +145,8 @@ def create_error_estimator(histograms: hist.DatasetHistograms, base_std: float,
                                linf_ratios_dropped, partition_histogram)
 
 
-def _estate_rmse_impl(ratio_dropped: float, std: float,
-                      partition_histogram: hist.Histogram) -> float:
+def _estimate_rmse_impl(ratio_dropped: float, std: float,
+                        partition_histogram: hist.Histogram) -> float:
     sum_rmse = 0
     num_partitions = partition_histogram.total_count()
     for bin in partition_histogram.bins:
