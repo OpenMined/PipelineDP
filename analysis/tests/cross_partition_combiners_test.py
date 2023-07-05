@@ -37,10 +37,13 @@ def _get_sum_metrics():
 
 class PerPartitionToCrossPartitionMetrics(parameterized.TestCase):
 
-    def test_metric_utility_count(self):
+    @parameterized.parameters(1, 0.25)
+    def test_metric_utility_count(self, keep_prob: float):
         input = _get_sum_metrics()
         output: metrics.MetricUtility = cross_partition_combiners._sum_metrics_to_metric_utility(
-            input, pipeline_dp.Metrics.COUNT, partition_keep_probability=1.0)
+            input,
+            pipeline_dp.Metrics.COUNT,
+            partition_keep_probability=keep_prob)
 
         self.assertEqual(output.metric, pipeline_dp.Metrics.COUNT)
         self.assertEqual(output.noise_kind, input.noise_kind)
@@ -48,21 +51,24 @@ class PerPartitionToCrossPartitionMetrics(parameterized.TestCase):
 
         # Check absolute_error.
         abs_error: metrics.ValueErrors = output.absolute_error
-        self.assertEqual(abs_error.mean, -4)
-        self.assertEqual(abs_error.variance, 25)
+        self.assertEqual(abs_error.mean, -4 * keep_prob)
+        self.assertEqual(abs_error.variance, 25 * keep_prob)
         self.assertAlmostEqual(abs_error.rmse,
-                               math.sqrt(4 * 4 + 25),
+                               math.sqrt(4 * 4 + 25) * keep_prob,
                                delta=1e-12)
 
         bounding_errors = abs_error.bounding_errors
-        self.assertEqual(bounding_errors.l0, metrics.MeanVariance(-2.0, 9))
-        self.assertEqual(bounding_errors.linf_min, 3.0)
-        self.assertEqual(bounding_errors.linf_max, -5.0)
+        self.assertEqual(bounding_errors.l0,
+                         metrics.MeanVariance(-2.0 * keep_prob, 9 * keep_prob))
+        self.assertEqual(bounding_errors.linf_min, 3.0 * keep_prob)
+        self.assertEqual(bounding_errors.linf_max, -5.0 * keep_prob)
 
         # Check relative_error.
         expected_rel_error = abs_error.to_relative(input.sum)
         self.assertEqual(output.relative_error, expected_rel_error)
-        self.assertAlmostEqual(output.relative_error.mean, -0.4, delta=1e-12)
+        self.assertAlmostEqual(output.relative_error.mean,
+                               -0.4 * keep_prob,
+                               delta=1e-12)
 
     @parameterized.parameters(False, True)
     def test_create_partition_metrics_for_public_partitions(
