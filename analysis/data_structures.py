@@ -15,7 +15,7 @@
 
 import copy
 import dataclasses
-from typing import Iterable, Optional, Sequence
+from typing import Iterable, Optional, Sequence, Union
 
 import pipeline_dp
 from pipeline_dp import input_validators
@@ -132,3 +132,10 @@ def get_aggregate_params(
         for i in range(multi_param_configuration.size):
             yield multi_param_configuration.get_aggregate_params(
                 options.aggregate_params, i)
+
+
+def get_partition_selection_strategy(
+    options: UtilityAnalysisOptions
+) -> Union[pipeline_dp.PartitionSelectionStrategy,
+           Iterable[pipeline_dp.PartitionSelectionStrategy]]:
+    pass
