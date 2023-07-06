@@ -29,7 +29,7 @@ class HistogramErrorEstimatorTest(parameterized.TestCase):
         dataset = []
         # 1st privacy unit contributes to 10 partitions once
         dataset.extend([(1, i) for i in range(10)])
-        # 2st privacy unit contributes to 1 partition 20 times.
+        # 2nd privacy unit contributes to 1 partition 20 times.
         dataset.extend([(2, 0) for i in range(20)])
 
         data_extractors = pipeline_dp.DataExtractors(
@@ -92,9 +92,28 @@ class HistogramErrorEstimatorTest(parameterized.TestCase):
                 ValueError, "Only COUNT and PRIVACY_ID_COUNT are supported"):
             self._get_estimator(pipeline_dp.Metrics.SUM)
 
-    def test_get_ratio_dropped_l0(self):
+    @parameterized.parameters((0, 1), (1, 0.818181818181818),
+                              (2, 0.727272727272727), (3, 0.6363636363636364),
+                              (9, 0.09090909090909), (10, 0), (20, 0))
+    def test_get_ratio_dropped_l0(self, l0_bound, expected):
         estimator = self._get_estimator(pipeline_dp.Metrics.COUNT)
-        self.assertAlmostEqual(estimator.get_ratio_dropped_l0(1), 0)
+        self.assertAlmostEqual(estimator.get_ratio_dropped_l0(l0_bound),
+                               expected)
+
+    @parameterized.parameters((0, 1), (1, 0.6333333333333333), (2, 0.6),
+                              (10, 0.3333333333), (20, 0), (21, 0))
+    def test_get_ratio_dropped_linf(self, linf_bound, expected):
+        estimator = self._get_estimator(pipeline_dp.Metrics.COUNT)
+        self.assertAlmostEqual(estimator.get_ratio_dropped_linf(linf_bound),
+                               expected)
+
+    @parameterized.parameters((1, 1, 3.9565310998335823),
+                              (1, 2, 5.683396971098993),
+                              (10, 10, 200.01249625055996))
+    def test_estimate_rmse_count(self, l0_bound, linf_bound, expected):
+        estimator = self._get_estimator(pipeline_dp.Metrics.COUNT)
+        self.assertAlmostEqual(estimator.estimate_rmse(l0_bound, linf_bound),
+                               expected)
 
 
 if __name__ == '__main__':

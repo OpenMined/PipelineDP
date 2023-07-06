@@ -47,8 +47,17 @@ class FrequencyBin:
 
 
 class HistogramType(enum.Enum):
+    # For L0 contribution histogram, for each bin:
+    # 'count' is the number of privacy units which contribute to
+    # [lower, next_lower) partitions.
+    # 'sum' is the total number (privacy_unit, partition) for these privacy
+    # units.
     L0_CONTRIBUTIONS = 'l0_contributions'
     L1_CONTRIBUTIONS = 'l1_contributions'
+    # For Linf contribution histogram, for each bin:
+    # 'count' is the number of pair (privacy_unit, partition) which contribute
+    # with [lower, next_lower) contributions.
+    # 'sum' is the total number of contributions for these pairs.
     LINF_CONTRIBUTIONS = 'linf_contributions'
     COUNT_PER_PARTITION = 'count_per_partition'
     COUNT_PRIVACY_ID_PER_PARTITION = 'privacy_id_per_partition_count'

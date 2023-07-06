@@ -94,13 +94,13 @@ class CountErrorEstimator:
         if bound > ratios_dropped[-1][0]:
             return 0
         index = bisect.bisect_left(ratios_dropped, (bound, 0))
-        if ratios_dropped[index] == bound:
+        if ratios_dropped[index][0] == bound:
             return ratios_dropped[index][1]
 
-        x1, y1 = ratios_dropped[index]
-        x2, y2 = ratios_dropped[index + 1]
+        x1, y1 = ratios_dropped[index - 1]
+        x2, y2 = ratios_dropped[index]
         # Linearly interpolate between (x1, y1) and (x2, y2) for x=bound.
-        return (y1 * (bound - x1) + y2 * (x2 - bound)) / (x2 - x1)
+        return (y1 * (x2 - bound) + y2 * (bound - x1)) / (x2 - x1)
 
     def _get_stddev(self,
                     l0_bound: int,
@@ -150,7 +150,8 @@ def _estimate_rmse_impl(ratio_dropped: float, std: float,
     sum_rmse = 0
     num_partitions = partition_histogram.total_count()
     for bin in partition_histogram.bins:
-        average_per_bin = bin.sum / bin.count
-        rmse = math.sqrt((ratio_dropped * average_per_bin)**2 + std**2)
+        average_partition_size_in_bin = bin.sum / bin.count
+        rmse = math.sqrt((ratio_dropped * average_partition_size_in_bin)**2 +
+                         std**2)
         sum_rmse += bin.count * rmse
     return sum_rmse / num_partitions
