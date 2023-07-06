@@ -36,7 +36,8 @@ def compute_public_partitions_summary(col, backend: pipeline_dp.PipelineBackend,
     """Computes Public Partitions Summary from dataset and public partitions.
 
     Args:
-        col: collection where all elements are of the same type.
+        col: the raw dataset. The collection where all elements are of the same
+            type.
         backend: pipeline backend which corresponds to the type of 'col'.
         extractors: functions that extract needed pieces of information
             from elements of 'col'.

@@ -34,7 +34,7 @@ class PublicDatasetSummaryTest(parameterized.TestCase):
         summary = list(summary)[0]
 
         self.assertEqual(summary.num_dataset_public_partitions, 40)
-        self.assertEqual(summary.num_dataset_non_public_partititions, 60)
+        self.assertEqual(summary.num_dataset_non_public_partitions, 60)
         self.assertEqual(summary.num_empty_public_partitions, 21)
 
 
