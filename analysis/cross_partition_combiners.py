@@ -85,10 +85,9 @@ def _sum_metrics_to_value_error(sum_metrics: metrics.SumMetrics,
         l1_with_dropped_partitions=l1_with_dropped_partitions)
     if keep_prob != 1:
         # Weight per-partition result with keep_prob for computing average.
-        _multiply_float_dataclasses_field(
-            result,
-            keep_prob,
-            fields_to_ignore=["noise_std", "ratio_data_dropped"])
+        _multiply_float_dataclasses_field(result,
+                                          keep_prob,
+                                          fields_to_ignore=["noise_std"])
     return result
 
 
