@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""TODO"""
+"""Tests for the dataset summary."""
 
 from absl.testing import absltest
 from absl.testing import parameterized
@@ -33,9 +33,9 @@ class PublicDatasetSummaryTest(parameterized.TestCase):
 
         summary = list(summary)[0]
 
-        self.assertEqual(summary.num_dataset_public, 40)
-        self.assertEqual(summary.num_dataset_non_public, 60)
-        self.assertEqual(summary.num_empty_public, 21)
+        self.assertEqual(summary.num_dataset_public_partitions, 40)
+        self.assertEqual(summary.num_dataset_non_public_partititions, 60)
+        self.assertEqual(summary.num_empty_public_partitions, 21)
 
 
 if __name__ == '__main__':
