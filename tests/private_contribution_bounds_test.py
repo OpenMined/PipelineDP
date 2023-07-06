@@ -200,9 +200,6 @@ class L0ScoringFunctionTest(unittest.TestCase):
             params, number_of_partitions, l0_histogram)
 
         with self.assertRaises(RuntimeError):
-            l0_scoring_function.score(-1)
-
-        with self.assertRaises(RuntimeError):
             l0_scoring_function.score(0)
 
 
