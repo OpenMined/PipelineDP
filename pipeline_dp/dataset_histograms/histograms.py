@@ -55,7 +55,7 @@ class HistogramType(enum.Enum):
     L0_CONTRIBUTIONS = 'l0_contributions'
     L1_CONTRIBUTIONS = 'l1_contributions'
     # For Linf contribution histogram, for each bin:
-    # 'count' is the number of pair (privacy_unit, partition) which contribute
+    # 'count' is the number of pairs (privacy_unit, partition) which contribute
     # with [lower, next_lower) contributions.
     # 'sum' is the total number of contributions for these pairs.
     LINF_CONTRIBUTIONS = 'linf_contributions'

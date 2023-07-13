@@ -89,7 +89,7 @@ class CountErrorEstimator:
 
     def _get_ratio_dropped(self, ratios_dropped: Sequence[Tuple[int, float]],
                            bound: int) -> float:
-        if bound < 0:
+        if bound <= 0:
             return 1
         if bound > ratios_dropped[-1][0]:
             return 0
@@ -97,6 +97,7 @@ class CountErrorEstimator:
         if ratios_dropped[index][0] == bound:
             return ratios_dropped[index][1]
 
+        # index > 0, because ratio_dropped starts from 0, and bound > 0.
         x1, y1 = ratios_dropped[index - 1]
         x2, y2 = ratios_dropped[index]
         # Linearly interpolate between (x1, y1) and (x2, y2) for x=bound.

@@ -92,16 +92,19 @@ class HistogramErrorEstimatorTest(parameterized.TestCase):
                 ValueError, "Only COUNT and PRIVACY_ID_COUNT are supported"):
             self._get_estimator(pipeline_dp.Metrics.SUM)
 
-    @parameterized.parameters((0, 1), (1, 0.818181818181818),
-                              (2, 0.727272727272727), (3, 0.6363636363636364),
-                              (9, 0.09090909090909), (10, 0), (20, 0))
+    @parameterized.parameters((0, 1), (1, 9 / 11), (2, 8 / 11), (3, 7 / 11),
+                              (9, 1 / 11), (10, 0), (20, 0))
+    # there are 11 (privacy_id, partition) pairs (from 2 privacy units), when
+    # l0_bound=1, 9 are dropped (from 1 privacy unit).
     def test_get_ratio_dropped_l0(self, l0_bound, expected):
         estimator = self._get_estimator(pipeline_dp.Metrics.COUNT)
         self.assertAlmostEqual(estimator.get_ratio_dropped_l0(l0_bound),
                                expected)
 
-    @parameterized.parameters((0, 1), (1, 0.6333333333333333), (2, 0.6),
-                              (10, 0.3333333333), (20, 0), (21, 0))
+    @parameterized.parameters((0, 1), (1, 19 / 30), (2, 18 / 30), (10, 10 / 30),
+                              (20, 0), (21, 0))
+    # there are 30 rows (from 2 privacy units), when linf_bound=1, 19 are
+    # dropped (from 1 privacy unit, which contributes 20 to 1 partition).
     def test_get_ratio_dropped_linf(self, linf_bound, expected):
         estimator = self._get_estimator(pipeline_dp.Metrics.COUNT)
         self.assertAlmostEqual(estimator.get_ratio_dropped_linf(linf_bound),
@@ -110,6 +113,19 @@ class HistogramErrorEstimatorTest(parameterized.TestCase):
     @parameterized.parameters((1, 1, 3.9565310998335823),
                               (1, 2, 5.683396971098993),
                               (10, 10, 200.01249625055996))
+    # This is explanation how estimation is computed. See _get_histograms
+    # for dataset description.
+    # l0_bound = linf_bound = 1
+    # ratio_dropped_l0 = 9/11, ratio_dropped_linf = 19/30.
+    # total_ratio_dropped is estimated as 1 - (1 - 9/11)*(1 - 19/30) ~= 0.933333
+    # noise_stddev = 2
+    # RMSE is estimated separately on partitions with 1 row and on the partition
+    # with 21 rows.
+    # On a partition with 1 row (9 such partitions):
+    # rmse1 = sqrt(1*total_ratio_dropped + noise_stddev**2) ~= 2.20706
+    # On a partition with 21 row:
+    # rmse2 = sqrt(21*total_ratio_dropped + noise_stddev**2) ~= 19.70177
+    # rmse = (9*rmse1+rmse2)/10.
     def test_estimate_rmse_count(self, l0_bound, linf_bound, expected):
         estimator = self._get_estimator(pipeline_dp.Metrics.COUNT)
         self.assertAlmostEqual(estimator.estimate_rmse(l0_bound, linf_bound),
