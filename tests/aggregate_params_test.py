@@ -197,33 +197,6 @@ class AggregateParamsTest(parameterized.TestCase):
                     metrics=metrics), self._get_default_extractors())
 
     @parameterized.named_parameters(
-        dict(testcase_name='used deprecated parameter low',
-             error_msg='use min_value instead of low',
-             deprecated_param={'low': 0}),
-        dict(testcase_name='used deprecated parameter high',
-             error_msg='use max_value instead of high',
-             deprecated_param={'high': 1}),
-        dict(testcase_name='used deprecated parameter public_partitions',
-             error_msg='public_partitions is deprecated',
-             deprecated_param={'public_partitions': [0]}),
-    )
-    def test_check_deprecated_params(self, error_msg, deprecated_param):
-        with self.assertRaisesRegex(ValueError, error_msg):
-            budget_accountant = budget_accounting.NaiveBudgetAccountant(
-                total_epsilon=1, total_delta=1e-10)
-            engine = pipeline_dp.DPEngine(budget_accountant=budget_accountant,
-                                          backend=pipeline_dp.LocalBackend())
-            engine.aggregate([0],
-                             pipeline_dp.AggregateParams(
-                                 noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
-                                 max_partitions_contributed=1,
-                                 max_contributions_per_partition=1,
-                                 **deprecated_param,
-                                 max_contributions=1,
-                                 metrics=[pipeline_dp.Metrics.COUNT]),
-                             self._get_default_extractors())
-
-    @parameterized.named_parameters(
         dict(testcase_name=
              'min_sum_per_partition is set, max_sum_per_partition is not set',
              error_msg=
