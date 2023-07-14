@@ -33,8 +33,8 @@ def main(unused_argv):
     backend = pipeline_dp.LocalBackend()
 
     # Define the privacy budget available for our computation.
-    budget_accountant = pipeline_dp.NaiveBudgetAccountant(total_epsilon=1,
-                                                          total_delta=1e-6)
+    budget_accountant = pipeline_dp.budget_accounting.PLDBudgetAccountant(
+        total_epsilon=1, total_delta=1e-6)
 
     # Load and parse input data
     movie_views = parse_file(FLAGS.input_file)
@@ -43,14 +43,15 @@ def main(unused_argv):
     dp_engine = pipeline_dp.DPEngine(budget_accountant, backend)
 
     params = pipeline_dp.AggregateParams(
+        noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
         metrics=[
             # we can compute multiple metrics at once.
             pipeline_dp.Metrics.COUNT,
             pipeline_dp.Metrics.SUM,
-            pipeline_dp.Metrics.PRIVACY_ID_COUNT,
-            pipeline_dp.Metrics.PERCENTILE(50),
-            pipeline_dp.Metrics.PERCENTILE(90),
-            pipeline_dp.Metrics.PERCENTILE(99)
+            # pipeline_dp.Metrics.PRIVACY_ID_COUNT,
+            # pipeline_dp.Metrics.PERCENTILE(50),
+            # pipeline_dp.Metrics.PERCENTILE(90),
+            # pipeline_dp.Metrics.PERCENTILE(99)
         ],
         # Limits to how much one user can contribute:
         # .. at most two movies rated per user
@@ -82,7 +83,8 @@ def main(unused_argv):
         movie_views,
         params,
         data_extractors,
-        out_explain_computation_report=explain_computation_report)
+        out_explain_computation_report=explain_computation_report,
+        public_partitions=list(range(10)))
 
     budget_accountant.compute_budgets()
 

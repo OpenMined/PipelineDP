@@ -429,9 +429,23 @@ class AdditiveMechanism(abc.ABC):
 
 class LaplaceMechanism(AdditiveMechanism):
 
-    def __init__(self, epsilon: float, l1_sensitivity: float):
-        self._mechanism = dp_mechanisms.LaplaceMechanism(
-            epsilon=epsilon, sensitivity=l1_sensitivity)
+    def __init__(self, mechanism):
+        self._mechanism = mechanism
+
+    @classmethod
+    def create_from_epsilon(cls, epsilon: float,
+                            l1_sensitivity: float) -> 'LaplaceMechanism':
+        return LaplaceMechanism(
+            dp_mechanisms.LaplaceMechanism(epsilon=epsilon,
+                                           sensitivity=l1_sensitivity))
+
+    @classmethod
+    def create_from_std_deviation(cls, stddev: float,
+                                  l1_sensitivity: float) -> 'LaplaceMechanism':
+        b = stddev / math.sqrt(2)
+        return LaplaceMechanism(
+            dp_mechanisms.LaplaceMechanism(epsilon=1 / b,
+                                           sensitivity=l1_sensitivity))
 
     def add_noise(self, value: Union[int, float]) -> float:
         return self._mechanism.add_noise(1.0 * value)
@@ -459,8 +473,26 @@ class LaplaceMechanism(AdditiveMechanism):
 
 class GaussianMechanism(AdditiveMechanism):
 
+    def __init__(self, mechanism):
+        self._mechanism = mechanism
+
+    @classmethod
+    def create_from_epsilon_delta(cls, epsilon: float, delta: float,
+                                  l2_sensitivity: float) -> 'GaussianMechanism':
+        return GaussianMechanism(
+            dp_mechanisms.GaussianMechanism(epsilon=epsilon,
+                                            delta=delta,
+                                            sensitivity=l2_sensitivity))
+
+    @classmethod
+    def create_from_std_deviation(cls, stddev: float,
+                                  l2_sensitivity: float) -> 'GaussianMechanism':
+        stddev = stddev * l2_sensitivity
+        return GaussianMechanism(
+            dp_mechanisms.GaussianMechanism.create_from_standard_deviation(
+                stddev))
+
     def __init__(self, epsilon: float, delta: float, l2_sensitivity: float):
-        self._l2_sensitivity = l2_sensitivity
         self._mechanism = dp_mechanisms.GaussianMechanism(
             epsilon=epsilon, delta=delta, sensitivity=l2_sensitivity)
 
@@ -579,14 +611,21 @@ def create_additive_mechanism(
         if sensitivities.l1 is None:
             raise ValueError("L1 or (L0 and Linf) sensitivities must be set for"
                              " Laplace mechanism.")
-        return LaplaceMechanism(mechanism_spec.eps, sensitivities.l1)
+        if mechanism_spec.standard_deviation_is_set:
+            return LaplaceMechanism.create_from_std_deviation(
+                mechanism_spec.noise_standard_deviation, sensitivities.l1)
+        return LaplaceMechanism.create_from_epsilon(mechanism_spec.eps,
+                                                    sensitivities.l1)
 
     if noise_kind == pipeline_dp.NoiseKind.GAUSSIAN:
         if sensitivities.l2 is None:
             raise ValueError("L2 or (L0 and Linf) sensitivities must be set for"
                              " Gaussian mechanism.")
-        return GaussianMechanism(mechanism_spec.eps, mechanism_spec.delta,
-                                 sensitivities.l2)
+        if mechanism_spec.standard_deviation_is_set:
+            return GaussianMechanism.create_from_std_deviation(
+                mechanism_spec.noise_standard_deviation, sensitivities.l2)
+        return GaussianMechanism.create_from_epsilon_delta(
+            mechanism_spec.eps, mechanism_spec.delta, sensitivities.l2)
 
     assert False, f"{noise_kind} not supported."
 

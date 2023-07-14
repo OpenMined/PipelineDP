@@ -98,6 +98,10 @@ class MechanismSpec:
     def use_delta(self) -> bool:
         return self.mechanism_type != agg_params.MechanismType.LAPLACE
 
+    @property
+    def standard_deviation_is_set(self) -> bool:
+        return self._noise_standard_deviation is not None
+
 
 @dataclass
 class MechanismSpecInternal:

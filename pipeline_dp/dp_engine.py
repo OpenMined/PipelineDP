@@ -13,7 +13,7 @@
 # limitations under the License.
 """DP aggregations."""
 import functools
-from typing import Any, Optional, Tuple
+from typing import Any, Optional, Sequence, Tuple
 
 import pipeline_dp
 from pipeline_dp import combiners
@@ -80,6 +80,8 @@ class DPEngine:
           'count' for COUNT metrics etc.
         """
         self._check_aggregate_params(col, params, data_extractors)
+        self._check_budget_accountant_compatibility(
+            public_partitions is not None, params.metrics)
 
         with self._budget_accountant.scope(weight=params.budget_weight):
             self._report_generators.append(
@@ -488,6 +490,26 @@ class DPEngine:
                             "CalculatePrivateContributionBoundsParams")
         if check_data_extractors:
             _check_data_extractors(data_extractors)
+
+    def _check_budget_accountant_compatibility(
+            self, is_public_partition: bool,
+            metrics: Sequence[pipeline_dp.Metric]) -> None:
+        if isinstance(self._budget_accountant,
+                      pipeline_dp.NaiveBudgetAccountant):
+            # All aggregations support NaiveBudgetAccountant.
+            return
+        if not is_public_partition:
+            raise NotImplementedError("Private partition selection does not "
+                                      "support PLD budget accounting")
+        supported_metrics = [
+            pipeline_dp.Metrics.COUNT, pipeline_dp.Metrics.PRIVACY_ID_COUNT,
+            pipeline_dp.Metrics.SUM, pipeline_dp.Metrics.MEAN
+        ]
+        non_supported_metrics = set(metrics) - set(supported_metrics)
+        if non_supported_metrics:
+            raise NotImplementedError(f"Metrics {non_supported_metrics} do not"
+                                      f"support PLD budget accounting")
+        # todo: add CustomCombiner check
 
     def _annotate(self, col, params: pipeline_dp.SelectPartitionsParams,
                   budget: pipeline_dp.budget_accounting.Budget):
