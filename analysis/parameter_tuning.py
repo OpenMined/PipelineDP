@@ -23,7 +23,7 @@ from analysis import utility_analysis
 
 import dataclasses
 from dataclasses import dataclass
-from typing import Callable, List, Tuple, Union
+from typing import Callable, List, Optional, Tuple, Union
 from enum import Enum
 import numpy as np
 
@@ -96,7 +96,7 @@ class TuneOptions:
     parameters_to_tune: ParametersToTune
     partitions_sampling_prob: float = 1
     pre_aggregated_data: bool = False
-    parameters_search_strategy: ParametersSearchStrategy = ParametersSearchStrategy.QUANTILES
+    parameters_search_strategy: ParametersSearchStrategy = ParametersSearchStrategy.CONSTANT_RELATIVE_STEP
     number_of_parameter_candidates: int = 100
 
     def __post_init__(self):
@@ -129,16 +129,21 @@ class TuneResult:
 
 def _find_candidate_parameters(
         hist: histograms.DatasetHistograms,
-        parameters_to_tune: ParametersToTune, metric: pipeline_dp.Metrics,
-        strategy, max_candidates) -> analysis.MultiParameterConfiguration:
+        parameters_to_tune: ParametersToTune,
+        metric: Optional[pipeline_dp.Metrics],
+        strategy: ParametersSearchStrategy,
+        max_candidates: int) -> analysis.MultiParameterConfiguration:
     """Finds candidates for l0 and/or l_inf parameters.
 
     Args:
+        hist: dataset contribution histogram.
+        parameters_to_tune: which parameters to tune.
+        metric: dp aggregation for which candidates are computed.
         strategy: determines the strategy how to select candidates, see comments
           to enum values for full description of the respective strategies.
         max_candidates: how many candidates ((l0, linf) pairs) can be in the
-        output. Note that output can contain fewer candidates. 100 is default
-        heuristically chosen value, better to adjust it for your use-case.
+          output. Note that output can contain fewer candidates. 100 is default
+          heuristically chosen value, better to adjust it for your use-case.
     """
     if strategy == ParametersSearchStrategy.QUANTILES:
         find_candidates_func = _find_candidates_quantiles
@@ -148,8 +153,9 @@ def _find_candidate_parameters(
         raise ValueError("Unknown strategy for candidate parameters search.")
 
     calculate_l0_param = parameters_to_tune.max_partitions_contributed
+    generate_linf = metric == pipeline_dp.Metrics.COUNT
     calculate_linf_param = (parameters_to_tune.max_contributions_per_partition
-                            and metric == pipeline_dp.Metrics.COUNT)
+                            and generate_linf)
     l0_bounds = linf_bounds = None
 
     if calculate_l0_param and calculate_linf_param:
@@ -264,11 +270,15 @@ def tune(col,
        returns tuple (1 element collection which contains TuneResult,
         a collection which contains utility analysis results per partition).
     """
-    _check_tune_args(options)
+    _check_tune_args(options, public_partitions is not None)
+
+    metric = None
+    if options.aggregate_params.metrics:
+        metric = options.aggregate_params.metrics[0]
 
     candidates = _find_candidate_parameters(
-        contribution_histograms, options.parameters_to_tune,
-        options.aggregate_params.metrics[0], options.parameters_search_strategy,
+        contribution_histograms, options.parameters_to_tune, metric,
+        options.parameters_search_strategy,
         options.number_of_parameter_candidates)
 
     utility_analysis_options = analysis.UtilityAnalysisOptions(
@@ -328,19 +338,22 @@ def _convert_utility_analysis_to_tune_result(
                       utility_reports=sorted_utility_reports)
 
 
-def _check_tune_args(options: TuneOptions):
+def _check_tune_args(options: TuneOptions, is_public_partitions: bool):
     # Check metrics to tune.
     metrics = options.aggregate_params.metrics
-    if len(metrics) != 1:
+    if len(metrics) > 1:
         raise NotImplementedError(
             f"Tuning supports only one metrics, but {metrics} given.")
-    if metrics[0] not in [
+    if len(metrics) == 1 and metrics[0] not in [
             pipeline_dp.Metrics.COUNT, pipeline_dp.Metrics.PRIVACY_ID_COUNT
     ]:
         raise NotImplementedError(
             f"Tuning is supported only for Count and Privacy id count, but {metrics[0]} given."
         )
 
+    if is_public_partitions and not metrics:
+        raise ValueError("empty metrics means private partition selection "
+                         "but public partitions were provided")
     if options.function_to_minimize != MinimizingFunction.ABSOLUTE_ERROR:
         raise NotImplementedError(
             f"Only {MinimizingFunction.ABSOLUTE_ERROR} is implemented.")
