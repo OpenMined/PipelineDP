@@ -41,7 +41,8 @@ def _get_tune_options():
         delta=1e-10,
         aggregate_params=_get_aggregate_params(),
         function_to_minimize=parameter_tuning.MinimizingFunction.ABSOLUTE_ERROR,
-        parameters_to_tune=parameter_tuning.ParametersToTune(True, True))
+        parameters_to_tune=parameter_tuning.ParametersToTune(True, True),
+        number_of_parameter_candidates=3)
 
 
 class ParameterTuning(parameterized.TestCase):
