@@ -258,22 +258,22 @@ def _average_utility_report(report: metrics.UtilityReport,
                             public_partitions: bool,
                             sums_actual: Tuple) -> None:
     """Averages fields of the 'report' across partitions."""
+    if not report.metric_errors:
+        return
     partitions = report.partitions_info
     if public_partitions:
         num_output_partitions = partitions.num_dataset_partitions + partitions.num_empty_partitions
     else:
         num_output_partitions = partitions.kept_partitions.mean
-    _multiply_float_dataclasses_field(report.partitions_info,
-                                      1.0 / num_output_partitions)
-    if report.metric_errors:
-        for sum_actual, metric_error in zip(sums_actual, report.metric_errors):
-            _multiply_float_dataclasses_field(
-                metric_error,
-                1.0 / num_output_partitions,
-                fields_to_ignore=["noise_std", "ratio_data_dropped"])
-            scaling_factor = 1 if sum_actual == 0 else 1.0 / sum_actual
-            _multiply_float_dataclasses_field(metric_error.ratio_data_dropped,
-                                              scaling_factor)
+
+    for sum_actual, metric_error in zip(sums_actual, report.metric_errors):
+        _multiply_float_dataclasses_field(
+            metric_error,
+            1.0 / num_output_partitions,
+            fields_to_ignore=["noise_std", "ratio_data_dropped"])
+        scaling_factor = 1 if sum_actual == 0 else 1.0 / sum_actual
+        _multiply_float_dataclasses_field(metric_error.ratio_data_dropped,
+                                          scaling_factor)
 
 
 class CrossPartitionCombiner(pipeline_dp.combiners.Combiner):

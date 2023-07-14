@@ -108,8 +108,8 @@ class UtilityAnalysis(parameterized.TestCase):
                 num_non_public_partitions=None,
                 num_empty_partitions=None,
                 strategy=None,
-                kept_partitions=metrics.MeanVariance(mean=1.0,
-                                                     var=0.648377588998337)),
+                kept_partitions=metrics.MeanVariance(mean=3.51622411,
+                                                     var=2.2798409)),
             metric_errors=[
                 metrics.MetricUtility(
                     metric=pipeline_dp.Metrics.COUNT,
