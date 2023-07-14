@@ -218,13 +218,10 @@ class AggregateParams:
     max_contributions_per_partition: Optional[int] = None
     max_contributions: Optional[int] = None
     budget_weight: float = 1
-    low: float = None  # deprecated
-    high: float = None  # deprecated
     min_value: Optional[float] = None
     max_value: Optional[float] = None
     min_sum_per_partition: Optional[float] = None
     max_sum_per_partition: Optional[float] = None
-    public_partitions: Any = None  # deprecated
     custom_combiners: Sequence['CustomCombiner'] = None
     vector_norm_kind: Optional[NormKind] = None
     vector_max_norm: Optional[float] = None
@@ -238,7 +235,9 @@ class AggregateParams:
     def metrics_str(self) -> str:
         if self.custom_combiners:
             return f"custom combiners={[c.metrics_names() for c in self.custom_combiners]}"
-        return f"metrics={[str(m) for m in self.metrics]}"
+        if self.metrics:
+            return f"metrics={[str(m) for m in self.metrics]}"
+        return "metrics=[]"
 
     @property
     def bounds_per_contribution_are_set(self) -> bool:
@@ -250,13 +249,6 @@ class AggregateParams:
                 self.max_sum_per_partition is not None)
 
     def __post_init__(self):
-        if self.low is not None:
-            raise ValueError(
-                "AggregateParams: please use min_value instead of low")
-        if self.high is not None:
-            raise ValueError(
-                "AggregateParams: please use max_value instead of high")
-
         self._check_both_property_set_or_not("min_value", "max_value")
         self._check_both_property_set_or_not("min_sum_per_partition",
                                              "max_sum_per_partition")
@@ -319,10 +311,6 @@ class AggregateParams:
             # whether this check is required?
             raise ValueError(
                 "Custom combiners can not be used with standard metrics")
-        if self.public_partitions:
-            raise ValueError(
-                "AggregateParams.public_partitions is deprecated. Please use "
-                "public_partitions argument in DPEngine.aggregate instead.")
         if self.max_contributions is not None:
             _check_is_positive_int(self.max_contributions, "max_contributions")
             if ((self.max_partitions_contributed is not None) or
@@ -437,25 +425,9 @@ class SumParams:
     max_value: float
     partition_extractor: Callable
     value_extractor: Callable
-    low: float = None  # deprecated
-    high: float = None  # deprecated
     budget_weight: float = 1
     noise_kind: NoiseKind = NoiseKind.LAPLACE
     contribution_bounds_already_enforced: bool = False
-    public_partitions: Union[Iterable, 'PCollection',
-                             'RDD'] = None  # deprecated
-
-    def __post_init__(self):
-        if self.low is not None:
-            raise ValueError("SumParams: please use min_value instead of low")
-
-        if self.high is not None:
-            raise ValueError("SumParams: please use max_value instead of high")
-
-        if self.public_partitions:
-            raise ValueError(
-                "SumParams.public_partitions is deprecated. Please read API "
-                "documentation for anonymous Sum transform.")
 
 
 @dataclass
@@ -494,14 +466,6 @@ class VarianceParams:
     budget_weight: float = 1
     noise_kind: NoiseKind = NoiseKind.LAPLACE
     contribution_bounds_already_enforced: bool = False
-    public_partitions: Union[Iterable, 'PCollection',
-                             'RDD'] = None  # deprecated
-
-    def __post_init__(self):
-        if self.public_partitions:
-            raise ValueError(
-                "VarianceParams.public_partitions is deprecated. Please read "
-                "API documentation for anonymous Variance transform.")
 
 
 @dataclass
@@ -518,8 +482,6 @@ class MeanParams:
             a partition.
         max_value: Upper bound on a value contributed by a unit of privacy in a
             partition.
-        public_partitions: A collection of partition keys that will be present
-            in the result.
         value_extractor: A function for extraction of value
             for which the sum will be calculated.
         budget_weight: Relative weight of the privacy budget allocated to
@@ -540,14 +502,6 @@ class MeanParams:
     budget_weight: float = 1
     noise_kind: NoiseKind = NoiseKind.LAPLACE
     contribution_bounds_already_enforced: bool = False
-    public_partitions: Union[Iterable, 'PCollection',
-                             'RDD'] = None  # deprecated
-
-    def __post_init__(self):
-        if self.public_partitions:
-            raise ValueError(
-                "MeanParams.public_partitions is deprecated. Please read API "
-                "documentation for anonymous Mean transform.")
 
 
 @dataclass
@@ -577,14 +531,6 @@ class CountParams:
     partition_extractor: Callable
     budget_weight: float = 1
     contribution_bounds_already_enforced: bool = False
-    public_partitions: Union[Iterable, 'PCollection',
-                             'RDD'] = None  # deprecated
-
-    def __post_init__(self):
-        if self.public_partitions:
-            raise ValueError(
-                "CountParams.public_partitions is deprecated. Please read API "
-                "documentation for anonymous Count transform.")
 
 
 @dataclass
@@ -614,15 +560,6 @@ class PrivacyIdCountParams:
     partition_extractor: Callable
     budget_weight: float = 1
     contribution_bounds_already_enforced: bool = False
-    public_partitions: Union[Sequence, 'PCollection',
-                             'RDD'] = None  # deprecated
-
-    def __post_init__(self):
-        if self.public_partitions:
-            raise ValueError(
-                "PrivacyIdCountParams.public_partitions is deprecated. Please "
-                "read API documentation for anonymous PrivacyIdCountParams "
-                "transform.")
 
 
 def _not_a_proper_number(num: Any) -> bool:
