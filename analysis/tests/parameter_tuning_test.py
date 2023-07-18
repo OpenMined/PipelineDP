@@ -64,9 +64,10 @@ class ParameterTuning(parameterized.TestCase):
     ):
         mock_l0_histogram = histograms.Histogram(None, None)
         mock_l0_histogram.quantiles = mock.Mock(return_value=[1, 1, 2])
-        setattr(mock_l0_histogram.__class__, 'max_value', 6)
+        mock_l0_histogram.max_value = mock.Mock(return_value=6)
         mock_linf_histogram = histograms.Histogram(None, None)
         mock_linf_histogram.quantiles = mock.Mock(return_value=[3, 6, 6])
+        mock_linf_histogram.max_value = mock.Mock(return_value=6)
 
         mock_histograms = histograms.DatasetHistograms(mock_l0_histogram, None,
                                                        mock_linf_histogram,
@@ -91,9 +92,10 @@ class ParameterTuning(parameterized.TestCase):
             self):
         mock_l0_histogram = histograms.Histogram(None, None)
         mock_l0_histogram.quantiles = mock.Mock(return_value=[1, 2, 3])
-        setattr(mock_l0_histogram.__class__, 'max_value', 6)
+        mock_l0_histogram.max_value = mock.Mock(return_value=6)
         mock_linf_histogram = histograms.Histogram(None, None)
         mock_linf_histogram.quantiles = mock.Mock(return_value=[4, 5, 6])
+        mock_linf_histogram.max_value = mock.Mock(return_value=6)
 
         mock_histograms = histograms.DatasetHistograms(mock_l0_histogram, None,
                                                        mock_linf_histogram,
@@ -116,9 +118,10 @@ class ParameterTuning(parameterized.TestCase):
             self):
         mock_l0_histogram = histograms.Histogram(None, None)
         mock_l0_histogram.quantiles = mock.Mock(return_value=[1, 2, 3, 4, 5])
-        setattr(mock_l0_histogram.__class__, 'max_value', 6)
+        mock_l0_histogram.max_value = mock.Mock(return_value=6)
         mock_linf_histogram = histograms.Histogram(None, None)
         mock_linf_histogram.quantiles = mock.Mock(return_value=[6, 7])
+        mock_linf_histogram.max_value = mock.Mock(return_value=6)
 
         mock_histograms = histograms.DatasetHistograms(mock_l0_histogram, None,
                                                        mock_linf_histogram,
@@ -146,9 +149,10 @@ class ParameterTuning(parameterized.TestCase):
             self):
         mock_l0_histogram = histograms.Histogram(None, None)
         mock_l0_histogram.quantiles = mock.Mock(return_value=[1])
-        setattr(mock_l0_histogram.__class__, 'max_value', 8)
+        mock_l0_histogram.max_value = mock.Mock(return_value=8)
         mock_linf_histogram = histograms.Histogram(None, None)
         mock_linf_histogram.quantiles = mock.Mock(return_value=[3, 4, 5, 6, 7])
+        mock_linf_histogram.max_value = mock.Mock(return_value=8)
 
         mock_histograms = histograms.DatasetHistograms(mock_l0_histogram, None,
                                                        mock_linf_histogram,
@@ -205,7 +209,7 @@ class ParameterTuning(parameterized.TestCase):
     def test_find_candidate_parameters_constant_relative_ste_strategy(
             self, max_value, max_candidates, expected_candidates):
         mock_l0_histogram = histograms.Histogram(None, None)
-        setattr(histograms.Histogram, 'max_value', max_value)
+        mock_l0_histogram.max_value = mock.Mock(return_value=max_value)
 
         mock_histograms = histograms.DatasetHistograms(mock_l0_histogram, None,
                                                        None, None, None)
@@ -246,7 +250,7 @@ class ParameterTuning(parameterized.TestCase):
         # Assert.
         tune_result, per_partition_utility_analysis = result
         per_partition_utility_analysis = list(per_partition_utility_analysis)
-        self.assertLen(per_partition_utility_analysis, 40)
+        self.assertLen(per_partition_utility_analysis, 10)
 
         tune_result = list(tune_result)[0]
 
@@ -254,7 +258,7 @@ class ParameterTuning(parameterized.TestCase):
         self.assertEqual(contribution_histograms,
                          tune_result.contribution_histograms)
         utility_reports = tune_result.utility_reports
-        self.assertLen(utility_reports, 4)
+        self.assertLen(utility_reports, 1)
         self.assertIsInstance(utility_reports[0], metrics.UtilityReport)
         self.assertLen(utility_reports[0].metric_errors, 1)
         self.assertEqual(utility_reports[0].metric_errors[0].metric,
