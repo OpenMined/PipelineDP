@@ -75,7 +75,6 @@ class Histogram:
     def total_sum(self):
         return sum([bin.sum for bin in self.bins])
 
-    @property
     def max_value(self):
         return self.bins[-1].max
 
@@ -141,9 +140,9 @@ def compute_ratio_dropped(
     ratio_dropped = []
     bins = contribution_histogram.bins
     previous_value = bins[-1].lower  # lower of the largest bin.
-    if contribution_histogram.max_value != previous_value:
+    if contribution_histogram.max_value() != previous_value:
         # Add ratio for max_value when max_value is not lower in bins.
-        ratio_dropped.append((contribution_histogram.max_value, 0.0))
+        ratio_dropped.append((contribution_histogram.max_value(), 0.0))
 
     for bin in bins[::-1]:
         current_value = bin.lower

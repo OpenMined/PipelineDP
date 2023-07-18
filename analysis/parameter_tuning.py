@@ -196,7 +196,7 @@ def _find_candidates_quantiles(histogram: histograms.Histogram,
     """Implementation of QUANTILES strategy."""
     quantiles_to_use = [0.9, 0.95, 0.98, 0.99, 0.995]
     candidates = histogram.quantiles(quantiles_to_use)
-    candidates.append(histogram.max_value)
+    candidates.append(histogram.max_value())
     candidates = list(set(candidates))  # remove duplicates
     candidates.sort()
     return candidates[:max_candidates]
@@ -205,7 +205,7 @@ def _find_candidates_quantiles(histogram: histograms.Histogram,
 def _find_candidates_constant_relative_step(histogram: histograms.Histogram,
                                             max_candidates: int) -> List[int]:
     """Implementation of CONSTANT_RELATIVE_STEP strategy."""
-    max_value = histogram.max_value
+    max_value = histogram.max_value()
     assert max_value >= 1, "max_value has to be >= 1."
     max_candidates = min(max_candidates, max_value)
     assert max_candidates > 0, "max_candidates have to be positive"
