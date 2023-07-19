@@ -16,6 +16,7 @@
 from absl.testing import absltest
 from absl.testing import parameterized
 from unittest import mock
+from unittest.mock import patch
 from typing import List
 
 import pipeline_dp
@@ -206,7 +207,7 @@ class ParameterTuning(parameterized.TestCase):
             max_candidates=5,
             # ceil(1000^(i / 4)), where i in [0, 1, 2, 3, 4]
             expected_candidates=[1, 6, 32, 178, 1000]))
-    def test_find_candidate_parameters_constant_relative_ste_strategy(
+    def test_find_candidate_parameters_constant_relative_step_strategy(
             self, max_value, max_candidates, expected_candidates):
         mock_l0_histogram = histograms.Histogram(None, None)
         mock_l0_histogram.max_value = mock.Mock(return_value=max_value)
@@ -226,6 +227,60 @@ class ParameterTuning(parameterized.TestCase):
 
         self.assertEqual(expected_candidates,
                          candidates.max_partitions_contributed)
+
+    @parameterized.named_parameters(
+        dict(
+            testcase_name='COUNT',
+            metric=pipeline_dp.Metrics.COUNT,
+            expected_generate_linf=True,
+        ),
+        dict(
+            testcase_name='PRIVACY_ID_COUNT',
+            metric=pipeline_dp.Metrics.PRIVACY_ID_COUNT,
+            expected_generate_linf=False,
+        ),
+        dict(
+            testcase_name='No metric (select partition)',
+            metric=None,
+            expected_generate_linf=False,
+        ))
+    @patch('analysis.parameter_tuning._find_candidates_constant_relative_step')
+    def test_find_candidate_parameters_generate_linf(
+            self, mock_find_candidate_from_histogram, metric,
+            expected_generate_linf):
+        mock_l0_histogram = histograms.Histogram(
+            histograms.HistogramType.L0_CONTRIBUTIONS, None)
+        mock_linf_histogram = histograms.Histogram(
+            histograms.HistogramType.LINF_CONTRIBUTIONS, None)
+        mock_histograms = histograms.DatasetHistograms(mock_l0_histogram, None,
+                                                       mock_linf_histogram,
+                                                       None, None)
+
+        mock_find_candidate_from_histogram.return_value = [1, 2]
+
+        parameters_to_tune = parameter_tuning.ParametersToTune(
+            max_partitions_contributed=True,
+            max_contributions_per_partition=True)
+
+        candidates = parameter_tuning._find_candidate_parameters(
+            mock_histograms,
+            parameters_to_tune,
+            metric,
+            ParametersSearchStrategy.CONSTANT_RELATIVE_STEP,
+            max_candidates=100)
+
+        mock_find_candidate_from_histogram.assert_any_call(
+            mock_l0_histogram, mock.ANY)
+        if expected_generate_linf:
+            self.assertEqual(candidates.max_partitions_contributed,
+                             [1, 1, 2, 2])
+            self.assertEqual(candidates.max_contributions_per_partition,
+                             [1, 2, 1, 2])
+            mock_find_candidate_from_histogram.assert_any_call(
+                mock_linf_histogram, mock.ANY)
+        else:
+            self.assertEqual(candidates.max_partitions_contributed, [1, 2])
+            self.assertIsNone(candidates.max_contributions_per_partition)
 
     def test_tune_count(self):
         # Arrange.
@@ -264,6 +319,42 @@ class ParameterTuning(parameterized.TestCase):
         self.assertEqual(utility_reports[0].metric_errors[0].metric,
                          pipeline_dp.Metrics.COUNT)
 
+    def test_select_partitions(self):
+        # Arrange.
+        input = [(i % 10, f"pk{i/10}") for i in range(10)]
+        data_extractors = pipeline_dp.DataExtractors(
+            privacy_id_extractor=lambda x: x[0],
+            partition_extractor=lambda x: x[1],
+            value_extractor=lambda x: 0)
+
+        contribution_histograms = list(
+            computing_histograms.compute_dataset_histograms(
+                input, data_extractors, pipeline_dp.LocalBackend()))[0]
+
+        tune_options = _get_tune_options()
+        # Setting metrics to empty list makes running only partition selectoin.
+        tune_options.aggregate_params.metrics = []
+
+        # Act.
+        result = parameter_tuning.tune(input, pipeline_dp.LocalBackend(),
+                                       contribution_histograms, tune_options,
+                                       data_extractors)
+
+        # Assert.
+        tune_result, per_partition_utility_analysis = result
+        per_partition_utility_analysis = list(per_partition_utility_analysis)
+        self.assertLen(per_partition_utility_analysis, 10)
+
+        tune_result = list(tune_result)[0]
+
+        self.assertEqual(tune_options, tune_result.options)
+        self.assertEqual(contribution_histograms,
+                         tune_result.contribution_histograms)
+        utility_reports = tune_result.utility_reports
+        self.assertLen(utility_reports, 1)
+        self.assertIsInstance(utility_reports[0], metrics.UtilityReport)
+        self.assertIsNone(utility_reports[0].metric_errors)
+
     def test_tune_privacy_id_count(self):
         # Arrange.
         input = [(i % 10, f"pk{i/10}") for i in range(10)]
@@ -298,6 +389,9 @@ class ParameterTuning(parameterized.TestCase):
         self.assertLen(utility_reports[0].metric_errors, 1)
         self.assertEqual(utility_reports[0].metric_errors[0].metric,
                          pipeline_dp.Metrics.PRIVACY_ID_COUNT)
+
+    def test_tune_params_validation(self):
+        pass
 
 
 if __name__ == '__main__':

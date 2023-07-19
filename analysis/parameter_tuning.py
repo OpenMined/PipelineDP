@@ -138,7 +138,8 @@ def _find_candidate_parameters(
     Args:
         hist: dataset contribution histogram.
         parameters_to_tune: which parameters to tune.
-        metric: dp aggregation for which candidates are computed.
+        metric: dp aggregation for which candidates are computed. If metric is
+          None, it means no metrics to compute, i.e. only select partitions.
         strategy: determines the strategy how to select candidates, see comments
           to enum values for full description of the respective strategies.
         max_candidates: how many candidates ((l0, linf) pairs) can be in the
@@ -243,14 +244,17 @@ def tune(col,
     """Tunes parameters.
 
     It works in the following way:
-        1. Based on quantiles of privacy id contributions, candidates for
-        contribution bounding parameters chosen.
+        1. Candidates for contribution bounding parameters chosen based on
+          options.parameters_search_strategy strategy.
         2. Utility analysis run for those parameters.
         3. The best parameter set is chosen according to
           options.minimizing_function.
 
     The result contains output metrics for all utility analysis which were
     performed.
+
+    For tuning parameters for DPEngine.select_partitions set
+      options.aggregate_params.metrics to an empty list.
 
     Args:
         col: collection where all elements are of the same type.
@@ -341,19 +345,23 @@ def _convert_utility_analysis_to_tune_result(
 def _check_tune_args(options: TuneOptions, is_public_partitions: bool):
     # Check metrics to tune.
     metrics = options.aggregate_params.metrics
-    if len(metrics) > 1:
+    if not metrics:
+        # Empty metrics means tuning for select_partitions.
+        if is_public_partitions:
+            # Empty metrics means that partition selection tuning is performed.
+            raise ValueError("empty metrics means tuning of partition selection"
+                             " but public partitions were provided")
+    elif len(metrics) > 1:
         raise NotImplementedError(
             f"Tuning supports only one metrics, but {metrics} given.")
-    if len(metrics) == 1 and metrics[0] not in [
-            pipeline_dp.Metrics.COUNT, pipeline_dp.Metrics.PRIVACY_ID_COUNT
-    ]:
-        raise NotImplementedError(
-            f"Tuning is supported only for Count and Privacy id count, but {metrics[0]} given."
-        )
+    else:  # len(metrics) == 1
+        if metrics[0] not in [
+                pipeline_dp.Metrics.COUNT, pipeline_dp.Metrics.PRIVACY_ID_COUNT
+        ]:
+            raise NotImplementedError(
+                f"Tuning is supported only for Count and Privacy id count, but {metrics[0]} given."
+            )
 
-    if is_public_partitions and not metrics:
-        raise ValueError("empty metrics means private partition selection "
-                         "but public partitions were provided")
     if options.function_to_minimize != MinimizingFunction.ABSOLUTE_ERROR:
         raise NotImplementedError(
             f"Only {MinimizingFunction.ABSOLUTE_ERROR} is implemented.")
