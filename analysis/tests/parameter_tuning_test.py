@@ -417,7 +417,7 @@ class ParameterTuning(parameterized.TestCase):
             is_public_partitions=False),
     )
     def test_tune_params_validation(self, error_msg,
-                                    metrics: list[pipeline_dp.Metric],
+                                    metrics: List[pipeline_dp.Metric],
                                     is_public_partitions: bool):
         tune_options = _get_tune_options()
         tune_options.aggregate_params.metrics = metrics
