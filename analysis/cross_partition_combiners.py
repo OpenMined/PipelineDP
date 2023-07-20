@@ -266,7 +266,7 @@ def _average_utility_report(report: metrics.UtilityReport, sums_actual: Tuple,
                                                       total_weights):
         _multiply_float_dataclasses_field(
             metric_error,
-            1.0 / total_weight,  # better softmax?
+            1.0 / total_weight,
             fields_to_ignore=["noise_std", "ratio_data_dropped"])
         scaling_factor = 1 if sum_actual == 0 else 1.0 / sum_actual
         _multiply_float_dataclasses_field(metric_error.ratio_data_dropped,
@@ -290,8 +290,14 @@ class CrossPartitionCombiner(pipeline_dp.combiners.Combiner):
     def equal_weighing_function(
             metrics: metrics.PerPartitionMetrics) -> Tuple[float]:
         """
-        Assumes that partition_selection_probability_to_keep for public partitions is 1 and all public partitions including are processed via `create_accumulator`.
-        For the public partitions weights will be 1, and we will do normal averaging because total weight will equal to the total number of partitions. For private partitions we will do weighted average and total weight will equal to mean number of kept partitions (`partitions.kept_partitions.mean`).
+        Assumes that partition_selection_probability_to_keep for public
+        partitions is 1 and all public partitions including are processed
+        via `create_accumulator`.
+        For the public partitions weights will be 1, and we will do normal
+        averaging because total weight will equal to the total number of
+        partitions. For private partitions we will do weighted average and
+        total weight will equal to mean number of kept partitions
+        (`partitions.kept_partitions.mean`).
         """
         return (metrics.partition_selection_probability_to_keep,) * len(
             metrics.metric_errors)
