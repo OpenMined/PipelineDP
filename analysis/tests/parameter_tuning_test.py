@@ -284,12 +284,14 @@ class ParameterTuning(parameterized.TestCase):
 
     def test_tune_count(self):
         # Arrange.
-        input = [(i % 10, f"pk{i/10}") for i in range(10)]
+        # Generate dataset, with 10 privacy units, each of them contribute to
+        # the same partition.
+        input = [(i % 10, f"pk0") for i in range(10)]
         public_partitions = [f"pk{i}" for i in range(10)]
         data_extractors = pipeline_dp.DataExtractors(
             privacy_id_extractor=lambda x: x[0],
             partition_extractor=lambda x: x[1],
-            value_extractor=lambda x: None)
+            value_extractor=lambda x: 0)
 
         contribution_histograms = list(
             computing_histograms.compute_dataset_histograms(
@@ -321,7 +323,9 @@ class ParameterTuning(parameterized.TestCase):
 
     def test_select_partitions(self):
         # Arrange.
-        input = [(i % 10, f"pk{i/10}") for i in range(10)]
+        # Generate dataset, with 10 privacy units, 5 of them contribute to
+        # pk0 and pk1 and 5 to pk0 only.
+        input = [(i % 10, f"pk{i//10}") for i in range(15)]
         data_extractors = pipeline_dp.DataExtractors(
             privacy_id_extractor=lambda x: x[0],
             partition_extractor=lambda x: x[1],
@@ -343,7 +347,7 @@ class ParameterTuning(parameterized.TestCase):
         # Assert.
         tune_result, per_partition_utility_analysis = result
         per_partition_utility_analysis = list(per_partition_utility_analysis)
-        self.assertLen(per_partition_utility_analysis, 10)
+        self.assertLen(per_partition_utility_analysis, 4)
 
         tune_result = list(tune_result)[0]
 
@@ -351,9 +355,13 @@ class ParameterTuning(parameterized.TestCase):
         self.assertEqual(contribution_histograms,
                          tune_result.contribution_histograms)
         utility_reports = tune_result.utility_reports
-        self.assertLen(utility_reports, 1)
+        self.assertLen(utility_reports, 2)
         self.assertIsInstance(utility_reports[0], metrics.UtilityReport)
         self.assertIsNone(utility_reports[0].metric_errors)
+        self.assertEqual(
+            utility_reports[0].partitions_info.num_dataset_partitions, 2)
+        self.assertAlmostEqual(
+            utility_reports[0].partitions_info.kept_partitions.mean, 1.93e-7)
 
     def test_tune_privacy_id_count(self):
         # Arrange.
