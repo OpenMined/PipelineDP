@@ -245,7 +245,7 @@ class UtilityReport:
     Attributes:
         configuration_index: the index of the input parameter configuration for
           which this report was computed.
-        partition_metrics: utility analysis of selected partition.
+        partitions_info: utility analysis of selected partition.
         metric_errors: utility analysis of metrics (e.g. COUNT, SUM,
           PRIVACY_ID_COUNT).
         utility_report_histogram:
