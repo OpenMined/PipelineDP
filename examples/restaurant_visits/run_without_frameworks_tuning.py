@@ -66,8 +66,7 @@ def get_aggregate_params():
     # Limit contributions to 1 per partition, contribution error will be half of the count.
     return pipeline_dp.AggregateParams(
         noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
-        metrics=[],
-        # metrics=[pipeline_dp.Metrics.COUNT],
+        metrics=[pipeline_dp.Metrics.COUNT],
         max_partitions_contributed=1,
         max_contributions_per_partition=1)
 
