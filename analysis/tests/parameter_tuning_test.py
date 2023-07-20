@@ -390,8 +390,38 @@ class ParameterTuning(parameterized.TestCase):
         self.assertEqual(utility_reports[0].metric_errors[0].metric,
                          pipeline_dp.Metrics.PRIVACY_ID_COUNT)
 
-    def test_tune_params_validation(self):
-        pass
+    @parameterized.named_parameters(
+        dict(testcase_name="Select partition and public partition",
+             error_msg="Empty metrics means tuning of partition selection but"
+             " public partitions were provided",
+             metrics=[],
+             is_public_partitions=True),
+        dict(testcase_name="Multiple metrics",
+             error_msg="Tuning supports only one metric",
+             metrics=[
+                 pipeline_dp.Metrics.COUNT, pipeline_dp.Metrics.PRIVACY_ID_COUNT
+             ],
+             is_public_partitions=True),
+        dict(
+            testcase_name="Mean is not supported",
+            error_msg="Tuning is supported only for Count and Privacy id count",
+            metrics=[pipeline_dp.Metrics.MEAN],
+            is_public_partitions=False),
+    )
+    def test_tune_params_validation(self, error_msg,
+                                    metrics: list[pipeline_dp.Metric],
+                                    is_public_partitions: bool):
+        tune_options = _get_tune_options()
+        tune_options.aggregate_params.metrics = metrics
+        contribution_histograms = histograms.DatasetHistograms(
+            None, None, None, None, None)
+        data_extractors = pipeline_dp.DataExtractors(
+            privacy_id_extractor=lambda _: 0, partition_extractor=lambda _: 0)
+        public_partitions = [1] if is_public_partitions else None
+        with self.assertRaisesRegex(ValueError, error_msg):
+            parameter_tuning.tune(input, pipeline_dp.LocalBackend(),
+                                  contribution_histograms, tune_options,
+                                  data_extractors, public_partitions)
 
 
 if __name__ == '__main__':
