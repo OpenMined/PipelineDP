@@ -18,7 +18,7 @@ from abc import ABC, abstractmethod
 import pipeline_dp
 from analysis import metrics
 import dataclasses
-from typing import Iterable, List, Optional, Tuple
+from typing import Iterable, List, Optional, Tuple, Callable
 import math
 
 
@@ -139,14 +139,6 @@ def _partition_metrics_private_partitions(
                                   kept_partitions=kept_partitions)
 
 
-def _weighted_add_dataclasses_by_fields(dataclass1, weight1, dataclass2,
-                                        weight2,
-                                        fields_to_ignore: List[str]) -> None:
-    _multiply_float_dataclasses_field(dataclass1, weight1, fields_to_ignore)
-    _multiply_float_dataclasses_field(dataclass2, weight2, fields_to_ignore)
-    _add_dataclasses_by_fields(dataclass1, dataclass2, fields_to_ignore)
-
-
 def _add_dataclasses_by_fields(dataclass1, dataclass2,
                                fields_to_ignore: List[str]) -> None:
     """Recursively adds all numerical fields of one dataclass to another.
@@ -239,21 +231,18 @@ def _merge_partition_metrics(metrics1: metrics.PartitionsInfo,
                                ["public_partitions", "strategy"])
 
 
-def _merge_metric_utility(utility1: metrics.MetricUtility, weight1: float,
-                          utility2: metrics.MetricUtility,
-                          weight2: float) -> None:
+def _merge_metric_utility(utility1: metrics.MetricUtility,
+                          utility2: metrics.MetricUtility) -> None:
     """Merges cross-partition metric utilities.
 
     Warning: it modifies 'utility1' argument.
     """
-    _weighted_add_dataclasses_by_fields(utility1, weight1, utility2, weight2,
-                                        ["metric", "noise_std", "noise_kind"])
+    _add_dataclasses_by_fields(utility1, utility2,
+                               ["metric", "noise_std", "noise_kind"])
 
 
 def _merge_utility_reports(report1: metrics.UtilityReport,
-                           weights1: Tuple[float],
-                           report2: metrics.UtilityReport,
-                           weights2: Tuple[float]) -> None:
+                           report2: metrics.UtilityReport) -> None:
     """Merges cross-partition utility reports.
 
     Warning: it modifies 'report1' argument.
@@ -262,16 +251,12 @@ def _merge_utility_reports(report1: metrics.UtilityReport,
     if report1.metric_errors is None:
         return
     assert len(report1.metric_errors) == len(report2.metric_errors)
-    for utility1, weight1, utility2, weight2 in zip(report1.metric_errors,
-                                                    weights1,
-                                                    report2.metric_errors,
-                                                    weights2):
-        _merge_metric_utility(utility1, weight1, utility2, weight2)
+    for utility1, utility2 in zip(report1.metric_errors, report2.metric_errors):
+        _merge_metric_utility(utility1, utility2)
 
 
-def _average_utility_report(report: metrics.UtilityReport,
-                            total_weights: Tuple[float],
-                            sums_actual: Tuple) -> None:
+def _average_utility_report(report: metrics.UtilityReport, sums_actual: Tuple,
+                            total_weights: Tuple[float]) -> None:
     """Averages fields of the 'report' across partitions."""
     if not report.metric_errors:
         return
@@ -294,60 +279,29 @@ class CrossPartitionCombiner(pipeline_dp.combiners.Combiner):
     # 1. The sum of non dp metrics, which is used for averaging of error
     # metrics.
     # 2. metrics.UtilityReport contains error metrics.
-    AccumulatorType = Tuple[Tuple, metrics.UtilityReport]
+    AccumulatorType = Tuple[Tuple, metrics.UtilityReport, Tuple[float]]
 
-    class WeighingFunction(ABC):
+    @staticmethod
+    def partition_contribution_weighing_function(
+            metrics: metrics.PerPartitionMetrics) -> Tuple[float]:
+        return tuple(map(lambda el: el.sum, metrics.metric_errors))
 
-        @property
-        @abstractmethod
-        def total_weight(self) -> Tuple[float]:
-            ...
+    @staticmethod
+    def equal_weighing_function(
+            metrics: metrics.PerPartitionMetrics) -> Tuple[float]:
+        """
+        Assumes that partition_selection_probability_to_keep for public partitions is 1 and all public partitions including are processed via `create_accumulator`.
+        For the public partitions weights will be 1, and we will do normal averaging because total weight will equal to the total number of partitions. For private partitions we will do weighted average and total weight will equal to mean number of kept partitions (`partitions.kept_partitions.mean`).
+        """
+        return (metrics.partition_selection_probability_to_keep,) * len(
+            metrics.metric_errors)
 
-        @abstractmethod
-        def weigh(self, acc: AccumulatorType) -> Tuple[float]:
-            ...
-
-    class PartitionContributionWeighingFunction(WeighingFunction):
-        _total_weight = None
-
-        @property
-        def total_weight(self) -> Tuple[float]:
-            return self._total_weight
-
-        def weigh(self, acc: AccumulatorType) -> Tuple[float]:
-            sum_actual, report = acc
-            if report.partitions_info.num_dataset_partitions != 1:
-                return 1
-            if self._total_weight is None:
-                self._total_weight = sum_actual
-            else:
-                self._total_weight = tuple(
-                    map(sum, zip(self._total_weight, sum_actual)))
-            return sum_actual
-
-    class EqualWeighingFunction(WeighingFunction):
-        _total_weight: Tuple[float] = None
-
-        def __init__(self, public_partitions: bool):
-            self._public_partitions = public_partitions
-
-        @property
-        def total_weight(self) -> Tuple[float]:
-            return self._total_weight
-
-        def weigh(self, acc: AccumulatorType) -> Tuple[float]:
-            sum_actual, report = acc
-            partitions = report.partitions_info
-            n = len(sum_actual)
-            if self._public_partitions:
-                self._total_weight = (partitions.num_dataset_partitions +
-                                      partitions.num_empty_partitions,) * n
-            else:
-                self._total_weight = (partitions.kept_partitions.mean,) * n
-            return (1.0,) * n
-
-    def __init__(self, dp_metrics: List[pipeline_dp.Metrics],
-                 public_partitions: bool, weighing_function: WeighingFunction):
+    def __init__(
+        self,
+        dp_metrics: List[pipeline_dp.Metrics],
+        public_partitions: bool,
+        weighing_function: Callable[[metrics.PerPartitionMetrics],
+                                    Tuple[float]] = equal_weighing_function):
         self._dp_metrics = dp_metrics
         self._public_partitions = public_partitions
         self.weighing_function = weighing_function
@@ -356,24 +310,22 @@ class CrossPartitionCombiner(pipeline_dp.combiners.Combiner):
             self, metrics: metrics.PerPartitionMetrics) -> AccumulatorType:
         actual_metrics = tuple(me.sum for me in metrics.metric_errors)
         return actual_metrics, _per_partition_to_utility_report(
-            metrics, self._dp_metrics, self._public_partitions)
+            metrics, self._dp_metrics,
+            self._public_partitions), self.weighing_function(metrics)
 
     def merge_accumulators(self, acc1: AccumulatorType,
                            acc2: AccumulatorType) -> AccumulatorType:
-        sum_actual1, report1 = acc1
-        sum_actual2, report2 = acc2
+        sum_actual1, report1, weight1 = acc1
+        sum_actual2, report2, weight2 = acc2
         sum_actual = tuple(x + y for x, y in zip(sum_actual1, sum_actual2))
-        weight1 = self.weighing_function.weigh(acc1)
-        weight2 = self.weighing_function.weigh(acc2)
-        _merge_utility_reports(report1, weight1, report2, weight2)
-        return sum_actual, report1
+        _merge_utility_reports(report1, report2)
+        return sum_actual, report1, tuple(map(sum, zip(weight1, weight2)))
 
     def compute_metrics(self, acc: AccumulatorType) -> metrics.UtilityReport:
         """Returns UtilityReport with final metrics."""
-        sum_actual, report = acc
+        sum_actual, report, total_weight = acc
         report_copy = copy.deepcopy(report)
-        _average_utility_report(report_copy,
-                                self.weighing_function.total_weight, sum_actual)
+        _average_utility_report(report_copy, sum_actual, total_weight)
         return report_copy
 
     def metrics_names(self):
