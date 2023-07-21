@@ -480,10 +480,9 @@ class GaussianMechanism(AdditiveMechanism):
     @classmethod
     def create_from_epsilon_delta(cls, epsilon: float, delta: float,
                                   l2_sensitivity: float) -> 'GaussianMechanism':
-        return GaussianMechanism(
-            dp_mechanisms.GaussianMechanism(epsilon=epsilon,
-                                            delta=delta,
-                                            sensitivity=l2_sensitivity))
+        return GaussianMechanism(dp_mechanisms.GaussianMechanism(
+            epsilon=epsilon, delta=delta, sensitivity=l2_sensitivity),
+                                 l2_sensitivity=l2_sensitivity)
 
     @classmethod
     def create_from_std_deviation(cls, stddev: float,
@@ -514,13 +513,13 @@ class GaussianMechanism(AdditiveMechanism):
         return self._l2_sensitivity
 
     def describe(self) -> str:
-        if self._mechanism.epsilon > 0:
+        if self._mechanism.epsilon > 0:  # todo comment
             eps_delta_str = f"eps={self._mechanism.epsilon}  " \
                             f"delta={self._mechanism.delta}  "
         else:
             eps_delta_str = ""
         return (f"Gaussian mechanism:  parameter={self.noise_parameter}"
-                f" {eps_delta_str}l2_sensitivity={self.sensitivity}")
+                f"  {eps_delta_str}l2_sensitivity={self.sensitivity}")
 
 
 class MeanMechanism:

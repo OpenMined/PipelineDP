@@ -34,7 +34,9 @@ def main(unused_argv):
 
     # Define the privacy budget available for our computation.
     budget_accountant = pipeline_dp.budget_accounting.PLDBudgetAccountant(
-        total_epsilon=1, total_delta=1e-6)
+        # budget_accountant = pipeline_dp.budget_accounting.NaiveBudgetAccountant(
+        total_epsilon=1,
+        total_delta=1e-6)
 
     # Load and parse input data
     movie_views = parse_file(FLAGS.input_file)
@@ -43,7 +45,7 @@ def main(unused_argv):
     dp_engine = pipeline_dp.DPEngine(budget_accountant, backend)
 
     params = pipeline_dp.AggregateParams(
-        noise_kind=pipeline_dp.NoiseKind.LAPLACE,
+        noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
         metrics=[
             # we can compute multiple metrics at once.
             pipeline_dp.Metrics.COUNT,
