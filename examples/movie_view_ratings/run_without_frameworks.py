@@ -43,7 +43,7 @@ def main(unused_argv):
     dp_engine = pipeline_dp.DPEngine(budget_accountant, backend)
 
     params = pipeline_dp.AggregateParams(
-        noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+        noise_kind=pipeline_dp.NoiseKind.LAPLACE,
         metrics=[
             # we can compute multiple metrics at once.
             pipeline_dp.Metrics.COUNT,
@@ -90,7 +90,7 @@ def main(unused_argv):
 
     # Generate the Explain Computation report. It must be called after
     # budget_accountant.compute_budgets().
-    print(explain_computation_report.text())
+    print(explain_computation_report.text())  # Uncomment
 
     # Here's where the lazy iterator initiates computations and gets transformed
     # into actual results

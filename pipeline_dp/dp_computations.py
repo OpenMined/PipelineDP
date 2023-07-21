@@ -473,8 +473,9 @@ class LaplaceMechanism(AdditiveMechanism):
 
 class GaussianMechanism(AdditiveMechanism):
 
-    def __init__(self, mechanism):
+    def __init__(self, mechanism, l2_sensitivity: float):
         self._mechanism = mechanism
+        self._l2_sensitivity = l2_sensitivity
 
     @classmethod
     def create_from_epsilon_delta(cls, epsilon: float, delta: float,
@@ -490,11 +491,8 @@ class GaussianMechanism(AdditiveMechanism):
         stddev = stddev * l2_sensitivity
         return GaussianMechanism(
             dp_mechanisms.GaussianMechanism.create_from_standard_deviation(
-                stddev))
-
-    def __init__(self, epsilon: float, delta: float, l2_sensitivity: float):
-        self._mechanism = dp_mechanisms.GaussianMechanism(
-            epsilon=epsilon, delta=delta, sensitivity=l2_sensitivity)
+                stddev),
+            l2_sensitivity=l2_sensitivity)
 
     def add_noise(self, value: Union[int, float]) -> float:
         return self._mechanism.add_noise(1.0 * value)
@@ -513,12 +511,16 @@ class GaussianMechanism(AdditiveMechanism):
 
     @property
     def sensitivity(self) -> float:
-        return self._mechanism.l2_sensitivity
+        return self._l2_sensitivity
 
     def describe(self) -> str:
-        return (f"Gaussian mechanism:  parameter={self.noise_parameter}  eps="
-                f"{self._mechanism.epsilon}  delta={self._mechanism.delta}  "
-                f"l2_sensitivity={self.sensitivity}")
+        if self._mechanism.epsilon > 0:
+            eps_delta_str = f"eps={self._mechanism.epsilon}  " \
+                            f"delta={self._mechanism.delta}  "
+        else:
+            eps_delta_str = ""
+        return (f"Gaussian mechanism:  parameter={self.noise_parameter}"
+                f" {eps_delta_str}l2_sensitivity={self.sensitivity}")
 
 
 class MeanMechanism:
