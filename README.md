@@ -87,7 +87,7 @@ on Apache Beam:
 
 `pip install pipeline-dp apache-beam`.
 
-Supported Python version >= 3.7.
+Supported Python version >= 3.8.
 
 **Note for Apple Silicon users:** PipelineDP pip package is currently available only 
 for x86 architecture. The reason is that [PyDP](https://github.com/OpenMined/PyDP) does not
