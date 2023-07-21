@@ -430,8 +430,8 @@ class AdditiveMechanismTests(parameterized.TestCase):
         dict(epsilon=2, l1_sensitivity=4.5, expected_noise=2.25),
         dict(epsilon=0.1, l1_sensitivity=0.55, expected_noise=5.5),
     )
-    def test_laplace_mechanism_creation(self, epsilon, l1_sensitivity,
-                                        expected_noise):
+    def test_laplace_create_from_epsilon(self, epsilon, l1_sensitivity,
+                                         expected_noise):
         mechanism = dp_computations.LaplaceMechanism.create_from_epsilon(
             epsilon=epsilon, l1_sensitivity=l1_sensitivity)
 
@@ -443,6 +443,19 @@ class AdditiveMechanismTests(parameterized.TestCase):
                                expected_noise * math.sqrt(2),
                                delta=1e-12)
         self.assertEqual(mechanism.sensitivity, l1_sensitivity)
+        self.assertIsInstance(mechanism.add_noise(1000), float)
+
+    def test_laplace_create_from_stddev(self):
+        mechanism = dp_computations.LaplaceMechanism.create_from_std_deviation(
+            stddev=10, l1_sensitivity=3.5)
+
+        self.assertEqual(mechanism.noise_kind, pipeline_dp.NoiseKind.LAPLACE)
+        expected_noise_parameter = 10 / np.sqrt(2) * 3.5
+        self.assertAlmostEqual(mechanism.noise_parameter,
+                               expected_noise_parameter,
+                               delta=1e-12)
+        self.assertAlmostEqual(mechanism.std, 35)
+        self.assertEqual(mechanism.sensitivity, 3.5)
         self.assertIsInstance(mechanism.add_noise(1000), float)
 
     @parameterized.parameters(
