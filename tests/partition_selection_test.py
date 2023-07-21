@@ -58,8 +58,6 @@ class PartitionSelectionTest(parameterized.TestCase):
         mock_method.assert_called_once_with("gaussian", eps, delta,
                                             max_partitions)
 
-    @unittest.skip("pydp is not yet released with support of pre-thresholding")
-    # TODO(dvadym): enable this test when pydp is released
     @patch("pydp.algorithms.partition_selection.create_partition_strategy")
     def test_truncated_pre_thresholding(self, mock_method):
         eps, delta, max_partitions, pre_threshold = 1, 1e-5, 20, 42
