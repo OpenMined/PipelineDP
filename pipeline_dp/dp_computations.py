@@ -440,9 +440,15 @@ class LaplaceMechanism(AdditiveMechanism):
                                            sensitivity=l1_sensitivity))
 
     @classmethod
-    def create_from_std_deviation(cls, stddev: float,
+    def create_from_std_deviation(cls, normalized_stddev: float,
                                   l1_sensitivity: float) -> 'LaplaceMechanism':
-        b = stddev / math.sqrt(2)
+        """Creates Laplace mechanism from the standard deviation.
+
+        Args:
+            normalized_stddev: the standard deviation divided by l1_sensitivity.
+            l1_sensitivity: the l1 sensitivity of the query.
+        """
+        b = normalized_stddev / math.sqrt(2)
         return LaplaceMechanism(
             dp_mechanisms.LaplaceMechanism(epsilon=1 / b,
                                            sensitivity=l1_sensitivity))
@@ -485,9 +491,15 @@ class GaussianMechanism(AdditiveMechanism):
                                  l2_sensitivity=l2_sensitivity)
 
     @classmethod
-    def create_from_std_deviation(cls, stddev: float,
+    def create_from_std_deviation(cls, normalized_stddev: float,
                                   l2_sensitivity: float) -> 'GaussianMechanism':
-        stddev = stddev * l2_sensitivity
+        """Creates Gaussian mechanism from the standard deviation.
+
+        Args:
+            normalized_stddev: the standard deviation divided by l2_sensitivity.
+            l2_sensitivity: the l2 sensitivity of the query.
+        """
+        stddev = normalized_stddev * l2_sensitivity
         return GaussianMechanism(
             dp_mechanisms.GaussianMechanism.create_from_standard_deviation(
                 stddev),
