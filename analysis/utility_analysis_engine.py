@@ -111,7 +111,7 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
                 mechanism_type, weight=aggregate_params.budget_weight)
 
         # Create Utility analysis combiners.
-        internal_combiners = []
+        internal_combiners = [utility_analysis_combiners.StatisticsCombiner()]
         for params in data_structures.get_aggregate_params(self._options):
             # WARNING: Do not change the order here,
             # _create_aggregate_error_compound_combiner() in utility_analysis.py

@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Utility Analysis Combiners."""
+"""Utility Analysis per-partition Combiners."""
 
 import abc
 import copy
@@ -19,14 +19,11 @@ from dataclasses import dataclass
 from typing import Any, List, Optional, Tuple
 import numpy as np
 import math
-import scipy
 
 import pipeline_dp
 from pipeline_dp import dp_computations
-from pipeline_dp import combiners
 from analysis import metrics
 from analysis import poisson_binomial
-from analysis import probability_computations
 from pipeline_dp import partition_selection
 
 MAX_PROBABILITIES_IN_ACCUMULATOR = 100
@@ -320,6 +317,23 @@ class PrivacyIdCountCombiner(SumCombiner):
         return super().create_accumulator(data)
 
 
+class StatisticsCombiner(UtilityAnalysisCombiner):
+    """A combiner for utility analysis counts."""
+    # (partition_sum, clipping_to_min_error, clipping_to_max_error,
+    # expected_l0_bounding_error, var_cross_partition_error)
+    AccumulatorType = Tuple[int, int]
+
+    def create_accumulator(
+        self, sparse_acc: Tuple[np.ndarray, np.ndarray,
+                                np.ndarray]) -> AccumulatorType:
+        count, _sum, n_partitions = sparse_acc
+        return len(count), np.sum(count).item()
+
+    def compute_metrics(self, acc: AccumulatorType):
+        privacy_id_count, count = acc
+        return metrics.Statistics(privacy_id_count, count)
+
+
 class CompoundCombiner(pipeline_dp.combiners.CompoundCombiner):
     """Compound combiner for Utility analysis per partition metrics."""
 
@@ -337,7 +351,7 @@ class CompoundCombiner(pipeline_dp.combiners.CompoundCombiner):
     # In Sparse mode, data (which contains counts, sums, n_partitions) are kept
     # in lists and merge is merging of those lists. For further performance
     # improvements, on converting from sparse to dense mode, the data are
-    # are converted to NumPy arrays. And internal combiners perform NumPy vector
+    # converted to NumPy arrays. And internal combiners perform NumPy vector
     # aggregations.
     SparseAccumulatorType = Tuple[List[int], List[float], List[int]]
     DenseAccumulatorType = List[Any]

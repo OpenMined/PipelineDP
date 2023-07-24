@@ -146,12 +146,14 @@ def _pack_per_partition_metrics(
     """
     n_metrics = len(utility_result) // n_configurations
 
+    statistics = utility_result[0]
     # Create 'result' with empty elements.
-    empty_partition_metric = lambda: metrics.PerPartitionMetrics(1, [])
+    empty_partition_metric = lambda: metrics.PerPartitionMetrics(
+        1, copy.copy(statistics), [])
     result = tuple(empty_partition_metric() for _ in range(n_configurations))
 
     # Fill 'result' from 'utility_metrics'.
-    for i, metric in enumerate(utility_result):
+    for i, metric in enumerate(utility_result[:1]):
         i_configuration = i // n_metrics
         ith_result = result[i_configuration]
         if isinstance(metric, float):  # partition selection
