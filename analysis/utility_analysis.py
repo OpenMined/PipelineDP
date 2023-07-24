@@ -153,7 +153,7 @@ def _pack_per_partition_metrics(
     result = tuple(empty_partition_metric() for _ in range(n_configurations))
 
     # Fill 'result' from 'utility_metrics'.
-    for i, metric in enumerate(utility_result[:1]):
+    for i, metric in enumerate(utility_result[1:]):
         i_configuration = i // n_metrics
         ith_result = result[i_configuration]
         if isinstance(metric, float):  # partition selection
