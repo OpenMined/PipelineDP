@@ -22,7 +22,7 @@ from pipeline_dp import contribution_bounders
 from pipeline_dp import pipeline_backend
 import analysis
 import analysis.contribution_bounders as utility_contribution_bounders
-import analysis.combiners as utility_analysis_combiners
+from analysis import per_partition_combiners
 from analysis import data_structures
 
 
@@ -111,36 +111,34 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
                 mechanism_type, weight=aggregate_params.budget_weight)
 
         # Create Utility analysis combiners.
-        internal_combiners = [
-            utility_analysis_combiners.RawStatisticsCombiner()
-        ]
+        internal_combiners = [per_partition_combiners.RawStatisticsCombiner()]
         for params in data_structures.get_aggregate_params(self._options):
             # WARNING: Do not change the order here,
             # _create_aggregate_error_compound_combiner() in utility_analysis.py
             # depends on it.
             if not self._is_public_partitions:
                 internal_combiners.append(
-                    utility_analysis_combiners.PartitionSelectionCombiner(
+                    per_partition_combiners.PartitionSelectionCombiner(
                         combiners.CombinerParams(
                             private_partition_selection_budget, params)))
             if pipeline_dp.Metrics.SUM in aggregate_params.metrics:
                 internal_combiners.append(
-                    utility_analysis_combiners.SumCombiner(
+                    per_partition_combiners.SumCombiner(
                         combiners.CombinerParams(
                             budgets[pipeline_dp.Metrics.SUM], params)))
             if pipeline_dp.Metrics.COUNT in aggregate_params.metrics:
                 internal_combiners.append(
-                    utility_analysis_combiners.CountCombiner(
+                    per_partition_combiners.CountCombiner(
                         combiners.CombinerParams(
                             budgets[pipeline_dp.Metrics.COUNT], params)))
             if pipeline_dp.Metrics.PRIVACY_ID_COUNT in aggregate_params.metrics:
                 internal_combiners.append(
-                    utility_analysis_combiners.PrivacyIdCountCombiner(
+                    per_partition_combiners.PrivacyIdCountCombiner(
                         combiners.CombinerParams(
                             budgets[pipeline_dp.Metrics.PRIVACY_ID_COUNT],
                             params)))
 
-        return utility_analysis_combiners.CompoundCombiner(
+        return per_partition_combiners.CompoundCombiner(
             internal_combiners, return_named_tuple=False)
 
     def _select_private_partitions_internal(

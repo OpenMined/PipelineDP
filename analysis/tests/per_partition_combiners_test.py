@@ -21,7 +21,7 @@ from unittest.mock import patch
 from typing import Tuple
 
 import pipeline_dp
-from analysis import combiners
+from analysis import per_partition_combiners as combiners
 from analysis import metrics
 from analysis.tests import common
 
@@ -227,7 +227,7 @@ class PartitionSelectionTest(parameterized.TestCase):
                                delta=1e-10)
 
     @patch(
-        'analysis.combiners.PartitionSelectionCalculator.compute_probability_to_keep'
+        'analysis.per_partition_combiners.PartitionSelectionCalculator.compute_probability_to_keep'
     )
     def test_partition_selection_combiner(self,
                                           mock_compute_probability_to_keep):
