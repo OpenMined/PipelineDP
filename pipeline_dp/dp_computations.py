@@ -21,6 +21,7 @@ import numpy as np
 from typing import Any, Optional, Tuple, Union
 
 import pipeline_dp
+from pipeline_dp import budget_accounting
 from dataclasses import dataclass
 from pydp.algorithms import numerical_mechanisms as dp_mechanisms
 
@@ -195,7 +196,7 @@ class AdditiveVectorNoiseParams:
 
 
 def _clip_vector(vec: np.ndarray, max_norm: float,
-                 norm_kind: pipeline_dp.aggregate_params.NormKind):
+                 norm_kind: pipeline_dp.NormKind):
     norm_kind = norm_kind.value  # type: str
     if norm_kind == "linf":
         return np.clip(vec, -max_norm, max_norm)
@@ -571,7 +572,7 @@ class Sensitivities:
 
 
 def create_additive_mechanism(
-        mechanism_spec: pipeline_dp.budget_accounting.MechanismSpec,
+        mechanism_spec: budget_accounting.MechanismSpec,
         sensitivities: Sensitivities) -> AdditiveMechanism:
     """Creates AdditiveMechanism from a mechanism spec and sensitivities."""
     noise_kind = mechanism_spec.mechanism_type.to_noise_kind()
@@ -592,10 +593,9 @@ def create_additive_mechanism(
 
 
 def create_mean_mechanism(
-        range_middle: float,
-        count_spec: pipeline_dp.budget_accounting.MechanismSpec,
+        range_middle: float, count_spec: budget_accounting.MechanismSpec,
         count_sensitivities: Sensitivities,
-        normalized_sum_spec: pipeline_dp.budget_accounting.MechanismSpec,
+        normalized_sum_spec: budget_accounting.MechanismSpec,
         normalized_sum_sensitivities: Sensitivities) -> MeanMechanism:
     """Creates MeanMechanism from a mechanism specs and sensitivities."""
     count_mechanism = create_additive_mechanism(count_spec, count_sensitivities)

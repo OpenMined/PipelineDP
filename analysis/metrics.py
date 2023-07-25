@@ -202,7 +202,7 @@ class MetricUtility:
         absolute_error: error in terms of (dp_value - actual_value).
         relative_error: error in terms of (dp_value - actual_value)/actual_value.
     """
-    metric: pipeline_dp.Metrics
+    metric: pipeline_dp.Metric
 
     # Noise information.
     noise_std: float
