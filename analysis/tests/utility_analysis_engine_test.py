@@ -266,7 +266,7 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
         [self.assertLen(partition_metrics, 2) for partition_metrics in output]
 
         expected_pk0 = [
-            metrics.Statistics(privacy_id_count=2, count=1),
+            metrics.RawStatistics(privacy_id_count=2, count=1),
             metrics.SumMetrics(aggregation=pipeline_dp.Metrics.COUNT,
                                sum=1.0,
                                clipping_to_min_error=0.0,
@@ -285,7 +285,7 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
                                noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)
         ]
         expected_pk1 = [
-            metrics.Statistics(privacy_id_count=2, count=2),
+            metrics.RawStatistics(privacy_id_count=2, count=2),
             metrics.SumMetrics(aggregation=pipeline_dp.Metrics.COUNT,
                                sum=2.0,
                                clipping_to_min_error=0.0,

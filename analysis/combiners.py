@@ -317,8 +317,8 @@ class PrivacyIdCountCombiner(SumCombiner):
         return super().create_accumulator(data)
 
 
-class StatisticsCombiner(UtilityAnalysisCombiner):
-    """A combiner for computing per-partition statistics (count etc)."""
+class RawStatisticsCombiner(UtilityAnalysisCombiner):
+    """A combiner for computing per-partition raw statistics (count etc)."""
     # (privacy_id_count, count)
     AccumulatorType = Tuple[int, int]
 
@@ -330,7 +330,7 @@ class StatisticsCombiner(UtilityAnalysisCombiner):
 
     def compute_metrics(self, acc: AccumulatorType):
         privacy_id_count, count = acc
-        return metrics.Statistics(privacy_id_count, count)
+        return metrics.RawStatistics(privacy_id_count, count)
 
 
 class CompoundCombiner(pipeline_dp.combiners.CompoundCombiner):

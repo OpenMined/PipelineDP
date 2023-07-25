@@ -146,10 +146,10 @@ def _pack_per_partition_metrics(
     """
     n_metrics = len(utility_result) // n_configurations
 
-    statistics = utility_result[0]
+    raw_statistics = utility_result[0]
     # Create 'result' with empty elements.
     empty_partition_metric = lambda: metrics.PerPartitionMetrics(
-        1, copy.copy(statistics), [])
+        1, raw_statistics, [])
     result = tuple(empty_partition_metric() for _ in range(n_configurations))
 
     # Fill 'result' from 'utility_metrics'.
@@ -188,7 +188,7 @@ def _unnest_metrics(
             partition_size = metrics[0].metric_errors[0].sum
         else:
             # Select partitions case.
-            partition_size = metrics[0].statistics.privacy_id_count
+            partition_size = metrics[0].raw_statistics.privacy_id_count
         # Emits metrics for computing histogram by partition size.
         bucket = _get_lower_bound(partition_size)
         yield ((i, bucket), metric)

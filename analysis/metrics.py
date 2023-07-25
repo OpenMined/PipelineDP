@@ -60,7 +60,7 @@ class SumMetrics:
 
 
 @dataclass
-class Statistics:
+class RawStatistics:
     privacy_id_count: int
     count: int
 
@@ -68,7 +68,7 @@ class Statistics:
 @dataclass
 class PerPartitionMetrics:
     partition_selection_probability_to_keep: float
-    statistics: Statistics
+    raw_statistics: RawStatistics
     metric_errors: Optional[List[SumMetrics]] = None
 
 

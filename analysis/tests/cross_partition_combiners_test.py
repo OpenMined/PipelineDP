@@ -104,7 +104,7 @@ class PerPartitionToCrossPartitionMetrics(parameterized.TestCase):
             mock_create_for_public_partitions):
         per_partition_utility = metrics.PerPartitionMetrics(
             partition_selection_probability_to_keep=0.2,
-            statistics=metrics.Statistics(privacy_id_count=10, count=15),
+            raw_statistics=metrics.RawStatistics(privacy_id_count=10, count=15),
             metric_errors=[_get_sum_metrics(),
                            _get_sum_metrics()])
         dp_metrics = [
@@ -133,7 +133,7 @@ class PerPartitionToCrossPartitionMetrics(parameterized.TestCase):
             mock_create_for_public_partitions):
         per_partition_utility = metrics.PerPartitionMetrics(
             partition_selection_probability_to_keep=0.5,
-            statistics=metrics.Statistics(privacy_id_count=3, count=100),
+            raw_statistics=metrics.RawStatistics(privacy_id_count=3, count=100),
             metric_errors=None)
         output = cross_partition_combiners._per_partition_to_utility_report(
             per_partition_utility, [], public_partitions=False)
@@ -300,7 +300,7 @@ class CrossPartitionCombiner(parameterized.TestCase):
         combiner = self._create_combiner()
         per_partition_metrics = metrics.PerPartitionMetrics(
             partition_selection_probability_to_keep=0.2,
-            statistics=metrics.Statistics(privacy_id_count=3, count=9),
+            raw_statistics=metrics.RawStatistics(privacy_id_count=3, count=9),
             metric_errors=[_get_sum_metrics()])
         sum_actual, utility_report = combiner.create_accumulator(
             per_partition_metrics)
@@ -316,7 +316,7 @@ class CrossPartitionCombiner(parameterized.TestCase):
         combiner = self._create_combiner()
         per_partition_metrics = metrics.PerPartitionMetrics(
             partition_selection_probability_to_keep=0.2,
-            statistics=metrics.Statistics(privacy_id_count=3, count=9),
+            raw_statistics=metrics.RawStatistics(privacy_id_count=3, count=9),
             metric_errors=[_get_sum_metrics()])
         combiner.create_accumulator(per_partition_metrics)
         expected_metrics = [pipeline_dp.Metrics.COUNT]

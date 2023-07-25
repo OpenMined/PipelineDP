@@ -628,5 +628,20 @@ class UtilitiesTest(parameterized.TestCase):
         self.assertIs(result, b)
 
 
+class RawStatisticsTest(parameterized.TestCase):
+
+    def test_create_accumulator(self):
+        count, sum_, n_partitions = np.array([1,
+                                              2]), np.array([1]), np.array([2])
+        combiner = combiners.RawStatisticsCombiner()
+        self.assertEqual(
+            combiner.create_accumulator((count, sum_, n_partitions)), (2, 3))
+
+    def test_compute_metrics(self):
+        combiner = combiners.RawStatisticsCombiner()
+        self.assertEqual(combiner.compute_metrics((3, 10)),
+                         metrics.RawStatistics(privacy_id_count=3, count=10))
+
+
 if __name__ == '__main__':
     absltest.main()
