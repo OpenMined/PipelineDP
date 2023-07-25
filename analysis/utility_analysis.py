@@ -185,9 +185,9 @@ def _unnest_metrics(
     for i, metric in enumerate(metrics):
         yield ((i, None), metric)
         if metrics[0].metric_errors:
-            partition_size =  metrics[0].metric_errors[0].sum
+            partition_size = metrics[0].metric_errors[0].sum
         else:
-        # Select partitions case.
+            # Select partitions case.
             partition_size = metrics[0].statistics.privacy_id_count
         # Emits metrics for computing histogram by partition size.
         bucket = _get_lower_bound(partition_size)
