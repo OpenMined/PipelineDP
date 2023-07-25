@@ -198,7 +198,7 @@ def _per_partition_to_utility_report(
     # Fill partition selection metrics.
     if public_partitions:
         prob_to_keep = 1
-        is_empty_partition = False  # TODO(dvadym): compute this
+        is_empty_partition = per_partition_utility.raw_statistics.count == 0
         partition_metrics = _partition_metrics_public_partitions(
             is_empty_partition)
     else:

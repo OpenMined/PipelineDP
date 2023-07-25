@@ -21,7 +21,7 @@ from unittest.mock import patch
 from typing import Tuple
 
 import pipeline_dp
-from analysis import combiners
+from analysis import per_partition_combiners as combiners
 from analysis import metrics
 from analysis.tests import common
 
@@ -227,7 +227,7 @@ class PartitionSelectionTest(parameterized.TestCase):
                                delta=1e-10)
 
     @patch(
-        'analysis.combiners.PartitionSelectionCalculator.compute_probability_to_keep'
+        'analysis.per_partition_combiners.PartitionSelectionCalculator.compute_probability_to_keep'
     )
     def test_partition_selection_combiner(self,
                                           mock_compute_probability_to_keep):
@@ -626,6 +626,21 @@ class UtilitiesTest(parameterized.TestCase):
         result = combiners._merge_list(a, b)
         self.assertEqual(result, [2, 3, 1])
         self.assertIs(result, b)
+
+
+class RawStatisticsTest(parameterized.TestCase):
+
+    def test_create_accumulator(self):
+        count, sum_, n_partitions = np.array([1,
+                                              2]), np.array([1]), np.array([2])
+        combiner = combiners.RawStatisticsCombiner()
+        self.assertEqual(
+            combiner.create_accumulator((count, sum_, n_partitions)), (2, 3))
+
+    def test_compute_metrics(self):
+        combiner = combiners.RawStatisticsCombiner()
+        self.assertEqual(combiner.compute_metrics((3, 10)),
+                         metrics.RawStatistics(privacy_id_count=3, count=10))
 
 
 if __name__ == '__main__':
