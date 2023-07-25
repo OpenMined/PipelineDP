@@ -130,7 +130,7 @@ class TuneResult:
 def _find_candidate_parameters(
         hist: histograms.DatasetHistograms,
         parameters_to_tune: ParametersToTune,
-        metric: Optional[pipeline_dp.Metrics],
+        metric: Optional[pipeline_dp.Metric],
         strategy: ParametersSearchStrategy,
         max_candidates: int) -> analysis.MultiParameterConfiguration:
     """Finds candidates for l0 and/or l_inf parameters.
