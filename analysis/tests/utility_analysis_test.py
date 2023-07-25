@@ -48,7 +48,9 @@ class UtilityAnalysis(parameterized.TestCase):
         for i in range(n_configurations):
             result.append(
                 metrics.PerPartitionMetrics(
-                    0.1, metric_errors=[self._get_sum_metrics(150)]))
+                    partition_selection_probability_to_keep=0.1,
+                    statistics=metrics.Statistics(privacy_id_count=5, count=10),
+                    metric_errors=[self._get_sum_metrics(150)]))
         return result
 
     @parameterized.parameters(False, True)

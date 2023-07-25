@@ -103,8 +103,10 @@ class PerPartitionToCrossPartitionMetrics(parameterized.TestCase):
             mock_create_for_private_partitions,
             mock_create_for_public_partitions):
         per_partition_utility = metrics.PerPartitionMetrics(
-            0.2, metric_errors=[_get_sum_metrics(),
-                                _get_sum_metrics()])
+            partition_selection_probability_to_keep=0.2,
+            statistics=metrics.Statistics(privacy_id_count=10, count=15),
+            metric_errors=[_get_sum_metrics(),
+                           _get_sum_metrics()])
         dp_metrics = [
             pipeline_dp.Metrics.PRIVACY_ID_COUNT, pipeline_dp.Metrics.COUNT
         ]
@@ -129,8 +131,10 @@ class PerPartitionToCrossPartitionMetrics(parameterized.TestCase):
     def test_per_partition_to_cross_partition_utility_only_partition_selection(
             self, mock_to_metric_utility, mock_create_for_private_partitions,
             mock_create_for_public_partitions):
-        per_partition_utility = metrics.PerPartitionMetrics(0.5,
-                                                            metric_errors=None)
+        per_partition_utility = metrics.PerPartitionMetrics(
+            partition_selection_probability_to_keep=0.5,
+            statistics=metrics.Statistics(privacy_id_count=3, count=100),
+            metric_errors=None)
         output = cross_partition_combiners._per_partition_to_utility_report(
             per_partition_utility, [], public_partitions=False)
 
@@ -295,7 +299,9 @@ class CrossPartitionCombiner(parameterized.TestCase):
     def test_create_report_wo_mocks(self):
         combiner = self._create_combiner()
         per_partition_metrics = metrics.PerPartitionMetrics(
-            0.2, metric_errors=[_get_sum_metrics()])
+            partition_selection_probability_to_keep=0.2,
+            statistics=metrics.Statistics(privacy_id_count=3, count=9),
+            metric_errors=[_get_sum_metrics()])
         sum_actual, utility_report = combiner.create_accumulator(
             per_partition_metrics)
         self.assertEqual(sum_actual, (10.0,))
@@ -309,7 +315,9 @@ class CrossPartitionCombiner(parameterized.TestCase):
                                       mock_per_partition_to_utility_report):
         combiner = self._create_combiner()
         per_partition_metrics = metrics.PerPartitionMetrics(
-            0.2, metric_errors=[_get_sum_metrics()])
+            partition_selection_probability_to_keep=0.2,
+            statistics=metrics.Statistics(privacy_id_count=3, count=9),
+            metric_errors=[_get_sum_metrics()])
         combiner.create_accumulator(per_partition_metrics)
         expected_metrics = [pipeline_dp.Metrics.COUNT]
         expected_public_partitions = False
