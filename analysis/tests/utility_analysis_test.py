@@ -316,8 +316,8 @@ class UtilityAnalysis(parameterized.TestCase):
         output = list(utility_analysis._unnest_metrics(input_data))
         self.assertLen(output, 4)
         self.assertEqual(output[0], ((0, None), input_data[0]))
-        self.assertEqual(output[1], ((1, None), input_data[1]))
-        self.assertEqual(output[2], ((0, 100), input_data[0]))
+        self.assertEqual(output[1], ((0, 100), input_data[0]))
+        self.assertEqual(output[2], ((1, None), input_data[1]))
         self.assertEqual(output[3], ((1, 100), input_data[1]))
 
 

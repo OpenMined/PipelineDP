@@ -191,8 +191,7 @@ def _unnest_metrics(
             partition_size = metrics[0].statistics.privacy_id_count
         # Emits metrics for computing histogram by partition size.
         bucket = _get_lower_bound(partition_size)
-        for i, metric in enumerate(metrics):
-            yield ((i, bucket), metric)
+        yield ((i, bucket), metric)
 
 
 def _group_utility_reports(
