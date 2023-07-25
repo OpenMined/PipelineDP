@@ -318,9 +318,8 @@ class PrivacyIdCountCombiner(SumCombiner):
 
 
 class StatisticsCombiner(UtilityAnalysisCombiner):
-    """A combiner for utility analysis counts."""
-    # (partition_sum, clipping_to_min_error, clipping_to_max_error,
-    # expected_l0_bounding_error, var_cross_partition_error)
+    """A combiner for computing per-partition statistics (count etc)."""
+    # (privacy_id_count, count)
     AccumulatorType = Tuple[int, int]
 
     def create_accumulator(
