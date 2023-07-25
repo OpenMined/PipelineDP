@@ -23,7 +23,7 @@ import math
 
 def _sum_metrics_to_data_dropped(
         sum_metrics: metrics.SumMetrics, partition_keep_probability: float,
-        dp_metric: pipeline_dp.Metrics) -> metrics.DataDropInfo:
+        dp_metric: pipeline_dp.Metric) -> metrics.DataDropInfo:
     """Finds Data drop information from per-partition metrics."""
     # TODO(dvadym): implement for Sum
     assert dp_metric != pipeline_dp.Metrics.SUM, "Cross-partition metrics are not implemented for SUM"
@@ -92,7 +92,7 @@ def _sum_metrics_to_value_error(sum_metrics: metrics.SumMetrics,
 
 
 def _sum_metrics_to_metric_utility(
-        sum_metrics: metrics.SumMetrics, dp_metric: pipeline_dp.Metrics,
+        sum_metrics: metrics.SumMetrics, dp_metric: pipeline_dp.Metric,
         partition_keep_probability: float) -> metrics.MetricUtility:
     """Creates cross-partition MetricUtility from 1 partition utility.
 
@@ -192,7 +192,7 @@ def _multiply_float_dataclasses_field(dataclass,
 
 def _per_partition_to_utility_report(
         per_partition_utility: metrics.PerPartitionMetrics,
-        dp_metrics: List[pipeline_dp.Metrics],
+        dp_metrics: List[pipeline_dp.Metric],
         public_partitions: bool) -> metrics.UtilityReport:
     """Converts per-partition metrics to cross-partition utility report."""
     # Fill partition selection metrics.

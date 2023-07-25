@@ -29,7 +29,7 @@ class CountErrorEstimator:
     bounding and noise error are taken into consideration.
     """
 
-    def __init__(self, base_std: float, metric: pipeline_dp.Metrics,
+    def __init__(self, base_std: float, metric: pipeline_dp.Metric,
                  noise: pipeline_dp.NoiseKind,
                  l0_ratios_dropped: Sequence[Tuple[int, float]],
                  linf_ratios_dropped: Sequence[Tuple[int, float]],

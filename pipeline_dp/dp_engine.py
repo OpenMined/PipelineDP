@@ -16,6 +16,7 @@ import functools
 from typing import Any, Optional, Tuple
 
 import pipeline_dp
+from pipeline_dp import budget_accounting
 from pipeline_dp import combiners
 from pipeline_dp import contribution_bounders
 from pipeline_dp import partition_selection
@@ -490,7 +491,7 @@ class DPEngine:
             _check_data_extractors(data_extractors)
 
     def _annotate(self, col, params: pipeline_dp.SelectPartitionsParams,
-                  budget: pipeline_dp.budget_accounting.Budget):
+                  budget: budget_accounting.Budget):
         return self._backend.annotate(col,
                                       "annotation",
                                       params=params,
