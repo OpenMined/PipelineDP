@@ -430,9 +430,9 @@ class AdditiveMechanismTests(parameterized.TestCase):
         dict(epsilon=2, l1_sensitivity=4.5, expected_noise=2.25),
         dict(epsilon=0.1, l1_sensitivity=0.55, expected_noise=5.5),
     )
-    def test_laplace_mechanism_creation(self, epsilon, l1_sensitivity,
-                                        expected_noise):
-        mechanism = dp_computations.LaplaceMechanism(
+    def test_laplace_create_from_epsilon(self, epsilon, l1_sensitivity,
+                                         expected_noise):
+        mechanism = dp_computations.LaplaceMechanism.create_from_epsilon(
             epsilon=epsilon, l1_sensitivity=l1_sensitivity)
 
         self.assertEqual(mechanism.noise_kind, pipeline_dp.NoiseKind.LAPLACE)
@@ -443,6 +443,19 @@ class AdditiveMechanismTests(parameterized.TestCase):
                                expected_noise * math.sqrt(2),
                                delta=1e-12)
         self.assertEqual(mechanism.sensitivity, l1_sensitivity)
+        self.assertIsInstance(mechanism.add_noise(1000), float)
+
+    def test_laplace_create_from_stddev(self):
+        mechanism = dp_computations.LaplaceMechanism.create_from_std_deviation(
+            normalized_stddev=10, l1_sensitivity=3.5)
+
+        self.assertEqual(mechanism.noise_kind, pipeline_dp.NoiseKind.LAPLACE)
+        expected_noise_parameter = 10 / np.sqrt(2) * 3.5
+        self.assertAlmostEqual(mechanism.noise_parameter,
+                               expected_noise_parameter,
+                               delta=1e-12)
+        self.assertAlmostEqual(mechanism.std, 35)
+        self.assertEqual(mechanism.sensitivity, 3.5)
         self.assertIsInstance(mechanism.add_noise(1000), float)
 
     @parameterized.parameters(
@@ -460,7 +473,7 @@ class AdditiveMechanismTests(parameterized.TestCase):
                                             value, expected_noise_scale):
         # Use Kolmogorov-Smirnov test to verify the output noise distribution.
         # https://en.wikipedia.org/wiki/Kolmogorov-Smirnov_test
-        mechanism = dp_computations.LaplaceMechanism(
+        mechanism = dp_computations.LaplaceMechanism.create_from_epsilon(
             epsilon=epsilon, l1_sensitivity=l1_sensitivity)
         expected_cdf = stats.laplace(loc=value, scale=expected_noise_scale).cdf
 
@@ -470,11 +483,10 @@ class AdditiveMechanismTests(parameterized.TestCase):
         self.assertGreater(res.pvalue, 1e-4)
 
     def test_gaussian_mechanism_describe(self):
-        mechanism = dp_computations.GaussianMechanism(epsilon=1.0,
-                                                      delta=1e-10,
-                                                      l2_sensitivity=15)
+        mechanism = dp_computations.GaussianMechanism.create_from_epsilon_delta(
+            epsilon=1.0, delta=1e-10, l2_sensitivity=15)
         expected = ("Gaussian mechanism:  parameter=88.06640625  eps=1.0  "
-                    "delta=1e-10  l2_sensitivity=15.0")
+                    "delta=1e-10  l2_sensitivity=15")
         self.assertEqual(mechanism.describe(), expected)
 
     @parameterized.parameters(
@@ -489,7 +501,7 @@ class AdditiveMechanismTests(parameterized.TestCase):
     )
     def test_gaussian_mechanism_creation(self, epsilon, delta, l2_sensitivity,
                                          expected_noise_scale):
-        mechanism = dp_computations.GaussianMechanism(
+        mechanism = dp_computations.GaussianMechanism.create_from_epsilon_delta(
             epsilon=epsilon, delta=delta, l2_sensitivity=l2_sensitivity)
 
         self.assertEqual(mechanism.noise_kind, pipeline_dp.NoiseKind.GAUSSIAN)
@@ -522,7 +534,7 @@ class AdditiveMechanismTests(parameterized.TestCase):
                                              expected_noise_scale):
         # Use Kolmogorov-Smirnov test to verify the output noise distribution.
         # https://en.wikipedia.org/wiki/Kolmogorov-Smirnov_test
-        mechanism = dp_computations.GaussianMechanism(
+        mechanism = dp_computations.GaussianMechanism.create_from_epsilon_delta(
             epsilon=epsilon, delta=delta, l2_sensitivity=l2_sensitivity)
         self.assertEqual(mechanism.std, expected_noise_scale)
 
@@ -532,9 +544,19 @@ class AdditiveMechanismTests(parameterized.TestCase):
         res = stats.ks_1samp(noised_values, expected_cdf)
         self.assertGreater(res.pvalue, 1e-4)
 
+    def test_gaussian_create_from_stddev(self):
+        mechanism = dp_computations.GaussianMechanism.create_from_std_deviation(
+            normalized_stddev=5, l2_sensitivity=15)
+
+        self.assertEqual(mechanism.noise_kind, pipeline_dp.NoiseKind.GAUSSIAN)
+        self.assertEqual(mechanism.noise_parameter, 75)
+        self.assertEqual(mechanism.std, 75)
+        self.assertEqual(mechanism.sensitivity, 15)
+        self.assertIsInstance(mechanism.add_noise(1000), float)
+
     def test_laplace_mechanism_describe(self):
-        mechanism = dp_computations.LaplaceMechanism(epsilon=2.0,
-                                                     l1_sensitivity=25)
+        mechanism = dp_computations.LaplaceMechanism.create_from_epsilon(
+            epsilon=2.0, l1_sensitivity=25)
         expected = ("Laplace mechanism:  parameter=12.5  eps=2.0  "
                     "l1_sensitivity=25.0")
         self.assertEqual(mechanism.describe(), expected)
@@ -606,9 +628,9 @@ class AdditiveMechanismTests(parameterized.TestCase):
              l1_sensitivity=None,
              expected_noise_parameter=48),
     )
-    def test_create_laplace_mechanism(self, epsilon, l0_sensitivity,
-                                      linf_sensitivity, l1_sensitivity,
-                                      expected_noise_parameter):
+    def test_create_additive_mechanism_laplace(self, epsilon, l0_sensitivity,
+                                               linf_sensitivity, l1_sensitivity,
+                                               expected_noise_parameter):
         spec = budget_accounting.MechanismSpec(
             aggregate_params.MechanismType.LAPLACE)
         spec.set_eps_delta(epsilon, delta=0)
@@ -621,6 +643,19 @@ class AdditiveMechanismTests(parameterized.TestCase):
 
         self.assertAlmostEqual(mechanism.noise_parameter,
                                expected_noise_parameter,
+                               delta=1e-12)
+
+    def test_create_additive_mechanism_laplace_from_stddev(self):
+        spec = budget_accounting.MechanismSpec(
+            aggregate_params.MechanismType.LAPLACE)
+        spec.set_noise_standard_deviation(7)
+        sensitivities = dp_computations.Sensitivities(l1=2)
+
+        mechanism = dp_computations.create_additive_mechanism(
+            spec, sensitivities)
+
+        self.assertAlmostEqual(mechanism.noise_parameter,
+                               14 / np.sqrt(2),
                                delta=1e-12)
 
     @parameterized.parameters(
@@ -646,6 +681,17 @@ class AdditiveMechanismTests(parameterized.TestCase):
         self.assertAlmostEqual(mechanism.noise_parameter,
                                expected_noise_parameter,
                                delta=1e-6)
+
+    def test_create_additive_mechanism_gaussian_from_stddev(self):
+        spec = budget_accounting.MechanismSpec(
+            aggregate_params.MechanismType.GAUSSIAN)
+        spec.set_noise_standard_deviation(9)
+        sensitivities = dp_computations.Sensitivities(l2=2)
+
+        mechanism = dp_computations.create_additive_mechanism(
+            spec, sensitivities)
+
+        self.assertEqual(mechanism.noise_parameter, 18)
 
     def test_compute_sensitivities_for_count(self):
         params = create_aggregate_params(max_partitions_contributed=4,
