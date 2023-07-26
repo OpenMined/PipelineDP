@@ -526,10 +526,13 @@ class GaussianMechanism(AdditiveMechanism):
         return self._l2_sensitivity
 
     def describe(self) -> str:
-        if self._mechanism.epsilon > 0:  # todo comment
+        if self._mechanism.epsilon > 0:
+            # The naive budget accounting, the mechanism is specified with
+            # (eps, delta).
             eps_delta_str = f"eps={self._mechanism.epsilon}  " \
                             f"delta={self._mechanism.delta}  "
         else:
+            # The PLD accounting, the mechanism is specified with stddev.
             eps_delta_str = ""
         return (f"Gaussian mechanism:  parameter={self.noise_parameter}"
                 f"  {eps_delta_str}l2_sensitivity={self.sensitivity}")
