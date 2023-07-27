@@ -85,7 +85,7 @@ def _sum_metrics_to_value_error(sum_metrics: metrics.SumMetrics,
         rmse_with_dropped_partitions=rmse_with_dropped_partitions,
         l1_with_dropped_partitions=l1_with_dropped_partitions)
     if weight != 1:
-        # Weight per-partition result with keep_prob for computing average.
+        # Weight per-partition result for computing weighted sum.
         _multiply_float_dataclasses_field(result,
                                           weight,
                                           fields_to_ignore=["noise_std"])
@@ -320,7 +320,7 @@ class CrossPartitionCombiner(pipeline_dp.combiners.Combiner):
         weight = self._weight_fn(metrics)
         return actual_metrics, _per_partition_to_utility_report(
             metrics, self._dp_metrics, self._public_partitions,
-            weight), self._weight_fn(metrics)
+            weight), weight
 
     def merge_accumulators(self, acc1: AccumulatorType,
                            acc2: AccumulatorType) -> AccumulatorType:
