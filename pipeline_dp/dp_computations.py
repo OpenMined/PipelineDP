@@ -21,6 +21,7 @@ import numpy as np
 from typing import Any, Optional, Tuple, Union
 
 import pipeline_dp
+from pipeline_dp import budget_accounting
 from dataclasses import dataclass
 from pydp.algorithms import numerical_mechanisms as dp_mechanisms
 
@@ -195,7 +196,7 @@ class AdditiveVectorNoiseParams:
 
 
 def _clip_vector(vec: np.ndarray, max_norm: float,
-                 norm_kind: pipeline_dp.aggregate_params.NormKind):
+                 norm_kind: pipeline_dp.NormKind):
     norm_kind = norm_kind.value  # type: str
     if norm_kind == "linf":
         return np.clip(vec, -max_norm, max_norm)
@@ -429,9 +430,29 @@ class AdditiveMechanism(abc.ABC):
 
 class LaplaceMechanism(AdditiveMechanism):
 
-    def __init__(self, epsilon: float, l1_sensitivity: float):
-        self._mechanism = dp_mechanisms.LaplaceMechanism(
-            epsilon=epsilon, sensitivity=l1_sensitivity)
+    def __init__(self, mechanism):
+        self._mechanism = mechanism
+
+    @classmethod
+    def create_from_epsilon(cls, epsilon: float,
+                            l1_sensitivity: float) -> 'LaplaceMechanism':
+        return LaplaceMechanism(
+            dp_mechanisms.LaplaceMechanism(epsilon=epsilon,
+                                           sensitivity=l1_sensitivity))
+
+    @classmethod
+    def create_from_std_deviation(cls, normalized_stddev: float,
+                                  l1_sensitivity: float) -> 'LaplaceMechanism':
+        """Creates Laplace mechanism from the standard deviation.
+
+        Args:
+            normalized_stddev: the standard deviation divided by l1_sensitivity.
+            l1_sensitivity: the l1 sensitivity of the query.
+        """
+        b = normalized_stddev / math.sqrt(2)
+        return LaplaceMechanism(
+            dp_mechanisms.LaplaceMechanism(epsilon=1 / b,
+                                           sensitivity=l1_sensitivity))
 
     def add_noise(self, value: Union[int, float]) -> float:
         return self._mechanism.add_noise(1.0 * value)
@@ -459,10 +480,31 @@ class LaplaceMechanism(AdditiveMechanism):
 
 class GaussianMechanism(AdditiveMechanism):
 
-    def __init__(self, epsilon: float, delta: float, l2_sensitivity: float):
+    def __init__(self, mechanism, l2_sensitivity: float):
+        self._mechanism = mechanism
         self._l2_sensitivity = l2_sensitivity
-        self._mechanism = dp_mechanisms.GaussianMechanism(
-            epsilon=epsilon, delta=delta, sensitivity=l2_sensitivity)
+
+    @classmethod
+    def create_from_epsilon_delta(cls, epsilon: float, delta: float,
+                                  l2_sensitivity: float) -> 'GaussianMechanism':
+        return GaussianMechanism(dp_mechanisms.GaussianMechanism(
+            epsilon=epsilon, delta=delta, sensitivity=l2_sensitivity),
+                                 l2_sensitivity=l2_sensitivity)
+
+    @classmethod
+    def create_from_std_deviation(cls, normalized_stddev: float,
+                                  l2_sensitivity: float) -> 'GaussianMechanism':
+        """Creates Gaussian mechanism from the standard deviation.
+
+        Args:
+            normalized_stddev: the standard deviation divided by l2_sensitivity.
+            l2_sensitivity: the l2 sensitivity of the query.
+        """
+        stddev = normalized_stddev * l2_sensitivity
+        return GaussianMechanism(
+            dp_mechanisms.GaussianMechanism.create_from_standard_deviation(
+                stddev),
+            l2_sensitivity=l2_sensitivity)
 
     def add_noise(self, value: Union[int, float]) -> float:
         return self._mechanism.add_noise(1.0 * value)
@@ -481,12 +523,19 @@ class GaussianMechanism(AdditiveMechanism):
 
     @property
     def sensitivity(self) -> float:
-        return self._mechanism.l2_sensitivity
+        return self._l2_sensitivity
 
     def describe(self) -> str:
-        return (f"Gaussian mechanism:  parameter={self.noise_parameter}  eps="
-                f"{self._mechanism.epsilon}  delta={self._mechanism.delta}  "
-                f"l2_sensitivity={self.sensitivity}")
+        if self._mechanism.epsilon > 0:
+            # The naive budget accounting, the mechanism is specified with
+            # (eps, delta).
+            eps_delta_str = f"eps={self._mechanism.epsilon}  " \
+                            f"delta={self._mechanism.delta}  "
+        else:
+            # The PLD accounting, the mechanism is specified with stddev.
+            eps_delta_str = ""
+        return (f"Gaussian mechanism:  parameter={self.noise_parameter}"
+                f"  {eps_delta_str}l2_sensitivity={self.sensitivity}")
 
 
 class MeanMechanism:
@@ -571,7 +620,7 @@ class Sensitivities:
 
 
 def create_additive_mechanism(
-        mechanism_spec: pipeline_dp.budget_accounting.MechanismSpec,
+        mechanism_spec: budget_accounting.MechanismSpec,
         sensitivities: Sensitivities) -> AdditiveMechanism:
     """Creates AdditiveMechanism from a mechanism spec and sensitivities."""
     noise_kind = mechanism_spec.mechanism_type.to_noise_kind()
@@ -579,23 +628,29 @@ def create_additive_mechanism(
         if sensitivities.l1 is None:
             raise ValueError("L1 or (L0 and Linf) sensitivities must be set for"
                              " Laplace mechanism.")
-        return LaplaceMechanism(mechanism_spec.eps, sensitivities.l1)
+        if mechanism_spec.standard_deviation_is_set:
+            return LaplaceMechanism.create_from_std_deviation(
+                mechanism_spec.noise_standard_deviation, sensitivities.l1)
+        return LaplaceMechanism.create_from_epsilon(mechanism_spec.eps,
+                                                    sensitivities.l1)
 
     if noise_kind == pipeline_dp.NoiseKind.GAUSSIAN:
         if sensitivities.l2 is None:
             raise ValueError("L2 or (L0 and Linf) sensitivities must be set for"
                              " Gaussian mechanism.")
-        return GaussianMechanism(mechanism_spec.eps, mechanism_spec.delta,
-                                 sensitivities.l2)
+        if mechanism_spec.standard_deviation_is_set:
+            return GaussianMechanism.create_from_std_deviation(
+                mechanism_spec.noise_standard_deviation, sensitivities.l2)
+        return GaussianMechanism.create_from_epsilon_delta(
+            mechanism_spec.eps, mechanism_spec.delta, sensitivities.l2)
 
     assert False, f"{noise_kind} not supported."
 
 
 def create_mean_mechanism(
-        range_middle: float,
-        count_spec: pipeline_dp.budget_accounting.MechanismSpec,
+        range_middle: float, count_spec: budget_accounting.MechanismSpec,
         count_sensitivities: Sensitivities,
-        normalized_sum_spec: pipeline_dp.budget_accounting.MechanismSpec,
+        normalized_sum_spec: budget_accounting.MechanismSpec,
         normalized_sum_sensitivities: Sensitivities) -> MeanMechanism:
     """Creates MeanMechanism from a mechanism specs and sensitivities."""
     count_mechanism = create_additive_mechanism(count_spec, count_sensitivities)

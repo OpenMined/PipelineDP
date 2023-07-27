@@ -60,8 +60,15 @@ class SumMetrics:
 
 
 @dataclass
+class RawStatistics:
+    privacy_id_count: int
+    count: int
+
+
+@dataclass
 class PerPartitionMetrics:
     partition_selection_probability_to_keep: float
+    raw_statistics: RawStatistics
     metric_errors: Optional[List[SumMetrics]] = None
 
 
@@ -195,7 +202,7 @@ class MetricUtility:
         absolute_error: error in terms of (dp_value - actual_value).
         relative_error: error in terms of (dp_value - actual_value)/actual_value.
     """
-    metric: pipeline_dp.Metrics
+    metric: pipeline_dp.Metric
 
     # Noise information.
     noise_std: float
