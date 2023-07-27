@@ -63,7 +63,8 @@ def _create_contribution_bounding_errors(
 
 
 def _sum_metrics_to_value_error(sum_metrics: metrics.SumMetrics,
-                                keep_prob: float) -> metrics.ValueErrors:
+                                keep_prob: float,
+                                weight: float) -> metrics.ValueErrors:
     """Creates ValueErrors from per-partition metrics."""
     value = sum_metrics.sum
     bounding_errors = _create_contribution_bounding_errors(sum_metrics)
@@ -83,17 +84,18 @@ def _sum_metrics_to_value_error(sum_metrics: metrics.SumMetrics,
         l1=l1,
         rmse_with_dropped_partitions=rmse_with_dropped_partitions,
         l1_with_dropped_partitions=l1_with_dropped_partitions)
-    if keep_prob != 1:
+    if weight != 1:
         # Weight per-partition result with keep_prob for computing average.
         _multiply_float_dataclasses_field(result,
-                                          keep_prob,
+                                          weight,
                                           fields_to_ignore=["noise_std"])
     return result
 
 
 def _sum_metrics_to_metric_utility(
         sum_metrics: metrics.SumMetrics, dp_metric: pipeline_dp.Metric,
-        partition_keep_probability: float) -> metrics.MetricUtility:
+        partition_keep_probability: float,
+        partition_weight: float) -> metrics.MetricUtility:
     """Creates cross-partition MetricUtility from 1 partition utility.
 
     Attributes:
@@ -104,8 +106,9 @@ def _sum_metrics_to_metric_utility(
     data_dropped = _sum_metrics_to_data_dropped(sum_metrics,
                                                 partition_keep_probability,
                                                 dp_metric)
-    absolute_error = _sum_metrics_to_value_error(
-        sum_metrics, keep_prob=partition_keep_probability)
+    absolute_error = _sum_metrics_to_value_error(sum_metrics,
+                                                 partition_keep_probability,
+                                                 partition_weight)
     relative_error = absolute_error.to_relative(sum_metrics.sum)
 
     return metrics.MetricUtility(metric=dp_metric,
@@ -192,8 +195,8 @@ def _multiply_float_dataclasses_field(dataclass,
 
 def _per_partition_to_utility_report(
         per_partition_utility: metrics.PerPartitionMetrics,
-        dp_metrics: List[pipeline_dp.Metric],
-        public_partitions: bool) -> metrics.UtilityReport:
+        dp_metrics: List[pipeline_dp.Metric], public_partitions: bool,
+        partition_weight: float) -> metrics.UtilityReport:
     """Converts per-partition metrics to cross-partition utility report."""
     # Fill partition selection metrics.
     if public_partitions:
@@ -213,7 +216,7 @@ def _per_partition_to_utility_report(
                                            dp_metrics):
             metric_errors.append(
                 _sum_metrics_to_metric_utility(metric_error, dp_metric,
-                                               prob_to_keep))
+                                               prob_to_keep, partition_weight))
 
     return metrics.UtilityReport(configuration_index=-1,
                                  partitions_info=partition_metrics,
@@ -255,14 +258,12 @@ def _merge_utility_reports(report1: metrics.UtilityReport,
 
 
 def _average_utility_report(report: metrics.UtilityReport, sums_actual: Tuple,
-                            total_weights: Tuple) -> None:
+                            total_weight: float) -> None:
     """Averages fields of the 'report' across partitions."""
     if not report.metric_errors:
         return
 
-    for sum_actual, metric_error, total_weight in zip(sums_actual,
-                                                      report.metric_errors,
-                                                      total_weights):
+    for sum_actual, metric_error in zip(sums_actual, report.metric_errors):
         _multiply_float_dataclasses_field(
             metric_error,
             1.0 / total_weight,
@@ -273,24 +274,24 @@ def _average_utility_report(report: metrics.UtilityReport, sums_actual: Tuple,
 
 
 def partition_size_weight_fn(
-        per_partition_metrics: metrics.PerPartitionMetrics) -> Tuple[float]:
-    return tuple(map(lambda el: el.sum, per_partition_metrics.metric_errors))
+        per_partition_metrics: metrics.PerPartitionMetrics) -> float:
+    # Only one metric is calculated as of now.
+    return per_partition_metrics.metric_errors[0].sum
 
 
 def equal_weight_fn(
-        per_partition_metrics: metrics.PerPartitionMetrics) -> Tuple[float]:
+        per_partition_metrics: metrics.PerPartitionMetrics) -> float:
     """
-    Assumes that partition_selection_probability_to_keep for public
-    partitions is 1 and all public partitions including are processed
-    via `create_accumulator`.
     For the public partitions weights will be 1, and we will do normal
     averaging because total weight will equal to the total number of
-    partitions. For private partitions we will do weighted average and
+    partitions. The function assumes that
+    partition_selection_probability_to_keep for public partitions is 1 and all
+    public partitions including empty are processed in CrossPartitionCombiner.
+    For private partitions we will do weighted average and
     total weight will equal to mean number of kept partitions
     (`partitions.kept_partitions.mean`).
     """
-    return ((per_partition_metrics.partition_selection_probability_to_keep,) *
-            len(per_partition_metrics.metric_errors))
+    return per_partition_metrics.partition_selection_probability_to_keep
 
 
 class CrossPartitionCombiner(pipeline_dp.combiners.Combiner):
@@ -299,14 +300,16 @@ class CrossPartitionCombiner(pipeline_dp.combiners.Combiner):
     # 1. The sum of non dp metrics, which is used for averaging of error
     # metrics.
     # 2. metrics.UtilityReport contains error metrics.
-    # 3. Accumulated weight. Used to weigh parts during their aggregation.
-    AccumulatorType = Tuple[Tuple, metrics.UtilityReport, Tuple]
+    # 3. Accumulated weight. Used to calculate total weight after accumulation.
+    # During creation of accumulator in `create_accumulator` the initial weight
+    # is applied to metric errors of a partition.
+    AccumulatorType = Tuple[Tuple, metrics.UtilityReport, float]
 
     def __init__(self,
                  dp_metrics: List[pipeline_dp.Metric],
                  public_partitions: bool,
                  weight_fn: Callable[[metrics.PerPartitionMetrics],
-                                     Tuple[float]] = equal_weight_fn):
+                                     float] = equal_weight_fn):
         self._dp_metrics = dp_metrics
         self._public_partitions = public_partitions
         self._weight_fn = weight_fn
@@ -314,9 +317,10 @@ class CrossPartitionCombiner(pipeline_dp.combiners.Combiner):
     def create_accumulator(
             self, metrics: metrics.PerPartitionMetrics) -> AccumulatorType:
         actual_metrics = tuple(me.sum for me in metrics.metric_errors)
+        weight = self._weight_fn(metrics)
         return actual_metrics, _per_partition_to_utility_report(
-            metrics, self._dp_metrics,
-            self._public_partitions), self._weight_fn(metrics)
+            metrics, self._dp_metrics, self._public_partitions,
+            weight), self._weight_fn(metrics)
 
     def merge_accumulators(self, acc1: AccumulatorType,
                            acc2: AccumulatorType) -> AccumulatorType:
@@ -324,7 +328,7 @@ class CrossPartitionCombiner(pipeline_dp.combiners.Combiner):
         sum_actual2, report2, weight2 = acc2
         sum_actual = tuple(x + y for x, y in zip(sum_actual1, sum_actual2))
         _merge_utility_reports(report1, report2)
-        weight = tuple(map(sum, zip(weight1, weight2)))
+        weight = weight1 + weight2
         return sum_actual, report1, weight
 
     def compute_metrics(self, acc: AccumulatorType) -> metrics.UtilityReport:
