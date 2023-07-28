@@ -319,8 +319,7 @@ class CrossPartitionCombiner(pipeline_dp.combiners.Combiner):
         actual_metrics = tuple(me.sum for me in metrics.metric_errors)
         weight = self._weight_fn(metrics)
         return actual_metrics, _per_partition_to_utility_report(
-            metrics, self._dp_metrics, self._public_partitions,
-            weight), weight
+            metrics, self._dp_metrics, self._public_partitions, weight), weight
 
     def merge_accumulators(self, acc1: AccumulatorType,
                            acc2: AccumulatorType) -> AccumulatorType:
