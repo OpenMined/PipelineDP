@@ -275,22 +275,22 @@ def _average_utility_report(report: metrics.UtilityReport, sums_actual: Tuple,
 
 def partition_size_weight_fn(
         per_partition_metrics: metrics.PerPartitionMetrics) -> float:
+    """Weights partitions according to their size."""
     # Only one metric is calculated as of now.
     return per_partition_metrics.metric_errors[0].sum
 
 
 def equal_weight_fn(
         per_partition_metrics: metrics.PerPartitionMetrics) -> float:
-    """
-    For the public partitions weights will be 1, and we will do normal
-    averaging because total weight will equal to the total number of
-    partitions. The function assumes that
-    partition_selection_probability_to_keep for public partitions is 1 and all
-    public partitions including empty are processed in CrossPartitionCombiner.
-    For private partitions we will do weighted average and
-    total weight will equal to mean number of kept partitions
-    (`partitions.kept_partitions.mean`).
-    """
+    """Weights partitions according to their probability to be kept."""
+    # For the public partitions weights will be 1, and we will do normal
+    # averaging because total weight will equal to the total number of
+    # partitions. The function assumes that
+    # partition_selection_probability_to_keep for public partitions is 1 and all
+    # public partitions including empty are processed in CrossPartitionCombiner.
+    # For private partitions we will do weighted average and
+    # total weight will equal to mean number of kept partitions
+    # (`partitions.kept_partitions.mean`).
     return per_partition_metrics.partition_selection_probability_to_keep
 
 
