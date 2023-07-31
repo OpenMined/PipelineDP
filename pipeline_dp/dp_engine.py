@@ -13,7 +13,7 @@
 # limitations under the License.
 """DP aggregations."""
 import functools
-from typing import Any, Optional, Tuple
+from typing import Any, Callable, Optional, Tuple
 
 import pipeline_dp
 from pipeline_dp import budget_accounting
@@ -114,7 +114,9 @@ class DPEngine:
         # col : (privacy_id, partition_key, value)
         if (public_partitions is not None and
                 not params.public_partitions_already_filtered):
-            col = self._drop_partitions(col, public_partitions)
+            col = self._drop_partitions(col,
+                                        public_partitions,
+                                        partition_extractor=lambda row: row[1])
             self._add_report_stage(
                 f"Public partition selection: dropped non public partitions")
         if not params.contribution_bounds_already_enforced:
@@ -271,10 +273,9 @@ class DPEngine:
 
         return col
 
-    def _drop_partitions(self, col, partitions):
+    def _drop_partitions(self, col, partitions, partition_extractor: Callable):
         """Drops partitions in `col` which are not in `public_partitions`."""
-        # col = self._backend.map(col, lambda row: (row[1], row), "Extract partition id")
-        col = pipeline_functions.key_by(self._backend, col, lambda row: row[1],
+        col = pipeline_functions.key_by(self._backend, col, partition_extractor,
                                         "Key by partition")
         col = self._backend.filter_by_key(col, partitions,
                                           "Filtering out partitions")
@@ -457,7 +458,8 @@ class DPEngine:
             col, params, data_extractors)
 
         if not partitions_already_filtered:
-            col = self._drop_partitions(col, partitions)
+            col = self._drop_partitions(col, partitions,
+                                        data_extractors.partition_extractor)
 
         histograms = computing_histograms.compute_dataset_histograms(
             col, data_extractors, self._backend)
