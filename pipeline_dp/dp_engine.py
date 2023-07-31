@@ -20,6 +20,7 @@ from pipeline_dp import budget_accounting
 from pipeline_dp import combiners
 from pipeline_dp import contribution_bounders
 from pipeline_dp import partition_selection
+from pipeline_dp import pipeline_functions
 from pipeline_dp import report_generator
 from pipeline_dp import sampling_utils
 from pipeline_dp.dataset_histograms import computing_histograms
@@ -109,14 +110,14 @@ class DPEngine:
         else:
             combiner = self._create_compound_combiner(params)
 
+        col = self._extract_columns(col, data_extractors)
+        # col : (privacy_id, partition_key, value)
         if (public_partitions is not None and
                 not params.public_partitions_already_filtered):
-            col = self._drop_partitions(col, public_partitions, data_extractors)
+            col = self._drop_partitions(col, public_partitions)
             self._add_report_stage(
                 f"Public partition selection: dropped non public partitions")
         if not params.contribution_bounds_already_enforced:
-            col = self._extract_columns(col, data_extractors)
-            # col : (privacy_id, partition_key, value)
             contribution_bounder = self._create_contribution_bounder(params)
             col = contribution_bounder.bound_contributions(
                 col, params, self._backend, self._current_report_generator,
@@ -127,11 +128,8 @@ class DPEngine:
                                           "Drop privacy id")
             # col : (partition_key, accumulator)
         else:
-            # Extract the columns.
-            col = self._backend.map(
-                col, lambda row: (data_extractors.partition_extractor(row),
-                                  data_extractors.value_extractor(row)),
-                "Extract (partition_key, value))")
+            col = self._backend.map(col, lambda row: row[1:],
+                                    "Remove privacy_id")
             # col : (partition_key, value)
 
             col = self._backend.map_values(
@@ -273,15 +271,14 @@ class DPEngine:
 
         return col
 
-    def _drop_partitions(self, col, partitions,
-                         data_extractors: pipeline_dp.DataExtractors):
+    def _drop_partitions(self, col, partitions):
         """Drops partitions in `col` which are not in `public_partitions`."""
-        col = self._backend.map(
-            col, lambda row: (data_extractors.partition_extractor(row), row),
-            "Extract partition id")
+        # col = self._backend.map(col, lambda row: (row[1], row), "Extract partition id")
+        col = pipeline_functions.key_by(self._backend, col, lambda row: row[1],
+                                        "Key by partition")
         col = self._backend.filter_by_key(col, partitions,
                                           "Filtering out partitions")
-        return self._backend.map_tuple(col, lambda k, v: v, "Drop key")
+        return self._backend.values(col, "Drop key")
 
     def _add_empty_public_partitions(self, col, public_partitions,
                                      aggregator_fn):
@@ -460,7 +457,7 @@ class DPEngine:
             col, params, data_extractors)
 
         if not partitions_already_filtered:
-            col = self._drop_partitions(col, partitions, data_extractors)
+            col = self._drop_partitions(col, partitions)
 
         histograms = computing_histograms.compute_dataset_histograms(
             col, data_extractors, self._backend)
