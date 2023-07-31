@@ -274,7 +274,7 @@ class DPEngine:
         return col
 
     def _drop_partitions(self, col, partitions, partition_extractor: Callable):
-        """Drops partitions in `col` which are not in `public_partitions`."""
+        """Drops partitions in `col` which are not in `partitions`."""
         col = pipeline_functions.key_by(self._backend, col, partition_extractor,
                                         "Key by partition")
         col = self._backend.filter_by_key(col, partitions,
@@ -379,10 +379,16 @@ class DPEngine:
     def _extract_columns(self, col,
                          data_extractors: pipeline_dp.DataExtractors):
         """Extract columns using data_extractors."""
+        if data_extractors.privacy_id_extractor is None:
+            # This is the case when contribution bounding already enforced and
+            # no need to extract privacy_id.
+            privacy_id_extractor = lambda row: None
+        else:
+            privacy_id_extractor = data_extractors.privacy_id_extractor
         return self._backend.map(
-            col, lambda row: (data_extractors.privacy_id_extractor(row),
-                              data_extractors.partition_extractor(row),
-                              data_extractors.value_extractor(row)),
+            col, lambda row:
+            (privacy_id_extractor(row), data_extractors.partition_extractor(
+                row), data_extractors.value_extractor(row)),
             "Extract (privacy_id, partition_key, value))")
 
     def _check_aggregate_params(self,
