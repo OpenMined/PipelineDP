@@ -16,7 +16,7 @@
 This demo outputs a utility analysis of errors and noise for each partition in the dataset.
 
 1. Install Python and run on the command line `pip install pipeline-dp absl-py`
-2. Run python python run_without_frameworks_utility_analysis.py --output_file=<...>
+2. Run python run_without_frameworks_utility_analysis.py --output_file=<...>
 """
 from absl import app
 from absl import flags
@@ -99,18 +99,24 @@ def preaggregate(col: list, data_extractors: pipeline_dp.DataExtractors):
 
     def preaggregate_fn(pk_pid_rows):
         """Aggregates rows per (partition_key, privacy_id)."""
-        (pk, pid), rows = pk_pid_rows
-        c = s = 0
-        for row in rows:
-            c += 1
-            s += data_extractors.value_extractor(row)
-        return (pk, (c, s, pid_n_partitions[pid]))
+        pid, pk_values = pk_pid_rows
+        count = len(pk_values)
+        count_partition = collections.defaultdict(lambda: 0)
+        sum_partition = collections.defaultdict(int)
+        for pk, value in pk_values:
+            count_partition[pk] += 1
+            sum_partition[pk] += value
+        partitions = list(count_partition.keys())
+        for pk in partitions:
+            yield (pk, (count_partition[pk], sum_partition[pk], len(partitions),
+                        count))
 
     backend = pipeline_dp.LocalBackend()
-    key_fn = lambda row: (data_extractors.partition_extractor(row),
-                          data_extractors.privacy_id_extractor(row))
-    col = backend.map(col, lambda x: (key_fn(x), x))
-    return list(backend.map(backend.group_by_key(col), preaggregate_fn))
+    key_fn = lambda row: data_extractors.privacy_id_extractor(row)
+    value_fn = lambda row: (data_extractors.partition_extractor(row),
+                            data_extractors.value_extractor(row))
+    col = backend.map(col, lambda x: (key_fn(x), value_fn(x)))
+    return list(backend.flat_map(backend.group_by_key(col), preaggregate_fn))
 
 
 def tune_parameters():
