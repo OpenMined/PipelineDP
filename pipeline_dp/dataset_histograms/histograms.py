@@ -47,8 +47,17 @@ class FrequencyBin:
 
 
 class HistogramType(enum.Enum):
+    # For L0 contribution histogram, for each bin:
+    # 'count' is the number of privacy units which contribute to
+    # [lower, next_lower) partitions.
+    # 'sum' is the total number (privacy_unit, partition) for these privacy
+    # units.
     L0_CONTRIBUTIONS = 'l0_contributions'
     L1_CONTRIBUTIONS = 'l1_contributions'
+    # For Linf contribution histogram, for each bin:
+    # 'count' is the number of pairs (privacy_unit, partition) which contribute
+    # with [lower, next_lower) contributions.
+    # 'sum' is the total number of contributions for these pairs.
     LINF_CONTRIBUTIONS = 'linf_contributions'
     COUNT_PER_PARTITION = 'count_per_partition'
     COUNT_PRIVACY_ID_PER_PARTITION = 'privacy_id_per_partition_count'
@@ -66,7 +75,6 @@ class Histogram:
     def total_sum(self):
         return sum([bin.sum for bin in self.bins])
 
-    @property
     def max_value(self):
         return self.bins[-1].max
 
@@ -112,7 +120,8 @@ def compute_ratio_dropped(
     For each FrequencyBin.lower in contribution_histogram it computes what would
     the ratio of data dropped because of contribution bounding when it is taken
     as bounding threshold (e.g. in case of L0 histogram bounding_threshold it is
-    max_partition_contribution).
+    max_partition_contribution). For convenience the (0, 1) is added as 1st
+    element.
 
     Args:
         contribution_histogram: histogram of contributions. It can be L0, L1,
@@ -131,9 +140,9 @@ def compute_ratio_dropped(
     ratio_dropped = []
     bins = contribution_histogram.bins
     previous_value = bins[-1].lower  # lower of the largest bin.
-    if contribution_histogram.max_value != previous_value:
+    if contribution_histogram.max_value() != previous_value:
         # Add ratio for max_value when max_value is not lower in bins.
-        ratio_dropped.append((contribution_histogram.max_value, 0.0))
+        ratio_dropped.append((contribution_histogram.max_value(), 0.0))
 
     for bin in bins[::-1]:
         current_value = bin.lower
@@ -142,6 +151,7 @@ def compute_ratio_dropped(
         ratio_dropped.append((current_value, dropped / total_sum))
         previous_value = current_value
         elements_larger += bin.count
+    ratio_dropped.append((0, 1))
     return ratio_dropped[::-1]
 
 

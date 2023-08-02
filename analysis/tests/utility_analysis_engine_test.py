@@ -203,19 +203,19 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
         # Assert
         self.assertLen(output, 10)
         # Assert count metrics are correct.
-        [self.assertEqual(v[1][1].clipping_to_max_error, -10) for v in output]
+        [self.assertEqual(v[1][2].clipping_to_max_error, -10) for v in output]
         [
-            self.assertAlmostEqual(v[1][1].expected_l0_bounding_error,
+            self.assertAlmostEqual(v[1][2].expected_l0_bounding_error,
                                    -18.0,
                                    delta=1e-5) for v in output
         ]
         [
-            self.assertAlmostEqual(v[1][1].std_l0_bounding_error,
+            self.assertAlmostEqual(v[1][2].std_l0_bounding_error,
                                    1.89736,
                                    delta=1e-5) for v in output
         ]
         [
-            self.assertAlmostEqual(v[1][1].std_noise, 11.95312, delta=1e-5)
+            self.assertAlmostEqual(v[1][2].std_noise, 11.95312, delta=1e-5)
             for v in output
         ]
 
@@ -266,6 +266,7 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
         [self.assertLen(partition_metrics, 2) for partition_metrics in output]
 
         expected_pk0 = [
+            metrics.RawStatistics(privacy_id_count=2, count=1),
             metrics.SumMetrics(aggregation=pipeline_dp.Metrics.COUNT,
                                sum=1.0,
                                clipping_to_min_error=0.0,
@@ -284,6 +285,7 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
                                noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)
         ]
         expected_pk1 = [
+            metrics.RawStatistics(privacy_id_count=2, count=2),
             metrics.SumMetrics(aggregation=pipeline_dp.Metrics.COUNT,
                                sum=2.0,
                                clipping_to_min_error=0.0,

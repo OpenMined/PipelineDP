@@ -60,8 +60,15 @@ class SumMetrics:
 
 
 @dataclass
+class RawStatistics:
+    privacy_id_count: int
+    count: int
+
+
+@dataclass
 class PerPartitionMetrics:
     partition_selection_probability_to_keep: float
+    raw_statistics: RawStatistics
     metric_errors: Optional[List[SumMetrics]] = None
 
 
@@ -195,7 +202,7 @@ class MetricUtility:
         absolute_error: error in terms of (dp_value - actual_value).
         relative_error: error in terms of (dp_value - actual_value)/actual_value.
     """
-    metric: pipeline_dp.Metrics
+    metric: pipeline_dp.Metric
 
     # Noise information.
     noise_std: float
@@ -245,7 +252,7 @@ class UtilityReport:
     Attributes:
         configuration_index: the index of the input parameter configuration for
           which this report was computed.
-        partition_metrics: utility analysis of selected partition.
+        partitions_info: utility analysis of selected partition.
         metric_errors: utility analysis of metrics (e.g. COUNT, SUM,
           PRIVACY_ID_COUNT).
         utility_report_histogram:

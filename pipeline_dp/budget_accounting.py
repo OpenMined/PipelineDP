@@ -95,8 +95,15 @@ class MechanismSpec:
         self._delta = delta
         return
 
+    def set_noise_standard_deviation(self, stddev: float):
+        self._noise_standard_deviation = stddev
+
     def use_delta(self) -> bool:
         return self.mechanism_type != agg_params.MechanismType.LAPLACE
+
+    @property
+    def standard_deviation_is_set(self) -> bool:
+        return self._noise_standard_deviation is not None
 
 
 @dataclass

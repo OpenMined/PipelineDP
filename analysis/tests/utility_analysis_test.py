@@ -48,7 +48,10 @@ class UtilityAnalysis(parameterized.TestCase):
         for i in range(n_configurations):
             result.append(
                 metrics.PerPartitionMetrics(
-                    0.1, metric_errors=[self._get_sum_metrics(150)]))
+                    partition_selection_probability_to_keep=0.1,
+                    raw_statistics=metrics.RawStatistics(privacy_id_count=5,
+                                                         count=10),
+                    metric_errors=[self._get_sum_metrics(150)]))
         return result
 
     @parameterized.parameters(False, True)
@@ -108,8 +111,8 @@ class UtilityAnalysis(parameterized.TestCase):
                 num_non_public_partitions=None,
                 num_empty_partitions=None,
                 strategy=None,
-                kept_partitions=metrics.MeanVariance(mean=1.0,
-                                                     var=0.648377588998337)),
+                kept_partitions=metrics.MeanVariance(mean=3.51622411,
+                                                     var=2.2798409)),
             metric_errors=[
                 metrics.MetricUtility(
                     metric=pipeline_dp.Metrics.COUNT,
@@ -121,27 +124,25 @@ class UtilityAnalysis(parameterized.TestCase):
                         partition_selection=0.04322517259988915),
                     absolute_error=metrics.ValueErrors(
                         bounding_errors=metrics.ContributionBoundingErrors(
-                            l0=metrics.MeanVariance(mean=-51.191276314622854,
-                                                    var=10.238255262924572),
+                            l0=metrics.MeanVariance(mean=-18, var=3.6),
                             linf_min=0.0,
-                            linf_max=-28.439597952568246),
-                        mean=-79.6308742671911,
-                        variance=15.661039914487562,
-                        rmse=79.91004632976953,
+                            linf_max=-10),
+                        mean=-28,
+                        variance=5.5067726,
+                        rmse=28.098163153,
                         l1=0.0,
-                        rmse_with_dropped_partitions=83.41695701143286,
+                        rmse_with_dropped_partitions=29.331271542782087,
                         l1_with_dropped_partitions=0.0),
                     relative_error=metrics.ValueErrors(
                         bounding_errors=metrics.ContributionBoundingErrors(
-                            l0=metrics.MeanVariance(mean=-1.7063758771540947,
-                                                    var=0.011375839181027294),
+                            l0=metrics.MeanVariance(mean=-0.6, var=0.004),
                             linf_min=0.0,
-                            linf_max=-0.9479865984189416),
-                        mean=-2.6543624755730364,
-                        variance=0.017401155460541728,
-                        rmse=2.6636682109923178,
+                            linf_max=-0.33333333),
+                        mean=-0.93333333,
+                        variance=0.006118636237250433,
+                        rmse=0.9366054384576044,
                         l1=0.0,
-                        rmse_with_dropped_partitions=2.7805652337144293,
+                        rmse_with_dropped_partitions=0.9777090514260699,
                         l1_with_dropped_partitions=0.0)),
                 metrics.MetricUtility(
                     metric=pipeline_dp.Metrics.PRIVACY_ID_COUNT,
@@ -153,27 +154,25 @@ class UtilityAnalysis(parameterized.TestCase):
                         partition_selection=0.06483775889983372),
                     absolute_error=metrics.ValueErrors(
                         bounding_errors=metrics.ContributionBoundingErrors(
-                            l0=metrics.MeanVariance(mean=-25.595638157311427,
-                                                    var=2.559563815731143),
+                            l0=metrics.MeanVariance(mean=-9, var=0.9),
                             linf_min=0.0,
                             linf_max=0.0),
-                        mean=-25.595638157311427,
-                        variance=3.9152599786218905,
-                        rmse=25.81223614193849,
+                        mean=-9,
+                        variance=1.37669315,
+                        rmse=9.07616070,
                         l1=0.0,
-                        rmse_with_dropped_partitions=27.515758658140925,
+                        rmse_with_dropped_partitions=9.67515739991,
                         l1_with_dropped_partitions=0.0),
                     relative_error=metrics.ValueErrors(
                         bounding_errors=metrics.ContributionBoundingErrors(
-                            l0=metrics.MeanVariance(mean=-2.559563815731143,
-                                                    var=0.025595638157311418),
+                            l0=metrics.MeanVariance(mean=-0.9, var=0.009),
                             linf_min=0.0,
                             linf_max=0.0),
-                        mean=-2.559563815731143,
-                        variance=0.03915259978621889,
-                        rmse=2.5812236141938487,
+                        mean=-0.9,
+                        variance=0.013766931533,
+                        rmse=0.90761607055726,
                         l1=0.0,
-                        rmse_with_dropped_partitions=2.751575865814092,
+                        rmse_with_dropped_partitions=0.9675157399915,
                         l1_with_dropped_partitions=0.0))
             ])
         expected_copy = copy.deepcopy(expected)
@@ -318,8 +317,8 @@ class UtilityAnalysis(parameterized.TestCase):
         output = list(utility_analysis._unnest_metrics(input_data))
         self.assertLen(output, 4)
         self.assertEqual(output[0], ((0, None), input_data[0]))
-        self.assertEqual(output[1], ((1, None), input_data[1]))
-        self.assertEqual(output[2], ((0, 100), input_data[0]))
+        self.assertEqual(output[1], ((0, 100), input_data[0]))
+        self.assertEqual(output[2], ((1, None), input_data[1]))
         self.assertEqual(output[3], ((1, 100), input_data[1]))
 
 
