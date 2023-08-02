@@ -136,6 +136,16 @@ def get_aggregate_params(
 
 def get_partition_selection_strategy(
     options: UtilityAnalysisOptions
-) -> Union[pipeline_dp.PartitionSelectionStrategy,
-           Iterable[pipeline_dp.PartitionSelectionStrategy]]:
-    pass
+) -> Sequence[pipeline_dp.PartitionSelectionStrategy]:
+    """Returns partition selection strategies for different configurations."""
+    multi_configuration = options.multi_param_configuration
+    n_configurations = 1
+    if multi_configuration is not None:
+        if multi_configuration.partition_selection_strategy is not None:
+            # Different parameter configurations have different partition
+            # selection strategies.
+            return multi_configuration.partition_selection_strategy
+        n_configurations = multi_configuration.size
+    # The same partition selection strategy for all configuration.
+    return [options.aggregate_params.partition_selection_strategy
+           ] * n_configurations
