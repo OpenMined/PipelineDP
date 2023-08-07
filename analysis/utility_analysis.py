@@ -17,6 +17,7 @@ from typing import Any, Iterable, List, Tuple, Union
 import pipeline_dp
 from pipeline_dp import pipeline_backend
 import analysis
+from analysis import data_structures
 from analysis import metrics
 from analysis import utility_analysis_engine
 from analysis import cross_partition_combiners
@@ -114,6 +115,21 @@ def perform_utility_analysis(
         "Compute cross-partition metrics")
     #  ((configuration_index, bucket), UtilityReport)
 
+    if public_partitions is None:
+        # Add partition selection strategy for private partitions.
+        strategies = data_structures.get_partition_selection_strategy(options)
+
+        def add_partition_selection_strategy(report: metrics.UtilityReport):
+            # Beam does not allow to change input arguments in map, so copy it.
+            report = copy.deepcopy(report)
+            report.partitions_info.strategy = strategies[
+                report.configuration_index]
+            return report
+
+        cross_partition_metrics = backend.map_values(
+            cross_partition_metrics, add_partition_selection_strategy,
+            "Add Partition Selection Strategy")
+
     cross_partition_metrics = backend.map_tuple(
         cross_partition_metrics, lambda key, value: (key[0], (key[1], value)),
         "Rekey")
@@ -125,7 +141,6 @@ def perform_utility_analysis(
     result = backend.map_tuple(cross_partition_metrics, _group_utility_reports,
                                "Group utility reports")
     # result: (UtilityReport)
-
     return result, per_partition_result
 
 
