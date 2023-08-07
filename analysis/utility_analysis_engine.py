@@ -157,8 +157,8 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
         """Extract columns using data_extractors."""
         if self._options.pre_aggregated_data:
             return self._backend.map(
-                col, lambda row: (data_extractors.partition_extractor(row),
-                                  data_extractors.preaggregate_extractor(row)),
+                col, lambda row: (None, data_extractors.partition_extractor(
+                    row), data_extractors.preaggregate_extractor(row)),
                 "Extract (partition_key, preaggregate_data))")
         return super()._extract_columns(col, data_extractors)
 

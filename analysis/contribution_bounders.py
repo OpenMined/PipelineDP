@@ -85,6 +85,6 @@ class NoOpContributionBounder(contribution_bounders.ContributionBounder):
         # Dummy privacy_id = None is added, since the caller code expects that
         # privacy id is available.
         return backend.map_tuple(
-            col, lambda pk, val: ((None, pk), aggregate_fn(val)),
+            col, lambda pid, pk, val: ((pid, pk), aggregate_fn(val)),
             "Apply aggregate_fn")
         # ((privacy_id, partition_key), accumulator)
