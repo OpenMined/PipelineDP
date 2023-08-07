@@ -122,9 +122,11 @@ class SamplingL0LinfContributionBounderTest(parameterized.TestCase):
 
     def test_contribution_bounding_doesnt_drop_contributions(self):
         # Arrange.
-        # input has format (partition_key, (count, sum, num_partitions_contributed)).
-        input = [(None, 'pk1', (1, 2, 3)), (None, 'pk2', (2, 3, 4)),
-                 (None, 'pk1', (10, 11, 12)), (None, "pk3", (100, 101, 102))]
+        # input has format (privacy_id, partition_key, (count, sum,
+        # num_partitions_contributed)).
+        input = [("pid1", 'pk1', (1, 2, 3)), ("pid2", 'pk2', (2, 3, 4)),
+                 ("pid3", 'pk1', (10, 11, 12)),
+                 ("pid3", "pk3", (100, 101, 102))]
         bounder = contribution_bounders.NoOpContributionBounder()
 
         # Act.
@@ -136,8 +138,8 @@ class SamplingL0LinfContributionBounderTest(parameterized.TestCase):
                                         aggregate_fn=count_aggregate_fn))
 
         # Assert.
-        expected_result = [((None, 'pk1'), 1), ((None, 'pk2'), 2),
-                           ((None, 'pk1'), 10), ((None, 'pk3'), 100)]
+        expected_result = [(("pid1", 'pk1'), 1), (("pid2", 'pk2'), 2),
+                           (("pid3", 'pk1'), 10), (("pid3", 'pk3'), 100)]
         self.assertSequenceEqual(set(expected_result), set(bound_result))
 
 
