@@ -156,9 +156,12 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
                                           pipeline_dp.PreAggregateExtractors]):
         """Extract columns using data_extractors."""
         if self._options.pre_aggregated_data:
+            # The output elements format (privacy_id, partition_key, value).
+            # For pre-aggregation privacy_id is not needed. So None is return
+            # as a dummy privacy id.
             return self._backend.map(
-                col, lambda row: (data_extractors.partition_extractor(row),
-                                  data_extractors.preaggregate_extractor(row)),
+                col, lambda row: (None, data_extractors.partition_extractor(
+                    row), data_extractors.preaggregate_extractor(row)),
                 "Extract (partition_key, preaggregate_data))")
         return super()._extract_columns(col, data_extractors)
 

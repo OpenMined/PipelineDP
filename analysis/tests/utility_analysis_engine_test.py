@@ -164,25 +164,18 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
 
         budget_accountant = pipeline_dp.NaiveBudgetAccountant(total_epsilon=2,
                                                               total_delta=1e-10)
+        data_extractors = pipeline_dp.DataExtractors(
+            privacy_id_extractor=lambda x: x[0],
+            partition_extractor=lambda x: f"pk{x[1]}",
+            value_extractor=lambda x: 0)
 
         # Input collection has 10 privacy ids where each privacy id
         # contributes to the same 10 partitions, three times in each partition.
-        if not pre_aggregated:
-            input = [(i, j) for i in range(10) for j in range(10)] * 3
-        else:
-            # This is pre-agregated dataset, namely each element has a format
-            # (partition_key, (count, sum, num_partition_contributed).
-            # And each element is in one-to-one correspondence to pairs
-            # (privacy_id, partition_key) from the dataset.
-            input = [(i, (3, 0, 10)) for i in range(10)] * 10
-
+        input = [(i, j) for i in range(10) for j in range(10)] * 3
         if pre_aggregated:
+            input = analysis.pre_aggregation.preaggregate(
+                input, pipeline_dp.LocalBackend(), data_extractors)
             data_extractors = self._get_default_pre_aggregated_extractors()
-        else:
-            data_extractors = pipeline_dp.DataExtractors(
-                privacy_id_extractor=lambda x: x[0],
-                partition_extractor=lambda x: f"pk{x[1]}",
-                value_extractor=lambda x: 0)
 
         engine = utility_analysis_engine.UtilityAnalysisEngine(
             budget_accountant=budget_accountant,
