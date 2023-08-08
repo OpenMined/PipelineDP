@@ -15,7 +15,7 @@
 their implementation is framework-agnostic because they use only other primitive
  operations declared in PipelineBackend interface."""
 
-from typing import Type, Dict, Any, Callable
+from typing import Type, Dict, Any, Callable, TypeVar, Iterable, List
 
 from pipeline_dp import pipeline_backend
 
@@ -97,3 +97,26 @@ def collect_to_container(backend: pipeline_backend.PipelineBackend,
         f"{stage_name}: list of inputs to dictionary of inputs")
     return backend.map(input_dict, lambda d: container_class(**d),
                        f"{stage_name}: construct container class from inputs")
+
+
+def max_element(backend: pipeline_backend.PipelineBackend, col,
+                stage_name: str):
+    return choose_element(backend, col, max, stage_name)
+
+
+def min_element(backend: pipeline_backend.PipelineBackend, col,
+                stage_name: str):
+    return choose_element(backend, col, min, stage_name)
+
+
+T = TypeVar('T')
+
+
+def choose_element(backend: pipeline_backend.PipelineBackend, col,
+                   choosing_function: Callable[[T, T], T], stage_name: str):
+    return backend.values(
+        backend.reduce_per_key(
+            backend.map_tuple(col, lambda el: (1, el),
+                              f"{stage_name}: key by fictional element"),
+            lambda el1, el2: choosing_function(el1, el2),
+            f"{stage_name}: choose element between two"))

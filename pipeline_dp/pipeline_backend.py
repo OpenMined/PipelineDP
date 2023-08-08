@@ -78,6 +78,11 @@ class PipelineBackend(abc.ABC):
         pass
 
     @abc.abstractmethod
+    def map_tuple_with_side_inputs(self, col, fn, side_input_cols,
+                                   stage_name: str):
+        pass
+
+    @abc.abstractmethod
     def map_values(self, col, fn, stage_name: str):
         pass
 
@@ -469,6 +474,13 @@ class LocalBackend(PipelineBackend):
 
     def map_tuple(self, col, fn, stage_name: str = None):
         return map(lambda x: fn(*x), col)
+
+    def map_tuple_with_side_inputs(self,
+                                   col,
+                                   fn,
+                                   side_input_cols,
+                                   stage_name: str = None):
+        return map(lambda x: fn(*x, *side_input_cols), col)
 
     def map_values(self, col, fn, stage_name: typing.Optional[str] = None):
         return ((k, fn(v)) for k, v in col)
