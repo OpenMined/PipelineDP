@@ -340,12 +340,11 @@ def _min_max_lowers(col, number_of_buckets,
     """
     min_max_values = pipeline_functions.min_max_elements(
         backend, col, "Min and max value in dataset")
-    lowers = backend.map(
+    return backend.flat_map(
         min_max_values,
         lambda min_max: numpy.linspace(min_max[0], min_max[1],
                                        (number_of_buckets + 1))[:-1],
-        "Map to lowers")
-    return backend.flatten(lowers, "Flatten lowers")
+        "flatMap to lowers")
 
 
 def _compute_partition_count_histogram(
