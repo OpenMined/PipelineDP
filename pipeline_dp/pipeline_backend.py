@@ -400,6 +400,11 @@ class SparkRDDBackend(PipelineBackend):
     def map_tuple(self, rdd, fn, stage_name: str = None):
         return rdd.map(lambda x: fn(*x))
 
+    def map_tuple_with_side_inputs(self, col, fn, side_input_cols,
+                                   stage_name: str):
+        raise NotImplementedError("map_tuple_with_side_inputs "
+                                  "is not implement in SparkBackend.")
+
     def map_values(self, rdd, fn, stage_name: str = None):
         return rdd.mapValues(fn)
 

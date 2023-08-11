@@ -299,7 +299,8 @@ def _compute_linf_sum_contributions_histogram(
 
     This histogram contains: the number of (privacy id, partition_key)-pairs
     which have sum of values X_1, X_2, ..., X_n, where X_1 = min_sum,
-    X_n = one before max sum and n is a constant hardcoded in code.
+    X_n = one before max sum and n is equal to
+    NUMBER_OF_BUCKETS_IN_LINF_SUM_CONTRIBUTIONS_HISTOGRAM.
 
     Args:
         col: collection with elements (privacy_id, partition_key, value).
