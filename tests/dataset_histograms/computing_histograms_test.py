@@ -372,7 +372,7 @@ class ComputingHistogramsTest(parameterized.TestCase):
                     hist.FrequencyBin(lower=0.9998, count=15, sum=15, max=1),
                 ]),
         ),
-        pre_aggregated=(False,))  # TODO: put True here
+        pre_aggregated=(False, True))
     def test_compute_linf_sum_contributions_histogram(self, testcase_name,
                                                       input, expected,
                                                       pre_aggregated):
@@ -382,11 +382,11 @@ class ComputingHistogramsTest(parameterized.TestCase):
                 input,
                 backend,
                 data_extractors=pipeline_dp.DataExtractors(
-                    privacy_id_extractor=lambda x: x[0],
-                    partition_extractor=lambda x: x[1],
-                    value_extractor=lambda x: 0))
+                    privacy_id_extractor=lambda x: x[0][0],
+                    partition_extractor=lambda x: x[0][1],
+                    value_extractor=lambda x: x[1]))
             compute_histograms = \
-                computing_histograms._compute_linf_contributions_histogram_on_preaggregated_data
+                computing_histograms._compute_linf_sum_contributions_histogram_on_preaggregated_data
         else:
             compute_histograms = \
                 computing_histograms._compute_linf_sum_contributions_histogram
@@ -617,7 +617,7 @@ class ComputingHistogramsTest(parameterized.TestCase):
                     hist.FrequencyBin(lower=2.0, count=4, sum=8, max=2),
                 ],
             )),
-        pre_aggregated=(False,))  # TODO: put True back here
+        pre_aggregated=(False, True))
     def test_compute_contribution_histograms(self, testcase_name, input,
                                              expected_cross_partition,
                                              expected_per_partition,

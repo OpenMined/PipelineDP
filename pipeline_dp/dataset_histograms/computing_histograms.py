@@ -317,16 +317,35 @@ def _compute_linf_sum_contributions_histogram(
     col = backend.values(col, "Drop keys")
     # col: (float)
     col = backend.to_multi_transformable_collection(col)
-    min_max_values = pipeline_functions.min_max_elements(
-        backend, col, "Min and max value in dataset")
-    lowers = backend.map(
-        min_max_values, lambda min_max: numpy.linspace(min_max[0], min_max[1], (
-            NUMBER_OF_BUCKETS_IN_LINF_SUM_CONTRIBUTIONS_HISTOGRAM + 1))[:-1],
-        "Map to lowers")
-    lowers = backend.flatten(lowers, "Flatten lowers")
+    lowers = _min_max_lowers(
+        col, NUMBER_OF_BUCKETS_IN_LINF_SUM_CONTRIBUTIONS_HISTOGRAM, backend)
 
     return _compute_frequency_histogram_helper_with_lowers(
         backend, col, hist.HistogramType.LINF_SUM_CONTRIBUTIONS, lowers)
+
+
+def _min_max_lowers(col, number_of_buckets,
+                    backend: pipeline_backend.PipelineBackend):
+    """Returns bin lowers equally distributed between min and max elements of
+    the collection.
+
+    The method determines min and max values of the given collection and
+    returns bin lowers that equally divide the range in `number_of_buckets`.
+
+    Args:
+        col: collection of numbers.
+        backend: PipelineBackend to run operations on the collection.
+    Returns:
+        collection of lowers (float,).
+    """
+    min_max_values = pipeline_functions.min_max_elements(
+        backend, col, "Min and max value in dataset")
+    lowers = backend.map(
+        min_max_values,
+        lambda min_max: numpy.linspace(min_max[0], min_max[1],
+                                       (number_of_buckets + 1))[:-1],
+        "Map to lowers")
+    return backend.flatten(lowers, "Flatten lowers")
 
 
 def _compute_partition_count_histogram(
@@ -520,6 +539,36 @@ def _compute_linf_contributions_histogram_on_preaggregated_data(
                                         hist.HistogramType.LINF_CONTRIBUTIONS)
 
 
+def _compute_linf_sum_contributions_histogram_on_preaggregated_data(
+        col, backend: pipeline_backend.PipelineBackend):
+    """Computes histogram of per partition privacy id contributions.
+
+    This histogram contains: the number of (privacy id, partition_key)-pairs
+    which have sum of values X_1, X_2, ..., X_n, where X_1 = min_sum,
+    X_n = one before max sum and n is equal to
+    NUMBER_OF_BUCKETS_IN_LINF_SUM_CONTRIBUTIONS_HISTOGRAM.
+
+    Args:
+        col: collection with a pre-aggregated dataset, each element is
+        (partition_key, (count, sum, n_partitions, n_contributions)).
+        backend: PipelineBackend to run operations on the collection.
+    Returns:
+        1 element collection, which contains the computed histograms.Histogram.
+    """
+    col = backend.map_tuple(
+        col,
+        lambda _, x: x[1],  # x is (count, sum, n_partitions, n_contributions)
+        "Extract sum per partition contribution")
+    # col: (float,) where each element is the sum of values the
+    # corresponding privacy_id contributes to the partition.
+    col = backend.to_multi_transformable_collection(col)
+    lowers = _min_max_lowers(
+        col, NUMBER_OF_BUCKETS_IN_LINF_SUM_CONTRIBUTIONS_HISTOGRAM, backend)
+
+    return _compute_frequency_histogram_helper_with_lowers(
+        backend, col, hist.HistogramType.LINF_SUM_CONTRIBUTIONS, lowers)
+
+
 def _compute_partition_count_histogram_on_preaggregated_data(
         col, backend: pipeline_backend.PipelineBackend):
     """Computes histogram of counts per partition.
@@ -604,6 +653,8 @@ def compute_dataset_histograms_on_preaggregated_data(
         col, backend)
     linf_contributions_histogram = _compute_linf_contributions_histogram_on_preaggregated_data(
         col, backend)
+    linf_sum_contributions_histogram = _compute_linf_sum_contributions_histogram_on_preaggregated_data(
+        col, backend)
     partition_count_histogram = _compute_partition_count_histogram_on_preaggregated_data(
         col, backend)
     partition_privacy_id_count_histogram = _compute_partition_privacy_id_count_histogram_on_preaggregated_data(
@@ -612,6 +663,6 @@ def compute_dataset_histograms_on_preaggregated_data(
     # Combine histograms to histograms.DatasetHistograms.
     return _to_dataset_histograms([
         l0_contributions_histogram, l1_contributions_histogram,
-        linf_contributions_histogram, partition_count_histogram,
-        partition_privacy_id_count_histogram
+        linf_contributions_histogram, linf_sum_contributions_histogram,
+        partition_count_histogram, partition_privacy_id_count_histogram
     ], backend)
