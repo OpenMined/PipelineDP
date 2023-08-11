@@ -148,11 +148,8 @@ def _compute_frequency_histogram_helper_with_lowers(
                                             sum=value,
                                             max=value)
 
-    col = list(col)
-    lowers_col = list(lowers_col)
     col = backend.map_with_side_inputs(col, _map_to_frequency_bin,
                                        (lowers_col,), "To FrequencyBin")
-    col = list(col)
     # (lower_bin_value, hist.FrequencyBin)
 
     return _convert_frequency_bins_into_histogram(backend, col, name)
