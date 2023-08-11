@@ -140,16 +140,19 @@ def _compute_frequency_histogram_helper_with_lowers(
     """
 
     def _map_to_frequency_bin(
-            value: float, frequency: int,
+            value: float,
             lowers: List[float]) -> Tuple[float, hist.FrequencyBin]:
         bin_lower = _to_bin_lower_with_lowers(lowers, value)
         return bin_lower, hist.FrequencyBin(lower=bin_lower,
-                                            count=frequency,
-                                            sum=frequency * value,
+                                            count=1,
+                                            sum=value,
                                             max=value)
 
+    col = list(col)
+    lowers_col = list(lowers_col)
     col = backend.map_tuple_with_side_inputs(col, _map_to_frequency_bin,
                                              (lowers_col,), "To FrequencyBin")
+    col = list(col)
     # (lower_bin_value, hist.FrequencyBin)
 
     return _convert_frequency_bins_into_histogram(backend, col, name)
@@ -313,6 +316,7 @@ def _compute_linf_sum_contributions_histogram(
     # col: ((pid, pk), sum_per_key)
     col = backend.values(col, "Drop keys")
     # col: (float)
+    col = backend.to_multi_transformable_collection(col)
     min_max_values = pipeline_functions.min_max_elements(
         backend, col, "Min and max value in dataset")
     lowers = backend.map(

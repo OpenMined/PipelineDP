@@ -70,16 +70,15 @@ class PipelineBackend(abc.ABC):
         pass
 
     @abc.abstractmethod
+    def map_with_side_inputs(self, col, fn, side_input_cols, stage_name: str):
+        pass
+
+    @abc.abstractmethod
     def flat_map(self, col, fn, stage_name: str):
         pass
 
     @abc.abstractmethod
     def map_tuple(self, col, fn, stage_name: str):
-        pass
-
-    @abc.abstractmethod
-    def map_tuple_with_side_inputs(self, col, fn, side_input_cols,
-                                   stage_name: str):
         pass
 
     @abc.abstractmethod
@@ -241,23 +240,23 @@ class BeamBackend(PipelineBackend):
     def map(self, col, fn, stage_name: str):
         return col | self._ulg.unique(stage_name) >> beam.Map(fn)
 
-    def flat_map(self, col, fn, stage_name: str):
-        return col | self._ulg.unique(stage_name) >> beam.FlatMap(fn)
-
-    def map_tuple(self, col, fn, stage_name: str):
-        return col | self._ulg.unique(stage_name) >> beam.Map(lambda x: fn(*x))
-
-    def map_tuple_with_side_inputs(self,
-                                   col,
-                                   fn,
-                                   side_input_cols,
-                                   stage_name: str = None):
+    def map_with_side_inputs(self,
+                             col,
+                             fn,
+                             side_input_cols,
+                             stage_name: str = None):
         side_inputs = [
             beam.pvalue.AsList(side_input_col)
             for side_input_col in side_input_cols
         ]
         return col | self._ulg.unique(stage_name) >> beam.Map(
             lambda x: fn(*x), *side_inputs)
+
+    def flat_map(self, col, fn, stage_name: str):
+        return col | self._ulg.unique(stage_name) >> beam.FlatMap(fn)
+
+    def map_tuple(self, col, fn, stage_name: str):
+        return col | self._ulg.unique(stage_name) >> beam.Map(lambda x: fn(*x))
 
     def map_values(self, col, fn, stage_name: str):
         return col | self._ulg.unique(stage_name) >> beam.MapTuple(lambda k, v:
@@ -394,16 +393,15 @@ class SparkRDDBackend(PipelineBackend):
             return self._sc.parallelize(rdd).map(fn)
         return rdd.map(fn)
 
+    def map_with_side_inputs(self, rdd, fn, side_input_cols, stage_name: str):
+        raise NotImplementedError("map_with_side_inputs "
+                                  "is not implement in SparkBackend.")
+
     def flat_map(self, rdd, fn, stage_name: str = None):
         return rdd.flatMap(fn)
 
     def map_tuple(self, rdd, fn, stage_name: str = None):
         return rdd.map(lambda x: fn(*x))
-
-    def map_tuple_with_side_inputs(self, rdd, fn, side_input_cols,
-                                   stage_name: str):
-        raise NotImplementedError("map_tuple_with_side_inputs "
-                                  "is not implement in SparkBackend.")
 
     def map_values(self, rdd, fn, stage_name: str = None):
         return rdd.mapValues(fn)
@@ -486,18 +484,18 @@ class LocalBackend(PipelineBackend):
     def map(self, col, fn, stage_name: typing.Optional[str] = None):
         return map(fn, col)
 
+    def map_with_side_inputs(self,
+                             col,
+                             fn,
+                             side_input_cols,
+                             stage_name: str = None):
+        return map(lambda x: fn(x, *side_input_cols), col)
+
     def flat_map(self, col, fn, stage_name: str = None):
         return (x for el in col for x in fn(el))
 
     def map_tuple(self, col, fn, stage_name: str = None):
         return map(lambda x: fn(*x), col)
-
-    def map_tuple_with_side_inputs(self,
-                                   col,
-                                   fn,
-                                   side_input_cols,
-                                   stage_name: str = None):
-        return map(lambda x: fn(*x, *side_input_cols), col)
 
     def map_values(self, col, fn, stage_name: typing.Optional[str] = None):
         return ((k, fn(v)) for k, v in col)
@@ -729,18 +727,18 @@ class MultiProcLocalBackend(PipelineBackend):
                                       chunksize=self.chunksize,
                                       **self.pool_kwargs)
 
+    def map_with_side_inputs(self,
+                             col,
+                             fn,
+                             side_input_cols,
+                             stage_name: typing.Optional[str] = None):
+        return self.map(col, lambda row: fn(*row, *side_input_cols), stage_name)
+
     def flat_map(self, col, fn, stage_name: typing.Optional[str] = None):
         return (e for x in self.map(col, fn, stage_name) for e in x)
 
     def map_tuple(self, col, fn, stage_name: typing.Optional[str] = None):
         return self.map(col, lambda row: fn(*row), stage_name)
-
-    def map_tuple_with_side_inputs(self,
-                                   col,
-                                   fn,
-                                   side_input_cols,
-                                   stage_name: typing.Optional[str] = None):
-        return self.map(col, lambda row: fn(*row, *side_input_cols), stage_name)
 
     def map_values(self, col, fn, stage_name: typing.Optional[str] = None):
         return self.map(col, lambda x: (x[0], fn(x[1])), stage_name)

@@ -50,7 +50,7 @@ class BeamBackendTest(parameterized.TestCase):
             self.assertIsInstance(output, beam.PCollection)
             beam_util.assert_that(output, beam_util.equal_to([1, 3, 5]))
 
-    def test_map_tuple_with_side_inputs(self):
+    def test_map_with_side_inputs(self):
         with test_pipeline.TestPipeline() as p:
             data = [(1, 2), (3, 4)]
             col = p | "Create col PCollection" >> beam.Create(data)
@@ -64,10 +64,10 @@ class BeamBackendTest(parameterized.TestCase):
                 one_element_side_input)
             join_lists_fn = lambda x, y, l1, l2: [x] + [y] + l1 + l2
 
-            result = self.backend.map_tuple_with_side_inputs(
+            result = self.backend.map_with_side_inputs(
                 col, join_lists_fn,
                 [list_side_input_col, one_element_side_input_col],
-                "map_tuple_with_side_inputs")
+                "map_with_side_inputs")
 
             expected_result = [[1, 2, 5, 6, 7, 8], [3, 4, 5, 6, 7, 8]]
             beam_util.assert_that(result, beam_util.equal_to(expected_result))
@@ -373,10 +373,10 @@ class SparkRDDBackendTest(parameterized.TestCase):
         result = self.backend.map_tuple(dist_data, lambda a, b: a + b).collect()
         self.assertEqual(result, [3, 7])
 
-    def test_map_tuple_with_side_inputs(self):
+    def test_map_with_side_inputs(self):
         with self.assertRaises(NotImplementedError):
-            self.backend.map_tuple_with_side_inputs(
-                None, None, None, "map_tuple_with_side_inputs")
+            self.backend.map_with_side_inputs(None, None, None,
+                                              "map_with_side_inputs")
 
     def test_flat_map(self):
         data = [[1, 2, 3, 4], [5, 6, 7, 8]]
@@ -438,6 +438,20 @@ class LocalBackendTest(unittest.TestCase):
         self.assertEqual(list(self.backend.map(range(5), lambda x: x**2)),
                          [0, 1, 4, 9, 16])
 
+    def test_local_map_with_side_inputs(self):
+        col = [(1, 2), (3, 4)]
+        list_side_input_col = [5, 6, 7]
+        one_element_side_input_col = [8]
+        join_lists_fn = lambda x, y, l1, l2: [x] + [y] + l1 + l2
+
+        result = self.backend.map_with_side_inputs(
+            col, join_lists_fn,
+            [list_side_input_col, one_element_side_input_col],
+            "map_with_side_inputs")
+
+        expected_result = [[1, 2, 5, 6, 7, 8], [3, 4, 5, 6, 7, 8]]
+        self.assertEqual(list(result), expected_result)
+
     def test_local_map_tuple(self):
         tuple_list = [(1, 2), (2, 3), (3, 4)]
 
@@ -451,20 +465,6 @@ class LocalBackendTest(unittest.TestCase):
                                        (str(k), str(v)))), [("1", "2"),
                                                             ("2", "3"),
                                                             ("3", "4")])
-
-    def test_local_map_tuple_with_side_inputs(self):
-        col = [(1, 2), (3, 4)]
-        list_side_input_col = [5, 6, 7]
-        one_element_side_input_col = [8]
-        join_lists_fn = lambda x, y, l1, l2: [x] + [y] + l1 + l2
-
-        result = self.backend.map_tuple_with_side_inputs(
-            col, join_lists_fn,
-            [list_side_input_col, one_element_side_input_col],
-            "map_tuple_with_side_inputs")
-
-        expected_result = [[1, 2, 5, 6, 7, 8], [3, 4, 5, 6, 7, 8]]
-        self.assertEqual(list(result), expected_result)
 
     def test_local_map_values(self):
         self.assertEqual(list(self.backend.map_values([], lambda x: x / 0)), [])
@@ -728,6 +728,21 @@ class MultiProcLocalBackendTest(unittest.TestCase):
             list(self.backend.map(range(5), lambda x: x**2)), [0, 1, 4, 9, 16])
 
     @pytest.mark.timeout(10)
+    def test_multiproc_map_with_side_inputs(self):
+        col = [(1, 2), (3, 4)]
+        list_side_input_col = [5, 6, 7]
+        one_element_side_input_col = [8]
+        join_lists_fn = lambda x, y, l1, l2: [x] + [y] + l1 + l2
+
+        result = self.backend.map_with_side_inputs(
+            col, join_lists_fn,
+            [list_side_input_col, one_element_side_input_col],
+            "map_with_side_inputs")
+
+        expected_result = [[1, 2, 5, 6, 7, 8], [3, 4, 5, 6, 7, 8]]
+        self.assertDatasetsEqual(list(result), expected_result)
+
+    @pytest.mark.timeout(10)
     def test_multiproc_map_tuple(self):
         tuple_list = [(1, 2), (2, 3), (3, 4)]
 
@@ -741,21 +756,6 @@ class MultiProcLocalBackendTest(unittest.TestCase):
                                        (str(k), str(v)))), [("1", "2"),
                                                             ("2", "3"),
                                                             ("3", "4")])
-
-    @pytest.mark.timeout(10)
-    def test_multiproc_map_tuple_with_side_inputs(self):
-        col = [(1, 2), (3, 4)]
-        list_side_input_col = [5, 6, 7]
-        one_element_side_input_col = [8]
-        join_lists_fn = lambda x, y, l1, l2: [x] + [y] + l1 + l2
-
-        result = self.backend.map_tuple_with_side_inputs(
-            col, join_lists_fn,
-            [list_side_input_col, one_element_side_input_col],
-            "map_tuple_with_side_inputs")
-
-        expected_result = [[1, 2, 5, 6, 7, 8], [3, 4, 5, 6, 7, 8]]
-        self.assertDatasetsEqual(list(result), expected_result)
 
     @pytest.mark.timeout(10)
     def test_multiproc_map_values(self):
