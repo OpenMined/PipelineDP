@@ -160,7 +160,7 @@ class DpEngineTest(parameterized.TestCase):
         data_extractors = pipeline_dp.DataExtractors(
             partition_extractor=lambda x: x[0],
             privacy_id_extractor=lambda x: x[1],
-            value_extractor=lambda _: None,
+            value_extractor=lambda _: 1,
         )
         partitions = ["pk0", "pk1"]
 
@@ -193,7 +193,7 @@ class DpEngineTest(parameterized.TestCase):
         data_extractors = pipeline_dp.DataExtractors(
             partition_extractor=lambda x: x[0],
             privacy_id_extractor=lambda x: x[1],
-            value_extractor=lambda _: None,
+            value_extractor=lambda _: 1,
         )
         partitions = ["pk0", "pk1"]
 
@@ -231,7 +231,7 @@ class DpEngineTest(parameterized.TestCase):
         data_extractors = pipeline_dp.DataExtractors(
             partition_extractor=lambda x: x[0],
             privacy_id_extractor=lambda x: x[1],
-            value_extractor=lambda _: None,
+            value_extractor=lambda _: 1,
         )
         partitions = ["pk0"]
 
@@ -268,7 +268,7 @@ class DpEngineTest(parameterized.TestCase):
         data_extractors = pipeline_dp.DataExtractors(
             partition_extractor=lambda x: x[0],
             privacy_id_extractor=lambda x: x[1],
-            value_extractor=lambda _: None,
+            value_extractor=lambda _: 1,
         )
         partitions = ["pk0", "pk1"]
 
@@ -305,7 +305,7 @@ class DpEngineTest(parameterized.TestCase):
         data_extractors = pipeline_dp.DataExtractors(
             partition_extractor=lambda x: x[0],
             privacy_id_extractor=lambda x: x[1],
-            value_extractor=lambda _: None,
+            value_extractor=lambda _: 1,
         )
         partitions = ["pk0", "pk1"]
 
@@ -337,7 +337,7 @@ class DpEngineTest(parameterized.TestCase):
         data_extractors = pipeline_dp.DataExtractors(
             partition_extractor=lambda x: x[0],
             privacy_id_extractor=lambda x: x[1],
-            value_extractor=lambda _: None,
+            value_extractor=lambda _: 1,
         )
         partitions = ["pk0", "pk1"]
 
