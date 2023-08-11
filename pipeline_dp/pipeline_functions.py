@@ -99,24 +99,14 @@ def collect_to_container(backend: pipeline_backend.PipelineBackend,
                        f"{stage_name}: construct container class from inputs")
 
 
-def max_element(backend: pipeline_backend.PipelineBackend, col,
-                stage_name: str):
-    return choose_element(backend, col, max, stage_name)
-
-
-def min_element(backend: pipeline_backend.PipelineBackend, col,
-                stage_name: str):
-    return choose_element(backend, col, min, stage_name)
-
-
-T = TypeVar('T')
-
-
-def choose_element(backend: pipeline_backend.PipelineBackend, col,
-                   choosing_function: Callable[[T, T], T], stage_name: str):
-    return backend.values(
-        backend.reduce_per_key(
-            backend.map_tuple(col, lambda el: (1, el),
-                              f"{stage_name}: key by fictional element"),
-            lambda el1, el2: choosing_function(el1, el2),
-            f"{stage_name}: choose element between two"))
+def min_max_elements(backend: pipeline_backend.PipelineBackend, col,
+                     stage_name: str):
+    col = backend.map(
+        col, lambda x: (None, (x, x)),
+        f"{stage_name}: key all elements by the same fictional key"
+    )  # None is dummy key
+    col = backend.reduce_per_key(
+        col, lambda x, y: (min(x[0], y[0]), max(x[1], y[1])),
+        f"{stage_name}: reduce by the fictional key choosing min and max elements of the collection"
+    )
+    return col

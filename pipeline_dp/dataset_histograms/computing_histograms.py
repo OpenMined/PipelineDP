@@ -14,14 +14,15 @@
 """Functions for computing dataset histograms in pipelines."""
 import bisect
 import operator
-from numbers import Number
-from typing import List, Callable, Union
+from typing import List, Tuple
 
 import numpy
 
 import pipeline_dp
 from pipeline_dp import pipeline_backend, pipeline_functions
 from pipeline_dp.dataset_histograms import histograms as hist
+
+NUMBER_OF_BUCKETS_IN_LINF_SUM_CONTRIBUTIONS_HISTOGRAM = 10000
 
 
 def _to_bin_lower_logarithmic(value: int) -> int:
@@ -42,9 +43,8 @@ def _to_bin_lower_logarithmic(value: int) -> int:
     return value // round_base * round_base
 
 
-def _to_bin_lower_with_lowers(lowers: List[float], value: float) -> float:
-    """Finds the lower bound of the histogram bin which contains the given integer.
-    """
+def _to_bin_lower_with_lowers(lowers: [float], value: float) -> float:
+    """Finds the lower bound of the histogram bin which contains the given number."""
     bin_lower_idx = bisect.bisect_right(lowers, value) - 1
     assert bin_lower_idx >= 0
     return lowers[bin_lower_idx]
@@ -108,25 +108,18 @@ def _compute_frequency_histogram_helper(
     Returns:
         1 element collection which contains hist.Histogram.
     """
-    col = backend.map_tuple(
-        col, lambda n, f:
-        (_to_bin_lower_logarithmic(n),
-         hist.FrequencyBin(
-             lower=_to_bin_lower_logarithmic(n), count=f, sum=f * n, max=n)),
-        "To FrequencyBin")
-    # (lower_bin_value, hist.FrequencyBin)
-    col = backend.reduce_per_key(col, operator.add, "Combine FrequencyBins")
-    # (lower_bin_value, hist.FrequencyBin)
-    col = backend.values(col, "Drop keys")
-    # (hist.FrequencyBin)
-    col = backend.to_list(col, "To 1 element collection")
 
-    # 1 element collection: [hist.FrequencyBin]
-    def bins_to_histogram(bins):
-        sorted_bins = sorted(bins, key=lambda bin: bin.lower)
-        return hist.Histogram(name, sorted_bins)
+    def _map_to_frequency_bin(value: int,
+                              frequency: int) -> Tuple[int, hist.FrequencyBin]:
+        bin_lower = _to_bin_lower_logarithmic(value)
+        return bin_lower, hist.FrequencyBin(lower=bin_lower,
+                                            count=frequency,
+                                            sum=frequency * value,
+                                            max=value)
 
-    return backend.map(col, bins_to_histogram, "To histogram")
+    col = backend.map_tuple(col, _map_to_frequency_bin, "To FrequencyBin")
+    # (lower_bin_value, hist.FrequencyBin)
+    return _convert_frequency_bins_into_histogram(backend, col, name)
 
 
 def _compute_frequency_histogram_helper_with_lowers(
@@ -145,15 +138,24 @@ def _compute_frequency_histogram_helper_with_lowers(
         1 element collection which contains hist.Histogram.
     """
 
-    def map_to_frequency_bin(value, frequency, lowers):
+    def _map_to_frequency_bin(
+            value: float, frequency: int,
+            lowers: List[float]) -> Tuple[float, hist.FrequencyBin]:
         bin_lower = _to_bin_lower_with_lowers(lowers, value)
         return bin_lower, hist.FrequencyBin(lower=bin_lower,
                                             count=frequency,
                                             sum=frequency * value,
                                             max=value)
 
-    col = backend.map_tuple_with_side_inputs(col, map_to_frequency_bin,
+    col = backend.map_tuple_with_side_inputs(col, _map_to_frequency_bin,
                                              (lowers_col,), "To FrequencyBin")
+    # (lower_bin_value, hist.FrequencyBin)
+
+    return _convert_frequency_bins_into_histogram(backend, col, name)
+
+
+def _convert_frequency_bins_into_histogram(
+        backend: pipeline_backend.PipelineBackend, col, name):
     # (lower_bin_value, hist.FrequencyBin)
     col = backend.reduce_per_key(col, operator.add, "Combine FrequencyBins")
     # (lower_bin_value, hist.FrequencyBin)
@@ -162,6 +164,7 @@ def _compute_frequency_histogram_helper_with_lowers(
     col = backend.to_list(col, "To 1 element collection")
 
     # 1 element collection: [hist.FrequencyBin]
+
     def bins_to_histogram(bins):
         sorted_bins = sorted(bins, key=lambda bin: bin.lower)
         return hist.Histogram(name, sorted_bins)
@@ -287,7 +290,7 @@ def _compute_linf_sum_contributions_histogram(
 
     This histogram contains: the number of (privacy id, partition_key)-pairs
     which have sum of values X_1, X_2, ..., X_n, where X_1 = min_sum,
-    X_n = max_sum and n is a constant hardcoded in code.
+    X_n = one before max sum and n is a constant hardcoded in code.
 
     Args:
         col: collection with elements (privacy_id, partition_key, value).
@@ -298,21 +301,15 @@ def _compute_linf_sum_contributions_histogram(
     col = backend.sum_per_key(
         col, "Sum of contributions per (privacy_id, partition)")
     # col: ((pid, pk), sum_per_key)
-    col = backend.values(col, "Sums per (privacy_id, partition)")
-    # col: (double)
-    max_value = pipeline_functions.max_element(backend, col,
-                                               "Max value in dataset")
-    min_value = pipeline_functions.min_element(backend, col,
-                                               "Min value in dataset")
-    min_max_values = backend.to_list(
-        backend.flatten((min_value, max_value),
-                        "Put max and min into one PCollection"),
-        "Min and max to one list")
-    number_of_buckets = 10000
+    col = backend.values(col, "Drop keys")
+    # col: (float)
+    min_max_values = pipeline_functions.min_max_elements(
+        backend, col, "Min and max value in dataset")
     lowers = backend.map(
-        min_max_values, lambda min_max: numpy.linspace(
-            start=min_max[0], stop=min_max[1], num=(number_of_buckets + 1))
-        [:-1], "Map to lowers")
+        min_max_values, lambda min_max: numpy.linspace(min_max[0], min_max[1], (
+            NUMBER_OF_BUCKETS_IN_LINF_SUM_CONTRIBUTIONS_HISTOGRAM + 1))[:-1],
+        "Map to lowers")
+    lowers = backend.flatten(lowers, "Flatten lowers")
 
     return _compute_frequency_histogram_helper_with_lowers(
         col, backend, hist.HistogramType.LINF_CONTRIBUTIONS, lowers)
@@ -390,14 +387,13 @@ def compute_dataset_histograms(col, data_extractors: pipeline_dp.DataExtractors,
         col, lambda row: ((data_extractors.privacy_id_extractor(row),
                            data_extractors.partition_extractor(row)),
                           data_extractors.value_extractor(row)),
-        "Extract (privacy_id, partition_key, value))")
+        "Extract ((privacy_id, partition_key), value)")
     # col: ((pid, pk), value)
 
     col_with_values = backend.to_multi_transformable_collection(col_with_values)
     # col: ((pid, pk), value)
 
-    col = backend.map_tuple(col_with_values, lambda pid, pk, _: (pid, pk),
-                            "Extract (privacy_id, partition_key))")
+    col = backend.keys(col_with_values, "Drop values")
     # col: (pid, pk)
 
     col = backend.to_multi_transformable_collection(col)
@@ -445,7 +441,7 @@ def _compute_l0_contributions_histogram_on_preaggregated_data(
 
     Args:
         col: collection with a pre-aggregated dataset, each element is
-        (partition_key, (count, sum, n_partitions)).
+        (partition_key, (count, sum, n_partitions, n_contributions)).
         backend: PipelineBackend to run operations on the collection.
     Returns:
         1 element collection, which contains the computed histograms.Histogram.
@@ -470,7 +466,7 @@ def _compute_l1_contributions_histogram_on_preaggregated_data(
 
     Args:
         col: collection with a pre-aggregated dataset, each element is
-        (partition_key, (count, sum, n_partitions)).
+        (partition_key, (count, sum, n_partitions, n_contributions)).
         backend: PipelineBackend to run operations on the collection.
     Returns:
         1 element collection, which contains the computed histograms.Histogram.
@@ -519,7 +515,7 @@ def _compute_partition_count_histogram_on_preaggregated_data(
 
     Args:
         col: collection with a pre-aggregated dataset, each element is
-        (partition_key, (count, sum, n_partitions)).
+        (partition_key, (count, sum, n_partitions, n_contributions)).
         backend: PipelineBackend to run operations on the collection.
     Returns:
         1 element collection, which contains the computed histograms.Histogram.
@@ -527,7 +523,7 @@ def _compute_partition_count_histogram_on_preaggregated_data(
 
     col = backend.map_values(
         col,
-        lambda x: x[0],  # x is (count, sum, n_partitions)
+        lambda x: x[0],  # x is (count, sum, n_partitions, n_contributions)
         "Extract partition key and count of privacy ID contributions")
     # col: (pk, int)
     col = backend.sum_per_key(col, "Sum per partition")
@@ -547,7 +543,7 @@ def _compute_partition_privacy_id_count_histogram_on_preaggregated_data(
 
     Args:
         col:collection with a pre-aggregated dataset, each element is
-          (partition_key, (count, sum, n_partitions)).
+          (partition_key, (count, sum, n_partitions, n_contributions)).
         backend: PipelineBackend to run operations on the collection.
 
     Returns:
@@ -571,7 +567,7 @@ def compute_dataset_histograms_on_preaggregated_data(
 
     Args:
         col: collection with a pre-aggregated dataset, each element is
-          (partition_key, (count, sum, n_partitions)).
+          (partition_key, (count, sum, n_partitions, n_contributions)).
         backend: PipelineBackend to run operations on the collection.
 
     Returns:
@@ -582,10 +578,10 @@ def compute_dataset_histograms_on_preaggregated_data(
         col, lambda row: (data_extractors.partition_extractor(row),
                           data_extractors.preaggregate_extractor(row)),
         "Extract (partition_key, preaggregate_data))")
-    # col: (partition_key, (count, sum, n_partitions))
+    # col: (partition_key, (count, sum, n_partitions, n_contributions))
 
     col = backend.to_multi_transformable_collection(col)
-    # col: (partition_key, (count, sum, n_partitions))
+    # col: (partition_key, (count, sum, n_partitions, n_contributions))
 
     # Compute histograms.
     l0_contributions_histogram = _compute_l0_contributions_histogram_on_preaggregated_data(

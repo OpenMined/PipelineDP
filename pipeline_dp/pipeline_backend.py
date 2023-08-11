@@ -247,6 +247,18 @@ class BeamBackend(PipelineBackend):
     def map_tuple(self, col, fn, stage_name: str):
         return col | self._ulg.unique(stage_name) >> beam.Map(lambda x: fn(*x))
 
+    def map_tuple_with_side_inputs(self,
+                                   col,
+                                   fn,
+                                   side_input_cols,
+                                   stage_name: str = None):
+        side_inputs = [
+            beam.pvalue.AsList(side_input_col)
+            for side_input_col in side_input_cols
+        ]
+        return col | self._ulg.unique(stage_name) >> beam.Map(
+            lambda x: fn(*x), *side_inputs)
+
     def map_values(self, col, fn, stage_name: str):
         return col | self._ulg.unique(stage_name) >> beam.MapTuple(lambda k, v:
                                                                    (k, fn(v)))
@@ -717,6 +729,13 @@ class MultiProcLocalBackend(PipelineBackend):
 
     def map_tuple(self, col, fn, stage_name: typing.Optional[str] = None):
         return self.map(col, lambda row: fn(*row), stage_name)
+
+    def map_tuple_with_side_inputs(self,
+                                   col,
+                                   fn,
+                                   side_input_cols,
+                                   stage_name: typing.Optional[str] = None):
+        return self.map(col, lambda row: fn(*row, *side_input_cols), stage_name)
 
     def map_values(self, col, fn, stage_name: typing.Optional[str] = None):
         return self.map(col, lambda x: (x[0], fn(x[1])), stage_name)
