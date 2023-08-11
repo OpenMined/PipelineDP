@@ -250,7 +250,7 @@ class BeamBackend(PipelineBackend):
             for side_input_col in side_input_cols
         ]
         return col | self._ulg.unique(stage_name) >> beam.Map(
-            lambda x: fn(*x), *side_inputs)
+            lambda x: fn(x), *side_inputs)
 
     def flat_map(self, col, fn, stage_name: str):
         return col | self._ulg.unique(stage_name) >> beam.FlatMap(fn)
@@ -732,7 +732,7 @@ class MultiProcLocalBackend(PipelineBackend):
                              fn,
                              side_input_cols,
                              stage_name: typing.Optional[str] = None):
-        return self.map(col, lambda row: fn(*row, *side_input_cols), stage_name)
+        return self.map(col, lambda row: fn(row, *side_input_cols), stage_name)
 
     def flat_map(self, col, fn, stage_name: typing.Optional[str] = None):
         return (e for x in self.map(col, fn, stage_name) for e in x)
