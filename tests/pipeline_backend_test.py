@@ -49,6 +49,25 @@ class BeamBackendTest(parameterized.TestCase):
             self.assertIsInstance(output, beam.PCollection)
             beam_util.assert_that(output, beam_util.equal_to([1, 3, 5]))
 
+    def test_map_tuple_with_side_inputs(self):
+        with test_pipeline.TestPipeline() as p:
+            data = [(1, 2), (3, 4)]
+            col = p | "Create col PCollection" >> beam.Create(data)
+            list_side_input = [5, 6, 7]
+            list_side_input_col = p | "Create list_side_input PCollection" >> beam.Create(
+                list_side_input)
+            one_element_side_input = [8]
+            one_element_side_input_col = p | "Create one_element_side_input PCollection" >> beam.Create(
+                one_element_side_input)
+            fn = lambda x, y, l1, l2: [x] + [y] + l1 + l2
+
+            result = self.backend.map_tuple_with_side_inputs(
+                col, fn, [list_side_input_col, one_element_side_input_col],
+                "map_tuple_with_side_inputs")
+
+            expected_result = [[1, 2, 5, 6, 7, 8], [3, 4, 5, 6, 7, 8]]
+            beam_util.assert_that(result, beam_util.equal_to(expected_result))
+
     def test_filter_by_key_must_not_be_none(self):
         with test_pipeline.TestPipeline() as p:
             data = [(7, 1), (2, 1), (3, 9), (4, 1), (9, 10)]
@@ -115,7 +134,7 @@ class BeamBackendTest(parameterized.TestCase):
             beam_util.assert_that(col,
                                   beam_util.equal_to([(1, 11), (2, 4), (3, 8)]))
 
-    def test_local_combine_accumulators_per_key(self):
+    def test_to_list(self):
         with test_pipeline.TestPipeline() as p:
             data = p | beam.Create([1, 2, 3, 4, 5])
             col = self.backend.to_list(data, "To list")
