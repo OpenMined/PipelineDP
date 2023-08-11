@@ -385,11 +385,9 @@ class ComputingHistogramsTest(parameterized.TestCase):
                     privacy_id_extractor=lambda x: x[0][0],
                     partition_extractor=lambda x: x[0][1],
                     value_extractor=lambda x: x[1]))
-            compute_histograms = \
-                computing_histograms._compute_linf_sum_contributions_histogram_on_preaggregated_data
+            compute_histograms = computing_histograms._compute_linf_sum_contributions_histogram_on_preaggregated_data
         else:
-            compute_histograms = \
-                computing_histograms._compute_linf_sum_contributions_histogram
+            compute_histograms = computing_histograms._compute_linf_sum_contributions_histogram
         histogram = list(compute_histograms(input, backend))
         self.assertLen(histogram, 1)
         histogram = histogram[0]
