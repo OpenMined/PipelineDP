@@ -733,7 +733,8 @@ class MultiProcLocalBackend(PipelineBackend):
                              fn,
                              side_input_cols,
                              stage_name: typing.Optional[str] = None):
-        return self.map(col, lambda row: fn(row, *side_input_cols), stage_name)
+        side_inputs = [list(side_input) for side_input in side_input_cols]
+        return self.map(col, lambda row: fn(row, *side_inputs), stage_name)
 
     def flat_map(self, col, fn, stage_name: typing.Optional[str] = None):
         return (e for x in self.map(col, fn, stage_name) for e in x)
