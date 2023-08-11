@@ -109,4 +109,4 @@ def min_max_elements(backend: pipeline_backend.PipelineBackend, col,
         col, lambda x, y: (min(x[0], y[0]), max(x[1], y[1])),
         f"{stage_name}: reduce by the fictional key choosing min and max elements of the collection"
     )
-    return backend.values(col)
+    return backend.values(col, "Drop keys")
