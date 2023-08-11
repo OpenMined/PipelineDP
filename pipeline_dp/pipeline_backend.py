@@ -249,8 +249,7 @@ class BeamBackend(PipelineBackend):
             beam.pvalue.AsList(side_input_col)
             for side_input_col in side_input_cols
         ]
-        return col | self._ulg.unique(stage_name) >> beam.Map(
-            lambda x: fn(x), side_inputs[0])
+        return col | self._ulg.unique(stage_name) >> beam.Map(fn, *side_inputs)
 
     def flat_map(self, col, fn, stage_name: str):
         return col | self._ulg.unique(stage_name) >> beam.FlatMap(fn)
