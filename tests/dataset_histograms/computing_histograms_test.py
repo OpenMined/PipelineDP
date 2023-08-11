@@ -24,8 +24,8 @@ from analysis import pre_aggregation
 
 class ComputingHistogramsTest(parameterized.TestCase):
 
-    def test_to_bin_lower(self):
-        to_bin_lower = computing_histograms._to_bin_lower
+    def test_to_bin_lower_logarithmic(self):
+        to_bin_lower = computing_histograms._to_bin_lower_logarithmic
         self.assertEqual(to_bin_lower(1), 1)
         self.assertEqual(to_bin_lower(999), 999)
         self.assertEqual(to_bin_lower(1000), 1000)
@@ -34,6 +34,18 @@ class ComputingHistogramsTest(parameterized.TestCase):
         self.assertEqual(to_bin_lower(2022), 2020)
         self.assertEqual(to_bin_lower(12522), 12500)
         self.assertEqual(to_bin_lower(10**9 + 10**7 + 1234), 10**9 + 10**7)
+
+    def test_to_bin_lower_with_lowers(self):
+        lowers = [0.5, 1.2, 3.6]
+        to_bin_lower = computing_histograms._to_bin_lower_with_lowers
+        with self.assertRaises(AssertionError):
+            to_bin_lower(lowers, 0.3)
+        self.assertEqual(to_bin_lower(lowers, 0.5), 0.5)
+        self.assertEqual(to_bin_lower(lowers, 1), 0.5)
+        self.assertEqual(to_bin_lower(lowers, 1.2), 1.2)
+        self.assertEqual(to_bin_lower(lowers, 1.3), 1.2)
+        self.assertEqual(to_bin_lower(lowers, 3.6), 3.6)
+        self.assertEqual(to_bin_lower(lowers, 100), 3.6)
 
     @parameterized.named_parameters(
         dict(testcase_name='empty', input=[], expected=[]),

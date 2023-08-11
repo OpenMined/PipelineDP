@@ -322,7 +322,7 @@ def _compute_linf_sum_contributions_histogram(
     lowers = backend.flatten(lowers, "Flatten lowers")
 
     return _compute_frequency_histogram_helper_with_lowers(
-        backend, col, hist.HistogramType.LINF_CONTRIBUTIONS, lowers)
+        backend, col, hist.HistogramType.LINF_SUM_CONTRIBUTIONS, lowers)
 
 
 def _compute_partition_count_histogram(
