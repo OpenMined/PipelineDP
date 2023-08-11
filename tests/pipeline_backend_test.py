@@ -62,7 +62,7 @@ class BeamBackendTest(parameterized.TestCase):
             one_element_side_input_col = p | "Create one_element_side_input " \
                                              "PCollection" >> beam.Create(
                 one_element_side_input)
-            join_lists_fn = lambda x, l1, l2: [x] + [y] + l1 + l2
+            join_lists_fn = lambda x, l1, l2: [x] + l1 + l2
 
             result = self.backend.map_with_side_inputs(
                 col, join_lists_fn,
@@ -732,7 +732,7 @@ class MultiProcLocalBackendTest(unittest.TestCase):
         col = [1, 2]
         list_side_input_col = [3, 4, 5]
         one_element_side_input_col = [6]
-        join_lists_fn = lambda x, l1, l2: [x] + [y] + l1 + l2
+        join_lists_fn = lambda x, l1, l2: [x] + l1 + l2
 
         result = self.backend.map_with_side_inputs(
             col, join_lists_fn,

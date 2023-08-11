@@ -489,7 +489,8 @@ class LocalBackend(PipelineBackend):
                              fn,
                              side_input_cols,
                              stage_name: str = None):
-        return map(lambda x: fn(x, *side_input_cols), col)
+        side_inputs = [list(side_input) for side_input in side_input_cols]
+        return map(lambda x: fn(x, *side_inputs), col)
 
     def flat_map(self, col, fn, stage_name: str = None):
         return (x for el in col for x in fn(el))
