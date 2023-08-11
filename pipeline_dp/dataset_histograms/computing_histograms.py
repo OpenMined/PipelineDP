@@ -127,13 +127,14 @@ def _compute_frequency_histogram_helper_with_lowers(
         name: hist.HistogramType, lowers_col):
     """Computes histogram of element frequencies in collection.
 
-    This is a helper function for _compute_frequency_histogram and
-    _compute_weighted_frequency_histogram.
+    This is a helper function for _compute_linf_sum_contributions_histogram.
 
     Args:
-        col: collection of (n:int, frequency_of_n: int)
+        col: collection of (value:float, frequency_of_value: int)
         backend: PipelineBackend to run operations on the collection.
         name: name which is assigned to the computed histogram.
+        lowers_col: collection of bin lowers of the histogram, necessary because
+         we process float values, and they will be clipped to the nearest lower.
     Returns:
         1 element collection which contains hist.Histogram.
     """
@@ -156,7 +157,11 @@ def _compute_frequency_histogram_helper_with_lowers(
 
 def _convert_frequency_bins_into_histogram(
         backend: pipeline_backend.PipelineBackend, col, name):
-    # (lower_bin_value, hist.FrequencyBin)
+    """Converts (lower_bin_value, hist.FrequencyBin) into histogram.
+
+    The input collection is not expected to have frequency bins reduced per
+    lower values.
+    """
     col = backend.reduce_per_key(col, operator.add, "Combine FrequencyBins")
     # (lower_bin_value, hist.FrequencyBin)
     col = backend.values(col, "Drop keys")
@@ -175,7 +180,8 @@ def _convert_frequency_bins_into_histogram(
 def _list_to_contribution_histograms(
         histograms: List[hist.Histogram]) -> hist.DatasetHistograms:
     """Packs histograms from a list to ContributionHistograms."""
-    l0_contributions = l1_contributions = linf_contributions = None
+    l0_contributions = l1_contributions = None
+    linf_contributions = linf_sum_contributions = None
     count_per_partition = privacy_id_per_partition_count = None
     for histogram in histograms:
         if histogram.name == hist.HistogramType.L0_CONTRIBUTIONS:
@@ -184,12 +190,15 @@ def _list_to_contribution_histograms(
             l1_contributions = histogram
         elif histogram.name == hist.HistogramType.LINF_CONTRIBUTIONS:
             linf_contributions = histogram
+        elif histogram.name == hist.HistogramType.LINF_SUM_CONTRIBUTIONS:
+            linf_sum_contributions = histogram
         elif histogram.name == hist.HistogramType.COUNT_PER_PARTITION:
             count_per_partition = histogram
         elif histogram.name == hist.HistogramType.COUNT_PRIVACY_ID_PER_PARTITION:
             privacy_id_per_partition_count = histogram
     return hist.DatasetHistograms(l0_contributions, l1_contributions,
-                                  linf_contributions, count_per_partition,
+                                  linf_contributions, linf_sum_contributions,
+                                  count_per_partition,
                                   privacy_id_per_partition_count)
 
 
@@ -197,7 +206,7 @@ def _to_dataset_histograms(histogram_list,
                            backend: pipeline_backend.PipelineBackend):
     """Combines histogram_list to hist.DatasetHistograms."""
     histograms = backend.flatten(histogram_list, "Histograms to one collection")
-    # histograms: 4 elements collection with elements ContributionHistogram
+    # histograms: 5 elements collection with elements ContributionHistogram
 
     histograms = backend.to_list(histograms, "Histograms to List")
     # 1 element collection: [ContributionHistogram]
@@ -422,8 +431,8 @@ def compute_dataset_histograms(col, data_extractors: pipeline_dp.DataExtractors,
     # Combine histograms to histograms.DatasetHistograms.
     return _to_dataset_histograms([
         l0_contributions_histogram, l1_contributions_histogram,
-        linf_contributions_histogram, partition_count_histogram,
-        partition_privacy_id_count_histogram
+        linf_contributions_histogram, linf_sum_contributions_histogram,
+        partition_count_histogram, partition_privacy_id_count_histogram
     ], backend)
 
 

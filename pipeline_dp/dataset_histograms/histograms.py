@@ -162,5 +162,6 @@ class DatasetHistograms:
     l0_contributions_histogram: Histogram
     l1_contributions_histogram: Histogram
     linf_contributions_histogram: Histogram
+    linf_sum_contributions_histogram: Histogram
     count_per_partition_histogram: Histogram
     count_privacy_id_per_partition: Histogram
