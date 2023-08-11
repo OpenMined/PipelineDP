@@ -250,7 +250,7 @@ class BeamBackend(PipelineBackend):
             for side_input_col in side_input_cols
         ]
         return col | self._ulg.unique(stage_name) >> beam.Map(
-            lambda x: fn(x), *side_inputs)
+            lambda x: fn(x), side_inputs[0])
 
     def flat_map(self, col, fn, stage_name: str):
         return col | self._ulg.unique(stage_name) >> beam.FlatMap(fn)
