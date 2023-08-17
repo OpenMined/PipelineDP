@@ -28,13 +28,14 @@ class HistogramErrorEstimatorTest(parameterized.TestCase):
         # Generate dataset
         dataset = []
         # 1st privacy unit contributes to 10 partitions once
-        dataset.extend([(1, i) for i in range(10)])
+        dataset.extend([(1, i, 1.0) for i in range(10)])
         # 2nd privacy unit contributes to 1 partition 20 times.
-        dataset.extend([(2, 0) for i in range(20)])
+        dataset.extend([(2, 0, 2.0) for i in range(20)])
 
         data_extractors = pipeline_dp.DataExtractors(
             privacy_id_extractor=lambda x: x[0],
-            partition_extractor=lambda x: x[1])
+            partition_extractor=lambda x: x[1],
+            value_extractor=lambda x: x[2])
         return list(
             computing_histograms.compute_dataset_histograms(
                 dataset, data_extractors, pipeline_dp.LocalBackend()))[0]

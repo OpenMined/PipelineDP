@@ -19,6 +19,7 @@ from typing import List
 import apache_beam as beam
 import apache_beam.testing.test_pipeline as test_pipeline
 import apache_beam.testing.util as beam_util
+from absl.testing import parameterized
 
 import pipeline_dp
 from pipeline_dp import pipeline_functions as composite_funcs
@@ -32,7 +33,7 @@ class TestContainer:
     z: List[str]
 
 
-class BeamBackendTest(unittest.TestCase):
+class BeamBackendTest(parameterized.TestCase):
 
     @classmethod
     def setUpClass(cls):
@@ -102,10 +103,27 @@ class BeamBackendTest(unittest.TestCase):
         self.assertIn(container.y, col_y)
         self.assertIn(container.z, col_z)
 
+    @parameterized.named_parameters(
+        dict(testcase_name='empty collection', col=[], expected_min_max=[]),
+        dict(testcase_name='collection with one element',
+             col=[1],
+             expected_min_max=[(1, 1)]),
+        dict(testcase_name='collection with more than two elements',
+             col=[1, 3, 2],
+             expected_min_max=[(1, 3)]))
+    def test_min_max_elements(self, col, expected_min_max):
+        with test_pipeline.TestPipeline() as p:
+            col = p | beam.Create(col)
+
+            result = composite_funcs.min_max_elements(self.backend, col,
+                                                      "Min and max elements")
+
+            beam_util.assert_that(result, beam_util.equal_to(expected_min_max))
+
 
 @unittest.skipIf(sys.version_info.minor <= 7 and sys.version_info.major == 3,
                  "There are some problems with PySpark setup on older python.")
-class SparkRDDBackendTest(unittest.TestCase):
+class SparkRDDBackendTest(parameterized.TestCase):
 
     @classmethod
     def setUpClass(cls):
@@ -149,8 +167,24 @@ class SparkRDDBackendTest(unittest.TestCase):
                 "z": col_z
             }, TestContainer, "Collect to container")
 
+    @parameterized.named_parameters(
+        dict(testcase_name='empty collection', col=[], expected_min_max=[]),
+        dict(testcase_name='collection with one element',
+             col=[1],
+             expected_min_max=[(1, 1)]),
+        dict(testcase_name='collection with more than two elements',
+             col=[1, 3, 2],
+             expected_min_max=[(1, 3)]))
+    def test_min_max_elements(self, col, expected_min_max):
+        col = self.sc.parallelize(col)
 
-class LocalBackendTest(unittest.TestCase):
+        result = composite_funcs.min_max_elements(
+            self.backend, col, "Min and max elements").collect()
+
+        self.assertEqual(expected_min_max, list(result))
+
+
+class LocalBackendTest(parameterized.TestCase):
 
     @classmethod
     def setUpClass(cls):
@@ -211,6 +245,20 @@ class LocalBackendTest(unittest.TestCase):
         self.assertIn(container.y, col_y)
         self.assertIn(container.z, col_z)
 
+    @parameterized.named_parameters(
+        dict(testcase_name='empty collection', col=[], expected_min_max=[]),
+        dict(testcase_name='collection with one element',
+             col=[1],
+             expected_min_max=[(1, 1)]),
+        dict(testcase_name='collection with more than two elements',
+             col=[1, 3, 2],
+             expected_min_max=[(1, 3)]))
+    def test_min_max_elements(self, col, expected_min_max):
+        result = composite_funcs.min_max_elements(self.backend, col,
+                                                  "Min and max elements")
+
+        self.assertEqual(expected_min_max, list(result))
+
 
 @unittest.skipIf(sys.platform == 'win32' or sys.platform == 'darwin',
                  "Problems with serialisation on Windows and macOS")
@@ -253,3 +301,10 @@ class MultiProcLocalBackendTest(unittest.TestCase):
                 "y": col_y,
                 "z": col_z
             }, TestContainer, "Collect to container")
+
+    def test_min_max_elements_multi_proc_local_is_not_supported(self):
+        col = []
+
+        with self.assertRaises(NotImplementedError):
+            composite_funcs.min_max_elements(self.backend, col,
+                                             "Min and max elements")
