@@ -66,7 +66,7 @@ def _compute_frequency_histogram(col, backend: pipeline_backend.PipelineBackend,
 
     # Combiner elements to histogram buckets of increasing sizes. Having buckets
     # of width = 1 is not scalable.
-    return _compute_frequency_histogram_helper(backend, col, name)
+    return _compute_frequency_histogram_helper(col, backend, name)
 
 
 def _compute_weighted_frequency_histogram(
@@ -90,11 +90,11 @@ def _compute_weighted_frequency_histogram(
 
     # Combiner elements to histogram buckets of increasing sizes. Having buckets
     # of width = 1 is not scalable.
-    return _compute_frequency_histogram_helper(backend, col, name)
+    return _compute_frequency_histogram_helper(col, backend, name)
 
 
 def _compute_frequency_histogram_helper(
-        backend: pipeline_backend.PipelineBackend, col,
+        col, backend: pipeline_backend.PipelineBackend,
         name: hist.HistogramType):
     """Computes histogram of element frequencies in collection.
 
@@ -119,11 +119,11 @@ def _compute_frequency_histogram_helper(
 
     col = backend.map_tuple(col, _map_to_frequency_bin, "To FrequencyBin")
     # (lower_bin_value, hist.FrequencyBin)
-    return _convert_frequency_bins_into_histogram(backend, col, name)
+    return _convert_frequency_bins_into_histogram(col, backend, name)
 
 
 def _compute_frequency_histogram_helper_with_lowers(
-        backend: pipeline_backend.PipelineBackend, col,
+        col, backend: pipeline_backend.PipelineBackend,
         name: hist.HistogramType, lowers_col):
     """Computes histogram of element frequencies in collection.
 
@@ -154,11 +154,11 @@ def _compute_frequency_histogram_helper_with_lowers(
                                        (lowers_col,), "To FrequencyBin")
     # (lower_bin_value, hist.FrequencyBin)
 
-    return _convert_frequency_bins_into_histogram(backend, col, name)
+    return _convert_frequency_bins_into_histogram(col, backend, name)
 
 
 def _convert_frequency_bins_into_histogram(
-        backend: pipeline_backend.PipelineBackend, col, name):
+        col, backend: pipeline_backend.PipelineBackend, name):
     """Converts (lower_bin_value, hist.FrequencyBin) into histogram.
 
     The input collection is not expected to have frequency bins reduced per
@@ -320,7 +320,7 @@ def _compute_linf_sum_contributions_histogram(
         col, NUMBER_OF_BUCKETS_IN_LINF_SUM_CONTRIBUTIONS_HISTOGRAM, backend)
 
     return _compute_frequency_histogram_helper_with_lowers(
-        backend, col, hist.HistogramType.LINF_SUM_CONTRIBUTIONS, lowers)
+        col, backend, hist.HistogramType.LINF_SUM_CONTRIBUTIONS, lowers)
 
 
 def _min_max_lowers(col, number_of_buckets,
@@ -567,7 +567,7 @@ def _compute_linf_sum_contributions_histogram_on_preaggregated_data(
     # generated histogram.
 
     return _compute_frequency_histogram_helper_with_lowers(
-        backend, col, hist.HistogramType.LINF_SUM_CONTRIBUTIONS, lowers)
+        col, backend, hist.HistogramType.LINF_SUM_CONTRIBUTIONS, lowers)
 
 
 def _compute_partition_count_histogram_on_preaggregated_data(
