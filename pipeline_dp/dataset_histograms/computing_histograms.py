@@ -43,7 +43,7 @@ def _to_bin_lower_logarithmic(value: int) -> int:
     return value // round_base * round_base
 
 
-def _to_bin_lower_with_lowers(lowers: [float], value: float) -> float:
+def _to_bin_lower_with_lowers(lowers: List[float], value: float) -> float:
     """Finds the lower bound of the histogram bin which contains the given number."""
     bin_lower_idx = bisect.bisect_right(lowers, value) - 1
     assert bin_lower_idx >= 0
@@ -140,8 +140,10 @@ def _compute_frequency_histogram_helper_with_lowers(
     """
 
     def _map_to_frequency_bin(
-            value: float,
-            lowers: List[float]) -> Tuple[float, hist.FrequencyBin]:
+            value: float, lowers_container: List[List[float]]
+    ) -> Tuple[float, hist.FrequencyBin]:
+        # lowers_container is a list with one element that contains lowers list.
+        lowers = lowers_container[0]
         bin_lower = _to_bin_lower_with_lowers(lowers, value)
         return bin_lower, hist.FrequencyBin(lower=bin_lower,
                                             count=1,
@@ -337,11 +339,11 @@ def _min_max_lowers(col, number_of_buckets,
     """
     min_max_values = pipeline_functions.min_max_elements(
         backend, col, "Min and max value in dataset")
-    return backend.flat_map(
+    return backend.map(
         min_max_values,
         lambda min_max: numpy.linspace(min_max[0], min_max[1],
                                        (number_of_buckets + 1))[:-1],
-        "flatMap to lowers")
+        "map to lowers")
 
 
 def _compute_partition_count_histogram(
