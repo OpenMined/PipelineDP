@@ -101,12 +101,9 @@ def collect_to_container(backend: pipeline_backend.PipelineBackend,
 
 def min_max_elements(backend: pipeline_backend.PipelineBackend, col,
                      stage_name: str):
-    col = backend.map(
-        col, lambda x: (None, (x, x)),
-        f"{stage_name}: key all elements by the same fictional key"
-    )  # None is dummy key
+    col = backend.map(col, lambda x: (None, (x, x)),
+                      f"{stage_name}: key by dummy key")  # None is dummy key
     col = backend.reduce_per_key(
         col, lambda x, y: (min(x[0], y[0]), max(x[1], y[1])),
-        f"{stage_name}: reduce by the fictional key choosing min and max elements of the collection"
-    )
+        f"{stage_name}: reduce to compute min, max")
     return backend.values(col, "Drop keys")

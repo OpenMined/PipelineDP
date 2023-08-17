@@ -339,6 +339,7 @@ def _min_max_lowers(col, number_of_buckets,
     """
     min_max_values = pipeline_functions.min_max_elements(
         backend, col, "Min and max value in dataset")
+    # min_max_values: 1 element collection with a pair (min, max)
     return backend.map(
         min_max_values,
         lambda min_max: numpy.linspace(min_max[0], min_max[1],
@@ -562,6 +563,8 @@ def _compute_linf_sum_contributions_histogram_on_preaggregated_data(
     col = backend.to_multi_transformable_collection(col)
     lowers = _min_max_lowers(
         col, NUMBER_OF_BUCKETS_IN_LINF_SUM_CONTRIBUTIONS_HISTOGRAM, backend)
+    # lowers: (float,) where each value defines a lower of a bin in the
+    # generated histogram.
 
     return _compute_frequency_histogram_helper_with_lowers(
         backend, col, hist.HistogramType.LINF_SUM_CONTRIBUTIONS, lowers)
