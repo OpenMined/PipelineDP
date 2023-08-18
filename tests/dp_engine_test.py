@@ -160,7 +160,7 @@ class DpEngineTest(parameterized.TestCase):
         data_extractors = pipeline_dp.DataExtractors(
             partition_extractor=lambda x: x[0],
             privacy_id_extractor=lambda x: x[1],
-            value_extractor=lambda _: None,
+            value_extractor=lambda _: 1,
         )
         partitions = ["pk0", "pk1"]
 
@@ -193,7 +193,7 @@ class DpEngineTest(parameterized.TestCase):
         data_extractors = pipeline_dp.DataExtractors(
             partition_extractor=lambda x: x[0],
             privacy_id_extractor=lambda x: x[1],
-            value_extractor=lambda _: None,
+            value_extractor=lambda _: 1,
         )
         partitions = ["pk0", "pk1"]
 
@@ -231,7 +231,7 @@ class DpEngineTest(parameterized.TestCase):
         data_extractors = pipeline_dp.DataExtractors(
             partition_extractor=lambda x: x[0],
             privacy_id_extractor=lambda x: x[1],
-            value_extractor=lambda _: None,
+            value_extractor=lambda _: 1,
         )
         partitions = ["pk0"]
 
@@ -252,38 +252,38 @@ class DpEngineTest(parameterized.TestCase):
             pipeline_dp.PrivateContributionBounds(max_partitions_contributed=1))
 
     def test_calculate_private_contribution_works_on_beam(self):
-        # Arrange
-        engine = pipeline_dp.DPEngine(budget_accountant=None,
-                                      backend=pipeline_dp.BeamBackend())
-        params = pipeline_dp.CalculatePrivateContributionBoundsParams(
-            aggregation_eps=0.9,
-            aggregation_delta=0.001,
-            calculation_eps=0.1,
-            aggregation_noise_kind=pipeline_dp.NoiseKind.LAPLACE,
-            max_partitions_contributed_upper_bound=2)
-        # user 0 contributes only 1 partitions, others contribute to both
-        data = [("pk0", 0)]
-        for i in range(10000):
-            data += [("pk0", i + 1), ("pk1", i + 1)]
-        data_extractors = pipeline_dp.DataExtractors(
-            partition_extractor=lambda x: x[0],
-            privacy_id_extractor=lambda x: x[1],
-            value_extractor=lambda _: None,
-        )
-        partitions = ["pk0", "pk1"]
+        with test_pipeline.TestPipeline() as p:
+            # Arrange
+            engine = pipeline_dp.DPEngine(budget_accountant=None,
+                                          backend=pipeline_dp.BeamBackend())
+            params = pipeline_dp.CalculatePrivateContributionBoundsParams(
+                aggregation_eps=0.9,
+                aggregation_delta=0.001,
+                calculation_eps=0.1,
+                aggregation_noise_kind=pipeline_dp.NoiseKind.LAPLACE,
+                max_partitions_contributed_upper_bound=2)
+            # user 0 contributes only 1 partitions, others contribute to both
+            data = [("pk0", 0)]
+            for i in range(10000):
+                data += [("pk0", i + 1), ("pk1", i + 1)]
+            col = p | "Create input" >> beam.Create(data)
+            data_extractors = pipeline_dp.DataExtractors(
+                partition_extractor=lambda x: x[0],
+                privacy_id_extractor=lambda x: x[1],
+                value_extractor=lambda _: 1,
+            )
+            partitions = ["pk0", "pk1"]
 
-        # Act
-        result = engine.calculate_private_contribution_bounds(
-            data, params, data_extractors, partitions)
-        result = list(result)[0]
+            # Act
+            result = engine.calculate_private_contribution_bounds(
+                col, params, data_extractors, partitions)
 
-        # Assert
-        # Almost all users contributed to 2 partitions, so it has to be chosen.
-        # The probability of 1 to be chosen has to be very close to 0
-        # and therefore 1 should never be chosen.
-        self.assertEqual(
-            result,
-            pipeline_dp.PrivateContributionBounds(max_partitions_contributed=2))
+            beam_util.assert_that(
+                result,
+                beam_util.equal_to([
+                    pipeline_dp.PrivateContributionBounds(
+                        max_partitions_contributed=2)
+                ]))
 
     def test_calculate_private_contribution_does_not_work_on_multi_proc_local_due_to_unsupported_operations(
             self):
@@ -305,7 +305,7 @@ class DpEngineTest(parameterized.TestCase):
         data_extractors = pipeline_dp.DataExtractors(
             partition_extractor=lambda x: x[0],
             privacy_id_extractor=lambda x: x[1],
-            value_extractor=lambda _: None,
+            value_extractor=lambda _: 1,
         )
         partitions = ["pk0", "pk1"]
 
@@ -337,7 +337,7 @@ class DpEngineTest(parameterized.TestCase):
         data_extractors = pipeline_dp.DataExtractors(
             partition_extractor=lambda x: x[0],
             privacy_id_extractor=lambda x: x[1],
-            value_extractor=lambda _: None,
+            value_extractor=lambda _: 1,
         )
         partitions = ["pk0", "pk1"]
 

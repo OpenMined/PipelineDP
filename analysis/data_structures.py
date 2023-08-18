@@ -15,7 +15,7 @@
 
 import copy
 import dataclasses
-from typing import Iterable, Optional, Sequence
+from typing import Iterable, Optional, Sequence, Union
 
 import pipeline_dp
 from pipeline_dp import input_validators
@@ -132,3 +132,20 @@ def get_aggregate_params(
         for i in range(multi_param_configuration.size):
             yield multi_param_configuration.get_aggregate_params(
                 options.aggregate_params, i)
+
+
+def get_partition_selection_strategy(
+    options: UtilityAnalysisOptions
+) -> Sequence[pipeline_dp.PartitionSelectionStrategy]:
+    """Returns partition selection strategies for different configurations."""
+    multi_configuration = options.multi_param_configuration
+    n_configurations = 1
+    if multi_configuration is not None:
+        if multi_configuration.partition_selection_strategy is not None:
+            # Different parameter configurations have different partition
+            # selection strategies.
+            return multi_configuration.partition_selection_strategy
+        n_configurations = multi_configuration.size
+    # The same partition selection strategy for all configuration.
+    return [options.aggregate_params.partition_selection_strategy
+           ] * n_configurations

@@ -24,9 +24,9 @@ from analysis import cross_partition_combiners
 import pipeline_dp
 
 
-def _get_sum_metrics():
+def _get_sum_metrics(sum=10.0):
     return metrics.SumMetrics(aggregation=pipeline_dp.Metrics.SUM,
-                              sum=10.0,
+                              sum=sum,
                               clipping_to_min_error=3.0,
                               clipping_to_max_error=-5.0,
                               expected_l0_bounding_error=-2.0,
@@ -43,7 +43,8 @@ class PerPartitionToCrossPartitionMetrics(parameterized.TestCase):
         output: metrics.MetricUtility = cross_partition_combiners._sum_metrics_to_metric_utility(
             input,
             pipeline_dp.Metrics.COUNT,
-            partition_keep_probability=keep_prob)
+            partition_keep_probability=keep_prob,
+            partition_weight=keep_prob)
 
         self.assertEqual(output.metric, pipeline_dp.Metrics.COUNT)
         self.assertEqual(output.noise_kind, input.noise_kind)
@@ -111,7 +112,10 @@ class PerPartitionToCrossPartitionMetrics(parameterized.TestCase):
             pipeline_dp.Metrics.PRIVACY_ID_COUNT, pipeline_dp.Metrics.COUNT
         ]
         cross_partition_combiners._per_partition_to_utility_report(
-            per_partition_utility, dp_metrics, public_partitions)
+            per_partition_utility,
+            dp_metrics,
+            public_partitions,
+            partition_weight=0.2)
         if public_partitions:
             mock_create_for_public_partitions.assert_called_once_with(False)
             mock_create_for_private_partitions.assert_not_called()
@@ -136,7 +140,9 @@ class PerPartitionToCrossPartitionMetrics(parameterized.TestCase):
             raw_statistics=metrics.RawStatistics(privacy_id_count=3, count=100),
             metric_errors=None)
         output = cross_partition_combiners._per_partition_to_utility_report(
-            per_partition_utility, [], public_partitions=False)
+            per_partition_utility, [],
+            public_partitions=False,
+            partition_weight=0.5)
 
         self.assertIsNone(output.metric_errors)
         self.assertIsInstance(output.partitions_info, mock.MagicMock)
@@ -291,61 +297,84 @@ class MergeMetricsTests(parameterized.TestCase):
 
 class CrossPartitionCombiner(parameterized.TestCase):
 
-    def _create_combiner(self, public_partitions=False):
+    def _create_combiner(self,
+                         dp_metrics=(pipeline_dp.Metrics.COUNT,),
+                         public_partitions=False,
+                         weight_fn=cross_partition_combiners.equal_weight_fn):
         return cross_partition_combiners.CrossPartitionCombiner(
-            dp_metrics=[pipeline_dp.Metrics.COUNT],
-            public_partitions=public_partitions)
+            dp_metrics, public_partitions, weight_fn)
 
     def test_create_report_wo_mocks(self):
-        combiner = self._create_combiner()
+        public_partitions = False
+        prob_keep = 0.2
+        combiner = self._create_combiner(
+            public_partitions=public_partitions,
+            weight_fn=cross_partition_combiners.equal_weight_fn)
         per_partition_metrics = metrics.PerPartitionMetrics(
-            partition_selection_probability_to_keep=0.2,
+            partition_selection_probability_to_keep=prob_keep,
             raw_statistics=metrics.RawStatistics(privacy_id_count=3, count=9),
-            metric_errors=[_get_sum_metrics()])
-        sum_actual, utility_report = combiner.create_accumulator(
+            metric_errors=[_get_sum_metrics(sum=10.0)])
+        sum_actual, utility_report, weight = combiner.create_accumulator(
             per_partition_metrics)
         self.assertEqual(sum_actual, (10.0,))
         self.assertEqual(utility_report.partitions_info.num_dataset_partitions,
                          1)
         self.assertLen(utility_report.metric_errors, 1)
+        self.assertEqual(weight, prob_keep)
+
+    def test_create_report_partition_size_is_used_as_weight_wo_mocks(self):
+        combiner = self._create_combiner(
+            weight_fn=cross_partition_combiners.partition_size_weight_fn)
+        per_partition_metrics = metrics.PerPartitionMetrics(
+            partition_selection_probability_to_keep=0.2,
+            raw_statistics=metrics.RawStatistics(privacy_id_count=3, count=9),
+            metric_errors=[_get_sum_metrics(sum=5.0)])
+        _, _, weight = combiner.create_accumulator(per_partition_metrics)
+        self.assertEqual(weight, 5.0)
 
     @patch(
         "analysis.cross_partition_combiners._per_partition_to_utility_report")
     def test_create_report_with_mocks(self,
                                       mock_per_partition_to_utility_report):
-        combiner = self._create_combiner()
+        dp_metrics = [pipeline_dp.Metrics.COUNT]
+        public_partitions = False
+        prob_keep = 0.2
+        combiner = self._create_combiner(
+            dp_metrics,
+            public_partitions,
+            weight_fn=cross_partition_combiners.equal_weight_fn)
         per_partition_metrics = metrics.PerPartitionMetrics(
-            partition_selection_probability_to_keep=0.2,
+            partition_selection_probability_to_keep=prob_keep,
             raw_statistics=metrics.RawStatistics(privacy_id_count=3, count=9),
             metric_errors=[_get_sum_metrics()])
         combiner.create_accumulator(per_partition_metrics)
-        expected_metrics = [pipeline_dp.Metrics.COUNT]
-        expected_public_partitions = False
         mock_per_partition_to_utility_report.assert_called_once_with(
-            per_partition_metrics, expected_metrics, expected_public_partitions)
+            per_partition_metrics, dp_metrics, public_partitions, prob_keep)
 
     def test_create_accumulator(self):
         combiner = self._create_combiner()
         report1 = _get_utility_report(coef=2)
-        acc1 = ((1,), report1)
+        acc1 = ((1,), report1, 0.5)
         report2 = _get_utility_report(coef=5)
-        acc2 = ((3,), report2)
+        acc2 = ((3,), report2, 0.5)
         expected_report = _get_utility_report(coef=7)
-        sum_actual, output_report = combiner.merge_accumulators(acc1, acc2)
-        self.assertEqual(output_report, expected_report)
+        sum_actual, output_report, total_weight = combiner.merge_accumulators(
+            acc1, acc2)
         self.assertEqual(sum_actual, (4,))
+        self.assertEqual(output_report, expected_report)
+        self.assertEqual(total_weight, 1)
 
-    @parameterized.parameters(False, True)
     @patch("analysis.cross_partition_combiners._average_utility_report")
-    def test_compute_metrics(self, public_partitions,
-                             mock_average_utility_report):
-        combiner = self._create_combiner(public_partitions)
+    def test_compute_metrics(self, mock_average_utility_report):
+        combiner = self._create_combiner()
         report = _get_utility_report(coef=1)
         sum_actual_metrics = (1000,)
-        acc = (sum_actual_metrics, report)
+        # Actual value does not matter in the test.
+        total_weight = 11
+        acc = (sum_actual_metrics, report, total_weight)
         output = combiner.compute_metrics(acc)
         mock_average_utility_report.assert_called_once_with(
-            output, public_partitions, sum_actual_metrics)
+            output, sum_actual_metrics, total_weight)
         # Check that the input report was not modified.
         self.assertEqual(report, _get_utility_report(coef=1))
 

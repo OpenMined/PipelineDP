@@ -110,7 +110,8 @@ class UtilityAnalysis(parameterized.TestCase):
                 num_dataset_partitions=10,
                 num_non_public_partitions=None,
                 num_empty_partitions=None,
-                strategy=None,
+                strategy=pipeline_dp.PartitionSelectionStrategy.
+                TRUNCATED_GEOMETRIC,
                 kept_partitions=metrics.MeanVariance(mean=3.51622411,
                                                      var=2.2798409)),
             metric_errors=[

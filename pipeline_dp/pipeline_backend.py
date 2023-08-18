@@ -70,6 +70,10 @@ class PipelineBackend(abc.ABC):
         pass
 
     @abc.abstractmethod
+    def map_with_side_inputs(self, col, fn, side_input_cols, stage_name: str):
+        pass
+
+    @abc.abstractmethod
     def flat_map(self, col, fn, stage_name: str):
         pass
 
@@ -236,6 +240,17 @@ class BeamBackend(PipelineBackend):
     def map(self, col, fn, stage_name: str):
         return col | self._ulg.unique(stage_name) >> beam.Map(fn)
 
+    def map_with_side_inputs(self,
+                             col,
+                             fn,
+                             side_input_cols,
+                             stage_name: str = None):
+        side_inputs = [
+            beam.pvalue.AsList(side_input_col)
+            for side_input_col in side_input_cols
+        ]
+        return col | self._ulg.unique(stage_name) >> beam.Map(fn, *side_inputs)
+
     def flat_map(self, col, fn, stage_name: str):
         return col | self._ulg.unique(stage_name) >> beam.FlatMap(fn)
 
@@ -377,6 +392,10 @@ class SparkRDDBackend(PipelineBackend):
             return self._sc.parallelize(rdd).map(fn)
         return rdd.map(fn)
 
+    def map_with_side_inputs(self, rdd, fn, side_input_cols, stage_name: str):
+        raise NotImplementedError("map_with_side_inputs "
+                                  "is not implement in SparkBackend.")
+
     def flat_map(self, rdd, fn, stage_name: str = None):
         return rdd.flatMap(fn)
 
@@ -463,6 +482,14 @@ class LocalBackend(PipelineBackend):
 
     def map(self, col, fn, stage_name: typing.Optional[str] = None):
         return map(fn, col)
+
+    def map_with_side_inputs(self,
+                             col,
+                             fn,
+                             side_input_cols,
+                             stage_name: str = None):
+        side_inputs = [list(side_input) for side_input in side_input_cols]
+        return map(lambda x: fn(x, *side_inputs), col)
 
     def flat_map(self, col, fn, stage_name: str = None):
         return (x for el in col for x in fn(el))
@@ -699,6 +726,14 @@ class MultiProcLocalBackend(PipelineBackend):
                                       n_jobs=self.n_jobs,
                                       chunksize=self.chunksize,
                                       **self.pool_kwargs)
+
+    def map_with_side_inputs(self,
+                             col,
+                             fn,
+                             side_input_cols,
+                             stage_name: typing.Optional[str] = None):
+        side_inputs = [list(side_input) for side_input in side_input_cols]
+        return self.map(col, lambda row: fn(row, *side_inputs), stage_name)
 
     def flat_map(self, col, fn, stage_name: typing.Optional[str] = None):
         return (e for x in self.map(col, fn, stage_name) for e in x)

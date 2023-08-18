@@ -16,7 +16,7 @@
 This demo outputs a utility analysis of errors and noise for each partition in the dataset.
 
 1. Install Python and run on the command line `pip install pipeline-dp absl-py`
-2. Run python python run_without_frameworks_utility_analysis.py --output_file=<...>
+2. Run python run_without_frameworks_utility_analysis.py --output_file=<...>
 """
 from absl import app
 from absl import flags
@@ -24,8 +24,8 @@ import pipeline_dp
 import pandas as pd
 import collections
 
+import analysis
 from analysis import parameter_tuning
-from pipeline_dp.dataset_histograms import histograms
 from pipeline_dp.dataset_histograms import computing_histograms
 
 FLAGS = flags.FLAGS
@@ -80,39 +80,6 @@ def get_data_extractors():
         value_extractor=lambda row: row.spent_money)
 
 
-def preaggregate(col: list, data_extractors: pipeline_dp.DataExtractors):
-    """Preaggregates a collection col.
-
-    The output is a collection with elements
-    (partition_key, (count, sum, n_partitions)).
-    Each element corresponds to each (privacy_id, partition_key) which is
-    present in the dataset. count and sum correspond to count and sum of values
-    contributed by the privacy_key to the partition_key. n_partitions is the
-    number of partitions which privacy_id contributes.
-    """
-    pid_pk = set((data_extractors.privacy_id_extractor(row),
-                  data_extractors.partition_extractor(row)) for row in col)
-    # (pid, pk)
-    pid = [kv[0] for kv in pid_pk]
-    # (pid,)
-    pid_n_partitions = collections.Counter(pid)
-
-    def preaggregate_fn(pk_pid_rows):
-        """Aggregates rows per (partition_key, privacy_id)."""
-        (pk, pid), rows = pk_pid_rows
-        c = s = 0
-        for row in rows:
-            c += 1
-            s += data_extractors.value_extractor(row)
-        return (pk, (c, s, pid_n_partitions[pid]))
-
-    backend = pipeline_dp.LocalBackend()
-    key_fn = lambda row: (data_extractors.partition_extractor(row),
-                          data_extractors.privacy_id_extractor(row))
-    col = backend.map(col, lambda x: (key_fn(x), x))
-    return list(backend.map(backend.group_by_key(col), preaggregate_fn))
-
-
 def tune_parameters():
     # Load data
     restaurant_visits_rows = load_data(FLAGS.input_file)
@@ -122,7 +89,9 @@ def tune_parameters():
     backend = pipeline_dp.LocalBackend()
 
     if FLAGS.run_on_preaggregated_data:
-        input = preaggregate(restaurant_visits_rows, get_data_extractors())
+        input = list(
+            analysis.preaggregate(restaurant_visits_rows, backend,
+                                  get_data_extractors()))
         data_extractors = pipeline_dp.PreAggregateExtractors(
             partition_extractor=lambda row: row[0],
             preaggregate_extractor=lambda row: row[1])
