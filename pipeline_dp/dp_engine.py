@@ -24,7 +24,6 @@ from pipeline_dp import pipeline_functions
 from pipeline_dp import report_generator
 from pipeline_dp import sampling_utils
 from pipeline_dp.dataset_histograms import computing_histograms
-from pipeline_dp import pipeline_functions
 from pipeline_dp.private_contribution_bounds import PrivateL0Calculator
 
 
@@ -516,7 +515,7 @@ class DPEngine:
         ]
         non_supported_metrics = set(metrics) - set(supported_metrics)
         if non_supported_metrics:
-            raise NotImplementedError(f"Metrics {non_supported_metrics} do not"
+            raise NotImplementedError(f"Metrics {non_supported_metrics} do not "
                                       f"support PLD budget accounting")
         if custom_combiner:
             raise ValueError(f"PLD budget accounting does not support custom "

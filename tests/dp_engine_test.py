@@ -1164,6 +1164,19 @@ class DpEngineTest(parameterized.TestCase):
             self.assertEqual(total_epsilon / 3, budget.epsilon)
             self.assertEqual(total_delta / 3, budget.delta)
 
+    def test_pld_not_supported_metrics(self):
+        with self.assertRaisesRegex(
+                NotImplementedError,
+                "Metrics {VARIANCE} do not support PLD budget accounting"):
+            budget_accountant = pipeline_dp.PLDBudgetAccountant(
+                total_epsilon=1, total_delta=1e-10)
+            engine = pipeline_dp.DPEngine(budget_accountant=budget_accountant,
+                                          backend=pipeline_dp.LocalBackend())
+            aggregate_params, public_partitions = self._create_params_default()
+            aggregate_params.metrics = [pipeline_dp.Metrics.VARIANCE]
+            engine.aggregate([1], aggregate_params,
+                             self._get_default_extractors(), public_partitions)
+
 
 if __name__ == '__main__':
     absltest.main()

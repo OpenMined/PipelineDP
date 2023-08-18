@@ -56,7 +56,7 @@ def main(unused_argv):
         pipeline_dp.Metrics.SUM,
         pipeline_dp.Metrics.PRIVACY_ID_COUNT
     ]
-    if FLAGS.pld_accounting:
+    if not FLAGS.pld_accounting:
         # PLD accounting does not support PERCENTILE computations.
         metrics.extend([
             pipeline_dp.Metrics.PERCENTILE(50),
@@ -65,6 +65,8 @@ def main(unused_argv):
         ])
     params = pipeline_dp.AggregateParams(
         metrics=metrics,
+        # Add Gaussian noise to anonymize values.
+        noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
         # Limits to how much one user can contribute:
         # .. at most two movies rated per user
         max_partitions_contributed=2,
