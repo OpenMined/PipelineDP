@@ -120,7 +120,8 @@ class DPEngine:
             self._add_report_stage(
                 f"Public partition selection: dropped non public partitions")
         if not params.contribution_bounds_already_enforced:
-            contribution_bounder = self._create_contribution_bounder(params)
+            contribution_bounder = self._create_contribution_bounder(
+                params, combiner.expects_per_partition_sampling())
             col = contribution_bounder.bound_contributions(
                 col, params, self._backend, self._current_report_generator,
                 combiner.create_accumulator)
@@ -364,13 +365,17 @@ class DPEngine:
                                                   self._budget_accountant)
 
     def _create_contribution_bounder(
-        self, params: pipeline_dp.AggregateParams
+        self, params: pipeline_dp.AggregateParams,
+        expects_per_partition_sampling: bool
     ) -> contribution_bounders.ContributionBounder:
         """Creates ContributionBounder based on aggregation parameters."""
         if params.max_contributions:
             return \
                 contribution_bounders.SamplingPerPrivacyIdContributionBounder(
                 )
+        elif expects_per_partition_sampling:
+            return contribution_bounders.SamplingCrossPartitionContributionBounder(
+            )
         else:
             return \
                 contribution_bounders.SamplingCrossAndPerPartitionContributionBounder(

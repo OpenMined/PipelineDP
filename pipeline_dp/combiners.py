@@ -73,6 +73,17 @@ class Combiner(abc.ABC):
     def explain_computation(self) -> ExplainComputationReport:
         pass
 
+    def expects_per_partition_sampling(self) -> bool:
+        """Whether this combiner expects sampled data per partition.
+
+        If this method returns True, the framework samples data per partition
+        up to aggregate_params.max_contributions_per_partition elements before
+        calling self.create_accumulator(). Otherwise all elements per
+        (privacy_id, partition_key) are passed to create_accumulator() and this
+        combiner has the full responsibility to bound sensitivity.
+        """
+        return True
+
 
 class CustomCombiner(Combiner, abc.ABC):
     """Base class for custom combiners.
@@ -126,20 +137,6 @@ class CustomCombiner(Combiner, abc.ABC):
         It returns the class name by default.
         """
         return self.__class__.__name__
-
-    def expects_per_partition_sampling(self) -> bool:
-        """Whether this combiner expects sampled data per partition.
-
-        If this method returns True, the framework samples data per partition
-        up to aggregate_params.max_contributions_per_partition elements before
-        calling self.create_accumulator(). Otherwise all elements per
-        (privacy_id, partition_key) are passed to create_accumulator() and it
-        is fully the responsibility of the combiner to bound sensitivity.
-
-        Warning: This method is expected to return value the same value for all
-        instances of the same class.
-        """
-        return True
 
 
 class CombinerParams:
@@ -360,6 +357,9 @@ class SumCombiner(Combiner, AdditiveMechanismMixin):
 
     def metrics_names(self) -> List[str]:
         return ['sum']
+
+    def expects_per_partition_sampling(self) -> bool:
+        return not self._bounding_per_partition
 
     def explain_computation(self) -> ExplainComputationReport:
 
@@ -731,6 +731,16 @@ class CompoundCombiner(Combiner):
 
     def explain_computation(self) -> ExplainComputationReport:
         return [combiner.explain_computation() for combiner in self._combiners]
+
+    def expects_per_partition_sampling(self) -> bool:
+        per_partition_sampling = [
+            c.expects_per_partition_sampling() for c in self._combiners
+        ]
+        if min(per_partition_sampling) != max(per_partition_sampling):
+            raise ValueError(
+                "All custom combiners must return the same value from "
+                "expects_per_partition_sampling()")
+        return self._combiners[0].expects_per_partition_sampling()
 
 
 class VectorSumCombiner(Combiner):
