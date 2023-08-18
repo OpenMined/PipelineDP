@@ -15,7 +15,7 @@
 
 from dataclasses import dataclass
 import enum
-from typing import List, Sequence, Tuple
+from typing import List, Sequence, Tuple, Union
 
 
 @dataclass
@@ -32,10 +32,10 @@ class FrequencyBin:
       max: the maximum element in the bin, which is smaller or equal to the
        upper-1.
     """
-    lower: int
+    lower: Union[int, float]
     count: int
-    sum: int
-    max: int
+    sum: Union[int, float]
+    max: Union[int, float]
 
     def __add__(self, other: 'FrequencyBin') -> 'FrequencyBin':
         return FrequencyBin(self.lower, self.count + other.count,
@@ -59,6 +59,7 @@ class HistogramType(enum.Enum):
     # with [lower, next_lower) contributions.
     # 'sum' is the total number of contributions for these pairs.
     LINF_CONTRIBUTIONS = 'linf_contributions'
+    LINF_SUM_CONTRIBUTIONS = 'linf_sum_contributions'
     COUNT_PER_PARTITION = 'count_per_partition'
     COUNT_PRIVACY_ID_PER_PARTITION = 'privacy_id_per_partition_count'
 
@@ -161,5 +162,6 @@ class DatasetHistograms:
     l0_contributions_histogram: Histogram
     l1_contributions_histogram: Histogram
     linf_contributions_histogram: Histogram
+    linf_sum_contributions_histogram: Histogram
     count_per_partition_histogram: Histogram
     count_privacy_id_per_partition: Histogram

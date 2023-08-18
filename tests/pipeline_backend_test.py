@@ -11,21 +11,22 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import sys
 import unittest
-from absl.testing import parameterized
+from typing import List
+from unittest.mock import Mock, MagicMock, patch
+
 import apache_beam as beam
 import apache_beam.testing.test_pipeline as test_pipeline
 import apache_beam.testing.util as beam_util
 import pytest
-import sys
-from unittest.mock import Mock, MagicMock, patch
-from typing import List
+from absl.testing import parameterized
 
-from pipeline_dp import DataExtractors
-from pipeline_dp.pipeline_backend import MultiProcLocalBackend, SparkRDDBackend
-from pipeline_dp.pipeline_backend import LocalBackend
-from pipeline_dp.pipeline_backend import BeamBackend
 import pipeline_dp.combiners as dp_combiners
+from pipeline_dp import DataExtractors
+from pipeline_dp.pipeline_backend import BeamBackend
+from pipeline_dp.pipeline_backend import LocalBackend
+from pipeline_dp.pipeline_backend import MultiProcLocalBackend, SparkRDDBackend
 
 
 class BeamBackendTest(parameterized.TestCase):
@@ -48,6 +49,28 @@ class BeamBackendTest(parameterized.TestCase):
             output = self.backend.to_collection(input, col, "to_collection")
             self.assertIsInstance(output, beam.PCollection)
             beam_util.assert_that(output, beam_util.equal_to([1, 3, 5]))
+
+    def test_map_with_side_inputs(self):
+        with test_pipeline.TestPipeline() as p:
+            data = [1, 2]
+            col = p | "Create col PCollection" >> beam.Create(data)
+            list_side_input = [3, 4, 5]
+            list_side_input_col = p | "Create list_side_input PCollection" >>\
+                                  beam.Create(
+                list_side_input)
+            one_element_side_input = [6]
+            one_element_side_input_col = p | "Create one_element_side_input " \
+                                             "PCollection" >> beam.Create(
+                one_element_side_input)
+            join_lists_fn = lambda x, l1, l2: [x] + l1 + l2
+
+            result = self.backend.map_with_side_inputs(
+                col, join_lists_fn,
+                [list_side_input_col, one_element_side_input_col],
+                "map_with_side_inputs")
+
+            expected_result = [[1, 3, 4, 5, 6], [2, 3, 4, 5, 6]]
+            beam_util.assert_that(result, beam_util.equal_to(expected_result))
 
     def test_filter_by_key_must_not_be_none(self):
         with test_pipeline.TestPipeline() as p:
@@ -115,7 +138,7 @@ class BeamBackendTest(parameterized.TestCase):
             beam_util.assert_that(col,
                                   beam_util.equal_to([(1, 11), (2, 4), (3, 8)]))
 
-    def test_local_combine_accumulators_per_key(self):
+    def test_to_list(self):
         with test_pipeline.TestPipeline() as p:
             data = p | beam.Create([1, 2, 3, 4, 5])
             col = self.backend.to_list(data, "To list")
@@ -240,7 +263,8 @@ class BeamBackendStageNameTest(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError,
                                         expected_regex="A transform with label "
                                         "\"SAME_MAP_NAME_SAME_backend_SUFFIX\" "
-                                        "already exists in the pipeline"):
+                                        "already exists in the"
+                                        " pipeline"):
                 backend_2.map(col, lambda x: x, "SAME_MAP_NAME")
 
     def test_one_suffix_multiple_same_stage_name(self):
@@ -331,8 +355,8 @@ class SparkRDDBackendTest(parameterized.TestCase):
     @unittest.skipIf(
         sys.platform == "darwin" and sys.version_info.major == 3 and
         (sys.version_info.minor == 8 or sys.version_info.minor == 9),
-        "There are some problems with PySpark setup on macOS in python 3.8 and 3.9."
-    )
+        "There are some problems with PySpark setup on macOS in python 3.8 "
+        "and 3.9.")
     def test_combine_accumulators_per_key(self):
         data = self.sc.parallelize([(1, 2), (2, 1), (1, 4), (3, 8), (2, 3)])
         rdd = self.backend.group_by_key(data)
@@ -348,6 +372,11 @@ class SparkRDDBackendTest(parameterized.TestCase):
         dist_data = self.sc.parallelize(data)
         result = self.backend.map_tuple(dist_data, lambda a, b: a + b).collect()
         self.assertEqual(result, [3, 7])
+
+    def test_map_with_side_inputs(self):
+        with self.assertRaises(NotImplementedError):
+            self.backend.map_with_side_inputs(None, None, None,
+                                              "map_with_side_inputs")
 
     def test_flat_map(self):
         data = [[1, 2, 3, 4], [5, 6, 7, 8]]
@@ -408,6 +437,20 @@ class LocalBackendTest(unittest.TestCase):
                          ["1", "2", "3"])
         self.assertEqual(list(self.backend.map(range(5), lambda x: x**2)),
                          [0, 1, 4, 9, 16])
+
+    def test_local_map_with_side_inputs(self):
+        col = [1, 2]
+        list_side_input_col = [3, 4, 5]
+        one_element_side_input_col = [6]
+        join_lists_fn = lambda x, l1, l2: [x] + l1 + l2
+
+        result = self.backend.map_with_side_inputs(
+            col, join_lists_fn,
+            [list_side_input_col, one_element_side_input_col],
+            "map_with_side_inputs")
+
+        expected_result = [[1, 3, 4, 5, 6], [2, 3, 4, 5, 6]]
+        self.assertEqual(list(result), expected_result)
 
     def test_local_map_tuple(self):
         tuple_list = [(1, 2), (2, 3), (3, 4)]
@@ -509,13 +552,13 @@ class LocalBackendTest(unittest.TestCase):
         result = list(col)
         self.assertEqual(result, [(1, 6), (2, 4), (3, 8)])
 
-    def test_local_combine_accumulators_per_key(self):
+    def test_reduce_per_key(self):
         data = [(1, 2), (2, 1), (1, 4), (3, 8), (2, 3)]
         col = self.backend.reduce_per_key(data, lambda x, y: x + y, "Reduce")
         result = list(col)
         self.assertEqual(result, [(1, 6), (2, 4), (3, 8)])
 
-    def test_local_combine_accumulators_per_key(self):
+    def test_to_list(self):
         data = [1, 2, 3, 4, 5]
         col = self.backend.to_list(data, "To list")
         result = list(col)
@@ -683,6 +726,21 @@ class MultiProcLocalBackendTest(unittest.TestCase):
                                  ["1", "2", "3"])
         self.assertDatasetsEqual(
             list(self.backend.map(range(5), lambda x: x**2)), [0, 1, 4, 9, 16])
+
+    @pytest.mark.timeout(10)
+    def test_multiproc_map_with_side_inputs(self):
+        col = [1, 2]
+        list_side_input_col = [3, 4, 5]
+        one_element_side_input_col = [6]
+        join_lists_fn = lambda x, l1, l2: [x] + l1 + l2
+
+        result = self.backend.map_with_side_inputs(
+            col, join_lists_fn,
+            [list_side_input_col, one_element_side_input_col],
+            "map_with_side_inputs")
+
+        expected_result = [[1, 3, 4, 5, 6], [2, 3, 4, 5, 6]]
+        self.assertDatasetsEqual(list(result), expected_result)
 
     @pytest.mark.timeout(10)
     def test_multiproc_map_tuple(self):

@@ -72,7 +72,7 @@ class ParameterTuning(parameterized.TestCase):
 
         mock_histograms = histograms.DatasetHistograms(mock_l0_histogram, None,
                                                        mock_linf_histogram,
-                                                       None, None)
+                                                       None, None, None)
         parameters_to_tune = parameter_tuning.ParametersToTune(
             max_partitions_contributed=tune_max_partitions_contributed,
             max_contributions_per_partition=tune_max_contributions_per_partition
@@ -100,7 +100,7 @@ class ParameterTuning(parameterized.TestCase):
 
         mock_histograms = histograms.DatasetHistograms(mock_l0_histogram, None,
                                                        mock_linf_histogram,
-                                                       None, None)
+                                                       None, None, None)
         parameters_to_tune = parameter_tuning.ParametersToTune(
             max_partitions_contributed=True,
             max_contributions_per_partition=True)
@@ -126,7 +126,7 @@ class ParameterTuning(parameterized.TestCase):
 
         mock_histograms = histograms.DatasetHistograms(mock_l0_histogram, None,
                                                        mock_linf_histogram,
-                                                       None, None)
+                                                       None, None, None)
         parameters_to_tune = parameter_tuning.ParametersToTune(
             max_partitions_contributed=True,
             max_contributions_per_partition=True)
@@ -157,7 +157,7 @@ class ParameterTuning(parameterized.TestCase):
 
         mock_histograms = histograms.DatasetHistograms(mock_l0_histogram, None,
                                                        mock_linf_histogram,
-                                                       None, None)
+                                                       None, None, None)
         parameters_to_tune = parameter_tuning.ParametersToTune(
             max_partitions_contributed=True,
             max_contributions_per_partition=True)
@@ -213,7 +213,7 @@ class ParameterTuning(parameterized.TestCase):
         mock_l0_histogram.max_value = mock.Mock(return_value=max_value)
 
         mock_histograms = histograms.DatasetHistograms(mock_l0_histogram, None,
-                                                       None, None, None)
+                                                       None, None, None, None)
         parameters_to_tune = parameter_tuning.ParametersToTune(
             max_partitions_contributed=True,
             max_contributions_per_partition=False)
@@ -254,7 +254,7 @@ class ParameterTuning(parameterized.TestCase):
             histograms.HistogramType.LINF_CONTRIBUTIONS, None)
         mock_histograms = histograms.DatasetHistograms(mock_l0_histogram, None,
                                                        mock_linf_histogram,
-                                                       None, None)
+                                                       None, None, None)
 
         mock_find_candidate_from_histogram.return_value = [1, 2]
 
@@ -365,12 +365,12 @@ class ParameterTuning(parameterized.TestCase):
 
     def test_tune_privacy_id_count(self):
         # Arrange.
-        input = [(i % 10, f"pk{i/10}") for i in range(10)]
+        input = [(i % 10, f"pk{i/10}", i) for i in range(10)]
         public_partitions = [f"pk{i}" for i in range(10)]
         data_extractors = pipeline_dp.DataExtractors(
             privacy_id_extractor=lambda x: x[0],
             partition_extractor=lambda x: x[1],
-            value_extractor=lambda x: None)
+            value_extractor=lambda x: x[2])
 
         contribution_histograms = list(
             computing_histograms.compute_dataset_histograms(
@@ -422,7 +422,7 @@ class ParameterTuning(parameterized.TestCase):
         tune_options = _get_tune_options()
         tune_options.aggregate_params.metrics = metrics
         contribution_histograms = histograms.DatasetHistograms(
-            None, None, None, None, None)
+            None, None, None, None, None, None)
         data_extractors = pipeline_dp.DataExtractors(
             privacy_id_extractor=lambda _: 0, partition_extractor=lambda _: 0)
         public_partitions = [1] if is_public_partitions else None
