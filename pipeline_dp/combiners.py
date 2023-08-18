@@ -127,6 +127,20 @@ class CustomCombiner(Combiner, abc.ABC):
         """
         return self.__class__.__name__
 
+    def expects_per_partition_sampling(self) -> bool:
+        """Whether this combiner expects sampled data per partition.
+
+        If this method returns True, the framework samples data per partition
+        up to aggregate_params.max_contributions_per_partition elements before
+        calling self.create_accumulator(). Otherwise all elements per
+        (privacy_id, partition_key) are passed to create_accumulator() and it
+        is fully the responsibility of the combiner to bound sensitivity.
+
+        Warning: This method is expected to return value the same value for all
+        instances of the same class.
+        """
+        return True
+
 
 class CombinerParams:
     """Parameters for a combiner.
