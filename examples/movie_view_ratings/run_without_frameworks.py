@@ -57,7 +57,7 @@ def main(unused_argv):
         pipeline_dp.Metrics.PRIVACY_ID_COUNT
     ]
     if not FLAGS.pld_accounting:
-        # PLD accounting does not support PERCENTILE computations.
+        # PLD accounting does not yet support PERCENTILE computations.
         metrics.extend([
             pipeline_dp.Metrics.PERCENTILE(50),
             pipeline_dp.Metrics.PERCENTILE(90),
