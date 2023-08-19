@@ -1164,6 +1164,30 @@ class DpEngineTest(parameterized.TestCase):
             self.assertEqual(total_epsilon / 3, budget.epsilon)
             self.assertEqual(total_delta / 3, budget.delta)
 
+    def test_min_max_sum_per_partition(self):
+        dp_engine, budget_accountant = self._create_dp_engine_default(
+            epsilon=1000, return_accountant=True)
+        data = [1] * 1000 + [-1] * 1005
+        params = pipeline_dp.AggregateParams(metrics=[pipeline_dp.Metrics.SUM],
+                                             max_partitions_contributed=1,
+                                             min_sum_per_partition=-3,
+                                             max_sum_per_partition=1,
+                                             max_contributions_per_partition=1)
+        extractors = pipeline_dp.DataExtractors(
+            privacy_id_extractor=lambda _: 0,
+            partition_extractor=lambda _: 0,
+            value_extractor=lambda x: x)
+
+        output = dp_engine.aggregate(data,
+                                     params,
+                                     extractors,
+                                     public_partitions=[0])
+
+        budget_accountant.compute_budgets()
+        output = list(output)
+        self.assertLen(output, 1)
+        self.assertAlmostEqual(output[0][1].sum, -3, delta=0.1)
+
 
 if __name__ == '__main__':
     absltest.main()
