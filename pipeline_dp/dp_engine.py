@@ -377,7 +377,7 @@ class DPEngine:
                 contribution_bounders.SamplingPerPrivacyIdContributionBounder(
                 )
         if expects_per_partition_sampling:
-            contribution_bounders.SamplingCrossAndPerPartitionContributionBounder(
+            return contribution_bounders.SamplingCrossAndPerPartitionContributionBounder(
             )
         return contribution_bounders.SamplingCrossPartitionContributionBounder()
 
