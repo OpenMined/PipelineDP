@@ -320,6 +320,9 @@ class PrivacyIdCountCombiner(Combiner, AdditiveMechanismMixin):
     def sensitivities(self) -> dp_computations.Sensitivities:
         return self._sensitivities
 
+    def expects_per_partition_sampling(self) -> bool:
+        return False
+
 
 class SumCombiner(Combiner, AdditiveMechanismMixin):
     """Combiner for computing dp sum.

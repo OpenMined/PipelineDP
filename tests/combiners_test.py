@@ -17,11 +17,31 @@ from unittest.mock import patch
 from absl.testing import absltest
 from absl.testing import parameterized
 import typing
+from typing import List
 import pipeline_dp
 import pipeline_dp.combiners as dp_combiners
 import pipeline_dp.budget_accounting as ba
 
 import numpy as np
+
+
+class EmptyCombiner(dp_combiners.Combiner):
+    """Empty combiner implementation for mocking."""
+
+    def create_accumulator(self, values):
+        return None
+
+    def merge_accumulators(self, accumulator1, accumulator2):
+        return None
+
+    def compute_metrics(self, accumulator):
+        return None
+
+    def metrics_names(self) -> List[str]:
+        return []
+
+    def explain_computation(self):
+        return None
 
 
 def _create_mechanism_spec(
@@ -354,6 +374,7 @@ class SumCombinerTest(parameterized.TestCase):
         # Bounding on values.
         self.assertEqual(2, combiner.create_accumulator([1, 3]))
         self.assertEqual(1, combiner.create_accumulator([0, 3]))
+        self.assertTrue(combiner.expects_per_partition_sampling())
 
     def test_create_accumulator_per_partition_bound(self):
         combiner = self._create_combiner(no_noise=False,
@@ -363,6 +384,7 @@ class SumCombinerTest(parameterized.TestCase):
         # Clipping sum to [0, 3].
         self.assertEqual(3, combiner.create_accumulator([4, 1]))
         self.assertEqual(0, combiner.create_accumulator([-10, 5, 3]))
+        self.assertFalse(combiner.expects_per_partition_sampling())
 
     @parameterized.named_parameters(
         dict(testcase_name='no_noise', no_noise=True, per_partition_bound=True),
@@ -666,6 +688,28 @@ class CompoundCombinerTest(parameterized.TestCase):
         self.assertAlmostEqual(accumulator[1][1], np.mean(noised_sum), delta=2)
         self.assertTrue(np.var(noised_count) > 1)  # check that noise is added
         self.assertTrue(np.var(noised_sum) > 1)  # check that noise is added
+
+    def test_expects_per_partition_sampling(self):
+
+        class MockCombiner(EmptyCombiner):
+
+            def __init__(self, return_value: bool):
+                self._return_value = return_value
+
+            def expects_per_partition_sampling(self) -> bool:
+                return self._return_value
+
+        def create_combiner(return_values: List[bool]):
+            combiners = [MockCombiner(v) for v in return_values]
+            return dp_combiners.CompoundCombiner(combiners,
+                                                 return_named_tuple=True)
+
+        self.assertTrue(
+            create_combiner([True]).expects_per_partition_sampling())
+        self.assertTrue(
+            create_combiner([True, False]).expects_per_partition_sampling())
+        self.assertFalse(
+            create_combiner([False, False]).expects_per_partition_sampling())
 
 
 class VectorSumCombinerTest(parameterized.TestCase):
