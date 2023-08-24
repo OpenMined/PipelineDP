@@ -1080,18 +1080,38 @@ class DpEngineTest(parameterized.TestCase):
 
         return col
 
-    def test_run_e2e_local(self):
+    @parameterized.parameters(False, True)
+    def test_run_e2e_count_public_partition_local(self, pld_accounting):
+        Accountant = pipeline_dp.PLDBudgetAccountant if pld_accounting else pipeline_dp.NaiveBudgetAccountant
+        accountant = Accountant(total_epsilon=1,
+                                total_delta=1e-3,
+                                num_aggregations=1)
+        dp_engine = self._create_dp_engine_default(accountant=accountant)
+        aggregate_params, _ = self._create_params_default()
+
+        input = [1, 2, 3]
+        public_partitions = [2]
+        explain_computation_report = pipeline_dp.ExplainComputationReport()
+        output = dp_engine.aggregate(input, aggregate_params,
+                                     self._get_default_extractors(),
+                                     public_partitions,
+                                     explain_computation_report)
+
+        accountant.compute_budgets()
+        self.assertLen(list(output), 1)
+
+    def test_run_e2e_partition_selection_local(self):
         input = list(range(10))
 
         output = self.run_e2e_private_partition_selection_large_budget(
             input, pipeline_dp.LocalBackend())
 
-        self.assertEqual(5, len(list(output)))
+        self.assertLen(list(output), 5)
 
     @unittest.skip("There are some problems with serialization in this test. "
                    "Tests in private_spark_test.py work normaly so probably it"
                    " is because of some missing setup.")
-    def test_run_e2e_spark(self):
+    def test_run_e2e_partition_selection_spark(self):
         import pyspark
         conf = pyspark.SparkConf()
         sc = pyspark.SparkContext.getOrCreate(conf=conf)
@@ -1100,9 +1120,9 @@ class DpEngineTest(parameterized.TestCase):
         output = self.run_e2e_private_partition_selection_large_budget(
             input, pipeline_dp.SparkRDDBackend(sc))
 
-        self.assertEqual(5, len(collect_to_container()))
+        self.assertLen(collect_to_container(), 5)
 
-    def test_run_e2e_beam(self):
+    def test_run_e2e_partition_selection_beam(self):
         with test_pipeline.TestPipeline() as p:
             input = p | "Create input" >> beam.Create(list(range(10)))
 
@@ -1187,6 +1207,31 @@ class DpEngineTest(parameterized.TestCase):
         output = list(output)
         self.assertLen(output, 1)
         self.assertAlmostEqual(output[0][1].sum, -3, delta=0.1)
+
+    def test_pld_not_supported_metrics(self):
+        with self.assertRaisesRegex(
+                NotImplementedError,
+                "Metrics {VARIANCE} do not support PLD budget accounting"):
+            budget_accountant = pipeline_dp.PLDBudgetAccountant(
+                total_epsilon=1, total_delta=1e-10)
+            engine = pipeline_dp.DPEngine(budget_accountant=budget_accountant,
+                                          backend=pipeline_dp.LocalBackend())
+            aggregate_params, public_partitions = self._create_params_default()
+            aggregate_params.metrics = [pipeline_dp.Metrics.VARIANCE]
+            engine.aggregate([1], aggregate_params,
+                             self._get_default_extractors(), public_partitions)
+
+    def test_pld_not_support_private_partition_selection(self):
+        with self.assertRaisesRegex(
+                NotImplementedError,
+                "PLD budget accounting does not support private partition"):
+            budget_accountant = pipeline_dp.PLDBudgetAccountant(
+                total_epsilon=1, total_delta=1e-10)
+            engine = pipeline_dp.DPEngine(budget_accountant=budget_accountant,
+                                          backend=pipeline_dp.LocalBackend())
+            aggregate_params, _ = self._create_params_default()
+            engine.aggregate([1], aggregate_params,
+                             self._get_default_extractors())
 
 
 if __name__ == '__main__':
