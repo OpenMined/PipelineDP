@@ -38,4 +38,4 @@ from pipeline_dp.pipeline_backend import LocalBackend
 from pipeline_dp.pipeline_backend import PipelineBackend
 from pipeline_dp.pipeline_backend import SparkRDDBackend
 
-__version__ = '0.2.1rc3'
+__version__ = '0.2.1rc4'
