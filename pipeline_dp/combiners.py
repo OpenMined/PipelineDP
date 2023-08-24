@@ -733,14 +733,7 @@ class CompoundCombiner(Combiner):
         return [combiner.explain_computation() for combiner in self._combiners]
 
     def expects_per_partition_sampling(self) -> bool:
-        per_partition_sampling = [
-            c.expects_per_partition_sampling() for c in self._combiners
-        ]
-        if min(per_partition_sampling) != max(per_partition_sampling):
-            raise ValueError(
-                "All custom combiners must return the same value from "
-                "expects_per_partition_sampling()")
-        return self._combiners[0].expects_per_partition_sampling()
+        return any(c.expects_per_partition_sampling() for c in self._combiners)
 
 
 class VectorSumCombiner(Combiner):
