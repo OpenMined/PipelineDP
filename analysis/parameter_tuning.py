@@ -130,47 +130,73 @@ def _find_candidate_parameters(
     """
     calculate_l0_param = parameters_to_tune.max_partitions_contributed
     generate_linf = metric == pipeline_dp.Metrics.COUNT
+    generate_max_sum_per_partition = metric == pipeline_dp.Metrics.SUM
     calculate_linf_param = (parameters_to_tune.max_contributions_per_partition
                             and generate_linf)
+    calculate_sum_per_partition_param = (
+        parameters_to_tune.max_sum_per_partition and
+        generate_max_sum_per_partition)
     l0_bounds = linf_bounds = None
+    max_sum_per_partition_bounds = min_sum_per_partition_bounds = None
 
     if calculate_l0_param and calculate_linf_param:
-        max_candidates_per_parameter = int(math.sqrt(max_candidates))
-        l0_candidates = _find_candidates_constant_relative_step(
-            hist.l0_contributions_histogram, max_candidates_per_parameter)
-        linf_candidates = _find_candidates_constant_relative_step(
-            hist.linf_contributions_histogram, max_candidates_per_parameter)
-        l0_bounds, linf_bounds = [], []
-
-        # if linf or l0 has fewer candidates than requested then we can add more
-        # candidates for the other parameter.
-        if (len(linf_candidates) < max_candidates_per_parameter and
-                len(l0_candidates) == max_candidates_per_parameter):
-            l0_candidates = _find_candidates_constant_relative_step(
-                hist.l0_contributions_histogram,
-                int(max_candidates / len(linf_candidates)))
-        elif (len(l0_candidates) < max_candidates_per_parameter and
-              len(linf_candidates) == max_candidates_per_parameter):
-            linf_candidates = _find_candidates_constant_relative_step(
-                hist.linf_contributions_histogram,
-                int(max_candidates / len(l0_candidates)))
-
-        for l0 in l0_candidates:
-            for linf in linf_candidates:
-                l0_bounds.append(l0)
-                linf_bounds.append(linf)
+        l0_bounds, linf_bounds = _find_candidates_parameters_in_2d_grid(
+            hist.l0_contributions_histogram, hist.linf_contributions_histogram,
+            _find_candidates_constant_relative_step, _find_candidates_constant_relative_step, max_candidates)
+    elif calculate_l0_param and calculate_sum_per_partition_param:
+        l0_bounds, max_sum_per_partition_bounds = _find_candidates_parameters_in_2d_grid(
+            hist.l0_contributions_histogram,
+            hist.linf_sum_contributions_histogram,
+            _find_candidates_constant_relative_step,
+            _find_candidates_bins_max_values_subsample, max_candidates)
+        min_sum_per_partition_bounds = [0] * len(max_sum_per_partition_bounds)
     elif calculate_l0_param:
         l0_bounds = _find_candidates_constant_relative_step(
             hist.l0_contributions_histogram, max_candidates)
     elif calculate_linf_param:
         linf_bounds = _find_candidates_constant_relative_step(
             hist.linf_contributions_histogram, max_candidates)
+    elif calculate_sum_per_partition_param:
+        max_sum_per_partition_bounds = _find_candidates_bins_max_values_subsample(
+            hist.linf_sum_contributions_histogram, max_candidates)
+        min_sum_per_partition_bounds = [0] * len(max_sum_per_partition_bounds)
     else:
         assert False, "Nothing to tune."
 
     return analysis.MultiParameterConfiguration(
         max_partitions_contributed=l0_bounds,
-        max_contributions_per_partition=linf_bounds)
+        max_contributions_per_partition=linf_bounds,
+        min_sum_per_partition=min_sum_per_partition_bounds,
+        max_sum_per_partition=max_sum_per_partition_bounds)
+
+
+def _find_candidates_parameters_in_2d_grid(hist1, hist2, find_candidates_func1,
+                                           find_candidates_func2,
+                                           max_candidates):
+    max_candidates_per_parameter = int(math.sqrt(max_candidates))
+    param1_candidates = find_candidates_func1(hist1,
+                                              max_candidates_per_parameter)
+    param2_candidates = find_candidates_func2(hist2,
+                                              max_candidates_per_parameter)
+    param1_bounds, param2_bounds = [], []
+
+    # if param1 or param2 has fewer candidates than requested then we can add
+    # more candidates for the other parameter.
+    if (len(param2_candidates) < max_candidates_per_parameter and
+            len(param1_candidates) == max_candidates_per_parameter):
+        param1_candidates = find_candidates_func1(
+            hist1, int(max_candidates / len(param2_candidates)))
+    elif (len(param1_candidates) < max_candidates_per_parameter and
+          len(param2_candidates) == max_candidates_per_parameter):
+        param2_candidates = find_candidates_func2(
+            hist2, int(max_candidates / len(param1_candidates)))
+
+    for param1 in param1_candidates:
+        for param2 in param2_candidates:
+            param1_bounds.append(param1)
+            param2_bounds.append(param2)
+
+    return param1_bounds, param2_bounds
 
 
 def _find_candidates_constant_relative_step(histogram: histograms.Histogram,
@@ -202,6 +228,17 @@ def _find_candidates_constant_relative_step(histogram: histograms.Histogram,
     # to be always max_value
     candidates[-1] = max_value
     return candidates
+
+
+def _find_candidates_bins_max_values_subsample(
+        histogram: histograms.Histogram, max_candidates: int) -> List[float]:
+    """Takes max values of histogram bins with constant step between each other.
+    """
+    max_candidates = min(max_candidates, len(histogram.bins))
+    ids = np.round(np.linspace(0, len(histogram.bins) - 1,
+                               num=max_candidates)).astype(int)
+    bin_maximums = list(map(lambda bin: bin.max, histogram.bins))
+    return bin_maximums[ids]
 
 
 def tune(col,
