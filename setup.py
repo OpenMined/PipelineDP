@@ -11,7 +11,8 @@ package_data = \
 install_requires = \
 ['numpy>=1.20.1,<2.0.0',
  'python-dp>=1.1.4',
- 'scipy>=1.7.3,<2.0.0']
+ 'scipy>=1.7.3,<2.0.0',
+ 'dp_accounting>=0.4.2',]
 
 
 def read(fname):
@@ -30,7 +31,7 @@ setup_kwargs = {
     'packages': packages,
     'package_data': package_data,
     'install_requires': install_requires,
-    'python_requires': '>=3.8,<3.11',
+    'python_requires': '>=3.8,<3.12',
     'long_description': read("README.md"),
     'long_description_content_type': 'text/markdown',
     'license': "Apache-2.0",
