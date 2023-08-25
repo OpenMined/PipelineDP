@@ -25,8 +25,6 @@ def _sum_metrics_to_data_dropped(
         sum_metrics: metrics.SumMetrics, partition_keep_probability: float,
         dp_metric: pipeline_dp.Metric) -> metrics.DataDropInfo:
     """Finds Data drop information from per-partition metrics."""
-    # TODO(dvadym): implement for Sum
-    assert dp_metric != pipeline_dp.Metrics.SUM, "Cross-partition metrics are not implemented for SUM"
 
     # This function attributed the data that is dropped, to different reasons
     # how they are dropped.
@@ -34,7 +32,9 @@ def _sum_metrics_to_data_dropped(
     # 1. linf/l0 contribution bounding
     # Contribution bounding errors are negative, negate to keep data dropped
     # to be positive.
-    linf_dropped = -sum_metrics.clipping_to_max_error  # not correct for SUM
+    linf_dropped = -sum_metrics.clipping_to_max_error
+    if dp_metric == pipeline_dp.Metrics.SUM:
+        linf_dropped += sum_metrics.clipping_to_min_error
     l0_dropped = -sum_metrics.expected_l0_bounding_error
 
     # 2. Partition selection (in case of private partition selection).

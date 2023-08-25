@@ -37,16 +37,18 @@ def _get_sum_metrics(sum=10.0):
 
 class PerPartitionToCrossPartitionMetrics(parameterized.TestCase):
 
-    @parameterized.parameters(1, 0.25)
-    def test_metric_utility_count(self, keep_prob: float):
+    @parameterized.product(
+        metric=[pipeline_dp.Metrics.COUNT, pipeline_dp.Metrics.SUM],
+        keep_prob=[1, 0.25])
+    def test_metric_utility(self, metric: pipeline_dp.Metric, keep_prob: float):
         input = _get_sum_metrics()
         output: metrics.MetricUtility = cross_partition_combiners._sum_metrics_to_metric_utility(
             input,
-            pipeline_dp.Metrics.COUNT,
+            metric,
             partition_keep_probability=keep_prob,
             partition_weight=keep_prob)
 
-        self.assertEqual(output.metric, pipeline_dp.Metrics.COUNT)
+        self.assertEqual(output.metric, metric)
         self.assertEqual(output.noise_kind, input.noise_kind)
         self.assertEqual(output.noise_std, input.std_noise)
 
@@ -109,7 +111,7 @@ class PerPartitionToCrossPartitionMetrics(parameterized.TestCase):
             metric_errors=[_get_sum_metrics(),
                            _get_sum_metrics()])
         dp_metrics = [
-            pipeline_dp.Metrics.PRIVACY_ID_COUNT, pipeline_dp.Metrics.COUNT
+            pipeline_dp.Metrics.PRIVACY_ID_COUNT, pipeline_dp.Metrics.COUNT, pipeline_dp.Metrics.SUM
         ]
         cross_partition_combiners._per_partition_to_utility_report(
             per_partition_utility,
@@ -123,7 +125,7 @@ class PerPartitionToCrossPartitionMetrics(parameterized.TestCase):
             mock_create_for_public_partitions.assert_not_called()
             mock_create_for_private_partitions.assert_called_once_with(0.2)
 
-        self.assertEqual(mock_sum_metrics_to_metric_utility.call_count, 2)
+        self.assertEqual(mock_sum_metrics_to_metric_utility.call_count, 3)
 
     @patch(
         "analysis.cross_partition_combiners._partition_metrics_public_partitions"
@@ -150,7 +152,7 @@ class PerPartitionToCrossPartitionMetrics(parameterized.TestCase):
         mock_create_for_public_partitions.assert_not_called()
         mock_create_for_private_partitions.assert_called_once_with(0.5)
 
-    def test_sum_metrics_to_data_dropped(self):
+    def test_sum_metrics_to_data_dropped_count(self):
         input = _get_sum_metrics()
         output = cross_partition_combiners._sum_metrics_to_data_dropped(
             input,
@@ -159,6 +161,25 @@ class PerPartitionToCrossPartitionMetrics(parameterized.TestCase):
         self.assertEqual(
             output,
             metrics.DataDropInfo(l0=2.0, linf=5.0, partition_selection=1.5))
+
+    def test_sum_metrics_to_data_dropped_sum(self):
+        input = metrics.SumMetrics(aggregation=pipeline_dp.Metrics.SUM,
+                                   sum=12,
+                                   clipping_to_min_error=3.0,
+                                   clipping_to_max_error=-5.0,
+                                   expected_l0_bounding_error=-2.0,
+                                   std_l0_bounding_error=3.0,
+                                   std_noise=4.0,
+                                   noise_kind=pipeline_dp.NoiseKind.LAPLACE)
+
+        output = cross_partition_combiners._sum_metrics_to_data_dropped(
+            input,
+            partition_keep_probability=0.5,
+            dp_metric=pipeline_dp.Metrics.SUM)
+
+        self.assertEqual(
+            output,
+            metrics.DataDropInfo(l0=2.0, linf=8.0, partition_selection=1.0))
 
     def test_sum_metrics_to_data_dropped_public_partition(self):
         input = _get_sum_metrics()
