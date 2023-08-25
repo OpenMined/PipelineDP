@@ -28,8 +28,6 @@ from typing import Callable, List, Optional, Tuple, Union, Sequence
 from enum import Enum
 import numpy as np
 
-from pipeline_dp import private_contribution_bounds
-
 
 class MinimizingFunction(Enum):
     ABSOLUTE_ERROR = 'absolute_error'
@@ -140,6 +138,11 @@ def _find_candidate_parameters(
     l0_bounds = linf_bounds = None
     max_sum_per_partition_bounds = min_sum_per_partition_bounds = None
 
+    if calculate_sum_per_partition_param:
+        assert not parameters_to_tune.min_sum_per_partition, "Tuning of min_sum_per_partition is not supported yet"
+        assert hist.linf_sum_contributions_histogram.bins[
+            0].lower >= 0, "max_sum_per_partition should not contain negative sums because min_sum_per_partition tuning is not supported yet and therefore tuning for max_sum_per_partition works only when linf_sum_contributions_histogram does not negative sums"
+
     if calculate_l0_param and calculate_linf_param:
         l0_bounds, linf_bounds = _find_candidates_parameters_in_2d_grid(
             hist.l0_contributions_histogram, hist.linf_contributions_histogram,
@@ -151,7 +154,6 @@ def _find_candidate_parameters(
             hist.linf_sum_contributions_histogram,
             _find_candidates_constant_relative_step,
             _find_candidates_bins_max_values_subsample, max_candidates)
-        _assert_sum_non_negative(hist)
         min_sum_per_partition_bounds = [0] * len(max_sum_per_partition_bounds)
     elif calculate_l0_param:
         l0_bounds = _find_candidates_constant_relative_step(
@@ -162,7 +164,6 @@ def _find_candidate_parameters(
     elif calculate_sum_per_partition_param:
         max_sum_per_partition_bounds = _find_candidates_bins_max_values_subsample(
             hist.linf_sum_contributions_histogram, max_candidates)
-        _assert_sum_non_negative(hist)
         min_sum_per_partition_bounds = [0] * len(max_sum_per_partition_bounds)
     else:
         assert False, "Nothing to tune."
@@ -172,11 +173,6 @@ def _find_candidate_parameters(
         max_contributions_per_partition=linf_bounds,
         min_sum_per_partition=min_sum_per_partition_bounds,
         max_sum_per_partition=max_sum_per_partition_bounds)
-
-
-def _assert_sum_non_negative(histograms: histograms.DatasetHistograms):
-    assert histograms.linf_sum_contributions_histogram.bins[
-        0].lower >= 0, "Candidates search for negative sums is not supported yet"
 
 
 def _find_candidates_parameters_in_2d_grid(
@@ -249,8 +245,9 @@ def _find_candidates_bins_max_values_subsample(
     max_candidates = min(max_candidates, len(histogram.bins))
     ids = np.round(np.linspace(0, len(histogram.bins) - 1,
                                num=max_candidates)).astype(int)
-    bin_maximums = list(map(lambda bin: bin.max, histogram.bins))
-    return bin_maximums[ids]
+    bin_maximums = np.fromiter(map(lambda bin: bin.max, histogram.bins),
+                               dtype=np.float)
+    return bin_maximums[ids].tolist()
 
 
 def tune(col,
@@ -373,10 +370,11 @@ def _check_tune_args(options: TuneOptions, is_public_partitions: bool):
             f"Tuning supports only one metric, but {metrics} given.")
     else:  # len(metrics) == 1
         if metrics[0] not in [
-                pipeline_dp.Metrics.COUNT, pipeline_dp.Metrics.PRIVACY_ID_COUNT
+                pipeline_dp.Metrics.COUNT, pipeline_dp.Metrics.PRIVACY_ID_COUNT,
+                pipeline_dp.Metrics.SUM
         ]:
             raise ValueError(
-                f"Tuning is supported only for Count and Privacy id count, but {metrics[0]} given."
+                f"Tuning is supported only for Count, Privacy id count and Sum, but {metrics[0]} given."
             )
 
     if options.function_to_minimize != MinimizingFunction.ABSOLUTE_ERROR:
