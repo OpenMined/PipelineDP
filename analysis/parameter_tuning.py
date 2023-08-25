@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import math
+from numbers import Number
 
 import pipeline_dp
 from pipeline_dp import pipeline_backend
@@ -23,7 +24,7 @@ from analysis import utility_analysis
 
 import dataclasses
 from dataclasses import dataclass
-from typing import Callable, List, Optional, Tuple, Union
+from typing import Callable, List, Optional, Tuple, Union, Sequence
 from enum import Enum
 import numpy as np
 
@@ -150,6 +151,7 @@ def _find_candidate_parameters(
             hist.linf_sum_contributions_histogram,
             _find_candidates_constant_relative_step,
             _find_candidates_bins_max_values_subsample, max_candidates)
+        _assert_sum_non_negative(hist)
         min_sum_per_partition_bounds = [0] * len(max_sum_per_partition_bounds)
     elif calculate_l0_param:
         l0_bounds = _find_candidates_constant_relative_step(
@@ -160,6 +162,7 @@ def _find_candidate_parameters(
     elif calculate_sum_per_partition_param:
         max_sum_per_partition_bounds = _find_candidates_bins_max_values_subsample(
             hist.linf_sum_contributions_histogram, max_candidates)
+        _assert_sum_non_negative(hist)
         min_sum_per_partition_bounds = [0] * len(max_sum_per_partition_bounds)
     else:
         assert False, "Nothing to tune."
@@ -171,9 +174,17 @@ def _find_candidate_parameters(
         max_sum_per_partition=max_sum_per_partition_bounds)
 
 
-def _find_candidates_parameters_in_2d_grid(hist1, hist2, find_candidates_func1,
-                                           find_candidates_func2,
-                                           max_candidates):
+def _assert_sum_non_negative(histograms: histograms.DatasetHistograms):
+    assert histograms.linf_sum_contributions_histogram.bins[
+        0].lower >= 0, "Candidates search for negative sums is not supported yet"
+
+
+def _find_candidates_parameters_in_2d_grid(
+        hist1: histograms.Histogram, hist2: histograms.Histogram,
+        find_candidates_func1: Callable[[histograms.Histogram, int],
+                                        Sequence[Number]],
+        find_candidates_func2: Callable[[histograms.Histogram, int],
+                                        Sequence[Number]], max_candidates: int):
     max_candidates_per_parameter = int(math.sqrt(max_candidates))
     param1_candidates = find_candidates_func1(hist1,
                                               max_candidates_per_parameter)
