@@ -142,7 +142,8 @@ def _find_candidate_parameters(
     if calculate_l0_param and calculate_linf_param:
         l0_bounds, linf_bounds = _find_candidates_parameters_in_2d_grid(
             hist.l0_contributions_histogram, hist.linf_contributions_histogram,
-            _find_candidates_constant_relative_step, _find_candidates_constant_relative_step, max_candidates)
+            _find_candidates_constant_relative_step,
+            _find_candidates_constant_relative_step, max_candidates)
     elif calculate_l0_param and calculate_sum_per_partition_param:
         l0_bounds, max_sum_per_partition_bounds = _find_candidates_parameters_in_2d_grid(
             hist.l0_contributions_histogram,
