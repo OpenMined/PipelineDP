@@ -1093,6 +1093,9 @@ class DpEngineTest(parameterized.TestCase):
 
         return col
 
+    @unittest.skipIf(
+        sys.version_info.major == 3 and sys.version_info.minor == 8,
+        "There are some problems with dp_accounting library in python 3.8")
     @parameterized.parameters(False, True)
     def test_run_e2e_count_public_partition_local(self, pld_accounting):
         Accountant = pipeline_dp.PLDBudgetAccountant if pld_accounting else pipeline_dp.NaiveBudgetAccountant
