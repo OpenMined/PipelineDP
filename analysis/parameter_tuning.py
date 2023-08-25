@@ -35,18 +35,6 @@ class MinimizingFunction(Enum):
     RELATIVE_ERROR = 'relative_error'
 
 
-class ParametersSearchStrategy(Enum):
-    """Strategy types for selecting candidate parameters."""
-
-    # Picks up candidates that correspond tp a predefined list of quantiles.
-    QUANTILES = 1
-    # Candidates are a sequence starting from 1 where relative difference
-    # between two neighbouring elements is the same. Mathematically it means
-    # that candidates are a sequence a_i, where
-    # a_i = max_value^(i / (max_candidates - 1)), i in [0..(max_candidates - 1)]
-    CONSTANT_RELATIVE_STEP = 2
-
-
 @dataclass
 class ParametersToTune:
     """Contains parameters to tune."""
@@ -82,8 +70,6 @@ class TuneOptions:
         pre_aggregated_data: when True the input data is already pre-aggregated,
           otherwise the input data are raw. Preaggregated data also can be
           sampled.
-        parameters_search_strategy: specifies how to select candidates for
-          parameters.
         number_of_parameter_candidates: how many candidates to generate for
           parameter tuning. This is an upper bound, there can be fewer
           candidates generated.
@@ -96,7 +82,6 @@ class TuneOptions:
     parameters_to_tune: ParametersToTune
     partitions_sampling_prob: float = 1
     pre_aggregated_data: bool = False
-    parameters_search_strategy: ParametersSearchStrategy = ParametersSearchStrategy.CONSTANT_RELATIVE_STEP
     number_of_parameter_candidates: int = 100
 
     def __post_init__(self):
@@ -131,7 +116,6 @@ def _find_candidate_parameters(
         hist: histograms.DatasetHistograms,
         parameters_to_tune: ParametersToTune,
         metric: Optional[pipeline_dp.Metric],
-        strategy: ParametersSearchStrategy,
         max_candidates: int) -> analysis.MultiParameterConfiguration:
     """Finds candidates for l0 and/or l_inf parameters.
 
@@ -140,19 +124,10 @@ def _find_candidate_parameters(
         parameters_to_tune: which parameters to tune.
         metric: dp aggregation for which candidates are computed. If metric is
           None, it means no metrics to compute, i.e. only select partitions.
-        strategy: determines the strategy how to select candidates, see comments
-          to enum values for full description of the respective strategies.
         max_candidates: how many candidates ((l0, linf) pairs) can be in the
           output. Note that output can contain fewer candidates. 100 is default
           heuristically chosen value, better to adjust it for your use-case.
     """
-    if strategy == ParametersSearchStrategy.QUANTILES:
-        find_candidates_func = _find_candidates_quantiles
-    elif strategy == ParametersSearchStrategy.CONSTANT_RELATIVE_STEP:
-        find_candidates_func = _find_candidates_constant_relative_step
-    else:
-        raise ValueError("Unknown strategy for candidate parameters search.")
-
     calculate_l0_param = parameters_to_tune.max_partitions_contributed
     generate_linf = metric == pipeline_dp.Metrics.COUNT
     calculate_linf_param = (parameters_to_tune.max_contributions_per_partition
@@ -161,9 +136,9 @@ def _find_candidate_parameters(
 
     if calculate_l0_param and calculate_linf_param:
         max_candidates_per_parameter = int(math.sqrt(max_candidates))
-        l0_candidates = find_candidates_func(hist.l0_contributions_histogram,
-                                             max_candidates_per_parameter)
-        linf_candidates = find_candidates_func(
+        l0_candidates = _find_candidates_constant_relative_step(
+            hist.l0_contributions_histogram, max_candidates_per_parameter)
+        linf_candidates = _find_candidates_constant_relative_step(
             hist.linf_contributions_histogram, max_candidates_per_parameter)
         l0_bounds, linf_bounds = [], []
 
@@ -171,12 +146,12 @@ def _find_candidate_parameters(
         # candidates for the other parameter.
         if (len(linf_candidates) < max_candidates_per_parameter and
                 len(l0_candidates) == max_candidates_per_parameter):
-            l0_candidates = find_candidates_func(
+            l0_candidates = _find_candidates_constant_relative_step(
                 hist.l0_contributions_histogram,
                 int(max_candidates / len(linf_candidates)))
         elif (len(l0_candidates) < max_candidates_per_parameter and
               len(linf_candidates) == max_candidates_per_parameter):
-            linf_candidates = find_candidates_func(
+            linf_candidates = _find_candidates_constant_relative_step(
                 hist.linf_contributions_histogram,
                 int(max_candidates / len(l0_candidates)))
 
@@ -185,11 +160,11 @@ def _find_candidate_parameters(
                 l0_bounds.append(l0)
                 linf_bounds.append(linf)
     elif calculate_l0_param:
-        l0_bounds = find_candidates_func(hist.l0_contributions_histogram,
-                                         max_candidates)
+        l0_bounds = _find_candidates_constant_relative_step(
+            hist.l0_contributions_histogram, max_candidates)
     elif calculate_linf_param:
-        linf_bounds = find_candidates_func(hist.linf_contributions_histogram,
-                                           max_candidates)
+        linf_bounds = _find_candidates_constant_relative_step(
+            hist.linf_contributions_histogram, max_candidates)
     else:
         assert False, "Nothing to tune."
 
@@ -198,20 +173,15 @@ def _find_candidate_parameters(
         max_contributions_per_partition=linf_bounds)
 
 
-def _find_candidates_quantiles(histogram: histograms.Histogram,
-                               max_candidates: int) -> List[int]:
-    """Implementation of QUANTILES strategy."""
-    quantiles_to_use = [0.9, 0.95, 0.98, 0.99, 0.995]
-    candidates = histogram.quantiles(quantiles_to_use)
-    candidates.append(histogram.max_value())
-    candidates = list(set(candidates))  # remove duplicates
-    candidates.sort()
-    return candidates[:max_candidates]
-
-
 def _find_candidates_constant_relative_step(histogram: histograms.Histogram,
                                             max_candidates: int) -> List[int]:
-    """Implementation of CONSTANT_RELATIVE_STEP strategy."""
+    """Finds candidates with constant relative step.
+
+    Candidates are a sequence starting from 1 where relative difference
+    between two neighbouring elements is the same. Mathematically it means
+    that candidates are a sequence a_i, where
+    a_i = max_value^(i / (max_candidates - 1)), i in [0..(max_candidates - 1)]
+    """
     max_value = histogram.max_value()
     assert max_value >= 1, "max_value has to be >= 1."
     max_candidates = min(max_candidates, max_value)
@@ -244,8 +214,7 @@ def tune(col,
     """Tunes parameters.
 
     It works in the following way:
-        1. Candidates for contribution bounding parameters chosen based on
-          options.parameters_search_strategy strategy.
+        1. Find candidates for contribution bounding parameters.
         2. Utility analysis run for those parameters.
         3. The best parameter set is chosen according to
           options.minimizing_function.
@@ -282,7 +251,6 @@ def tune(col,
 
     candidates = _find_candidate_parameters(
         contribution_histograms, options.parameters_to_tune, metric,
-        options.parameters_search_strategy,
         options.number_of_parameter_candidates)
 
     utility_analysis_options = analysis.UtilityAnalysisOptions(
