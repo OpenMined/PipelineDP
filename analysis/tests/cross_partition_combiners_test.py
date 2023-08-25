@@ -108,10 +108,14 @@ class PerPartitionToCrossPartitionMetrics(parameterized.TestCase):
         per_partition_utility = metrics.PerPartitionMetrics(
             partition_selection_probability_to_keep=0.2,
             raw_statistics=metrics.RawStatistics(privacy_id_count=10, count=15),
-            metric_errors=[_get_sum_metrics(),
-                           _get_sum_metrics()])
+            metric_errors=[
+                _get_sum_metrics(),
+                _get_sum_metrics(),
+                _get_sum_metrics()
+            ])
         dp_metrics = [
-            pipeline_dp.Metrics.PRIVACY_ID_COUNT, pipeline_dp.Metrics.COUNT, pipeline_dp.Metrics.SUM
+            pipeline_dp.Metrics.PRIVACY_ID_COUNT, pipeline_dp.Metrics.COUNT,
+            pipeline_dp.Metrics.SUM
         ]
         cross_partition_combiners._per_partition_to_utility_report(
             per_partition_utility,
