@@ -12,9 +12,8 @@ install_requires = \
 ['numpy>=1.20.1,<2.0.0',
  'python-dp>=1.1.4',
  'scipy>=1.7.3,<2.0.0',
- 'dp_accounting>=0.4.2',
- 'attrs' # dependency of dp_accounting
- ]
+ 'dp_accounting>=0.4.2'
+]
 
 
 def read(fname):

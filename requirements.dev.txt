@@ -12,4 +12,3 @@ pylint
 yapf
 dp-accounting==0.4.2
 python-dp==1.1.4
-attrs
