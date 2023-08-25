@@ -22,6 +22,9 @@ from common_utils import parse_file, write_to_file
 FLAGS = flags.FLAGS
 flags.DEFINE_string('input_file', None, 'The file with the movie view data')
 flags.DEFINE_string('output_file', None, 'Output file')
+flags.DEFINE_bool(
+    'pld_accounting', False, 'If false Naive budget accounting '
+    'is used, if true PLD accounting')
 
 
 def main(unused_argv):
@@ -33,8 +36,12 @@ def main(unused_argv):
     backend = pipeline_dp.LocalBackend()
 
     # Define the privacy budget available for our computation.
-    budget_accountant = pipeline_dp.NaiveBudgetAccountant(total_epsilon=1,
-                                                          total_delta=1e-6)
+    if FLAGS.pld_accounting:
+        budget_accountant = pipeline_dp.PLDBudgetAccountant(total_epsilon=1,
+                                                            total_delta=1e-6)
+    else:
+        budget_accountant = pipeline_dp.NaiveBudgetAccountant(total_epsilon=1,
+                                                              total_delta=1e-6)
 
     # Load and parse input data
     movie_views = parse_file(FLAGS.input_file)
@@ -42,16 +49,24 @@ def main(unused_argv):
     # Create a DPEngine instance.
     dp_engine = pipeline_dp.DPEngine(budget_accountant, backend)
 
-    params = pipeline_dp.AggregateParams(
-        metrics=[
-            # we can compute multiple metrics at once.
-            pipeline_dp.Metrics.COUNT,
-            pipeline_dp.Metrics.SUM,
-            pipeline_dp.Metrics.PRIVACY_ID_COUNT,
+    # Define metrics to compute. We can compute multiple metrics at once.
+    metrics = [
+        # We can compute multiple metrics at once.
+        pipeline_dp.Metrics.COUNT,
+        pipeline_dp.Metrics.SUM,
+        pipeline_dp.Metrics.PRIVACY_ID_COUNT
+    ]
+    if not FLAGS.pld_accounting:
+        # PLD accounting does not yet support PERCENTILE computations.
+        metrics.extend([
             pipeline_dp.Metrics.PERCENTILE(50),
             pipeline_dp.Metrics.PERCENTILE(90),
             pipeline_dp.Metrics.PERCENTILE(99)
-        ],
+        ])
+    params = pipeline_dp.AggregateParams(
+        metrics=metrics,
+        # Add Gaussian noise to anonymize values.
+        noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
         # Limits to how much one user can contribute:
         # .. at most two movies rated per user
         max_partitions_contributed=2,
@@ -82,6 +97,7 @@ def main(unused_argv):
         movie_views,
         params,
         data_extractors,
+        public_partitions=list(range(1, 100)),
         out_explain_computation_report=explain_computation_report)
 
     budget_accountant.compute_budgets()
