@@ -246,7 +246,7 @@ def _find_candidates_bins_max_values_subsample(
     ids = np.round(np.linspace(0, len(histogram.bins) - 1,
                                num=max_candidates)).astype(int)
     bin_maximums = np.fromiter(map(lambda bin: bin.max, histogram.bins),
-                               dtype=np.float)
+                               dtype=float)
     return bin_maximums[ids].tolist()
 
 
