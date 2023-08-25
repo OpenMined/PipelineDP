@@ -73,6 +73,17 @@ class Combiner(abc.ABC):
     def explain_computation(self) -> ExplainComputationReport:
         pass
 
+    def expects_per_partition_sampling(self) -> bool:
+        """Whether this combiner expects sampled data per partition.
+
+        If this method returns True, the framework samples data per partition
+        up to aggregate_params.max_contributions_per_partition elements before
+        calling self.create_accumulator(). Otherwise all elements per
+        (privacy_id, partition_key) are passed to create_accumulator() and this
+        combiner has the full responsibility to bound sensitivity.
+        """
+        return True
+
 
 class CustomCombiner(Combiner, abc.ABC):
     """Base class for custom combiners.
@@ -309,6 +320,9 @@ class PrivacyIdCountCombiner(Combiner, AdditiveMechanismMixin):
     def sensitivities(self) -> dp_computations.Sensitivities:
         return self._sensitivities
 
+    def expects_per_partition_sampling(self) -> bool:
+        return False
+
 
 class SumCombiner(Combiner, AdditiveMechanismMixin):
     """Combiner for computing dp sum.
@@ -346,6 +360,9 @@ class SumCombiner(Combiner, AdditiveMechanismMixin):
 
     def metrics_names(self) -> List[str]:
         return ['sum']
+
+    def expects_per_partition_sampling(self) -> bool:
+        return not self._bounding_per_partition
 
     def explain_computation(self) -> ExplainComputationReport:
 
@@ -717,6 +734,9 @@ class CompoundCombiner(Combiner):
 
     def explain_computation(self) -> ExplainComputationReport:
         return [combiner.explain_computation() for combiner in self._combiners]
+
+    def expects_per_partition_sampling(self) -> bool:
+        return any(c.expects_per_partition_sampling() for c in self._combiners)
 
 
 class VectorSumCombiner(Combiner):

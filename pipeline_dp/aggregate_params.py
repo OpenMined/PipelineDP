@@ -18,7 +18,7 @@ import logging
 import math
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Iterable, Sequence, Callable, Union, Optional, List
+from typing import Any, Sequence, Callable, Optional, List
 
 import numpy as np
 

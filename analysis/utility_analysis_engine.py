@@ -86,7 +86,8 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
         return result
 
     def _create_contribution_bounder(
-        self, params: pipeline_dp.AggregateParams
+        self, params: pipeline_dp.AggregateParams,
+        expects_per_partition_sampling: bool
     ) -> contribution_bounders.ContributionBounder:
         """Creates ContributionBounder for utility analysis."""
         if self._options.pre_aggregated_data:
