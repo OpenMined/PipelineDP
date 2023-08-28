@@ -401,7 +401,8 @@ def _check_tune_args(options: TuneOptions, is_public_partitions: bool):
             )
 
     if options.parameters_to_tune.min_sum_per_partition:
-        raise ValueError("Tuning of min_sum_per_partition is not supported yet")
+        raise ValueError(
+            "Tuning of min_sum_per_partition is not supported yet.")
 
     if options.function_to_minimize != MinimizingFunction.ABSOLUTE_ERROR:
         raise NotImplementedError(

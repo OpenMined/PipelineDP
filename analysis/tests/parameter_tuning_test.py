@@ -260,37 +260,6 @@ class ParameterTuning(parameterized.TestCase):
         self.assertEqual([0] * len(expected_candidates),
                          candidates.min_sum_per_partition)
 
-    def test_find_candidate_parameters_min_sum_per_partition_is_not_supported(
-            self):
-        parameters_to_tune = parameter_tuning.ParametersToTune(
-            min_sum_per_partition=True, max_sum_per_partition=True)
-
-        with self.assertRaisesRegex(
-                AssertionError,
-                "Tuning of min_sum_per_partition is not supported yet"):
-            parameter_tuning._find_candidate_parameters(
-                hist=None,
-                parameters_to_tune=parameters_to_tune,
-                metric=pipeline_dp.Metrics.SUM,
-                max_candidates=0)
-
-    def test_find_candidate_parameters_sums_has_to_be_non_negative(self):
-        mock_linf_sum_contributions_histogram = histograms.Histogram(
-            None, [_frequency_bin(lower=-1.0)])
-        mock_histograms = histograms.DatasetHistograms(
-            None, None, None, mock_linf_sum_contributions_histogram, None, None)
-        parameters_to_tune = parameter_tuning.ParametersToTune(
-            min_sum_per_partition=False, max_sum_per_partition=True)
-
-        with self.assertRaisesRegex(
-                AssertionError,
-                "max_sum_per_partition should not contain negative sums"):
-            parameter_tuning._find_candidate_parameters(
-                hist=mock_histograms,
-                parameters_to_tune=parameters_to_tune,
-                metric=pipeline_dp.Metrics.SUM,
-                max_candidates=0)
-
     def test_find_candidate_parameters_both_l0_and_linf_sum_to_be_tuned(self):
         mock_l0_histogram = histograms.Histogram(None, None)
         mock_l0_histogram.max_value = mock.Mock(return_value=6)
@@ -563,6 +532,23 @@ class ParameterTuning(parameterized.TestCase):
             parameter_tuning.tune(input, pipeline_dp.LocalBackend(),
                                   contribution_histograms, tune_options,
                                   data_extractors, public_partitions)
+
+    def test_tune_min_sum_per_partition_is_not_supported(self):
+        tune_options = _get_tune_options([pipeline_dp.Metrics.SUM],
+                                         parameter_tuning.ParametersToTune(
+                                             max_partitions_contributed=True,
+                                             min_sum_per_partition=True,
+                                             max_sum_per_partition=True))
+        contribution_histograms = histograms.DatasetHistograms(
+            None, None, None, None, None, None)
+        data_extractors = pipeline_dp.DataExtractors(
+            privacy_id_extractor=lambda _: 0, partition_extractor=lambda _: 0)
+        with self.assertRaisesRegex(
+                ValueError,
+                "Tuning of min_sum_per_partition is not supported yet."):
+            parameter_tuning.tune(input, pipeline_dp.LocalBackend(),
+                                  contribution_histograms, tune_options,
+                                  data_extractors)
 
 
 if __name__ == '__main__':

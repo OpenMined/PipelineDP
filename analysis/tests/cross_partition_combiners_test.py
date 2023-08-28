@@ -24,10 +24,10 @@ from analysis import cross_partition_combiners
 import pipeline_dp
 
 
-def _get_sum_metrics(sum=10.0):
-    return metrics.SumMetrics(aggregation=pipeline_dp.Metrics.SUM,
+def _get_default_sum_metrics(metric=pipeline_dp.Metrics.COUNT, sum=10.0):
+    return metrics.SumMetrics(aggregation=metric,
                               sum=sum,
-                              clipping_to_min_error=3.0,
+                              clipping_to_min_error=0.0,
                               clipping_to_max_error=-5.0,
                               expected_l0_bounding_error=-2.0,
                               std_l0_bounding_error=3.0,
@@ -41,7 +41,14 @@ class PerPartitionToCrossPartitionMetrics(parameterized.TestCase):
         metric=[pipeline_dp.Metrics.COUNT, pipeline_dp.Metrics.SUM],
         keep_prob=[1, 0.25])
     def test_metric_utility(self, metric: pipeline_dp.Metric, keep_prob: float):
-        input = _get_sum_metrics()
+        input = metrics.SumMetrics(aggregation=metric,
+                                   sum=10.0,
+                                   clipping_to_min_error=0.0,
+                                   clipping_to_max_error=-5.0,
+                                   expected_l0_bounding_error=-2.0,
+                                   std_l0_bounding_error=3.0,
+                                   std_noise=4.0,
+                                   noise_kind=pipeline_dp.NoiseKind.LAPLACE)
         output: metrics.MetricUtility = cross_partition_combiners._sum_metrics_to_metric_utility(
             input,
             metric,
@@ -54,23 +61,29 @@ class PerPartitionToCrossPartitionMetrics(parameterized.TestCase):
 
         # Check absolute_error.
         abs_error: metrics.ValueErrors = output.absolute_error
-        self.assertEqual(abs_error.mean, -4 * keep_prob)
-        self.assertEqual(abs_error.variance, 25 * keep_prob)
+        # (expected_l0_bounding_error + clipping_to_min_error +
+        # clipping_to_max_error) = -7
+        self.assertEqual(abs_error.mean, (-2 + 0 + (-5)) * keep_prob)
+        # (std_l0_bounding_error**2 + std_noise**2) = 25
+        self.assertEqual(abs_error.variance, (3**2 + 4**2) * keep_prob)
+        # sqrt(mean ** 2 + variance)
         self.assertAlmostEqual(abs_error.rmse,
-                               math.sqrt(4 * 4 + 25) * keep_prob,
+                               math.sqrt(7**2 + 25) * keep_prob,
                                delta=1e-12)
 
         bounding_errors = abs_error.bounding_errors
-        self.assertEqual(bounding_errors.l0,
-                         metrics.MeanVariance(-2.0 * keep_prob, 9 * keep_prob))
-        self.assertEqual(bounding_errors.linf_min, 3.0 * keep_prob)
+        self.assertEqual(
+            bounding_errors.l0,
+            metrics.MeanVariance(-2.0 * keep_prob, (3**2) * keep_prob))
+        self.assertEqual(bounding_errors.linf_min, 0.0 * keep_prob)
         self.assertEqual(bounding_errors.linf_max, -5.0 * keep_prob)
 
         # Check relative_error.
         expected_rel_error = abs_error.to_relative(input.sum)
         self.assertEqual(output.relative_error, expected_rel_error)
+        # mean / sum = -7 / 10
         self.assertAlmostEqual(output.relative_error.mean,
-                               -0.4 * keep_prob,
+                               -0.7 * keep_prob,
                                delta=1e-12)
 
     @parameterized.parameters(False, True)
@@ -109,9 +122,10 @@ class PerPartitionToCrossPartitionMetrics(parameterized.TestCase):
             partition_selection_probability_to_keep=0.2,
             raw_statistics=metrics.RawStatistics(privacy_id_count=10, count=15),
             metric_errors=[
-                _get_sum_metrics(),
-                _get_sum_metrics(),
-                _get_sum_metrics()
+                _get_default_sum_metrics(
+                    metric=pipeline_dp.Metrics.PRIVACY_ID_COUNT),
+                _get_default_sum_metrics(metric=pipeline_dp.Metrics.COUNT),
+                _get_default_sum_metrics(metric=pipeline_dp.Metrics.SUM)
             ])
         dp_metrics = [
             pipeline_dp.Metrics.PRIVACY_ID_COUNT, pipeline_dp.Metrics.COUNT,
@@ -157,7 +171,14 @@ class PerPartitionToCrossPartitionMetrics(parameterized.TestCase):
         mock_create_for_private_partitions.assert_called_once_with(0.5)
 
     def test_sum_metrics_to_data_dropped_count(self):
-        input = _get_sum_metrics()
+        input = metrics.SumMetrics(aggregation=pipeline_dp.Metrics.COUNT,
+                                   sum=10.0,
+                                   clipping_to_min_error=0.0,
+                                   clipping_to_max_error=-5.0,
+                                   expected_l0_bounding_error=-2.0,
+                                   std_l0_bounding_error=3.0,
+                                   std_noise=4.0,
+                                   noise_kind=pipeline_dp.NoiseKind.LAPLACE)
         output = cross_partition_combiners._sum_metrics_to_data_dropped(
             input,
             partition_keep_probability=0.5,
@@ -186,7 +207,7 @@ class PerPartitionToCrossPartitionMetrics(parameterized.TestCase):
             metrics.DataDropInfo(l0=2.0, linf=8.0, partition_selection=1.0))
 
     def test_sum_metrics_to_data_dropped_public_partition(self):
-        input = _get_sum_metrics()
+        input = _get_default_sum_metrics(metric=pipeline_dp.Metrics.COUNT)
         output = cross_partition_combiners._sum_metrics_to_data_dropped(
             input,
             partition_keep_probability=1.0,
@@ -338,7 +359,7 @@ class CrossPartitionCombiner(parameterized.TestCase):
         per_partition_metrics = metrics.PerPartitionMetrics(
             partition_selection_probability_to_keep=prob_keep,
             raw_statistics=metrics.RawStatistics(privacy_id_count=3, count=9),
-            metric_errors=[_get_sum_metrics(sum=10.0)])
+            metric_errors=[_get_default_sum_metrics(sum=10.0)])
         sum_actual, utility_report, weight = combiner.create_accumulator(
             per_partition_metrics)
         self.assertEqual(sum_actual, (10.0,))
@@ -353,7 +374,7 @@ class CrossPartitionCombiner(parameterized.TestCase):
         per_partition_metrics = metrics.PerPartitionMetrics(
             partition_selection_probability_to_keep=0.2,
             raw_statistics=metrics.RawStatistics(privacy_id_count=3, count=9),
-            metric_errors=[_get_sum_metrics(sum=5.0)])
+            metric_errors=[_get_default_sum_metrics(sum=5.0)])
         _, _, weight = combiner.create_accumulator(per_partition_metrics)
         self.assertEqual(weight, 5.0)
 
@@ -371,7 +392,9 @@ class CrossPartitionCombiner(parameterized.TestCase):
         per_partition_metrics = metrics.PerPartitionMetrics(
             partition_selection_probability_to_keep=prob_keep,
             raw_statistics=metrics.RawStatistics(privacy_id_count=3, count=9),
-            metric_errors=[_get_sum_metrics()])
+            metric_errors=[
+                _get_default_sum_metrics(metric=pipeline_dp.Metrics.COUNT)
+            ])
         combiner.create_accumulator(per_partition_metrics)
         mock_per_partition_to_utility_report.assert_called_once_with(
             per_partition_metrics, dp_metrics, public_partitions, prob_keep)
