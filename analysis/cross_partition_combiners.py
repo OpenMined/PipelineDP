@@ -32,9 +32,7 @@ def _sum_metrics_to_data_dropped(
     # 1. linf/l0 contribution bounding
     # Contribution bounding errors are negative, negate to keep data dropped
     # to be positive.
-    linf_dropped = -sum_metrics.clipping_to_max_error
-    if dp_metric == pipeline_dp.Metrics.SUM:
-        linf_dropped += sum_metrics.clipping_to_min_error
+    linf_dropped = sum_metrics.clipping_to_min_error - sum_metrics.clipping_to_max_error
     l0_dropped = -sum_metrics.expected_l0_bounding_error
 
     # 2. Partition selection (in case of private partition selection).

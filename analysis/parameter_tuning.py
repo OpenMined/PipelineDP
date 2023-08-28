@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import logging
 import math
 from numbers import Number
 
@@ -116,7 +117,7 @@ def _find_candidate_parameters(
         parameters_to_tune: ParametersToTune,
         metric: Optional[pipeline_dp.Metric],
         max_candidates: int) -> analysis.MultiParameterConfiguration:
-    """Finds candidates for l0 and/or l_inf parameters.
+    """Finds candidates for l0, l_inf and max_sum_per_partition_bounds parameters.
 
     Args:
         hist: dataset contribution histogram.
@@ -128,10 +129,10 @@ def _find_candidate_parameters(
           heuristically chosen value, better to adjust it for your use-case.
     """
     calculate_l0_param = parameters_to_tune.max_partitions_contributed
-    generate_linf = metric == pipeline_dp.Metrics.COUNT
+    generate_linf_count = metric == pipeline_dp.Metrics.COUNT
     generate_max_sum_per_partition = metric == pipeline_dp.Metrics.SUM
-    calculate_linf_param = (parameters_to_tune.max_contributions_per_partition
-                            and generate_linf)
+    calculate_linf_count = (parameters_to_tune.max_contributions_per_partition
+                            and generate_linf_count)
     calculate_sum_per_partition_param = (
         parameters_to_tune.max_sum_per_partition and
         generate_max_sum_per_partition)
@@ -139,11 +140,12 @@ def _find_candidate_parameters(
     max_sum_per_partition_bounds = min_sum_per_partition_bounds = None
 
     if calculate_sum_per_partition_param:
-        assert not parameters_to_tune.min_sum_per_partition, "Tuning of min_sum_per_partition is not supported yet"
-        assert hist.linf_sum_contributions_histogram.bins[
-            0].lower >= 0, "max_sum_per_partition should not contain negative sums because min_sum_per_partition tuning is not supported yet and therefore tuning for max_sum_per_partition works only when linf_sum_contributions_histogram does not negative sums"
+        if hist.linf_sum_contributions_histogram.bins[0].lower >= 0:
+            logging.warning(
+                "max_sum_per_partition should not contain negative sums because min_sum_per_partition tuning is not supported yet and therefore tuning for max_sum_per_partition works only when linf_sum_contributions_histogram does not negative sums"
+            )
 
-    if calculate_l0_param and calculate_linf_param:
+    if calculate_l0_param and calculate_linf_count:
         l0_bounds, linf_bounds = _find_candidates_parameters_in_2d_grid(
             hist.l0_contributions_histogram, hist.linf_contributions_histogram,
             _find_candidates_constant_relative_step,
@@ -158,7 +160,7 @@ def _find_candidate_parameters(
     elif calculate_l0_param:
         l0_bounds = _find_candidates_constant_relative_step(
             hist.l0_contributions_histogram, max_candidates)
-    elif calculate_linf_param:
+    elif calculate_linf_count:
         linf_bounds = _find_candidates_constant_relative_step(
             hist.linf_contributions_histogram, max_candidates)
     elif calculate_sum_per_partition_param:
@@ -180,7 +182,29 @@ def _find_candidates_parameters_in_2d_grid(
         find_candidates_func1: Callable[[histograms.Histogram, int],
                                         Sequence[Number]],
         find_candidates_func2: Callable[[histograms.Histogram, int],
-                                        Sequence[Number]], max_candidates: int):
+                                        Sequence[Number]],
+        max_candidates: int) -> Tuple[Sequence[Number], Sequence[Number]]:
+    """Finds candidates for 2 parameters.
+
+    If we have 2 parameters to tune, then candidates for them form a 2
+    dimensional grid. If for one parameter there is less than
+    sqrt(max_candidates) candidates, we can add more candidates for the other
+    parameter. This function implements this logic.
+
+    Args:
+        hist1: histogram of the distribution of the first parameter.
+        hist2: histogram of the distribution of the second parameter.
+        find_candidates_func1: function that given hist1 and maximum of
+          candidates finds the candidates.
+        find_candidates_func2: function that given hist2 and maximum of
+          candidates finds the candidates.
+        max_candidates: maximum number of the candidates to produce.
+    Returns:
+        Two sequences which represent pairs of candidates for parameters 1 and
+          2. Sequences are of the same length and their lengths do not exceed
+          max_candidates.
+    """
+
     max_candidates_per_parameter = int(math.sqrt(max_candidates))
     param1_candidates = find_candidates_func1(hist1,
                                               max_candidates_per_parameter)
@@ -240,8 +264,7 @@ def _find_candidates_constant_relative_step(histogram: histograms.Histogram,
 
 def _find_candidates_bins_max_values_subsample(
         histogram: histograms.Histogram, max_candidates: int) -> List[float]:
-    """Takes max values of histogram bins with constant step between each other.
-    """
+    """Takes max values of histogram bins with constant step between each other."""
     max_candidates = min(max_candidates, len(histogram.bins))
     ids = np.round(np.linspace(0, len(histogram.bins) - 1,
                                num=max_candidates)).astype(int)
@@ -376,6 +399,9 @@ def _check_tune_args(options: TuneOptions, is_public_partitions: bool):
             raise ValueError(
                 f"Tuning is supported only for Count, Privacy id count and Sum, but {metrics[0]} given."
             )
+
+    if options.parameters_to_tune.min_sum_per_partition:
+        raise ValueError("Tuning of min_sum_per_partition is not supported yet")
 
     if options.function_to_minimize != MinimizingFunction.ABSOLUTE_ERROR:
         raise NotImplementedError(
