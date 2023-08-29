@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pipeline-dp"
-version = "0.2.1rc4"
+version = "0.2.1rc5"
 description = ""
 authors = ["Chinmay Shah <chinmayshah3899@gmail.com>", "Vadym Doroshenko <dvadym@google.com>"]
 license = "Apache-2.0"
@@ -9,7 +9,6 @@ license = "Apache-2.0"
 python = "^3.8, < 3.12"
 python-dp = "^1.1.4"
 numpy = "^1.20.1"
-dp_accounting = "^0.4.2"
 
 [tool.poetry.dev-dependencies]
 yapf = "^0.32.0"
