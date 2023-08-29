@@ -34,7 +34,7 @@ except:
 
 def _check_pldlib_imported() -> bool:
     import sys
-    return "pldlib" in sys.modules
+    return "dp_accounting.pld.privacy_loss_distribution" in sys.modules
 
 
 @dataclass

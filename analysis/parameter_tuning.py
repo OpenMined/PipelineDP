@@ -142,8 +142,10 @@ def _find_candidate_parameters(
     if calculate_sum_per_partition_param:
         if hist.linf_sum_contributions_histogram.bins[0].lower >= 0:
             logging.warning(
-                "max_sum_per_partition should not contain negative sums because min_sum_per_partition tuning is not supported yet and therefore tuning for max_sum_per_partition works only when linf_sum_contributions_histogram does not negative sums"
-            )
+                "max_sum_per_partition should not contain negative sums because"
+                " min_sum_per_partition tuning is not supported yet and "
+                "therefore tuning for max_sum_per_partition works only when "
+                "linf_sum_contributions_histogram does not negative sums")
 
     if calculate_l0_param and calculate_linf_count:
         l0_bounds, linf_bounds = _find_candidates_parameters_in_2d_grid(
