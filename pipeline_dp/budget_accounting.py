@@ -32,6 +32,11 @@ except:
     pass
 
 
+def _check_pldlib_imported() -> bool:
+    import sys
+    return "pldlib" in sys.modules
+
+
 @dataclass
 class MechanismSpec:
     """Specifies the parameters for a DP mechanism.
@@ -445,6 +450,13 @@ class PLDBudgetAccountant(BudgetAccountant):
 
         super().__init__(total_epsilon, total_delta, num_aggregations,
                          aggregation_weights)
+
+        if not _check_pldlib_imported():
+            raise ImportError("dp_accounting library is not imported. It is"
+                              "required for using PLD budget accounting. "
+                              "Please install dp_accounting library or use"
+                              "NaiveBudgetAccountant instead of "
+                              "PLDBudgetAccountant")
 
         self.minimum_noise_std = None
         self._pld_discretization = pld_discretization
