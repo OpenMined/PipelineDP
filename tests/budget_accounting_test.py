@@ -196,9 +196,8 @@ class NaiveBudgetAccountantTest(parameterized.TestCase):
             budget_accountant.compute_budgets()
 
 
-@unittest.skipIf(
-    sys.version_info.major == 3 and sys.version_info.minor == 8,
-    "There are some problems with dp_accounting library in python 3.8")
+@unittest.skipIf(sys.version_info.major == 3 and sys.version_info.minor <= 8,
+                 "dp_accounting library only support python >=3.9")
 class PLDBudgetAccountantTest(unittest.TestCase):
 
     def test_noise_not_calculated(self):

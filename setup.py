@@ -11,8 +11,7 @@ package_data = \
 install_requires = \
 ['numpy>=1.20.1,<2.0.0',
  'python-dp>=1.1.4',
- 'scipy>=1.7.3,<2.0.0',
- 'dp_accounting>=0.4.2'
+ 'scipy>=1.7.3,<2.0.0'
 ]
 
 
@@ -22,7 +21,7 @@ def read(fname):
 
 setup_kwargs = {
     'name': 'pipeline-dp',
-    'version': '0.2.1rc4',
+    'version': '0.2.1rc5',
     'description': 'Framework for applying differential privacy to large datasets using batch processing systems',
     'author': 'Chinmay Shah',
     'author_email': 'chinmayshah3899@gmail.com',
