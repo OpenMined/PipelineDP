@@ -55,7 +55,8 @@ def _get_tune_options(
 def _frequency_bin(max_value: float = 0.0, lower: float = 0.0) -> FrequencyBin:
     return FrequencyBin(max=max_value,
                         lower=lower,
-                        size=None,
+                        upper=None,
+                        upper_included=None,
                         count=None,
                         sum=None)
 
