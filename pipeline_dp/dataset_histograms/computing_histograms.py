@@ -25,10 +25,12 @@ from pipeline_dp.dataset_histograms import histograms as hist
 NUMBER_OF_BUCKETS_IN_LINF_SUM_CONTRIBUTIONS_HISTOGRAM = 10000
 
 
-def _to_bin_lower_logarithmic(value: int) -> int:
-    """Finds the lower bound of the histogram bin which contains the given integer.
+def _to_bin_lower_upper_logarithmic(value: int) -> Tuple[int, int]:
+    """Finds the lower and upper bounds of the histogram bin which contains
+    the given integer.
 
-    Keep in sync with private_contribution_bounds._generate_possible_contribution_bounds.
+    Keep algorithm in sync with
+    private_contribution_bounds._generate_possible_contribution_bounds.
     """
     # For scalability reasons bins can not be all width=1. For the goals of
     # contribution computations it is ok to have bins of larger values have
@@ -40,14 +42,21 @@ def _to_bin_lower_logarithmic(value: int) -> int:
         bound *= 10
 
     round_base = bound // 1000
-    return value // round_base * round_base
+    lower = value // round_base * round_base
+    bin_size = round_base if value != bound else round_base * 10
+    return lower, lower + bin_size
 
 
-def _to_bin_lower_with_lowers(lowers: List[float], value: float) -> float:
-    """Finds the lower bound of the histogram bin which contains the given number."""
+def _bin_lower_index(lowers: List[float], value: float) -> int:
+    """Finds the index of the lower bound of the histogram bin which contains
+    the given number."""
+    assert lowers[0] <= value
+    assert value <= lowers[-1]
+    if value == lowers[-1]:
+        # last value cannot be lower
+        return len(lowers) - 2
     bin_lower_idx = bisect.bisect_right(lowers, value) - 1
-    assert bin_lower_idx >= 0
-    return lowers[bin_lower_idx]
+    return bin_lower_idx
 
 
 def _compute_frequency_histogram(col, backend: pipeline_backend.PipelineBackend,
@@ -111,8 +120,10 @@ def _compute_frequency_histogram_helper(
 
     def _map_to_frequency_bin(value: int,
                               frequency: int) -> Tuple[int, hist.FrequencyBin]:
-        bin_lower = _to_bin_lower_logarithmic(value)
+        bin_lower, bin_upper = _to_bin_lower_upper_logarithmic(value)
         return bin_lower, hist.FrequencyBin(lower=bin_lower,
+                                            upper=bin_upper,
+                                            upper_included=False,
                                             count=frequency,
                                             sum=frequency * value,
                                             max=value)
@@ -135,6 +146,9 @@ def _compute_frequency_histogram_helper_with_lowers(
         name: name which is assigned to the computed histogram.
         lowers_col: collection of bin lowers of the histogram, necessary because
          we process float values, and they will be clipped to the nearest lower.
+         The first element of lowers must be equal to the minimal element
+         in the collection and the last element must be equal to the maximal
+         element.
     Returns:
         1 element collection which contains hist.Histogram.
     """
@@ -144,8 +158,13 @@ def _compute_frequency_histogram_helper_with_lowers(
     ) -> Tuple[float, hist.FrequencyBin]:
         # lowers_container is a list with one element that contains lowers list.
         lowers = lowers_container[0]
-        bin_lower = _to_bin_lower_with_lowers(lowers, value)
+        bin_lower_idx = _bin_lower_index(lowers, value)
+        bin_lower = lowers[bin_lower_idx]
+        bin_upper = lowers[bin_lower_idx + 1]
+        include_upper = bin_lower_idx + 1 == len(lowers) - 1
         return bin_lower, hist.FrequencyBin(lower=bin_lower,
+                                            upper=bin_upper,
+                                            upper_included=include_upper,
                                             count=1,
                                             sum=value,
                                             max=value)
@@ -341,9 +360,8 @@ def _min_max_lowers(col, number_of_buckets,
         backend, col, "Min and max value in dataset")
     # min_max_values: 1 element collection with a pair (min, max)
     return backend.map(
-        min_max_values,
-        lambda min_max: numpy.linspace(min_max[0], min_max[1],
-                                       (number_of_buckets + 1))[:-1],
+        min_max_values, lambda min_max: numpy.linspace(min_max[0], min_max[1],
+                                                       (number_of_buckets + 1)),
         "map to lowers")
 
 

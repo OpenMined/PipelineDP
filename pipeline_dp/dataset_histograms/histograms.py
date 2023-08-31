@@ -27,23 +27,37 @@ class FrequencyBin:
 
     Attributes:
       lower: the lower bound of the bin.
+      upper: the upper of the bin, i.e. values in the bin are in
+        [lower; upper} range ("}" means it can be either "]" or ")", see
+        upper_included to understand when it is "]" and when ")").
+      upper_included: if true, then bin range is [lower; upper], otherwise
+        [lower; upper). It can be included only for the last bin.
       count: the number of elements in the bin.
       sum: the sum of elements in the bin.
       max: the maximum element in the bin, which is smaller or equal to the
-       upper-1.
+        upper.
     """
     lower: Union[int, float]
+    upper: Union[int, float]
+    upper_included: bool
     count: int
     sum: Union[int, float]
     max: Union[int, float]
 
     def __add__(self, other: 'FrequencyBin') -> 'FrequencyBin':
-        return FrequencyBin(self.lower, self.count + other.count,
-                            self.sum + other.sum, max(self.max, other.max))
+        self._check_same_bin(other)
+        return FrequencyBin(self.lower, self.upper, self.upper_included,
+                            self.count + other.count, self.sum + other.sum,
+                            max(self.max, other.max))
 
     def __eq__(self, other):
         return (self.lower == other.lower and self.count == other.count and
                 self.sum == other.sum and self.max == other.max)
+
+    def _check_same_bin(self, other: 'FrequencyBin'):
+        assert self.lower == other.lower
+        assert self.upper == other.upper
+        assert self.upper_included == other.upper_included
 
 
 class HistogramType(enum.Enum):
