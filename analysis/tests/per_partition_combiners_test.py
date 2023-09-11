@@ -221,7 +221,8 @@ class PartitionSelectionTest(parameterized.TestCase):
             pipeline_dp.PartitionSelectionStrategy.TRUNCATED_GEOMETRIC,
             eps,
             delta,
-            max_partitions_contributed=1)
+            max_partitions_contributed=1,
+            pre_threshold=None)
         self.assertAlmostEqual(expected_probability_to_keep,
                                prob_to_keep,
                                delta=1e-10)
@@ -242,7 +243,7 @@ class PartitionSelectionTest(parameterized.TestCase):
         combiner.compute_metrics(acc)
         mock_compute_probability_to_keep.assert_called_with(
             pipeline_dp.PartitionSelectionStrategy.TRUNCATED_GEOMETRIC,
-            params.eps, params.delta, 1)
+            params.eps, params.delta, 1, None)
 
 
 def _create_combiner_params_for_sum(
