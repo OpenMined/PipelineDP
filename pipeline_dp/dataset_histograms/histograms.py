@@ -28,10 +28,10 @@ class FrequencyBin:
     Attributes:
       lower: the lower bound of the bin.
       upper: the upper of the bin, i.e. values in the bin are in
-        [lower; upper} range ("}" means it can be either "]" or ")", see
-        upper_included to understand when it is "]" and when ")").
-      upper_included: if true, then bin range is [lower; upper], otherwise
-        [lower; upper). It can be included only for the last bin.
+        [lower; upper} range ("}" means it can be either "]" or ")". It is
+        always not included if histogram lower and upper are integers or
+        if it is not the last bin of the histogram. If lower and upper are
+        real values, and it is the last bin then the upper is included.
       count: the number of elements in the bin.
       sum: the sum of elements in the bin.
       max: the maximum element in the bin, which is smaller or equal to the
@@ -39,16 +39,14 @@ class FrequencyBin:
     """
     lower: Union[int, float]
     upper: Union[int, float]
-    upper_included: bool
     count: int
     sum: Union[int, float]
     max: Union[int, float]
 
     def __add__(self, other: 'FrequencyBin') -> 'FrequencyBin':
         self._check_same_bin(other)
-        return FrequencyBin(self.lower, self.upper, self.upper_included,
-                            self.count + other.count, self.sum + other.sum,
-                            max(self.max, other.max))
+        return FrequencyBin(self.lower, self.upper, self.count + other.count,
+                            self.sum + other.sum, max(self.max, other.max))
 
     def __eq__(self, other):
         return (self.lower == other.lower and self.count == other.count and
@@ -57,7 +55,6 @@ class FrequencyBin:
     def _check_same_bin(self, other: 'FrequencyBin'):
         assert self.lower == other.lower
         assert self.upper == other.upper
-        assert self.upper_included == other.upper_included
 
 
 class HistogramType(enum.Enum):
@@ -80,7 +77,15 @@ class HistogramType(enum.Enum):
 
 @dataclass
 class Histogram:
-    """Represents a histogram over integers."""
+    """Represents a histogram over integers.
+
+    To calculate range of the histogram (i.e. min and max values on axis X)
+    you can do the following:
+      * if it is an int histogram, min is 1 and max is bins[-1].upper (or
+        bins[-1].max if you want precise bound).
+      * if it is float histogram, then min is bins[-1].lower and max is
+        bins[-1].upper which is included in this case.
+    """
     name: HistogramType
     bins: List[FrequencyBin]
 

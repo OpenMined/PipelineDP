@@ -48,28 +48,24 @@ class L0ScoringFunctionTest(unittest.TestCase):
             aggregation_eps=0.9,
             max_partitions_contributed_upper_bound=100)
         number_of_partitions = 200
-        l0_histogram = hist.Histogram(
-            name=hist.HistogramType.L0_CONTRIBUTIONS,
-            bins=[
-                hist.FrequencyBin(lower=1,
-                                  upper=2,
-                                  upper_included=False,
-                                  count=100,
-                                  sum=100,
-                                  max=1),
-                hist.FrequencyBin(lower=2,
-                                  upper=6,
-                                  upper_included=False,
-                                  count=10,
-                                  sum=10,
-                                  max=5),
-                hist.FrequencyBin(lower=6,
-                                  upper=100,
-                                  upper_included=False,
-                                  count=20,
-                                  sum=20,
-                                  max=60)
-            ])
+        l0_histogram = hist.Histogram(name=hist.HistogramType.L0_CONTRIBUTIONS,
+                                      bins=[
+                                          hist.FrequencyBin(lower=1,
+                                                            upper=2,
+                                                            count=100,
+                                                            sum=100,
+                                                            max=1),
+                                          hist.FrequencyBin(lower=2,
+                                                            upper=6,
+                                                            count=10,
+                                                            sum=10,
+                                                            max=5),
+                                          hist.FrequencyBin(lower=6,
+                                                            upper=100,
+                                                            count=20,
+                                                            sum=20,
+                                                            max=60)
+                                      ])
         l0_scoring_function = private_contribution_bounds.L0ScoringFunction(
             params, number_of_partitions, l0_histogram)
 
@@ -105,28 +101,24 @@ class L0ScoringFunctionTest(unittest.TestCase):
             aggregation_eps=0.9,
             max_partitions_contributed_upper_bound=100)
         number_of_partitions = 200
-        l0_histogram = hist.Histogram(
-            name=hist.HistogramType.L0_CONTRIBUTIONS,
-            bins=[
-                hist.FrequencyBin(lower=1,
-                                  upper=2,
-                                  upper_included=False,
-                                  count=100,
-                                  sum=100,
-                                  max=1),
-                hist.FrequencyBin(lower=2,
-                                  upper=6,
-                                  upper_included=False,
-                                  count=10,
-                                  sum=10,
-                                  max=5),
-                hist.FrequencyBin(lower=6,
-                                  upper=100,
-                                  upper_included=False,
-                                  count=20,
-                                  sum=20,
-                                  max=60)
-            ])
+        l0_histogram = hist.Histogram(name=hist.HistogramType.L0_CONTRIBUTIONS,
+                                      bins=[
+                                          hist.FrequencyBin(lower=1,
+                                                            upper=2,
+                                                            count=100,
+                                                            sum=100,
+                                                            max=1),
+                                          hist.FrequencyBin(lower=2,
+                                                            upper=6,
+                                                            count=10,
+                                                            sum=10,
+                                                            max=5),
+                                          hist.FrequencyBin(lower=6,
+                                                            upper=100,
+                                                            count=20,
+                                                            sum=20,
+                                                            max=60)
+                                      ])
         l0_scoring_function = private_contribution_bounds.L0ScoringFunction(
             params, number_of_partitions, l0_histogram)
 
@@ -143,28 +135,24 @@ class L0ScoringFunctionTest(unittest.TestCase):
             aggregation_delta=0.001,
             max_partitions_contributed_upper_bound=100)
         number_of_partitions = 200
-        l0_histogram = hist.Histogram(
-            name=hist.HistogramType.L0_CONTRIBUTIONS,
-            bins=[
-                hist.FrequencyBin(lower=1,
-                                  upper=2,
-                                  upper_included=False,
-                                  count=100,
-                                  sum=100,
-                                  max=1),
-                hist.FrequencyBin(lower=2,
-                                  upper=6,
-                                  upper_included=False,
-                                  count=10,
-                                  sum=10,
-                                  max=5),
-                hist.FrequencyBin(lower=6,
-                                  upper=100,
-                                  upper_included=False,
-                                  count=20,
-                                  sum=20,
-                                  max=60)
-            ])
+        l0_histogram = hist.Histogram(name=hist.HistogramType.L0_CONTRIBUTIONS,
+                                      bins=[
+                                          hist.FrequencyBin(lower=1,
+                                                            upper=2,
+                                                            count=100,
+                                                            sum=100,
+                                                            max=1),
+                                          hist.FrequencyBin(lower=2,
+                                                            upper=6,
+                                                            count=10,
+                                                            sum=10,
+                                                            max=5),
+                                          hist.FrequencyBin(lower=6,
+                                                            upper=100,
+                                                            count=20,
+                                                            sum=20,
+                                                            max=60)
+                                      ])
         l0_scoring_function = private_contribution_bounds.L0ScoringFunction(
             params, number_of_partitions, l0_histogram)
 
@@ -202,28 +190,24 @@ class L0ScoringFunctionTest(unittest.TestCase):
             aggregation_delta=0.001,
             max_partitions_contributed_upper_bound=100)
         number_of_partitions = 200
-        l0_histogram = hist.Histogram(
-            name=hist.HistogramType.L0_CONTRIBUTIONS,
-            bins=[
-                hist.FrequencyBin(lower=1,
-                                  upper=2,
-                                  upper_included=False,
-                                  count=100,
-                                  sum=100,
-                                  max=1),
-                hist.FrequencyBin(lower=2,
-                                  upper=6,
-                                  upper_included=False,
-                                  count=10,
-                                  sum=10,
-                                  max=5),
-                hist.FrequencyBin(lower=6,
-                                  upper=100,
-                                  upper_included=False,
-                                  count=20,
-                                  sum=20,
-                                  max=60)
-            ])
+        l0_histogram = hist.Histogram(name=hist.HistogramType.L0_CONTRIBUTIONS,
+                                      bins=[
+                                          hist.FrequencyBin(lower=1,
+                                                            upper=2,
+                                                            count=100,
+                                                            sum=100,
+                                                            max=1),
+                                          hist.FrequencyBin(lower=2,
+                                                            upper=6,
+                                                            count=10,
+                                                            sum=10,
+                                                            max=5),
+                                          hist.FrequencyBin(lower=6,
+                                                            upper=100,
+                                                            count=20,
+                                                            sum=20,
+                                                            max=60)
+                                      ])
         l0_scoring_function = private_contribution_bounds.L0ScoringFunction(
             params, number_of_partitions, l0_histogram)
 
@@ -242,28 +226,24 @@ class PrivateL0CalculatorTest(unittest.TestCase):
             aggregation_noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
             max_partitions_contributed_upper_bound=100)
         partitions = [i + 1 for i in range(200)]
-        l0_histogram = hist.Histogram(
-            name=hist.HistogramType.L0_CONTRIBUTIONS,
-            bins=[
-                hist.FrequencyBin(lower=1,
-                                  upper=2,
-                                  upper_included=False,
-                                  count=100,
-                                  sum=100,
-                                  max=1),
-                hist.FrequencyBin(lower=2,
-                                  upper=6,
-                                  upper_included=False,
-                                  count=10,
-                                  sum=10,
-                                  max=5),
-                hist.FrequencyBin(lower=6,
-                                  upper=100,
-                                  upper_included=False,
-                                  count=20,
-                                  sum=20,
-                                  max=60)
-            ])
+        l0_histogram = hist.Histogram(name=hist.HistogramType.L0_CONTRIBUTIONS,
+                                      bins=[
+                                          hist.FrequencyBin(lower=1,
+                                                            upper=2,
+                                                            count=100,
+                                                            sum=100,
+                                                            max=1),
+                                          hist.FrequencyBin(lower=2,
+                                                            upper=6,
+                                                            count=10,
+                                                            sum=10,
+                                                            max=5),
+                                          hist.FrequencyBin(lower=6,
+                                                            upper=100,
+                                                            count=20,
+                                                            sum=20,
+                                                            max=60)
+                                      ])
         histograms = [
             hist.DatasetHistograms(l0_histogram,
                                    l1_contributions_histogram=None,
@@ -291,22 +271,19 @@ class PrivateL0CalculatorTest(unittest.TestCase):
             aggregation_noise_kind=pipeline_dp.NoiseKind.LAPLACE,
             max_partitions_contributed_upper_bound=2)
         partitions = list(range(1, 201))
-        l0_histogram = hist.Histogram(
-            name=hist.HistogramType.L0_CONTRIBUTIONS,
-            bins=[
-                hist.FrequencyBin(lower=1,
-                                  upper=2,
-                                  upper_included=False,
-                                  count=1,
-                                  sum=1,
-                                  max=1),
-                hist.FrequencyBin(lower=2,
-                                  upper=3,
-                                  upper_included=False,
-                                  count=10000,
-                                  sum=10000,
-                                  max=2)
-            ])
+        l0_histogram = hist.Histogram(name=hist.HistogramType.L0_CONTRIBUTIONS,
+                                      bins=[
+                                          hist.FrequencyBin(lower=1,
+                                                            upper=2,
+                                                            count=1,
+                                                            sum=1,
+                                                            max=1),
+                                          hist.FrequencyBin(lower=2,
+                                                            upper=3,
+                                                            count=10000,
+                                                            sum=10000,
+                                                            max=2)
+                                      ])
         histograms = [
             hist.DatasetHistograms(l0_histogram,
                                    l1_contributions_histogram=None,

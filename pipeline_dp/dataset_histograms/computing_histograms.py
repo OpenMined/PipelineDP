@@ -16,7 +16,7 @@ import bisect
 import operator
 from typing import List, Tuple
 
-import numpy
+import numpy as np
 
 import pipeline_dp
 from pipeline_dp import pipeline_backend, pipeline_functions
@@ -123,7 +123,6 @@ def _compute_frequency_histogram_helper(
         bin_lower, bin_upper = _to_bin_lower_upper_logarithmic(value)
         return bin_lower, hist.FrequencyBin(lower=bin_lower,
                                             upper=bin_upper,
-                                            upper_included=False,
                                             count=frequency,
                                             sum=frequency * value,
                                             max=value)
@@ -161,10 +160,8 @@ def _compute_frequency_histogram_helper_with_lowers(
         bin_lower_idx = _bin_lower_index(lowers, value)
         bin_lower = lowers[bin_lower_idx]
         bin_upper = lowers[bin_lower_idx + 1]
-        include_upper = bin_lower_idx + 1 == len(lowers) - 1
         return bin_lower, hist.FrequencyBin(lower=bin_lower,
                                             upper=bin_upper,
-                                            upper_included=include_upper,
                                             count=1,
                                             sum=value,
                                             max=value)
@@ -360,8 +357,8 @@ def _min_max_lowers(col, number_of_buckets,
         backend, col, "Min and max value in dataset")
     # min_max_values: 1 element collection with a pair (min, max)
     return backend.map(
-        min_max_values, lambda min_max: numpy.linspace(min_max[0], min_max[1],
-                                                       (number_of_buckets + 1)),
+        min_max_values, lambda min_max: np.linspace(min_max[0], min_max[1],
+                                                    (number_of_buckets + 1)),
         "map to lowers")
 
 

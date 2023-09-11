@@ -56,7 +56,6 @@ def _frequency_bin(max_value: float = 0.0, lower: float = 0.0) -> FrequencyBin:
     return FrequencyBin(max=max_value,
                         lower=lower,
                         upper=None,
-                        upper_included=None,
                         count=None,
                         sum=None)
 
