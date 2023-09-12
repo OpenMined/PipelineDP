@@ -22,8 +22,8 @@ from typing import List, Sequence, Tuple, Union
 class FrequencyBin:
     """Represents a single bin of a histogram.
 
-    The bin represents integers between 'lower' (inclusive) and 'upper'
-    (exclusive, not stored in this class, but uniquely determined by 'lower').
+    The bin represents integers between 'lower' (inclusive) and 'upper' (see
+    attributes section below to understand when inclusive and when exclusive).
 
     Attributes:
       lower: the lower bound of the bin.
@@ -60,14 +60,14 @@ class FrequencyBin:
 class HistogramType(enum.Enum):
     # For L0 contribution histogram, for each bin:
     # 'count' is the number of privacy units which contribute to
-    # [lower, next_lower) partitions.
+    # [lower, upper) partitions.
     # 'sum' is the total number (privacy_unit, partition) for these privacy
     # units.
     L0_CONTRIBUTIONS = 'l0_contributions'
     L1_CONTRIBUTIONS = 'l1_contributions'
     # For Linf contribution histogram, for each bin:
     # 'count' is the number of pairs (privacy_unit, partition) which contribute
-    # with [lower, next_lower) contributions.
+    # with [lower, upper) contributions.
     # 'sum' is the total number of contributions for these pairs.
     LINF_CONTRIBUTIONS = 'linf_contributions'
     LINF_SUM_CONTRIBUTIONS = 'linf_sum_contributions'
@@ -77,17 +77,39 @@ class HistogramType(enum.Enum):
 
 @dataclass
 class Histogram:
-    """Represents a histogram over integers.
-
-    To calculate range of the histogram (i.e. min and max values on axis X)
-    you can do the following:
-      * if it is an int histogram, min is 1 and max is bins[-1].upper (or
-        bins[-1].max if you want precise bound).
-      * if it is float histogram, then min is bins[-1].lower and max is
-        bins[-1].upper which is included in this case.
-    """
+    """Represents a histogram over numbers."""
     name: HistogramType
     bins: List[FrequencyBin]
+
+    @property
+    def is_integer(self) -> bool:
+        """Indicates whether histogram bins' lowers and uppers are integers.
+
+        There are 2 types of histograms:
+          * Integer histogram, which is used for counts and bins are spaced
+            logarithmically (see computing_histograms._to_bin_lower_logarithmic
+            for details how bins are generated )
+          * Floating histograms, which is used for sums per partition. Which
+            has the same size bins.
+        """
+        return self.name != HistogramType.LINF_SUM_CONTRIBUTIONS
+
+    @property
+    def lower(self) -> Union[int, float]:
+        """Lower bound of the whole histogram.
+
+        Always included and always equals to 1 for integer histograms.
+        """
+        return 1 if self.is_integer else self.bins[0].lower
+
+    @property
+    def upper(self) -> Union[None, float]:
+        """Upper bound of the whole histogram.
+
+        There is no upper for integer histograms (i.e. +inf) and for floating
+        histograms upper exists and is always included.
+        """
+        return None if self.is_integer else self.bins[-1].upper
 
     def total_count(self):
         return sum([bin.count for bin in self.bins])
