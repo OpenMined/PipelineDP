@@ -13,7 +13,7 @@
 # limitations under the License.
 """Classes for representing dataset histograms."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import enum
 from typing import List, Sequence, Tuple, Union
 
@@ -77,9 +77,26 @@ class HistogramType(enum.Enum):
 
 @dataclass
 class Histogram:
-    """Represents a histogram over numbers."""
+    """Represents a histogram over numbers.
+
+    Attributes:
+        lower: lower bound of the whole histogram, always included and always
+          equals to 1 for integer histograms.
+        upper: upper bound of the whole histogram, there is no upper for integer
+          histograms (i.e. +inf) and for floating histograms upper exists and is
+          always included.
+    """
     name: HistogramType
     bins: List[FrequencyBin]
+    lower: Union[None, int, float] = field(init=False)
+    upper: Union[None, float] = field(init=False)
+
+    def __post_init__(self):
+        if len(self.bins) == 0:
+            self.lower = self.upper = None
+        else:
+            self.lower = 1 if self.is_integer else self.bins[0].lower
+            self.upper = None if self.is_integer else self.bins[-1].upper
 
     @property
     def is_integer(self) -> bool:
@@ -93,23 +110,6 @@ class Histogram:
             has the same size bins.
         """
         return self.name != HistogramType.LINF_SUM_CONTRIBUTIONS
-
-    @property
-    def lower(self) -> Union[int, float]:
-        """Lower bound of the whole histogram.
-
-        Always included and always equals to 1 for integer histograms.
-        """
-        return 1 if self.is_integer else self.bins[0].lower
-
-    @property
-    def upper(self) -> Union[None, float]:
-        """Upper bound of the whole histogram.
-
-        There is no upper for integer histograms (i.e. +inf) and for floating
-        histograms upper exists and is always included.
-        """
-        return None if self.is_integer else self.bins[-1].upper
 
     def total_count(self):
         return sum([bin.count for bin in self.bins])

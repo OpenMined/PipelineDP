@@ -88,15 +88,14 @@ class ComputingHistogramsTest(parameterized.TestCase):
         self.assertListEqual(expected, histogram.bins)
 
     def test_list_to_contribution_histograms(self):
-        histogram1 = hist.Histogram(hist.HistogramType.L0_CONTRIBUTIONS, None)
-        histogram2 = hist.Histogram(hist.HistogramType.L1_CONTRIBUTIONS, None)
-        histogram3 = hist.Histogram(hist.HistogramType.LINF_CONTRIBUTIONS, None)
+        histogram1 = hist.Histogram(hist.HistogramType.L0_CONTRIBUTIONS, [])
+        histogram2 = hist.Histogram(hist.HistogramType.L1_CONTRIBUTIONS, [])
+        histogram3 = hist.Histogram(hist.HistogramType.LINF_CONTRIBUTIONS, [])
         histogram4 = hist.Histogram(hist.HistogramType.LINF_SUM_CONTRIBUTIONS,
-                                    None)
-        histogram5 = hist.Histogram(hist.HistogramType.COUNT_PER_PARTITION,
-                                    None)
+                                    [])
+        histogram5 = hist.Histogram(hist.HistogramType.COUNT_PER_PARTITION, [])
         histogram6 = hist.Histogram(
-            hist.HistogramType.COUNT_PRIVACY_ID_PER_PARTITION, None)
+            hist.HistogramType.COUNT_PRIVACY_ID_PER_PARTITION, [])
         histograms = computing_histograms._list_to_contribution_histograms([
             histogram2, histogram1, histogram3, histogram4, histogram6,
             histogram5
