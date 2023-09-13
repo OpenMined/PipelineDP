@@ -22,7 +22,6 @@ from absl import app
 from absl import flags
 import pipeline_dp
 import pandas as pd
-import collections
 
 import analysis
 from analysis import parameter_tuning
@@ -39,6 +38,8 @@ flags.DEFINE_boolean('public_partitions', False,
                      'Whether public partitions are used')
 flags.DEFINE_boolean('run_on_preaggregated_data', False,
                      'If true, the data is preaggregated before tuning')
+flags.DEFINE_integer('pre_threshold', None,
+                     'Pre threshold which is used in the DP aggregation')
 
 
 def write_to_file(col, filename):
@@ -68,7 +69,8 @@ def get_aggregate_params():
         noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
         metrics=[pipeline_dp.Metrics.COUNT],
         max_partitions_contributed=1,
-        max_contributions_per_partition=1)
+        max_contributions_per_partition=1,
+        pre_threshold=FLAGS.pre_threshold)
 
 
 def get_data_extractors():

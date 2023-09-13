@@ -262,13 +262,14 @@ def _average_utility_report(report: metrics.UtilityReport, sums_actual: Tuple,
         return
 
     for sum_actual, metric_error in zip(sums_actual, report.metric_errors):
+        scaling_factor = 0 if total_weight == 0 else 1.0 / total_weight
         _multiply_float_dataclasses_field(
             metric_error,
-            1.0 / total_weight,
+            scaling_factor,
             fields_to_ignore=["noise_std", "ratio_data_dropped"])
-        scaling_factor = 1 if sum_actual == 0 else 1.0 / sum_actual
+        dropped_scaling_factor = 1 if sum_actual == 0 else 1.0 / sum_actual
         _multiply_float_dataclasses_field(metric_error.ratio_data_dropped,
-                                          scaling_factor)
+                                          dropped_scaling_factor)
 
 
 def partition_size_weight_fn(

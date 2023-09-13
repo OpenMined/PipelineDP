@@ -22,6 +22,7 @@ import analysis
 from analysis import metrics
 from analysis import utility_analysis
 from analysis.tests import common
+from typing import Optional
 
 
 class UtilityAnalysis(parameterized.TestCase):
@@ -321,6 +322,48 @@ class UtilityAnalysis(parameterized.TestCase):
         self.assertEqual(output[1], ((0, 100), input_data[0]))
         self.assertEqual(output[2], ((1, None), input_data[1]))
         self.assertEqual(output[3], ((1, 100), input_data[1]))
+
+    @parameterized.named_parameters(
+        dict(testcase_name="without pre-threshold",
+             pre_threshold=None,
+             expected_prob=0.612579511),
+        dict(testcase_name="with pre-threshold",
+             pre_threshold=3,
+             expected_prob=0.0644512636),
+    )
+    def test_select_partition(self, pre_threshold: Optional[int],
+                              expected_prob: float):
+        # Arrange
+        aggregate_params = pipeline_dp.AggregateParams(
+            noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+            metrics=[],
+            max_partitions_contributed=1,
+            max_contributions_per_partition=2,
+            pre_threshold=pre_threshold)
+
+        # Input collection has 10 privacy ids where each privacy id
+        # contributes to the same 10 partitions, three times in each partition.
+        col = [(i, j) for i in range(10) for j in range(10)] * 3
+
+        data_extractors = pipeline_dp.DataExtractors(
+            privacy_id_extractor=lambda x: x[0],
+            partition_extractor=lambda x: f"pk{x[1]}",
+            value_extractor=lambda x: 1)
+
+        _, per_partition_result = analysis.perform_utility_analysis(
+            col=col,
+            backend=pipeline_dp.LocalBackend(),
+            options=analysis.UtilityAnalysisOptions(
+                epsilon=3, delta=0.9, aggregate_params=aggregate_params),
+            data_extractors=data_extractors)
+
+        per_partition_result = list(per_partition_result)
+
+        # Assert
+        key, per_partition_metrics = per_partition_result[0]
+        self.assertAlmostEqual(
+            per_partition_metrics.partition_selection_probability_to_keep,
+            expected_prob)
 
 
 if __name__ == '__main__':
