@@ -13,7 +13,7 @@
 # limitations under the License.
 """Classes for representing dataset histograms."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import enum
 from typing import List, Sequence, Tuple, Union
 
@@ -22,41 +22,52 @@ from typing import List, Sequence, Tuple, Union
 class FrequencyBin:
     """Represents a single bin of a histogram.
 
-    The bin represents integers between 'lower' (inclusive) and 'upper'
-    (exclusive, not stored in this class, but uniquely determined by 'lower').
+    The bin represents integers between 'lower' (inclusive) and 'upper' (see
+    attributes section below to understand when inclusive and when exclusive).
 
     Attributes:
       lower: the lower bound of the bin.
+      upper: the upper of the bin, i.e. values in the bin are in
+        [lower; upper} range ("}" means it can be either "]" or ")". It is
+        always not included if histogram lower and upper are integers or
+        if it is not the last bin of the histogram. If lower and upper are
+        real values, and it is the last bin then the upper is included.
       count: the number of elements in the bin.
       sum: the sum of elements in the bin.
       max: the maximum element in the bin, which is smaller or equal to the
-       upper-1.
+        upper.
     """
     lower: Union[int, float]
+    upper: Union[int, float]
     count: int
     sum: Union[int, float]
     max: Union[int, float]
 
     def __add__(self, other: 'FrequencyBin') -> 'FrequencyBin':
-        return FrequencyBin(self.lower, self.count + other.count,
+        self._check_same_bin(other)
+        return FrequencyBin(self.lower, self.upper, self.count + other.count,
                             self.sum + other.sum, max(self.max, other.max))
 
     def __eq__(self, other):
         return (self.lower == other.lower and self.count == other.count and
                 self.sum == other.sum and self.max == other.max)
 
+    def _check_same_bin(self, other: 'FrequencyBin'):
+        assert self.lower == other.lower
+        assert self.upper == other.upper
+
 
 class HistogramType(enum.Enum):
     # For L0 contribution histogram, for each bin:
     # 'count' is the number of privacy units which contribute to
-    # [lower, next_lower) partitions.
+    # [lower, upper) partitions.
     # 'sum' is the total number (privacy_unit, partition) for these privacy
     # units.
     L0_CONTRIBUTIONS = 'l0_contributions'
     L1_CONTRIBUTIONS = 'l1_contributions'
     # For Linf contribution histogram, for each bin:
     # 'count' is the number of pairs (privacy_unit, partition) which contribute
-    # with [lower, next_lower) contributions.
+    # with [lower, upper) contributions.
     # 'sum' is the total number of contributions for these pairs.
     LINF_CONTRIBUTIONS = 'linf_contributions'
     LINF_SUM_CONTRIBUTIONS = 'linf_sum_contributions'
@@ -66,9 +77,42 @@ class HistogramType(enum.Enum):
 
 @dataclass
 class Histogram:
-    """Represents a histogram over integers."""
+    """Represents a histogram over numbers.
+
+    Attributes:
+        name: unique name of the histogram which represents the histogram type.
+        bins: histogram bins.
+        lower: lower bound of the whole histogram, always included and always
+          equals to 1 for integer histograms, None if there are no bins in the
+          histogram.
+        upper: upper bound of the whole histogram, there is no upper for integer
+          histograms (i.e. +inf) and for floating histograms upper exists and is
+          always included, None if there are no bins in the histogram.
+    """
     name: HistogramType
     bins: List[FrequencyBin]
+    lower: Union[None, int, float] = field(init=False)
+    upper: Union[None, float] = field(init=False)
+
+    def __post_init__(self):
+        if len(self.bins) == 0:
+            self.lower = self.upper = None
+        else:
+            self.lower = 1 if self.is_integer else self.bins[0].lower
+            self.upper = None if self.is_integer else self.bins[-1].upper
+
+    @property
+    def is_integer(self) -> bool:
+        """Indicates whether histogram bins' lowers and uppers are integers.
+
+        There are 2 types of histograms:
+          * Integer histogram, which is used for counts and bins are spaced
+            logarithmically (see computing_histograms._to_bin_lower_logarithmic
+            for details how bins are generated )
+          * Floating histograms, which is used for sums per partition. Which
+            has the same size bins.
+        """
+        return self.name != HistogramType.LINF_SUM_CONTRIBUTIONS
 
     def total_count(self):
         return sum([bin.count for bin in self.bins])

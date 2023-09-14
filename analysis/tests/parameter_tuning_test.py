@@ -24,7 +24,6 @@ from analysis import metrics
 from analysis import parameter_tuning
 from pipeline_dp.dataset_histograms import histograms
 from pipeline_dp.dataset_histograms import computing_histograms
-from pipeline_dp.dataset_histograms.histograms import FrequencyBin
 
 
 def _get_aggregate_params(metrics: List[pipeline_dp.Metric]):
@@ -52,17 +51,24 @@ def _get_tune_options(
         number_of_parameter_candidates=3)
 
 
-def _frequency_bin(max_value: float = 0.0, lower: float = 0.0) -> FrequencyBin:
-    return FrequencyBin(max=max_value, lower=lower, count=None, sum=None)
+def _frequency_bin(max_value: float = 0.0,
+                   lower: float = 0.0) -> histograms.FrequencyBin:
+    return histograms.FrequencyBin(max=max_value,
+                                   lower=lower,
+                                   upper=None,
+                                   count=None,
+                                   sum=None)
 
 
 class ParameterTuning(parameterized.TestCase):
 
     def test_find_candidate_parameters_maximum_number_of_candidates_is_respected_when_both_parameters_needs_to_be_tuned(
             self):
-        mock_l0_histogram = histograms.Histogram(None, None)
+        mock_l0_histogram = histograms.Histogram(
+            histograms.HistogramType.L0_CONTRIBUTIONS, bins=[])
         mock_l0_histogram.max_value = mock.Mock(return_value=6)
-        mock_linf_histogram = histograms.Histogram(None, None)
+        mock_linf_histogram = histograms.Histogram(
+            histograms.HistogramType.LINF_CONTRIBUTIONS, bins=[])
         mock_linf_histogram.max_value = mock.Mock(return_value=3)
 
         mock_histograms = histograms.DatasetHistograms(mock_l0_histogram, None,
@@ -83,9 +89,11 @@ class ParameterTuning(parameterized.TestCase):
 
     def test_find_candidate_parameters_more_candidates_for_l_0_when_not_so_many_l_inf_candidates(
             self):
-        mock_l0_histogram = histograms.Histogram(None, None)
+        mock_l0_histogram = histograms.Histogram(
+            histograms.HistogramType.L0_CONTRIBUTIONS, bins=[])
         mock_l0_histogram.max_value = mock.Mock(return_value=4)
-        mock_linf_histogram = histograms.Histogram(None, None)
+        mock_linf_histogram = histograms.Histogram(
+            histograms.HistogramType.LINF_CONTRIBUTIONS, bins=[])
         mock_linf_histogram.max_value = mock.Mock(return_value=2)
 
         mock_histograms = histograms.DatasetHistograms(mock_l0_histogram, None,
@@ -110,9 +118,11 @@ class ParameterTuning(parameterized.TestCase):
 
     def test_find_candidate_parameters_more_candidates_for_l_inf_when_not_so_many_l_0_candidates(
             self):
-        mock_l0_histogram = histograms.Histogram(None, None)
+        mock_l0_histogram = histograms.Histogram(
+            histograms.HistogramType.L0_CONTRIBUTIONS, bins=[])
         mock_l0_histogram.max_value = mock.Mock(return_value=2)
-        mock_linf_histogram = histograms.Histogram(None, None)
+        mock_linf_histogram = histograms.Histogram(
+            histograms.HistogramType.LINF_CONTRIBUTIONS, bins=[])
         mock_linf_histogram.max_value = mock.Mock(return_value=4)
 
         mock_histograms = histograms.DatasetHistograms(mock_l0_histogram, None,
@@ -169,7 +179,8 @@ class ParameterTuning(parameterized.TestCase):
             expected_candidates=[1, 6, 32, 178, 1000]))
     def test_find_candidate_parameters_count(self, max_value, max_candidates,
                                              expected_candidates):
-        mock_l0_histogram = histograms.Histogram(None, None)
+        mock_l0_histogram = histograms.Histogram(
+            histograms.HistogramType.L0_CONTRIBUTIONS, bins=[])
         mock_l0_histogram.max_value = mock.Mock(return_value=max_value)
 
         mock_histograms = histograms.DatasetHistograms(mock_l0_histogram, None,
@@ -242,7 +253,8 @@ class ParameterTuning(parameterized.TestCase):
     )
     def test_find_candidate_parameters_sum(self, bins, max_candidates,
                                            expected_candidates):
-        mock_linf_sum_contributions_histogram = histograms.Histogram(None, bins)
+        mock_linf_sum_contributions_histogram = histograms.Histogram(
+            histograms.HistogramType.LINF_SUM_CONTRIBUTIONS, bins)
         mock_histograms = histograms.DatasetHistograms(
             None, None, None, mock_linf_sum_contributions_histogram, None, None)
         parameters_to_tune = parameter_tuning.ParametersToTune(
@@ -261,10 +273,11 @@ class ParameterTuning(parameterized.TestCase):
                          candidates.min_sum_per_partition)
 
     def test_find_candidate_parameters_both_l0_and_linf_sum_to_be_tuned(self):
-        mock_l0_histogram = histograms.Histogram(None, None)
+        mock_l0_histogram = histograms.Histogram(
+            histograms.HistogramType.L0_CONTRIBUTIONS, bins=[])
         mock_l0_histogram.max_value = mock.Mock(return_value=6)
         mock_linf_sum_contributions_histogram = histograms.Histogram(
-            None, [
+            histograms.HistogramType.LINF_SUM_CONTRIBUTIONS, [
                 _frequency_bin(max_value=1),
                 _frequency_bin(max_value=2),
                 _frequency_bin(max_value=3)
@@ -313,9 +326,9 @@ class ParameterTuning(parameterized.TestCase):
             self, mock_find_candidate_from_histogram, metric,
             expected_generate_linf):
         mock_l0_histogram = histograms.Histogram(
-            histograms.HistogramType.L0_CONTRIBUTIONS, None)
+            histograms.HistogramType.L0_CONTRIBUTIONS, bins=[])
         mock_linf_histogram = histograms.Histogram(
-            histograms.HistogramType.LINF_CONTRIBUTIONS, None)
+            histograms.HistogramType.LINF_CONTRIBUTIONS, bins=[])
         mock_histograms = histograms.DatasetHistograms(mock_l0_histogram, None,
                                                        mock_linf_histogram,
                                                        None, None, None)
