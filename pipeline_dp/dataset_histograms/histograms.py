@@ -80,11 +80,14 @@ class Histogram:
     """Represents a histogram over numbers.
 
     Attributes:
+        name: unique name of the histogram which represents the histogram type.
+        bins: histogram bins.
         lower: lower bound of the whole histogram, always included and always
-          equals to 1 for integer histograms.
+          equals to 1 for integer histograms, None if there are no bins in the
+          histogram.
         upper: upper bound of the whole histogram, there is no upper for integer
           histograms (i.e. +inf) and for floating histograms upper exists and is
-          always included.
+          always included, None if there are no bins in the histogram.
     """
     name: HistogramType
     bins: List[FrequencyBin]
