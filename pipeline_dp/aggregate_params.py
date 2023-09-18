@@ -230,6 +230,7 @@ class AggregateParams:
     public_partitions_already_filtered: bool = False
     partition_selection_strategy: PartitionSelectionStrategy = PartitionSelectionStrategy.TRUNCATED_GEOMETRIC
     pre_threshold: Optional[int] = None
+    post_aggregation_thresholding: bool = False
 
     @property
     def metrics_str(self) -> str:

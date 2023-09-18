@@ -75,7 +75,8 @@ def main(unused_argv):
         # .. with minimal rating of "1"
         min_value=1,
         # .. and maximum rating of "5"
-        max_value=5)
+        max_value=5,
+        post_aggregation_thresholding=True)
 
     # Specify how to extract privacy_id, partition_key and value from an
     # element of movie_views.
@@ -97,7 +98,7 @@ def main(unused_argv):
         movie_views,
         params,
         data_extractors,
-        public_partitions=list(range(1, 100)),
+        # public_partitions=list(range(1, 100)),
         out_explain_computation_report=explain_computation_report)
 
     budget_accountant.compute_budgets()

@@ -196,8 +196,8 @@ class MechanismContainerMixin(abc.ABC):
     @abc.abstractmethod
     def create_mechanism(
         self
-    ) -> Union[dp_computations.AdditiveMechanism,
-               dp_computations.MeanMechanism]:
+    ) -> Union[dp_computations.AdditiveMechanism, dp_computations.MeanMechanism,
+               dp_computations.ThresholdingMechanism]:
         pass
 
     def __getstate__(self):
@@ -322,6 +322,20 @@ class PrivacyIdCountCombiner(Combiner, AdditiveMechanismMixin):
 
     def expects_per_partition_sampling(self) -> bool:
         return False
+
+
+class PostAggregationThreshlodingCombiner(PrivacyIdCountCombiner):
+    AccumulatorType = int
+
+    def compute_metrics(self, count: AccumulatorType) -> dict:
+        return {
+            "privacy_id_count":
+                self.get_mechanism().noised_value_if_should_keep(count)
+        }
+
+    def create_mechanism(self) -> dp_computations.ThresholdingMechanism:
+        return dp_computations.create_thresholding_mechanism(
+            self.mechanism_spec(), self.sensitivities())
 
 
 class SumCombiner(Combiner, AdditiveMechanismMixin):
@@ -833,8 +847,14 @@ def create_compound_combiner(
     if pipeline_dp.Metrics.PRIVACY_ID_COUNT in aggregate_params.metrics:
         budget_privacy_id_count = budget_accountant.request_budget(
             mechanism_type, weight=aggregate_params.budget_weight)
-        combiners.append(
-            PrivacyIdCountCombiner(budget_privacy_id_count, aggregate_params))
+        if aggregate_params.post_aggregation_thresholding:
+            combiners.append(
+                PostAggregationThreshlodingCombiner(budget_privacy_id_count,
+                                                    aggregate_params))
+        else:
+            combiners.append(
+                PrivacyIdCountCombiner(budget_privacy_id_count,
+                                       aggregate_params))
     if pipeline_dp.Metrics.VECTOR_SUM in aggregate_params.metrics:
         budget_vector_sum = budget_accountant.request_budget(
             mechanism_type, weight=aggregate_params.budget_weight)

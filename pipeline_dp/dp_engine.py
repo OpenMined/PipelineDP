@@ -151,7 +151,7 @@ class DPEngine:
             col, combiner, "Reduce accumulators per partition key")
         # col : (partition_key, accumulator)
 
-        if public_partitions is None:
+        if public_partitions is None and not params.post_aggregation_thresholding:
             # Perform private partition selection.
             max_rows_per_privacy_id = 1
 
@@ -172,6 +172,12 @@ class DPEngine:
         self._add_report_stages(combiner.explain_computation())
         col = self._backend.map_values(col, combiner.compute_metrics,
                                        "Compute DP metrics")
+
+        if params.post_aggregation_thresholding:
+            # todo extract to separate method.
+            col = self._backend.filter(
+                col, lambda row: row[1].privacy_id_count != None,
+                "Thresholding")
 
         return col
 
