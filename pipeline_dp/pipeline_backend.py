@@ -21,6 +21,9 @@ from collections.abc import Iterable
 from typing import Callable
 
 import abc
+
+import pandas as pd
+
 import pipeline_dp.combiners as dp_combiners
 import typing
 import collections
@@ -56,6 +59,9 @@ class PipelineBackend(abc.ABC):
             the framework collection with elements from collection_or_iterable.
         """
         return collection_or_iterable
+
+    def if_dataframe_convert_to_collection(self, col, stage_name: str):
+        return col  # todo make abstract
 
     def to_multi_transformable_collection(self, col):
         """Converts to a collection, for which multiple transformations can be applied.
@@ -480,6 +486,12 @@ class LocalBackend(PipelineBackend):
     def to_multi_transformable_collection(self, col):
         return list(col)
 
+    def convert_result_to_dataframe(self, col, stage_name: str):
+        return col
+
+    def if_dataframe_convert_to_collection(self, col, stage_name: str):
+        return col
+
     def map(self, col, fn, stage_name: typing.Optional[str] = None):
         return map(fn, col)
 
@@ -581,6 +593,25 @@ class LocalBackend(PipelineBackend):
 
     def to_list(self, col, stage_name: str):
         return (list(col) for _ in range(1))
+
+
+class PandasDataFrameBackend(LocalBackend):
+
+    def if_dataframe_convert_to_collection(self, col, stage_name: str):
+        if not isinstance(col, pd.DataFrame):
+            return col
+        return col.itertuples()
+
+    def convert_result_to_dataframe(self, col, stage_name: str):
+
+        def generator():
+            l = list(col)
+            partition_keys, data = list(zip(*l))
+            df = pd.DataFrame(data=data)
+            df["partition_key"] = partition_keys
+            yield df
+
+        return generator()
 
 
 # workaround for passing lambda functions to multiprocessing

@@ -102,6 +102,10 @@ class DPEngine:
                    data_extractors: pipeline_dp.DataExtractors,
                    public_partitions):
 
+        col = self._backend.if_dataframe_convert_to_collection(
+            col, "to_collection")
+        col = self._extract_columns(col, data_extractors)
+
         if params.custom_combiners:
             # TODO(dvadym): after finishing implementation of custom combiners
             # to figure out whether it makes sense to encapsulate creation of
@@ -112,7 +116,6 @@ class DPEngine:
         else:
             combiner = self._create_compound_combiner(params)
 
-        col = self._extract_columns(col, data_extractors)
         # col : (privacy_id, partition_key, value)
         if (public_partitions is not None and
                 not params.public_partitions_already_filtered):
@@ -172,6 +175,8 @@ class DPEngine:
         self._add_report_stages(combiner.explain_computation())
         col = self._backend.map_values(col, combiner.compute_metrics,
                                        "Compute DP metrics")
+
+        col = self._backend.convert_result_to_dataframe(col, "To DataFrame")
 
         return col
 
@@ -532,7 +537,7 @@ class DPEngine:
 
 
 def _check_col(col):
-    if col is None or not col:
+    if col is None:
         raise ValueError("col must be non-empty")
 
 

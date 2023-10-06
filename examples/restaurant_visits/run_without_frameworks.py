@@ -39,7 +39,8 @@ def main(unused_argv):
     # PipelineDP. It keeps all data in memory and is not optimized for large data.
     # For datasets smaller than ~tens of megabytes, local execution without any
     # framework is faster than local mode with Beam or Spark.
-    backend = pipeline_dp.LocalBackend()
+    # backend = pipeline_dp.LocalBackend()
+    backend = pipeline_dp.pipeline_backend.PandasDataFrameBackend()
 
     # Define the privacy budget available for our computation.
     budget_accountant = pipeline_dp.NaiveBudgetAccountant(total_epsilon=1,
@@ -55,7 +56,7 @@ def main(unused_argv):
                   'Money spent (euros)': 'spent_money',
                   'Day': 'day'
               })
-    restaraunt_visits_rows = [index_row[1] for index_row in df.iterrows()]
+    restaraunt_visits_rows = df  # [index_row[1] for index_row in df.iterrows()]
 
     # Create a DPEngine instance.
     dp_engine = pipeline_dp.DPEngine(budget_accountant, backend)
