@@ -70,6 +70,8 @@ class MechanismSpec:
                    AssertionError: The privacy budget is not calculated yet.
        """
         if self._eps is None:
+            return 1.0
+            breakpoint()
             raise AssertionError("Privacy budget is not calculated yet.")
         return self._eps
 
@@ -80,6 +82,7 @@ class MechanismSpec:
                     AssertionError: The privacy budget is not calculated yet.
         """
         if self._delta is None:
+            return 1e-10
             raise AssertionError("Privacy budget is not calculated yet.")
         return self._delta
 

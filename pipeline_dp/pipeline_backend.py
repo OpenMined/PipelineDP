@@ -60,8 +60,11 @@ class PipelineBackend(abc.ABC):
         """
         return collection_or_iterable
 
+    def convert_result_to_dataframe(self, col, stage_name: str):
+        return col
+
     def if_dataframe_convert_to_collection(self, col, stage_name: str):
-        return col  # todo make abstract
+        return col
 
     def to_multi_transformable_collection(self, col):
         """Converts to a collection, for which multiple transformations can be applied.
@@ -480,17 +483,28 @@ class SparkRDDBackend(PipelineBackend):
         raise NotImplementedError("to_list is not implement in SparkBackend.")
 
 
+class SparkDataFrameBackend(SparkRDDBackend):
+
+    def __init__(self, spark):
+        super().__init__(spark.sparkContext)
+        self._spark = spark
+
+    def convert_result_to_dataframe(self, col, stage_name: str):
+        col = col.values()
+        return self._spark.createDataFrame(col, schema="count:float, sum:float")
+        # return col.toDF()
+        # return col
+    def if_dataframe_convert_to_collection(self, col, stage_name: str):
+        if type(col).__name__ == "DataFrame":
+            return col.rdd
+        return col
+
+
 class LocalBackend(PipelineBackend):
     """Local Pipeline adapter."""
 
     def to_multi_transformable_collection(self, col):
         return list(col)
-
-    def convert_result_to_dataframe(self, col, stage_name: str):
-        return col
-
-    def if_dataframe_convert_to_collection(self, col, stage_name: str):
-        return col
 
     def map(self, col, fn, stage_name: typing.Optional[str] = None):
         return map(fn, col)
