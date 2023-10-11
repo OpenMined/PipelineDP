@@ -14,7 +14,7 @@
 """ Demo of running PipelineDP locally, without any external data processing framework
 
 1. Install Python and run on the command line `pip install pipeline-dp absl-py`
-2. Run python python run_without_frameworks.py --input_file=<path to data.txt from 3> --output_file=<...>
+2. Run python run_without_frameworks.py --input_file=<path to data.txt from 3> --output_file=<...>
 """
 
 from absl import app
