@@ -1,10 +1,11 @@
-import typing
+import abc
 from dataclasses import dataclass
 
 import pandas as pd
 
 import pipeline_dp
 from typing import Any, Sequence, Callable, Optional, List, Dict
+import pyspark
 
 
 @dataclass
@@ -22,36 +23,76 @@ class _ContributionBounds:
     max_value: Optional[float] = None
 
 
-def dataframe_to_collection(df, columns: _Columns):
-    assert isinstance(df, pd.DataFrame), "Only Pandas dataframes are supported"
-    columns_to_keep = [columns.privacy_key, columns.partition_key]
-    if columns.value is not None:
-        columns_to_keep.append(columns.value)
-    df = df[columns_to_keep]  # leave only needed columns.
-    if columns.value is None:
-        # For count value is not needed, but for simplicity always provide
-        # value.
-        df['value'] = 0
+class DataFrameConvertor(abc.ABC):
 
-    # name=None makes that tuples instead of name tuple are returned.
-    return list(df.itertuples(index=False, name=None))
+    @abc.abstractmethod
+    def dataframe_to_collection(df, columns: _Columns):
+        pass
+
+    @abc.abstractmethod
+    def collection_to_dataframe(col, partition_key_column: str):
+        pass
 
 
-def collection_to_dataframe(col, partition_key_column):
-    assert isinstance(col, list), "Only local run is supported for now"
-    partition_keys, data = list(zip(*col))
-    df = pd.DataFrame(data=data)
-    df[partition_key_column] = partition_keys
-    columns = list(df.columns)
-    columns = [columns[-1]] + columns[:-1]
-    df = df.reindex(columns=columns).set_index(partition_key_column)
-    return df
+class PandasConverter(DataFrameConvertor):
+
+    def dataframe_to_collection(self, df: pd.DataFrame,
+                                columns: _Columns) -> list:
+        assert isinstance(df,
+                          pd.DataFrame), "Only Pandas dataframes are supported"
+        columns_to_keep = [columns.privacy_key, columns.partition_key]
+        if columns.value is not None:
+            columns_to_keep.append(columns.value)
+        df = df[columns_to_keep]  # leave only needed columns.
+        if columns.value is None:
+            # For count value is not needed, but for simplicity always provide
+            # value.
+            df['value'] = 0
+
+        # name=None makes that tuples instead of name tuple are returned.
+        return list(df.itertuples(index=False, name=None))
+
+    def collection_to_dataframe(self, col: list,
+                                partition_key_column: str) -> pd.DataFrame:
+        assert isinstance(col, list), "Only local run is supported for now"
+        partition_keys, data = list(zip(*col))
+        df = pd.DataFrame(data=data)
+        df[partition_key_column] = partition_keys
+        columns = list(df.columns)
+        columns = [columns[-1]] + columns[:-1]
+        df = df.reindex(columns=columns).set_index(partition_key_column)
+        return df
+
+
+class SparkConverter(DataFrameConvertor):
+
+    def dataframe_to_collection(self, df, columns: _Columns) -> pyspark.RDD:
+        columns_to_keep = [columns.privacy_key, columns.partition_key]
+        if columns.value is not None:
+            columns_to_keep.append(columns.value)
+        df = df[columns_to_keep]  # leave only needed columns.
+        return []
+
+    def collection_to_dataframe(self, col: pyspark.RDD,
+                                partition_key_column: str):
+        pass
 
 
 def create_backend_for_dataframe(
         df) -> pipeline_dp.pipeline_backend.PipelineBackend:
     if isinstance(df, pd.DataFrame):
         return pipeline_dp.LocalBackend()
+    if isinstance(df, pyspark.DataFrame):
+        return pipeline_dp.SparkRDDBackend()
+    raise NotImplementedError(
+        f"Dataframes of type {type(df)} not yet supported")
+
+
+def create_dataframe_converter(df) -> DataFrameConvertor:
+    if isinstance(df, pd.DataFrame):
+        return PandasConverter()
+    if isinstance(df, pyspark.DataFrame):
+        return SparkConverter()
     raise NotImplementedError(
         f"Dataframes of type {type(df)} not yet supported")
 
@@ -79,7 +120,8 @@ class Query:
     def run_query(self,
                   budget: Budget,
                   noise_kind: Optional[pipeline_dp.NoiseKind] = None):
-        col = dataframe_to_collection(self._df, self._columns)
+        converter = create_dataframe_converter(self._df)
+        col = converter.dataframe_to_collection(self._df, self._columns)
         backend = create_backend_for_dataframe(self._df)
         budget_accountant = pipeline_dp.NaiveBudgetAccountant(
             total_epsilon=budget.epsilon, total_delta=budget.delta)
@@ -111,7 +153,8 @@ class Query:
         budget_accountant.compute_budgets()
         dp_result = list(dp_result)
         self._expain_computation_report = explain_computation_report.text()
-        return collection_to_dataframe(dp_result, self._columns.partition_key)
+        return converter.collection_to_dataframe(dp_result,
+                                                 self._columns.partition_key)
 
     def explain_computations(self):
         if self._expain_computation_report is None:

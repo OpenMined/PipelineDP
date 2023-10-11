@@ -22,6 +22,8 @@ from absl import flags
 import pipeline_dp
 from pipeline_dp import dataframes
 import pandas as pd
+from pyspark.sql import SparkSession
+import pyspark
 
 FLAGS = flags.FLAGS
 flags.DEFINE_string('input_file', 'restaurants_week_data.csv',
@@ -31,7 +33,7 @@ flags.DEFINE_enum('dataframes', 'pandas', ['spark', 'pandas'],
                   'Which dataframes to use.')
 
 
-def load_data_in_dataframe() -> pd.DataFrame:
+def load_data_in_pandas_dataframe() -> pd.DataFrame:
     df = pd.read_csv(FLAGS.input_file)
     df.rename(inplace=True,
               columns={
@@ -44,6 +46,16 @@ def load_data_in_dataframe() -> pd.DataFrame:
     return df
 
 
+def load_data_in_spark_dataframe(
+        spark: SparkSession) -> pyspark.sql.dataframe.DataFrame:
+    df = spark.read.csv(FLAGS.input_file, header=True)
+    return df.withColumnRenamed('VisitorId', 'visitor_id').withColumnRenamed(
+        'Time entered', 'enter_time').withColumnRenamed(
+            'Time spent (minutes)', 'spent_minutes').withColumnRenamed(
+                'Money spent (euros)',
+                'spent_money').withColumnRenamed('Day', 'day')
+
+
 def compute_private_result(df):
     dp_query_builder = dataframes.QueryBuilder(df, 'visitor_id')
     query = dp_query_builder.groupby('day', 3, 1).count().sum(
@@ -54,15 +66,28 @@ def compute_private_result(df):
     return result_df
 
 
-def compute_on_pandas_dataframes(df: pd.DataFrame) -> None:
+def compute_on_pandas_dataframes() -> None:
+    df = load_data_in_pandas_dataframe()
     result_df = compute_private_result(df)
     result_df.to_csv(FLAGS.output_file)
 
 
+def compute_on_spark_dataframes() -> None:
+    spark = SparkSession.builder \
+      .master("local[1]") \
+      .appName("SparkByExamples.com") \
+      .getOrCreate()
+    df = load_data_in_spark_dataframe(spark)
+    df.printSchema()
+    result_df = compute_private_result(df)
+    result_df.write.format("csv").save(FLAGS.output_file)
+
+
 def main(unused_argv):
-    df = load_data_in_dataframe()
     if FLAGS.dataframes == 'pandas':
-        compute_on_pandas_dataframes(df)
+        compute_on_pandas_dataframes()
+    elif FLAGS.dataframes == 'spark':
+        compute_on_spark_dataframes()
 
     return 0
 
