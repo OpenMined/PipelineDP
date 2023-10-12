@@ -22,8 +22,13 @@ from absl import flags
 import os
 import shutil
 import pandas as pd
+
 from pyspark.sql import SparkSession
 import pyspark
+
+import apache_beam as beam
+from apache_beam.runners.portability import fn_api_runner
+from apache_beam.dataframe.io import read_csv
 
 import pipeline_dp
 from pipeline_dp import dataframes
@@ -32,7 +37,7 @@ FLAGS = flags.FLAGS
 flags.DEFINE_string('input_file', 'restaurants_week_data.csv',
                     'The file with the restaraunt visits data')
 flags.DEFINE_string('output_file', None, 'Output file')
-flags.DEFINE_enum('dataframes', 'pandas', ['spark', 'pandas'],
+flags.DEFINE_enum('dataframes', 'pandas', ['pandas', 'spark', 'beam'],
                   'Which dataframes to use.')
 
 
@@ -67,6 +72,19 @@ def load_data_in_spark_dataframe(
                 'spent_money').withColumnRenamed('Day', 'day')
 
 
+def load_data_in_beam_dataframe(pipeline):
+    df = pipeline | read_csv(FLAGS.input_file)
+    df = df.rename(
+        columns={
+            'VisitorId': 'visitor_id',
+            'Time entered': 'enter_time',
+            'Time spent (minutes)': 'spent_minutes',
+            'Money spent (euros)': 'spent_money',
+            'Day': 'day'
+        })
+    return df
+
+
 def compute_private_result(df):
     dp_query_builder = dataframes.QueryBuilder(df, 'visitor_id')
     query = dp_query_builder.groupby('day', 3, 1).count().sum(
@@ -96,12 +114,20 @@ def compute_on_spark_dataframes() -> None:
     result_df.write.format("csv").option("header", True).save(FLAGS.output_file)
 
 
+def compute_on_beam_dataframes() -> None:
+    with beam.Pipeline(runner=fn_api_runner.FnApiRunner()) as pipeline:
+        df = load_data_in_beam_dataframe(pipeline)
+        result_df = compute_private_result(df)
+        result_df.to_csv(FLAGS.output_file)
+
+
 def main(unused_argv):
     if FLAGS.dataframes == 'pandas':
         compute_on_pandas_dataframes()
     elif FLAGS.dataframes == 'spark':
         compute_on_spark_dataframes()
-
+    elif FLAGS.dataframes == 'beam':
+        compute_on_beam_dataframes()
     return 0
 
 

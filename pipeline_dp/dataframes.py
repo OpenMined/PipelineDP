@@ -1,11 +1,13 @@
 import abc
 from dataclasses import dataclass
 
+import apache_beam.dataframe.convert
 import pandas as pd
 
 import pipeline_dp
 from typing import Optional, List, Dict, Iterable
 import pyspark
+import apache_beam as beam
 
 
 @dataclass
@@ -92,12 +94,57 @@ class SparkConverter(DataFrameConvertor):
         return df
 
 
+class BeamConverter(DataFrameConvertor):
+
+    def dataframe_to_collection(self, df, columns: _Columns) -> list:
+        columns_to_keep = [columns.privacy_key, columns.partition_key]
+        if columns.value is not None:
+            columns_to_keep.append(columns.value)
+        df = df[columns_to_keep]  # leave only needed columns.
+        # if columns.value is None:
+        #     # For count value is not needed, but for simplicity always provide
+        #     # value.
+        #     df['value'] = 0
+        col = beam.dataframe.convert.to_pcollection(df)
+
+        def row_to_tuple(row):
+            return (row[0], row[1], row[2])
+
+        col = col | "Map to tuple" >> beam.Map(row_to_tuple)
+        col | "res" >> beam.io.WriteToText("/tmp/beam/res.txt")
+        return col
+
+    def collection_to_dataframe(self, col,
+                                partition_key_column: str) -> pd.DataFrame:
+        col | "res2" >> beam.io.WriteToText("/tmp/beam/res2.txt")
+
+        def convert_to_beam_row(row):
+            # breakpoint()
+            partition_key, metrics = row
+            result_dict = {partition_key_column: partition_key}
+            result_dict.update(metrics._asdict())
+            result = beam.Row(partition_key_column=partition_key,
+                              count=metrics.count,
+                              sum=metrics.sum)
+            # result = beam.Row(**result_dict)
+            # Beam.Select is cool thing
+            return result
+
+        col = col | "To Row" >> beam.Map(convert_to_beam_row)
+        df = beam.dataframe.convert.to_dataframe(col)
+        return df.rename(columns={
+            "partition_key_column": partition_key_column
+        }).set_index(partition_key_column)
+
+
 def create_backend_for_dataframe(
         df) -> pipeline_dp.pipeline_backend.PipelineBackend:
     if isinstance(df, pd.DataFrame):
         return pipeline_dp.LocalBackend()
     if isinstance(df, pyspark.sql.dataframe.DataFrame):
         return pipeline_dp.SparkRDDBackend(df.sparkSession.sparkContext)
+    if isinstance(df, beam.dataframe.frames.DeferredDataFrame):
+        return pipeline_dp.BeamBackend()
     raise NotImplementedError(
         f"Dataframes of type {type(df)} not yet supported")
 
@@ -107,6 +154,8 @@ def create_dataframe_converter(df) -> DataFrameConvertor:
         return PandasConverter()
     if isinstance(df, pyspark.sql.dataframe.DataFrame):
         return SparkConverter(df.sparkSession)
+    if isinstance(df, beam.dataframe.frames.DeferredDataFrame):
+        return BeamConverter()
     raise NotImplementedError(
         f"Dataframes of type {type(df)} not yet supported")
 
