@@ -139,7 +139,7 @@ class QueryBuilder:
         """Adds count to the query.
 
         Args:
-            name: the name output column.
+            name: the name of the output column.
         """
         if self._groupby_column is None:
             raise ValueError(
@@ -160,7 +160,7 @@ class QueryBuilder:
         Args:
             column: column to perform summation
             min_value, max_value: capping limits to each value.
-            name: the name output column.
+            name: the name of the output column.
         """
         if self._groupby_column is None:
             raise ValueError(
