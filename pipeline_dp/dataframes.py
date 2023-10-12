@@ -4,7 +4,7 @@ from dataclasses import dataclass
 import pandas as pd
 
 import pipeline_dp
-from typing import Any, Sequence, Callable, Optional, List, Dict
+from typing import Optional, List, Dict, Iterable
 import pyspark
 
 
@@ -52,9 +52,9 @@ class PandasConverter(DataFrameConvertor):
         # name=None makes that tuples instead of name tuple are returned.
         return list(df.itertuples(index=False, name=None))
 
-    def collection_to_dataframe(self, col: list,
+    def collection_to_dataframe(self, col: Iterable,
                                 partition_key_column: str) -> pd.DataFrame:
-        assert isinstance(col, list), "Only local run is supported for now"
+        assert isinstance(col, Iterable), "Only local run is supported for now"
         partition_keys, data = list(zip(*col))
         df = pd.DataFrame(data=data)
         df[partition_key_column] = partition_keys
@@ -66,24 +66,38 @@ class PandasConverter(DataFrameConvertor):
 
 class SparkConverter(DataFrameConvertor):
 
+    def __init__(self, spark):
+        self._spark = spark
+
     def dataframe_to_collection(self, df, columns: _Columns) -> pyspark.RDD:
         columns_to_keep = [columns.privacy_key, columns.partition_key]
         if columns.value is not None:
             columns_to_keep.append(columns.value)
         df = df[columns_to_keep]  # leave only needed columns.
-        return []
+        rdd = df.rdd.map(lambda row: (row[0], row[1], row[2]))
+        return rdd
 
-    def collection_to_dataframe(self, col: pyspark.RDD,
-                                partition_key_column: str):
-        pass
+    def collection_to_dataframe(
+            self, col: pyspark.RDD,
+            partition_key_column: str) -> pyspark.sql.dataframe.DataFrame:
+
+        def convert_to_dict(row):
+            partition_key, metrics = row
+            result = {partition_key_column: partition_key}
+            result.update(metrics._asdict())
+            return result
+
+        col = col.map(convert_to_dict)
+        df = self._spark.createDataFrame(col)
+        return df
 
 
 def create_backend_for_dataframe(
         df) -> pipeline_dp.pipeline_backend.PipelineBackend:
     if isinstance(df, pd.DataFrame):
         return pipeline_dp.LocalBackend()
-    if isinstance(df, pyspark.DataFrame):
-        return pipeline_dp.SparkRDDBackend()
+    if isinstance(df, pyspark.sql.dataframe.DataFrame):
+        return pipeline_dp.SparkRDDBackend(df.sparkSession.sparkContext)
     raise NotImplementedError(
         f"Dataframes of type {type(df)} not yet supported")
 
@@ -91,8 +105,8 @@ def create_backend_for_dataframe(
 def create_dataframe_converter(df) -> DataFrameConvertor:
     if isinstance(df, pd.DataFrame):
         return PandasConverter()
-    if isinstance(df, pyspark.DataFrame):
-        return SparkConverter()
+    if isinstance(df, pyspark.sql.dataframe.DataFrame):
+        return SparkConverter(df.sparkSession)
     raise NotImplementedError(
         f"Dataframes of type {type(df)} not yet supported")
 
@@ -151,7 +165,6 @@ class Query:
             public_partitions=self._public_partitions,
             out_explain_computation_report=explain_computation_report)
         budget_accountant.compute_budgets()
-        dp_result = list(dp_result)
         self._expain_computation_report = explain_computation_report.text()
         return converter.collection_to_dataframe(dp_result,
                                                  self._columns.partition_key)

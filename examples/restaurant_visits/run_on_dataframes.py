@@ -19,11 +19,14 @@
 
 from absl import app
 from absl import flags
-import pipeline_dp
-from pipeline_dp import dataframes
+import os
+import shutil
 import pandas as pd
 from pyspark.sql import SparkSession
 import pyspark
+
+import pipeline_dp
+from pipeline_dp import dataframes
 
 FLAGS = flags.FLAGS
 flags.DEFINE_string('input_file', 'restaurants_week_data.csv',
@@ -31,6 +34,14 @@ flags.DEFINE_string('input_file', 'restaurants_week_data.csv',
 flags.DEFINE_string('output_file', None, 'Output file')
 flags.DEFINE_enum('dataframes', 'pandas', ['spark', 'pandas'],
                   'Which dataframes to use.')
+
+
+def delete_if_exists(filename):
+    if os.path.exists(filename):
+        if os.path.isdir(filename):
+            shutil.rmtree(filename)
+        else:
+            os.remove(filename)
 
 
 def load_data_in_pandas_dataframe() -> pd.DataFrame:
@@ -48,7 +59,7 @@ def load_data_in_pandas_dataframe() -> pd.DataFrame:
 
 def load_data_in_spark_dataframe(
         spark: SparkSession) -> pyspark.sql.dataframe.DataFrame:
-    df = spark.read.csv(FLAGS.input_file, header=True)
+    df = spark.read.csv(FLAGS.input_file, header=True, inferSchema=True)
     return df.withColumnRenamed('VisitorId', 'visitor_id').withColumnRenamed(
         'Time entered', 'enter_time').withColumnRenamed(
             'Time spent (minutes)', 'spent_minutes').withColumnRenamed(
@@ -80,7 +91,9 @@ def compute_on_spark_dataframes() -> None:
     df = load_data_in_spark_dataframe(spark)
     df.printSchema()
     result_df = compute_private_result(df)
-    result_df.write.format("csv").save(FLAGS.output_file)
+    result_df.printSchema()
+    delete_if_exists(FLAGS.output_file)
+    result_df.write.format("csv").option("header", True).save(FLAGS.output_file)
 
 
 def main(unused_argv):
