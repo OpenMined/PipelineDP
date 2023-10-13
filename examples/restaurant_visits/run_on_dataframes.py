@@ -19,6 +19,7 @@ In order to run:
 by `pip install pandas` or `pip install pyspark` or `pip install apache_beam`
 3. Run python run_on_dataframes.py --input_file=<path to restaurants_week_data.csv> --output_file=<...> --dataframes=pandas<spark, beam>
 """
+# TODO: Extend this example to support Beam and Pandas DataFrames.
 
 from absl import app
 from absl import flags
@@ -36,12 +37,18 @@ from apache_beam.dataframe.io import read_csv
 import pipeline_dp
 from pipeline_dp import dataframes
 
+from typing import Union
+
 FLAGS = flags.FLAGS
 flags.DEFINE_string('input_file', 'restaurants_week_data.csv',
                     'The file with the restaraunt visits data')
-flags.DEFINE_string('output_file', None, 'Output file')
+flags.DEFINE_string('output_file', None, 'Output file. It will be overwritten '
+                    'if exists')
 flags.DEFINE_enum('dataframes', 'pandas', ['pandas', 'spark', 'beam'],
                   'Which dataframes to use.')
+
+BeamDataFrame = beam.dataframe.frames.DeferredDataFrame
+SparkDataFrame = pyspark.sql.dataframe.DataFrame
 
 
 def delete_if_exists(filename):
@@ -62,22 +69,22 @@ def load_data_in_spark_dataframe(
                 'spent_money').withColumnRenamed('Day', 'day')
 
 
-def compute_private_result(df):
+def compute_private_result(
+    df: Union[pd.DataFrame, BeamDataFrame, SparkDataFrame]
+) -> Union[pd.DataFrame, BeamDataFrame, SparkDataFrame]:
     dp_query_builder = dataframes.QueryBuilder(df, 'visitor_id')
     query = dp_query_builder.groupby(
         'day', max_partitions_contributed=3,
         max_contributions_per_partition=1).count().sum(
             'spent_money', min_value=0, max_value=100).build_query()
-    result_df = query.run_query(dataframes.Budget(epsilon=5, delta=1e-10),
+    result_df = query.run_query(dataframes.Budget(epsilon=1, delta=1e-10),
                                 noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)
     return result_df
 
 
 def compute_on_spark_dataframes() -> None:
-    spark = SparkSession.builder \
-      .master("local[1]") \
-      .appName("Restaurant ") \
-      .getOrCreate()
+    spark = (SparkSession.builder.master("local[1]").appName(
+        "Restaurant").getOrCreate())
     df = load_data_in_spark_dataframe(spark)
     df.printSchema()
     result_df = compute_private_result(df)
@@ -89,6 +96,7 @@ def compute_on_spark_dataframes() -> None:
 def main(unused_argv):
     if FLAGS.dataframes == 'spark':
         compute_on_spark_dataframes()
+    raise ValueError(f"{FLAGS.dataframes} dataframes are not supported.")
     return 0
 
 

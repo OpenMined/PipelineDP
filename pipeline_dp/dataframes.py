@@ -108,8 +108,8 @@ class QueryBuilder:
                 *,
                 max_groups_contributed: int,
                 max_contributions_per_group: int,
-                public_keys=Iterable[Any]) -> 'QueryBuilder':
-        """Adds groupby by the given column to query.
+                public_keys: Optional[Iterable[Any]] = None) -> 'QueryBuilder':
+        """Adds groupby by the given column to the query.
 
         All following aggregation will be applied to grouped by DataFrame.
 
@@ -181,6 +181,9 @@ class QueryBuilder:
         if self._groupby_column is None:
             raise NotImplementedError(
                 "Global aggregations are not implemented yet. Call groupby.")
+        if not self._metrics:
+            raise ValueError(
+                "No aggregations in the query. Call for example count.")
         metrics = list(self._metrics.keys())
         return Query(
             self._df,

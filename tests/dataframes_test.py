@@ -42,9 +42,15 @@ class QueryBuilderTest(parameterized.TestCase):
                                     "Global aggregations are not supported"):
             builder.count()
 
+    def test_no_aggregation(self):
+        builder = dataframes.QueryBuilder(self._get_pandas_df(), "privacy_key")
+        with self.assertRaisesRegex(ValueError, "No aggregations in the query"):
+            builder.groupby("group_key",
+                            max_groups_contributed=1,
+                            max_contributions_per_group=1).build_query()
+
     def test_group_by_not_existing_column(self):
-        df = self._get_pandas_df()
-        builder = dataframes.QueryBuilder(df, "privacy_key")
+        builder = dataframes.QueryBuilder(self._get_pandas_df(), "privacy_key")
         with self.assertRaisesRegex(
                 ValueError,
                 "Column not_present_column is not present in DataFrame"):
@@ -53,8 +59,7 @@ class QueryBuilderTest(parameterized.TestCase):
                             max_contributions_per_group=1)
 
     def test_2_group_by(self):
-        df = self._get_pandas_df()
-        builder = dataframes.QueryBuilder(df, "privacy_key")
+        builder = dataframes.QueryBuilder(self._get_pandas_df(), "privacy_key")
         builder.groupby("group_key",
                         max_groups_contributed=1,
                         max_contributions_per_group=1)
@@ -66,32 +71,36 @@ class QueryBuilderTest(parameterized.TestCase):
 
     def test_count_query(self):
         df = self._get_pandas_df()
+
         query = dataframes.QueryBuilder(df, "privacy_key").groupby(
-            "partition_key",
+            "group_key",
             max_groups_contributed=5,
             max_contributions_per_group=10).count().build_query()
+
         self.assertTrue(query._df.equals(df))
-        self.assertEqual(
-            query._columns,
-            dataframes.Columns("privacy_key", "partition_key", None))
+        self.assertEqual(query._columns,
+                         dataframes.Columns("privacy_key", "group_key", None))
         self.assertEqual(query._metrics, [pipeline_dp.Metrics.COUNT])
         self.assertEqual(
             query._contribution_bounds,
             dataframes.ContributionBounds(max_partitions_contributed=5,
                                           max_contributions_per_partition=10))
+        self.assertIsNone(query._public_partitions)
 
     def test_sum_query(self):
         df = self._get_pandas_df()
+
         query = dataframes.QueryBuilder(df, "privacy_key").groupby(
-            "partition_key",
+            "group_key",
             max_groups_contributed=8,
             max_contributions_per_group=11).sum("value",
                                                 min_value=1,
                                                 max_value=2.5).build_query()
+
         self.assertTrue(query._df.equals(df))
         self.assertEqual(
             query._columns,
-            dataframes.Columns("privacy_key", "partition_key", "value"))
+            dataframes.Columns("privacy_key", "group_key", "value"))
         self.assertEqual(query._metrics, [pipeline_dp.Metrics.SUM])
         self.assertEqual(
             query._contribution_bounds,
@@ -103,14 +112,15 @@ class QueryBuilderTest(parameterized.TestCase):
     def test_count_and_sum_query(self):
         query = dataframes.QueryBuilder(
             self._get_pandas_df(),
-            "privacy_key").groupby("partition_key",
+            "privacy_key").groupby("group_key",
                                    max_groups_contributed=8,
                                    max_contributions_per_group=11).count().sum(
                                        "value", min_value=1,
                                        max_value=2.5).build_query()
+
         self.assertEqual(
             query._columns,
-            dataframes.Columns("privacy_key", "partition_key", "value"))
+            dataframes.Columns("privacy_key", "group_key", "value"))
         self.assertEqual(query._metrics,
                          [pipeline_dp.Metrics.COUNT, pipeline_dp.Metrics.SUM])
         self.assertEqual(
@@ -119,6 +129,16 @@ class QueryBuilderTest(parameterized.TestCase):
                                           max_contributions_per_partition=11,
                                           min_value=1,
                                           max_value=2.5))
+
+    def test_public_keys(self):
+        query = dataframes.QueryBuilder(
+            self._get_pandas_df(),
+            "privacy_key").groupby("group_key",
+                                   max_groups_contributed=5,
+                                   max_contributions_per_group=10,
+                                   public_keys=["key1"]).count().build_query()
+
+        self.assertEqual(query._public_partitions, ["key1"])
 
 
 if __name__ == '__main__':
