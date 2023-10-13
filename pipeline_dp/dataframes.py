@@ -12,11 +12,25 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Computing DP aggregations on (Pandas, Spark, Beam) Dataframes."""
-
+import abc
+from collections import namedtuple
 from dataclasses import dataclass
 from typing import Any, Dict, Iterable, List, Optional
 
 import pipeline_dp
+import pyspark
+
+SparkDataFrame = pyspark.sql.dataframe.DataFrame
+
+
+@dataclass
+class Budget:
+    epsilon: float
+    delta: float = 0
+
+    def __post_init__(self):
+        pipeline_dp.input_validators.validate_epsilon_delta(
+            self.epsilon, self.delta, "Budget")
 
 
 @dataclass
@@ -34,16 +48,49 @@ class ContributionBounds:
     max_value: Optional[float] = None
 
 
-@dataclass
-class Budget:
-    epsilon: float
-    delta: float = 0
+class DataFrameConvertor(abc.ABC):
 
-    def __post_init__(self):
-        if self.epsilon <= 0:
-            raise ValueError(f"epsilon must be positive, not {self.epsilon}.")
-        if self.delta < 0:
-            raise ValueError(f"delta must be non-negative, not {self.delta}.")
+    @abc.abstractmethod
+    def dataframe_to_collection(df, columns: Columns):
+        pass
+
+    @abc.abstractmethod
+    def collection_to_dataframe(col, group_key_column: str):
+        pass
+
+
+class SparkConverter(DataFrameConvertor):
+
+    def __init__(self, spark: pyspark.sql.SparkSession):
+        self._spark = spark
+
+    def dataframe_to_collection(self, df, columns: Columns) -> pyspark.RDD:
+        columns_to_keep = [columns.privacy_key, columns.partition_key]
+        if columns.value is not None:
+            columns_to_keep.append(columns.value)
+        df = df[columns_to_keep]  # leave only needed columns.
+        if columns.value is None:
+            return df.rdd.map(lambda row: (row[0], row[1], 0))
+        return df.rdd.map(lambda row: (row[0], row[1], row[2]))
+
+    def collection_to_dataframe(self, col: pyspark.RDD) -> SparkDataFrame:
+        df = self._spark.createDataFrame(col)
+        return df
+
+
+def _create_backend_for_dataframe(
+        df: SparkDataFrame) -> pipeline_dp.PipelineBackend:
+    if isinstance(df, SparkDataFrame):
+        return pipeline_dp.SparkRDDBackend(df.sparkSession.sparkContext)
+    raise NotImplementedError(
+        f"Dataframes of type {type(df)} not yet supported")
+
+
+def _create_dataframe_converter(df: SparkDataFrame) -> DataFrameConvertor:
+    if isinstance(df, SparkDataFrame):
+        return SparkConverter(df.sparkSession)
+    raise NotImplementedError(
+        f"Dataframes of type {type(df)} not yet supported")
 
 
 class Query:
@@ -64,7 +111,53 @@ class Query:
     def run_query(self,
                   budget: Budget,
                   noise_kind: Optional[pipeline_dp.NoiseKind] = None):
-        raise NotImplementedError("Running query is not yet implemented")
+        converter = _create_dataframe_converter(self._df)
+        backend = _create_backend_for_dataframe(self._df)
+        col = converter.dataframe_to_collection(self._df, self._columns)
+        budget_accountant = pipeline_dp.NaiveBudgetAccountant(
+            total_epsilon=budget.epsilon, total_delta=budget.delta)
+
+        dp_engine = pipeline_dp.DPEngine(budget_accountant, backend)
+        params = pipeline_dp.AggregateParams(
+            noise_kind=noise_kind,
+            metrics=self._metrics,
+            max_partitions_contributed=self._contribution_bounds.
+            max_partitions_contributed,
+            max_contributions_per_partition=self._contribution_bounds.
+            max_contributions_per_partition,
+            min_value=self._contribution_bounds.min_value,
+            max_value=self._contribution_bounds.max_value)
+
+        data_extractors = pipeline_dp.DataExtractors(
+            privacy_id_extractor=lambda row: row[0],
+            partition_extractor=lambda row: row[1],
+            value_extractor=lambda row: row[2])
+
+        dp_result = dp_engine.aggregate(
+            col,
+            params,
+            data_extractors,
+            public_partitions=self._public_partitions)
+        # dp_result: (partition_key, NamedTuple(metrics))
+        budget_accountant.compute_budgets()
+
+        # Convert elements to named tuple.
+        metrics_names = [m.name.lower() for m in self._metrics]
+        PartitionMetricsTuple = namedtuple(
+            "Result", [self._columns.partition_key] + metrics_names)
+        partition_key_column = self._columns.partition_key
+
+        def convert_to_partition_metrics_tuple(row):
+            partition, metrics = row
+            result = {partition_key_column: partition}
+            result.update(metrics._asdict())
+            return PartitionMetricsTuple(**result)
+
+        dp_result = backend.map(dp_result, convert_to_partition_metrics_tuple,
+                                "Convert to NamedTuple")
+        # dp_result: PartitionMetricsTuple
+
+        return converter.collection_to_dataframe(dp_result)
 
 
 class QueryBuilder:
