@@ -53,7 +53,7 @@ class Query:
     """
 
     def __init__(self, df, columns: Columns, metrics: Dict[pipeline_dp.Metric,
-                                                           List[str]],
+                                                           str],
                  contribution_bounds: ContributionBounds, public_keys):
         self._df = df
         self._columns = columns
@@ -61,9 +61,10 @@ class Query:
         self._contribution_bounds = contribution_bounds
         self._public_partitions = public_keys
 
-    def run_query(self,
-                  budget: Budget,
-                  noise_kind: Optional[pipeline_dp.NoiseKind] = None):
+    def run_query(
+            self,
+            budget: Budget,
+            noise_kind: pipeline_dp.NoiseKind = pipeline_dp.NoiseKind.LAPLACE):
         raise NotImplementedError("Running query is not yet implemented")
 
 
@@ -184,9 +185,8 @@ class QueryBuilder:
         if not self._metrics:
             raise ValueError(
                 "No aggregations in the query. Call for example count.")
-        metrics = list(self._metrics.keys())
         return Query(
             self._df,
             Columns(self._privacy_unit_column, self._groupby_column,
-                    self._value_column), metrics, self._contribution_bounds,
-            self._public_keys)
+                    self._value_column), self._metrics,
+            self._contribution_bounds, self._public_keys)
