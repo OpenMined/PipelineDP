@@ -3,6 +3,7 @@ apache-beam
 absl-py
 pyspark
 toml
+pandas
 
 # pytest stuff
 pytest
