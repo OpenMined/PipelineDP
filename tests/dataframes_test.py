@@ -80,7 +80,7 @@ class QueryBuilderTest(parameterized.TestCase):
         self.assertTrue(query._df.equals(df))
         self.assertEqual(query._columns,
                          dataframes.Columns("privacy_key", "group_key", None))
-        self.assertEqual(query._metrics, [pipeline_dp.Metrics.COUNT])
+        self.assertEqual(query._metrics, {pipeline_dp.Metrics.COUNT: None})
         self.assertEqual(
             query._contribution_bounds,
             dataframes.ContributionBounds(max_partitions_contributed=5,
@@ -101,7 +101,7 @@ class QueryBuilderTest(parameterized.TestCase):
         self.assertEqual(
             query._columns,
             dataframes.Columns("privacy_key", "group_key", "value"))
-        self.assertEqual(query._metrics, [pipeline_dp.Metrics.SUM])
+        self.assertEqual(query._metrics, {pipeline_dp.Metrics.SUM: None})
         self.assertEqual(
             query._contribution_bounds,
             dataframes.ContributionBounds(max_partitions_contributed=8,
@@ -115,14 +115,18 @@ class QueryBuilderTest(parameterized.TestCase):
             "privacy_key").groupby("group_key",
                                    max_groups_contributed=8,
                                    max_contributions_per_group=11).count().sum(
-                                       "value", min_value=1,
-                                       max_value=2.5).build_query()
+                                       "value",
+                                       min_value=1,
+                                       max_value=2.5,
+                                       name="SUM1").build_query()
 
         self.assertEqual(
             query._columns,
             dataframes.Columns("privacy_key", "group_key", "value"))
-        self.assertEqual(query._metrics,
-                         [pipeline_dp.Metrics.COUNT, pipeline_dp.Metrics.SUM])
+        self.assertEqual(query._metrics, {
+            pipeline_dp.Metrics.COUNT: None,
+            pipeline_dp.Metrics.SUM: "SUM1"
+        })
         self.assertEqual(
             query._contribution_bounds,
             dataframes.ContributionBounds(max_partitions_contributed=8,

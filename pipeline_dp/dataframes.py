@@ -100,7 +100,7 @@ class Query:
     """
 
     def __init__(self, df, columns: Columns, metrics: Dict[pipeline_dp.Metric,
-                                                           List[str]],
+                                                           str],
                  contribution_bounds: ContributionBounds, public_keys):
         self._df = df
         self._columns = columns
@@ -277,9 +277,8 @@ class QueryBuilder:
         if not self._metrics:
             raise ValueError(
                 "No aggregations in the query. Call for example count.")
-        metrics = list(self._metrics.keys())
         return Query(
             self._df,
             Columns(self._privacy_unit_column, self._groupby_column,
-                    self._value_column), metrics, self._contribution_bounds,
-            self._public_keys)
+                    self._value_column), self._metrics,
+            self._contribution_bounds, self._public_keys)

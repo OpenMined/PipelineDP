@@ -88,7 +88,6 @@ def compute_on_spark_dataframes() -> None:
     spark = (SparkSession.builder.master("local[1]").appName(
         "Restaurant").getOrCreate())
     df = load_data_in_spark_dataframe(spark)
-    df.printSchema()
     result_df = compute_private_result(df)
     result_df.printSchema()
     delete_if_exists(FLAGS.output_file)
