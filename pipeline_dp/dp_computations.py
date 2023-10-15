@@ -765,6 +765,8 @@ class ThresholdingMechanism:
     def __init__(self, epsilon: float, delta: float,
                  strategy: pipeline_dp.PartitionSelectionStrategy,
                  l0_sensitivity: int, pre_threshold: Optional[int]):
+        self._strategy_type = strategy
+        self._pre_threshold = pre_threshold
         self._thresholding_strategy = partition_selection.create_partition_selection_strategy(
             strategy, epsilon, delta, l0_sensitivity, pre_threshold)
 
@@ -774,20 +776,26 @@ class ThresholdingMechanism:
             num_privacy_units)
 
     def describe(self) -> str:
-        return "Thresholding mechanism"
+        eps = self._thresholding_strategy.epsilon
+        delta = self._thresholding_strategy.delta
+        threshold = self._thresholding_strategy.threshold
+        text = (
+            f"{self._strategy_type.value} with threshold={threshold:.1f} eps={eps} delta={delta}"
+        )
+        if self._pre_threshold is not None:
+            text += f" and pre_threshold={self._pre_threshold}"
+        # TODO: add noise scale to text, when it's exposed from C++.
+        return text
 
 
 def create_thresholding_mechanism(
         mechanism_spec: budget_accounting.MechanismSpec,
-        sensitivities: Sensitivities) -> ThresholdingMechanism:
-    noise_kind = mechanism_spec.mechanism_type.to_noise_kind()
-    if noise_kind == pipeline_dp.NoiseKind.LAPLACE:
-        strategy = pipeline_dp.PartitionSelectionStrategy.LAPLACE_THRESHOLDING
-    else:
-        strategy = pipeline_dp.PartitionSelectionStrategy.GAUSSIAN_THRESHOLDING
+        sensitivities: Sensitivities,
+        pre_threshold: Optional[int]) -> ThresholdingMechanism:
+    strategy = mechanism_spec.mechanism_type.to_partition_selection_strategy()
     # TODO: add pre-threshold
     return ThresholdingMechanism(epsilon=mechanism_spec.eps,
                                  delta=mechanism_spec.delta,
                                  strategy=strategy,
                                  l0_sensitivity=sensitivities.l0,
-                                 pre_threshold=None)
+                                 pre_threshold=pre_threshold)
