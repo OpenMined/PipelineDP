@@ -99,18 +99,19 @@ class Query:
     Warning: Don't create it directly, use QueryBuilder().
     """
 
-    def __init__(self, df, columns: Columns, metrics: Dict[pipeline_dp.Metric,
-                                                           str],
+    def __init__(self, df, columns: Columns,
+                 metrics_output_columns: Dict[pipeline_dp.Metric, str],
                  contribution_bounds: ContributionBounds, public_keys):
         self._df = df
         self._columns = columns
-        self._metrics = metrics
+        self._metrics_output_columns = metrics_output_columns
         self._contribution_bounds = contribution_bounds
         self._public_partitions = public_keys
 
-    def run_query(self,
-                  budget: Budget,
-                  noise_kind: Optional[pipeline_dp.NoiseKind] = None):
+    def run_query(
+            self,
+            budget: Budget,
+            noise_kind: pipeline_dp.NoiseKind = pipeline_dp.NoiseKind.LAPLACE):
         converter = _create_dataframe_converter(self._df)
         backend = _create_backend_for_dataframe(self._df)
         col = converter.dataframe_to_collection(self._df, self._columns)
@@ -118,9 +119,10 @@ class Query:
             total_epsilon=budget.epsilon, total_delta=budget.delta)
 
         dp_engine = pipeline_dp.DPEngine(budget_accountant, backend)
+        metrics = list(self._metrics_output_columns.keys())
         params = pipeline_dp.AggregateParams(
             noise_kind=noise_kind,
-            metrics=self._metrics,
+            metrics=metrics,
             max_partitions_contributed=self._contribution_bounds.
             max_partitions_contributed,
             max_contributions_per_partition=self._contribution_bounds.
@@ -142,15 +144,21 @@ class Query:
         budget_accountant.compute_budgets()
 
         # Convert elements to named tuple.
-        metrics_names = [m.name.lower() for m in self._metrics]
+        metrics_names_to_output_columns = dict(
+            ((m.name.lower(), output)
+             for m, output in self._metrics_output_columns.items()))
+        output_columns = list(metrics_names_to_output_columns.values())
         PartitionMetricsTuple = namedtuple(
-            "Result", [self._columns.partition_key] + metrics_names)
+            "Result", [self._columns.partition_key] + output_columns)
         partition_key_column = self._columns.partition_key
 
         def convert_to_partition_metrics_tuple(row):
             partition, metrics = row
             result = {partition_key_column: partition}
-            result.update(metrics._asdict())
+            for key, value in metrics._asdict().items():
+                # Map default metric names to metric names specified in
+                # self.metrics_names_to_output_columns
+                result[metrics_names_to_output_columns[key]] = value
             return PartitionMetricsTuple(**result)
 
         dp_result = backend.map(dp_result, convert_to_partition_metrics_tuple,
