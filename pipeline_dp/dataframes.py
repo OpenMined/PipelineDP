@@ -15,7 +15,7 @@
 import abc
 from collections import namedtuple
 from dataclasses import dataclass
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any, Dict, Iterable, Optional
 
 import pipeline_dp
 import pyspark
@@ -49,6 +49,7 @@ class ContributionBounds:
 
 
 class DataFrameConvertor(abc.ABC):
+    """Base class for conversion between DataFrames and Collections."""
 
     @abc.abstractmethod
     def dataframe_to_collection(df, columns: Columns):
@@ -60,6 +61,7 @@ class DataFrameConvertor(abc.ABC):
 
 
 class SparkConverter(DataFrameConvertor):
+    """Convertor between RDD and Spark DataFrame."""
 
     def __init__(self, spark: pyspark.sql.SparkSession):
         self._spark = spark
@@ -80,6 +82,7 @@ class SparkConverter(DataFrameConvertor):
 
 def _create_backend_for_dataframe(
         df: SparkDataFrame) -> pipeline_dp.PipelineBackend:
+    """Creates a pipeline backend based on type of DataFrame."""
     if isinstance(df, SparkDataFrame):
         return pipeline_dp.SparkRDDBackend(df.sparkSession.sparkContext)
     raise NotImplementedError(
@@ -87,6 +90,7 @@ def _create_backend_for_dataframe(
 
 
 def _create_dataframe_converter(df: SparkDataFrame) -> DataFrameConvertor:
+    """Creates a DataConvert based on type of DataFrame."""
     if isinstance(df, SparkDataFrame):
         return SparkConverter(df.sparkSession)
     raise NotImplementedError(
@@ -99,19 +103,41 @@ class Query:
     Warning: Don't create it directly, use QueryBuilder().
     """
 
-    def __init__(self, df, columns: Columns,
+    def __init__(self, df: SparkDataFrame, columns: Columns,
                  metrics_output_columns: Dict[pipeline_dp.Metric, str],
-                 contribution_bounds: ContributionBounds, public_keys):
+                 contribution_bounds: ContributionBounds,
+                 public_partitions: Optional[Iterable]):
+        """Constructor.
+
+        Warning: Don't create it directly, use QueryBuilder().
+
+        Args:
+            df: DataFrame with data to be anonymized.
+            columns: privacy_key, partition and value columns in df.
+            metrics_output_columns: mapping from metrics to the output DataFrame
+              column.
+            contribution_bounds: contribution bounds for computing DP
+              aggregation.
+            public_partitions: public partitions, in case if they are known.
+        """
         self._df = df
         self._columns = columns
         self._metrics_output_columns = metrics_output_columns
         self._contribution_bounds = contribution_bounds
-        self._public_partitions = public_keys
+        self._public_partitions = public_partitions
 
     def run_query(
             self,
             budget: Budget,
             noise_kind: pipeline_dp.NoiseKind = pipeline_dp.NoiseKind.LAPLACE):
+        """Runs the DP query and returns a DataFrame.
+
+        Args:
+             budget: DP budget
+             noise_kind: type of noise which is used for the anonymization.
+        Returns:
+            DataFrame with DP aggregation result.
+        """
         converter = _create_dataframe_converter(self._df)
         backend = _create_backend_for_dataframe(self._df)
         col = converter.dataframe_to_collection(self._df, self._columns)
