@@ -66,7 +66,8 @@ class SparkConverter(DataFrameConvertor):
     def __init__(self, spark: pyspark.sql.SparkSession):
         self._spark = spark
 
-    def dataframe_to_collection(self, df, columns: Columns) -> pyspark.RDD:
+    def dataframe_to_collection(self, df: SparkDataFrame,
+                                columns: Columns) -> pyspark.RDD:
         columns_to_keep = [columns.privacy_key, columns.partition_key]
         if columns.value is not None:
             columns_to_keep.append(columns.value)
@@ -170,13 +171,17 @@ class Query:
         budget_accountant.compute_budgets()
 
         # Convert elements to named tuple.
-        metrics_names_to_output_columns = dict(
-            ((m.name.lower(), output)
-             for m, output in self._metrics_output_columns.items()))
+        metrics_names_to_output_columns = {}
+        for metric, output_column in self._metrics_output_columns.items():
+            metric_name = metric.name.lower()
+            if output_column is None:
+                output_column = metric_name  # default name
+            metrics_names_to_output_columns[metric_name] = output_column
+
         output_columns = list(metrics_names_to_output_columns.values())
-        PartitionMetricsTuple = namedtuple(
-            "Result", [self._columns.partition_key] + output_columns)
         partition_key_column = self._columns.partition_key
+        PartitionMetricsTuple = namedtuple("Result", [partition_key_column] +
+                                           output_columns)
 
         def convert_to_partition_metrics_tuple(row):
             partition, metrics = row
