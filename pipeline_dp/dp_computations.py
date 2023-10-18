@@ -793,7 +793,6 @@ def create_thresholding_mechanism(
         sensitivities: Sensitivities,
         pre_threshold: Optional[int]) -> ThresholdingMechanism:
     strategy = mechanism_spec.mechanism_type.to_partition_selection_strategy()
-    # TODO: add pre-threshold
     return ThresholdingMechanism(epsilon=mechanism_spec.eps,
                                  delta=mechanism_spec.delta,
                                  strategy=strategy,
