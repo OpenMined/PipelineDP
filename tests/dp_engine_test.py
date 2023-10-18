@@ -556,7 +556,8 @@ class DpEngineTest(parameterized.TestCase):
                                                     unittest.mock.ANY,
                                                     unittest.mock.ANY)
 
-    @patch('pipeline_dp.dp_engine.DPEngine._drop_partitions',)
+    @patch(
+        'pipeline_dp.dp_engine.DPEngine._drop_partitions',)
     def test_aggregate_no_partition_filtering_public_partitions(
             self, mock_drop_partitions):
         # Arrange
@@ -1093,9 +1094,9 @@ class DpEngineTest(parameterized.TestCase):
 
         return col
 
-    @unittest.skipIf(
-        sys.version_info.major == 3 and sys.version_info.minor <= 8,
-        "dp_accounting library only support python >=3.9")
+    @unittest.skipIf(sys.version_info.major == 3 and
+                     sys.version_info.minor <= 8,
+                     "dp_accounting library only support python >=3.9")
     @parameterized.parameters(False, True)
     def test_run_e2e_count_public_partition_local(self, pld_accounting):
         Accountant = pipeline_dp.PLDBudgetAccountant if pld_accounting else pipeline_dp.NaiveBudgetAccountant
@@ -1224,9 +1225,9 @@ class DpEngineTest(parameterized.TestCase):
         self.assertLen(output, 1)
         self.assertAlmostEqual(output[0][1].sum, -3, delta=0.1)
 
-    @unittest.skipIf(
-        sys.version_info.major == 3 and sys.version_info.minor <= 8,
-        "dp_accounting library only support python >=3.9")
+    @unittest.skipIf(sys.version_info.major == 3 and
+                     sys.version_info.minor <= 8,
+                     "dp_accounting library only support python >=3.9")
     def test_pld_not_supported_metrics(self):
         with self.assertRaisesRegex(
                 NotImplementedError,
@@ -1240,9 +1241,9 @@ class DpEngineTest(parameterized.TestCase):
             engine.aggregate([1], aggregate_params,
                              self._get_default_extractors(), public_partitions)
 
-    @unittest.skipIf(
-        sys.version_info.major == 3 and sys.version_info.minor <= 8,
-        "dp_accounting library only support python >=3.9")
+    @unittest.skipIf(sys.version_info.major == 3 and
+                     sys.version_info.minor <= 8,
+                     "dp_accounting library only support python >=3.9")
     def test_pld_not_support_private_partition_selection(self):
         with self.assertRaisesRegex(
                 NotImplementedError,
