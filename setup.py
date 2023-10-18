@@ -3,14 +3,16 @@ from setuptools import setup
 import os
 
 packages = \
-['pipeline_dp', 'utility_analysis']
+['pipeline_dp',
+ 'pipeline_dp.dataset_histograms'
+]
 
 package_data = \
 {'': ['*']}
 
 install_requires = \
 ['numpy>=1.20.1,<2.0.0',
- 'python-dp>=1.1.4',
+ 'python-dp>=1.1.5rc4',
  'scipy>=1.7.3,<2.0.0'
 ]
 
@@ -21,7 +23,7 @@ def read(fname):
 
 setup_kwargs = {
     'name': 'pipeline-dp',
-    'version': '0.2.1.rc6',
+    'version': '0.2.1.rc7',
     'description': 'Framework for applying differential privacy to large datasets using batch processing systems',
     'author': 'Chinmay Shah',
     'author_email': 'chinmayshah3899@gmail.com',
