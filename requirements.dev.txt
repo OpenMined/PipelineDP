@@ -12,4 +12,4 @@ pytest-timeout
 pylint
 yapf
 dp-accounting~=0.4.3
-python-dp~=1.1.5
+python-dp~=1.1.5rc4
