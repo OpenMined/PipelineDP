@@ -885,16 +885,15 @@ class ThresholdingMechanismTests(parameterized.TestCase):
             mechanism.describe(),
             "Laplace Thresholding with threshold=33.5 eps=1.5 delta=1e-05")
 
-    def test_noised_value_if_should_keep(self):
+    @patch(
+        'pydp._pydp._partition_selection.LaplacePartitionSelectionStrategy.noised_value_if_should_keep'
+    )
+    def test_noised_value_if_should_keep(self, mock_function):
         mechanism = self.create_thresholding_mechanism(is_gaussian=False)
-        import pydp.algorithms.partition_selection as partition_selection
-        # with patch.object(partition_selection.PartitionSelectionStrategy, "noised_value_if_should_keep", return_value="output") as mock_function:
-        with patch.object(mechanism._thresholding_strategy,
-                          "noised_value_if_should_keep",
-                          return_value="output") as mock_function:
-            output = mechanism.noised_value_if_should_keep(10)
-            mock_function.assert_called_once_with(10)
-            self.assertEqual(output, "output")
+        mock_function.return_value = "output"
+        output = mechanism.noised_value_if_should_keep(10)
+        mock_function.assert_called_once_with(10)
+        self.assertEqual(output, "output")
 
 
 class ExponentialMechanismTests(unittest.TestCase):
