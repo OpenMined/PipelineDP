@@ -324,7 +324,7 @@ class PrivacyIdCountCombiner(Combiner, AdditiveMechanismMixin):
         return False
 
 
-class PostAggregationThreshlodingCombiner(Combiner, MechanismContainerMixin):
+class PostAggregationThresholdingCombiner(Combiner, MechanismContainerMixin):
     """Combiner for computing DP privacy id count. todo
     The type of the accumulator is int, which represents count of the elements
     in the dataset for which this accumulator is computed.
@@ -889,7 +889,7 @@ def create_compound_combiner(
     if pipeline_dp.Metrics.PRIVACY_ID_COUNT in aggregate_params.metrics:
         if aggregate_params.post_aggregation_thresholding:
             combiners.append(
-                PostAggregationThreshlodingCombiner(budget_accountant,
+                PostAggregationThresholdingCombiner(budget_accountant,
                                                     aggregate_params))
         else:
             budget_privacy_id_count = budget_accountant.request_budget(
