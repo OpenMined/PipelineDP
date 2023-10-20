@@ -174,10 +174,7 @@ class DPEngine:
                                        "Compute DP metrics")
 
         if params.post_aggregation_thresholding:
-            # todo extract to separate method.
-            col = self._backend.filter(
-                col, lambda row: row[1].privacy_id_count != None,
-                "Thresholding")
+            col = self._drop_partitions_under_threshold(col)
 
         return col
 
@@ -528,6 +525,13 @@ class DPEngine:
         if custom_combiner:
             raise ValueError(f"PLD budget accounting does not support custom "
                              f"combiners")
+
+    def _drop_partitions_under_threshold(self, col):
+        self._add_report_stages("Drop partitions which have noised "
+                                "privacy_id_count less than threshold.")
+        return self._backend.filter(col,
+                                    lambda row: row[1].privacy_id_count != None,
+                                    "Drop partitions under threshold")
 
     def _annotate(self, col, params: pipeline_dp.SelectPartitionsParams,
                   budget: budget_accounting.Budget):

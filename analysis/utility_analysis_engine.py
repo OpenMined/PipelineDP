@@ -181,6 +181,9 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
         # Annotations are not needed because DP computations are not performed.
         return col
 
+    def _drop_partitions_under_threshold(self, col):
+        return col
+
 
 def _check_utility_analysis_params(
     options: analysis.UtilityAnalysisOptions,
