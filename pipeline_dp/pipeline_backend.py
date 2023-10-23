@@ -21,6 +21,9 @@ from collections.abc import Iterable
 from typing import Callable
 
 import abc
+
+import pandas as pd
+
 import pipeline_dp.combiners as dp_combiners
 import typing
 import collections
@@ -56,6 +59,12 @@ class PipelineBackend(abc.ABC):
             the framework collection with elements from collection_or_iterable.
         """
         return collection_or_iterable
+
+    def convert_result_to_dataframe(self, col, stage_name: str):
+        return col
+
+    def if_dataframe_convert_to_collection(self, col, stage_name: str):
+        return col
 
     def to_multi_transformable_collection(self, col):
         """Converts to a collection, for which multiple transformations can be applied.
@@ -474,6 +483,23 @@ class SparkRDDBackend(PipelineBackend):
         raise NotImplementedError("to_list is not implement in SparkBackend.")
 
 
+class SparkDataFrameBackend(SparkRDDBackend):
+
+    def __init__(self, spark):
+        super().__init__(spark.sparkContext)
+        self._spark = spark
+
+    def convert_result_to_dataframe(self, col, stage_name: str):
+        col = col.values()
+        return self._spark.createDataFrame(col, schema="count:float, sum:float")
+        # return col.toDF()
+        # return col
+    def if_dataframe_convert_to_collection(self, col, stage_name: str):
+        if type(col).__name__ == "DataFrame":
+            return col.rdd
+        return col
+
+
 class LocalBackend(PipelineBackend):
     """Local Pipeline adapter."""
 
@@ -581,6 +607,25 @@ class LocalBackend(PipelineBackend):
 
     def to_list(self, col, stage_name: str):
         return (list(col) for _ in range(1))
+
+
+class PandasDataFrameBackend(LocalBackend):
+
+    def if_dataframe_convert_to_collection(self, col, stage_name: str):
+        if not isinstance(col, pd.DataFrame):
+            return col
+        return col.itertuples()
+
+    def convert_result_to_dataframe(self, col, stage_name: str):
+
+        def generator():
+            l = list(col)
+            partition_keys, data = list(zip(*l))
+            df = pd.DataFrame(data=data)
+            df["partition_key"] = partition_keys
+            yield df
+
+        return generator()
 
 
 # workaround for passing lambda functions to multiprocessing
