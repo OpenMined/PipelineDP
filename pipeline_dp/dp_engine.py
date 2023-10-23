@@ -531,8 +531,8 @@ class DPEngine:
                              f"combiners")
 
     def _drop_partitions_under_threshold(self, col):
-        self._add_report_stages("Drop partitions which have noised "
-                                "privacy_id_count less than threshold.")
+        self._add_report_stage("Drop partitions which have noised "
+                               "privacy_id_count less than threshold.")
         return self._backend.filter(col,
                                     lambda row: row[1].privacy_id_count != None,
                                     "Drop partitions under threshold")
