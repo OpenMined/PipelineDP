@@ -158,7 +158,7 @@ class CreateCompoundCombinersTest(parameterized.TestCase):
         budget_accountant.request_budget.assert_called_with(
             pipeline_dp.aggregate_params.MechanismType.GAUSSIAN,
             weight=aggregate_params.budget_weight)
-        # Check correctness of intenal combiners
+        # Check correctness of internal combiners
         combiners = compound_combiner._combiners
         self.assertLen(combiners, len(expected_combiner_types))
         for combiner, expect_type, expected_budget in zip(
@@ -192,6 +192,35 @@ class CreateCompoundCombinersTest(parameterized.TestCase):
         self.assertFalse(compound_combiner._return_named_tuple)
         for combiner in custom_combiners:
             combiner.request_budget.assert_called_once()
+
+    def test_create_compound_combiner_with_post_aggregation(self):
+        # Arrange.
+        params = self._create_aggregate_params(
+            [pipeline_dp.Metrics.PRIVACY_ID_COUNT])
+        params.post_aggregation_thresholding = True
+        params.budget_weight = 1
+
+        # Mock budget accountant.
+        budget_accountant = pipeline_dp.NaiveBudgetAccountant(
+            1.5, 1e-10, num_aggregations=1)
+
+        # Act.
+        compound_combiner = dp_combiners.create_compound_combiner(
+            params, budget_accountant)
+        budget_accountant._compute_budget_for_aggregation(params.budget_weight)
+        budget_accountant.compute_budgets()
+
+        # Assert
+        # Check correctness of internal combiners
+        combiners = compound_combiner._combiners
+        self.assertLen(combiners, 1)
+        self.assertIsInstance(combiners[0],
+                              dp_combiners.PostAggregationThresholdingCombiner)
+        mechanism_spec = combiners[0].mechanism_spec()
+        self.assertEqual(mechanism_spec.mechanism_type,
+                         pipeline_dp.MechanismType.GAUSSIAN_THRESHOLDING)
+        self.assertEqual(mechanism_spec.eps, 1.5)
+        self.assertEqual(mechanism_spec.delta, 1e-10)
 
 
 class CountCombinerTest(parameterized.TestCase):

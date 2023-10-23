@@ -219,3 +219,7 @@ def _check_utility_analysis_params(
         raise NotImplementedError(
             "utility analysis when contribution bounds are already enforced is "
             "not supported")
+
+    if params.post_aggregation_thresholding:
+        raise NotImplementedError("Analysis with post_aggregation_thresholding "
+                                  "are not yet implemented")

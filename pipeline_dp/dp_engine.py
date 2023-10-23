@@ -431,6 +431,10 @@ class DPEngine:
                 raise ValueError(
                     "PRIVACY_ID_COUNT cannot be computed when "
                     "contribution_bounds_already_enforced is True.")
+        if params.post_aggregation_thresholding:
+            if pipeline_dp.Metrics.PRIVACY_ID_COUNT not in params.metrics:
+                raise ValueError("When post_aggregation_thresholding = True, "
+                                 "PRIVACY_ID_COUNT must be in metrics")
 
     def calculate_private_contribution_bounds(
             self,

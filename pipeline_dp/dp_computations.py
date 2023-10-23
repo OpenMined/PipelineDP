@@ -761,6 +761,23 @@ def compute_sensitivities_for_normalized_sum(
 
 
 class ThresholdingMechanism:
+    """Performs partition selection with thresholding mechanism.
+
+    The (Laplace, Gaussian) thresholding algorithm is the following:
+    1. Noise stddev and threshold T computation: from (eps, delta,
+      l0_sensitivity=max_partition_contributed).
+    2. Contribution bounding: for each privacy unit chosen partitions in which
+      it contributes, if there are more than max_partition_contributed,
+      max_partition_contributed partitions are randomly sampled.
+    3. Aggregation: for each partition the count of privacy unit is computed
+    4. Selection: for each partition with n privacy units, it’s released iff
+       num_privacy_units + noise >= T.
+
+    The details on computing noise stddev and T can be found in
+    https://github.com/google/differential-privacy/blob/main/common_docs/Delta_For_Thresholding.pdf
+
+    This class performs 1 and 4 items in algorithm.
+    """
 
     def __init__(self, epsilon: float, delta: float,
                  strategy: pipeline_dp.PartitionSelectionStrategy,
@@ -792,6 +809,7 @@ def create_thresholding_mechanism(
         mechanism_spec: budget_accounting.MechanismSpec,
         sensitivities: Sensitivities,
         pre_threshold: Optional[int]) -> ThresholdingMechanism:
+    """Creates ThresholdingMechanism from a mechanism spec and sensitivities."""
     strategy = mechanism_spec.mechanism_type.to_partition_selection_strategy()
     return ThresholdingMechanism(epsilon=mechanism_spec.eps,
                                  delta=mechanism_spec.delta,

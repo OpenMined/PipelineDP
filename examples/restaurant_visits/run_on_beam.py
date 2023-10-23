@@ -15,22 +15,24 @@
 
 For running:
 1. Install Python and run on the command line `pip install pipeline-dp apache-beam absl-py`
-2. Run python python run_on_beam.py --input_file=<path to data.txt from 3> --output_file=<...>
+2. Run python run_on_beam.py --input_file=<path to data.txt from 3> --output_file=<...>
 """
 
 from absl import app
 from absl import flags
 import apache_beam as beam
-from apache_beam.runners.portability import fn_api_runner
+from apache_beam.options.pipeline_options import PipelineOptions, GoogleCloudOptions
 import pipeline_dp
 from pipeline_dp import private_beam
 from pipeline_dp import SumParams
 import pandas as pd
 
 FLAGS = flags.FLAGS
-flags.DEFINE_string('input_file', 'restaurants_week_data.csv',
-                    'The CSV file with restaraunt visits data')
-flags.DEFINE_string('output_file', None, 'Output file')
+# flags.DEFINE_string('input_file', 'restaurants_week_data.csv',
+#                     'The CSV file with restauraunt visits data')
+# flags.DEFINE_string('output_file', None, 'Output file')
+INPUT_FILE = "gs://dataflow-apache-quickstart_handy-freedom-401310/data"
+OUTPUT_FILE = "gs://dataflow-apache-quickstart_handy-freedom-401310/beam_result/result1"
 
 
 def main(unused_argv):
@@ -39,8 +41,16 @@ def main(unused_argv):
     # Here, we use a local Beam runner.
     # For a truly distributed calculation, connect to a Beam cluster (e.g.
     # running on some cloud provider).
-    runner = fn_api_runner.FnApiRunner()  # Local Beam runner
-    with beam.Pipeline(runner=runner) as pipeline:
+    # runner = fn_api_runner.FnApiRunner()  # Local Beam runner
+
+    options = PipelineOptions()
+    google_cloud_options = options.view_as(GoogleCloudOptions)
+    google_cloud_options.project = 'handy-freedom-401310'  # Replace with your actual project ID
+    google_cloud_options.job_name = 'pipeline_dp_restaurant'  # Replace with your desired job name
+    google_cloud_options.staging_location = 'gs://dataflow-apache-quickstart_handy-freedom-401310/staging'  # Replace with your GCS staging bucket
+    google_cloud_options.temp_location = 'gs://dataflow-apache-quickstart_handy-freedom-401310/temp'  # Replace with your GCS Temporary files bucket
+
+    with beam.Pipeline(options=options) as pipeline:
 
         # Define the privacy budget available for our computation.
         budget_accountant = pipeline_dp.NaiveBudgetAccountant(total_epsilon=1,
@@ -77,12 +87,12 @@ def main(unused_argv):
         budget_accountant.compute_budgets()
 
         # Save the results
-        dp_result | beam.io.WriteToText(FLAGS.output_file)
+        dp_result | beam.io.WriteToText(OUTPUT_FILE)
 
     return 0
 
 
 if __name__ == '__main__':
-    flags.mark_flag_as_required("input_file")
-    flags.mark_flag_as_required("output_file")
+    # flags.mark_flag_as_required("input_file")
+    # flags.mark_flag_as_required("output_file")
     app.run(main)
