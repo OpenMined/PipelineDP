@@ -87,8 +87,6 @@ def calc_dp_rating_metrics(movie_views, backend, public_partitions):
         max_value=5,
         contribution_bounds_already_enforced=FLAGS.
         contribution_bounds_already_enforced,
-        partition_selection_strategy=pipeline_dp.PartitionSelectionStrategy.
-        GAUSSIAN_THRESHOLDING,
         pre_threshold=FLAGS.pre_threshold)
 
     value_extractor = lambda mv: mv.rating
