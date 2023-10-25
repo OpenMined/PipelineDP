@@ -103,8 +103,7 @@ def calc_dp_rating_metrics(movie_views, backend, public_partitions):
     # element of movie view collection.
     data_extractors = pipeline_dp.DataExtractors(
         partition_extractor=lambda mv: mv.movie_id,
-        privacy_id_extractor=(lambda mv: mv.user_id)
-        if not FLAGS.contribution_bounds_already_enforced else None,
+        privacy_id_extractor=lambda mv: mv.user_id,
         value_extractor=value_extractor)
 
     # Run aggregation.
