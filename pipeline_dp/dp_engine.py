@@ -423,10 +423,6 @@ class DPEngine:
         if check_data_extractors:
             _check_data_extractors(data_extractors)
         if params.contribution_bounds_already_enforced:
-            if data_extractors.privacy_id_extractor:
-                raise ValueError(
-                    "privacy_id_extractor should be set iff "
-                    "contribution_bounds_already_enforced is False")
             if pipeline_dp.Metrics.PRIVACY_ID_COUNT in params.metrics:
                 raise ValueError(
                     "PRIVACY_ID_COUNT cannot be computed when "
