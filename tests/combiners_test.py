@@ -396,10 +396,26 @@ class PostAggregationThresholdingCombinerTest(parameterized.TestCase):
         if noise_kind == pipeline_dp.NoiseKind.LAPLACE:
             return pipeline_dp.PartitionSelectionStrategy.LAPLACE_THRESHOLDING
 
-    @parameterized.parameters(pipeline_dp.NoiseKind.GAUSSIAN,
-                              pipeline_dp.NoiseKind.LAPLACE)
-    def test_create_combiner(self, noise_kind: pipeline_dp.NoiseKind):
-        combiner = self._create_combiner(False, noise_kind)
+    @parameterized.named_parameters(
+        dict(testcase_name='gaussian',
+             noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+             expected_strategy_class="GaussianPartitionSelectionStrategy"),
+        dict(testcase_name='laplace',
+             noise_kind=pipeline_dp.NoiseKind.LAPLACE,
+             expected_strategy_class="LaplacePartitionSelectionStrategy"),
+    )
+    def test_create_combiner(self, noise_kind: pipeline_dp.NoiseKind,
+                             expected_strategy_class: str):
+        # Arrange/act
+        budget_accountant = pipeline_dp.NaiveBudgetAccountant(total_epsilon=1,
+                                                              total_delta=1e-10)
+        aggregate_params = _create_aggregate_params()
+        aggregate_params.noise_kind = noise_kind
+        combiner = dp_combiners.PostAggregationThresholdingCombiner(
+            budget_accountant, aggregate_params)
+        budget_accountant.compute_budgets()
+
+        # Assert
         expected_mechanism_type = self._get_mechanism_type(noise_kind)
         self.assertEqual(
             combiner.mechanism_spec(),
@@ -408,10 +424,6 @@ class PostAggregationThresholdingCombinerTest(parameterized.TestCase):
         self.assertEqual(combiner.sensitivities().linf, 1)
         thresholding_strategy = combiner.create_mechanism(
         )._thresholding_strategy
-        if noise_kind == pipeline_dp.NoiseKind.GAUSSIAN:
-            expected_strategy_class = "GaussianPartitionSelectionStrategy"
-        else:
-            expected_strategy_class = "LaplacePartitionSelectionStrategy"
         self.assertEqual(
             type(thresholding_strategy).__name__, expected_strategy_class)
 

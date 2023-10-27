@@ -55,7 +55,7 @@ class Combiner(abc.ABC):
 
     @abc.abstractmethod
     def create_accumulator(self, values):
-        """Creates accumulator from 'values'."""
+        """Creates accumulator from 'values'. values are from one privacy ID"""
 
     @abc.abstractmethod
     def merge_accumulators(self, accumulator1, accumulator2):
@@ -282,8 +282,9 @@ class CountCombiner(Combiner, AdditiveMechanismMixin):
 
 class PrivacyIdCountCombiner(Combiner, AdditiveMechanismMixin):
     """Combiner for computing DP privacy id count.
-    The type of the accumulator is int, which represents count of the elements
-    in the dataset for which this accumulator is computed.
+
+    The type of the accumulator is int, which represents the count of
+    privacy IDs.
     """
     AccumulatorType = int
 
@@ -325,9 +326,10 @@ class PrivacyIdCountCombiner(Combiner, AdditiveMechanismMixin):
 
 
 class PostAggregationThresholdingCombiner(Combiner, MechanismContainerMixin):
-    """Combiner for computing DP privacy id count. todo
-    The type of the accumulator is int, which represents count of the elements
-    in the dataset for which this accumulator is computed.
+    """Combiner for computing DP privacy id count and applying thresholding.
+
+    The type of the accumulator is int, which represents the count of
+    privacy IDs.
     """
     AccumulatorType = int
 

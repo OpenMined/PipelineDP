@@ -764,19 +764,25 @@ class ThresholdingMechanism:
     """Performs partition selection with thresholding mechanism.
 
     The (Laplace, Gaussian) thresholding algorithm is the following:
-    1. Noise stddev and threshold T computation: from (eps, delta,
-      l0_sensitivity=max_partition_contributed).
-    2. Contribution bounding: for each privacy unit chosen partitions in which
-      it contributes, if there are more than max_partition_contributed,
-      max_partition_contributed partitions are randomly sampled.
-    3. Aggregation: for each partition the count of privacy unit is computed
-    4. Selection: for each partition with n privacy units, it’s released iff
-       num_privacy_units + noise >= T.
+    1. Contribution bounding: for each privacy unit, find all the partitions
+      where it contributes. If there are more than max_partition_contributed,
+      randomly sample contributions to max_partition_contributed partitions per
+      privacy unit.
+    2. Aggregation: for each partition, compute the count of contributing
+      privacy units. Add noise with stddev derived from
+      (epsilon, delta, l0_sensitivity=max_partition_contributed).
+    3. Partition selection: compute threshold T based on (epsilon, delta,
+      l0_sensitivity=max_partition_contributed, pre_threshold). Return each
+      partition key and the corresponding noisy count of privacy units,
+      where the noisy count of contributing privacy units is >= T.
 
     The details on computing noise stddev and T can be found in
     https://github.com/google/differential-privacy/blob/main/common_docs/Delta_For_Thresholding.pdf
 
-    This class performs 1 and 4 items in algorithm.
+
+    This class performs steps [2] and [3]: it takes the count of privacy units
+    contributing to a partition after contribution bounding, adds noise to it
+    and compares the noisy value to the threshold.
     """
 
     def __init__(self, epsilon: float, delta: float,
