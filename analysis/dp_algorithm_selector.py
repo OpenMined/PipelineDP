@@ -62,7 +62,7 @@ class DPAlgorithmSelector:
         return DPStrategy(noise_kind=noise_kind, partition_selection_strategy=None, post_aggregation_thresholding=False)
 
     def _get_dp_strategy_with_post_aggregation_threshold(self, l0: int) -> DPStrategy:
-
+        pass
 
     # def _choose_noise_kind(self, epsilon:float, delta:float)->pipeline_dp.NoiseKind:
     def _get_gaussian_std(self, epsilon:float, delta:float,  l0: int, linf: float)-> float:
