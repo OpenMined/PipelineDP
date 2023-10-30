@@ -424,6 +424,20 @@ class DpEngineTest(parameterized.TestCase):
                 engine.aggregate(test_case["col"], test_case["params"],
                                  test_case["data_extractor"])
 
+    def test_check_post_aggregation_thresholding_and_privacy_id_count(self):
+        engine = self._create_dp_engine_default()
+        params = pipeline_dp.AggregateParams(
+            noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+            max_partitions_contributed=1,
+            max_contributions_per_partition=1,
+            metrics=[pipeline_dp.Metrics.COUNT],
+            post_aggregation_thresholding=True)
+        with self.assertRaisesRegex(
+                ValueError,
+                "When post_aggregation_thresholding = True, PRIVACY_ID_COUNT must be in metrics"
+        ):
+            engine.aggregate([0], params, self._get_default_extractors())
+
     def _check_string_contains_strings(self, string: str,
                                        substrings: List[str]):
         print(string)
@@ -1146,6 +1160,38 @@ class DpEngineTest(parameterized.TestCase):
                 input, pipeline_dp.BeamBackend())
 
             beam_util.assert_that(output, beam_util.is_not_empty())
+
+    def test_run_e2e_post_aggregation_thresholding(self):
+        # High budget for low noise.
+        engine, budget_accountant = self._create_dp_engine_default(
+            return_accountant=True, epsilon=10, delta=1e-10)
+        params = pipeline_dp.AggregateParams(
+            noise_kind=pipeline_dp.NoiseKind.LAPLACE,
+            metrics=[agg.Metrics.PRIVACY_ID_COUNT],
+            max_partitions_contributed=1,
+            max_contributions_per_partition=1,
+            post_aggregation_thresholding=True)
+
+        # Generate input = [(partition_key, privacy_id)]
+        input = []
+        # 1000 partitions with 3 contributions, threshold ~= 3.2, some of them
+        # should be kept.
+        for i in range(1000):
+            for k in range(3):
+                input.append((i, 100 * i + k))
+
+        data_extractors = pipeline_dp.DataExtractors(
+            privacy_id_extractor=lambda x: x[1],
+            partition_extractor=lambda x: x[0],
+            value_extractor=lambda x: 0)
+
+        output = engine.aggregate(input, params, data_extractors)
+        budget_accountant.compute_budgets()
+        output = list(output)
+        self.assertTrue(len(output) > 10)
+        for partition, metrics in output:
+            # Check that privacy_id_count > threshold.
+            self.assertGreater(metrics.privacy_id_count, 3.2)
 
     @patch(
         'pipeline_dp.combiners.create_compound_combiner_with_custom_combiners')

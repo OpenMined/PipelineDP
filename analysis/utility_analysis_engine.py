@@ -181,6 +181,9 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
         # Annotations are not needed because DP computations are not performed.
         return col
 
+    def _drop_partitions_under_threshold(self, col):
+        return col
+
 
 def _check_utility_analysis_params(
     options: analysis.UtilityAnalysisOptions,
@@ -216,3 +219,7 @@ def _check_utility_analysis_params(
         raise NotImplementedError(
             "utility analysis when contribution bounds are already enforced is "
             "not supported")
+
+    if params.post_aggregation_thresholding:
+        raise NotImplementedError("Analysis with post_aggregation_thresholding "
+                                  "are not yet implemented")

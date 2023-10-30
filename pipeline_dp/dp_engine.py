@@ -151,7 +151,7 @@ class DPEngine:
             col, combiner, "Reduce accumulators per partition key")
         # col : (partition_key, accumulator)
 
-        if public_partitions is None:
+        if public_partitions is None and not params.post_aggregation_thresholding:
             # Perform private partition selection.
             max_rows_per_privacy_id = 1
 
@@ -172,6 +172,9 @@ class DPEngine:
         self._add_report_stages(combiner.explain_computation())
         col = self._backend.map_values(col, combiner.compute_metrics,
                                        "Compute DP metrics")
+
+        if params.post_aggregation_thresholding:
+            col = self._drop_partitions_under_threshold(col)
 
         return col
 
@@ -424,6 +427,10 @@ class DPEngine:
                 raise ValueError(
                     "PRIVACY_ID_COUNT cannot be computed when "
                     "contribution_bounds_already_enforced is True.")
+        if params.post_aggregation_thresholding:
+            if pipeline_dp.Metrics.PRIVACY_ID_COUNT not in params.metrics:
+                raise ValueError("When post_aggregation_thresholding = True, "
+                                 "PRIVACY_ID_COUNT must be in metrics")
 
     def calculate_private_contribution_bounds(
             self,
@@ -518,6 +525,13 @@ class DPEngine:
         if custom_combiner:
             raise ValueError(f"PLD budget accounting does not support custom "
                              f"combiners")
+
+    def _drop_partitions_under_threshold(self, col):
+        self._add_report_stage("Drop partitions which have noised "
+                               "privacy_id_count less than threshold.")
+        return self._backend.filter(col,
+                                    lambda row: row[1].privacy_id_count != None,
+                                    "Drop partitions under threshold")
 
     def _annotate(self, col, params: pipeline_dp.SelectPartitionsParams,
                   budget: budget_accounting.Budget):

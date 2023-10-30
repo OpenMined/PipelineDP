@@ -14,15 +14,14 @@
 """Differential privacy computing of count, sum, mean, variance."""
 
 import abc
+from dataclasses import dataclass
 import math
-import typing
-
 import numpy as np
-from typing import Any, Optional, Tuple, Union
+from typing import Any, List, Optional, Tuple, Union
 
 import pipeline_dp
 from pipeline_dp import budget_accounting
-from dataclasses import dataclass
+from pipeline_dp import partition_selection
 from pydp.algorithms import numerical_mechanisms as dp_mechanisms
 
 
@@ -696,7 +695,7 @@ class ExponentialMechanism:
     def __init__(self, scoring_function: ScoringFunction) -> None:
         self._scoring_function = scoring_function
 
-    def apply(self, eps: float, inputs_to_score_col: typing.List[Any]) -> Any:
+    def apply(self, eps: float, inputs_to_score_col: List[Any]) -> Any:
         """Applies exponential mechanism.
 
         I.e. chooses a parameter from the list of possible parameters in a
@@ -706,7 +705,7 @@ class ExponentialMechanism:
         return np.random.default_rng().choice(inputs_to_score_col, p=probs)
 
     def _calculate_probabilities(self, eps: float,
-                                 inputs_to_score_col: typing.List[Any]):
+                                 inputs_to_score_col: List[Any]):
         scores = np.array(
             list(map(self._scoring_function.score, inputs_to_score_col)))
         denominator = self._scoring_function.global_sensitivity
@@ -759,3 +758,67 @@ def compute_sensitivities_for_normalized_sum(
     linf_sensitivity = max_abs_value * params.max_contributions_per_partition
 
     return Sensitivities(l0=l0_sensitivity, linf=linf_sensitivity)
+
+
+class ThresholdingMechanism:
+    """Performs partition selection with thresholding mechanism.
+
+    The (Laplace, Gaussian) thresholding algorithm is the following:
+    1. Contribution bounding: for each privacy unit, find all the partitions
+      where it contributes. If there are more than max_partition_contributed,
+      randomly sample contributions to max_partition_contributed partitions per
+      privacy unit.
+    2. Aggregation: for each partition, compute the count of contributing
+      privacy units. Add noise with stddev derived from
+      (epsilon, delta, l0_sensitivity=max_partition_contributed).
+    3. Partition selection: compute threshold T based on (epsilon, delta,
+      l0_sensitivity=max_partition_contributed, pre_threshold). Return each
+      partition key and the corresponding noisy count of privacy units,
+      where the noisy count of contributing privacy units is >= T.
+
+    The details on computing noise stddev and T can be found in
+    https://github.com/google/differential-privacy/blob/main/common_docs/Delta_For_Thresholding.pdf
+
+
+    This class performs steps [2] and [3]: it takes the count of privacy units
+    contributing to a partition after contribution bounding, adds noise to it
+    and compares the noisy value to the threshold.
+    """
+
+    def __init__(self, epsilon: float, delta: float,
+                 strategy: pipeline_dp.PartitionSelectionStrategy,
+                 l0_sensitivity: int, pre_threshold: Optional[int]):
+        self._strategy_type = strategy
+        self._pre_threshold = pre_threshold
+        self._thresholding_strategy = partition_selection.create_partition_selection_strategy(
+            strategy, epsilon, delta, l0_sensitivity, pre_threshold)
+
+    def noised_value_if_should_keep(self,
+                                    num_privacy_units: int) -> Optional[float]:
+        return self._thresholding_strategy.noised_value_if_should_keep(
+            num_privacy_units)
+
+    def describe(self) -> str:
+        eps = self._thresholding_strategy.epsilon
+        delta = self._thresholding_strategy.delta
+        threshold = self._thresholding_strategy.threshold
+        text = (
+            f"{self._strategy_type.value} with threshold={threshold:.1f} eps={eps} delta={delta}"
+        )
+        if self._pre_threshold is not None:
+            text += f" and pre_threshold={self._pre_threshold}"
+        # TODO: add noise scale to text, when it's exposed from C++.
+        return text
+
+
+def create_thresholding_mechanism(
+        mechanism_spec: budget_accounting.MechanismSpec,
+        sensitivities: Sensitivities,
+        pre_threshold: Optional[int]) -> ThresholdingMechanism:
+    """Creates ThresholdingMechanism from a mechanism spec and sensitivities."""
+    strategy = mechanism_spec.mechanism_type.to_partition_selection_strategy()
+    return ThresholdingMechanism(epsilon=mechanism_spec.eps,
+                                 delta=mechanism_spec.delta,
+                                 strategy=strategy,
+                                 l0_sensitivity=sensitivities.l0,
+                                 pre_threshold=pre_threshold)
