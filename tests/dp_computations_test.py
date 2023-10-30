@@ -837,6 +837,73 @@ class MeanMechanismTests(parameterized.TestCase):
         mock_sum_add_noise.assert_called_with(21)
 
 
+class ThresholdingMechanismTests(parameterized.TestCase):
+
+    def create_thresholding_mechanism(
+        self,
+        mechanism_type: aggregate_params.MechanismType = aggregate_params.
+        MechanismType.GAUSSIAN_THRESHOLDING,
+        pre_threshold: Optional[int] = None
+    ) -> dp_computations.ThresholdingMechanism:
+        mechanism_spec = budget_accounting.MechanismSpec(mechanism_type)
+
+        mechanism_spec.set_eps_delta(eps=1.5, delta=1e-5)
+        sensitivities = dp_computations.Sensitivities(l0=4, linf=1)
+
+        return dp_computations.create_thresholding_mechanism(
+            mechanism_spec, sensitivities, pre_threshold)
+
+    def test_create_thresholding_mechanism(self):
+        # Arrange/Act
+        mechanism_spec = budget_accounting.MechanismSpec(
+            aggregate_params.MechanismType.GAUSSIAN_THRESHOLDING)
+        mechanism_spec.set_eps_delta(eps=1.5, delta=1e-5)
+        sensitivities = dp_computations.Sensitivities(l0=4, linf=1)
+        mechanism = dp_computations.create_thresholding_mechanism(
+            mechanism_spec, sensitivities, pre_threshold=None)
+
+        # Assert
+        self.assertEqual(mechanism._thresholding_strategy.epsilon, 1.5)
+        self.assertEqual(mechanism._thresholding_strategy.delta, 1e-5)
+        self.assertEqual(
+            type(mechanism._thresholding_strategy).__name__,
+            "GaussianPartitionSelectionStrategy")
+        self.assertEqual(
+            mechanism._thresholding_strategy.max_partitions_contributed, 4)
+        self.assertAlmostEqual(mechanism._thresholding_strategy.threshold,
+                               26.26941,
+                               delta=1e-5)
+
+    def test_create_thresholding_mechanism(self):
+        mechanism = self.create_thresholding_mechanism(
+            aggregate_params.MechanismType.LAPLACE_THRESHOLDING,
+            pre_threshold=20)
+        self.assertEqual(
+            type(mechanism._thresholding_strategy).__name__,
+            "PreThresholdingPartitionSelectionStrategy")
+        self.assertEqual(
+            mechanism._thresholding_strategy.max_partitions_contributed, 4)
+        self.assertEqual(mechanism._pre_threshold, 20)
+
+    def test_describe(self):
+        mechanism = self.create_thresholding_mechanism(
+            aggregate_params.MechanismType.LAPLACE_THRESHOLDING)
+        self.assertEqual(
+            mechanism.describe(),
+            "Laplace Thresholding with threshold=33.5 eps=1.5 delta=1e-05")
+
+    @patch(
+        'pydp._pydp._partition_selection.LaplacePartitionSelectionStrategy.noised_value_if_should_keep'
+    )
+    def test_noised_value_if_should_keep(self, mock_function):
+        mechanism = self.create_thresholding_mechanism(
+            aggregate_params.MechanismType.LAPLACE_THRESHOLDING)
+        mock_function.return_value = "output"
+        output = mechanism.noised_value_if_should_keep(10)
+        mock_function.assert_called_once_with(10)
+        self.assertEqual(output, "output")
+
+
 class ExponentialMechanismTests(unittest.TestCase):
 
     def test_one_parameter_that_has_much_greater_score_than_the_others_is_always_returned(

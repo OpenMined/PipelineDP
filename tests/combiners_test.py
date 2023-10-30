@@ -17,11 +17,32 @@ from unittest.mock import patch
 from absl.testing import absltest
 from absl.testing import parameterized
 import typing
+from typing import List, Optional
 import pipeline_dp
 import pipeline_dp.combiners as dp_combiners
 import pipeline_dp.budget_accounting as ba
+from pipeline_dp import aggregate_params
 
 import numpy as np
+
+
+class EmptyCombiner(dp_combiners.Combiner):
+    """Empty combiner implementation for mocking."""
+
+    def create_accumulator(self, values):
+        return None
+
+    def merge_accumulators(self, accumulator1, accumulator2):
+        return None
+
+    def compute_metrics(self, accumulator):
+        return None
+
+    def metrics_names(self) -> List[str]:
+        return []
+
+    def explain_computation(self):
+        return None
 
 
 def _create_mechanism_spec(
@@ -137,7 +158,7 @@ class CreateCompoundCombinersTest(parameterized.TestCase):
         budget_accountant.request_budget.assert_called_with(
             pipeline_dp.aggregate_params.MechanismType.GAUSSIAN,
             weight=aggregate_params.budget_weight)
-        # Check correctness of intenal combiners
+        # Check correctness of internal combiners
         combiners = compound_combiner._combiners
         self.assertLen(combiners, len(expected_combiner_types))
         for combiner, expect_type, expected_budget in zip(
@@ -171,6 +192,35 @@ class CreateCompoundCombinersTest(parameterized.TestCase):
         self.assertFalse(compound_combiner._return_named_tuple)
         for combiner in custom_combiners:
             combiner.request_budget.assert_called_once()
+
+    def test_create_compound_combiner_with_post_aggregation(self):
+        # Arrange.
+        params = self._create_aggregate_params(
+            [pipeline_dp.Metrics.PRIVACY_ID_COUNT])
+        params.post_aggregation_thresholding = True
+        params.budget_weight = 1
+
+        # Mock budget accountant.
+        budget_accountant = pipeline_dp.NaiveBudgetAccountant(
+            1.5, 1e-10, num_aggregations=1)
+
+        # Act.
+        compound_combiner = dp_combiners.create_compound_combiner(
+            params, budget_accountant)
+        budget_accountant._compute_budget_for_aggregation(params.budget_weight)
+        budget_accountant.compute_budgets()
+
+        # Assert
+        # Check correctness of internal combiners
+        combiners = compound_combiner._combiners
+        self.assertLen(combiners, 1)
+        self.assertIsInstance(combiners[0],
+                              dp_combiners.PostAggregationThresholdingCombiner)
+        mechanism_spec = combiners[0].mechanism_spec()
+        self.assertEqual(mechanism_spec.mechanism_type,
+                         pipeline_dp.MechanismType.GAUSSIAN_THRESHOLDING)
+        self.assertEqual(mechanism_spec.eps, 1.5)
+        self.assertEqual(mechanism_spec.delta, 1e-10)
 
 
 class CountCombinerTest(parameterized.TestCase):
@@ -316,6 +366,120 @@ class PrivacyIdCountCombinerTest(parameterized.TestCase):
         self.assertRegex(combiner.explain_computation()(), expected)
 
 
+class PostAggregationThresholdingCombinerTest(parameterized.TestCase):
+
+    def _create_combiner(
+        self,
+        small_noise: bool = False,
+        noise_kind: pipeline_dp.NoiseKind = pipeline_dp.NoiseKind.GAUSSIAN,
+        pre_threshold: Optional[int] = None
+    ) -> dp_combiners.PostAggregationThresholdingCombiner:
+        eps, delta = (10**3, 0.1) if small_noise else (1, 1e-10)
+        budget_accountant = pipeline_dp.NaiveBudgetAccountant(eps, delta)
+        aggregate_params = _create_aggregate_params()
+        aggregate_params.noise_kind = noise_kind
+        aggregate_params.pre_threshold = pre_threshold
+        combiner = dp_combiners.PostAggregationThresholdingCombiner(
+            budget_accountant, aggregate_params)
+        budget_accountant.compute_budgets()
+        return combiner
+
+    def _get_mechanism_type(self, noise_kind: pipeline_dp.NoiseKind):
+        if noise_kind == pipeline_dp.NoiseKind.GAUSSIAN:
+            return aggregate_params.MechanismType.GAUSSIAN_THRESHOLDING
+        if noise_kind == pipeline_dp.NoiseKind.LAPLACE:
+            return aggregate_params.MechanismType.LAPLACE_THRESHOLDING
+
+    def _get_strategy(self, noise_kind: pipeline_dp.NoiseKind):
+        if noise_kind == pipeline_dp.NoiseKind.GAUSSIAN:
+            return pipeline_dp.PartitionSelectionStrategy.GAUSSIAN_THRESHOLDING
+        if noise_kind == pipeline_dp.NoiseKind.LAPLACE:
+            return pipeline_dp.PartitionSelectionStrategy.LAPLACE_THRESHOLDING
+
+    @parameterized.named_parameters(
+        dict(testcase_name='gaussian',
+             noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+             expected_strategy_class="GaussianPartitionSelectionStrategy"),
+        dict(testcase_name='laplace',
+             noise_kind=pipeline_dp.NoiseKind.LAPLACE,
+             expected_strategy_class="LaplacePartitionSelectionStrategy"),
+    )
+    def test_create_combiner(self, noise_kind: pipeline_dp.NoiseKind,
+                             expected_strategy_class: str):
+        # Arrange/act
+        budget_accountant = pipeline_dp.NaiveBudgetAccountant(total_epsilon=1,
+                                                              total_delta=1e-10)
+        aggregate_params = _create_aggregate_params()
+        aggregate_params.noise_kind = noise_kind
+        combiner = dp_combiners.PostAggregationThresholdingCombiner(
+            budget_accountant, aggregate_params)
+        budget_accountant.compute_budgets()
+
+        # Assert
+        expected_mechanism_type = self._get_mechanism_type(noise_kind)
+        self.assertEqual(
+            combiner.mechanism_spec(),
+            ba.MechanismSpec(expected_mechanism_type, None, 1, 1e-10))
+        self.assertEqual(combiner.sensitivities().l0, 2)
+        self.assertEqual(combiner.sensitivities().linf, 1)
+        thresholding_strategy = combiner.create_mechanism(
+        )._thresholding_strategy
+        self.assertEqual(
+            type(thresholding_strategy).__name__, expected_strategy_class)
+
+    def test_create_accumulator(self):
+        combiner = self._create_combiner()
+        self.assertEqual(0, combiner.create_accumulator([]))
+        self.assertEqual(1, combiner.create_accumulator([1, 2]))
+
+    def test_merge_accumulators(self):
+        combiner = self._create_combiner()
+        self.assertEqual(0, combiner.merge_accumulators(0, 0))
+        self.assertEqual(5, combiner.merge_accumulators(1, 4))
+
+    def test_compute_metrics_no_noise(self):
+        combiner = self._create_combiner(small_noise=True)
+        self.assertAlmostEqual(3,
+                               combiner.compute_metrics(3)['privacy_id_count'],
+                               delta=1e-2)
+
+    @patch(
+        'pydp._pydp._partition_selection.GaussianPartitionSelectionStrategy.noised_value_if_should_keep'
+    )
+    def test_noised_value_if_should_keep(self, mock_function):
+        combiner = self._create_combiner(False)
+        mock_function.return_value = "output"
+        self.assertEqual(
+            combiner.compute_metrics(100)['privacy_id_count'], "output")
+        mock_function.assert_called_once_with(100)
+
+    @parameterized.named_parameters(
+        dict(testcase_name='gaussian',
+             noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+             pre_threshold=None),
+        dict(testcase_name='laplace',
+             noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+             pre_threshold=20),
+    )
+    @patch(
+        'pipeline_dp.partition_selection.create_partition_selection_strategy')
+    def test_mechanism(self, mock_create_partition_selection_strategy,
+                       noise_kind: pipeline_dp.NoiseKind,
+                       pre_threshold: Optional[int]):
+        combiner = self._create_combiner(False, noise_kind, pre_threshold)
+        combiner.get_mechanism()
+
+        expected_strategy = self._get_strategy(noise_kind)
+        mock_create_partition_selection_strategy.assert_called_once_with(
+            expected_strategy, 1.0, 1e-10, 2, pre_threshold)
+
+    def test_explain_computation(self):
+        combiner = self._create_combiner()
+        expected = ('Computed DP privacy_id_count with\n     Gaussian '
+                    'Thresholding with threshold=56.5 eps=1.0 delta=1e-10')
+        self.assertRegex(combiner.explain_computation()(), expected)
+
+
 class SumCombinerTest(parameterized.TestCase):
 
     def _create_aggregate_params_per_partition_bound(self):
@@ -354,6 +518,7 @@ class SumCombinerTest(parameterized.TestCase):
         # Bounding on values.
         self.assertEqual(2, combiner.create_accumulator([1, 3]))
         self.assertEqual(1, combiner.create_accumulator([0, 3]))
+        self.assertTrue(combiner.expects_per_partition_sampling())
 
     def test_create_accumulator_per_partition_bound(self):
         combiner = self._create_combiner(no_noise=False,
@@ -363,6 +528,7 @@ class SumCombinerTest(parameterized.TestCase):
         # Clipping sum to [0, 3].
         self.assertEqual(3, combiner.create_accumulator([4, 1]))
         self.assertEqual(0, combiner.create_accumulator([-10, 5, 3]))
+        self.assertFalse(combiner.expects_per_partition_sampling())
 
     @parameterized.named_parameters(
         dict(testcase_name='no_noise', no_noise=True, per_partition_bound=True),
@@ -666,6 +832,28 @@ class CompoundCombinerTest(parameterized.TestCase):
         self.assertAlmostEqual(accumulator[1][1], np.mean(noised_sum), delta=2)
         self.assertTrue(np.var(noised_count) > 1)  # check that noise is added
         self.assertTrue(np.var(noised_sum) > 1)  # check that noise is added
+
+    def test_expects_per_partition_sampling(self):
+
+        class MockCombiner(EmptyCombiner):
+
+            def __init__(self, return_value: bool):
+                self._return_value = return_value
+
+            def expects_per_partition_sampling(self) -> bool:
+                return self._return_value
+
+        def create_combiner(return_values: List[bool]):
+            combiners = [MockCombiner(v) for v in return_values]
+            return dp_combiners.CompoundCombiner(combiners,
+                                                 return_named_tuple=True)
+
+        self.assertTrue(
+            create_combiner([True]).expects_per_partition_sampling())
+        self.assertTrue(
+            create_combiner([True, False]).expects_per_partition_sampling())
+        self.assertFalse(
+            create_combiner([False, False]).expects_per_partition_sampling())
 
 
 class VectorSumCombinerTest(parameterized.TestCase):

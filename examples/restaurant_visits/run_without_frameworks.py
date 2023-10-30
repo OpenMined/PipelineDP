@@ -14,7 +14,7 @@
 """ Demo of running PipelineDP locally, without any external data processing framework
 
 1. Install Python and run on the command line `pip install pipeline-dp absl-py`
-2. Run python python run_without_frameworks.py --input_file=<path to data.txt from 3> --output_file=<...>
+2. Run python run_without_frameworks.py --input_file=<path to data.txt from 3> --output_file=<...>
 """
 
 from absl import app
@@ -26,6 +26,10 @@ FLAGS = flags.FLAGS
 flags.DEFINE_string('input_file', 'restaurants_week_data.csv',
                     'The file with the restaraunt visits data')
 flags.DEFINE_string('output_file', None, 'Output file')
+flags.DEFINE_boolean('post_aggregation_thresholding', False,
+                     'Whether post aggregation thresholding is used')
+flags.DEFINE_boolean('public_partitions', False,
+                     'Whether public partitions are used')
 
 
 def write_to_file(col, filename):
@@ -62,11 +66,15 @@ def main(unused_argv):
 
     params = pipeline_dp.AggregateParams(
         noise_kind=pipeline_dp.NoiseKind.LAPLACE,
-        metrics=[pipeline_dp.Metrics.COUNT, pipeline_dp.Metrics.SUM],
+        metrics=[
+            pipeline_dp.Metrics.PRIVACY_ID_COUNT, pipeline_dp.Metrics.COUNT,
+            pipeline_dp.Metrics.SUM
+        ],
         max_partitions_contributed=3,
         max_contributions_per_partition=2,
         min_value=0,
-        max_value=60)
+        max_value=60,
+        post_aggregation_thresholding=FLAGS.post_aggregation_thresholding)
 
     # Specify how to extract privacy_id, partition_key and value from an
     # element of restaraunt_visits_rows.
@@ -75,17 +83,27 @@ def main(unused_argv):
         privacy_id_extractor=lambda row: row.user_id,
         value_extractor=lambda row: row.spent_money)
 
+    # Create the Explain Computation report object for passing it into
+    # DPEngine.aggregate().
+    explain_computation_report = pipeline_dp.ExplainComputationReport()
+
+    public_partitions = list(range(1, 8)) if FLAGS.public_partitions else None
+
     # Create a computational graph for the aggregation.
     # All computations are lazy. dp_result is iterable, but iterating it would
     # fail until budget is computed (below).
     # It’s possible to call DPEngine.aggregate multiple times with different
     # metrics to compute.
-    dp_result = dp_engine.aggregate(restaraunt_visits_rows,
-                                    params,
-                                    data_extractors,
-                                    public_partitions=list(range(1, 8)))
+    dp_result = dp_engine.aggregate(
+        restaraunt_visits_rows,
+        params,
+        data_extractors,
+        public_partitions=public_partitions,
+        out_explain_computation_report=explain_computation_report)
 
     budget_accountant.compute_budgets()
+
+    print(explain_computation_report.text())
 
     # Here's where the lazy iterator initiates computations and gets transformed
     # into actual results

@@ -25,8 +25,6 @@ def _sum_metrics_to_data_dropped(
         sum_metrics: metrics.SumMetrics, partition_keep_probability: float,
         dp_metric: pipeline_dp.Metric) -> metrics.DataDropInfo:
     """Finds Data drop information from per-partition metrics."""
-    # TODO(dvadym): implement for Sum
-    assert dp_metric != pipeline_dp.Metrics.SUM, "Cross-partition metrics are not implemented for SUM"
 
     # This function attributed the data that is dropped, to different reasons
     # how they are dropped.
@@ -34,7 +32,7 @@ def _sum_metrics_to_data_dropped(
     # 1. linf/l0 contribution bounding
     # Contribution bounding errors are negative, negate to keep data dropped
     # to be positive.
-    linf_dropped = -sum_metrics.clipping_to_max_error  # not correct for SUM
+    linf_dropped = sum_metrics.clipping_to_min_error - sum_metrics.clipping_to_max_error
     l0_dropped = -sum_metrics.expected_l0_bounding_error
 
     # 2. Partition selection (in case of private partition selection).
@@ -264,13 +262,14 @@ def _average_utility_report(report: metrics.UtilityReport, sums_actual: Tuple,
         return
 
     for sum_actual, metric_error in zip(sums_actual, report.metric_errors):
+        scaling_factor = 0 if total_weight == 0 else 1.0 / total_weight
         _multiply_float_dataclasses_field(
             metric_error,
-            1.0 / total_weight,
+            scaling_factor,
             fields_to_ignore=["noise_std", "ratio_data_dropped"])
-        scaling_factor = 1 if sum_actual == 0 else 1.0 / sum_actual
+        dropped_scaling_factor = 1 if sum_actual == 0 else 1.0 / sum_actual
         _multiply_float_dataclasses_field(metric_error.ratio_data_dropped,
-                                          scaling_factor)
+                                          dropped_scaling_factor)
 
 
 def partition_size_weight_fn(

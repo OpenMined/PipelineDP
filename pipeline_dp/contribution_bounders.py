@@ -174,7 +174,8 @@ class SamplingCrossPartitionContributionBounder(ContributionBounder):
         # Bound cross partition contributions with sampling.
         sample = sampling_utils.choose_from_list_without_replacement
         sample_size = params.max_partitions_contributed
-        col = backend.map_values(col, lambda a: sample(a, sample_size))
+        col = backend.map_values(col, lambda a: sample(a, sample_size),
+                                 "Sample")
 
         # (privacy_id, [partition_key, [value]])
 

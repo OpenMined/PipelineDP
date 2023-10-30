@@ -202,26 +202,37 @@ class PartitionSelectionTest(parameterized.TestCase):
              eps=100,
              delta=0.5,
              probabilities=[1.0] * 100,
-             expected_probability_to_keep=1.0),
+             expected_probability_to_keep=1.0,
+             pre_threshold=None),
         dict(testcase_name='Small eps delta',
              eps=1,
              delta=1e-5,
              probabilities=[0.1] * 100,
-             expected_probability_to_keep=0.3321336253750503),
+             expected_probability_to_keep=0.3321336253750503,
+             pre_threshold=None),
         dict(testcase_name='All probabilities = 1',
              eps=1,
              delta=1e-5,
              probabilities=[1] * 10,
-             expected_probability_to_keep=0.12818308050524607),
+             expected_probability_to_keep=0.12818308050524607,
+             pre_threshold=None),
+        dict(testcase_name='All probabilities = 1 with pre_threshold',
+             eps=1,
+             delta=1e-5,
+             probabilities=[1] * 12,
+             expected_probability_to_keep=0.12818308050524607,
+             pre_threshold=3),
     )
     def test_partition_selection_accumulator_compute_probability(
-            self, eps, delta, probabilities, expected_probability_to_keep):
+            self, eps, delta, probabilities, expected_probability_to_keep,
+            pre_threshold):
         acc = combiners.PartitionSelectionCalculator(probabilities)
         prob_to_keep = acc.compute_probability_to_keep(
             pipeline_dp.PartitionSelectionStrategy.TRUNCATED_GEOMETRIC,
             eps,
             delta,
-            max_partitions_contributed=1)
+            max_partitions_contributed=1,
+            pre_threshold=pre_threshold)
         self.assertAlmostEqual(expected_probability_to_keep,
                                prob_to_keep,
                                delta=1e-10)
@@ -242,7 +253,7 @@ class PartitionSelectionTest(parameterized.TestCase):
         combiner.compute_metrics(acc)
         mock_compute_probability_to_keep.assert_called_with(
             pipeline_dp.PartitionSelectionStrategy.TRUNCATED_GEOMETRIC,
-            params.eps, params.delta, 1)
+            params.eps, params.delta, 1, None)
 
 
 def _create_combiner_params_for_sum(

@@ -424,6 +424,20 @@ class DpEngineTest(parameterized.TestCase):
                 engine.aggregate(test_case["col"], test_case["params"],
                                  test_case["data_extractor"])
 
+    def test_check_post_aggregation_thresholding_and_privacy_id_count(self):
+        engine = self._create_dp_engine_default()
+        params = pipeline_dp.AggregateParams(
+            noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+            max_partitions_contributed=1,
+            max_contributions_per_partition=1,
+            metrics=[pipeline_dp.Metrics.COUNT],
+            post_aggregation_thresholding=True)
+        with self.assertRaisesRegex(
+                ValueError,
+                "When post_aggregation_thresholding = True, PRIVACY_ID_COUNT must be in metrics"
+        ):
+            engine.aggregate([0], params, self._get_default_extractors())
+
     def _check_string_contains_strings(self, string: str,
                                        substrings: List[str]):
         print(string)
@@ -509,37 +523,50 @@ class DpEngineTest(parameterized.TestCase):
     @patch(
         'pipeline_dp.contribution_bounders'
         '.SamplingCrossAndPerPartitionContributionBounder.bound_contributions')
-    def test_aggregate_computation_graph(self, mock_bound_contributions):
+    def test_aggregate_computation_graph_per_contribution_bounding(
+            self, mock_bound_contributions):
         # Arrange
-        aggregate_params = pipeline_dp.AggregateParams(
-            noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
-            metrics=[agg.Metrics.COUNT],
-            max_partitions_contributed=5,
-            max_contributions_per_partition=3)
-        budget_accountant = NaiveBudgetAccountant(total_epsilon=1,
-                                                  total_delta=1e-10)
+        aggregate_params, _ = self._create_params_default()
+        aggregate_params.metrics = [pipeline_dp.Metrics.COUNT]
 
-        col = [[1], [2], [3], [3]]
-        data_extractor = pipeline_dp.DataExtractors(
-            privacy_id_extractor=lambda x: f"pid{x}",
-            partition_extractor=lambda x: f"pk{x}",
-            value_extractor=lambda x: x)
+        engine = self._create_dp_engine_default()
+        mock_bound_contributions.return_value = []
 
-        mock_bound_contributions.return_value = [
-            [("pid1", "pk1"), (1, [1])],
-            [("pid2", "pk2"), (1, [1])],
-            [("pid3", "pk3"), (1, [2])],
-        ]
-
-        backend = pipeline_dp.LocalBackend()
-        engine = pipeline_dp.DPEngine(budget_accountant, backend)
-        engine.aggregate(col=col,
+        engine.aggregate(col=[0],
                          params=aggregate_params,
-                         data_extractors=data_extractor)
+                         data_extractors=self._get_default_extractors())
 
         # Assert
         mock_bound_contributions.assert_called_with(unittest.mock.ANY,
-                                                    aggregate_params, backend,
+                                                    aggregate_params,
+                                                    unittest.mock.ANY,
+                                                    unittest.mock.ANY,
+                                                    unittest.mock.ANY)
+
+    @patch('pipeline_dp.contribution_bounders'
+           '.SamplingCrossPartitionContributionBounder.bound_contributions')
+    def test_aggregate_computation_graph_per_partition_bounding(
+            self, mock_bound_contributions):
+        # Arrange
+        aggregate_params = pipeline_dp.AggregateParams(
+            noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+            metrics=[pipeline_dp.Metrics.SUM],
+            min_sum_per_partition=0,
+            max_sum_per_partition=1,
+            max_partitions_contributed=1,
+            max_contributions_per_partition=1)
+
+        engine = self._create_dp_engine_default()
+        mock_bound_contributions.return_value = []
+
+        engine.aggregate(col=[0],
+                         params=aggregate_params,
+                         data_extractors=self._get_default_extractors())
+
+        # Assert
+        mock_bound_contributions.assert_called_with(unittest.mock.ANY,
+                                                    aggregate_params,
+                                                    unittest.mock.ANY,
                                                     unittest.mock.ANY,
                                                     unittest.mock.ANY)
 
@@ -1080,6 +1107,9 @@ class DpEngineTest(parameterized.TestCase):
 
         return col
 
+    @unittest.skipIf(
+        sys.version_info.major == 3 and sys.version_info.minor <= 8,
+        "dp_accounting library only support python >=3.9")
     @parameterized.parameters(False, True)
     def test_run_e2e_count_public_partition_local(self, pld_accounting):
         Accountant = pipeline_dp.PLDBudgetAccountant if pld_accounting else pipeline_dp.NaiveBudgetAccountant
@@ -1130,6 +1160,38 @@ class DpEngineTest(parameterized.TestCase):
                 input, pipeline_dp.BeamBackend())
 
             beam_util.assert_that(output, beam_util.is_not_empty())
+
+    def test_run_e2e_post_aggregation_thresholding(self):
+        # High budget for low noise.
+        engine, budget_accountant = self._create_dp_engine_default(
+            return_accountant=True, epsilon=10, delta=1e-10)
+        params = pipeline_dp.AggregateParams(
+            noise_kind=pipeline_dp.NoiseKind.LAPLACE,
+            metrics=[agg.Metrics.PRIVACY_ID_COUNT],
+            max_partitions_contributed=1,
+            max_contributions_per_partition=1,
+            post_aggregation_thresholding=True)
+
+        # Generate input = [(partition_key, privacy_id)]
+        input = []
+        # 1000 partitions with 3 contributions, threshold ~= 3.2, some of them
+        # should be kept.
+        for i in range(1000):
+            for k in range(3):
+                input.append((i, 100 * i + k))
+
+        data_extractors = pipeline_dp.DataExtractors(
+            privacy_id_extractor=lambda x: x[1],
+            partition_extractor=lambda x: x[0],
+            value_extractor=lambda x: 0)
+
+        output = engine.aggregate(input, params, data_extractors)
+        budget_accountant.compute_budgets()
+        output = list(output)
+        self.assertTrue(len(output) > 10)
+        for partition, metrics in output:
+            # Check that privacy_id_count > threshold.
+            self.assertGreater(metrics.privacy_id_count, 3.2)
 
     @patch(
         'pipeline_dp.combiners.create_compound_combiner_with_custom_combiners')
@@ -1184,6 +1246,33 @@ class DpEngineTest(parameterized.TestCase):
             self.assertEqual(total_epsilon / 3, budget.epsilon)
             self.assertEqual(total_delta / 3, budget.delta)
 
+    def test_min_max_sum_per_partition(self):
+        dp_engine, budget_accountant = self._create_dp_engine_default(
+            epsilon=1000, return_accountant=True)
+        data = [1] * 1000 + [-1] * 1005
+        params = pipeline_dp.AggregateParams(metrics=[pipeline_dp.Metrics.SUM],
+                                             max_partitions_contributed=1,
+                                             min_sum_per_partition=-3,
+                                             max_sum_per_partition=1,
+                                             max_contributions_per_partition=1)
+        extractors = pipeline_dp.DataExtractors(
+            privacy_id_extractor=lambda _: 0,
+            partition_extractor=lambda _: 0,
+            value_extractor=lambda x: x)
+
+        output = dp_engine.aggregate(data,
+                                     params,
+                                     extractors,
+                                     public_partitions=[0])
+
+        budget_accountant.compute_budgets()
+        output = list(output)
+        self.assertLen(output, 1)
+        self.assertAlmostEqual(output[0][1].sum, -3, delta=0.1)
+
+    @unittest.skipIf(
+        sys.version_info.major == 3 and sys.version_info.minor <= 8,
+        "dp_accounting library only support python >=3.9")
     def test_pld_not_supported_metrics(self):
         with self.assertRaisesRegex(
                 NotImplementedError,
@@ -1197,6 +1286,9 @@ class DpEngineTest(parameterized.TestCase):
             engine.aggregate([1], aggregate_params,
                              self._get_default_extractors(), public_partitions)
 
+    @unittest.skipIf(
+        sys.version_info.major == 3 and sys.version_info.minor <= 8,
+        "dp_accounting library only support python >=3.9")
     def test_pld_not_support_private_partition_selection(self):
         with self.assertRaisesRegex(
                 NotImplementedError,

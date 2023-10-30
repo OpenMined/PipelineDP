@@ -18,10 +18,11 @@ import logging
 import math
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Iterable, Sequence, Callable, Union, Optional, List
+from typing import Any, Sequence, Callable, Optional, List
 
 import numpy as np
 
+import pipeline_dp
 from pipeline_dp import input_validators
 
 
@@ -83,9 +84,17 @@ class NoiseKind(Enum):
             return MechanismType.GAUSSIAN
 
 
+class PartitionSelectionStrategy(Enum):
+    TRUNCATED_GEOMETRIC = 'Truncated Geometric'
+    LAPLACE_THRESHOLDING = 'Laplace Thresholding'
+    GAUSSIAN_THRESHOLDING = 'Gaussian Thresholding'
+
+
 class MechanismType(Enum):
     LAPLACE = 'Laplace'
     GAUSSIAN = 'Gaussian'
+    LAPLACE_THRESHOLDING = 'Laplace Thresholding'
+    GAUSSIAN_THRESHOLDING = 'Gaussian Thresholding'
     GENERIC = 'Generic'
 
     def to_noise_kind(self):
@@ -93,8 +102,29 @@ class MechanismType(Enum):
             return NoiseKind.LAPLACE
         if self.value == MechanismType.GAUSSIAN.value:
             return NoiseKind.GAUSSIAN
+        if self.value == MechanismType.LAPLACE_THRESHOLDING.value:
+            return NoiseKind.LAPLACE
+        if self.value == MechanismType.GAUSSIAN_THRESHOLDING.value:
+            return NoiseKind.GAUSSIAN
         raise ValueError(f"MechanismType {self.value} can not be converted to "
                          f"NoiseKind")
+
+    def to_partition_selection_strategy(self) -> PartitionSelectionStrategy:
+        if self.value == MechanismType.LAPLACE_THRESHOLDING.value:
+            return PartitionSelectionStrategy.LAPLACE_THRESHOLDING
+        if self.value == MechanismType.GAUSSIAN_THRESHOLDING.value:
+            return PartitionSelectionStrategy.GAUSSIAN_THRESHOLDING
+        raise ValueError(f"MechanismType {self.value} can not be converted to "
+                         f"PartitionSelectionStrategy")
+
+
+def noise_to_thresholding(noise_kind: NoiseKind) -> MechanismType:
+    if noise_kind == pipeline_dp.NoiseKind.LAPLACE:
+        return MechanismType.LAPLACE_THRESHOLDING
+    if noise_kind == pipeline_dp.NoiseKind.GAUSSIAN:
+        return MechanismType.GAUSSIAN_THRESHOLDING
+    raise ValueError(f"NoiseKind {noise_kind} can not be converted to "
+                     f"Thresholding mechanism")
 
 
 class NormKind(Enum):
@@ -102,12 +132,6 @@ class NormKind(Enum):
     L0 = "l0"
     L1 = "l1"
     L2 = "l2"
-
-
-class PartitionSelectionStrategy(Enum):
-    TRUNCATED_GEOMETRIC = 'Truncated Geometric'
-    LAPLACE_THRESHOLDING = 'Laplace Thresholding'
-    GAUSSIAN_THRESHOLDING = 'Gaussian Thresholding'
 
 
 @dataclass
@@ -230,6 +254,7 @@ class AggregateParams:
     public_partitions_already_filtered: bool = False
     partition_selection_strategy: PartitionSelectionStrategy = PartitionSelectionStrategy.TRUNCATED_GEOMETRIC
     pre_threshold: Optional[int] = None
+    post_aggregation_thresholding: bool = False
 
     @property
     def metrics_str(self) -> str:

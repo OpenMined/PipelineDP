@@ -122,7 +122,8 @@ class PartitionSelectionCalculator:
                                     partition_selection_strategy: pipeline_dp.
                                     PartitionSelectionStrategy, eps: float,
                                     delta: float,
-                                    max_partitions_contributed: int) -> float:
+                                    max_partitions_contributed: int,
+                                    pre_threshold: Optional[int]) -> float:
         """Computes the probability that this partition is kept.
 
         If self.probabilities is set, then the computed probability is exact,
@@ -131,7 +132,7 @@ class PartitionSelectionCalculator:
         pmf = self._compute_pmf()
         ps_strategy = partition_selection.create_partition_selection_strategy(
             partition_selection_strategy, eps, delta,
-            max_partitions_contributed)
+            max_partitions_contributed, pre_threshold)
         probability = 0
         for i, prob in enumerate(pmf.probabilities, pmf.start):
             probability += prob * ps_strategy.probability_of_keep(i)
@@ -217,9 +218,11 @@ class PartitionSelectionCombiner(UtilityAnalysisCombiner):
         probs, moments = acc
         params = self._params
         calculator = PartitionSelectionCalculator(probs, moments)
+        aggregate_params = params.aggregate_params
         return calculator.compute_probability_to_keep(
-            params.aggregate_params.partition_selection_strategy, params.eps,
-            params.delta, params.aggregate_params.max_partitions_contributed)
+            aggregate_params.partition_selection_strategy, params.eps,
+            params.delta, aggregate_params.max_partitions_contributed,
+            aggregate_params.pre_threshold)
 
 
 class SumCombiner(UtilityAnalysisCombiner):

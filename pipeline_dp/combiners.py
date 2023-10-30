@@ -55,7 +55,7 @@ class Combiner(abc.ABC):
 
     @abc.abstractmethod
     def create_accumulator(self, values):
-        """Creates accumulator from 'values'."""
+        """Creates accumulator from 'values'. values are from one privacy ID"""
 
     @abc.abstractmethod
     def merge_accumulators(self, accumulator1, accumulator2):
@@ -72,6 +72,17 @@ class Combiner(abc.ABC):
     @abc.abstractmethod
     def explain_computation(self) -> ExplainComputationReport:
         pass
+
+    def expects_per_partition_sampling(self) -> bool:
+        """Whether this combiner expects sampled data per partition.
+
+        If this method returns True, the framework samples data per partition
+        up to aggregate_params.max_contributions_per_partition elements before
+        calling self.create_accumulator(). Otherwise all elements per
+        (privacy_id, partition_key) are passed to create_accumulator() and this
+        combiner has the full responsibility to bound sensitivity.
+        """
+        return True
 
 
 class CustomCombiner(Combiner, abc.ABC):
@@ -185,8 +196,8 @@ class MechanismContainerMixin(abc.ABC):
     @abc.abstractmethod
     def create_mechanism(
         self
-    ) -> Union[dp_computations.AdditiveMechanism,
-               dp_computations.MeanMechanism]:
+    ) -> Union[dp_computations.AdditiveMechanism, dp_computations.MeanMechanism,
+               dp_computations.ThresholdingMechanism]:
         pass
 
     def __getstate__(self):
@@ -271,8 +282,9 @@ class CountCombiner(Combiner, AdditiveMechanismMixin):
 
 class PrivacyIdCountCombiner(Combiner, AdditiveMechanismMixin):
     """Combiner for computing DP privacy id count.
-    The type of the accumulator is int, which represents count of the elements
-    in the dataset for which this accumulator is computed.
+
+    The type of the accumulator is int, which represents the count of
+    privacy IDs.
     """
     AccumulatorType = int
 
@@ -308,6 +320,66 @@ class PrivacyIdCountCombiner(Combiner, AdditiveMechanismMixin):
 
     def sensitivities(self) -> dp_computations.Sensitivities:
         return self._sensitivities
+
+    def expects_per_partition_sampling(self) -> bool:
+        return False
+
+
+class PostAggregationThresholdingCombiner(Combiner, MechanismContainerMixin):
+    """Combiner for computing DP privacy id count and applying thresholding.
+
+    The type of the accumulator is int, which represents the count of
+    privacy IDs.
+    """
+    AccumulatorType = int
+
+    def __init__(self, budget_accountant: pipeline_dp.BudgetAccountant,
+                 aggregate_params: pipeline_dp.AggregateParams):
+        mechanism_type = pipeline_dp.aggregate_params.noise_to_thresholding(
+            aggregate_params.noise_kind)
+        self._mechanism_spec = budget_accountant.request_budget(
+            mechanism_type, weight=aggregate_params.budget_weight)
+        self._sensitivities = dp_computations.compute_sensitivities_for_privacy_id_count(
+            aggregate_params)
+        self._pre_threshold = aggregate_params.pre_threshold
+
+    def create_accumulator(self, values: Sized) -> AccumulatorType:
+        return 1 if values else 0
+
+    def merge_accumulators(self, accumulator1: AccumulatorType,
+                           accumulator2: AccumulatorType):
+        return accumulator1 + accumulator2
+
+    def compute_metrics(self, count: AccumulatorType) -> dict:
+        return {
+            "privacy_id_count":
+                self.get_mechanism().noised_value_if_should_keep(count)
+        }
+
+    def metrics_names(self) -> List[str]:
+        return ['privacy_id_count']
+
+    def explain_computation(self) -> ExplainComputationReport:
+
+        def explain_computation_fn():
+            # TODO
+            return (f"Computed DP privacy_id_count with\n"
+                    f"     {self.get_mechanism().describe()}")
+
+        return explain_computation_fn
+
+    def mechanism_spec(self) -> budget_accounting.MechanismSpec:
+        return self._mechanism_spec
+
+    def sensitivities(self) -> dp_computations.Sensitivities:
+        return self._sensitivities
+
+    def expects_per_partition_sampling(self) -> bool:
+        return False
+
+    def create_mechanism(self) -> dp_computations.ThresholdingMechanism:
+        return dp_computations.create_thresholding_mechanism(
+            self.mechanism_spec(), self.sensitivities(), self._pre_threshold)
 
 
 class SumCombiner(Combiner, AdditiveMechanismMixin):
@@ -346,6 +418,9 @@ class SumCombiner(Combiner, AdditiveMechanismMixin):
 
     def metrics_names(self) -> List[str]:
         return ['sum']
+
+    def expects_per_partition_sampling(self) -> bool:
+        return not self._bounding_per_partition
 
     def explain_computation(self) -> ExplainComputationReport:
 
@@ -718,6 +793,9 @@ class CompoundCombiner(Combiner):
     def explain_computation(self) -> ExplainComputationReport:
         return [combiner.explain_computation() for combiner in self._combiners]
 
+    def expects_per_partition_sampling(self) -> bool:
+        return any(c.expects_per_partition_sampling() for c in self._combiners)
+
 
 class VectorSumCombiner(Combiner):
     """Combiner for computing dp vector sum.
@@ -811,10 +889,16 @@ def create_compound_combiner(
                 mechanism_type, weight=aggregate_params.budget_weight)
             combiners.append(SumCombiner(budget_sum, aggregate_params))
     if pipeline_dp.Metrics.PRIVACY_ID_COUNT in aggregate_params.metrics:
-        budget_privacy_id_count = budget_accountant.request_budget(
-            mechanism_type, weight=aggregate_params.budget_weight)
-        combiners.append(
-            PrivacyIdCountCombiner(budget_privacy_id_count, aggregate_params))
+        if aggregate_params.post_aggregation_thresholding:
+            combiners.append(
+                PostAggregationThresholdingCombiner(budget_accountant,
+                                                    aggregate_params))
+        else:
+            budget_privacy_id_count = budget_accountant.request_budget(
+                mechanism_type, weight=aggregate_params.budget_weight)
+            combiners.append(
+                PrivacyIdCountCombiner(budget_privacy_id_count,
+                                       aggregate_params))
     if pipeline_dp.Metrics.VECTOR_SUM in aggregate_params.metrics:
         budget_vector_sum = budget_accountant.request_budget(
             mechanism_type, weight=aggregate_params.budget_weight)

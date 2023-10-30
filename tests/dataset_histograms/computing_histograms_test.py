@@ -24,45 +24,56 @@ from analysis import pre_aggregation
 
 class ComputingHistogramsTest(parameterized.TestCase):
 
-    def test_to_bin_lower_logarithmic(self):
-        to_bin_lower = computing_histograms._to_bin_lower_logarithmic
-        self.assertEqual(to_bin_lower(1), 1)
-        self.assertEqual(to_bin_lower(999), 999)
-        self.assertEqual(to_bin_lower(1000), 1000)
-        self.assertEqual(to_bin_lower(1001), 1000)
-        self.assertEqual(to_bin_lower(1012), 1010)
-        self.assertEqual(to_bin_lower(2022), 2020)
-        self.assertEqual(to_bin_lower(12522), 12500)
-        self.assertEqual(to_bin_lower(10**9 + 10**7 + 1234), 10**9 + 10**7)
+    def test_to_bin_lower_upper_logarithmic(self):
+        to_bin_lower = computing_histograms._to_bin_lower_upper_logarithmic
+        self.assertEqual(to_bin_lower(1), (1, 2))
+        self.assertEqual(to_bin_lower(999), (999, 1000))
+        self.assertEqual(to_bin_lower(1000), (1000, 1010))
+        self.assertEqual(to_bin_lower(1001), (1000, 1010))
+        self.assertEqual(to_bin_lower(1012), (1010, 1020))
+        self.assertEqual(to_bin_lower(2022), (2020, 2030))
+        self.assertEqual(to_bin_lower(12522), (12500, 12600))
+        self.assertEqual(to_bin_lower(10**9 + 10**7 + 1234),
+                         (10**9 + 10**7, 10**9 + 2 * 10**7))
 
-    def test_to_bin_lower_with_lowers(self):
-        lowers = [0.5, 1.2, 3.6]
-        to_bin_lower = computing_histograms._to_bin_lower_with_lowers
+    def test_bin_lower_index(self):
+        lowers = [0.5, 1.2, 3.6, 5]
+        to_bin_lower_idx = computing_histograms._bin_lower_index
         with self.assertRaises(AssertionError):
-            to_bin_lower(lowers, 0.3)
-        self.assertEqual(to_bin_lower(lowers, 0.5), 0.5)
-        self.assertEqual(to_bin_lower(lowers, 1), 0.5)
-        self.assertEqual(to_bin_lower(lowers, 1.2), 1.2)
-        self.assertEqual(to_bin_lower(lowers, 1.3), 1.2)
-        self.assertEqual(to_bin_lower(lowers, 3.6), 3.6)
-        self.assertEqual(to_bin_lower(lowers, 100), 3.6)
+            to_bin_lower_idx(lowers, 0.3)
+        self.assertEqual(to_bin_lower_idx(lowers, 0.5), 0)
+        self.assertEqual(to_bin_lower_idx(lowers, 1), 0)
+        self.assertEqual(to_bin_lower_idx(lowers, 1.2), 1)
+        self.assertEqual(to_bin_lower_idx(lowers, 1.3), 1)
+        self.assertEqual(to_bin_lower_idx(lowers, 3.6), 2)
+        self.assertEqual(to_bin_lower_idx(lowers, 5), 2)
+        with self.assertRaises(AssertionError):
+            to_bin_lower_idx(lowers, 5.1)
 
     @parameterized.named_parameters(
         dict(testcase_name='empty', input=[], expected=[]),
         dict(testcase_name='small_histogram',
              input=[3, 3, 1, 1, 2, 10],
              expected=[
-                 hist.FrequencyBin(lower=1, count=2, sum=2, max=1),
-                 hist.FrequencyBin(lower=2, count=1, sum=2, max=2),
-                 hist.FrequencyBin(lower=3, count=2, sum=6, max=3),
-                 hist.FrequencyBin(lower=10, count=1, sum=10, max=10)
+                 hist.FrequencyBin(lower=1, upper=2, count=2, sum=2, max=1),
+                 hist.FrequencyBin(lower=2, upper=3, count=1, sum=2, max=2),
+                 hist.FrequencyBin(lower=3, upper=4, count=2, sum=6, max=3),
+                 hist.FrequencyBin(lower=10, upper=11, count=1, sum=10, max=10)
              ]),
         dict(testcase_name='histogram_with_bins_wider_1',
              input=[1005, 3, 12345, 12346],
              expected=[
-                 hist.FrequencyBin(lower=3, count=1, sum=3, max=3),
-                 hist.FrequencyBin(lower=1000, count=1, sum=1005, max=1005),
-                 hist.FrequencyBin(lower=12300, count=2, sum=24691, max=12346)
+                 hist.FrequencyBin(lower=3, upper=4, count=1, sum=3, max=3),
+                 hist.FrequencyBin(lower=1000,
+                                   upper=1010,
+                                   count=1,
+                                   sum=1005,
+                                   max=1005),
+                 hist.FrequencyBin(lower=12300,
+                                   upper=12400,
+                                   count=2,
+                                   sum=24691,
+                                   max=12346)
              ]),
     )
     def test_compute_frequency_histogram(self, input, expected):
@@ -77,15 +88,14 @@ class ComputingHistogramsTest(parameterized.TestCase):
         self.assertListEqual(expected, histogram.bins)
 
     def test_list_to_contribution_histograms(self):
-        histogram1 = hist.Histogram(hist.HistogramType.L0_CONTRIBUTIONS, None)
-        histogram2 = hist.Histogram(hist.HistogramType.L1_CONTRIBUTIONS, None)
-        histogram3 = hist.Histogram(hist.HistogramType.LINF_CONTRIBUTIONS, None)
+        histogram1 = hist.Histogram(hist.HistogramType.L0_CONTRIBUTIONS, [])
+        histogram2 = hist.Histogram(hist.HistogramType.L1_CONTRIBUTIONS, [])
+        histogram3 = hist.Histogram(hist.HistogramType.LINF_CONTRIBUTIONS, [])
         histogram4 = hist.Histogram(hist.HistogramType.LINF_SUM_CONTRIBUTIONS,
-                                    None)
-        histogram5 = hist.Histogram(hist.HistogramType.COUNT_PER_PARTITION,
-                                    None)
+                                    [])
+        histogram5 = hist.Histogram(hist.HistogramType.COUNT_PER_PARTITION, [])
         histogram6 = hist.Histogram(
-            hist.HistogramType.COUNT_PRIVACY_ID_PER_PARTITION, None)
+            hist.HistogramType.COUNT_PRIVACY_ID_PER_PARTITION, [])
         histograms = computing_histograms._list_to_contribution_histograms([
             histogram2, histogram1, histogram3, histogram4, histogram6,
             histogram5
@@ -105,34 +115,37 @@ class ComputingHistogramsTest(parameterized.TestCase):
                 testcase_name='small_histogram',
                 input=[(1, 1), (1, 2), (2, 1)],  # (privacy_id, partition)
                 expected=[
-                    hist.FrequencyBin(lower=1, count=1, sum=1, max=1),
-                    hist.FrequencyBin(lower=2, count=1, sum=2, max=2)
+                    hist.FrequencyBin(lower=1, upper=2, count=1, sum=1, max=1),
+                    hist.FrequencyBin(lower=2, upper=3, count=1, sum=2, max=2)
                 ]),
             dict(
                 testcase_name='Each privacy id, 1 contribution',
                 input=[(i, i) for i in range(100)],  # (privacy_id, partition)
                 expected=[
-                    hist.FrequencyBin(lower=1, count=100, sum=100, max=1),
+                    hist.FrequencyBin(
+                        lower=1, upper=2, count=100, sum=100, max=1),
                 ]),
             dict(
                 testcase_name='1 privacy id many contributions to 1 partition',
                 input=[(0, 0)],  # (privacy_id, partition)
                 expected=[
-                    hist.FrequencyBin(lower=1, count=1, sum=1, max=1),
+                    hist.FrequencyBin(lower=1, upper=2, count=1, sum=1, max=1),
                 ]),
             dict(
                 testcase_name=
                 '1 privacy id many contributions to many partition',
                 input=[(0, i) for i in range(1234)],  # (privacy_id, partition)
                 expected=[
-                    hist.FrequencyBin(lower=1230, count=1, sum=1234, max=1234),
+                    hist.FrequencyBin(
+                        lower=1230, upper=1240, count=1, sum=1234, max=1234),
                 ]),
             dict(
                 testcase_name='2 privacy ids, same partitions contributed',
                 input=[(0, i) for i in range(15)] +
                 [(1, i) for i in range(10, 25)],  # (privacy_id, partition)
                 expected=[
-                    hist.FrequencyBin(lower=15, count=2, sum=30, max=15),
+                    hist.FrequencyBin(
+                        lower=15, upper=16, count=2, sum=30, max=15),
                 ]),
         ),
         pre_aggregated=(False, True))
@@ -161,20 +174,22 @@ class ComputingHistogramsTest(parameterized.TestCase):
                 testcase_name='small_histogram',
                 input=[(1, 1), (1, 2), (2, 1)],  # (privacy_id, partition)
                 expected=[
-                    hist.FrequencyBin(lower=1, count=1, sum=1, max=1),
-                    hist.FrequencyBin(lower=2, count=1, sum=2, max=2)
+                    hist.FrequencyBin(lower=1, upper=2, count=1, sum=1, max=1),
+                    hist.FrequencyBin(lower=2, upper=3, count=1, sum=2, max=2)
                 ]),
             dict(
                 testcase_name='Each privacy id, 1 contribution',
                 input=[(i, i) for i in range(100)],  # (privacy_id, partition)
                 expected=[
-                    hist.FrequencyBin(lower=1, count=100, sum=100, max=1),
+                    hist.FrequencyBin(
+                        lower=1, upper=2, count=100, sum=100, max=1),
                 ]),
             dict(
                 testcase_name='1 privacy id many contributions to 1 partition',
                 input=[(0, 0)] * 100,  # (privacy_id, partition)
                 expected=[
-                    hist.FrequencyBin(lower=100, count=1, sum=100, max=100),
+                    hist.FrequencyBin(
+                        lower=100, upper=101, count=1, sum=100, max=100),
                 ]),
             dict(
                 testcase_name=
@@ -182,14 +197,16 @@ class ComputingHistogramsTest(parameterized.TestCase):
                 input=[(0, i // 2) for i in range(1235)
                       ],  # (privacy_id, partition)
                 expected=[
-                    hist.FrequencyBin(lower=1230, count=1, sum=1235, max=1235),
+                    hist.FrequencyBin(
+                        lower=1230, upper=1240, count=1, sum=1235, max=1235),
                 ]),
             dict(
                 testcase_name='2 privacy ids, same partitions contributed',
                 input=[(0, i) for i in range(15)] +
                 [(1, i) for i in range(10, 25)],  # (privacy_id, partition)
                 expected=[
-                    hist.FrequencyBin(lower=15, count=2, sum=30, max=15),
+                    hist.FrequencyBin(
+                        lower=15, upper=16, count=2, sum=30, max=15),
                 ]),
             dict(
                 testcase_name='3 privacy ids',
@@ -197,8 +214,10 @@ class ComputingHistogramsTest(parameterized.TestCase):
                 [(1, i) for i in range(10, 25)] +
                 [(2, i) for i in range(11)],  # (privacy_id, partition)
                 expected=[
-                    hist.FrequencyBin(lower=11, count=1, sum=11, max=11),
-                    hist.FrequencyBin(lower=15, count=2, sum=30, max=15),
+                    hist.FrequencyBin(
+                        lower=11, upper=12, count=1, sum=11, max=11),
+                    hist.FrequencyBin(
+                        lower=15, upper=16, count=2, sum=30, max=15),
                 ]),
         ),
         pre_aggregated=(False, True))
@@ -228,43 +247,47 @@ class ComputingHistogramsTest(parameterized.TestCase):
                 input=[(1, 1), (1, 2), (2, 1),
                        (1, 1)],  # (privacy_id, partition)
                 expected=[
-                    hist.FrequencyBin(lower=1, count=2, sum=2, max=1),
-                    hist.FrequencyBin(lower=2, count=1, sum=2, max=2)
+                    hist.FrequencyBin(lower=1, upper=2, count=2, sum=2, max=1),
+                    hist.FrequencyBin(lower=2, upper=3, count=1, sum=2, max=2)
                 ]),
             dict(
                 testcase_name='Each privacy id, 1 contribution',
                 input=[(i, i) for i in range(100)],  # (privacy_id, partition)
                 expected=[
-                    hist.FrequencyBin(lower=1, count=100, sum=100, max=1),
+                    hist.FrequencyBin(
+                        lower=1, upper=2, count=100, sum=100, max=1),
                 ]),
             dict(
                 testcase_name='1 privacy id many contributions to 1 partition',
                 input=[(0, 0)] * 100,  # (privacy_id, partition)
                 expected=[
-                    hist.FrequencyBin(lower=100, count=1, sum=100, max=100),
+                    hist.FrequencyBin(
+                        lower=100, upper=101, count=1, sum=100, max=100),
                 ]),
             dict(
                 testcase_name=
                 '1 privacy id many contributions to many partition',
                 input=[(0, i) for i in range(1234)],  # (privacy_id, partition)
                 expected=[
-                    hist.FrequencyBin(lower=1, count=1234, sum=1234, max=1),
+                    hist.FrequencyBin(
+                        lower=1, upper=2, count=1234, sum=1234, max=1),
                 ]),
             dict(
                 testcase_name='2 privacy ids, same partitions contributed',
                 input=[(0, i) for i in range(15)] +
                 [(1, i) for i in range(10, 25)],  # (privacy_id, partition)
                 expected=[
-                    hist.FrequencyBin(lower=1, count=30, sum=30, max=1),
+                    hist.FrequencyBin(lower=1, upper=2, count=30, sum=30,
+                                      max=1),
                 ]),
             dict(
                 testcase_name='2 privacy ids',
                 input=[(0, 0), (0, 0), (0, 1), (1, 0), (1, 0), (1, 0),
                        (1, 2)],  # (privacy_id, partition)
                 expected=[
-                    hist.FrequencyBin(lower=1, count=2, sum=2, max=1),
-                    hist.FrequencyBin(lower=2, count=1, sum=2, max=2),
-                    hist.FrequencyBin(lower=3, count=1, sum=3, max=3),
+                    hist.FrequencyBin(lower=1, upper=2, count=2, sum=2, max=1),
+                    hist.FrequencyBin(lower=2, upper=3, count=1, sum=2, max=2),
+                    hist.FrequencyBin(lower=3, upper=4, count=1, sum=3, max=3),
                 ]),
         ),
         pre_aggregated=(False, True))
@@ -296,22 +319,27 @@ class ComputingHistogramsTest(parameterized.TestCase):
                 input=[((1, 1), 0.5), ((1, 2), 1.5), ((2, 1), -2.5),
                        ((1, 1), 0.5)],  # ((privacy_id, partition), value)
                 expected=[
+                    # step is (1.5 - (-2.5)) / 1e4 = 0.0004,
                     # ((2, 1), -2.5)
-                    hist.FrequencyBin(lower=-2.5, count=1, sum=-2.5, max=-2.5),
+                    hist.FrequencyBin(
+                        lower=-2.5, upper=-2.5004, count=1, sum=-2.5, max=-2.5),
                     # 2 times ((1, 1), 0.5), they are summed up and put into a
                     # bin as one.
-                    hist.FrequencyBin(lower=1.0, count=1, sum=1.0, max=1.0),
+                    hist.FrequencyBin(
+                        lower=1.0, upper=-1.0004, count=1, sum=1.0, max=1.0),
                     # ((1, 1, 1.5), 1.5 is max and not included,
-                    # step is (1.5 - (-2.5)) / 1e4 = 0.0004,
                     # therefore 1.5 - 0.0004 = 1.4996.
-                    hist.FrequencyBin(lower=1.4996, count=1, sum=1.5, max=1.5),
+                    hist.FrequencyBin(
+                        lower=1.4996,
+                        upper=1.5, count=1, sum=1.5, max=1.5),
                 ]),
             dict(
                 testcase_name='Different privacy ids, 1 equal contribution',
                 input=[((i, i), 1) for i in range(100)],
                 # ((privacy_id, partition), value)
                 expected=[
-                    hist.FrequencyBin(lower=1, count=100, sum=100, max=1),
+                    hist.FrequencyBin(
+                        lower=1, upper=1, count=100, sum=100, max=1),
                 ]),
             dict(
                 testcase_name='Different privacy ids, 1 different contribution',
@@ -319,17 +347,23 @@ class ComputingHistogramsTest(parameterized.TestCase):
                 # ((privacy_id, partition), value)
                 # step is 1e4 / 1e4 = 1, therefore 1e4 - 1 = 9999.
                 expected=[
-                    hist.FrequencyBin(lower=float(i), count=1, sum=i, max=i)
-                    for i in range(9999)
-                ] +
-                [hist.FrequencyBin(lower=9999, count=2, sum=19999, max=10000)]),
+                    hist.FrequencyBin(lower=float(i),
+                                      upper=float(i + 1),
+                                      count=1,
+                                      sum=i,
+                                      max=i) for i in range(9999)
+                ] + [
+                    hist.FrequencyBin(
+                        lower=9999, upper=1000, count=2, sum=19999, max=10000)
+                ]),
             dict(
                 testcase_name='1 privacy id many contributions to 1 '
                 'partition',
                 input=[((0, 0), 1.0)] * 100,  # ((privacy_id, partition), value)
                 expected=[
                     hist.FrequencyBin(
-                        lower=100.0, count=1, sum=100.0, max=100.0),
+                        lower=100.0, upper=100.0, count=1, sum=100.0,
+                        max=100.0),
                 ]),
             dict(
                 testcase_name=
@@ -337,7 +371,8 @@ class ComputingHistogramsTest(parameterized.TestCase):
                 input=[((0, i), 1.0) for i in range(1234)],
                 # ((privacy_id, partition), value)
                 expected=[
-                    hist.FrequencyBin(lower=1.0, count=1234, sum=1234.0, max=1),
+                    hist.FrequencyBin(
+                        lower=1.0, upper=1.0, count=1234, sum=1234.0, max=1),
                 ]),
             dict(
                 testcase_name=
@@ -346,10 +381,15 @@ class ComputingHistogramsTest(parameterized.TestCase):
                 # ((privacy_id, partition), value)
                 # step is 1e4 / 1e4 = 1, therefore 1e4 - 1 = 9999.
                 expected=[
-                    hist.FrequencyBin(lower=float(i), count=1, sum=i, max=i)
-                    for i in range(9999)
-                ] +
-                [hist.FrequencyBin(lower=9999, count=2, sum=19999, max=10000)]),
+                    hist.FrequencyBin(lower=float(i),
+                                      upper=float(i + 1),
+                                      count=1,
+                                      sum=i,
+                                      max=i) for i in range(9999)
+                ] + [
+                    hist.FrequencyBin(
+                        lower=9999, upper=1000, count=2, sum=19999, max=10000)
+                ]),
             dict(
                 testcase_name=
                 '2 privacy ids, same partitions equally contributed',
@@ -357,7 +397,8 @@ class ComputingHistogramsTest(parameterized.TestCase):
                 [((1, i), 1.0) for i in range(10, 25)],
                 # ((privacy_id, partition), value)
                 expected=[
-                    hist.FrequencyBin(lower=1.0, count=30, sum=30, max=1),
+                    hist.FrequencyBin(
+                        lower=1.0, upper=1.0, count=30, sum=30, max=1),
                 ]),
             dict(
                 testcase_name='2 privacy ids, same partitions differently '
@@ -368,8 +409,11 @@ class ComputingHistogramsTest(parameterized.TestCase):
                 # step = (1 - (-1)) / 1e4 = 0.0002,
                 # therefore last lower is 1 - 0.0002 = 0.9998.
                 expected=[
-                    hist.FrequencyBin(lower=-1.0, count=15, sum=-15, max=-1),
-                    hist.FrequencyBin(lower=0.9998, count=15, sum=15, max=1),
+                    hist.FrequencyBin(
+                        lower=-1.0, upper=-1.0002, count=15, sum=-15, max=-1),
+                    hist.FrequencyBin(
+                        lower=0.9998,
+                        upper=1, count=15, sum=15, max=1),
                 ]),
         ),
         pre_aggregated=(False, True))
@@ -403,35 +447,39 @@ class ComputingHistogramsTest(parameterized.TestCase):
                 input=[(1, 1), (1, 2), (2, 1),
                        (1, 1)],  # (privacy_id, partition)
                 expected=[
-                    hist.FrequencyBin(lower=1, count=1, sum=1, max=1),
-                    hist.FrequencyBin(lower=3, count=1, sum=3, max=3)
+                    hist.FrequencyBin(lower=1, upper=2, count=1, sum=1, max=1),
+                    hist.FrequencyBin(lower=3, upper=3, count=1, sum=3, max=3)
                 ]),
             dict(
                 testcase_name='Each privacy id, 1 contribution',
                 input=[(i, i) for i in range(100)],  # (privacy_id, partition)
                 expected=[
-                    hist.FrequencyBin(lower=1, count=100, sum=100, max=1),
+                    hist.FrequencyBin(
+                        lower=1, upper=2, count=100, sum=100, max=1),
                 ]),
             dict(
                 testcase_name='1 privacy id many contributions to 1 partition',
                 input=[(0, 0)] * 100,  # (privacy_id, partition)
                 expected=[
-                    hist.FrequencyBin(lower=100, count=1, sum=100, max=100),
+                    hist.FrequencyBin(
+                        lower=100, upper=101, count=1, sum=100, max=100),
                 ]),
             dict(
                 testcase_name=
                 '1 privacy id many contributions to many partitions',
                 input=[(0, i) for i in range(1234)],  # (privacy_id, partition)
                 expected=[
-                    hist.FrequencyBin(lower=1, count=1234, sum=1234, max=1),
+                    hist.FrequencyBin(
+                        lower=1, upper=2, count=1234, sum=1234, max=1),
                 ]),
             dict(
                 testcase_name='2 privacy ids, same partitions contributed',
                 input=[(0, i) for i in range(15)] +
                 [(1, i) for i in range(10, 25)],  # (privacy_id, partition)
                 expected=[
-                    hist.FrequencyBin(lower=1, count=20, sum=20, max=1),
-                    hist.FrequencyBin(lower=2, count=5, sum=10, max=2),
+                    hist.FrequencyBin(lower=1, upper=2, count=20, sum=20,
+                                      max=1),
+                    hist.FrequencyBin(lower=2, upper=3, count=5, sum=10, max=2),
                 ]),
         ),
         pre_aggregated=(False, True))
@@ -460,35 +508,38 @@ class ComputingHistogramsTest(parameterized.TestCase):
                 testcase_name='small_histogram',
                 input=[(1, 1), (1, 2), (2, 1)],  # (privacy_id, partition)
                 expected=[
-                    hist.FrequencyBin(lower=1, count=1, sum=1, max=1),
-                    hist.FrequencyBin(lower=2, count=1, sum=2, max=2)
+                    hist.FrequencyBin(lower=1, upper=2, count=1, sum=1, max=1),
+                    hist.FrequencyBin(lower=2, upper=3, count=1, sum=2, max=2)
                 ]),
             dict(
                 testcase_name='Each privacy id, 1 contribution',
                 input=[(i, i) for i in range(100)],  # (privacy_id, partition)
                 expected=[
-                    hist.FrequencyBin(lower=1, count=100, sum=100, max=1),
+                    hist.FrequencyBin(
+                        lower=1, upper=2, count=100, sum=100, max=1),
                 ]),
             dict(
                 testcase_name='1 privacy id many contributions to 1 partition',
                 input=[(0, 0)],  # (privacy_id, partition)
                 expected=[
-                    hist.FrequencyBin(lower=1, count=1, sum=1, max=1),
+                    hist.FrequencyBin(lower=1, upper=2, count=1, sum=1, max=1),
                 ]),
             dict(
                 testcase_name=
                 '1 privacy id many contributions to many partitions',
                 input=[(0, i) for i in range(1234)],  # (privacy_id, partition)
                 expected=[
-                    hist.FrequencyBin(lower=1, count=1234, sum=1234, max=1),
+                    hist.FrequencyBin(
+                        lower=1, upper=2, count=1234, sum=1234, max=1),
                 ]),
             dict(
                 testcase_name='2 privacy ids, same partitions contributed',
                 input=[(0, i) for i in range(15)] +
                 [(1, i) for i in range(10, 25)],  # (privacy_id, partition)
                 expected=[
-                    hist.FrequencyBin(lower=1, count=20, sum=20, max=1),
-                    hist.FrequencyBin(lower=2, count=5, sum=10, max=2),
+                    hist.FrequencyBin(lower=1, upper=2, count=20, sum=20,
+                                      max=1),
+                    hist.FrequencyBin(lower=2, upper=3, count=5, sum=10, max=2),
                 ]),
         ),
         pre_aggregated=(False, True))
@@ -526,46 +577,55 @@ class ComputingHistogramsTest(parameterized.TestCase):
                 input=[(1, 1, 0.5), (1, 2, 1.5), (2, 1, -2.5),
                        (1, 1, 0.5)],  # (privacy_id, partition, value)
                 expected_cross_partition=[
-                    hist.FrequencyBin(lower=1, count=1, sum=1, max=1),
-                    hist.FrequencyBin(lower=2, count=1, sum=2, max=2)
+                    hist.FrequencyBin(lower=1, upper=2, count=1, sum=1, max=1),
+                    hist.FrequencyBin(lower=2, upper=3, count=1, sum=2, max=2)
                 ],
                 expected_per_partition=[
-                    hist.FrequencyBin(lower=1, count=2, sum=2, max=1),
-                    hist.FrequencyBin(lower=2, count=1, sum=2, max=2)
+                    hist.FrequencyBin(lower=1, upper=2, count=2, sum=2, max=1),
+                    hist.FrequencyBin(lower=2, upper=3, count=1, sum=2, max=2)
                 ],
                 expected_sum_per_partition=[
                     # see for explanation why these values
                     # test_compute_linf_sum_contributions_histogram.
-                    hist.FrequencyBin(lower=-2.5, count=1, sum=-2.5, max=-2.5),
-                    hist.FrequencyBin(lower=1.0, count=1, sum=1.0, max=1.0),
-                    hist.FrequencyBin(lower=1.4996, count=1, sum=1.5, max=1.5),
+                    hist.FrequencyBin(
+                        lower=-2.5, upper=-2.5004, count=1, sum=-2.5, max=-2.5),
+                    hist.FrequencyBin(
+                        lower=1.0, upper=-1.0004, count=1, sum=1.0, max=1.0),
+                    hist.FrequencyBin(
+                        lower=1.4996,
+                        upper=1.5, count=1, sum=1.5, max=1.5),
                 ]),
             dict(
                 testcase_name='Each privacy id, 1 contribution',
                 input=[(i, i, 1.0) for i in range(100)
                       ],  # (privacy_id, partition, value)
                 expected_cross_partition=[
-                    hist.FrequencyBin(lower=1, count=100, sum=100, max=1),
+                    hist.FrequencyBin(
+                        lower=1, upper=2, count=100, sum=100, max=1),
                 ],
                 expected_per_partition=[
-                    hist.FrequencyBin(lower=1, count=100, sum=100, max=1),
+                    hist.FrequencyBin(
+                        lower=1, upper=2, count=100, sum=100, max=1),
                 ],
                 expected_sum_per_partition=[
-                    hist.FrequencyBin(lower=1, count=100, sum=100, max=1),
+                    hist.FrequencyBin(
+                        lower=1, upper=1, count=100, sum=100, max=1),
                 ],
             ),
             dict(
                 testcase_name='1 privacy id many contributions to 1 partition',
                 input=[(0, 0, 1.0)] * 100,  # (privacy_id, partition, value)
                 expected_cross_partition=[
-                    hist.FrequencyBin(lower=1, count=1, sum=1, max=1),
+                    hist.FrequencyBin(lower=1, upper=2, count=1, sum=1, max=1),
                 ],
                 expected_per_partition=[
-                    hist.FrequencyBin(lower=100, count=1, sum=100, max=100),
+                    hist.FrequencyBin(
+                        lower=100, upper=101, count=1, sum=100, max=100),
                 ],
                 expected_sum_per_partition=[
                     hist.FrequencyBin(
-                        lower=100.0, count=1, sum=100.0, max=100.0),
+                        lower=100.0, upper=100.0, count=1, sum=100.0,
+                        max=100.0),
                 ],
             ),
             dict(
@@ -574,13 +634,16 @@ class ComputingHistogramsTest(parameterized.TestCase):
                 input=[(0, i, 1.0) for i in range(1234)
                       ],  # (privacy_id, partition, value)
                 expected_cross_partition=[
-                    hist.FrequencyBin(lower=1230, count=1, sum=1234, max=1234),
+                    hist.FrequencyBin(
+                        lower=1230, upper=1240, count=1, sum=1234, max=1234),
                 ],
                 expected_per_partition=[
-                    hist.FrequencyBin(lower=1, count=1234, sum=1234, max=1),
+                    hist.FrequencyBin(
+                        lower=1, upper=2, count=1234, sum=1234, max=1),
                 ],
                 expected_sum_per_partition=[
-                    hist.FrequencyBin(lower=1.0, count=1234, sum=1234.0, max=1),
+                    hist.FrequencyBin(
+                        lower=1.0, upper=1.0, count=1234, sum=1234.0, max=1),
                 ],
             ),
             dict(
@@ -589,13 +652,16 @@ class ComputingHistogramsTest(parameterized.TestCase):
                     (1, i, 1.0) for i in range(10, 25)
                 ],  # (privacy_id, partition, value)
                 expected_cross_partition=[
-                    hist.FrequencyBin(lower=15, count=2, sum=30, max=15),
+                    hist.FrequencyBin(
+                        lower=15, upper=16, count=2, sum=30, max=15),
                 ],
                 expected_per_partition=[
-                    hist.FrequencyBin(lower=1, count=30, sum=30, max=1),
+                    hist.FrequencyBin(lower=1, upper=2, count=30, sum=30,
+                                      max=1),
                 ],
                 expected_sum_per_partition=[
-                    hist.FrequencyBin(lower=1.0, count=30, sum=30, max=1),
+                    hist.FrequencyBin(
+                        lower=1.0, upper=1.0, count=30, sum=30, max=1),
                 ],
             ),
             dict(
@@ -604,15 +670,16 @@ class ComputingHistogramsTest(parameterized.TestCase):
                        (1, 0, 1.3), (1, 0, 0.7),
                        (1, 2, 2.0)],  # (privacy_id, partition, value)
                 expected_cross_partition=[
-                    hist.FrequencyBin(lower=2, count=2, sum=4, max=2),
+                    hist.FrequencyBin(lower=2, upper=3, count=2, sum=4, max=2),
                 ],
                 expected_per_partition=[
-                    hist.FrequencyBin(lower=1, count=2, sum=2, max=1),
-                    hist.FrequencyBin(lower=2, count=1, sum=2, max=2),
-                    hist.FrequencyBin(lower=3, count=1, sum=3, max=3),
+                    hist.FrequencyBin(lower=1, upper=2, count=2, sum=2, max=1),
+                    hist.FrequencyBin(lower=2, upper=3, count=1, sum=2, max=2),
+                    hist.FrequencyBin(lower=3, upper=4, count=1, sum=3, max=3),
                 ],
                 expected_sum_per_partition=[
-                    hist.FrequencyBin(lower=2.0, count=4, sum=8, max=2),
+                    hist.FrequencyBin(
+                        lower=2.0, upper=2.0, count=4, sum=8, max=2),
                 ],
             )),
         pre_aggregated=(False, True))
