@@ -72,8 +72,8 @@ class DPAlgorithmSelector:
         supported_noise_kinds = self._available_methods.supported_noise_kind()
         if len(supported_noise_kinds) == 1:
             return DPStrategy(noise_kind=supported_noise_kinds[0],
-                       partition_selection_strategy=None,
-                       post_aggregation_thresholding=False)
+                              partition_selection_strategy=None,
+                              post_aggregation_thresholding=False)
         gaussian_std = self._get_gaussian_std(self._epsilon, self._delta, l0,
                                               linf)
         laplace_std = self._get_gaussian_std(self._epsilon, l0, linf)
@@ -87,6 +87,7 @@ class DPAlgorithmSelector:
 
     def _get_dp_strategy_with_post_aggregation_threshold(self,
                                                          l0: int) -> DPStrategy:
+
         def create_mechanism(strategy: pipeline_dp.PartitionSelectionStrategy):
             return dp_computations.ThresholdingMechanism(
                 self._epsilon, self._delta, strategy, l0, self._pre_threshold)
@@ -108,8 +109,9 @@ class DPAlgorithmSelector:
             partition_selection_strategy=partition_selection_strategy,
             post_aggregation_thresholding=True)
 
-    def _get_dp_strategy_private_partition(self, l0: int, linf: float) -> DPStrategy:
-
+    def _get_dp_strategy_private_partition(self, l0: int,
+                                           linf: float) -> DPStrategy:
+        pass
 
     # def _choose_noise_kind(self, epsilon:float, delta:float)->pipeline_dp.NoiseKind:
     def _get_gaussian_std(self, epsilon: float, delta: float, l0: int,
