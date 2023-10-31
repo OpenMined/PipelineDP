@@ -810,8 +810,8 @@ class ThresholdingMechanism:
         # TODO: add noise scale to text, when it's exposed from C++.
         return text
 
-    def noise_std(self) -> float:
-        return self._thresholding_strategy.noise_std()
+    def threshold(self) -> float:
+        return self._thresholding_strategy.threshold()
 
 
 def create_thresholding_mechanism(
