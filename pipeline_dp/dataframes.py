@@ -270,9 +270,7 @@ class QueryBuilder:
         All following aggregation will be applied to grouped by DataFrame.
 
         Args:
-            by: column, a list of columns of function used to determine the
-              groups for the groupby. If 'by' is a function, it’s called on each
-              raw of the DataFrame.
+            by: a column or a list of columns used to determine the groups.
             max_groups_contributed: the maximum groups that can each privacy
               unit contributes to the result. If some privacy unit contributes
               more in the input dataset, the groups are sub-sampled to
