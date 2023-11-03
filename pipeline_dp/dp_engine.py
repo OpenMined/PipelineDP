@@ -19,6 +19,7 @@ import pipeline_dp
 from pipeline_dp import budget_accounting
 from pipeline_dp import combiners
 from pipeline_dp import contribution_bounders
+from pipeline_dp import dp_computations
 from pipeline_dp import partition_selection
 from pipeline_dp import pipeline_functions
 from pipeline_dp import report_generator
@@ -532,6 +533,34 @@ class DPEngine:
         return self._backend.filter(col,
                                     lambda row: row[1].privacy_id_count != None,
                                     "Drop partitions under threshold")
+
+    def anonymize_values(
+        self,
+        col,
+        params: pipeline_dp.aggregate_params.AnonymizeValuesParams,
+        out_explain_computation_report: Optional[
+            pipeline_dp.ExplainComputationReport] = None):
+        mechanism_type = params.noise_kind.convert_to_mechanism_type()
+        mechanism_spec = self._budget_accountant.request_budget(mechanism_type)
+
+        if params.metric == pipeline_dp.Metrics.COUNT:
+            sensitivities = dp_computations.compute_sensitivities_for_count(
+                params)
+        elif params.metric == pipeline_dp.Metrics.PRIVACY_ID_COUNT:
+            sensitivities = dp_computations.compute_sensitivities_for_count(
+                params)
+        elif params.metric == pipeline_dp.Metrics.SUM:
+            sensitivities = dp_computations.compute_sensitivities_for_count(
+                params)
+        else:
+            raise ValueError(f"Metric {params.metric} is not supported.")
+
+        def add_noise_fn(value: float) -> float:
+            additive_mechanism = dp_computations.create_additive_mechanism(
+                mechanism_spec, sensitivities)
+            return additive_mechanism.add_noise(value)
+
+        return self._backend.map_values(col, add_noise_fn, "Add noise")
 
     def _annotate(self, col, params: pipeline_dp.SelectPartitionsParams,
                   budget: budget_accounting.Budget):

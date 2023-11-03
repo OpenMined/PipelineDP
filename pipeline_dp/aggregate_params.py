@@ -587,6 +587,19 @@ class PrivacyIdCountParams:
     contribution_bounds_already_enforced: bool = False
 
 
+@dataclass
+class AnonymizeValuesParams:
+    metric: Metric
+    noise_kind: NoiseKind
+    max_partitions_contributed: Optional[int] = None
+    max_contributions_per_partition: Optional[int] = None
+    budget_weight: float = 1
+    min_value: Optional[float] = None
+    max_value: Optional[float] = None
+    min_sum_per_partition: Optional[float] = None
+    max_sum_per_partition: Optional[float] = None
+
+
 def _not_a_proper_number(num: Any) -> bool:
     """Returns true if num is inf or NaN, false otherwise."""
     return math.isnan(num) or math.isinf(num)
