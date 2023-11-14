@@ -146,6 +146,25 @@ class QueryBuilderTest(parameterized.TestCase):
 
         self.assertEqual(query._public_partitions, ["key1"])
 
+    def test_partition_key_multiple_columns_query(self):
+        df = get_pandas_df()
+        df["second_group_by_key"] = ["a", "b", "c"]
+
+        query = dataframes.QueryBuilder(df, "privacy_key").groupby(
+            ["group_key", "second_group_by_key"],
+            max_groups_contributed=8,
+            max_contributions_per_group=11).sum("value",
+                                                min_value=1,
+                                                max_value=2.5).build_query()
+
+        self.assertTrue(query._df.equals(df))
+        self.assertEqual(
+            query._columns,
+            dataframes.Columns("privacy_key",
+                               ["group_key", "second_group_by_key"], "value"))
+        self.assertEqual(query._metrics_output_columns,
+                         {pipeline_dp.Metrics.SUM: None})
+
 
 CountNamedTuple = namedtuple("Count", ["count"])
 CountSumNamedTuple = namedtuple("CountSum", ["count", "sum"])
@@ -245,6 +264,49 @@ class QueryTest(parameterized.TestCase):
         self.assertEqual(row1["group_key"], "key1")
         self.assertAlmostEqual(row1["count_column"], 2, delta=1e-3)
         self.assertAlmostEqual(row1["sum"], 3, delta=1e-3)
+
+    def test_run_query_multiple_partition_keys_e2e_run(self):
+        # Arrange
+        spark = self._get_spark_session()
+        pandas_df = get_pandas_df()
+        pandas_df["second_group_by_key"] = ["a", "b", "c"]
+        df = spark.createDataFrame(pandas_df)
+        columns = dataframes.Columns("privacy_key",
+                                     ["group_key", "second_group_by_key"],
+                                     "value")
+        metrics = {
+            pipeline_dp.Metrics.COUNT: None,  # it returns default name "count"
+            pipeline_dp.Metrics.SUM: "sum_column"
+        }
+        bounds = dataframes.ContributionBounds(
+            max_partitions_contributed=2,
+            max_contributions_per_partition=2,
+            min_value=-5,
+            max_value=5)
+        public_keys = [("key1", "a"), ("key0", "b")]
+        query = dataframes.Query(df, columns, metrics, bounds, public_keys)
+
+        # Act
+        budget = dataframes.Budget(1e6, 1e-1)  # large budget to get small noise
+        result_df = query.run_query(budget)
+
+        # Assert
+        pandas_df = result_df.toPandas()
+        pandas_df = pandas_df.sort_values(by=['group_key']).reset_index(
+            drop=True)
+        self.assertLen(pandas_df, 2)
+        # check row[0] = "key0", "b", 0+noise, 0+noise
+        row0 = pandas_df.loc[0]
+        self.assertEqual(row0["group_key"], "key0")
+        self.assertEqual(row0["second_group_by_key"], "b")
+        self.assertAlmostEqual(row0["count"], 0, delta=1e-3)
+        self.assertAlmostEqual(row0["sum_column"], 0, delta=1e-3)
+        # check row[1] = "key1", "a", 1+noise, 3+noise
+        row1 = pandas_df.loc[1]
+        self.assertEqual(row1["group_key"], "key1")
+        self.assertEqual(row1["second_group_by_key"], "a")
+        self.assertAlmostEqual(row1["count"], 1, delta=1e-3)
+        self.assertAlmostEqual(row1["sum_column"], 5, delta=1e-3)
 
 
 if __name__ == '__main__':

@@ -15,7 +15,7 @@
 import abc
 from collections import namedtuple
 from dataclasses import dataclass
-from typing import Any, Dict, Iterable, Optional
+from typing import Any, Callable, Dict, Iterable, Optional, Sequence, Union
 
 import pipeline_dp
 import pyspark
@@ -36,7 +36,7 @@ class Budget:
 @dataclass
 class Columns:
     privacy_key: str
-    partition_key: str
+    partition_key: Union[str, Sequence[str]]
     value: Optional[str]
 
 
@@ -68,17 +68,30 @@ class SparkConverter(DataFrameConvertor):
 
     def dataframe_to_collection(self, df: SparkDataFrame,
                                 columns: Columns) -> pyspark.RDD:
-        columns_to_keep = [columns.privacy_key, columns.partition_key]
-        if columns.value is not None:
+        columns_to_keep = [columns.privacy_key]
+        if isinstance(columns.partition_key, str):
+            num_partition_columns = 1
+            columns_to_keep.append(columns.partition_key)
+        else:  # Sequence[str], multiple columns
+            num_partition_columns = len(columns.partition_key)
+            columns_to_keep.extend(columns.partition_key)
+        value_present = columns.value is not None
+        if value_present:
             columns_to_keep.append(columns.value)
+
         df = df[columns_to_keep]  # leave only needed columns.
-        if columns.value is None:
-            return df.rdd.map(lambda row: (row[0], row[1], 0))
-        return df.rdd.map(lambda row: (row[0], row[1], row[2]))
+
+        def extractor(row):
+            privacy_key = row[0]
+            partition_key = row[1] if num_partition_columns == 1 else row[
+                1:1 + num_partition_columns]
+            value = row[1 + num_partition_columns] if value_present else 0
+            return (privacy_key, partition_key, value)
+
+        return df.rdd.map(extractor)
 
     def collection_to_dataframe(self, col: pyspark.RDD) -> SparkDataFrame:
-        df = self._spark.createDataFrame(col)
-        return df
+        return self._spark.createDataFrame(col)
 
 
 def _create_backend_for_dataframe(
@@ -179,13 +192,21 @@ class Query:
             metrics_names_to_output_columns[metric_name] = output_column
 
         output_columns = list(metrics_names_to_output_columns.values())
-        partition_key_column = self._columns.partition_key
-        PartitionMetricsTuple = namedtuple("Result", [partition_key_column] +
-                                           output_columns)
+        partition_key = self._columns.partition_key
+        partition_key_one_column = isinstance(partition_key, str)
+        if partition_key_one_column:
+            partition_key = [partition_key]
+        PartitionMetricsTuple = namedtuple("Result",
+                                           partition_key + output_columns)
 
         def convert_to_partition_metrics_tuple(row):
             partition, metrics = row
-            result = {partition_key_column: partition}
+            if partition_key_one_column:
+                result = {partition_key[0]: partition}
+            else:
+                result = {}
+                for key, value in zip(partition_key, partition):
+                    result[key] = value
             for key, value in metrics._asdict().items():
                 # Map default metric names to metric names specified in
                 # self.metrics_names_to_output_columns
@@ -229,24 +250,27 @@ class QueryBuilder:
                 f"Column {privacy_unit_column} is not present in DataFrame")
         self._df = df
         self._privacy_unit_column = privacy_unit_column
-        self._groupby_column = None
+        self._by = None
         self._value_column = None
         self._metrics = {}  # map from pipeline_dp.Metric -> output column name
         self._contribution_bounds = ContributionBounds()
         self._public_keys = None
 
-    def groupby(self,
-                column: str,
-                *,
-                max_groups_contributed: int,
-                max_contributions_per_group: int,
-                public_keys: Optional[Iterable[Any]] = None) -> 'QueryBuilder':
+    def groupby(
+            self,
+            by: Union[str, Sequence[str]],
+            *,
+            max_groups_contributed: int,
+            max_contributions_per_group: int,
+            public_keys: Optional[Iterable[Any]] = None,
+            column: Optional[str] = None  # deprecated
+    ) -> 'QueryBuilder':
         """Adds groupby by the given column to the query.
 
         All following aggregation will be applied to grouped by DataFrame.
 
         Args:
-            column: column to group.
+            by: a column or a list of columns used to determine the groups.
             max_groups_contributed: the maximum groups that can each privacy
               unit contributes to the result. If some privacy unit contributes
               more in the input dataset, the groups are sub-sampled to
@@ -257,11 +281,23 @@ class QueryBuilder:
               max_contributions_per_group.
             public_keys:
         """
-        if self._groupby_column is not None:
+        if column is not None:
+            raise ValueError("column argument is deprecated. Use by")
+        if self._by is not None:
             raise ValueError("groupby can be called only once.")
-        if column not in self._df.columns:
-            raise ValueError(f"Column {column} is not present in DataFrame")
-        self._groupby_column = column
+
+        if isinstance(by, str):
+            if by not in self._df.columns:
+                raise ValueError(f"Column {by} is not present in DataFrame")
+        elif isinstance(by, list):
+            # List of columns
+            for column in by:
+                if column not in self._df.columns:
+                    raise ValueError(
+                        f"Column {column} is not present in DataFrame")
+        else:
+            raise ValueError(f"by argument must be column name(s)")
+        self._by = by
         self._contribution_bounds.max_partitions_contributed = max_groups_contributed
         self._contribution_bounds.max_contributions_per_partition = max_contributions_per_group
         self._public_keys = public_keys
@@ -273,7 +309,7 @@ class QueryBuilder:
         Args:
             name: the name of the output column.
         """
-        if self._groupby_column is None:
+        if self._by is None:
             raise ValueError(
                 "Global aggregations are not supported. Use groupby.")
         if pipeline_dp.Metrics.COUNT in self._metrics:
@@ -294,7 +330,7 @@ class QueryBuilder:
             min_value, max_value: capping limits to each value.
             name: the name of the output column.
         """
-        if self._groupby_column is None:
+        if self._by is None:
             raise ValueError(
                 "Global aggregations are not supported. Use groupby.")
         if pipeline_dp.Metrics.SUM in self._metrics:
@@ -310,7 +346,7 @@ class QueryBuilder:
 
     def build_query(self) -> Query:
         """Builds the DP query."""
-        if self._groupby_column is None:
+        if self._by is None:
             raise NotImplementedError(
                 "Global aggregations are not implemented yet. Call groupby.")
         if not self._metrics:
@@ -318,6 +354,5 @@ class QueryBuilder:
                 "No aggregations in the query. Call for example count.")
         return Query(
             self._df,
-            Columns(self._privacy_unit_column, self._groupby_column,
-                    self._value_column), self._metrics,
-            self._contribution_bounds, self._public_keys)
+            Columns(self._privacy_unit_column, self._by, self._value_column),
+            self._metrics, self._contribution_bounds, self._public_keys)
