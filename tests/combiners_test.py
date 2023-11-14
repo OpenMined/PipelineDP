@@ -461,8 +461,8 @@ class PostAggregationThresholdingCombinerTest(parameterized.TestCase):
              noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
              pre_threshold=20),
     )
-    @patch('pipeline_dp.partition_selection.create_partition_selection_strategy'
-          )
+    @patch(
+        'pipeline_dp.partition_selection.create_partition_selection_strategy')
     def test_mechanism(self, mock_create_partition_selection_strategy,
                        noise_kind: pipeline_dp.NoiseKind,
                        pre_threshold: Optional[int]):

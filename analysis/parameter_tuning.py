@@ -22,6 +22,7 @@ from pipeline_dp.dataset_histograms import histograms
 import analysis
 from analysis import metrics
 from analysis import utility_analysis
+from analysis import dp_strategy_selector
 
 import dataclasses
 from dataclasses import dataclass
@@ -281,7 +282,8 @@ def tune(col,
          options: TuneOptions,
          data_extractors: Union[pipeline_dp.DataExtractors,
                                 pipeline_dp.PreAggregateExtractors],
-         public_partitions=None):
+         public_partitions=None,
+         strategy_selector: dp_strategy_selector.DPStrategySelector = None):
     """Tunes parameters.
 
     It works in the following way:
@@ -310,11 +312,18 @@ def tune(col,
         public_partitions: A collection of partition keys that will be present
           in the result. If not provided, tuning will be performed assuming
           private partition selection is used.
+        strategy_selector: todo
     Returns:
        returns tuple (1 element collection which contains TuneResult,
         a collection which contains utility analysis results per partition).
     """
     _check_tune_args(options, public_partitions is not None)
+    if strategy_selector is None:
+        strategy_selector = dp_strategy_selector.DPStrategySelector(
+            options.epsilon,
+            options.delta,
+            options.aggregate_params.metrics[0],
+            is_public_partitions=public_partitions is not None)
 
     metric = None
     if options.aggregate_params.metrics:

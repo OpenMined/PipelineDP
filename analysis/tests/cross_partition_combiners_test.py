@@ -378,8 +378,8 @@ class CrossPartitionCombiner(parameterized.TestCase):
         _, _, weight = combiner.create_accumulator(per_partition_metrics)
         self.assertEqual(weight, 5.0)
 
-    @patch("analysis.cross_partition_combiners._per_partition_to_utility_report"
-          )
+    @patch(
+        "analysis.cross_partition_combiners._per_partition_to_utility_report")
     def test_create_report_with_mocks(self,
                                       mock_per_partition_to_utility_report):
         dp_metrics = [pipeline_dp.Metrics.COUNT]
