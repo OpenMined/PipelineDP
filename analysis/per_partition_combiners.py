@@ -279,6 +279,10 @@ class SumCombiner(UtilityAnalysisCombiner):
             std_noise=std_noise,
             noise_kind=self._params.aggregate_params.noise_kind)
 
+    def get_sensitivities(self) -> dp_computations.Sensitivities:
+        return dp_computations.compute_sensitivities_for_sum(
+            self._params.aggregate_params)
+
 
 class CountCombiner(SumCombiner):
     """A combiner for utility analysis counts."""
@@ -297,6 +301,10 @@ class CountCombiner(SumCombiner):
         self._params.aggregate_params.min_sum_per_partition = 0.0
         self._params.aggregate_params.max_sum_per_partition = self._params.aggregate_params.max_contributions_per_partition
         return super().create_accumulator(data)
+
+    def get_sensitivities(self) -> dp_computations.Sensitivities:
+        return dp_computations.compute_sensitivities_for_count(
+            self._params.aggregate_params)
 
 
 class PrivacyIdCountCombiner(SumCombiner):
@@ -319,6 +327,10 @@ class PrivacyIdCountCombiner(SumCombiner):
         self._params.aggregate_params.max_sum_per_partition = 1.0
         return super().create_accumulator(data)
 
+    def get_sensitivities(self) -> dp_computations.Sensitivities:
+        return dp_computations.compute_sensitivities_for_privacy_id_count(
+            self._params.aggregate_params)
+
 
 class RawStatisticsCombiner(UtilityAnalysisCombiner):
     """A combiner for computing per-partition raw statistics (count etc)."""
@@ -334,6 +346,9 @@ class RawStatisticsCombiner(UtilityAnalysisCombiner):
     def compute_metrics(self, acc: AccumulatorType):
         privacy_id_count, count = acc
         return metrics.RawStatistics(privacy_id_count, count)
+
+    def get_sensitivities(self) -> dp_computations.Sensitivities:
+        raise NotImplementedError("It's DP mechanism.")
 
 
 class CompoundCombiner(pipeline_dp.combiners.CompoundCombiner):
