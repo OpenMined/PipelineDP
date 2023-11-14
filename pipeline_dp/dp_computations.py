@@ -811,7 +811,7 @@ class ThresholdingMechanism:
         return text
 
     def threshold(self) -> float:
-        return self._thresholding_strategy.threshold()
+        return self._thresholding_strategy.threshold
 
 
 def create_thresholding_mechanism(
