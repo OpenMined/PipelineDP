@@ -220,6 +220,15 @@ class Query:
         return converter.collection_to_dataframe(dp_result)
 
 
+@dataclass
+class _AggregationSpec:
+    metric: pipeline_dp.Metric
+    input_column: Optional[str]
+    output_column: Optional[str]
+    min_value: Optional[float] = None
+    max_value: Optional[float] = None
+
+
 class QueryBuilder:
     """Builds DP queries on (Spark, Pandas, Beam) DataFrames.
 
@@ -255,6 +264,7 @@ class QueryBuilder:
         self._metrics = {}  # map from pipeline_dp.Metric -> output column name
         self._contribution_bounds = ContributionBounds()
         self._public_keys = None
+        self._aggregations_specs = []
 
     def groupby(
             self,
@@ -284,7 +294,7 @@ class QueryBuilder:
         if column is not None:
             raise ValueError("column argument is deprecated. Use by")
         if self._by is not None:
-            raise ValueError("groupby can be called only once.")
+            raise ValueError("groupby can be called only once")
 
         if isinstance(by, str):
             if by not in self._df.columns:
@@ -309,81 +319,86 @@ class QueryBuilder:
         Args:
             name: the name of the output column.
         """
-        if self._by is None:
-            raise ValueError(
-                "Global aggregations are not supported. Use groupby.")
-        if pipeline_dp.Metrics.COUNT in self._metrics:
-            raise ValueError("count can be counted only once.")
-        self._metrics[pipeline_dp.Metrics.COUNT] = name
-        return self
+        return self._add_aggregation(
+            _AggregationSpec(metric=pipeline_dp.Metrics.COUNT,
+                             input_column=None,
+                             output_column=name))
 
     def sum(self,
             column: str,
             *,
-            min_value: float,
-            max_value: float,
+            min_value: Optional[float] = None,
+            max_value: Optional[float] = None,
             name: str = None) -> 'QueryBuilder':
-        """Adds sum to the query.
+        """Adds sum aggregation to the query.
 
         Args:
             column: column to perform summation
             min_value, max_value: capping limits to each value.
             name: the name of the output column.
         """
-        if self._by is None:
-            raise ValueError(
-                "Global aggregations are not supported. Use groupby.")
-        if pipeline_dp.Metrics.SUM in self._metrics:
-            raise ValueError("sum can be counted only once.")
-        self._add_value_column(column, min_value, max_value)
-        self._metrics[pipeline_dp.Metrics.SUM] = name
-        return self
+        return self._add_aggregation(
+            _AggregationSpec(metric=pipeline_dp.Metrics.SUM,
+                             input_column=column,
+                             output_column=name,
+                             min_value=min_value,
+                             max_value=max_value))
 
     def mean(self,
              column: str,
              *,
-             min_value: float,
-             max_value: float,
+             min_value: Optional[float] = None,
+             max_value: Optional[float] = None,
              name: str = None) -> 'QueryBuilder':
-        """Adds mean to the query.
+        """Adds mean aggregation to the query.
 
         Args:
-            column: column to perform summation
+            column: column to compute mean
             min_value, max_value: capping limits to each value.
             name: the name of the output column.
         """
-        if self._by is None:
-            raise ValueError(
-                "Global aggregations are not supported. Use groupby.")
-        if pipeline_dp.Metrics.MEAN in self._metrics:
-            raise ValueError("Mean can be counted only once.")
-        self._add_value_column(column, min_value, max_value)
-        self._metrics[pipeline_dp.Metrics.MEAN] = name
-        return self
+
+        return self._add_aggregation(
+            _AggregationSpec(metric=pipeline_dp.Metrics.MEAN,
+                             input_column=column,
+                             output_column=name,
+                             min_value=min_value,
+                             max_value=max_value))
 
     def build_query(self) -> Query:
         """Builds the DP query."""
         if self._by is None:
             raise NotImplementedError(
-                "Global aggregations are not implemented yet. Call groupby.")
-        if not self._metrics:
-            raise ValueError(
-                "No aggregations in the query. Call for example count.")
+                "Global aggregations are not implemented yet. Call groupby")
+        self._validate_aggregations_specs()
         return Query(
             self._df,
             Columns(self._privacy_unit_column, self._by, self._value_column),
             self._metrics, self._contribution_bounds, self._public_keys)
 
-    def _add_value_column(self, column: str, min_value: float,
-                          max_value: float):
-        if self._value_column is None:
-            self._value_column = column
-            self._contribution_bounds.min_value = min_value
-            self._contribution_bounds.max_value = max_value
-        else:
-            if self._value_column != column:
-                raise ValueError("Aggregation of only one column is supported")
-            if self._contribution_bounds.max_value != max_value:
-                raise ValueError("todo")
-            if self._contribution_bounds.min_value != min_value:
-                raise ValueError("todo")
+    def _add_aggregation(self,
+                         aggregation_spec: _AggregationSpec) -> 'QueryBuilder':
+        if self._by is None:
+            raise ValueError(
+                "Global aggregations are not supported. Use groupby")
+        self._aggregations_specs.append(aggregation_spec)
+        return self
+
+    def _validate_aggregations_specs(self):
+        if not self._aggregations_specs:
+            raise ValueError(
+                "No aggregations in the query. Call for example count")
+        # Not more than 1 input column
+        columns = [
+            spec.input_column
+            for spec in self._aggregations_specs
+            if spec.input_column is not None
+        ]
+        if len(columns) > 1:
+            raise NotImplementedError(
+                f"Aggregation of only 1 column is supported, but {columns} given"
+            )
+        # Each metric only once
+
+        # Value caps are given and consistent
+        pass
