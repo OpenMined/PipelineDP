@@ -78,7 +78,10 @@ def compute_private_result(
                                      max_contributions_per_group=1).count().sum(
                                          'spent_money',
                                          min_value=0,
-                                         max_value=100).build_query()
+                                         max_value=100).mean(
+                                             'spent_money',
+                                             min_value=0,
+                                             max_value=100).build_query()
     result_df = query.run_query(dataframes.Budget(epsilon=1, delta=1e-10),
                                 noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)
     return result_df

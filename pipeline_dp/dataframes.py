@@ -335,13 +335,30 @@ class QueryBuilder:
                 "Global aggregations are not supported. Use groupby.")
         if pipeline_dp.Metrics.SUM in self._metrics:
             raise ValueError("sum can be counted only once.")
-        if self._value_column is not None:
-            raise NotImplementedError(
-                "Now aggregation of only 1 column is supported.")
+        self._add_value_column(column, min_value, max_value)
         self._metrics[pipeline_dp.Metrics.SUM] = name
-        self._value_column = column
-        self._contribution_bounds.min_value = min_value
-        self._contribution_bounds.max_value = max_value
+        return self
+
+    def mean(self,
+             column: str,
+             *,
+             min_value: float,
+             max_value: float,
+             name: str = None) -> 'QueryBuilder':
+        """Adds mean to the query.
+
+        Args:
+            column: column to perform summation
+            min_value, max_value: capping limits to each value.
+            name: the name of the output column.
+        """
+        if self._by is None:
+            raise ValueError(
+                "Global aggregations are not supported. Use groupby.")
+        if pipeline_dp.Metrics.MEAN in self._metrics:
+            raise ValueError("Mean can be counted only once.")
+        self._add_value_column(column, min_value, max_value)
+        self._metrics[pipeline_dp.Metrics.MEAN] = name
         return self
 
     def build_query(self) -> Query:
@@ -356,3 +373,17 @@ class QueryBuilder:
             self._df,
             Columns(self._privacy_unit_column, self._by, self._value_column),
             self._metrics, self._contribution_bounds, self._public_keys)
+
+    def _add_value_column(self, column: str, min_value: float,
+                          max_value: float):
+        if self._value_column is None:
+            self._value_column = column
+            self._contribution_bounds.min_value = min_value
+            self._contribution_bounds.max_value = max_value
+        else:
+            if self._value_column != column:
+                raise ValueError("Aggregation of only one column is supported")
+            if self._contribution_bounds.max_value != max_value:
+                raise ValueError("todo")
+            if self._contribution_bounds.min_value != min_value:
+                raise ValueError("todo")
