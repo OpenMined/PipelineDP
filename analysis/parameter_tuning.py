@@ -180,6 +180,12 @@ def _find_candidate_parameters(
         max_sum_per_partition=max_sum_per_partition_bounds)
 
 
+def _add_dp_strategy(
+        configuration: analysis.MultiParameterConfiguration,
+        strategy_selector: dp_strategy_selector.DPStrategySelector):
+    pass
+
+
 def _find_candidates_parameters_in_2d_grid(
         hist1: histograms.Histogram, hist2: histograms.Histogram,
         find_candidates_func1: Callable[[histograms.Histogram, int],
@@ -283,7 +289,8 @@ def tune(col,
          data_extractors: Union[pipeline_dp.DataExtractors,
                                 pipeline_dp.PreAggregateExtractors],
          public_partitions=None,
-         strategy_selector: dp_strategy_selector.DPStrategySelector = None):
+         strategy_selector_factory: dp_strategy_selector.
+         DPStrategySelectorFactory = None):
     """Tunes parameters.
 
     It works in the following way:
@@ -312,22 +319,24 @@ def tune(col,
         public_partitions: A collection of partition keys that will be present
           in the result. If not provided, tuning will be performed assuming
           private partition selection is used.
-        strategy_selector: todo
+        strategy_selector_factory: todo
     Returns:
        returns tuple (1 element collection which contains TuneResult,
         a collection which contains utility analysis results per partition).
     """
     _check_tune_args(options, public_partitions is not None)
-    if strategy_selector is None:
-        strategy_selector = dp_strategy_selector.DPStrategySelector(
-            options.epsilon,
-            options.delta,
-            options.aggregate_params.metrics[0],
-            is_public_partitions=public_partitions is not None)
+    if strategy_selector_factory is None:
+        strategy_selector_factory = dp_strategy_selector.DPStrategySelectorFactory(
+        )
 
     metric = None
     if options.aggregate_params.metrics:
         metric = options.aggregate_params.metrics[0]
+    strategy_selector = strategy_selector_factory(
+        options.epsilon,
+        options.delta,
+        metric,
+        is_public_partitions=public_partitions is not None)
 
     candidates = _find_candidate_parameters(
         contribution_histograms, options.parameters_to_tune, metric,
