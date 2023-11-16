@@ -246,6 +246,7 @@ class QueryBuilderTest(parameterized.TestCase):
 
 CountNamedTuple = namedtuple("Count", ["count"])
 CountSumNamedTuple = namedtuple("CountSum", ["count", "sum"])
+CountMeanNamedTuple = namedtuple("CountMean", ["count", "mean"])
 
 
 class QueryTest(parameterized.TestCase):
@@ -271,6 +272,10 @@ class QueryTest(parameterized.TestCase):
             mock_aggregate.return_value = spark.sparkContext.parallelize([
                 ("key1", CountSumNamedTuple(1.2345, 2.34567))
             ])
+        elif pipeline_dp.Metrics.MEAN in metrics:
+            mock_aggregate.return_value = spark.sparkContext.parallelize([
+                ("key1", CountMeanNamedTuple(1.2345, 2.34567))
+            ])
         else:
             mock_aggregate.return_value = spark.sparkContext.parallelize([
                 ("key1", CountNamedTuple(1.2345))
@@ -280,7 +285,7 @@ class QueryTest(parameterized.TestCase):
         columns = dataframes.Columns("privacy_key", "group_key", value_column)
         metrics_dict = dict([(m, m.name) for m in metrics])
         min_value = max_value = None
-        if pipeline_dp.Metrics.SUM in metrics:
+        if pipeline_dp.Metrics.SUM in metrics or pipeline_dp.Metrics.MEAN in metrics:
             min_value, max_value = -5, 5
         bounds = dataframes.ContributionBounds(
             max_partitions_contributed=5,
@@ -316,7 +321,8 @@ class QueryTest(parameterized.TestCase):
         columns = dataframes.Columns("privacy_key", "group_key", "value")
         metrics = {
             pipeline_dp.Metrics.COUNT: "count_column",
-            pipeline_dp.Metrics.SUM: None  # it returns default name "sum"
+            pipeline_dp.Metrics.SUM: None,  # it returns default name "sum"
+            pipeline_dp.Metrics.MEAN: None  # it returns default name "sum"
         }
         bounds = dataframes.ContributionBounds(
             max_partitions_contributed=2,
@@ -345,6 +351,7 @@ class QueryTest(parameterized.TestCase):
         self.assertEqual(row1["group_key"], "key1")
         self.assertAlmostEqual(row1["count_column"], 2, delta=1e-3)
         self.assertAlmostEqual(row1["sum"], 3, delta=1e-3)
+        self.assertAlmostEqual(row1["mean"], 1.5, delta=1e-3)
 
     def test_run_query_multiple_partition_keys_e2e_run(self):
         # Arrange
