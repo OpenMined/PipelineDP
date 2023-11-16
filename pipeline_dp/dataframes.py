@@ -15,7 +15,7 @@
 import abc
 from collections import namedtuple
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, Iterable, Optional, Sequence, Union
+from typing import Any, Dict, Iterable, Optional, Sequence, Tuple, Union
 
 import pipeline_dp
 import pyspark
@@ -244,6 +244,8 @@ class QueryBuilder:
         .groupby("day", max_groups_contributed=3, max_contributions_per_group=1)
         .count()
         .sum("money_spent", min_value=0, max_value=100)
+        .mean("money_spent") # no need to specify min_value, max_value, they
+        # were already given in sum
         .build_query()
     """
 
@@ -260,11 +262,10 @@ class QueryBuilder:
         self._df = df
         self._privacy_unit_column = privacy_unit_column
         self._by = None
-        self._value_column = None
-        self._metrics = {}  # map from pipeline_dp.Metric -> output column name
-        self._contribution_bounds = ContributionBounds()
         self._public_keys = None
         self._aggregations_specs = []
+        self._max_partitions_contributed: int = None
+        self._max_contributions_per_partition: int = None
 
     def groupby(
             self,
@@ -308,8 +309,8 @@ class QueryBuilder:
         else:
             raise ValueError(f"by argument must be column name(s)")
         self._by = by
-        self._contribution_bounds.max_partitions_contributed = max_groups_contributed
-        self._contribution_bounds.max_contributions_per_partition = max_contributions_per_group
+        self._max_partitions_contributed = max_groups_contributed
+        self._max_contributions_per_partition = max_contributions_per_group
         self._public_keys = public_keys
         return self
 
@@ -370,11 +371,43 @@ class QueryBuilder:
         if self._by is None:
             raise NotImplementedError(
                 "Global aggregations are not implemented yet. Call groupby")
-        self._validate_aggregations_specs()
-        return Query(
-            self._df,
-            Columns(self._privacy_unit_column, self._by, self._value_column),
-            self._metrics, self._contribution_bounds, self._public_keys)
+        # Validation.
+        if not self._aggregations_specs:
+            raise ValueError(
+                "No aggregations in the query. Call for example count")
+        # 1. Not more than 1 value column
+        value_columns = [
+            spec.input_column
+            for spec in self._aggregations_specs
+            if spec.input_column is not None
+        ]
+        if len(set(value_columns)) > 1:
+            raise NotImplementedError(
+                f"Aggregation of only 1 column is supported, but {value_columns} given"
+            )
+        value_column = value_columns[0] if value_columns else None
+        # 2. Each metric only once
+        metrics = [spec.metric for spec in self._aggregations_specs]
+        if len(set(metrics)) != len(metrics):
+            raise ValueError("Each aggregation can be added only once.")
+        # 3. Value caps are given if needed and consistent
+        min_value, max_value = self._get_value_caps()
+
+        # Create Contribution bounds
+        contribution_bounds = ContributionBounds(
+            max_partitions_contributed=self._max_partitions_contributed,
+            max_contributions_per_partition=self.
+            _max_contributions_per_partition,
+            min_value=min_value,
+            max_value=max_value)
+
+        metric_to_output_column = dict((spec.metric, spec.output_column)
+                                       for spec in self._aggregations_specs)
+
+        return Query(self._df,
+                     Columns(self._privacy_unit_column, self._by,
+                             value_column), metric_to_output_column,
+                     contribution_bounds, self._public_keys)
 
     def _add_aggregation(self,
                          aggregation_spec: _AggregationSpec) -> 'QueryBuilder':
@@ -384,21 +417,31 @@ class QueryBuilder:
         self._aggregations_specs.append(aggregation_spec)
         return self
 
-    def _validate_aggregations_specs(self):
-        if not self._aggregations_specs:
-            raise ValueError(
-                "No aggregations in the query. Call for example count")
-        # Not more than 1 input column
-        columns = [
-            spec.input_column
+    def _get_value_caps(self) -> Tuple[float, float]:
+        metrics = set([spec.metric for spec in self._aggregations_specs])
+        # COUNT, PPRIVACY_ID_COUNT do not require caps.
+        metrics_which_need_caps = metrics.difference(
+            [pipeline_dp.Metrics.COUNT, pipeline_dp.Metrics.PRIVACY_ID_COUNT])
+        if not metrics_which_need_caps:
+            return None, None
+        min_values = [
+            spec.min_value
             for spec in self._aggregations_specs
-            if spec.input_column is not None
+            if spec.min_value is not None
         ]
-        if len(columns) > 1:
-            raise NotImplementedError(
-                f"Aggregation of only 1 column is supported, but {columns} given"
-            )
-        # Each metric only once
+        max_values = [
+            spec.max_value
+            for spec in self._aggregations_specs
+            if spec.max_value is not None
+        ]
+        if not min_values or not max_values:
+            raise ValueError("min_value and max_value should be given at least "
+                             "once as arguments of sum or mean")
 
-        # Value caps are given and consistent
-        pass
+        def all_values_equal(a: list) -> bool:
+            return min(a) == max(a)
+
+        if not all_values_equal(min_values) or not all_values_equal(max_values):
+            raise ValueError("If min_value and max_value provided multiple "
+                             "times they must be the same")
+        return min_values[0], max_values[0]
