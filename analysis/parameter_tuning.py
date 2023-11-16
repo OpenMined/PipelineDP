@@ -141,7 +141,7 @@ def _find_candidate_parameters(
     max_sum_per_partition_bounds = min_sum_per_partition_bounds = None
 
     if calculate_sum_per_partition_param:
-        if hist.linf_sum_contributions_histogram.bins[0].lower >= 0:
+        if hist.linf_sum_contributions_histogram.bins[0].lower < 0:
             logging.warning(
                 "max_sum_per_partition should not contain negative sums because"
                 " min_sum_per_partition tuning is not supported yet and "
