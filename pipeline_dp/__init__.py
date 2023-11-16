@@ -13,6 +13,7 @@
 # limitations under the License.
 from pipeline_dp.report_generator import ExplainComputationReport
 from pipeline_dp.aggregate_params import AggregateParams
+from pipeline_dp.aggregate_params import AnonymizeValuesParams
 from pipeline_dp.aggregate_params import CalculatePrivateContributionBoundsParams
 from pipeline_dp.aggregate_params import PrivateContributionBounds
 from pipeline_dp.aggregate_params import CountParams

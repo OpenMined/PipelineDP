@@ -22,7 +22,6 @@ from typing import Any, Sequence, Callable, Optional, List
 
 import numpy as np
 
-import pipeline_dp
 from pipeline_dp import input_validators
 
 
@@ -119,9 +118,9 @@ class MechanismType(Enum):
 
 
 def noise_to_thresholding(noise_kind: NoiseKind) -> MechanismType:
-    if noise_kind == pipeline_dp.NoiseKind.LAPLACE:
+    if noise_kind == NoiseKind.LAPLACE:
         return MechanismType.LAPLACE_THRESHOLDING
-    if noise_kind == pipeline_dp.NoiseKind.GAUSSIAN:
+    if noise_kind == NoiseKind.GAUSSIAN:
         return MechanismType.GAUSSIAN_THRESHOLDING
     raise ValueError(f"NoiseKind {noise_kind} can not be converted to "
                      f"Thresholding mechanism")
@@ -589,15 +588,13 @@ class PrivacyIdCountParams:
 
 @dataclass
 class AnonymizeValuesParams:
-    metric: Metric
     noise_kind: NoiseKind
-    max_partitions_contributed: Optional[int] = None
-    max_contributions_per_partition: Optional[int] = None
+    l0_sensitivity: int
+    linf_sensitivity: float
     budget_weight: float = 1
-    min_value: Optional[float] = None
-    max_value: Optional[float] = None
-    min_sum_per_partition: Optional[float] = None
-    max_sum_per_partition: Optional[float] = None
+
+    def __post_init__(self):
+        """todo"""
 
 
 def _not_a_proper_number(num: Any) -> bool:

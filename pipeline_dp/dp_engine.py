@@ -13,7 +13,7 @@
 # limitations under the License.
 """DP aggregations."""
 import functools
-from typing import Any, Callable, Optional, Sequence, Tuple
+from typing import Any, Callable, Optional, Sequence, Tuple, Union
 
 import pipeline_dp
 from pipeline_dp import budget_accounting
@@ -540,29 +540,41 @@ class DPEngine:
         params: pipeline_dp.aggregate_params.AnonymizeValuesParams,
         out_explain_computation_report: Optional[
             pipeline_dp.ExplainComputationReport] = None):
+        """TODO"""
+        # Request budget and create Sensitivities object
         mechanism_type = params.noise_kind.convert_to_mechanism_type()
         mechanism_spec = self._budget_accountant.request_budget(mechanism_type)
+        sensitivities = dp_computations.Sensitivities(
+            l0=params.l0_sensitivity, linf=params.linf_sensitivity)
 
-        if params.metric == pipeline_dp.Metrics.COUNT:
-            sensitivities = dp_computations.compute_sensitivities_for_count(
-                params)
-        elif params.metric == pipeline_dp.Metrics.PRIVACY_ID_COUNT:
-            sensitivities = dp_computations.compute_sensitivities_for_count(
-                params)
-        elif params.metric == pipeline_dp.Metrics.SUM:
-            sensitivities = dp_computations.compute_sensitivities_for_count(
-                params)
-        else:
-            raise ValueError(f"Metric {params.metric} is not supported.")
+        # Initialize ReportGenerator.
+        self._report_generators.append(
+            report_generator.ReportGenerator(params,
+                                             "anonymize_values",
+                                             is_public_partition=True))
+        if out_explain_computation_report is not None:
+            out_explain_computation_report._set_report_generator(
+                self._current_report_generator)
 
-        def add_noise_fn(value: float) -> float:
-            additive_mechanism = dp_computations.create_additive_mechanism(
+        # Add noise to values.
+        def create_mechanism() -> dp_computations.AdditiveMechanism:
+            return dp_computations.create_additive_mechanism(
                 mechanism_spec, sensitivities)
-            return additive_mechanism.add_noise(value)
 
-        return self._backend.map_values(col, add_noise_fn, "Add noise")
+        self._add_report_stage(
+            lambda: f"Anonymize by adding noise "
+            f"{create_mechanism().noise_kind} with "
+            f"parameter {create_mechanism().noise_parameter}")
+        anonymized_col = self._backend.map_values(
+            col, lambda value: create_mechanism().add_noise(value), "Add noise")
 
-    def _annotate(self, col, params: pipeline_dp.SelectPartitionsParams,
+        budget = self._budget_accountant._compute_budget_for_aggregation(
+            params.budget_weight)
+        return self._annotate(anonymized_col, params=params, budget=budget)
+
+    def _annotate(self, col, params: Union[pipeline_dp.AggregateParams,
+                                           pipeline_dp.SelectPartitionsParams,
+                                           pipeline_dp.AnonymizeValuesParams],
                   budget: budget_accounting.Budget):
         return self._backend.annotate(col,
                                       "annotation",
