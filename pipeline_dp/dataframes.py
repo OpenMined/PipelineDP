@@ -376,16 +376,16 @@ class QueryBuilder:
             raise ValueError(
                 "No aggregations in the query. Call for example count")
         # 1. Not more than 1 value column
-        value_columns = [
+        input_columns = [
             spec.input_column
             for spec in self._aggregations_specs
             if spec.input_column is not None
         ]
-        if len(set(value_columns)) > 1:
+        if len(set(input_columns)) > 1:
             raise NotImplementedError(
-                f"Aggregation of only 1 column is supported, but {value_columns} given"
+                f"Aggregation of only 1 column is supported, but {input_columns} given"
             )
-        value_column = value_columns[0] if value_columns else None
+        input_column = input_columns[0] if input_columns else None
         # 2. Each metric only once
         metrics = [spec.metric for spec in self._aggregations_specs]
         if len(set(metrics)) != len(metrics):
@@ -406,7 +406,7 @@ class QueryBuilder:
 
         return Query(self._df,
                      Columns(self._privacy_unit_column, self._by,
-                             value_column), metric_to_output_column,
+                             input_column), metric_to_output_column,
                      contribution_bounds, self._public_keys)
 
     def _add_aggregation(self,
@@ -417,7 +417,7 @@ class QueryBuilder:
         self._aggregations_specs.append(aggregation_spec)
         return self
 
-    def _get_value_caps(self) -> Tuple[float, float]:
+    def _get_value_caps(self) -> Tuple[Optional[float], Optional[float]]:
         metrics = set([spec.metric for spec in self._aggregations_specs])
         # COUNT, PPRIVACY_ID_COUNT do not require caps.
         metrics_which_need_caps = metrics.difference(
