@@ -46,6 +46,10 @@ class DPStrategySelector:
         self._metric = metric
         self._is_public_partitions = is_public_partitions
 
+    @property
+    def is_public_partitions(self):
+        return self._is_public_partitions
+
     def get_dp_strategy(
             self, sensitivities: dp_computations.Sensitivities) -> DPStrategy:
         if self._metric is None:

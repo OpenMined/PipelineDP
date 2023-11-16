@@ -43,6 +43,9 @@ class ParametersToTune:
     max_contributions_per_partition: bool = False
     min_sum_per_partition: bool = False
     max_sum_per_partition: bool = False
+    noise_kind: pipeline_dp.NoiseKind = True
+
+    # Partition selection strategy is tuned always.
 
     def __post_init__(self):
         if not any(dataclasses.asdict(self).values()):
@@ -180,11 +183,20 @@ def _find_candidate_parameters(
         max_sum_per_partition=max_sum_per_partition_bounds)
 
 
-def _add_dp_strategy(
-        params: pipeline_dp.AggregateParams,
+def _add_dp_strategy_to_multi_parameter_configuration(
         configuration: analysis.MultiParameterConfiguration,
-        strategy_selector: dp_strategy_selector.DPStrategySelector):
-    pass
+        noise_kind: Optional[pipeline_dp.NoiseKind],
+        strategy_selector: dp_strategy_selector.DPStrategySelector) -> None:
+    if noise_kind is not None and strategy_selector.is_public_partitions:
+        return
+    params = [configuration.get_aggregate_params(i) for i in configuration.size]
+    # Initialize fields corresponding to DP strategy configuration
+    if noise_kind is None:
+        configuration.noise_kind = []
+    if not strategy_selector.is_public_partitions:
+        configuration.partition_selection_strategy = []
+    for param in params:
+        pass
 
 
 def _find_candidates_parameters_in_2d_grid(
@@ -333,15 +345,23 @@ def tune(col,
     metric = None
     if options.aggregate_params.metrics:
         metric = options.aggregate_params.metrics[0]
-    strategy_selector = strategy_selector_factory(
+
+    candidates: analysis.MultiParameterConfiguration = _find_candidate_parameters(
+        contribution_histograms, options.parameters_to_tune, metric,
+        options.number_of_parameter_candidates)
+
+    # Add DP strategy (noise_kind, partition_selection_strategy) to multi
+    # parameter configuration.
+    noise_kind = None
+    if not options.parameters_to_tune.noise_kind:
+        noise_kind = options.aggregate_params.noise_kind
+    strategy_selector = strategy_selector_factory.create(
         options.epsilon,
         options.delta,
         metric,
         is_public_partitions=public_partitions is not None)
-
-    candidates = _find_candidate_parameters(
-        contribution_histograms, options.parameters_to_tune, metric,
-        options.number_of_parameter_candidates)
+    _add_dp_strategy_to_multi_parameter_configuration(candidates, noise_kind,
+                                                      strategy_selector)
 
     utility_analysis_options = analysis.UtilityAnalysisOptions(
         epsilon=options.epsilon,
