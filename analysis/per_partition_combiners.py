@@ -267,8 +267,6 @@ class SumCombiner(UtilityAnalysisCombiner):
     def compute_metrics(self, acc: AccumulatorType) -> metrics.SumMetrics:
         """Computes metrics based on the accumulator properties."""
         partition_sum, clipping_to_min_error, clipping_to_max_error, expected_l0_bounding_error, var_cross_partition_error = acc
-        std_noise = dp_computations.compute_dp_count_noise_std(
-            self._params.scalar_noise_params)
         return metrics.SumMetrics(
             aggregation=self._metric,
             sum=partition_sum,
@@ -276,8 +274,18 @@ class SumCombiner(UtilityAnalysisCombiner):
             clipping_to_max_error=clipping_to_max_error,
             expected_l0_bounding_error=expected_l0_bounding_error,
             std_l0_bounding_error=math.sqrt(var_cross_partition_error),
-            std_noise=std_noise,
+            std_noise=self._get_std_noise(),
             noise_kind=self._params.aggregate_params.noise_kind)
+
+    def get_sensitivities(self) -> dp_computations.Sensitivities:
+        return dp_computations.compute_sensitivities_for_sum(
+            self._params.aggregate_params)
+
+    def _get_std_noise(self) -> float:
+        sensitivities = self.get_sensitivities()
+        mechanism = dp_computations.create_additive_mechanism(
+            self._params.mechanism_spec, sensitivities)
+        return mechanism.std
 
 
 class CountCombiner(SumCombiner):
@@ -297,6 +305,10 @@ class CountCombiner(SumCombiner):
         self._params.aggregate_params.min_sum_per_partition = 0.0
         self._params.aggregate_params.max_sum_per_partition = self._params.aggregate_params.max_contributions_per_partition
         return super().create_accumulator(data)
+
+    def get_sensitivities(self) -> dp_computations.Sensitivities:
+        return dp_computations.compute_sensitivities_for_count(
+            self._params.aggregate_params)
 
 
 class PrivacyIdCountCombiner(SumCombiner):
@@ -318,6 +330,10 @@ class PrivacyIdCountCombiner(SumCombiner):
         self._params.aggregate_params.min_sum_per_partition = 0.0
         self._params.aggregate_params.max_sum_per_partition = 1.0
         return super().create_accumulator(data)
+
+    def get_sensitivities(self) -> dp_computations.Sensitivities:
+        return dp_computations.compute_sensitivities_for_privacy_id_count(
+            self._params.aggregate_params)
 
 
 class RawStatisticsCombiner(UtilityAnalysisCombiner):
