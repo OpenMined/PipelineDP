@@ -374,7 +374,7 @@ class QueryBuilder:
         # Validation.
         if not self._aggregations_specs:
             raise ValueError(
-                "No aggregations in the query. Call for example count")
+                "No aggregations in the query. Call count, sum, mean etc")
         # 1. Not more than 1 value column
         input_columns = [
             spec.input_column
@@ -383,10 +383,10 @@ class QueryBuilder:
         ]
         if len(set(input_columns)) > 1:
             raise NotImplementedError(
-                f"Aggregation of only 1 column is supported, but {input_columns} given"
+                f"Aggregation of only one column is supported, but {input_columns} given"
             )
         input_column = input_columns[0] if input_columns else None
-        # 2. Each metric only once
+        # 2. Each metric was added only once
         metrics = [spec.metric for spec in self._aggregations_specs]
         if len(set(metrics)) != len(metrics):
             raise ValueError("Each aggregation can be added only once.")
@@ -435,7 +435,7 @@ class QueryBuilder:
             if spec.max_value is not None
         ]
         if not min_values or not max_values:
-            raise ValueError("min_value and max_value should be given at least "
+            raise ValueError("min_value and max_value must be given at least "
                              "once as arguments of sum or mean")
 
         def all_values_equal(a: list) -> bool:
