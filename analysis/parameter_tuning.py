@@ -181,6 +181,7 @@ def _find_candidate_parameters(
 
 
 def _add_dp_strategy(
+        params: pipeline_dp.AggregateParams,
         configuration: analysis.MultiParameterConfiguration,
         strategy_selector: dp_strategy_selector.DPStrategySelector):
     pass
