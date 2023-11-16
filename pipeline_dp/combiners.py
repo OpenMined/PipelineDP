@@ -150,16 +150,16 @@ class CombinerParams:
 
     def __init__(self, spec: budget_accounting.MechanismSpec,
                  aggregate_params: pipeline_dp.AggregateParams):
-        self._mechanism_spec = spec
+        self.mechanism_spec = spec
         self.aggregate_params = copy.copy(aggregate_params)
 
     @property
     def eps(self):
-        return self._mechanism_spec.eps
+        return self.mechanism_spec.eps
 
     @property
     def delta(self):
-        return self._mechanism_spec.delta
+        return self.mechanism_spec.delta
 
     @property
     def scalar_noise_params(self):
@@ -584,7 +584,7 @@ class VarianceCombiner(Combiner):
         return lambda: f"Computed variance with (eps={self._params.eps} delta={self._params.delta})"
 
     def mechanism_spec(self) -> budget_accounting.MechanismSpec:
-        return self._params._mechanism_spec
+        return self._params.mechanism_spec
 
 
 class QuantileCombiner(Combiner):
@@ -666,7 +666,7 @@ class QuantileCombiner(Combiner):
         assert False, f"{noise_kind} is not support by PyDP quantile tree."
 
     def mechanism_spec(self) -> budget_accounting.MechanismSpec:
-        return self._params._mechanism_spec
+        return self._params.mechanism_spec
 
 
 # Cache for namedtuple types. It should be used only in
@@ -843,7 +843,7 @@ class VectorSumCombiner(Combiner):
         lambda: f"Computed vector sum with (eps={self._params.eps} delta={self._params.delta})"
 
     def mechanism_spec(self) -> budget_accounting.MechanismSpec:
-        return self._params._mechanism_spec
+        return self._params.mechanism_spec
 
 
 def create_compound_combiner(
