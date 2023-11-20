@@ -185,11 +185,15 @@ def _find_candidate_parameters(
 
 def _add_dp_strategy_to_multi_parameter_configuration(
         configuration: analysis.MultiParameterConfiguration,
+        blueprint_params: pipeline_dp.AggregateParams,
         noise_kind: Optional[pipeline_dp.NoiseKind],
         strategy_selector: dp_strategy_selector.DPStrategySelector) -> None:
     if noise_kind is not None and strategy_selector.is_public_partitions:
         return
-    params = [configuration.get_aggregate_params(i) for i in configuration.size]
+    params = [
+        configuration.get_aggregate_params(blueprint_params, i)
+        for i in range(configuration.size)
+    ]
     # Initialize fields corresponding to DP strategy configuration
     if noise_kind is None:
         configuration.noise_kind = []
@@ -360,7 +364,9 @@ def tune(col,
         options.delta,
         metric,
         is_public_partitions=public_partitions is not None)
-    _add_dp_strategy_to_multi_parameter_configuration(candidates, noise_kind,
+    _add_dp_strategy_to_multi_parameter_configuration(candidates,
+                                                      options.aggregate_params,
+                                                      noise_kind,
                                                       strategy_selector)
 
     utility_analysis_options = analysis.UtilityAnalysisOptions(
