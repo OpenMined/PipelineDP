@@ -187,14 +187,16 @@ def _find_candidate_parameters(
 def _add_dp_strategy_to_multi_parameter_configuration(
         configuration: analysis.MultiParameterConfiguration,
         blueprint_params: pipeline_dp.AggregateParams,
-        metric: pipeline_dp.Metric, noise_kind: Optional[pipeline_dp.NoiseKind],
+        noise_kind: Optional[pipeline_dp.NoiseKind],
         strategy_selector: dp_strategy_selector.DPStrategySelector) -> None:
     if noise_kind is not None and strategy_selector.is_public_partitions:
+        # Noise kind and partition selection are already fixed.
         return
     params = [
         configuration.get_aggregate_params(blueprint_params, i)
         for i in range(configuration.size)
     ]
+    metric = strategy_selector.metric
     # Initialize fields corresponding to DP strategy configuration
     find_noise_kind = noise_kind is None
     if find_noise_kind:
@@ -203,7 +205,12 @@ def _add_dp_strategy_to_multi_parameter_configuration(
     if find_partition_selection:
         configuration.partition_selection_strategy = []
     for param in params:
-        sensitivities = dp_computations.compute_sensitivities(metric, param)
+        if metric is None:
+            # This is select partition case
+            sensitivities = dp_computations.Sensitivities(
+                param.max_partitions_contributed, 1)
+        else:
+            sensitivities = dp_computations.compute_sensitivities(metric, param)
         dp_strategy = strategy_selector.get_dp_strategy(sensitivities)
         if find_noise_kind:
             configuration.noise_kind.append(dp_strategy.noise_kind)
@@ -375,7 +382,7 @@ def tune(col,
         is_public_partitions=public_partitions is not None)
     _add_dp_strategy_to_multi_parameter_configuration(candidates,
                                                       options.aggregate_params,
-                                                      metric, noise_kind,
+                                                      noise_kind,
                                                       strategy_selector)
 
     utility_analysis_options = analysis.UtilityAnalysisOptions(

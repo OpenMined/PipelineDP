@@ -11,10 +11,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""todo"""
-import math
+"""Choosing DP Strategy (i.e. noise_kind, partition selection strategy etc)
+based on contribution bounding params."""
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import Optional
 
 import pipeline_dp
 from pipeline_dp import aggregate_params
@@ -24,6 +24,7 @@ from pipeline_dp import input_validators
 
 @dataclass
 class DPStrategy:
+    """Represents the chosen DP methods."""
     noise_kind: Optional[pipeline_dp.NoiseKind]
     partition_selection_strategy: Optional[
         pipeline_dp.PartitionSelectionStrategy]
@@ -31,6 +32,13 @@ class DPStrategy:
 
 
 class DPStrategySelector:
+    """Chooses DPStrategy based on DP budget, computation sensitivites etc
+
+    It chooses noise_kind to minimize the noise std deviation.
+    For non-public partitions it chooses partition selection strategy to
+    minimize threshold. For more details see docstring to
+    select_partition_selection().
+    """
 
     def __init__(self, epsilon: float, delta: float,
                  metric: Optional[pipeline_dp.Metric],
@@ -50,11 +58,16 @@ class DPStrategySelector:
     def is_public_partitions(self):
         return self._is_public_partitions
 
+    @property
+    def metric(self) -> pipeline_dp.Metric:
+        return self._metric
+
     def get_dp_strategy(
             self, sensitivities: dp_computations.Sensitivities) -> DPStrategy:
+        """Chooses DPStrategy for given sensitivities."""
         if self._metric is None:
-            # Select partitions
-            return self._get_select_partition_strategy(sensitivities.l0)
+            # This is Select partitions case.
+            return self._get_strategy_for_select_partition(sensitivities.l0)
         if self._is_public_partitions:
             return self._get_dp_strategy_for_public_partitions(sensitivities)
         if self.use_post_aggregation_thresholding(self._metric):
@@ -62,11 +75,12 @@ class DPStrategySelector:
                 sensitivities.l0)
         return self._get_dp_strategy_private_partition(sensitivities)
 
-    def _get_select_partition_strategy(self, l0_sensitivity: int) -> DPStrategy:
+    def _get_strategy_for_select_partition(self,
+                                           l0_sensitivity: int) -> DPStrategy:
         return DPStrategy(
             noise_kind=None,
             partition_selection_strategy=self.select_partition_selection(
-                l0_sensitivity),
+                self._epsilon, self._delta, l0_sensitivity),
             post_aggregation_thresholding=False)
 
     def _get_dp_strategy_for_public_partitions(
@@ -122,7 +136,7 @@ class DPStrategySelector:
             self, epsilon: float, delta: float,
             sensitivities: dp_computations.Sensitivities
     ) -> pipeline_dp.NoiseKind:
-        """Returns the noise with minimum standard deviation."""
+        """Returns the noise with the minimum standard deviation."""
         if delta == 0:
             return pipeline_dp.NoiseKind.LAPLACE
         gaussian_std = self._get_gaussian_std(epsilon, delta, sensitivities)
