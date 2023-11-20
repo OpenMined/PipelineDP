@@ -26,20 +26,21 @@ from analysis import metrics
 from analysis.tests import common
 
 
-def _create_combiner_params_for_count() -> pipeline_dp.combiners.CombinerParams:
-    return pipeline_dp.combiners.CombinerParams(
-        pipeline_dp.budget_accounting.MechanismSpec(
-            mechanism_type=pipeline_dp.MechanismType.GAUSSIAN,
-            _eps=1,
-            _delta=0.00001),
-        pipeline_dp.AggregateParams(
-            min_value=0,
-            max_value=1,
-            max_partitions_contributed=1,
-            max_contributions_per_partition=2,
-            noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
-            metrics=[pipeline_dp.Metrics.COUNT],
-        ))
+def _create_combiner_params_for_count() -> Tuple[
+    pipeline_dp.budget_accounting.MechanismSpec, pipeline_dp.AggregateParams]:
+    mechanism_spec = pipeline_dp.budget_accounting.MechanismSpec(
+        mechanism_type=pipeline_dp.MechanismType.GAUSSIAN,
+        _eps=1,
+        _delta=0.00001)
+    params = pipeline_dp.AggregateParams(
+        min_value=0,
+        max_value=1,
+        max_partitions_contributed=1,
+        max_contributions_per_partition=2,
+        noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+        metrics=[pipeline_dp.Metrics.COUNT],
+    )
+    return mechanism_spec, params
 
 
 def _check_none_are_np_float64(t) -> bool:
@@ -63,7 +64,6 @@ class UtilityAnalysisCountCombinerTest(parameterized.TestCase):
         dict(testcase_name='empty',
              num_partitions=0,
              contribution_values=(),
-             params=_create_combiner_params_for_count(),
              expected_metrics=metrics.SumMetrics(
                  aggregation=pipeline_dp.Metrics.COUNT,
                  sum=0.0,
@@ -76,7 +76,6 @@ class UtilityAnalysisCountCombinerTest(parameterized.TestCase):
         dict(testcase_name='one_partition_zero_error',
              num_partitions=1,
              contribution_values=(1, 2),
-             params=_create_combiner_params_for_count(),
              expected_metrics=metrics.SumMetrics(
                  aggregation=pipeline_dp.Metrics.COUNT,
                  sum=2.0,
@@ -89,7 +88,6 @@ class UtilityAnalysisCountCombinerTest(parameterized.TestCase):
         dict(testcase_name='4_partitions_4_contributions_keep_half',
              num_partitions=4,
              contribution_values=(1, 2, 3, 4),
-             params=_create_combiner_params_for_count(),
              expected_metrics=metrics.SumMetrics(
                  aggregation=pipeline_dp.Metrics.COUNT,
                  sum=4.0,
@@ -99,9 +97,10 @@ class UtilityAnalysisCountCombinerTest(parameterized.TestCase):
                  std_l0_bounding_error=0.8660254037844386,
                  std_noise=7.46484375,
                  noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)))
-    def test_compute_metrics(self, num_partitions, contribution_values, params,
+    def test_compute_metrics(self, num_partitions, contribution_values,
                              expected_metrics):
-        utility_analysis_combiner = combiners.CountCombiner(params)
+        utility_analysis_combiner = combiners.CountCombiner(
+            *_create_combiner_params_for_count())
         test_acc = utility_analysis_combiner.create_accumulator(
             (np.array([len(contribution_values)]), np.array([0]),
              np.array([num_partitions])))
@@ -111,7 +110,7 @@ class UtilityAnalysisCountCombinerTest(parameterized.TestCase):
 
     def test_merge(self):
         utility_analysis_combiner = combiners.CountCombiner(
-            _create_combiner_params_for_count())
+            *_create_combiner_params_for_count())
         test_acc1 = [1, 2, 3, -4]
         test_acc2 = [5, 10, -5, 100]
         merged_acc = utility_analysis_combiner.merge_accumulators(
@@ -242,8 +241,8 @@ class PartitionSelectionTest(parameterized.TestCase):
     )
     def test_partition_selection_combiner(self,
                                           mock_compute_probability_to_keep):
-        params = _create_combiner_params_for_count()
-        combiner = combiners.PartitionSelectionCombiner(params)
+        mechanism_spec, params = _create_combiner_params_for_count()
+        combiner = combiners.PartitionSelectionCombiner(mechanism_spec, params)
         sparse_acc = _create_sparse_combiner_acc(([1, 2, 3],), n_partitions=[8])
         acc = combiner.create_accumulator(sparse_acc)
         probabilities, moments = acc
@@ -253,24 +252,25 @@ class PartitionSelectionTest(parameterized.TestCase):
         combiner.compute_metrics(acc)
         mock_compute_probability_to_keep.assert_called_with(
             pipeline_dp.PartitionSelectionStrategy.TRUNCATED_GEOMETRIC,
-            params.eps, params.delta, 1, None)
+            mechanism_spec.eps, mechanism_spec.delta, 1, None)
 
 
 def _create_combiner_params_for_sum(
-        min, max) -> pipeline_dp.combiners.CombinerParams:
-    return pipeline_dp.combiners.CombinerParams(
-        pipeline_dp.budget_accounting.MechanismSpec(
-            mechanism_type=pipeline_dp.MechanismType.GAUSSIAN,
-            _eps=1,
-            _delta=0.00001),
-        pipeline_dp.AggregateParams(
-            max_partitions_contributed=1,
-            max_contributions_per_partition=2,
-            min_sum_per_partition=min,
-            max_sum_per_partition=max,
-            noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
-            metrics=[pipeline_dp.Metrics.SUM],
-        ))
+    min: float, max: float
+) -> Tuple[pipeline_dp.budget_accounting.MechanismSpec,
+           pipeline_dp.AggregateParams]:
+    return (pipeline_dp.budget_accounting.MechanismSpec(
+        mechanism_type=pipeline_dp.MechanismType.GAUSSIAN,
+        _eps=1,
+        _delta=0.00001),
+            pipeline_dp.AggregateParams(
+                max_partitions_contributed=1,
+                max_contributions_per_partition=2,
+                min_sum_per_partition=min,
+                max_sum_per_partition=max,
+                noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+                metrics=[pipeline_dp.Metrics.SUM],
+            ))
 
 
 class UtilityAnalysisSumCombinerTest(parameterized.TestCase):
@@ -343,7 +343,7 @@ class UtilityAnalysisSumCombinerTest(parameterized.TestCase):
                  noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)))
     def test_compute_metrics(self, num_partitions, contribution_values, params,
                              expected_metrics):
-        utility_analysis_combiner = combiners.SumCombiner(params)
+        utility_analysis_combiner = combiners.SumCombiner(*params)
         sparse_acc = _create_sparse_combiner_acc(contribution_values,
                                                  num_partitions)
         test_acc = utility_analysis_combiner.create_accumulator(sparse_acc)
@@ -356,7 +356,7 @@ class UtilityAnalysisSumCombinerTest(parameterized.TestCase):
 
     def test_merge(self):
         utility_analysis_combiner = combiners.SumCombiner(
-            _create_combiner_params_for_sum(0, 20))
+            *_create_combiner_params_for_sum(0, 20))
         test_acc1 = (0.125, 1.5, -2, -3.5, 1000)
         test_acc2 = (1, 0, -20, 3.5, 1)
         merged_acc = utility_analysis_combiner.merge_accumulators(
@@ -367,19 +367,18 @@ class UtilityAnalysisSumCombinerTest(parameterized.TestCase):
         self.assertTrue(_check_none_are_np_float64(merged_acc))
 
 
-def _create_combiner_params_for_privacy_id_count(
-) -> pipeline_dp.combiners.CombinerParams:
-    return pipeline_dp.combiners.CombinerParams(
-        pipeline_dp.budget_accounting.MechanismSpec(
-            mechanism_type=pipeline_dp.MechanismType.GAUSSIAN,
-            _eps=1,
-            _delta=0.00001),
-        pipeline_dp.AggregateParams(
-            max_partitions_contributed=2,
-            max_contributions_per_partition=2,
-            noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
-            metrics=[pipeline_dp.Metrics.PRIVACY_ID_COUNT],
-        ))
+def _create_combiner_params_for_privacy_id_count() -> Tuple[
+    pipeline_dp.budget_accounting.MechanismSpec, pipeline_dp.AggregateParams]:
+    return (pipeline_dp.budget_accounting.MechanismSpec(
+        mechanism_type=pipeline_dp.MechanismType.GAUSSIAN,
+        _eps=1,
+        _delta=0.00001),
+            pipeline_dp.AggregateParams(
+                max_partitions_contributed=2,
+                max_contributions_per_partition=2,
+                noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+                metrics=[pipeline_dp.Metrics.PRIVACY_ID_COUNT],
+            ))
 
 
 class UtilityAnalysisPrivacyIdCountCombinerTest(parameterized.TestCase):
@@ -439,7 +438,7 @@ class UtilityAnalysisPrivacyIdCountCombinerTest(parameterized.TestCase):
                  noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)))
     def test_compute_metrics(self, num_partitions, contribution_values, params,
                              expected_metrics):
-        utility_analysis_combiner = combiners.PrivacyIdCountCombiner(params)
+        utility_analysis_combiner = combiners.PrivacyIdCountCombiner(*params)
         sparse_acc = _create_sparse_combiner_acc([contribution_values],
                                                  [num_partitions])
         test_acc = utility_analysis_combiner.create_accumulator(sparse_acc)
@@ -453,7 +452,7 @@ class UtilityAnalysisPrivacyIdCountCombinerTest(parameterized.TestCase):
 
     def test_merge(self):
         utility_analysis_combiner = combiners.PrivacyIdCountCombiner(
-            _create_combiner_params_for_count())
+            *_create_combiner_params_for_count())
         test_acc1 = [1, 2, 3]
         test_acc2 = [5, 10, -5]
         merged_acc = utility_analysis_combiner.merge_accumulators(
@@ -467,8 +466,8 @@ class UtilityAnalysisPrivacyIdCountCombinerTest(parameterized.TestCase):
 class UtilityAnalysisCompoundCombinerTest(parameterized.TestCase):
 
     def _create_combiner(self) -> combiners.CompoundCombiner:
-        count_combiner = combiners.CountCombiner(
-            _create_combiner_params_for_count())
+        mechanism_spec, params = _create_combiner_params_for_count()
+        count_combiner = combiners.CountCombiner(mechanism_spec, params)
         return combiners.CompoundCombiner([count_combiner],
                                           return_named_tuple=False)
 
@@ -606,10 +605,11 @@ class UtilityAnalysisCompoundCombinerTest(parameterized.TestCase):
             output[0])
 
     def test_two_internal_combiners(self):
-        count_combiner = combiners.CountCombiner(
-            _create_combiner_params_for_count())
-        sum_combiner = combiners.SumCombiner(
-            _create_combiner_params_for_sum(0, 5))
+        count_mechanism_spec, count_params = _create_combiner_params_for_count()
+        count_combiner = combiners.CountCombiner(count_mechanism_spec,
+                                                 count_params)
+        sum_mechanism_spec, sum_params = _create_combiner_params_for_sum(0, 5)
+        sum_combiner = combiners.SumCombiner(sum_mechanism_spec, sum_params)
         combiner = combiners.CompoundCombiner([count_combiner, sum_combiner],
                                               return_named_tuple=False)
 

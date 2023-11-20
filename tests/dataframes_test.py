@@ -28,7 +28,8 @@ def get_pandas_df() -> pd.DataFrame:
     return pd.DataFrame({
         "privacy_key": [0, 1, 1],
         "group_key": ["key1", "key2", "key1"],
-        "value": [5.0, 2.5, -2]
+        "value": [5.0, 2.5, -2],
+        "value2": [1.0, -2.0, 4]
     })
 
 
@@ -43,8 +44,8 @@ class QueryBuilderTest(parameterized.TestCase):
     def test_global_aggregations_are_not_supported(self):
         df = get_pandas_df()
         builder = dataframes.QueryBuilder(df, "privacy_key")
-        with self.assertRaisesRegex(ValueError,
-                                    "Global aggregations are not supported"):
+        with self.assertRaisesRegex(NotImplementedError,
+                                    "Global aggregations are not implemented"):
             builder.count()
 
     def test_no_aggregation(self):
@@ -73,6 +74,65 @@ class QueryBuilderTest(parameterized.TestCase):
             builder.groupby("group_key",
                             max_groups_contributed=1,
                             max_contributions_per_group=1)
+
+    def test_no_aggregations(self):
+        builder = dataframes.QueryBuilder(get_pandas_df(), "privacy_key")
+        builder.groupby("group_key",
+                        max_groups_contributed=1,
+                        max_contributions_per_group=1)
+        with self.assertRaisesRegex(ValueError, "No aggregations in the query"):
+            builder.build_query()
+
+    def test_only_one_column_is_supported(self):
+        builder = dataframes.QueryBuilder(get_pandas_df(), "privacy_key")
+        builder.groupby("group_key",
+                        max_groups_contributed=1,
+                        max_contributions_per_group=1)
+        builder.sum("value").mean("value2")
+        with self.assertRaisesRegex(
+                NotImplementedError,
+                "Aggregation of only one column is supported"):
+            builder.build_query()
+
+    def test_same_metrics_added_twice(self):
+        builder = dataframes.QueryBuilder(get_pandas_df(), "privacy_key")
+        builder.groupby("group_key",
+                        max_groups_contributed=1,
+                        max_contributions_per_group=1)
+        builder.sum("value").sum("value")
+        with self.assertRaisesRegex(ValueError,
+                                    "Each aggregation can be added only once"):
+            builder.build_query()
+
+    def test_caps_not_given(self):
+        builder = dataframes.QueryBuilder(get_pandas_df(), "privacy_key")
+        builder.groupby("group_key",
+                        max_groups_contributed=1,
+                        max_contributions_per_group=1)
+        builder.sum("value")
+        with self.assertRaisesRegex(ValueError,
+                                    "min_value and max_value must be given"):
+            builder.build_query()
+
+    @parameterized.named_parameters(
+        dict(testcase_name='min differs', mean_min_value=-1, mean_max_value=1),
+        dict(testcase_name='max differs', mean_min_value=0, mean_max_value=2),
+        dict(testcase_name='both differ', mean_min_value=5, mean_max_value=10),
+    )
+    def test_caps_are_different(self, mean_min_value, mean_max_value):
+        builder = dataframes.QueryBuilder(get_pandas_df(), "privacy_key")
+        builder.groupby("group_key",
+                        max_groups_contributed=1,
+                        max_contributions_per_group=1)
+        builder.sum("value", min_value=0,
+                    max_value=1).mean("value",
+                                      min_value=mean_min_value,
+                                      max_value=mean_max_value)
+        with self.assertRaisesRegex(
+                ValueError,
+                "If min_value and max_value provided multiple times they must be the same"
+        ):
+            builder.build_query()
 
     def test_count_query(self):
         df = get_pandas_df()
@@ -137,6 +197,30 @@ class QueryBuilderTest(parameterized.TestCase):
                                           min_value=1,
                                           max_value=2.5))
 
+    def test_count_and_mean_query(self):
+        query = dataframes.QueryBuilder(get_pandas_df(), "privacy_key").groupby(
+            "group_key",
+            max_groups_contributed=8,
+            max_contributions_per_group=11).count().sum(
+                "value", name="SUM1").mean("value", min_value=0,
+                                           max_value=3).build_query()
+
+        self.assertEqual(
+            query._columns,
+            dataframes.Columns("privacy_key", "group_key", "value"))
+        self.assertEqual(
+            query._metrics_output_columns, {
+                pipeline_dp.Metrics.COUNT: None,
+                pipeline_dp.Metrics.SUM: "SUM1",
+                pipeline_dp.Metrics.MEAN: None
+            })
+        self.assertEqual(
+            query._contribution_bounds,
+            dataframes.ContributionBounds(max_partitions_contributed=8,
+                                          max_contributions_per_partition=11,
+                                          min_value=0,
+                                          max_value=3))
+
     def test_public_keys(self):
         query = dataframes.QueryBuilder(get_pandas_df(), "privacy_key").groupby(
             "group_key",
@@ -168,6 +252,7 @@ class QueryBuilderTest(parameterized.TestCase):
 
 CountNamedTuple = namedtuple("Count", ["count"])
 CountSumNamedTuple = namedtuple("CountSum", ["count", "sum"])
+CountMeanNamedTuple = namedtuple("CountMean", ["count", "mean"])
 
 
 class QueryTest(parameterized.TestCase):
@@ -181,6 +266,9 @@ class QueryTest(parameterized.TestCase):
              public_keys=["key1"]),
         dict(testcase_name='sum, count, private partitions',
              metrics=[pipeline_dp.Metrics.COUNT, pipeline_dp.Metrics.SUM],
+             public_keys=None),
+        dict(testcase_name='mean, count, private partitions',
+             metrics=[pipeline_dp.Metrics.COUNT, pipeline_dp.Metrics.MEAN],
              public_keys=None))
     @patch('pipeline_dp.dp_engine.DPEngine.aggregate')
     def test_run_query(self, mock_aggregate, metrics, public_keys):
@@ -189,6 +277,10 @@ class QueryTest(parameterized.TestCase):
         if pipeline_dp.Metrics.SUM in metrics:
             mock_aggregate.return_value = spark.sparkContext.parallelize([
                 ("key1", CountSumNamedTuple(1.2345, 2.34567))
+            ])
+        elif pipeline_dp.Metrics.MEAN in metrics:
+            mock_aggregate.return_value = spark.sparkContext.parallelize([
+                ("key1", CountMeanNamedTuple(1.2345, 2.34567))
             ])
         else:
             mock_aggregate.return_value = spark.sparkContext.parallelize([
@@ -199,7 +291,7 @@ class QueryTest(parameterized.TestCase):
         columns = dataframes.Columns("privacy_key", "group_key", value_column)
         metrics_dict = dict([(m, m.name) for m in metrics])
         min_value = max_value = None
-        if pipeline_dp.Metrics.SUM in metrics:
+        if pipeline_dp.Metrics.SUM in metrics or pipeline_dp.Metrics.MEAN in metrics:
             min_value, max_value = -5, 5
         bounds = dataframes.ContributionBounds(
             max_partitions_contributed=5,
@@ -235,7 +327,8 @@ class QueryTest(parameterized.TestCase):
         columns = dataframes.Columns("privacy_key", "group_key", "value")
         metrics = {
             pipeline_dp.Metrics.COUNT: "count_column",
-            pipeline_dp.Metrics.SUM: None  # it returns default name "sum"
+            pipeline_dp.Metrics.SUM: None,  # it returns default name "sum"
+            pipeline_dp.Metrics.MEAN: None  # it returns default name "mean"
         }
         bounds = dataframes.ContributionBounds(
             max_partitions_contributed=2,
@@ -264,6 +357,7 @@ class QueryTest(parameterized.TestCase):
         self.assertEqual(row1["group_key"], "key1")
         self.assertAlmostEqual(row1["count_column"], 2, delta=1e-3)
         self.assertAlmostEqual(row1["sum"], 3, delta=1e-3)
+        self.assertAlmostEqual(row1["mean"], 1.5, delta=1e-3)
 
     def test_run_query_multiple_partition_keys_e2e_run(self):
         # Arrange

@@ -73,12 +73,12 @@ def compute_private_result(
     df: Union[pd.DataFrame, BeamDataFrame, SparkDataFrame]
 ) -> Union[pd.DataFrame, BeamDataFrame, SparkDataFrame]:
     dp_query_builder = dataframes.QueryBuilder(df, 'visitor_id')
-    query = dp_query_builder.groupby('day',
-                                     max_groups_contributed=3,
-                                     max_contributions_per_group=1).count().sum(
-                                         'spent_money',
-                                         min_value=0,
-                                         max_value=100).build_query()
+    query = dp_query_builder\
+      .groupby('day', max_groups_contributed=3, max_contributions_per_group=1)\
+      .count()\
+      .sum('spent_money', min_value=0, max_value=100)\
+      .mean('spent_money')\
+      .build_query()
     result_df = query.run_query(dataframes.Budget(epsilon=1, delta=1e-10),
                                 noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)
     return result_df

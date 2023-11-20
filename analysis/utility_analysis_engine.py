@@ -118,24 +118,19 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
                     pipeline_dp.MechanismType.GENERIC)
                 internal_combiners.append(
                     per_partition_combiners.PartitionSelectionCombiner(
-                        combiners.CombinerParams(
-                            private_partition_selection_budget, params)))
+                        private_partition_selection_budget, params))
             if pipeline_dp.Metrics.SUM in aggregate_params.metrics:
                 internal_combiners.append(
                     per_partition_combiners.SumCombiner(
-                        combiners.CombinerParams(
-                            budgets[pipeline_dp.Metrics.SUM], params)))
+                        budgets[pipeline_dp.Metrics.SUM], params))
             if pipeline_dp.Metrics.COUNT in aggregate_params.metrics:
                 internal_combiners.append(
                     per_partition_combiners.CountCombiner(
-                        combiners.CombinerParams(
-                            budgets[pipeline_dp.Metrics.COUNT], params)))
+                        budgets[pipeline_dp.Metrics.COUNT], params))
             if pipeline_dp.Metrics.PRIVACY_ID_COUNT in aggregate_params.metrics:
                 internal_combiners.append(
                     per_partition_combiners.PrivacyIdCountCombiner(
-                        combiners.CombinerParams(
-                            budgets[pipeline_dp.Metrics.PRIVACY_ID_COUNT],
-                            params)))
+                        budgets[pipeline_dp.Metrics.PRIVACY_ID_COUNT], params))
 
         return per_partition_combiners.CompoundCombiner(
             internal_combiners, return_named_tuple=False)
