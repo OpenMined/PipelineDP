@@ -15,7 +15,7 @@
 import abc
 from collections import namedtuple
 from dataclasses import dataclass
-from typing import Any, Dict, Iterable, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Union
 
 import pipeline_dp
 import pyspark
@@ -222,6 +222,14 @@ class Query:
 
 @dataclass
 class _AggregationSpec:
+    """Contains a specification of one aggregations (e.g. count, mean)
+
+    Attributes:
+          metric: which aggregation to perform.
+          input_column: the name of the column to perform aggregation.
+          output_column: the name of the output column.
+          min_value, max_value: capping limits to each value.
+    """
     metric: pipeline_dp.Metric
     input_column: Optional[str]
     output_column: Optional[str]
@@ -243,8 +251,8 @@ class QueryBuilder:
         query = QueryBuilder(df, "user_id")
         .groupby("day", max_groups_contributed=3, max_contributions_per_group=1)
         .count()
-        .sum("money_spent", min_value=0, max_value=100)
-        .mean("money_spent") # no need to specify min_value, max_value, they
+        .sum("spent_money", min_value=0, max_value=100)
+        .mean("spent_money") # no need to specify min_value, max_value, they
         # were already given in sum
         .build_query()
     """
@@ -280,6 +288,12 @@ class QueryBuilder:
 
         All following aggregation will be applied to grouped by DataFrame.
 
+        Note:  If 'public_keys' are provided, then the keys of the output
+          DataFrame keys  will exactly coincide with provided 'public_keys'.
+          If some public key is missing in the input DataFrame the output
+          DataFrame will still a value, to ensure DP. For example in case if
+          COUNT, the value will be 0 + noise.
+
         Args:
             by: a column or a list of columns used to determine the groups.
             max_groups_contributed: the maximum groups that can each privacy
@@ -290,7 +304,9 @@ class QueryBuilder:
               unit can contribute to a group. If some privacy unit contributes
               more to some group, contributions are sub-sampled to
               max_contributions_per_group.
-            public_keys:
+            public_keys: the list of groupby keys which are known before the
+              running aggregations. It can be for example dates, countries etc.
+              If not provided, keys will be selected in a DP manner.
         """
         if column is not None:
             raise ValueError("column argument is deprecated. Use by")
@@ -368,29 +384,11 @@ class QueryBuilder:
 
     def build_query(self) -> Query:
         """Builds the DP query."""
-        if self._by is None:
-            raise NotImplementedError(
-                "Global aggregations are not implemented yet. Call groupby")
-        # Validation.
-        if not self._aggregations_specs:
-            raise ValueError(
-                "No aggregations in the query. Call count, sum, mean etc")
-        # 1. Not more than 1 value column
-        input_columns = [
-            spec.input_column
-            for spec in self._aggregations_specs
-            if spec.input_column is not None
-        ]
-        if len(set(input_columns)) > 1:
-            raise NotImplementedError(
-                f"Aggregation of only one column is supported, but {input_columns} given"
-            )
-        input_column = input_columns[0] if input_columns else None
-        # 2. Each metric was added only once
-        metrics = [spec.metric for spec in self._aggregations_specs]
-        if len(set(metrics)) != len(metrics):
-            raise ValueError("Each aggregation can be added only once.")
-        # 3. Value caps are given if needed and consistent
+        self._check_by()
+        self._check_aggregations_specs()
+        self._check_metrics()
+
+        input_column = self._get_input_column()
         min_value, max_value = self._get_value_caps()
 
         # Create Contribution bounds
@@ -411,11 +409,37 @@ class QueryBuilder:
 
     def _add_aggregation(self,
                          aggregation_spec: _AggregationSpec) -> 'QueryBuilder':
-        if self._by is None:
-            raise ValueError(
-                "Global aggregations are not supported. Use groupby")
+        self._check_by()
         self._aggregations_specs.append(aggregation_spec)
         return self
+
+    def _check_by(self) -> None:
+        if self._by is None:
+            raise NotImplementedError(
+                "Global aggregations are not implemented yet. Call groupby")
+
+    def _check_aggregations_specs(self) -> None:
+        if not self._aggregations_specs:
+            raise ValueError(
+                "No aggregations in the query. Call count, sum, mean etc")
+
+    def _get_input_column(self) -> Optional[str]:
+        input_columns = [
+            spec.input_column
+            for spec in self._aggregations_specs
+            if spec.input_column is not None
+        ]
+        if len(set(input_columns)) > 1:
+            raise NotImplementedError(
+                f"Aggregation of only one column is supported, but {input_columns} given"
+            )
+        return input_columns[0] if input_columns else None
+
+    def _check_metrics(self) -> List[pipeline_dp.Metric]:
+        metrics = [spec.metric for spec in self._aggregations_specs]
+        if len(set(metrics)) != len(metrics):
+            raise ValueError("Each aggregation can be added only once.")
+        return metrics
 
     def _get_value_caps(self) -> Tuple[Optional[float], Optional[float]]:
         metrics = set([spec.metric for spec in self._aggregations_specs])

@@ -44,8 +44,8 @@ class QueryBuilderTest(parameterized.TestCase):
     def test_global_aggregations_are_not_supported(self):
         df = get_pandas_df()
         builder = dataframes.QueryBuilder(df, "privacy_key")
-        with self.assertRaisesRegex(ValueError,
-                                    "Global aggregations are not supported"):
+        with self.assertRaisesRegex(NotImplementedError,
+                                    "Global aggregations are not implemented"):
             builder.count()
 
     def test_no_aggregation(self):
@@ -88,7 +88,7 @@ class QueryBuilderTest(parameterized.TestCase):
         builder.groupby("group_key",
                         max_groups_contributed=1,
                         max_contributions_per_group=1)
-        builder.sum("value").sum("value2")
+        builder.sum("value").mean("value2")
         with self.assertRaisesRegex(
                 NotImplementedError,
                 "Aggregation of only one column is supported"):
@@ -114,14 +114,20 @@ class QueryBuilderTest(parameterized.TestCase):
                                     "min_value and max_value must be given"):
             builder.build_query()
 
-    def test_caps_are_different(self):
+    @parameterized.named_parameters(
+        dict(testcase_name='min differs', mean_min_value=-1, mean_max_value=1),
+        dict(testcase_name='max differs', mean_min_value=0, mean_max_value=2),
+        dict(testcase_name='both differ', mean_min_value=5, mean_max_value=10),
+    )
+    def test_caps_are_different(self, mean_min_value, mean_max_value):
         builder = dataframes.QueryBuilder(get_pandas_df(), "privacy_key")
         builder.groupby("group_key",
                         max_groups_contributed=1,
                         max_contributions_per_group=1)
-        builder.sum("value", min_value=0, max_value=1).mean("value",
-                                                            min_value=0,
-                                                            max_value=2)
+        builder.sum("value", min_value=0,
+                    max_value=1).mean("value",
+                                      min_value=mean_min_value,
+                                      max_value=mean_max_value)
         with self.assertRaisesRegex(
                 ValueError,
                 "If min_value and max_value provided multiple times they must be the same"
@@ -322,7 +328,7 @@ class QueryTest(parameterized.TestCase):
         metrics = {
             pipeline_dp.Metrics.COUNT: "count_column",
             pipeline_dp.Metrics.SUM: None,  # it returns default name "sum"
-            pipeline_dp.Metrics.MEAN: None  # it returns default name "sum"
+            pipeline_dp.Metrics.MEAN: None  # it returns default name "mean"
         }
         bounds = dataframes.ContributionBounds(
             max_partitions_contributed=2,
