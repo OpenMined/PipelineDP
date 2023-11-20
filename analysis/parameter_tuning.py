@@ -16,6 +16,7 @@ import math
 from numbers import Number
 
 import pipeline_dp
+from pipeline_dp import dp_computations
 from pipeline_dp import pipeline_backend
 from pipeline_dp import input_validators
 from pipeline_dp.dataset_histograms import histograms
@@ -186,7 +187,7 @@ def _find_candidate_parameters(
 def _add_dp_strategy_to_multi_parameter_configuration(
         configuration: analysis.MultiParameterConfiguration,
         blueprint_params: pipeline_dp.AggregateParams,
-        noise_kind: Optional[pipeline_dp.NoiseKind],
+        metric: pipeline_dp.Metric, noise_kind: Optional[pipeline_dp.NoiseKind],
         strategy_selector: dp_strategy_selector.DPStrategySelector) -> None:
     if noise_kind is not None and strategy_selector.is_public_partitions:
         return
@@ -195,12 +196,20 @@ def _add_dp_strategy_to_multi_parameter_configuration(
         for i in range(configuration.size)
     ]
     # Initialize fields corresponding to DP strategy configuration
-    if noise_kind is None:
+    find_noise_kind = noise_kind is None
+    if find_noise_kind:
         configuration.noise_kind = []
-    if not strategy_selector.is_public_partitions:
+    find_partition_selection = not strategy_selector.is_public_partitions
+    if find_partition_selection:
         configuration.partition_selection_strategy = []
     for param in params:
-        pass
+        sensitivities = dp_computations.compute_sensitivities(metric, param)
+        dp_strategy = strategy_selector.get_dp_strategy(sensitivities)
+        if find_noise_kind:
+            configuration.noise_kind.append(dp_strategy.noise_kind)
+        if find_partition_selection:
+            configuration.partition_selection_strategy.append(
+                dp_strategy.partition_selection_strategy)
 
 
 def _find_candidates_parameters_in_2d_grid(
@@ -306,8 +315,8 @@ def tune(col,
          data_extractors: Union[pipeline_dp.DataExtractors,
                                 pipeline_dp.PreAggregateExtractors],
          public_partitions=None,
-         strategy_selector_factory: dp_strategy_selector.
-         DPStrategySelectorFactory = None):
+         strategy_selector_factory: Optional[
+             dp_strategy_selector.DPStrategySelectorFactory] = None):
     """Tunes parameters.
 
     It works in the following way:
@@ -366,7 +375,7 @@ def tune(col,
         is_public_partitions=public_partitions is not None)
     _add_dp_strategy_to_multi_parameter_configuration(candidates,
                                                       options.aggregate_params,
-                                                      noise_kind,
+                                                      metric, noise_kind,
                                                       strategy_selector)
 
     utility_analysis_options = analysis.UtilityAnalysisOptions(
