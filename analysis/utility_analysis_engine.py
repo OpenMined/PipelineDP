@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """DPEngine for utility analysis."""
-
+import copy
 from typing import Optional, Union
 
 import pipeline_dp
@@ -100,11 +100,6 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
     ) -> combiners.CompoundCombiner:
         mechanism_type = aggregate_params.noise_kind.convert_to_mechanism_type()
         # Compute budgets
-        # 1. For private partition selection.
-        if not self._is_public_partitions:
-            private_partition_selection_budget = self._budget_accountant.request_budget(
-                pipeline_dp.MechanismType.GENERIC,
-                weight=aggregate_params.budget_weight)
         # 2. For metrics.
         budgets = {}
         for metric in aggregate_params.metrics:
@@ -114,10 +109,13 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
         # Create Utility analysis combiners.
         internal_combiners = [per_partition_combiners.RawStatisticsCombiner()]
         for params in data_structures.get_aggregate_params(self._options):
+            budget_accountant = copy.deepcopy(self._budget_accountant)
             # WARNING: Do not change the order here,
             # _create_aggregate_error_compound_combiner() in utility_analysis.py
             # depends on it.
             if not self._is_public_partitions:
+                private_partition_selection_budget = budget_accountant.request_budget(
+                    pipeline_dp.MechanismType.GENERIC)
                 internal_combiners.append(
                     per_partition_combiners.PartitionSelectionCombiner(
                         combiners.CombinerParams(
