@@ -21,6 +21,7 @@ import numpy as np
 import math
 
 import pipeline_dp
+from pipeline_dp import budget_accounting
 from pipeline_dp import dp_computations
 from analysis import metrics
 from analysis import poisson_binomial
@@ -192,13 +193,15 @@ def _merge_partition_selection_accumulators(
 class PartitionSelectionCombiner(UtilityAnalysisCombiner):
     """A combiner for utility analysis counts."""
 
-    def __init__(self, params: pipeline_dp.combiners.CombinerParams):
+    def __init__(self, spec: budget_accounting.MechanismSpec,
+                 params: pipeline_dp.AggregateParams):
+        self._spec = spec
         self._params = params
 
     def create_accumulator(self, sparse_acc: Tuple[np.ndarray, np.ndarray,
                                                    np.ndarray]):
         count, sum_, n_partitions = sparse_acc
-        max_partitions = self._params.aggregate_params.max_partitions_contributed
+        max_partitions = self._params.max_partitions_contributed
         prob_keep_partition = np.where(
             n_partitions > 0, np.minimum(1, max_partitions / n_partitions), 0)
         acc = (list(prob_keep_partition), None)
@@ -217,12 +220,11 @@ class PartitionSelectionCombiner(UtilityAnalysisCombiner):
         """Computes the probability that the partition kept."""
         probs, moments = acc
         params = self._params
+        spec = self._spec
         calculator = PartitionSelectionCalculator(probs, moments)
-        aggregate_params = params.aggregate_params
         return calculator.compute_probability_to_keep(
-            aggregate_params.partition_selection_strategy, params.eps,
-            params.delta, aggregate_params.max_partitions_contributed,
-            aggregate_params.pre_threshold)
+            params.partition_selection_strategy, spec.eps, spec.delta,
+            params.max_partitions_contributed, params.pre_threshold)
 
 
 class SumCombiner(UtilityAnalysisCombiner):
@@ -232,9 +234,11 @@ class SumCombiner(UtilityAnalysisCombiner):
     AccumulatorType = Tuple[float, float, float, float, float]
 
     def __init__(self,
-                 params: pipeline_dp.combiners.CombinerParams,
+                 spec: budget_accounting.MechanismSpec,
+                 params: pipeline_dp.AggregateParams,
                  metric: pipeline_dp.Metrics = pipeline_dp.Metrics.SUM):
-        self._params = copy.copy(params)
+        self._spec = spec
+        self._params = copy.deepcopy(params)
         self._metric = metric
 
     def create_accumulator(
@@ -242,9 +246,9 @@ class SumCombiner(UtilityAnalysisCombiner):
                               np.ndarray]) -> AccumulatorType:
         count, partition_sum, n_partitions = data
         del count  # not used for SumCombiner
-        min_bound = self._params.aggregate_params.min_sum_per_partition
-        max_bound = self._params.aggregate_params.max_sum_per_partition
-        max_partitions = self._params.aggregate_params.max_partitions_contributed
+        min_bound = self._params.min_sum_per_partition
+        max_bound = self._params.max_sum_per_partition
+        max_partitions = self._params.max_partitions_contributed
         l0_prob_keep_contribution = np.where(
             n_partitions > 0, np.minimum(1, max_partitions / n_partitions), 0)
         per_partition_contribution = np.clip(partition_sum, min_bound,
@@ -275,16 +279,15 @@ class SumCombiner(UtilityAnalysisCombiner):
             expected_l0_bounding_error=expected_l0_bounding_error,
             std_l0_bounding_error=math.sqrt(var_cross_partition_error),
             std_noise=self._get_std_noise(),
-            noise_kind=self._params.aggregate_params.noise_kind)
+            noise_kind=self._params.noise_kind)
 
     def get_sensitivities(self) -> dp_computations.Sensitivities:
-        return dp_computations.compute_sensitivities_for_sum(
-            self._params.aggregate_params)
+        return dp_computations.compute_sensitivities_for_sum(self._params)
 
     def _get_std_noise(self) -> float:
         sensitivities = self.get_sensitivities()
         mechanism = dp_computations.create_additive_mechanism(
-            self._params.mechanism_spec, sensitivities)
+            self._spec, sensitivities)
         return mechanism.std
 
 
@@ -294,21 +297,21 @@ class CountCombiner(SumCombiner):
     # expected_l0_bounding_error, var_cross_partition_error)
     AccumulatorType = Tuple[float, float, float, float, float]
 
-    def __init__(self, params: pipeline_dp.combiners.CombinerParams):
-        super().__init__(params, pipeline_dp.Metrics.COUNT)
+    def __init__(self, mechanism_spec: budget_accounting.MechanismSpec,
+                 params: pipeline_dp.AggregateParams):
+        super().__init__(mechanism_spec, params, pipeline_dp.Metrics.COUNT)
 
     def create_accumulator(
         self, sparse_acc: Tuple[np.ndarray, np.ndarray,
                                 np.ndarray]) -> AccumulatorType:
         count, _sum, n_partitions = sparse_acc
         data = None, count, n_partitions
-        self._params.aggregate_params.min_sum_per_partition = 0.0
-        self._params.aggregate_params.max_sum_per_partition = self._params.aggregate_params.max_contributions_per_partition
+        self._params.min_sum_per_partition = 0.0
+        self._params.max_sum_per_partition = self._params.max_contributions_per_partition
         return super().create_accumulator(data)
 
     def get_sensitivities(self) -> dp_computations.Sensitivities:
-        return dp_computations.compute_sensitivities_for_count(
-            self._params.aggregate_params)
+        return dp_computations.compute_sensitivities_for_count(self._params)
 
 
 class PrivacyIdCountCombiner(SumCombiner):
@@ -317,9 +320,10 @@ class PrivacyIdCountCombiner(SumCombiner):
     # expected_l0_bounding_error, var_cross_partition_error)
     AccumulatorType = Tuple[float, float, float, float, float]
 
-    def __init__(self, params: pipeline_dp.combiners.CombinerParams):
-        super().__init__(params, pipeline_dp.Metrics.PRIVACY_ID_COUNT)
-        self._params.aggregate_params.max_contributions_per_partition = 1
+    def __init__(self, mechanism_spec: budget_accounting.MechanismSpec,
+                 params: pipeline_dp.AggregateParams):
+        super().__init__(mechanism_spec, params,
+                         pipeline_dp.Metrics.PRIVACY_ID_COUNT)
 
     def create_accumulator(
         self, sparse_acc: Tuple[np.ndarray, np.ndarray,
@@ -327,13 +331,13 @@ class PrivacyIdCountCombiner(SumCombiner):
         counts, _sum, n_partitions = sparse_acc
         counts = np.where(counts > 0, 1, 0)
         data = None, counts, n_partitions
-        self._params.aggregate_params.min_sum_per_partition = 0.0
-        self._params.aggregate_params.max_sum_per_partition = 1.0
+        self._params.min_sum_per_partition = 0.0
+        self._params.max_sum_per_partition = 1.0
         return super().create_accumulator(data)
 
     def get_sensitivities(self) -> dp_computations.Sensitivities:
         return dp_computations.compute_sensitivities_for_privacy_id_count(
-            self._params.aggregate_params)
+            self._params)
 
 
 class RawStatisticsCombiner(UtilityAnalysisCombiner):
