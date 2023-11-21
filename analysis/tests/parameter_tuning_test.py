@@ -17,9 +17,10 @@ from absl.testing import absltest
 from absl.testing import parameterized
 from unittest import mock
 from unittest.mock import patch
-from typing import List
+from typing import List, Optional
 
 import pipeline_dp
+import analysis
 from analysis import metrics
 from analysis import parameter_tuning
 from pipeline_dp.dataset_histograms import histograms
@@ -562,6 +563,63 @@ class ParameterTuning(parameterized.TestCase):
             parameter_tuning.tune(input, pipeline_dp.LocalBackend(),
                                   contribution_histograms, tune_options,
                                   data_extractors)
+
+    @parameterized.named_parameters(
+        dict(
+            testcase_name="Find noise_kind, private partition selection",
+            noise_kind=None,
+            is_public_partitions=False,
+            expected_noise_kinds=[pipeline_dp.NoiseKind.LAPLACE] * 2 +
+            [pipeline_dp.NoiseKind.GAUSSIAN],
+            expected_partition_selection_strategies=[
+                pipeline_dp.PartitionSelectionStrategy.TRUNCATED_GEOMETRIC
+            ] +
+            [pipeline_dp.PartitionSelectionStrategy.GAUSSIAN_THRESHOLDING] * 2,
+        ),
+        dict(
+            testcase_name="noise_kind is given, private partition selection",
+            noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+            is_public_partitions=False,
+            expected_noise_kinds=[pipeline_dp.NoiseKind.GAUSSIAN] * 3,
+            expected_partition_selection_strategies=[
+                pipeline_dp.PartitionSelectionStrategy.TRUNCATED_GEOMETRIC
+            ] +
+            [pipeline_dp.PartitionSelectionStrategy.GAUSSIAN_THRESHOLDING] * 2,
+        ),
+        dict(
+            testcase_name="noise_kind is given, public partition selection",
+            noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+            is_public_partitions=True,
+            expected_noise_kinds=[pipeline_dp.NoiseKind.GAUSSIAN] * 3,
+            expected_partition_selection_strategies=None,
+        ),
+    )
+    def test_add_dp_strategy_to_multi_parameter_configuration(
+        self, noise_kind: Optional[pipeline_dp.NoiseKind],
+        is_public_partitions: bool,
+        expected_noise_kinds: List[pipeline_dp.NoiseKind],
+        expected_partition_selection_strategies: List[
+            pipeline_dp.PartitionSelectionStrategy]):
+        multi_parameter_configuration = analysis.MultiParameterConfiguration(
+            max_partitions_contributed=[1, 5, 20],
+            max_contributions_per_partition=[1, 1, 3])
+        metric = pipeline_dp.Metrics.COUNT
+        params = _get_aggregate_params([metric])
+        strategy_selector = analysis.dp_strategy_selector.DPStrategySelector(
+            epsilon=1,
+            delta=1e-7,
+            metric=metric,
+            is_public_partitions=is_public_partitions)
+        parameter_tuning._add_dp_strategy_to_multi_parameter_configuration(
+            multi_parameter_configuration,
+            params,
+            noise_kind=noise_kind,
+            strategy_selector=strategy_selector)
+        self.assertEqual(multi_parameter_configuration.noise_kind,
+                         expected_noise_kinds)
+        self.assertEqual(
+            multi_parameter_configuration.partition_selection_strategy,
+            expected_partition_selection_strategies)
 
 
 if __name__ == '__main__':
