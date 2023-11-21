@@ -300,7 +300,7 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
         self.assertSequenceEqual(expected_pk0, output[0][1])
         self.assertSequenceEqual(expected_pk1, output[1][1])
 
-    def test_multi_parameters_check_different_budget_accounts(self):
+    def test_multi_parameters_different_noise_kind(self):
         # Arrange
         aggregate_params = pipeline_dp.AggregateParams(
             noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
@@ -345,7 +345,7 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
 
         expected_pk0 = [
             metrics.RawStatistics(privacy_id_count=1, count=1),
-            5e-11,  # Probability that partition is kept
+            5e-11,  # Probability that the partition is kept
             metrics.SumMetrics(aggregation=pipeline_dp.Metrics.COUNT,
                                sum=1.0,
                                clipping_to_min_error=0.0,
@@ -354,7 +354,7 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
                                std_l0_bounding_error=0.5,
                                std_noise=2.8284271247461903,
                                noise_kind=pipeline_dp.NoiseKind.LAPLACE),
-            2.50000000003125e-11,  # Probability that partition is kept
+            2.50000000003125e-11,  # Probability that the partition is kept
             metrics.SumMetrics(aggregation=pipeline_dp.Metrics.COUNT,
                                sum=1.0,
                                clipping_to_min_error=0.0,
