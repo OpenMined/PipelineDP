@@ -13,6 +13,7 @@
 # limitations under the License.
 """Computing DP aggregations on (Pandas, Spark, Beam) Dataframes."""
 import abc
+import copy
 from collections import namedtuple
 from dataclasses import dataclass
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Union
@@ -56,7 +57,7 @@ class DataFrameConvertor(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def collection_to_dataframe(col, group_key_column: str):
+    def collection_to_dataframe(col, metric_output_columns: Sequence[str]):
         pass
 
 
@@ -65,9 +66,11 @@ class SparkConverter(DataFrameConvertor):
 
     def __init__(self, spark: pyspark.sql.SparkSession):
         self._spark = spark
+        self._partition_key_schema = None
 
     def dataframe_to_collection(self, df: SparkDataFrame,
                                 columns: Columns) -> pyspark.RDD:
+        self._save_partition_key_schema(df, columns.partition_key)
         columns_to_keep = [columns.privacy_key]
         if isinstance(columns.partition_key, str):
             num_partition_columns = 1
@@ -90,8 +93,29 @@ class SparkConverter(DataFrameConvertor):
 
         return df.rdd.map(extractor)
 
-    def collection_to_dataframe(self, col: pyspark.RDD) -> SparkDataFrame:
-        return self._spark.createDataFrame(col)
+    def _save_partition_key_schema(self, df: SparkDataFrame,
+                                   partition_key: Union[str, Sequence[str]]):
+        col_name_to_schema = dict((col.name, col) for col in df.schema)
+        self._partition_key_schema = []
+        if isinstance(partition_key, str):
+            self._partition_key_schema.append(col_name_to_schema[partition_key])
+        else:
+            for column_name in partition_key:
+                self._partition_key_schema.append(
+                    col_name_to_schema[column_name])
+
+    def collection_to_dataframe(
+            self, col: pyspark.RDD,
+            metric_output_columns: Sequence[str]) -> SparkDataFrame:
+        schema_fields = copy.deepcopy(self._partition_key_schema)
+        float_type = pyspark.sql.types.DoubleType()
+        for metric_column in metric_output_columns:
+            schema_fields.append(
+                pyspark.sql.types.StructField(metric_column,
+                                              float_type,
+                                              nullable=False))
+        schema = pyspark.sql.types.StructType(schema_fields)
+        return self._spark.createDataFrame(col, schema)
 
 
 def _create_backend_for_dataframe(
@@ -217,7 +241,7 @@ class Query:
                                 "Convert to NamedTuple")
         # dp_result: PartitionMetricsTuple
 
-        return converter.collection_to_dataframe(dp_result)
+        return converter.collection_to_dataframe(dp_result, output_columns)
 
 
 @dataclass
