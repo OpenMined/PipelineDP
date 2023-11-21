@@ -24,7 +24,7 @@ from pipeline_dp import input_validators
 
 @dataclass
 class DPStrategy:
-    """Represents the chosen DP methods."""
+    """Represents the chosen DP strategy."""
     noise_kind: Optional[pipeline_dp.NoiseKind]
     partition_selection_strategy: Optional[
         pipeline_dp.PartitionSelectionStrategy]
@@ -32,7 +32,7 @@ class DPStrategy:
 
 
 class DPStrategySelector:
-    """Chooses DPStrategy based on DP budget, computation sensitivites etc
+    """Chooses DPStrategy based on DP budget, computation sensitivites, etc
 
     It chooses noise_kind to minimize the noise std deviation.
     For non-public partitions it chooses partition selection strategy to
@@ -45,10 +45,9 @@ class DPStrategySelector:
                  is_public_partitions: bool):
         input_validators.validate_epsilon_delta(epsilon, delta,
                                                 "DPStrategySelector")
-        if delta == 0 and is_public_partitions:
-            raise ValueError(
-                "DPStrategySelector: when public_partitions are used, delta must be positive"
-            )
+        if delta == 0 and not is_public_partitions:
+            raise ValueError("DPStrategySelector: when private partition "
+                             "selection is used, delta must be positive")
         self._epsilon = epsilon
         self._delta = delta
         self._metric = metric
@@ -94,7 +93,7 @@ class DPStrategySelector:
     def _get_dp_strategy_with_post_aggregation_threshold(
             self, l0_sensitivity: int) -> DPStrategy:
         assert self._metric == pipeline_dp.Metrics.PRIVACY_ID_COUNT
-        # Half delta goes to the noise, half for partition selection.
+        # Half delta goes to the noise, the other half for partition selection.
         # For more details see
         # https://github.com/google/differential-privacy/blob/main/common_docs/Delta_For_Thresholding.pdf
         delta_noise = self._delta / 2

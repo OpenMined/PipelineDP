@@ -193,9 +193,6 @@ def _add_dp_strategy_to_multi_parameter_configuration(
         configuration.get_aggregate_params(blueprint_params, i)
         for i in range(configuration.size)
     ]
-    # if noise_kind is not None and strategy_selector.is_public_partitions:
-    #     # Noise kind and partition selection are already fixed.
-    #     return
     metric = strategy_selector.metric
     # Initialize fields corresponding to DP strategy configuration
     configuration.noise_kind = []
@@ -352,7 +349,8 @@ def tune(col,
         public_partitions: A collection of partition keys that will be present
           in the result. If not provided, tuning will be performed assuming
           private partition selection is used.
-        strategy_selector_factory: todo
+        strategy_selector_factory: factory for creating StrategySelector. If
+          non provided, the DPStrategySelector will be used.
     Returns:
        returns tuple (1 element collection which contains TuneResult,
         a collection which contains utility analysis results per partition).
