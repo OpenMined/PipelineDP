@@ -557,8 +557,8 @@ class DPEngine:
             it will contain the Explain Computation report for this aggregation.
             For more details see the docstring to report_generator.py.
         Returns:
-            Collection of ((partition_key, anonymized_value) with exactly the
-            same partition keys as in the input collection.
+            Collection of (partition_key, anonymized_value) with the same
+            partition keys as in the input collection.
         """
         # Request budget and create Sensitivities object
         mechanism_type = params.noise_kind.convert_to_mechanism_type()
