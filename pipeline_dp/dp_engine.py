@@ -40,6 +40,14 @@ class DPEngine:
     def _current_report_generator(self):
         return self._report_generators[-1]
 
+    def _add_report_generator(self,
+                              params,
+                              method_name: str,
+                              is_public_partition: Optional[bool] = None):
+        self._report_generators.append(
+            report_generator.ReportGenerator(params, method_name,
+                                             is_public_partition))
+
     def _add_report_stage(self, stage_description):
         self._current_report_generator.add_stage(stage_description)
 
@@ -86,9 +94,8 @@ class DPEngine:
             params.custom_combiners is not None)
 
         with self._budget_accountant.scope(weight=params.budget_weight):
-            self._report_generators.append(
-                report_generator.ReportGenerator(params, "aggregate",
-                                                 public_partitions is not None))
+            self._add_report_generator(params, "aggregate", public_partitions
+                                       is not None)
             if out_explain_computation_report is not None:
                 out_explain_computation_report._set_report_generator(
                     self._current_report_generator)
@@ -217,8 +224,7 @@ class DPEngine:
         self._check_budget_accountant_compatibility(False, [], False)
 
         with self._budget_accountant.scope(weight=params.budget_weight):
-            self._report_generators.append(
-                report_generator.ReportGenerator(params, "select_partitions"))
+            self._add_report_generator(params, "select_partitions")
             col = self._select_partitions(col, params, data_extractors)
             budget = self._budget_accountant._compute_budget_for_aggregation(
                 params.budget_weight)
