@@ -16,6 +16,7 @@ import sys
 import unittest
 from typing import List, Optional, Tuple
 from unittest.mock import patch
+import numpy as np
 
 import apache_beam as beam
 import apache_beam.testing.test_pipeline as test_pipeline
@@ -26,6 +27,8 @@ from absl.testing import parameterized
 
 import pipeline_dp
 from pipeline_dp import aggregate_params as agg
+from pipeline_dp import budget_accounting
+from pipeline_dp import dp_computations
 from pipeline_dp.budget_accounting import NaiveBudgetAccountant
 from pipeline_dp.pipeline_backend import PipelineBackend
 from pipeline_dp.pipeline_functions import collect_to_container
@@ -440,7 +443,6 @@ class DpEngineTest(parameterized.TestCase):
 
     def _check_string_contains_strings(self, string: str,
                                        substrings: List[str]):
-        print(string)
         for substring in substrings:
             self.assertContainsSubsequence(string, substring)
 
@@ -1300,6 +1302,59 @@ class DpEngineTest(parameterized.TestCase):
             aggregate_params, _ = self._create_params_default()
             engine.aggregate([1], aggregate_params,
                              self._get_default_extractors())
+
+    @parameterized.parameters(pipeline_dp.NoiseKind.GAUSSIAN,
+                              pipeline_dp.NoiseKind.LAPLACE)
+    @patch('pipeline_dp.dp_computations.create_additive_mechanism')
+    def test_anonymize_values_check_correct_adding_mechanism_created(
+            self, noise_kind, mock_create_additive_mechanism):
+        # Arrange
+        data = [(0, 0)]
+        accountant = pipeline_dp.NaiveBudgetAccountant(total_epsilon=0.5,
+                                                       total_delta=1e-8)
+        engine = pipeline_dp.DPEngine(accountant, pipeline_dp.LocalBackend())
+        params = pipeline_dp.aggregate_params.AnonymizeValuesParams(
+            noise_kind=noise_kind, l0_sensitivity=3, linf_sensitivity=10)
+
+        # Act
+        output = engine.anonymize_values(data, params)
+        accountant.compute_budgets()
+        output = list(output)
+
+        # Assert
+        self.assertLen(output, 1)
+        mock_create_additive_mechanism.assert_called_once_with(
+            budget_accounting.MechanismSpec(
+                noise_kind.convert_to_mechanism_type(), _eps=0.5, _delta=1e-8),
+            dp_computations.Sensitivities(3, 10))
+
+    def test_run_e2e_anonymize_values(self):
+        # Arrange
+        data = [(i, i) for i in range(100)]
+        accountant = pipeline_dp.NaiveBudgetAccountant(total_epsilon=2,
+                                                       total_delta=0)
+        engine = pipeline_dp.DPEngine(accountant, pipeline_dp.LocalBackend())
+        explain_computation_report = pipeline_dp.ExplainComputationReport()
+        params = pipeline_dp.aggregate_params.AnonymizeValuesParams(
+            noise_kind=pipeline_dp.NoiseKind.LAPLACE,
+            l0_sensitivity=5,
+            linf_sensitivity=15)
+
+        # Act
+        output = engine.anonymize_values(
+            data,
+            params,
+            out_explain_computation_report=explain_computation_report)
+        accountant.compute_budgets()
+        output = list(output)
+        # Assert
+        noise_values = [(value - index) for index, value in output]
+        self.assertGreater(np.std(noise_values), 10)
+        # Expected Laplace parameter is
+        # l0_sensitivity*linf_sensitivity/epsilon = 5*15/2 = 37.5
+        self.assertContainsSubsequence(
+            explain_computation_report.text(),
+            "Anonymize by adding noise NoiseKind.LAPLACE with parameter 37.5")
 
 
 if __name__ == '__main__':
