@@ -55,11 +55,11 @@ class DPStrategySelector:
         self._is_public_partitions = is_public_partitions
 
     @property
-    def is_public_partitions(self):
+    def is_public_partitions(self) -> bool:
         return self._is_public_partitions
 
     @property
-    def metric(self) -> pipeline_dp.Metric:
+    def metric(self) -> Optional[pipeline_dp.Metric]:
         return self._metric
 
     def get_dp_strategy(

@@ -189,18 +189,16 @@ def _add_dp_strategy_to_multi_parameter_configuration(
         blueprint_params: pipeline_dp.AggregateParams,
         noise_kind: Optional[pipeline_dp.NoiseKind],
         strategy_selector: dp_strategy_selector.DPStrategySelector) -> None:
-    if noise_kind is not None and strategy_selector.is_public_partitions:
-        # Noise kind and partition selection are already fixed.
-        return
     params = [
         configuration.get_aggregate_params(blueprint_params, i)
         for i in range(configuration.size)
     ]
+    # if noise_kind is not None and strategy_selector.is_public_partitions:
+    #     # Noise kind and partition selection are already fixed.
+    #     return
     metric = strategy_selector.metric
     # Initialize fields corresponding to DP strategy configuration
-    find_noise_kind = noise_kind is None
-    if find_noise_kind:
-        configuration.noise_kind = []
+    configuration.noise_kind = []
     find_partition_selection = not strategy_selector.is_public_partitions
     if find_partition_selection:
         configuration.partition_selection_strategy = []
@@ -212,8 +210,10 @@ def _add_dp_strategy_to_multi_parameter_configuration(
         else:
             sensitivities = dp_computations.compute_sensitivities(metric, param)
         dp_strategy = strategy_selector.get_dp_strategy(sensitivities)
-        if find_noise_kind:
+        if noise_kind is None:
             configuration.noise_kind.append(dp_strategy.noise_kind)
+        else:
+            configuration.noise_kind.append(noise_kind)
         if find_partition_selection:
             configuration.partition_selection_strategy.append(
                 dp_strategy.partition_selection_strategy)
