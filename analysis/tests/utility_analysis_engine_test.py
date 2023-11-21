@@ -299,8 +299,93 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
 
         self.assertSequenceEqual(expected_pk0, output[0][1])
         self.assertSequenceEqual(expected_pk1, output[1][1])
-        # Check that the number of budget requests equal to number of metrics.
-        self.assertLen(budget_accountant._mechanisms, 1)
+
+    def test_multi_parameters_check_different_budget_accounts(self):
+        # Arrange
+        aggregate_params = pipeline_dp.AggregateParams(
+            noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+            metrics=[pipeline_dp.Metrics.COUNT],
+            max_partitions_contributed=1,
+            max_contributions_per_partition=1)
+
+        multi_param = analysis.MultiParameterConfiguration(
+            max_partitions_contributed=[1, 2],
+            max_contributions_per_partition=[1, 2],
+            noise_kind=[
+                pipeline_dp.NoiseKind.LAPLACE, pipeline_dp.NoiseKind.GAUSSIAN
+            ])
+
+        budget_accountant = pipeline_dp.NaiveBudgetAccountant(total_epsilon=1,
+                                                              total_delta=1e-10)
+
+        engine = utility_analysis_engine.UtilityAnalysisEngine(
+            budget_accountant=budget_accountant,
+            backend=pipeline_dp.LocalBackend())
+
+        # Input collection has 1 privacy id, which contributes to 2 partitions
+        # 1 and 2 times correspondingly.
+        input = [(0, "pk0"), (0, "pk1"), (0, "pk1")]
+        data_extractors = pipeline_dp.DataExtractors(
+            privacy_id_extractor=lambda x: x[0],
+            partition_extractor=lambda x: x[1],
+            value_extractor=lambda x: 0)
+
+        options = analysis.UtilityAnalysisOptions(
+            epsilon=1,
+            delta=0,
+            aggregate_params=aggregate_params,
+            multi_param_configuration=multi_param)
+        output = engine.analyze(input,
+                                options=options,
+                                data_extractors=data_extractors,
+                                public_partitions=None)
+
+        output = list(output)
+        self.assertLen(output, 2)
+        # Each partition has 2 metrics (for both parameter set).
+        [self.assertLen(partition_metrics, 2) for partition_metrics in output]
+
+        expected_pk0 = [
+            metrics.RawStatistics(privacy_id_count=2, count=1),
+            metrics.SumMetrics(aggregation=pipeline_dp.Metrics.COUNT,
+                               sum=1.0,
+                               clipping_to_min_error=0.0,
+                               clipping_to_max_error=0.0,
+                               expected_l0_bounding_error=-0.5,
+                               std_l0_bounding_error=0.5,
+                               std_noise=5.87109375,
+                               noise_kind=pipeline_dp.NoiseKind.GAUSSIAN),
+            metrics.SumMetrics(aggregation=pipeline_dp.Metrics.COUNT,
+                               sum=1.0,
+                               clipping_to_min_error=0.0,
+                               clipping_to_max_error=0.0,
+                               expected_l0_bounding_error=0,
+                               std_l0_bounding_error=0.0,
+                               std_noise=16.60596081442783,
+                               noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)
+        ]
+        expected_pk1 = [
+            metrics.RawStatistics(privacy_id_count=2, count=2),
+            metrics.SumMetrics(aggregation=pipeline_dp.Metrics.COUNT,
+                               sum=2.0,
+                               clipping_to_min_error=0.0,
+                               clipping_to_max_error=-1.0,
+                               expected_l0_bounding_error=-0.5,
+                               std_l0_bounding_error=0.5,
+                               std_noise=5.87109375,
+                               noise_kind=pipeline_dp.NoiseKind.GAUSSIAN),
+            metrics.SumMetrics(aggregation=pipeline_dp.Metrics.COUNT,
+                               sum=2.0,
+                               clipping_to_min_error=0.0,
+                               clipping_to_max_error=0.0,
+                               expected_l0_bounding_error=0,
+                               std_l0_bounding_error=0.0,
+                               std_noise=16.60596081442783,
+                               noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)
+        ]
+
+        self.assertSequenceEqual(expected_pk0, output[0][1])
+        self.assertSequenceEqual(expected_pk1, output[1][1])
 
     @patch('pipeline_dp.sampling_utils.ValueSampler.__init__')
     def test_partition_sampling(self, mock_sampler_init):

@@ -99,11 +99,15 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
     def _create_compound_combiner(
         self, aggregate_params: pipeline_dp.AggregateParams
     ) -> combiners.CompoundCombiner:
-        mechanism_type = aggregate_params.noise_kind.convert_to_mechanism_type()
         # Create Utility analysis combiners.
         internal_combiners = [per_partition_combiners.RawStatisticsCombiner()]
         for params in data_structures.get_aggregate_params(self._options):
+            # Each parameter configuration has own BudgetAccountant which allows
+            # different mechanisms to be used in different configurations.
             budget_accountant = copy.deepcopy(self._budget_accountant)
+
+            mechanism_type = aggregate_params.noise_kind.convert_to_mechanism_type(
+            )
             # WARNING: Do not change the order here,
             # _create_aggregate_error_compound_combiner() in utility_analysis.py
             # depends on it.
