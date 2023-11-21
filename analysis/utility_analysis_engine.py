@@ -106,7 +106,13 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
             # different mechanisms to be used in different configurations.
             budget_accountant = copy.deepcopy(self._budget_accountant)
 
-            mechanism_type = params.noise_kind.convert_to_mechanism_type()
+            mechanism_type = None
+            if params.noise_kind is not None:
+                # This is select partition case.
+                assert aggregate_params.metrics, \
+                    f"Noise kind should be given when " \
+                    f"{aggregate_params.metrics[0]} is analyzed"
+                mechanism_type = params.noise_kind.convert_to_mechanism_type()
             # WARNING: Do not change the order here,
             # _create_aggregate_error_compound_combiner() in utility_analysis.py
             # depends on it.
