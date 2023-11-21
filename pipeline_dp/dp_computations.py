@@ -748,6 +748,17 @@ def compute_sensitivities_for_sum(
     return Sensitivities(l0=l0_sensitivity, linf=linf_sensitivity)
 
 
+def compute_sensitivities(metric: pipeline_dp.Metric,
+                          params: pipeline_dp.AggregateParams) -> Sensitivities:
+    if metric == pipeline_dp.Metrics.COUNT:
+        return compute_sensitivities_for_count(params)
+    if metric == pipeline_dp.Metrics.PRIVACY_ID_COUNT:
+        return compute_sensitivities_for_privacy_id_count(params)
+    if metric == pipeline_dp.Metrics.SUM:
+        return compute_sensitivities_for_sum(params)
+    raise ValueError(f"Sensitivity computations for {metric} not supported")
+
+
 def compute_sensitivities_for_normalized_sum(
         params: pipeline_dp.AggregateParams) -> Sensitivities:
     max_abs_value = (params.max_value - params.min_value) / 2
@@ -809,6 +820,9 @@ class ThresholdingMechanism:
             text += f" and pre_threshold={self._pre_threshold}"
         # TODO: add noise scale to text, when it's exposed from C++.
         return text
+
+    def threshold(self) -> float:
+        return self._thresholding_strategy.threshold
 
 
 def create_thresholding_mechanism(
