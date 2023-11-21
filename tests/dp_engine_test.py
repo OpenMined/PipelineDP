@@ -1323,10 +1323,12 @@ class DpEngineTest(parameterized.TestCase):
 
         # Assert
         self.assertLen(output, 1)
+        expected_delta = 0 if noise_kind == pipeline_dp.NoiseKind.LAPLACE else 1e-8
         mock_create_additive_mechanism.assert_called_once_with(
             budget_accounting.MechanismSpec(
-                noise_kind.convert_to_mechanism_type(), _eps=0.5, _delta=1e-8),
-            dp_computations.Sensitivities(3, 10))
+                noise_kind.convert_to_mechanism_type(),
+                _eps=0.5,
+                _delta=expected_delta), dp_computations.Sensitivities(3, 10))
 
     def test_run_e2e_anonymize_values(self):
         # Arrange

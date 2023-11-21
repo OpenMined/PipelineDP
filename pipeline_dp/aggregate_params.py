@@ -588,6 +588,17 @@ class PrivacyIdCountParams:
 
 @dataclass
 class AnonymizeValuesParams:
+    """Specifies parameters for function DPEngine.anonymize_values()
+
+   Attributes:
+       noise_kind: The type of noise to use for the DP calculations.
+       l0_sensitivity: the maximum number of partition for which 1 privacy unit
+         can contribute.
+       linf_sensitivity: the maximum difference of values in one partition which
+         can achieved by adding or removing one privacy unit from the dataset.
+       budget_weight: Relative weight of the privacy budget allocated to this
+         aggregation.
+   """
     noise_kind: NoiseKind
     l0_sensitivity: int
     linf_sensitivity: float

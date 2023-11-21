@@ -540,7 +540,26 @@ class DPEngine:
         params: pipeline_dp.aggregate_params.AnonymizeValuesParams,
         out_explain_computation_report: Optional[
             pipeline_dp.ExplainComputationReport] = None):
-        """TODO"""
+        """Anonymizes values by adding noise.
+
+        It anonymizes values per partition key, when it is known the
+        sensitivities of the procedure which computed these values.
+
+        This function assumes that partition keys are public or generated with
+        DPEngine.select_partitions, i.e. it does not protect present of
+        partition keys.
+
+        Args:
+          col: collection with elements (partition_key, value). Where value has
+            a number type. It is assumed that all partition_key are different.
+          params: specifies parameters of anonymization.
+          out_explain_computation_report: an output argument, if specified,
+            it will contain the Explain Computation report for this aggregation.
+            For more details see the docstring to report_generator.py.
+        Returns:
+            Collection of ((partition_key, anonymized_value) with exactly the
+            same partition keys as in the input collection.
+        """
         # Request budget and create Sensitivities object
         mechanism_type = params.noise_kind.convert_to_mechanism_type()
         mechanism_spec = self._budget_accountant.request_budget(mechanism_type)
@@ -566,7 +585,8 @@ class DPEngine:
             f"{create_mechanism().noise_kind} with "
             f"parameter {create_mechanism().noise_parameter}")
         anonymized_col = self._backend.map_values(
-            col, lambda value: create_mechanism().add_noise(value), "Add noise")
+            col, lambda value: create_mechanism().add_noise(float(value)),
+            "Add noise")
 
         budget = self._budget_accountant._compute_budget_for_aggregation(
             params.budget_weight)
