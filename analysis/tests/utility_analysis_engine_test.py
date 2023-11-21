@@ -341,51 +341,31 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
                                 public_partitions=None)
 
         output = list(output)
-        self.assertLen(output, 2)
-        # Each partition has 2 metrics (for both parameter set).
-        [self.assertLen(partition_metrics, 2) for partition_metrics in output]
+        self.assertLen(output, 2)  # 2 partitions
 
         expected_pk0 = [
-            metrics.RawStatistics(privacy_id_count=2, count=1),
+            metrics.RawStatistics(privacy_id_count=1, count=1),
+            5e-11,  # Probability that partition is kept
             metrics.SumMetrics(aggregation=pipeline_dp.Metrics.COUNT,
                                sum=1.0,
                                clipping_to_min_error=0.0,
                                clipping_to_max_error=0.0,
                                expected_l0_bounding_error=-0.5,
                                std_l0_bounding_error=0.5,
-                               std_noise=5.87109375,
-                               noise_kind=pipeline_dp.NoiseKind.GAUSSIAN),
+                               std_noise=2.8284271247461903,
+                               noise_kind=pipeline_dp.NoiseKind.LAPLACE),
+            2.50000000003125e-11,  # Probability that partition is kept
             metrics.SumMetrics(aggregation=pipeline_dp.Metrics.COUNT,
                                sum=1.0,
                                clipping_to_min_error=0.0,
                                clipping_to_max_error=0.0,
                                expected_l0_bounding_error=0,
                                std_l0_bounding_error=0.0,
-                               std_noise=16.60596081442783,
-                               noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)
-        ]
-        expected_pk1 = [
-            metrics.RawStatistics(privacy_id_count=2, count=2),
-            metrics.SumMetrics(aggregation=pipeline_dp.Metrics.COUNT,
-                               sum=2.0,
-                               clipping_to_min_error=0.0,
-                               clipping_to_max_error=-1.0,
-                               expected_l0_bounding_error=-0.5,
-                               std_l0_bounding_error=0.5,
-                               std_noise=5.87109375,
-                               noise_kind=pipeline_dp.NoiseKind.GAUSSIAN),
-            metrics.SumMetrics(aggregation=pipeline_dp.Metrics.COUNT,
-                               sum=2.0,
-                               clipping_to_min_error=0.0,
-                               clipping_to_max_error=0.0,
-                               expected_l0_bounding_error=0,
-                               std_l0_bounding_error=0.0,
-                               std_noise=16.60596081442783,
+                               std_noise=32.99095075973487,
                                noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)
         ]
 
         self.assertSequenceEqual(expected_pk0, output[0][1])
-        self.assertSequenceEqual(expected_pk1, output[1][1])
 
     @patch('pipeline_dp.sampling_utils.ValueSampler.__init__')
     def test_partition_sampling(self, mock_sampler_init):

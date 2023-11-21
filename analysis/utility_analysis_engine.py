@@ -106,8 +106,7 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
             # different mechanisms to be used in different configurations.
             budget_accountant = copy.deepcopy(self._budget_accountant)
 
-            mechanism_type = aggregate_params.noise_kind.convert_to_mechanism_type(
-            )
+            mechanism_type = params.noise_kind.convert_to_mechanism_type()
             # WARNING: Do not change the order here,
             # _create_aggregate_error_compound_combiner() in utility_analysis.py
             # depends on it.
