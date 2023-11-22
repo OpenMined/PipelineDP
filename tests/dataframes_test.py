@@ -402,6 +402,32 @@ class QueryTest(parameterized.TestCase):
         self.assertAlmostEqual(row1["count"], 1, delta=1e-3)
         self.assertAlmostEqual(row1["sum_column"], 5, delta=1e-3)
 
+    def test_run_query_e2e_run_empty_result(self):
+        # Arrange
+        spark = self._get_spark_session()
+        df = spark.createDataFrame(get_pandas_df())
+        columns = dataframes.Columns("privacy_key", "group_key", "value")
+        metrics = {pipeline_dp.Metrics.COUNT: "count_column"}
+        bounds = dataframes.ContributionBounds(
+            max_partitions_contributed=2,
+            max_contributions_per_partition=2,
+            min_value=-5,
+            max_value=5)
+        query = dataframes.Query(df,
+                                 columns,
+                                 metrics,
+                                 bounds,
+                                 public_partitions=None)
+
+        # Act
+        budget = dataframes.Budget(1, 1e-10)
+        result_df = query.run_query(budget)
+
+        # Assert
+        # The small input dataset and private partition selection. It almost
+        # sure leads to the empty result.
+        self.assertTrue(result_df.toPandas().empty)
+
 
 if __name__ == '__main__':
     absltest.main()
