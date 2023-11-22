@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pipeline-dp"
-version = "0.2.2rc1"
+version = "0.2.2rc2"
 description = ""
 authors = ["Chinmay Shah <chinmayshah3899@gmail.com>", "Vadym Doroshenko <dvadym@google.com>"]
 license = "Apache-2.0"
