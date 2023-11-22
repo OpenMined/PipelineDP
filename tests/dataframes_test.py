@@ -420,7 +420,7 @@ class QueryTest(parameterized.TestCase):
                                  public_partitions=None)
 
         # Act
-        budget = dataframes.Budget(1, 1e-10)  # large budget to get small noise
+        budget = dataframes.Budget(1, 1e-10)
         result_df = query.run_query(budget)
 
         # Assert

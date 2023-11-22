@@ -61,7 +61,7 @@ def delete_if_exists(filename):
 
 def load_data_in_spark_dataframe(
         spark: SparkSession) -> pyspark.sql.dataframe.DataFrame:
-    df = spark.read.csv(FLAGS.input_file, header=True, inferSchema=True)  #.limit(10)
+    df = spark.read.csv(FLAGS.input_file, header=True, inferSchema=True)
     return df.withColumnRenamed('VisitorId', 'visitor_id').withColumnRenamed(
         'Time entered', 'enter_time').withColumnRenamed(
             'Time spent (minutes)', 'spent_minutes').withColumnRenamed(
