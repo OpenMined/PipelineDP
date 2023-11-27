@@ -588,7 +588,7 @@ class PrivacyIdCountParams:
 
 @dataclass
 class AddDPNoiseParams:
-    """Specifies parameters for function DPEngine.anonymize_values()
+    """Specifies parameters for function DPEngine.add_dp_noise()
 
    Attributes:
        noise_kind: The type of noise to use for the DP calculations.

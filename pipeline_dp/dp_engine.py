@@ -549,12 +549,12 @@ class DPEngine:
         Args:
           col: collection with elements (partition_key, value). Where value has
             a number type. It is assumed that all partition_key are different.
-          params: specifies parameters of anonymization.
+          params: specifies parameters for noise addition.
           out_explain_computation_report: an output argument, if specified,
             it will contain the Explain Computation report for this aggregation.
             For more details see the docstring to report_generator.py.
         Returns:
-            Collection of (partition_key, anonymized_value) with the same
+            Collection of (partition_key, value + noise) with the same
             partition keys as in the input collection.
         """
         # Request budget and create Sensitivities object
@@ -566,7 +566,7 @@ class DPEngine:
         # Initialize ReportGenerator.
         self._report_generators.append(
             report_generator.ReportGenerator(params,
-                                             "anonymize_values",
+                                             "add_dp_noise",
                                              is_public_partition=True))
         if out_explain_computation_report is not None:
             out_explain_computation_report._set_report_generator(
@@ -578,8 +578,7 @@ class DPEngine:
                 mechanism_spec, sensitivities)
 
         self._add_report_stage(
-            lambda: f"Anonymize by adding noise "
-            f"{create_mechanism().noise_kind} with "
+            lambda: f"Adding {create_mechanism().noise_kind} noise with "
             f"parameter {create_mechanism().noise_parameter}")
         anonymized_col = self._backend.map_values(
             col, lambda value: create_mechanism().add_noise(float(value)),

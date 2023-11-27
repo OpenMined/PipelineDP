@@ -1306,7 +1306,7 @@ class DpEngineTest(parameterized.TestCase):
     @parameterized.parameters(pipeline_dp.NoiseKind.GAUSSIAN,
                               pipeline_dp.NoiseKind.LAPLACE)
     @patch('pipeline_dp.dp_computations.create_additive_mechanism')
-    def test_anonymize_values_check_correct_adding_mechanism_created(
+    def test_add_dp_noise_check_correct_adding_mechanism_created(
             self, noise_kind, mock_create_additive_mechanism):
         # Arrange
         data = [(0, 0)]
@@ -1330,7 +1330,7 @@ class DpEngineTest(parameterized.TestCase):
                 _eps=0.5,
                 _delta=expected_delta), dp_computations.Sensitivities(3, 10))
 
-    def test_run_e2e_anonymize_values(self):
+    def test_run_e2e_add_dp_noise(self):
         # Arrange
         data = [(i, i) for i in range(100)]
         accountant = pipeline_dp.NaiveBudgetAccountant(total_epsilon=2,
@@ -1356,7 +1356,7 @@ class DpEngineTest(parameterized.TestCase):
         # l0_sensitivity*linf_sensitivity/epsilon = 5*15/2 = 37.5
         self.assertContainsSubsequence(
             explain_computation_report.text(),
-            "Anonymize by adding noise NoiseKind.LAPLACE with parameter 37.5")
+            "Adding NoiseKind.LAPLACE noise with parameter 37.5")
 
 
 if __name__ == '__main__':
