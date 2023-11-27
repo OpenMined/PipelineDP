@@ -1313,11 +1313,11 @@ class DpEngineTest(parameterized.TestCase):
         accountant = pipeline_dp.NaiveBudgetAccountant(total_epsilon=0.5,
                                                        total_delta=1e-8)
         engine = pipeline_dp.DPEngine(accountant, pipeline_dp.LocalBackend())
-        params = pipeline_dp.aggregate_params.AnonymizeValuesParams(
+        params = pipeline_dp.aggregate_params.AddDPNoiseParams(
             noise_kind=noise_kind, l0_sensitivity=3, linf_sensitivity=10)
 
         # Act
-        output = engine.anonymize_values(data, params)
+        output = engine.add_dp_noise(data, params)
         accountant.compute_budgets()
         output = list(output)
 
@@ -1337,13 +1337,13 @@ class DpEngineTest(parameterized.TestCase):
                                                        total_delta=0)
         engine = pipeline_dp.DPEngine(accountant, pipeline_dp.LocalBackend())
         explain_computation_report = pipeline_dp.ExplainComputationReport()
-        params = pipeline_dp.aggregate_params.AnonymizeValuesParams(
+        params = pipeline_dp.aggregate_params.AddDPNoiseParams(
             noise_kind=pipeline_dp.NoiseKind.LAPLACE,
             l0_sensitivity=5,
             linf_sensitivity=15)
 
         # Act
-        output = engine.anonymize_values(
+        output = engine.add_dp_noise(
             data,
             params,
             out_explain_computation_report=explain_computation_report)

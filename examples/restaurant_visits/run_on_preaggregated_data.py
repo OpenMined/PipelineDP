@@ -1,4 +1,4 @@
-# Copyright 2022 OpenMined.
+# Copyright 2023 OpenMined.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,10 +11,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-""" Demo of running PipelineDP locally, without any external data processing framework
+"""This demo applies differential privacy to data that has already been
+pre-aggregated. This relies on assumptions that the partitions keys are public,
+and that the sensitivities of the pre-aggregated values are known.
 
 1. Install Python and run on the command line `pip install pipeline-dp absl-py`
-2. Run python run_without_frameworks.py --input_file=<path to data.txt from 3> --output_file=<...>
+2. Run python run_on_preaggregated_data.py --input_file=<path to restaurants_week_data.csv> --output_file=<...>
 """
 
 from absl import app
@@ -58,12 +60,12 @@ def main(unused_argv):
     df["count"] = 0
     df_day_count = df[["day", "count"]].groupby("day").count()
     day_count = [(row[0], row[1]["count"]) for row in df_day_count.iterrows()]
-    # day_count [(1, 300), ...]
+    # day_count has data [(1, 300), ...]
 
     # Create a DPEngine instance.
     dp_engine = pipeline_dp.DPEngine(budget_accountant, backend)
 
-    params = pipeline_dp.AnonymizeValuesParams(
+    params = pipeline_dp.AddDPNoiseParams(
         noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
         # there are data for 7 days (partitions), so each visitor can contribute
         # to not more than to 7 partitions
@@ -71,8 +73,7 @@ def main(unused_argv):
         # Assume visitor can not go to more than 5 restaurants per day.
         linf_sensitivity=5)
 
-    # Create the Explain Computation report object for passing it into
-    # DPEngine.anonymize_values().
+    # A report that helps to explain computations in the pipeline.
     explain_computation_report = pipeline_dp.ExplainComputationReport()
 
     # Create a computational graph for the aggregation.
@@ -80,7 +81,7 @@ def main(unused_argv):
     # fail until budget is computed (below).
     # It’s possible to call DPEngine.aggregate multiple times with different
     # metrics to compute.
-    dp_result = dp_engine.anonymize_values(
+    dp_result = dp_engine.add_dp_noise(
         day_count,
         params,
         out_explain_computation_report=explain_computation_report)

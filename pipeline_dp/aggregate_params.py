@@ -587,7 +587,7 @@ class PrivacyIdCountParams:
 
 
 @dataclass
-class AnonymizeValuesParams:
+class AddDPNoiseParams:
     """Specifies parameters for function DPEngine.anonymize_values()
 
    Attributes:
@@ -605,7 +605,14 @@ class AnonymizeValuesParams:
     budget_weight: float = 1
 
     def __post_init__(self):
-        """todo"""
+
+        def check_is_positive(num: Any, name: str) -> bool:
+            if num is not None and num <= 0:
+                raise ValueError(f"{name} must be positive, but {num} given.")
+
+        check_is_positive(self.l0_sensitivity, "l0_sensitivity")
+        check_is_positive(self.linf_sensitivity, "linf_sensitivity")
+        check_is_positive(self.budget_weight, "budget_weight")
 
 
 def _not_a_proper_number(num: Any) -> bool:

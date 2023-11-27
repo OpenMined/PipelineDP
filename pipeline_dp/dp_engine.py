@@ -534,20 +534,17 @@ class DPEngine:
                                     lambda row: row[1].privacy_id_count != None,
                                     "Drop partitions under threshold")
 
-    def anonymize_values(
-        self,
-        col,
-        params: pipeline_dp.aggregate_params.AnonymizeValuesParams,
-        out_explain_computation_report: Optional[
-            pipeline_dp.ExplainComputationReport] = None):
-        """Anonymizes values by adding noise.
+    def add_dp_noise(self,
+                     col,
+                     params: pipeline_dp.aggregate_params.AddDPNoiseParams,
+                     out_explain_computation_report: Optional[
+                         pipeline_dp.ExplainComputationReport] = None):
+        """Adds DP noise to the aggregated data.
 
-        It anonymizes values per partition key, when it is known the
-        sensitivities of the procedure which computed these values.
-
-        This function assumes that partition keys are public or generated with
-        DPEngine.select_partitions, i.e. it does not protect present of
-        partition keys.
+        This method allows applying differential privacy to pre-aggregated data.
+        This relies on the assumption that the sensitivities of the
+        pre-aggregated values are known, and the partition keys are public or
+        generated with DPEngine.select_partitions
 
         Args:
           col: collection with elements (partition_key, value). Where value has
@@ -594,7 +591,7 @@ class DPEngine:
 
     def _annotate(self, col, params: Union[pipeline_dp.AggregateParams,
                                            pipeline_dp.SelectPartitionsParams,
-                                           pipeline_dp.AnonymizeValuesParams],
+                                           pipeline_dp.AddDPNoiseParams],
                   budget: budget_accounting.Budget):
         return self._backend.annotate(col,
                                       "annotation",
