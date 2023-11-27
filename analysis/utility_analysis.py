@@ -35,7 +35,7 @@ def _generate_bucket_bounds():
 
 
 # Bucket bounds for metrics. UtilityReport histogram.
-# Bounds are logarithmic: [0, 1] + [1, 2, 5]*10**i , for i = 1, 12.
+# Bounds are logarithmic: [0, 1] + [1, 2, 5]*10**i , for i = 1, 12
 BUCKET_BOUNDS = _generate_bucket_bounds()
 
 
