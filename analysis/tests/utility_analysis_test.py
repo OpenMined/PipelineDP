@@ -292,7 +292,7 @@ class UtilityAnalysis(parameterized.TestCase):
                              expected_l0_error[i_configuration])
 
     def test_generate_bucket_bounds(self):
-        self.assertLen(utility_analysis._generate_bucket_bounds(), 29)
+        self.assertLen(utility_analysis._generate_bucket_bounds(), 38)
         self.assertEqual(utility_analysis._generate_bucket_bounds()[:10],
                          (0, 1, 10, 20, 50, 100, 200, 500, 1000, 2000))
 
@@ -304,6 +304,7 @@ class UtilityAnalysis(parameterized.TestCase):
         self.assertEqual(utility_analysis._get_lower_bound(11), 10)
         self.assertEqual(utility_analysis._get_lower_bound(20), 20)
         self.assertEqual(utility_analysis._get_lower_bound(1234), 1000)
+        self.assertEqual(utility_analysis._get_upper_bound(10**13), -1)
 
     def test_get_upper_bound(self):
         self.assertEqual(utility_analysis._get_upper_bound(-1), 0)
@@ -313,6 +314,7 @@ class UtilityAnalysis(parameterized.TestCase):
         self.assertEqual(utility_analysis._get_upper_bound(11), 20)
         self.assertEqual(utility_analysis._get_upper_bound(20), 50)
         self.assertEqual(utility_analysis._get_upper_bound(1234), 2000)
+        self.assertEqual(utility_analysis._get_upper_bound(10**13), -1)
 
     def test_unnest_metrics(self):
         input_data = self._get_per_partition_metrics(n_configurations=2)
