@@ -453,6 +453,8 @@ class SumParams:
     noise_kind: NoiseKind = NoiseKind.LAPLACE
     contribution_bounds_already_enforced: bool = False
 
+    # TODO: add validation in __post_init__
+
 
 @dataclass
 class VarianceParams:
@@ -491,6 +493,8 @@ class VarianceParams:
     noise_kind: NoiseKind = NoiseKind.LAPLACE
     contribution_bounds_already_enforced: bool = False
 
+    # TODO: add validation in __post_init__
+
 
 @dataclass
 class MeanParams:
@@ -527,6 +531,8 @@ class MeanParams:
     noise_kind: NoiseKind = NoiseKind.LAPLACE
     contribution_bounds_already_enforced: bool = False
 
+    # TODO: add validation in __post_init__
+
 
 @dataclass
 class CountParams:
@@ -555,6 +561,8 @@ class CountParams:
     partition_extractor: Callable
     budget_weight: float = 1
     contribution_bounds_already_enforced: bool = False
+
+    # TODO: add validation in __post_init__
 
 
 @dataclass
@@ -585,10 +593,16 @@ class PrivacyIdCountParams:
     budget_weight: float = 1
     contribution_bounds_already_enforced: bool = False
 
+    # TODO: add validation in __post_init__
+
 
 @dataclass
 class AddDPNoiseParams:
     """Specifies parameters for function DPEngine.add_dp_noise()
+
+    Important: unlike the other methods, this method does not enforce the
+    sensitivity by contribution bounding and relies on the caller to ensure the
+    provided data satisfies the provided bound.
 
    Attributes:
        noise_kind: The type of noise to use for the DP calculations.

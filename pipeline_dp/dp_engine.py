@@ -544,7 +544,11 @@ class DPEngine:
         This method allows applying differential privacy to pre-aggregated data.
         This relies on the assumption that the sensitivities of the
         pre-aggregated values are known, and the partition keys are public or
-        generated with DPEngine.select_partitions
+        generated with DPEngine.select_partitions.
+
+        Important: unlike the other methods, this method does not enforce the
+        sensitivity by contribution bounding and relies on the caller to ensure
+        the provided data satisfies the provided bound.
 
         Args:
           col: collection with elements (partition_key, value). Where value has
