@@ -73,6 +73,7 @@ class HistogramType(enum.Enum):
     LINF_SUM_CONTRIBUTIONS = 'linf_sum_contributions'
     COUNT_PER_PARTITION = 'count_per_partition'
     COUNT_PRIVACY_ID_PER_PARTITION = 'privacy_id_per_partition_count'
+    SUM_PER_PARTITION = 'sum_per_partition'
 
 
 @dataclass
@@ -112,7 +113,10 @@ class Histogram:
           * Floating histograms, which is used for sums per partition. Which
             has the same size bins.
         """
-        return self.name != HistogramType.LINF_SUM_CONTRIBUTIONS
+        return self.name not in [
+            HistogramType.LINF_SUM_CONTRIBUTIONS,
+            HistogramType.SUM_PER_PARTITION
+        ]
 
     def total_count(self):
         return sum([bin.count for bin in self.bins])
@@ -209,3 +213,4 @@ class DatasetHistograms:
     linf_sum_contributions_histogram: Histogram
     count_per_partition_histogram: Histogram
     count_privacy_id_per_partition: Histogram
+    sum_per_partition_histogram: Histogram
