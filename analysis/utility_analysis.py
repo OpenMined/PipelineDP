@@ -27,15 +27,15 @@ import bisect
 
 def _generate_bucket_bounds():
     result = [0, 1]
-    for i in range(1, 10):
+    for i in range(1, 13):
         result.append(10**i)
         result.append(2 * 10**i)
         result.append(5 * 10**i)
     return tuple(result)
 
 
-# Bucket bounds for metrics. UtilityReportHistogram.
-# Bounds are logarithmic: [0, 1] + [1, 2, 5]*10**i , for i = 1, 10.
+# Bucket bounds for metrics. UtilityReport histogram.
+# Bounds are logarithmic: [0, 1] + [1, 2, 5]*10**i , for i = 1, 12
 BUCKET_BOUNDS = _generate_bucket_bounds()
 
 
@@ -189,8 +189,8 @@ def _get_upper_bound(n: int) -> int:
     if n < 0:
         return 0
     index = bisect.bisect_right(BUCKET_BOUNDS, n)
-    if index > len(BUCKET_BOUNDS):
-        return -1  # todo
+    if index >= len(BUCKET_BOUNDS):
+        return -1
     return BUCKET_BOUNDS[index]
 
 
@@ -217,7 +217,7 @@ def _group_utility_reports(
 
     'reports' contains the global report, i.e. which corresponds to all
     partitions and reports that corresponds to partitions of some size range.
-    This function creates UtilityReportHistogram from reports by size range and
+    This function creates UtilityReport histogram from reports by size range and
     sets it to the global report.
     """
     global_report = None

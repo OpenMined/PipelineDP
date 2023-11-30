@@ -22,7 +22,6 @@ from typing import Any, Sequence, Callable, Optional, List
 
 import numpy as np
 
-import pipeline_dp
 from pipeline_dp import input_validators
 
 
@@ -119,9 +118,9 @@ class MechanismType(Enum):
 
 
 def noise_to_thresholding(noise_kind: NoiseKind) -> MechanismType:
-    if noise_kind == pipeline_dp.NoiseKind.LAPLACE:
+    if noise_kind == NoiseKind.LAPLACE:
         return MechanismType.LAPLACE_THRESHOLDING
-    if noise_kind == pipeline_dp.NoiseKind.GAUSSIAN:
+    if noise_kind == NoiseKind.GAUSSIAN:
         return MechanismType.GAUSSIAN_THRESHOLDING
     raise ValueError(f"NoiseKind {noise_kind} can not be converted to "
                      f"Thresholding mechanism")
@@ -454,6 +453,8 @@ class SumParams:
     noise_kind: NoiseKind = NoiseKind.LAPLACE
     contribution_bounds_already_enforced: bool = False
 
+    # TODO: add validation in __post_init__
+
 
 @dataclass
 class VarianceParams:
@@ -492,6 +493,8 @@ class VarianceParams:
     noise_kind: NoiseKind = NoiseKind.LAPLACE
     contribution_bounds_already_enforced: bool = False
 
+    # TODO: add validation in __post_init__
+
 
 @dataclass
 class MeanParams:
@@ -528,6 +531,8 @@ class MeanParams:
     noise_kind: NoiseKind = NoiseKind.LAPLACE
     contribution_bounds_already_enforced: bool = False
 
+    # TODO: add validation in __post_init__
+
 
 @dataclass
 class CountParams:
@@ -557,6 +562,8 @@ class CountParams:
     budget_weight: float = 1
     contribution_bounds_already_enforced: bool = False
 
+    # TODO: add validation in __post_init__
+
 
 @dataclass
 class PrivacyIdCountParams:
@@ -585,6 +592,41 @@ class PrivacyIdCountParams:
     partition_extractor: Callable
     budget_weight: float = 1
     contribution_bounds_already_enforced: bool = False
+
+    # TODO: add validation in __post_init__
+
+
+@dataclass
+class AddDPNoiseParams:
+    """Specifies parameters for function DPEngine.add_dp_noise()
+
+    Important: unlike the other methods, this method does not enforce the
+    sensitivity by contribution bounding and relies on the caller to ensure the
+    provided data satisfies the provided bound.
+
+   Attributes:
+       noise_kind: The type of noise to use for the DP calculations.
+       l0_sensitivity: the maximum number of partition for which 1 privacy unit
+         can contribute.
+       linf_sensitivity: the maximum difference of values in one partition which
+         can achieved by adding or removing one privacy unit from the dataset.
+       budget_weight: Relative weight of the privacy budget allocated to this
+         aggregation.
+   """
+    noise_kind: NoiseKind
+    l0_sensitivity: int
+    linf_sensitivity: float
+    budget_weight: float = 1
+
+    def __post_init__(self):
+
+        def check_is_positive(num: Any, name: str) -> bool:
+            if num is not None and num <= 0:
+                raise ValueError(f"{name} must be positive, but {num} given.")
+
+        check_is_positive(self.l0_sensitivity, "l0_sensitivity")
+        check_is_positive(self.linf_sensitivity, "linf_sensitivity")
+        check_is_positive(self.budget_weight, "budget_weight")
 
 
 def _not_a_proper_number(num: Any) -> bool:

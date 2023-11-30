@@ -13,12 +13,13 @@
 # limitations under the License.
 """DP aggregations."""
 import functools
-from typing import Any, Callable, Optional, Sequence, Tuple
+from typing import Any, Callable, Optional, Sequence, Tuple, Union
 
 import pipeline_dp
 from pipeline_dp import budget_accounting
 from pipeline_dp import combiners
 from pipeline_dp import contribution_bounders
+from pipeline_dp import dp_computations
 from pipeline_dp import partition_selection
 from pipeline_dp import pipeline_functions
 from pipeline_dp import report_generator
@@ -539,7 +540,67 @@ class DPEngine:
                                     lambda row: row[1].privacy_id_count != None,
                                     "Drop partitions under threshold")
 
-    def _annotate(self, col, params: pipeline_dp.SelectPartitionsParams,
+    def add_dp_noise(self,
+                     col,
+                     params: pipeline_dp.aggregate_params.AddDPNoiseParams,
+                     out_explain_computation_report: Optional[
+                         pipeline_dp.ExplainComputationReport] = None):
+        """Adds DP noise to the aggregated data.
+
+        This method allows applying differential privacy to pre-aggregated data.
+        This relies on the assumption that the sensitivities of the
+        pre-aggregated values are known, and the partition keys are public or
+        generated with DPEngine.select_partitions.
+
+        Important: unlike the other methods, this method does not enforce the
+        sensitivity by contribution bounding and relies on the caller to ensure
+        the provided data satisfies the provided bound.
+
+        Args:
+          col: collection with elements (partition_key, value). Where value has
+            a number type. It is assumed that all partition_key are different.
+          params: specifies parameters for noise addition.
+          out_explain_computation_report: an output argument, if specified,
+            it will contain the Explain Computation report for this aggregation.
+            For more details see the docstring to report_generator.py.
+        Returns:
+            Collection of (partition_key, value + noise) with the same
+            partition keys as in the input collection.
+        """
+        # Request budget and create Sensitivities object
+        mechanism_type = params.noise_kind.convert_to_mechanism_type()
+        mechanism_spec = self._budget_accountant.request_budget(mechanism_type)
+        sensitivities = dp_computations.Sensitivities(
+            l0=params.l0_sensitivity, linf=params.linf_sensitivity)
+
+        # Initialize ReportGenerator.
+        self._report_generators.append(
+            report_generator.ReportGenerator(params,
+                                             "add_dp_noise",
+                                             is_public_partition=True))
+        if out_explain_computation_report is not None:
+            out_explain_computation_report._set_report_generator(
+                self._current_report_generator)
+
+        # Add noise to values.
+        def create_mechanism() -> dp_computations.AdditiveMechanism:
+            return dp_computations.create_additive_mechanism(
+                mechanism_spec, sensitivities)
+
+        self._add_report_stage(
+            lambda: f"Adding {create_mechanism().noise_kind} noise with "
+            f"parameter {create_mechanism().noise_parameter}")
+        anonymized_col = self._backend.map_values(
+            col, lambda value: create_mechanism().add_noise(float(value)),
+            "Add noise")
+
+        budget = self._budget_accountant._compute_budget_for_aggregation(
+            params.budget_weight)
+        return self._annotate(anonymized_col, params=params, budget=budget)
+
+    def _annotate(self, col, params: Union[pipeline_dp.AggregateParams,
+                                           pipeline_dp.SelectPartitionsParams,
+                                           pipeline_dp.AddDPNoiseParams],
                   budget: budget_accounting.Budget):
         return self._backend.annotate(col,
                                       "annotation",

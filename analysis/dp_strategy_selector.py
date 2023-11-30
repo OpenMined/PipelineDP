@@ -37,7 +37,7 @@ class DPStrategySelector:
     It chooses noise_kind to minimize the noise std deviation.
     For non-public partitions it chooses partition selection strategy to
     minimize threshold. For more details see docstring to
-    select_partition_selection().
+    select_partition_selection_strategy().
     """
 
     def __init__(self, epsilon: float, delta: float,
@@ -76,11 +76,11 @@ class DPStrategySelector:
 
     def _get_strategy_for_select_partition(self,
                                            l0_sensitivity: int) -> DPStrategy:
-        return DPStrategy(
-            noise_kind=None,
-            partition_selection_strategy=self.select_partition_selection(
-                self._epsilon, self._delta, l0_sensitivity),
-            post_aggregation_thresholding=False)
+        return DPStrategy(noise_kind=None,
+                          partition_selection_strategy=self.
+                          select_partition_selection_strategy(
+                              self._epsilon, self._delta, l0_sensitivity),
+                          post_aggregation_thresholding=False)
 
     def _get_dp_strategy_for_public_partitions(
             self, sensitivities: dp_computations.Sensitivities) -> DPStrategy:
@@ -113,7 +113,7 @@ class DPStrategySelector:
         half_epsilon, half_delta = self._epsilon / 2, self._delta / 2
         noise_kind = self.select_noise_kind(half_epsilon, half_delta,
                                             sensitivities)
-        partition_selection_strategy = self.select_partition_selection(
+        partition_selection_strategy = self.select_partition_selection_strategy(
             half_epsilon, half_delta, sensitivities.l0)
         return DPStrategy(
             noise_kind=noise_kind,
@@ -148,10 +148,10 @@ class DPStrategySelector:
                                           metric: pipeline_dp.Metric) -> bool:
         return metric == pipeline_dp.Metrics.PRIVACY_ID_COUNT
 
-    def select_partition_selection(
+    def select_partition_selection_strategy(
             self, epsilon: float, delta: float,
             l0_sensitivity: int) -> pipeline_dp.PartitionSelectionStrategy:
-        """Select partition selection strategy based on Threshold.
+        """Selects partition selection strategy based on Threshold.
 
         There are many ways how strategies can be compared. For simplicity
         strategies are compared by the number of privacy units, which is needed
