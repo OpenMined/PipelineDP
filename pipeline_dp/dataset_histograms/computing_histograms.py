@@ -201,6 +201,7 @@ def _list_to_contribution_histograms(
     l0_contributions = l1_contributions = None
     linf_contributions = linf_sum_contributions = None
     count_per_partition = privacy_id_per_partition_count = None
+    sum_per_partition_histogram = None
     for histogram in histograms:
         if histogram.name == hist.HistogramType.L0_CONTRIBUTIONS:
             l0_contributions = histogram
@@ -214,10 +215,14 @@ def _list_to_contribution_histograms(
             count_per_partition = histogram
         elif histogram.name == hist.HistogramType.COUNT_PRIVACY_ID_PER_PARTITION:
             privacy_id_per_partition_count = histogram
+        elif histogram.name == hist.HistogramType.SUM_PER_PARTITION:
+            sum_per_partition_histogram = histogram
+
     return hist.DatasetHistograms(l0_contributions, l1_contributions,
                                   linf_contributions, linf_sum_contributions,
                                   count_per_partition,
-                                  privacy_id_per_partition_count)
+                                  privacy_id_per_partition_count,
+                                  sum_per_partition_histogram)
 
 
 def _to_dataset_histograms(histogram_list,
@@ -355,11 +360,15 @@ def _min_max_lowers(col, number_of_buckets,
     """
     min_max_values = pipeline_functions.min_max_elements(
         backend, col, "Min and max value in dataset")
+
     # min_max_values: 1 element collection with a pair (min, max)
-    return backend.map(
-        min_max_values, lambda min_max: np.linspace(min_max[0], min_max[1],
-                                                    (number_of_buckets + 1)),
-        "map to lowers")
+    def generate_lowers(min_max: Tuple[float, float]) -> List[float]:
+        min_, max_ = min_max
+        if min_ == max_:
+            return [min_, min_]
+        return list(np.linspace(min_, max_, (number_of_buckets + 1)))
+
+    return backend.map(min_max_values, generate_lowers, "map to lowers")
 
 
 def _compute_partition_count_histogram(
@@ -421,7 +430,7 @@ def _compute_partition_sum_histogram(col,
                                      backend: pipeline_backend.PipelineBackend):
     """Computes histogram of counts per partition.
 
-    This histogram contains: the number of partitions with total count of
+    This histogram contains: todo the number of partitions with total count of
     contributions = 1, 2 etc.
 
     Args:
@@ -431,7 +440,8 @@ def _compute_partition_sum_histogram(col,
         1 element collection, which contains the computed hist.Histogram.
     """
 
-    col = backend.map_tuple("todo", lambda pid_pk, value: (pid_pk[1], value))
+    col = backend.map_tuple(col, lambda pid_pk, value: (pid_pk[1], value),
+                            "Drop privacy id")
     col = backend.sum_per_key(col, "Sum of contributions per partition")
     # col: (pk, sum_per_partition)
     col = backend.values(col, "Drop keys")
@@ -666,13 +676,14 @@ def _compute_partition_sum_histogram_on_preaggregated_data(
     # col: (pk, int), where each element is the total count per partition.
     col = backend.values(col, "Drop partition keys")
     # col: (int,)
+    col = backend.to_multi_transformable_collection(col)
     lowers = _min_max_lowers(
         col, NUMBER_OF_BUCKETS_IN_LINF_SUM_CONTRIBUTIONS_HISTOGRAM, backend)
     # lowers: (float,) where each value defines a lower of a bin in the
     # generated histogram.
 
     return _compute_frequency_histogram_helper_with_lowers(
-        col, backend, hist.HistogramType.LINF_SUM_CONTRIBUTIONS, lowers)
+        col, backend, hist.HistogramType.SUM_PER_PARTITION, lowers)
 
 
 def _compute_partition_privacy_id_count_histogram_on_preaggregated_data(
