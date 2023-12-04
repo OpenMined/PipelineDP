@@ -250,7 +250,8 @@ class PrivateL0CalculatorTest(unittest.TestCase):
                                    linf_contributions_histogram=None,
                                    linf_sum_contributions_histogram=None,
                                    count_per_partition_histogram=None,
-                                   count_privacy_id_per_partition=None)
+                                   count_privacy_id_per_partition=None,
+                                   sum_per_partition_histogram=None)
         ]
         backend = pipeline_dp.LocalBackend()
         calculator = private_contribution_bounds.PrivateL0Calculator(
@@ -290,7 +291,8 @@ class PrivateL0CalculatorTest(unittest.TestCase):
                                    linf_contributions_histogram=None,
                                    linf_sum_contributions_histogram=None,
                                    count_per_partition_histogram=None,
-                                   count_privacy_id_per_partition=None)
+                                   count_privacy_id_per_partition=None,
+                                   sum_per_partition_histogram=None)
         ]
         backend = pipeline_dp.LocalBackend()
         calculator = private_contribution_bounds.PrivateL0Calculator(
