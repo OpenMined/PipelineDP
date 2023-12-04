@@ -22,7 +22,7 @@ import pipeline_dp
 from pipeline_dp import pipeline_backend, pipeline_functions
 from pipeline_dp.dataset_histograms import histograms as hist
 
-NUMBER_OF_BUCKETS_IN_LINF_SUM_CONTRIBUTIONS_HISTOGRAM = 10000
+NUMBER_OF_BUCKETS_SUM_HISTOGRAM = 10000
 
 
 def _to_bin_lower_upper_logarithmic(value: int) -> Tuple[int, int]:
@@ -323,7 +323,7 @@ def _compute_linf_sum_contributions_histogram(
     This histogram contains: the number of (privacy id, partition_key)-pairs
     which have sum of values X_1, X_2, ..., X_n, where X_1 = min_sum,
     X_n = one before max sum and n is equal to
-    NUMBER_OF_BUCKETS_IN_LINF_SUM_CONTRIBUTIONS_HISTOGRAM.
+    NUMBER_OF_BUCKETS_SUM_HISTOGRAM.
 
     Args:
         col: collection with elements ((privacy_id, partition_key), value).
@@ -337,8 +337,7 @@ def _compute_linf_sum_contributions_histogram(
     col = backend.values(col, "Drop keys")
     # col: (float)
     col = backend.to_multi_transformable_collection(col)
-    lowers = _min_max_lowers(
-        col, NUMBER_OF_BUCKETS_IN_LINF_SUM_CONTRIBUTIONS_HISTOGRAM, backend)
+    lowers = _min_max_lowers(col, NUMBER_OF_BUCKETS_SUM_HISTOGRAM, backend)
 
     return _compute_frequency_histogram_helper_with_lowers(
         col, backend, hist.HistogramType.LINF_SUM_CONTRIBUTIONS, lowers)
@@ -428,10 +427,11 @@ def _compute_partition_privacy_id_count_histogram(
 
 def _compute_partition_sum_histogram(col,
                                      backend: pipeline_backend.PipelineBackend):
-    """Computes histogram of counts per partition.
+    """Computes histogram of sum per partition.
 
-    This histogram contains: todo the number of partitions with total count of
-    contributions = 1, 2 etc.
+    This histogram contains: the number of partition_keys which have sum of
+    values X_1, X_2, ..., X_n, where X_1 = min_sum, X_n = one before max sum and
+    n is equal to NUMBER_OF_BUCKETS_SUM_HISTOGRAM.
 
     Args:
         col: collection with elements ((privacy_id, partition_key), value).
@@ -447,8 +447,7 @@ def _compute_partition_sum_histogram(col,
     col = backend.values(col, "Drop keys")
     # col: (float)
     col = backend.to_multi_transformable_collection(col)
-    lowers = _min_max_lowers(
-        col, NUMBER_OF_BUCKETS_IN_LINF_SUM_CONTRIBUTIONS_HISTOGRAM, backend)
+    lowers = _min_max_lowers(col, NUMBER_OF_BUCKETS_SUM_HISTOGRAM, backend)
 
     return _compute_frequency_histogram_helper_with_lowers(
         col, backend, hist.HistogramType.SUM_PER_PARTITION, lowers)
@@ -600,7 +599,7 @@ def _compute_linf_sum_contributions_histogram_on_preaggregated_data(
     This histogram contains: the number of (privacy id, partition_key)-pairs
     which have sum of values X_1, X_2, ..., X_n, where X_1 = min_sum,
     X_n = one before max sum and n is equal to
-    NUMBER_OF_BUCKETS_IN_LINF_SUM_CONTRIBUTIONS_HISTOGRAM.
+    NUMBER_OF_BUCKETS_SUM_HISTOGRAM.
 
     Args:
         col: collection with a pre-aggregated dataset, each element is
@@ -616,8 +615,7 @@ def _compute_linf_sum_contributions_histogram_on_preaggregated_data(
     # col: (float,) where each element is the sum of values the
     # corresponding privacy_id contributes to the partition.
     col = backend.to_multi_transformable_collection(col)
-    lowers = _min_max_lowers(
-        col, NUMBER_OF_BUCKETS_IN_LINF_SUM_CONTRIBUTIONS_HISTOGRAM, backend)
+    lowers = _min_max_lowers(col, NUMBER_OF_BUCKETS_SUM_HISTOGRAM, backend)
     # lowers: (float,) where each value defines a lower of a bin in the
     # generated histogram.
 
@@ -657,8 +655,9 @@ def _compute_partition_sum_histogram_on_preaggregated_data(
         col, backend: pipeline_backend.PipelineBackend):
     """Computes histogram of counts per partition.
 
-    This histogram contains: the number of partitions with total count of
-    contributions = 1, 2 etc.
+    This histogram contains: the number of partition_keys which have sum of
+    values X_1, X_2, ..., X_n, where X_1 = min_sum, X_n = one before max sum and
+    n is equal to NUMBER_OF_BUCKETS_SUM_HISTOGRAM.
 
     Args:
         col: collection with a pre-aggregated dataset, each element is
@@ -673,12 +672,11 @@ def _compute_partition_sum_histogram_on_preaggregated_data(
         "Extract sum per partition contribution")
     # col: (pk, int)
     col = backend.sum_per_key(col, "Sum per partition")
-    # col: (pk, int), where each element is the total count per partition.
+    # col: (pk, int), where each element is the total sum per partition.
     col = backend.values(col, "Drop partition keys")
     # col: (int,)
     col = backend.to_multi_transformable_collection(col)
-    lowers = _min_max_lowers(
-        col, NUMBER_OF_BUCKETS_IN_LINF_SUM_CONTRIBUTIONS_HISTOGRAM, backend)
+    lowers = _min_max_lowers(col, NUMBER_OF_BUCKETS_SUM_HISTOGRAM, backend)
     # lowers: (float,) where each value defines a lower of a bin in the
     # generated histogram.
 

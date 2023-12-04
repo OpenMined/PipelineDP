@@ -448,7 +448,7 @@ class ComputingHistogramsTest(parameterized.TestCase):
 
     @parameterized.product(
         (
-            dict(testcase_name='empty', input=[], expected=[]),
+            dict(testcase_name='empty histogram', input=[], expected=[]),
             dict(
                 testcase_name='small_histogram',
                 input=[(1, 1), (1, 2), (2, 1),
@@ -510,7 +510,7 @@ class ComputingHistogramsTest(parameterized.TestCase):
 
     @parameterized.product(
         (
-            dict(testcase_name='empty', input=[], expected=[]),
+            dict(testcase_name='empty histogram', input=[], expected=[]),
             dict(
                 testcase_name='small_histogram',
                 input=[(1, 1), (1, 2), (2, 1)],  # (privacy_id, partition)
@@ -572,13 +572,16 @@ class ComputingHistogramsTest(parameterized.TestCase):
 
     @parameterized.product(
         (
-            dict(testcase_name='empty', input=lambda: [], expected=lambda: []),
+            dict(testcase_name='empty histogram',
+                 input=lambda: [],
+                 expected=lambda: []),
             dict(
                 testcase_name='small_histogram',
                 input=lambda: [((1, 1), 0.5), ((1, 2), 1.5), (
                     (2, 1), -2.5), (
                         (1, 1), 0.5)],  # ((privacy_id, partition), value)
                 expected=lambda: [
+                    # Bucket step = 3/10**4 = 0.0003
                     hist.FrequencyBin(
                         lower=-1.5, upper=-1.4997, count=1, sum=-1.5, max=-1.5),
                     hist.FrequencyBin(lower=1.4996999999999998,
@@ -588,7 +591,8 @@ class ComputingHistogramsTest(parameterized.TestCase):
                                       max=1.5)
                 ]),
             dict(
-                testcase_name='Different privacy ids, 1 equal contribution',
+                testcase_name='Different privacy ids, 1 equal contribution and '
+                'different partition keys',
                 input=lambda: [((i, i), 1) for i in range(100)],
                 # ((privacy_id, partition), value)
                 expected=lambda: [
