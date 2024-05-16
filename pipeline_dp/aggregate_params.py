@@ -254,6 +254,7 @@ class AggregateParams:
     partition_selection_strategy: PartitionSelectionStrategy = PartitionSelectionStrategy.TRUNCATED_GEOMETRIC
     pre_threshold: Optional[int] = None
     post_aggregation_thresholding: bool = False
+    perform_cross_partition_contribution_bounding: bool = True
 
     @property
     def metrics_str(self) -> str:
