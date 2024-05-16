@@ -25,6 +25,8 @@ flags.DEFINE_string('output_file', None, 'Output file')
 flags.DEFINE_bool(
     'pld_accounting', False, 'If false Naive budget accounting '
     'is used, if true PLD accounting')
+flags.DEFINE_integer('pre_threshold', None,
+                     'Pre threshold which is used in the DP aggregation')
 
 
 def main(unused_argv):
@@ -76,6 +78,9 @@ def main(unused_argv):
         min_value=1,
         # .. and maximum rating of "5"
         max_value=5)
+
+    if FLAGS.pre_threshold:
+        params.pre_threshold = FLAGS.pre_threshold
 
     # Specify how to extract privacy_id, partition_key and value from an
     # element of movie_views.

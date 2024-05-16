@@ -32,6 +32,8 @@ from common_utils import ParseFile
 FLAGS = flags.FLAGS
 flags.DEFINE_string('input_file', None, 'The file with the movie view data')
 flags.DEFINE_string('output_file', None, 'Output file')
+flags.DEFINE_integer('pre_threshold', None,
+                     'Pre threshold which is used in the DP aggregation')
 
 
 def main(unused_argv):
