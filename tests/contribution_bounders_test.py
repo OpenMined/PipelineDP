@@ -24,6 +24,8 @@ MaxContributionsParams = collections.namedtuple("MaxContributionParams",
 CrossAndPerPartitionContributionParams = collections.namedtuple(
     "CrossAndPerPartitionContributionParams",
     ["max_partitions_contributed", "max_contributions_per_partition"])
+PerPartitionContributionParams = collections.namedtuple(
+    "PerPartitionContributionParams", ["max_contributions_per_partition"])
 
 aggregate_fn = lambda input_value: (len(input_value), np.sum(input_value),
                                     np.sum(np.square(input_value)))
@@ -150,3 +152,60 @@ class SamplingPerPrivacyIdContributionBounderTest(parameterized.TestCase):
         bound_result = self._run_contribution_bounding(input, max_contributions)
 
         self.assertEmpty(bound_result)
+
+
+class LinfSamplerTest(parameterized.TestCase):
+
+    def _run_sampling(self, input, max_contributions_per_partition):
+        params = PerPartitionContributionParams(max_contributions_per_partition)
+
+        bounder = contribution_bounders.LinfSampler()
+        return list(
+            bounder.bound_contributions(input, params,
+                                        pipeline_dp.LocalBackend(),
+                                        _create_report_generator(),
+                                        lambda x: x))
+
+    def test_samping_applied(self):
+        input = [('pid1', 'pk1', 1), ('pid1', 'pk1', 2), ('pid2', 'pk1', 3),
+                 ('pid2', 'pk1', 4)]
+        max_contributions_per_partition = 1
+
+        bound_result = self._run_sampling(input,
+                                          max_contributions_per_partition)
+        bound_result = dict(bound_result)
+
+        # {(privacy_id, partition_key), [values])
+        self.assertLen(bound_result, 2)
+        self.assertLen(bound_result[('pid1', 'pk1')], 1)
+        self.assertLen(bound_result[('pid2', 'pk1')], 1)
+
+    def test_more_contributions_than_bound_nothing_dropped(self):
+        input = [('pid1', 'pk1', 1), ('pid1', 'pk1', 2), ('pid1', 'pk1', 3)]
+        max_contributions_per_partition = 3
+
+        bound_result = self._run_sampling(input,
+                                          max_contributions_per_partition)
+
+        self.assertEqual(bound_result, [(('pid1', 'pk1'), [1, 2, 3])])
+
+    def test_empty_col(self):
+        self.assertEmpty(
+            self._run_sampling([], max_contributions_per_partition=1))
+
+
+class NoOpContributionBounderTest(parameterized.TestCase):
+
+    def test_sampling_applied(self):
+        input = [('pid1', 'pk1', 1), ('pid1', 'pk1', 2), ('pid2', 'pk1', 3),
+                 ('pid3', 'pk2', 4)]
+        bounder = contribution_bounders.NoOpSampler()
+        bound_result = bounder.bound_contributions(
+            input,
+            params=(),
+            backend=pipeline_dp.LocalBackend(),
+            report_generator=_create_report_generator(),
+            aggregate_fn=lambda x: x)
+        self.assertEqual(list(bound_result), [(('pid1', 'pk1'), [1, 2]),
+                                              (('pid2', 'pk1'), [3]),
+                                              (('pid3', 'pk2'), [4])])

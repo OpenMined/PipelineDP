@@ -234,6 +234,11 @@ class AggregateParams:
          is ignored when public partitions are used.
          More details on pre-thresholding are in
          https://github.com/google/differential-privacy/blob/main/common_docs/pre_thresholding.md
+        perform_cross_partition_contribution_bounding: whether to perform cross
+         partition contribution bounding.  
+         Warning: turn off cross partition contribution bounding only when the 
+         number of contributed partitions per privacy unit is already bounded
+         by max_partitions_contributed.
     """
     metrics: List[Metric]
     noise_kind: NoiseKind = NoiseKind.LAPLACE
@@ -254,6 +259,7 @@ class AggregateParams:
     partition_selection_strategy: PartitionSelectionStrategy = PartitionSelectionStrategy.TRUNCATED_GEOMETRIC
     pre_threshold: Optional[int] = None
     post_aggregation_thresholding: bool = False
+    perform_cross_partition_contribution_bounding: bool = True
 
     @property
     def metrics_str(self) -> str:

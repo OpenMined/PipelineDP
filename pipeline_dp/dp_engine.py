@@ -386,10 +386,18 @@ class DPEngine:
             return \
                 contribution_bounders.SamplingPerPrivacyIdContributionBounder(
                 )
-        if expects_per_partition_sampling:
-            return contribution_bounders.SamplingCrossAndPerPartitionContributionBounder(
+        if params.perform_cross_partition_contribution_bounding:
+            if expects_per_partition_sampling:
+                return contribution_bounders.SamplingCrossAndPerPartitionContributionBounder(
+                )
+            return contribution_bounders.SamplingCrossPartitionContributionBounder(
             )
-        return contribution_bounders.SamplingCrossPartitionContributionBounder()
+        # no cross partition contribution
+        if expects_per_partition_sampling:
+            return contribution_bounders.LinfSampler()
+        # No sampling, but combiners themselves do per partition contribution
+        # bounding.
+        return contribution_bounders.NoOpSampler()
 
     def _extract_columns(self, col,
                          data_extractors: pipeline_dp.DataExtractors):
