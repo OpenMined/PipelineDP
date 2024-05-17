@@ -22,6 +22,7 @@ from pipeline_dp import pipeline_backend
 from pipeline_dp import sampling_utils
 
 
+# TODO: rename ContributionBounder -> Sampler
 class ContributionBounder(abc.ABC):
     """Interface for objects which perform contribution bounding."""
 
@@ -76,8 +77,8 @@ class SamplingCrossAndPerPartitionContributionBounder(ContributionBounder):
             "Sample per (privacy_id, partition_key)")
         report_generator.add_stage(
             f"Per-partition contribution bounding: for each privacy_id and each"
-            f"partition, randomly select max(actual_contributions_per_partition"
-            f", {max_contributions_per_partition}) contributions.")
+            f" partition, randomly select max(actual_contributions_per_partitio"
+            f"n, {max_contributions_per_partition}) contributions.")
         # ((privacy_id, partition_key), [value])
         col = backend.map_values(
             col, aggregate_fn,
@@ -195,7 +196,7 @@ class SamplingCrossPartitionContributionBounder(ContributionBounder):
             "Apply aggregate_fn after cross-partition contribution bounding")
 
 
-class SamplingPerPartitionContributionBounder(ContributionBounder):
+class LinfSampler(ContributionBounder):
     """Bounds the contribution of privacy_id cross partitions.
 
     It ensures that each privacy_id contributes to not more than
@@ -215,19 +216,18 @@ class SamplingPerPartitionContributionBounder(ContributionBounder):
             "Sample per (privacy_id, partition_key)")
         # ((privacy_id, partition_key), value)
 
+        report_generator.add_stage(
+            f"Per-partition contribution bounding: for each privacy_id and each"
+            f" partition, randomly select max(actual_contributions_per_partitio"
+            f"n, {params.max_contributions_per_partition}) contributions.")
+
         return backend.map_values(
             col, aggregate_fn,
             "Apply aggregate_fn after cross-partition contribution bounding")
 
 
 class NoOpContributionBounder(ContributionBounder):
-    """Bounds the contribution of privacy_id cross partitions.
-
-    It ensures that each privacy_id contributes to not more than
-    max_partitions_contributed partitions (cross-partition contribution
-    bounding), by performing sampling if needed. It is assumed that the provided
-    aggregate_fn function bounds per-partition contributions.
-    """
+    """Does no sampling."""
 
     def bound_contributions(self, col, params, backend, report_generator,
                             aggregate_fn):
@@ -236,9 +236,10 @@ class NoOpContributionBounder(ContributionBounder):
             "Rekey to ((privacy_id, partition_key), value)")
         # ((privacy_id, partition_key), value)
 
-        return backend.group_by_key(
-            col, aggregate_fn,
-            "Apply aggregate_fn after cross-partition contribution bounding")
+        col = backend.group_by_key(col, "Group by (privacy_id, partition_key)")
+        # ((privacy_id, partition_key), [value])
+
+        return backend.map_values(col, aggregate_fn, "Apply aggregate_fn")
 
 
 def collect_values_per_partition_key_per_privacy_id(
