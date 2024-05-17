@@ -154,7 +154,7 @@ class SamplingPerPrivacyIdContributionBounderTest(parameterized.TestCase):
         self.assertEmpty(bound_result)
 
 
-class LinfSampler(parameterized.TestCase):
+class LinfSamplerTest(parameterized.TestCase):
 
     def _run_sampling(self, input, max_contributions_per_partition):
         params = PerPartitionContributionParams(max_contributions_per_partition)
@@ -170,22 +170,24 @@ class LinfSampler(parameterized.TestCase):
         input = [('pid1', 'pk1', 1), ('pid1', 'pk1', 2), ('pid2', 'pk1', 3),
                  ('pid2', 'pk1', 4)]
         max_contributions_per_partition = 1
+
         bound_result = self._run_sampling(input,
                                           max_contributions_per_partition)
         bound_result = dict(bound_result)
+
         # {(privacy_id, partition_key), [values])
         self.assertLen(bound_result, 2)
         self.assertLen(bound_result[('pid1', 'pk1')], 1)
         self.assertLen(bound_result[('pid2', 'pk1')], 1)
 
-    def test_sampling_applied_nothing_dropped(self):
+    def test_more_contributions_than_bound_nothing_dropped(self):
         input = [('pid1', 'pk1', 1), ('pid1', 'pk1', 2), ('pid1', 'pk1', 3)]
         max_contributions_per_partition = 3
 
         bound_result = self._run_sampling(input,
                                           max_contributions_per_partition)
-        print(bound_result)
-        # self.assertEqual(set(expected_result), set(bound_result))
+
+        self.assertEqual(bound_result, [(('pid1', 'pk1'), [1, 2, 3])])
 
     def test_empty_col(self):
         self.assertEmpty(
@@ -194,7 +196,7 @@ class LinfSampler(parameterized.TestCase):
 
 class NoOpContributionBounderTest(parameterized.TestCase):
 
-    def test_contribution_bounding_applied(self):
+    def test_sampling_applied(self):
         input = [('pid1', 'pk1', 1), ('pid1', 'pk1', 2), ('pid2', 'pk1', 3),
                  ('pid3', 'pk2', 4)]
         bounder = contribution_bounders.NoOpSampler()

@@ -600,7 +600,7 @@ class DpEngineTest(parameterized.TestCase):
                                                     unittest.mock.ANY)
 
     @patch('pipeline_dp.contribution_bounders.NoOpSampler.bound_contributions')
-    def test_aggregate_computation_graph_only_no_sampling_for_sum_when_no_cross_partition(
+    def test_aggregate_computation_graph_no_sampling_for_sum_when_no_cross_partition(
             self, mock_bound_contributions):
         # Arrange
         aggregate_params = pipeline_dp.AggregateParams(
