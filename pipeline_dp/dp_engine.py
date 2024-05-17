@@ -397,7 +397,7 @@ class DPEngine:
             return contribution_bounders.LinfSampler()
         # No sampling, but combiners themselves do per partition contribution
         # bounding.
-        return contribution_bounders.NoOpContributionBounder()
+        return contribution_bounders.NoOpSampler()
 
     def _extract_columns(self, col,
                          data_extractors: pipeline_dp.DataExtractors):

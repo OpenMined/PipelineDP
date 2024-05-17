@@ -21,8 +21,13 @@ import pipeline_dp
 from pipeline_dp import pipeline_backend
 from pipeline_dp import sampling_utils
 
+# TODO(dvadym):
+#  1. rename ContributionBounder -> ContributionSampler, because all those
+#  classes do contribution bounding only by sampling.
+#  2. Introduce L0/Linf/L1 sampling in names (the current names are too long
+#  and not readable).
 
-# TODO: rename ContributionBounder -> Sampler
+
 class ContributionBounder(abc.ABC):
     """Interface for objects which perform contribution bounding."""
 
@@ -197,12 +202,11 @@ class SamplingCrossPartitionContributionBounder(ContributionBounder):
 
 
 class LinfSampler(ContributionBounder):
-    """Bounds the contribution of privacy_id cross partitions.
+    """Bounds the contribution of privacy_id per partition.
 
-    It ensures that each privacy_id contributes to not more than
-    max_partitions_contributed partitions (cross-partition contribution
-    bounding), by performing sampling if needed. It is assumed that the provided
-    aggregate_fn function bounds per-partition contributions.
+    It ensures that each privacy_id contributes to each partition not more than
+    max_contributions_per_partition records (per-partition contribution
+    bounding), by performing sampling if needed.
     """
 
     def bound_contributions(self, col, params, backend, report_generator,
@@ -226,7 +230,7 @@ class LinfSampler(ContributionBounder):
             "Apply aggregate_fn after cross-partition contribution bounding")
 
 
-class NoOpContributionBounder(ContributionBounder):
+class NoOpSampler(ContributionBounder):
     """Does no sampling."""
 
     def bound_contributions(self, col, params, backend, report_generator,
