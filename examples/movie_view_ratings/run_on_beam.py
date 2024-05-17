@@ -32,8 +32,6 @@ from common_utils import ParseFile
 FLAGS = flags.FLAGS
 flags.DEFINE_string('input_file', None, 'The file with the movie view data')
 flags.DEFINE_string('output_file', None, 'Output file')
-flags.DEFINE_integer('pre_threshold', None,
-                     'Pre threshold which is used in the DP aggregation')
 
 
 def main(unused_argv):
@@ -75,9 +73,9 @@ def main(unused_argv):
             # The aggregation key: we're grouping data by movies
             partition_extractor=lambda mv: mv.movie_id,
             # The value we're aggregating: we're summing up ratings
-            value_extractor=lambda mv: mv.rating)
-        if FLAGS.pre_threshold:
-            params.pre_threshold = FLAGS.pre_threshold
+            value_extractor=lambda mv: mv.rating,
+            # Limit the minimum partition size to release
+            pre_threshold=5)
 
         dp_result = private_movie_views | "Private Sum" >> private_beam.Sum(
             params)
