@@ -572,6 +572,60 @@ class DpEngineTest(parameterized.TestCase):
                                                     unittest.mock.ANY,
                                                     unittest.mock.ANY)
 
+    @patch('pipeline_dp.contribution_bounders.LinfSampler.bound_contributions')
+    def test_aggregate_computation_graph_only_linf_sampling(
+            self, mock_bound_contributions):
+        # Arrange
+        aggregate_params = pipeline_dp.AggregateParams(
+            noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+            metrics=[pipeline_dp.Metrics.SUM],
+            min_value=0,
+            max_value=1,
+            max_partitions_contributed=1,
+            max_contributions_per_partition=1,
+            perform_cross_partition_contribution_bounding=False)
+
+        engine = self._create_dp_engine_default()
+        mock_bound_contributions.return_value = []
+
+        engine.aggregate(col=[0],
+                         params=aggregate_params,
+                         data_extractors=self._get_default_extractors())
+
+        # Assert
+        mock_bound_contributions.assert_called_with(unittest.mock.ANY,
+                                                    aggregate_params,
+                                                    unittest.mock.ANY,
+                                                    unittest.mock.ANY,
+                                                    unittest.mock.ANY)
+
+    @patch('pipeline_dp.contribution_bounders.NoOpSampler.bound_contributions')
+    def test_aggregate_computation_graph_no_sampling_for_sum_when_no_cross_partition(
+            self, mock_bound_contributions):
+        # Arrange
+        aggregate_params = pipeline_dp.AggregateParams(
+            noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+            metrics=[pipeline_dp.Metrics.SUM],
+            min_sum_per_partition=0,
+            max_sum_per_partition=1,
+            max_partitions_contributed=1,
+            max_contributions_per_partition=1,
+            perform_cross_partition_contribution_bounding=False)
+
+        engine = self._create_dp_engine_default()
+        mock_bound_contributions.return_value = []
+
+        engine.aggregate(col=[0],
+                         params=aggregate_params,
+                         data_extractors=self._get_default_extractors())
+
+        # Assert
+        mock_bound_contributions.assert_called_with(unittest.mock.ANY,
+                                                    aggregate_params,
+                                                    unittest.mock.ANY,
+                                                    unittest.mock.ANY,
+                                                    unittest.mock.ANY)
+
     @patch('pipeline_dp.dp_engine.DPEngine._drop_partitions',)
     def test_aggregate_no_partition_filtering_public_partitions(
             self, mock_drop_partitions):
