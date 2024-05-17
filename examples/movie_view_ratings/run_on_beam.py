@@ -15,7 +15,7 @@
 
 For running:
 1. Install Python and run on the command line `pip install pipeline-dp apache-beam absl-py`
-2. Run python python run_on_beam.py --input_file=<path to data.txt from 3> --output_file=<...>
+2. Run python run_on_beam.py --input_file=<path to data.txt from 3> --output_file=<...>
 
 """
 
@@ -60,21 +60,25 @@ def main(unused_argv):
 
         explain_computation_report = pipeline_dp.ExplainComputationReport()
         # Calculate the private sum
+        params = SumParams(
+            # Limits to how much one user can contribute:
+            # .. at most two movies rated per user
+            max_partitions_contributed=2,
+            # .. at most one rating for each movie
+            max_contributions_per_partition=1,
+            # .. with minimal rating of "1"
+            min_value=1,
+            # .. and maximum rating of "5"
+            max_value=5,
+            # The aggregation key: we're grouping data by movies
+            partition_extractor=lambda mv: mv.movie_id,
+            # The value we're aggregating: we're summing up ratings
+            value_extractor=lambda mv: mv.rating,
+            # Limit the minimum partition size to release
+            pre_threshold=5)
+
         dp_result = private_movie_views | "Private Sum" >> private_beam.Sum(
-            SumParams(
-                # Limits to how much one user can contribute:
-                # .. at most two movies rated per user
-                max_partitions_contributed=2,
-                # .. at most one rating for each movie
-                max_contributions_per_partition=1,
-                # .. with minimal rating of "1"
-                min_value=1,
-                # .. and maximum rating of "5"
-                max_value=5,
-                # The aggregation key: we're grouping data by movies
-                partition_extractor=lambda mv: mv.movie_id,
-                # The value we're aggregating: we're summing up ratings
-                value_extractor=lambda mv: mv.rating))
+            params)
         budget_accountant.compute_budgets()
 
         # Generate the Explain Computation Report. It must be called after

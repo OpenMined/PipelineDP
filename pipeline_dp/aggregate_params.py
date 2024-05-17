@@ -448,6 +448,13 @@ class SumParams:
             max_contributions_per_partition. This option can be used if the
             dataset does not contain any identifiers that can be used to enforce
             contribution bounds automatically.
+        pre_threshold: the minimum amount of privacy units which are required
+         for keeping a partition in private partition selection. Note that this
+         is in addition to a differentially private partition selection, so a
+         partition with pre_threshold privacy units isn't necessarily kept. It
+         is ignored when public partitions are used.
+         More details on pre-thresholding are in
+         https://github.com/google/differential-privacy/blob/main/common_docs/pre_thresholding.md
     """
     max_partitions_contributed: int
     max_contributions_per_partition: int
@@ -458,6 +465,7 @@ class SumParams:
     budget_weight: float = 1
     noise_kind: NoiseKind = NoiseKind.LAPLACE
     contribution_bounds_already_enforced: bool = False
+    pre_threshold: Optional[int] = None
 
     # TODO: add validation in __post_init__
 
@@ -488,6 +496,13 @@ class VarianceParams:
             max_contributions_per_partition. This option can be used if the
             dataset does not contain any identifiers that can be used to enforce
             contribution bounds automatically.
+        pre_threshold: the minimum amount of privacy units which are required
+         for keeping a partition in private partition selection. Note that this
+         is in addition to a differentially private partition selection, so a
+         partition with pre_threshold privacy units isn't necessarily kept. It
+         is ignored when public partitions are used.
+         More details on pre-thresholding are in
+         https://github.com/google/differential-privacy/blob/main/common_docs/pre_thresholding.md
     """
     max_partitions_contributed: int
     max_contributions_per_partition: int
@@ -498,6 +513,7 @@ class VarianceParams:
     budget_weight: float = 1
     noise_kind: NoiseKind = NoiseKind.LAPLACE
     contribution_bounds_already_enforced: bool = False
+    pre_threshold: Optional[int] = None
 
     # TODO: add validation in __post_init__
 
@@ -526,6 +542,13 @@ class MeanParams:
             max_contributions_per_partition. This option can be used if the
             dataset does not contain any identifiers that can be used to enforce
             contribution bounds automatically.
+        pre_threshold: the minimum amount of privacy units which are required
+         for keeping a partition in private partition selection. Note that this
+         is in addition to a differentially private partition selection, so a
+         partition with pre_threshold privacy units isn't necessarily kept. It
+         is ignored when public partitions are used.
+         More details on pre-thresholding are in
+         https://github.com/google/differential-privacy/blob/main/common_docs/pre_thresholding.md
     """
     max_partitions_contributed: int
     max_contributions_per_partition: int
@@ -536,6 +559,7 @@ class MeanParams:
     budget_weight: float = 1
     noise_kind: NoiseKind = NoiseKind.LAPLACE
     contribution_bounds_already_enforced: bool = False
+    pre_threshold: Optional[int] = None
 
     # TODO: add validation in __post_init__
 
@@ -559,6 +583,13 @@ class CountParams:
             max_contributions_per_partition. This option can be used if the
             dataset does not contain any identifiers that can be used to enforce
             contribution bounds automatically.
+        pre_threshold: the minimum amount of privacy units which are required
+         for keeping a partition in private partition selection. Note that this
+         is in addition to a differentially private partition selection, so a
+         partition with pre_threshold privacy units isn't necessarily kept. It
+         is ignored when public partitions are used.
+         More details on pre-thresholding are in
+         https://github.com/google/differential-privacy/blob/main/common_docs/pre_thresholding.md
     """
 
     noise_kind: NoiseKind
@@ -567,6 +598,7 @@ class CountParams:
     partition_extractor: Callable
     budget_weight: float = 1
     contribution_bounds_already_enforced: bool = False
+    pre_threshold: Optional[int] = None
 
     # TODO: add validation in __post_init__
 
@@ -591,6 +623,13 @@ class PrivacyIdCountParams:
             max_contributions_per_partition. This option can be used if the
             dataset does not contain any identifiers that can be used to enforce
             contribution bounds automatically.
+        pre_threshold: the minimum amount of privacy units which are required
+         for keeping a partition in private partition selection. Note that this
+         is in addition to a differentially private partition selection, so a
+         partition with pre_threshold privacy units isn't necessarily kept. It
+         is ignored when public partitions are used.
+         More details on pre-thresholding are in
+         https://github.com/google/differential-privacy/blob/main/common_docs/pre_thresholding.md
     """
 
     noise_kind: NoiseKind
@@ -598,6 +637,7 @@ class PrivacyIdCountParams:
     partition_extractor: Callable
     budget_weight: float = 1
     contribution_bounds_already_enforced: bool = False
+    pre_threshold: Optional[int] = None
 
     # TODO: add validation in __post_init__
 
