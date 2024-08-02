@@ -16,6 +16,8 @@
 from absl.testing import absltest
 from absl.testing import parameterized
 
+from typing import Optional
+
 import pipeline_dp
 from pipeline_dp.dataset_histograms import histograms as hist
 from pipeline_dp.dataset_histograms import computing_histograms
@@ -41,48 +43,56 @@ class HistogramErrorEstimatorTest(parameterized.TestCase):
                 dataset, data_extractors, pipeline_dp.LocalBackend()))[0]
 
     def _get_estimator(
-            self,
-            metric: pipeline_dp.Metric,
-            noise_kind: pipeline_dp.NoiseKind = pipeline_dp.NoiseKind.LAPLACE,
-            base_std: float = 2.0):
+        self,
+        metric: pipeline_dp.Metric,
+        noise_kind: pipeline_dp.NoiseKind = pipeline_dp.NoiseKind.LAPLACE,
+        epsilon: float = 2**0.5 / 2,
+        delta: Optional[float] = None,
+    ):
         return histogram_error_estimator.create_error_estimator(
-            self._get_histograms(), base_std, metric, noise_kind)
+            self._get_histograms(), epsilon, delta, metric, noise_kind)
 
     @parameterized.named_parameters(
         dict(testcase_name='count_gaussian',
              metric=pipeline_dp.Metrics.COUNT,
              noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
-             base_std=2.0,
+             epsilon=1.0,
+             delta=0.00685,
              l0=9,
              linf=5,
              expected=30),
         dict(testcase_name='count_laplace',
              metric=pipeline_dp.Metrics.COUNT,
              noise_kind=pipeline_dp.NoiseKind.LAPLACE,
-             base_std=2.0,
+             epsilon=2**0.5 / 2,
+             delta=None,
              l0=9,
              linf=5,
              expected=90),
         dict(testcase_name='privacy_id_count_gaussian',
              metric=pipeline_dp.Metrics.PRIVACY_ID_COUNT,
              noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
-             base_std=1.5,
+             epsilon=1.0,
+             delta=0.031,
              l0=9,
              linf=5,
              expected=4.5),
         dict(testcase_name='privacy_id_count_laplace',
              metric=pipeline_dp.Metrics.PRIVACY_ID_COUNT,
              noise_kind=pipeline_dp.NoiseKind.LAPLACE,
-             base_std=1.5,
+             epsilon=2**0.5 / 1.5,
+             delta=None,
              l0=9,
              linf=5,
              expected=13.5),
     )
-    def test_count_get_sigma(self, metric: pipeline_dp.Metric, base_std: float,
+    def test_count_get_sigma(self, metric: pipeline_dp.Metric, epsilon: float,
+                             delta: Optional[float],
                              noise_kind: pipeline_dp.NoiseKind, l0: float,
                              linf: float, expected: float):
         estimator = self._get_estimator(metric=metric,
-                                        base_std=base_std,
+                                        epsilon=epsilon,
+                                        delta=delta,
                                         noise_kind=noise_kind)
         self.assertAlmostEqual(estimator._get_stddev(l0, linf),
                                expected,
