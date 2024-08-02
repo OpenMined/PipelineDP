@@ -14,6 +14,7 @@
 """Estimation of errors from DatasetHistograms."""
 import pipeline_dp
 from pipeline_dp.dataset_histograms import histograms as hist
+from pydp.algorithms import numerical_mechanisms as dp_mechanisms
 from typing import Optional, Sequence, Tuple
 import math
 import bisect
@@ -29,17 +30,35 @@ class CountErrorEstimator:
     bounding and noise error are taken into consideration.
     """
 
-    def __init__(self, base_std: float, metric: pipeline_dp.Metric,
-                 noise: pipeline_dp.NoiseKind,
+    def __init__(self, epsilon: float, delta: Optional[float],
+                 metric: pipeline_dp.Metric, noise: pipeline_dp.NoiseKind,
                  l0_ratios_dropped: Sequence[Tuple[int, float]],
                  linf_ratios_dropped: Sequence[Tuple[int, float]],
                  partition_histogram: hist.Histogram):
-        self._base_std = base_std
+        self._base_std = self._get_stddev_for_dp_mechanism(
+            epsilon, delta, noise)
         self._metric = metric
         self._noise = noise
         self._l0_ratios_dropped = l0_ratios_dropped
         self._linf_ratios_dropped = linf_ratios_dropped
         self._partition_histogram = partition_histogram
+
+    def _get_stddev_for_dp_mechanism(
+        self,
+        epsilon: float,
+        delta: Optional[float],
+        noise: pipeline_dp.NoiseKind,
+    ) -> float:
+        if noise == pipeline_dp.NoiseKind.LAPLACE:
+            if delta is not None:
+                raise ValueError("Delta must be None for Laplace noise")
+            return 2**0.5 / epsilon
+        elif noise == pipeline_dp.NoiseKind.GAUSSIAN:
+            return dp_mechanisms.GaussianMechanism(epsilon=epsilon,
+                                                   delta=delta,
+                                                   sensitivity=1.0).std
+        else:
+            raise ValueError(f"Unsupported noise kind: {noise}")
 
     def estimate_rmse(self,
                       l0_bound: int,
@@ -114,15 +133,16 @@ class CountErrorEstimator:
         return self._base_std * math.sqrt(l0_bound) * linf_bound
 
 
-def create_error_estimator(histograms: hist.DatasetHistograms, base_std: float,
-                           metric: pipeline_dp.Metric,
+def create_error_estimator(histograms: hist.DatasetHistograms, epsilon: float,
+                           delta: Optional[float], metric: pipeline_dp.Metric,
                            noise: pipeline_dp.NoiseKind) -> CountErrorEstimator:
     """Creates histogram based error estimator for COUNT or PRIVACY_ID_COUNT.
 
     Args:
         histograms: dataset histograms.
-        base_std: what's standard deviation of the noise, when l0 and linf
-         bounds equal to 1.
+        epsilon: epsilon parameter of the DP mechanism for adding noise.
+        delta: delta parameter of the DP mechanism for adding noise (must be
+            None for Laplace noise).
         metric: DP aggregation, COUNT or PRIVACY_ID_COUNT.
         noise: type of DP noise.
     Returns:
@@ -142,7 +162,7 @@ def create_error_estimator(histograms: hist.DatasetHistograms, base_std: float,
         partition_histogram = histograms.count_per_partition_histogram
     else:
         partition_histogram = histograms.count_privacy_id_per_partition
-    return CountErrorEstimator(base_std, metric, noise, l0_ratios_dropped,
+    return CountErrorEstimator(epsilon, delta, metric, noise, l0_ratios_dropped,
                                linf_ratios_dropped, partition_histogram)
 
 
