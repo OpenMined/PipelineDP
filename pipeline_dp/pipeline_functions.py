@@ -99,11 +99,17 @@ def collect_to_container(backend: pipeline_backend.PipelineBackend,
                        f"{stage_name}: construct container class from inputs")
 
 
-def min_max_elements(backend: pipeline_backend.PipelineBackend, col,
-                     stage_name: str):
-    col = backend.map(col, lambda x: (None, (x, x)),
-                      f"{stage_name}: key by dummy key")  # None is dummy key
+def min_max_per_key(backend: pipeline_backend.PipelineBackend, col,
+                    stage_name: str):
+    """Returns min and max per key for (key, value) collection."""
+    col = backend.map_values(col, lambda x: (x, x),
+                             f"{stage_name}: convert x to (x, x).")
+    # col: (key, (value, value))
+
     col = backend.reduce_per_key(
-        col, lambda x, y: (min(x[0], y[0]), max(x[1], y[1])),
-        f"{stage_name}: reduce to compute min, max")
-    return backend.values(col, "Drop keys")
+        col,
+        lambda x, y: (min(x[0], y[0]), max(x[1], y[1])),
+        f"{stage_name}: reduce to compute min, max",
+    )
+    # col: (key, (min, max))
+    return col

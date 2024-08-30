@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """ContributionBounder for utility analysis."""
+
+import numpy as np
 from pipeline_dp import contribution_bounders
 from pipeline_dp import sampling_utils
 
@@ -65,9 +67,20 @@ class AnalysisContributionBounder(contribution_bounders.ContributionBounder):
             for partition_key, values in partition_values:
                 if sampler is not None and not sampler.keep(partition_key):
                     continue
-                yield (privacy_id, partition_key), (len(values), sum(values),
-                                                    num_partitions_contributed,
-                                                    num_contributions)
+                if len(values) == 1:
+                    sum_values = values
+                # elif len(values[0]) == 1:  todo
+                #     # 1 value
+                #     sum_values = sum(values)
+                else:
+                    # multiple value columns, sum each column independently
+                    sum_values = np.array(values).sum(axis=0).tolist()
+                yield (privacy_id, partition_key), (
+                    len(values),
+                    sum_values,
+                    num_partitions_contributed,
+                    num_contributions,
+                )
 
         # Unnest the list per privacy id.
         col = backend.flat_map(
