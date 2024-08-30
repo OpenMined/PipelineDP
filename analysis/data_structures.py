@@ -47,8 +47,10 @@ class MultiParameterConfiguration:
     """
     max_partitions_contributed: Sequence[int] = None
     max_contributions_per_partition: Sequence[int] = None
-    min_sum_per_partition: Sequence[float] = None
-    max_sum_per_partition: Sequence[float] = None
+    min_sum_per_partition: Union[Sequence[float],
+                                 Sequence[Sequence[float]]] = None
+    max_sum_per_partition: Union[Sequence[float],
+                                 Sequence[Sequence[float]]] = None
     noise_kind: Sequence[pipeline_dp.NoiseKind] = None
     partition_selection_strategy: Sequence[
         pipeline_dp.PartitionSelectionStrategy] = None

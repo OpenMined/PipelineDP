@@ -15,7 +15,7 @@
 
 from dataclasses import dataclass, field
 import enum
-from typing import List, Sequence, Tuple, Union
+from typing import List, Optional, Sequence, Tuple, Union
 
 
 @dataclass
@@ -210,7 +210,13 @@ class DatasetHistograms:
     l0_contributions_histogram: Histogram
     l1_contributions_histogram: Histogram
     linf_contributions_histogram: Histogram
-    linf_sum_contributions_histogram: Histogram
+    linf_sum_contributions_histogram: Optional[Union[Histogram,
+                                                     List[Histogram]]]
     count_per_partition_histogram: Histogram
     count_privacy_id_per_partition: Histogram
-    sum_per_partition_histogram: Histogram
+    sum_per_partition_histogram: Optional[Union[Histogram, List[Histogram]]]
+
+    def num_sum_histograms(self) -> int:
+        if isinstance(self.linf_sum_contributions_histogram, Histogram):
+            return 1
+        return len(self.linf_sum_contributions_histogram)
