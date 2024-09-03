@@ -13,7 +13,7 @@
 # limitations under the License.
 """Functions for computing dataset histograms in pipelines."""
 import operator
-from typing import Iterable, List, Tuple
+from typing import Iterable, List, Tuple, Union
 
 import pipeline_dp
 from pipeline_dp import pipeline_backend
@@ -142,7 +142,7 @@ def _convert_frequency_bins_into_histogram(
 
 
 def _list_to_contribution_histograms(
-    histograms: List[hist.Histogram | List[hist.Histogram]],
+    histograms: List[Union[hist.Histogram, List[hist.Histogram]]],
 ) -> hist.DatasetHistograms:
     """Packs histograms from a list to ContributionHistograms."""
     l0_contributions = l1_contributions = None
