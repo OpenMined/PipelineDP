@@ -22,6 +22,19 @@ from pipeline_dp.dataset_histograms import sum_histogram_computation
 from analysis import pre_aggregation
 
 
+class LowerUpperGeneratorTest(parameterized.TestCase):
+
+    def test(self):
+        g = sum_histogram_computation.LowerUpperGenerator(0, 10, num_buckets=20)
+        self.assertEqual(g.bucket_len, 0.5)
+        self.assertEqual(g.get_bucket_index(-1), 0)
+        self.assertEqual(g.get_bucket_index(0), 0)
+        self.assertEqual(g.get_bucket_index(0.5), 1)
+        self.assertEqual(g.get_bucket_index(5.1), 10)
+        self.assertEqual(g.get_bucket_index(10), 19)
+        self.assertEqual(g.get_bucket_index(11), 19)
+
+
 class SumHistogramComputationTest(parameterized.TestCase):
 
     @parameterized.product(

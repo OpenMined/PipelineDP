@@ -13,7 +13,20 @@
 # limitations under the License.
 """Functions for computing linf_sum and sum_per_partition histograms."""
 
-# TODO: theory on sum histograms
+# This files contains histograms which is useful for analysis of DP SUM
+# aggregation utility.
+# The general structure of these histogram is the following:
+# The input is collection of values X = (x0, ... x_n).
+# Computations is the following:
+# 1. Find min_x = min(X), max_x = max(X) of X
+# 2. Split the segment [min_x, max_x] in NUMBER_OF_BUCKETS_SUM_HISTOGRAM = 10000
+# equals size intervals [l_i, r_i), the last interval includes both endpoints.
+# 3. Each bin of the histogram correspoinds to interval [l_i, r_i), and contains
+# different statistics of numbers from X, which belogins to this intervals, like
+# count, sum, max etc.
+#
+# For generating bucket class LowerUpperGenerator is used, which takes
+# min, max, number of buckets and returns bucket for each number.
 
 import copy
 import operator
@@ -28,15 +41,17 @@ NUMBER_OF_BUCKETS_SUM_HISTOGRAM = 10000
 class LowerUpperGenerator:
     """Generates lower-upper bounds for FrequencyBin
 
-  Attributes:
-    left, right: bounds on interval on which we compute histogram.
-    num_buckets: number of buckets on [left, right]. Buckets have the same length.
+    Attributes:
+        left, right: bounds on interval on which we compute histogram.
+        num_buckets: number of buckets on [left, right]. Buckets have the same
+         length.
 
-  i-th bucket corresponds to numbers from
+    For general context see file docstring.
+    i-th bucket corresponds to numbers from
     [left+i*bucket_len, right+(i+1)*bucket_len), where
     bucket_len = (right-left)/num_buckets.
-  The last bucket includes right end-point.
-  """
+    The last bucket includes right end-point.
+    """
 
     def __init__(
         self,
@@ -51,8 +66,7 @@ class LowerUpperGenerator:
         self.bucket_len = (right - left) / num_buckets
 
     def get_bucket_index(self, x: float) -> int:
-        assert self.left <= x <= self.right  # only for debug
-        if x == self.right:  # last bucket includes both ends.
+        if x >= self.right:  # last bucket includes both ends.
             return self.num_buckets - 1
         if x <= self.left:
             return 0
@@ -79,17 +93,17 @@ def _compute_frequency_histogram_per_key(
 ):
     """Computes histogram of element frequencies in collection.
 
-  This is a helper function for computing sum histograms per key.
+    This is a helper function for computing sum histograms per key.
 
-  Args:
+    Args:
       col: collection of (key, value:float)
       backend: PipelineBackend to run operations on the collection.
       name: name which is assigned to the computed histogram.
       num_buckets: the number of buckets in the output histogram.
 
-  Returns:
+    Returns:
       1 element collection which contains list [hist.Histogram], sorted by key.
-  """
+    """
     col = backend.to_multi_transformable_collection(col)
 
     bucket_generators = _create_bucket_generators_per_key(
@@ -149,16 +163,16 @@ def _compute_frequency_histogram_per_key(
 
 def _create_bucket_generators_per_key(
         col, number_of_buckets: int, backend: pipeline_backend.PipelineBackend):
-    """Create bucket generators per key.
+    """Creates bucket generators per key.
 
-  Args:
-    col: collection of (key, value)
-    backend: PipelineBackend to run operations on the collection.
-    num_buckets: the number of buckets in the output histogram.
+    Args:
+        col: collection of (key, value)
+        backend: PipelineBackend to run operations on the collection.
+        num_buckets: the number of buckets in the output histogram.
 
-  Returns:
-    1 element collection with dictionary {key: LowerUpperGenerator}.
-  """
+    Returns:
+        1 element collection with dictionary {key: LowerUpperGenerator}.
+    """
     col = pipeline_functions.min_max_per_key(
         backend, col, "Min and max value per value column")
     # (index, (min, max))
@@ -178,20 +192,20 @@ def _create_bucket_generators_per_key(
 
 
 def _flat_values(col, backend: pipeline_backend.PipelineBackend):
-    """Unnest values in (key, value) collection.
+    """Unnests values in (key, value) collection.
 
-  Args:
-    col: collection of (key, value) or (key, [value])
-    backend: PipelineBackend to run operations on the collection.
+    Args:
+        col: collection of (key, value) or (key, [value])
+        backend: PipelineBackend to run operations on the collection.
 
-  Transform each element:
+    Transform each element:
     (key, value: float) -> ((0, key), value)
     (key, value: list[float]) -> [((0, key), value[0]), ((1, key), value[1])...]
-  and then unnest them.
+    and then unnest them.
 
-  Return:
-    Collection of ((index, key), value).
-  """
+    Return:
+        Collection of ((index, key), value).
+    """
 
     def flat_values(key_values):
         key, values = key_values
@@ -208,19 +222,19 @@ def _compute_linf_sum_contributions_histogram(
         col, backend: pipeline_backend.PipelineBackend):
     """Computes histogram of per partition privacy id contributions.
 
-  This histogram contains: the number of (privacy id, partition_key)-pairs
-  which have sum of values X_1, X_2, ..., X_n, where X_1 = min_sum,
-  X_n = one before max sum and n is equal to
-  NUMBER_OF_BUCKETS_SUM_HISTOGRAM.
+    This histogram contains: the number of (privacy id, partition_key)-pairs
+    which have sum of values X_1, X_2, ..., X_n, where X_1 = min_sum,
+    X_n = one before max sum and n is equal to
+    NUMBER_OF_BUCKETS_SUM_HISTOGRAM.
 
-   Args:
-    col: collection with elements ((privacy_id, partition_key), value(s)).
-     where value can be 1 float or tuple of floats (in case of many columns)
-    backend: PipelineBackend to run operations on the collection.
+    Args:
+        col: collection with elements ((privacy_id, partition_key), value(s)).
+        where value can be 1 float or tuple of floats (in case of many columns)
+        backend: PipelineBackend to run operations on the collection.
 
-  Returns:
-    1 element collection, which contains the computed hist.Histogram.
-  """
+    Returns:
+        1 element collection, which contains the computed hist.Histogram.
+    """
     col = _flat_values(col, backend)
     # ((index_value, (pid, pk)), value).
     col = backend.sum_per_key(
@@ -239,16 +253,16 @@ def _compute_partition_sum_histogram(col,
                                      backend: pipeline_backend.PipelineBackend):
     """Computes histogram of sum per partition.
 
-  This histogram contains: the number of partition_keys which have sum of
-  values X_1, X_2, ..., X_n, where X_1 = min_sum, X_n = one before max sum and
-  n is equal to NUMBER_OF_BUCKETS_SUM_HISTOGRAM.
+    This histogram contains: the number of partition_keys which have sum of
+    values X_1, X_2, ..., X_n, where X_1 = min_sum, X_n = one before max sum and
+    n is equal to NUMBER_OF_BUCKETS_SUM_HISTOGRAM.
 
-  Args:
+    Args:
       col: collection with elements ((privacy_id, partition_key), value).
       backend: PipelineBackend to run operations on the collection.
-  Returns:
-      1 element collection, which contains the computed hist.Histogram.
-  """
+    Returns:
+          1 element collection, which contains the computed hist.Histogram.
+    """
 
     col = backend.map_tuple(col, lambda pid_pk, value: (pid_pk[1], value),
                             "Drop privacy id")
@@ -269,18 +283,18 @@ def _compute_linf_sum_contributions_histogram_on_preaggregated_data(
         col, backend: pipeline_backend.PipelineBackend):
     """Computes histogram of per partition privacy id contributions.
 
-  This histogram contains: the number of (privacy id, partition_key)-pairs
-  which have sum of values X_1, X_2, ..., X_n, where X_1 = min_sum,
-  X_n = one before max sum and n is equal to
-  NUMBER_OF_BUCKETS_SUM_HISTOGRAM.
+    This histogram contains: the number of (privacy id, partition_key)-pairs
+    which have sum of values X_1, X_2, ..., X_n, where X_1 = min_sum,
+    X_n = one before max sum and n is equal to
+    NUMBER_OF_BUCKETS_SUM_HISTOGRAM.
 
-  Args:
+    Args:
       col: collection with a pre-aggregated dataset, each element is
       (partition_key, (count, sum, n_partitions, n_contributions)).
       backend: PipelineBackend to run operations on the collection.
-  Returns:
+    Returns:
       1 element collection, which contains the computed histograms.Histogram.
-  """
+    """
     col = backend.map_tuple(
         col,
         lambda _, x:
@@ -304,17 +318,17 @@ def _compute_partition_sum_histogram_on_preaggregated_data(
         col, backend: pipeline_backend.PipelineBackend):
     """Computes histogram of counts per partition.
 
-  This histogram contains: the number of partition_keys which have sum of
-  values X_1, X_2, ..., X_n, where X_1 = min_sum, X_n = one before max sum and
-  n is equal to NUMBER_OF_BUCKETS_SUM_HISTOGRAM.
+    This histogram contains: the number of partition_keys which have sum of
+    values X_1, X_2, ..., X_n, where X_1 = min_sum, X_n = one before max sum and
+    n is equal to NUMBER_OF_BUCKETS_SUM_HISTOGRAM.
 
-  Args:
+    Args:
       col: collection with a pre-aggregated dataset, each element is
       (partition_key, (count, sum, n_partitions, n_contributions)).
       backend: PipelineBackend to run operations on the collection.
-  Returns:
+    Returns:
       1 element collection, which contains the computed histograms.Histogram.
-  """
+    """
     col = backend.map_values(
         col,
         lambda x: x[1],  # x is (count, sum, n_partitions, n_contributions)

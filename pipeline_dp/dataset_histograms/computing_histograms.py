@@ -12,16 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Functions for computing dataset histograms in pipelines."""
-import bisect
 import operator
 from typing import Iterable, List, Tuple
-
-import numpy as np
 
 import pipeline_dp
 from pipeline_dp import pipeline_backend
 from pipeline_dp.dataset_histograms import histograms as hist
 from pipeline_dp.dataset_histograms import sum_histogram_computation
+
+# Functions _compute_* computes histogram for counts. TODO: move them to
+# a separate file, similar to sum_histogram_computation.py.
 
 
 def _to_bin_lower_upper_logarithmic(value: int) -> Tuple[int, int]:
