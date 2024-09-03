@@ -437,8 +437,9 @@ class LocalBackendTest(unittest.TestCase):
 
     def test_local_map_with_side_inputs(self):
         col = [1, 2]
-        list_side_input_col = [3, 4, 5]
-        one_element_side_input_col = [6]
+        # side input must be 1-element iterable, and the single element is a list
+        list_side_input_col = [[3, 4, 5]]
+        one_element_side_input_col = [[6]]
         join_lists_fn = lambda x, l1, l2: [x] + l1 + l2
 
         result = self.backend.map_with_side_inputs(
