@@ -16,6 +16,7 @@
 import numpy as np
 from pipeline_dp import contribution_bounders
 from pipeline_dp import sampling_utils
+from typing import Iterable
 
 
 class AnalysisContributionBounder(contribution_bounders.ContributionBounder):
@@ -67,14 +68,27 @@ class AnalysisContributionBounder(contribution_bounders.ContributionBounder):
             for partition_key, values in partition_values:
                 if sampler is not None and not sampler.keep(partition_key):
                     continue
-                if len(values) == 1:
-                    sum_values = values
-                # elif len(values[0]) == 1:  todo
-                #     # 1 value
-                #     sum_values = sum(values)
-                else:
+                # Sum values if it's needed values,
+                # values can contain multi-columns, the format is the following
+                # 1 column:
+                #   input: values = [v_0:float, ... ]
+                #   output: v_0 + ....
+                # k columns (k > 1):
+                #   input: values = [v_0=(v00, ... v0(k-1)), ...]
+                #   output: (00+v10+..., ...)
+                if not values:
+                    # Empty public partitions
+                    sum_values = 0
+                elif len(values) == 1:
+                    # No need to sum, return 0th value
+                    sum_values = values[0]
+                elif isinstance(values[0], Iterable):
                     # multiple value columns, sum each column independently
-                    sum_values = np.array(values).sum(axis=0).tolist()
+                    sum_values = tuple(np.array(values).sum(axis=0).tolist())
+                else:
+                    # 1 column
+                    sum_values = sum(values)
+
                 yield (privacy_id, partition_key), (
                     len(values),
                     sum_values,

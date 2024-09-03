@@ -163,6 +163,45 @@ class SumHistogramComputationTest(parameterized.TestCase):
                              histogram.name)
             self.assertListEqual(expected, histogram.bins)
 
+    @parameterized.parameters(False, True)
+    def test_compute_linf_sum_contributions_histogram_2_columns(
+            self, pre_aggregated: bool):
+        # format: ((privacy_id, partition), value: tuple)
+        data = [((0, 0), (1, 10)), ((0, 1), (2, 20)), ((0, 1), (3, 30)),
+                ((1, 0), (5, 50))]
+        backend = pipeline_dp.LocalBackend()
+        expected = [
+            hist.Histogram(hist.HistogramType.LINF_SUM_CONTRIBUTIONS, [
+                hist.FrequencyBin(
+                    lower=1.0, upper=1.0004, count=1, sum=1, max=1),
+                hist.FrequencyBin(
+                    lower=4.9996, upper=5.0, count=2, sum=10, max=5)
+            ]),
+            hist.Histogram(hist.HistogramType.LINF_SUM_CONTRIBUTIONS, [
+                hist.FrequencyBin(
+                    lower=10.0, upper=10.004, count=1, sum=10, max=10),
+                hist.FrequencyBin(
+                    lower=49.996, upper=50.0, count=2, sum=100, max=50)
+            ])
+        ]
+        if pre_aggregated:
+            data = list(
+                pre_aggregation.preaggregate(
+                    data,
+                    backend,
+                    data_extractors=pipeline_dp.DataExtractors(
+                        privacy_id_extractor=lambda x: x[0][0],
+                        partition_extractor=lambda x: x[0][1],
+                        value_extractor=lambda x: x[1])))
+
+            compute_histograms = sum_histogram_computation._compute_linf_sum_contributions_histogram_on_preaggregated_data
+        else:
+            compute_histograms = sum_histogram_computation._compute_linf_sum_contributions_histogram
+        histograms = list(compute_histograms(data, backend))
+        self.assertLen(histograms, 1)
+        histograms = histograms[0]
+        self.assertListEqual(histograms, expected)
+
     @parameterized.product(
         (
             dict(testcase_name='empty histogram',
@@ -306,6 +345,45 @@ class SumHistogramComputationTest(parameterized.TestCase):
             self.assertEqual(hist.HistogramType.SUM_PER_PARTITION,
                              histogram.name)
             self.assertListEqual(expected, histogram.bins)
+
+    @parameterized.parameters(False, True)
+    def test_compute_partition_sum_histogram_2_columns(self,
+                                                       pre_aggregated: bool):
+        # format: ((privacy_id, partition), value: tuple)
+        data = [((0, 0), (1, 10)), ((0, 1), (2, 20)), ((0, 1), (3, 30)),
+                ((1, 0), (5, 50))]
+        backend = pipeline_dp.LocalBackend()
+        expected = [
+            hist.Histogram(hist.HistogramType.SUM_PER_PARTITION, [
+                hist.FrequencyBin(
+                    lower=5.0, upper=5.0001, count=1, sum=5, max=5),
+                hist.FrequencyBin(
+                    lower=5.9999, upper=6.0, count=1, sum=6, max=6)
+            ]),
+            hist.Histogram(hist.HistogramType.SUM_PER_PARTITION, [
+                hist.FrequencyBin(
+                    lower=50.0, upper=50.001, count=1, sum=50, max=50),
+                hist.FrequencyBin(
+                    lower=59.999, upper=60.0, count=1, sum=60, max=60)
+            ])
+        ]
+        if pre_aggregated:
+            data = list(
+                pre_aggregation.preaggregate(
+                    data,
+                    backend,
+                    data_extractors=pipeline_dp.DataExtractors(
+                        privacy_id_extractor=lambda x: x[0][0],
+                        partition_extractor=lambda x: x[0][1],
+                        value_extractor=lambda x: x[1])))
+
+            compute_histograms = sum_histogram_computation._compute_partition_sum_histogram_on_preaggregated_data
+        else:
+            compute_histograms = sum_histogram_computation._compute_partition_sum_histogram
+        histograms = list(compute_histograms(data, backend))
+        self.assertLen(histograms, 1)
+        histograms = histograms[0]
+        self.assertListEqual(histograms, expected)
 
 
 if __name__ == '__main__':
