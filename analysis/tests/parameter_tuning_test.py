@@ -273,6 +273,58 @@ class ParameterTuning(parameterized.TestCase):
         self.assertEqual([0] * len(expected_candidates),
                          candidates.min_sum_per_partition)
 
+    def test_find_candidate_parameters_count_multi_columns_sum(self):
+        l0_histogram = histograms.Histogram(
+            histograms.HistogramType.L0_CONTRIBUTIONS,
+            bins=[
+                _frequency_bin(max_value=2),
+                _frequency_bin(max_value=5),
+            ])
+        linf_histogram = histograms.Histogram(
+            histograms.HistogramType.LINF_CONTRIBUTIONS,
+            bins=[
+                _frequency_bin(max_value=4),
+                _frequency_bin(max_value=6),
+            ])
+        linf_sum_contributions_histogram1 = histograms.Histogram(
+            histograms.HistogramType.LINF_SUM_CONTRIBUTIONS,
+            bins=[
+                _frequency_bin(max_value=1),
+                _frequency_bin(max_value=2),
+                _frequency_bin(max_value=3)
+            ])
+        linf_sum_contributions_histogram2 = histograms.Histogram(
+            histograms.HistogramType.LINF_SUM_CONTRIBUTIONS,
+            bins=[
+                _frequency_bin(max_value=5),
+                _frequency_bin(max_value=7),
+            ])
+
+        hist = histograms.DatasetHistograms(
+            l0_histogram, None, linf_histogram, [
+                linf_sum_contributions_histogram1,
+                linf_sum_contributions_histogram2
+            ], None, None, None)
+        parameters_to_tune = parameter_tuning.ParametersToTune(
+            max_partitions_contributed=True,
+            max_contributions_per_partition=True,
+            min_sum_per_partition=False,
+            max_sum_per_partition=True)
+
+        candidates = parameter_tuning._find_candidate_parameters(
+            hist,
+            parameters_to_tune,
+            _get_aggregate_params(
+                [pipeline_dp.Metrics.SUM, pipeline_dp.Metrics.COUNT]),
+            max_candidates=4)
+
+        self.assertEqual([1, 1, 5, 5], candidates.max_partitions_contributed)
+        self.assertEqual([1, 6, 1, 6],
+                         candidates.max_contributions_per_partition)
+        self.assertEqual([(1.0, 5.0), (3.0, 7.0), (1.0, 5.0), (3.0, 7.0)],
+                         candidates.max_sum_per_partition)
+        self.assertEqual([(0, 0)] * 4, candidates.min_sum_per_partition)
+
     def test_find_candidate_parameters_both_l0_and_linf_sum_to_be_tuned(self):
         mock_l0_histogram = histograms.Histogram(
             histograms.HistogramType.L0_CONTRIBUTIONS, bins=[])
