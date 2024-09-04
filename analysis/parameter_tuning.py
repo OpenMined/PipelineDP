@@ -177,14 +177,14 @@ def _find_candidate_parameters(
                         max_linf_candidates))
 
     # Linf COUNT and SUM bounds can have different number of elements, for
-    # running Utility Analysis it is required have same amount of them.
+    # running Utility Analysis it is required that they have the same length.
     # Let us do padding with 0-th element.
-    max_linf_size = None
+    max_linf_size = 1
     if linf_count_bounds is not None and linf_sum_bounds is not None:
         max_linf_size = max(len(linf_count_bounds),
                             max(map(len, linf_sum_bounds)))
 
-        def pad_list(a: list | None, size: int):
+        def pad_list(a: Optional[List], size: int):
             if a is not None and len(a) < size:
                 a.extend([a[0]] * (size - len(a)))
 
@@ -194,6 +194,7 @@ def _find_candidate_parameters(
 
     min_sum_per_partition = max_sum_per_partition = None
     if tune_sum_linf:
+        max_linf_size = max(max_linf_candidates, len(linf_sum_bounds))
         n_sum_columns = hist.num_sum_histograms()
         if n_sum_columns == 1:
             max_sum_per_partition = linf_sum_bounds[0]
@@ -204,7 +205,7 @@ def _find_candidate_parameters(
                 (0,) * n_sum_columns for _ in range(len(max_sum_per_partition))
             ]
 
-    l0_duplication = 1 if max_linf_size is None else max_linf_size
+    l0_duplication = max_linf_size
     linf_duplication = 1 if l0_bounds is None else len(l0_bounds)
     return analysis.MultiParameterConfiguration(
         max_partitions_contributed=_duplicate_each_element(
@@ -218,13 +219,13 @@ def _find_candidate_parameters(
     )
 
 
-def _duplicate_each_element(a: list | None, n: int) -> list | None:
+def _duplicate_each_element(a: Optional[List], n: int) -> Optional[List]:
     if a is None:
         return None
     return [x for x in a for _ in range(n)]
 
 
-def _duplicate_list(a: list | None, n: int) -> list | None:
+def _duplicate_list(a: Optional[List], n: int) -> Optional[List]:
     if a is None:
         return None
     return a * n
@@ -239,22 +240,16 @@ def _add_dp_strategy_to_multi_parameter_configuration(
         configuration.get_aggregate_params(blueprint_params, i)
         for i in range(configuration.size)
     ]
-    metric = strategy_selector.metric
     # Initialize fields corresponding to DP strategy configuration
     configuration.noise_kind = []
     find_partition_selection = not strategy_selector.is_public_partitions
     if find_partition_selection:
         configuration.partition_selection_strategy = []
     for param in params:
-        if metric is None:
-            # This is select partition case
-            sensitivities = dp_computations.Sensitivities(
-                param.max_partitions_contributed, 1)
-        else:
-            # sensitivities = dp_computations.compute_sensitivities(metric, param)
-            # todo: add comment
-            sensitivities = dp_computations.Sensitivities(
-                param.max_partitions_contributed, 1)
+        # linf sensitivity does not influence strategy choosing, so it's ok
+        # to set linf=1.
+        sensitivities = dp_computations.Sensitivities(
+            l0=param.max_partitions_contributed, linf=1)
         dp_strategy = strategy_selector.get_dp_strategy(sensitivities)
         if noise_kind is None:
             configuration.noise_kind.append(dp_strategy.noise_kind)
