@@ -57,20 +57,22 @@ class DPStrategySelector:
         return self._is_public_partitions
 
     @property
-    def metric(self) -> Optional[pipeline_dp.Metric]:
+    def metrics(self) -> List[pipeline_dp.Metric]:
         return self._metrics
 
     def get_dp_strategy(
             self, sensitivities: dp_computations.Sensitivities) -> DPStrategy:
         """Chooses DPStrategy for given sensitivities."""
-        if self._metrics is None or not self._metrics:
+        if not self._metrics:
             # This is Select partitions case.
             return self._get_strategy_for_select_partition(sensitivities.l0)
 
-        # todo: add comment
         n_metrics = len(self._metrics)
+        # Having n metrics is equivalent of multiplying of contributing for
+        # n times more partitions
         scaled_sensitivities = dp_computations.Sensitivities(
-            l0=sensitivities.l0, linf=n_metrics * sensitivities.linf)
+            l0=sensitivities.l0 * n_metrics, linf=sensitivities.linf)
+
         if self._is_public_partitions:
             return self._get_dp_strategy_for_public_partitions(
                 scaled_sensitivities)
@@ -97,7 +99,7 @@ class DPStrategySelector:
 
     def _get_dp_strategy_with_post_aggregation_threshold(
             self, l0_sensitivity: int) -> DPStrategy:
-        assert self._metrics == pipeline_dp.Metrics.PRIVACY_ID_COUNT
+        assert pipeline_dp.Metrics.PRIVACY_ID_COUNT in self._metrics
         # Half delta goes to the noise, the other half for partition selection.
         # For more details see
         # https://github.com/google/differential-privacy/blob/main/common_docs/Delta_For_Thresholding.pdf
