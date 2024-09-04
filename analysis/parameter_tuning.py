@@ -179,22 +179,21 @@ def _find_candidate_parameters(
     # Linf COUNT and SUM bounds can have different number of elements, for
     # running Utility Analysis it is required that they have the same length.
     # Let us do padding with 0-th element.
-    max_linf_size = 1
-    if linf_count_bounds is not None and linf_sum_bounds is not None:
-        max_linf_size = max(len(linf_count_bounds),
-                            max(map(len, linf_sum_bounds)))
+    max_linf_size = 1  # max len of counts and sum bounds
+    if tune_count_linf:
+        max_linf_size = len(linf_count_bounds)
+    if tune_sum_linf:
+        max_linf_size = max(max_linf_size, max(map(len, linf_sum_bounds)))
 
-        def pad_list(a: Optional[List], size: int):
-            if a is not None and len(a) < size:
-                a.extend([a[0]] * (size - len(a)))
-
-        pad_list(linf_count_bounds, max_linf_size)
+    if tune_count_linf:
+        _pad_list(linf_count_bounds, max_linf_size)
+    if tune_sum_linf:
         for a in linf_sum_bounds:
-            pad_list(a, max_linf_size)
+            _pad_list(a, max_linf_size)
 
     min_sum_per_partition = max_sum_per_partition = None
     if tune_sum_linf:
-        max_linf_size = max(max_linf_candidates, len(linf_sum_bounds))
+        max_linf_size = max(max_linf_size, len(linf_sum_bounds))
         n_sum_columns = hist.num_sum_histograms()
         if n_sum_columns == 1:
             max_sum_per_partition = linf_sum_bounds[0]
@@ -217,6 +216,11 @@ def _find_candidate_parameters(
         max_sum_per_partition=_duplicate_list(max_sum_per_partition,
                                               linf_duplication),
     )
+
+
+def _pad_list(a: Optional[List], size: int):
+    if a is not None and len(a) < size:
+        a.extend([a[0]] * (size - len(a)))
 
 
 def _duplicate_each_element(a: Optional[List], n: int) -> Optional[List]:
@@ -294,9 +298,14 @@ def _find_candidates_constant_relative_step(histogram: histograms.Histogram,
 def _find_candidates_bins_max_values_subsample(
         histogram: histograms.Histogram, max_candidates: int) -> List[float]:
     """Takes max values of histogram bins with constant step between each other."""
-    max_candidates = min(max_candidates, len(histogram.bins))
-    ids = np.round(np.linspace(0, len(histogram.bins) - 1,
-                               num=max_candidates)).astype(int)
+    # In order to ensure that max_sum_per_partition > 0, let us skip 0-th
+    # bin if max = 0.
+    # TODO(dvadym): better algorithm for finding candidates.
+    from_bin_idx = 0 if histogram.bins[0].max > 0 else 1
+    max_candidates = min(max_candidates, len(histogram.bins) - from_bin_idx)
+    ids = np.round(
+        np.linspace(from_bin_idx, len(histogram.bins) - 1,
+                    num=max_candidates)).astype(int)
     bin_maximums = np.fromiter(map(lambda bin: bin.max, histogram.bins),
                                dtype=float)
     return bin_maximums[ids].tolist()

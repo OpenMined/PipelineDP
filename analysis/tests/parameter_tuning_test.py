@@ -82,7 +82,7 @@ class ParameterTuning(parameterized.TestCase):
         candidates = parameter_tuning._find_candidate_parameters(
             mock_histograms,
             parameters_to_tune,
-            pipeline_dp.Metrics.COUNT,
+            _get_aggregate_params([pipeline_dp.Metrics.COUNT]),
             max_candidates=5)
         self.assertEqual([1, 1, 6, 6], candidates.max_partitions_contributed)
         self.assertEqual([1, 3, 1, 3],
@@ -107,14 +107,14 @@ class ParameterTuning(parameterized.TestCase):
         candidates = parameter_tuning._find_candidate_parameters(
             mock_histograms,
             parameters_to_tune,
-            pipeline_dp.Metrics.COUNT,
+            _get_aggregate_params([pipeline_dp.Metrics.COUNT]),
             max_candidates=9)
         # sqrt(9) = 3, but l_inf has only 2 possible values,
         # therefore for l_0 we can take 9 / 2 = 4 values,
         # we take all 4 possible values (1, 2, 3, 4).
-        self.assertEqual([1, 1, 2, 2, 3, 3, 4, 4],
+        self.assertEqual([1, 1, 2, 2, 4, 4],
                          candidates.max_partitions_contributed)
-        self.assertEqual([1, 2, 1, 2, 1, 2, 1, 2],
+        self.assertEqual([1, 2, 1, 2, 1, 2],
                          candidates.max_contributions_per_partition)
 
     def test_find_candidate_parameters_more_candidates_for_l_inf_when_not_so_many_l_0_candidates(
@@ -136,7 +136,7 @@ class ParameterTuning(parameterized.TestCase):
         candidates = parameter_tuning._find_candidate_parameters(
             mock_histograms,
             parameters_to_tune,
-            pipeline_dp.Metrics.COUNT,
+            _get_aggregate_params([pipeline_dp.Metrics.COUNT]),
             max_candidates=9)
         # sqrt(9) = 3, but l_0 has only 2 possible values,
         # therefore for l_inf we can take 9 / 2 = 4 values,
@@ -194,7 +194,7 @@ class ParameterTuning(parameterized.TestCase):
         candidates = parameter_tuning._find_candidate_parameters(
             mock_histograms,
             parameters_to_tune,
-            pipeline_dp.Metrics.COUNT,
+            _get_aggregate_params([pipeline_dp.Metrics.COUNT]),
             max_candidates=max_candidates)
 
         self.assertEqual(expected_candidates,
@@ -247,11 +247,9 @@ class ParameterTuning(parameterized.TestCase):
             ' max values',
             bins=[_frequency_bin(max_value=i) for i in range(10)],
             max_candidates=5,
-            # Takes each bin with step ((10 - 1) / (5 - 1) = 1.8), i.e.
-            # [0, 2.25, 4.5, 6.75, 9], then rounds it, i.e. we get
-            # [0, 2, 4, 7, 9] indices of bins to take, they equal to max
-            # values of these bins
-            expected_candidates=[0, 2, 4, 7, 9]),
+            # 0 bin is skipped. Takes each bin with step ((9 - 1) / (5 - 1) =
+            # 2.0), i.e. [1, 3, 5, 7, 9]
+            expected_candidates=[1.0, 3.0, 5.0, 7.0, 9.0]),
     )
     def test_find_candidate_parameters_sum(self, bins, max_candidates,
                                            expected_candidates):
@@ -268,7 +266,7 @@ class ParameterTuning(parameterized.TestCase):
         candidates = parameter_tuning._find_candidate_parameters(
             mock_histograms,
             parameters_to_tune,
-            pipeline_dp.Metrics.SUM,
+            _get_aggregate_params([pipeline_dp.Metrics.SUM]),
             max_candidates=max_candidates)
 
         self.assertEqual(expected_candidates, candidates.max_sum_per_partition)
@@ -297,7 +295,7 @@ class ParameterTuning(parameterized.TestCase):
         candidates = parameter_tuning._find_candidate_parameters(
             mock_histograms,
             parameters_to_tune,
-            pipeline_dp.Metrics.SUM,
+            _get_aggregate_params([pipeline_dp.Metrics.SUM]),
             max_candidates=5)
         self.assertEqual([1, 1, 6, 6], candidates.max_partitions_contributed)
         self.assertEqual([1, 3, 1, 3], candidates.max_sum_per_partition)
@@ -343,7 +341,10 @@ class ParameterTuning(parameterized.TestCase):
             max_contributions_per_partition=True)
 
         candidates = parameter_tuning._find_candidate_parameters(
-            mock_histograms, parameters_to_tune, metric, max_candidates=100)
+            mock_histograms,
+            parameters_to_tune,
+            _get_aggregate_params([metric]),
+            max_candidates=100)
 
         mock_find_candidate_from_histogram.assert_any_call(
             mock_l0_histogram, mock.ANY)
@@ -429,7 +430,7 @@ class ParameterTuning(parameterized.TestCase):
         # Assert.
         tune_result, per_partition_utility_analysis = result
         per_partition_utility_analysis = list(per_partition_utility_analysis)
-        self.assertLen(per_partition_utility_analysis, 10)
+        self.assertLen(per_partition_utility_analysis, 30)
 
         tune_result = list(tune_result)[0]
 
@@ -437,7 +438,7 @@ class ParameterTuning(parameterized.TestCase):
         self.assertEqual(contribution_histograms,
                          tune_result.contribution_histograms)
         utility_reports = tune_result.utility_reports
-        self.assertLen(utility_reports, 1)
+        self.assertLen(utility_reports, 3)
         self.assertIsInstance(utility_reports[0], metrics.UtilityReport)
         self.assertLen(utility_reports[0].metric_errors, 1)
         self.assertEqual(utility_reports[0].metric_errors[0].metric,
@@ -610,7 +611,7 @@ class ParameterTuning(parameterized.TestCase):
         strategy_selector = analysis.dp_strategy_selector.DPStrategySelector(
             epsilon=1,
             delta=1e-7,
-            metric=metric,
+            metrics=[metric],
             is_public_partitions=is_public_partitions)
         parameter_tuning._add_dp_strategy_to_multi_parameter_configuration(
             multi_parameter_configuration,
