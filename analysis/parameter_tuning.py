@@ -168,7 +168,6 @@ def _find_candidate_parameters(
             linf_sum_bounds.append(
                 _find_candidates_bins_max_values_subsample(
                     hist.linf_sum_contributions_histogram, max_linf_candidates))
-            # min_sum_per_partition_bounds = [0] * len(max_sum_per_partition_bounds)
         else:  # n_sums > 1
             for i in range(n_sum_columns):
                 linf_sum_bounds.append(
@@ -178,33 +177,37 @@ def _find_candidate_parameters(
 
     # Linf COUNT and SUM bounds can have different number of elements, for
     # running Utility Analysis it is required that they have the same length.
-    # Let us do padding with 0-th element.
-    max_linf_size = 1  # max len of counts and sum bounds
+    # Let us pad each to the max_length with 0-th element.
+    max_linf_len = 1  # max len of counts and sum bounds
     if tune_count_linf:
-        max_linf_size = len(linf_count_bounds)
+        max_linf_len = len(linf_count_bounds)
     if tune_sum_linf:
-        max_linf_size = max(max_linf_size, max(map(len, linf_sum_bounds)))
+        max_linf_len = max(max_linf_len, max(map(len, linf_sum_bounds)))
 
     if tune_count_linf:
-        _pad_list(linf_count_bounds, max_linf_size)
+        _pad_list(linf_count_bounds, max_linf_len)
     if tune_sum_linf:
         for a in linf_sum_bounds:
-            _pad_list(a, max_linf_size)
+            _pad_list(a, max_linf_len)
 
     min_sum_per_partition = max_sum_per_partition = None
     if tune_sum_linf:
-        max_linf_size = max(max_linf_size, len(linf_sum_bounds))
+        max_linf_len = max(max_linf_len, len(linf_sum_bounds))
         n_sum_columns = hist.num_sum_histograms()
         if n_sum_columns == 1:
             max_sum_per_partition = linf_sum_bounds[0]
             min_sum_per_partition = [0] * len(max_sum_per_partition)
-        else:  # > 1
+        else:  # n_sum_columns > 1
             max_sum_per_partition = list(zip(*linf_sum_bounds))
             min_sum_per_partition = [
                 (0,) * n_sum_columns for _ in range(len(max_sum_per_partition))
             ]
 
-    l0_duplication = max_linf_size
+    # Make cross-product of l0 and linf bounds. That is done by duplicating
+    # each element of l0 bounds and by duplicating the whole arrays of linf
+    # bounds. Example if l0_bound = [1,2] and linf_bounds = [3,4], then
+    # l0_bounds will be [1,1,2,2] and linf_bounds will be [3,4,3,4].
+    l0_duplication = max_linf_len
     linf_duplication = 1 if l0_bounds is None else len(l0_bounds)
     return analysis.MultiParameterConfiguration(
         max_partitions_contributed=_duplicate_each_element(
