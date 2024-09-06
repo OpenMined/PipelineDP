@@ -13,17 +13,17 @@
 # limitations under the License.
 """Functions for computing linf_sum and sum_per_partition histograms."""
 
-# This files contains histograms which is useful for analysis of DP SUM
+# This file contains histograms which are useful for analysis of DP SUM
 # aggregation utility.
 # The general structure of these histogram is the following:
-# The input is collection of values X = (x0, ... x_n).
-# Computations is the following:
+# The input is a collection of values X = (x_0, ... x_n).
+# The computations are as follows:
 # 1. Find min_x = min(X), max_x = max(X) of X
 # 2. Split the segment [min_x, max_x] in NUMBER_OF_BUCKETS_SUM_HISTOGRAM = 10000
-# equals size intervals [l_i, r_i), the last interval includes both endpoints.
-# 3. Each bin of the histogram correspoinds to interval [l_i, r_i), and contains
-# different statistics of numbers from X, which belogins to this intervals, like
-# count, sum, max etc.
+# equal size intervals [l_i, r_i). The last internal includes max_x.
+# 3. Each bin of the histogram corresponds to interval [l_i, r_i), and contains
+# different statistics (count, sum etc) of numbers from X, which lies in this
+# interval.
 #
 # For generating bucket class LowerUpperGenerator is used, which takes
 # min, max, number of buckets and returns bucket for each number.
@@ -35,15 +35,15 @@ from typing import Iterable, List, Tuple
 from pipeline_dp import pipeline_backend, pipeline_functions
 from pipeline_dp.dataset_histograms import histograms as hist
 
-NUMBER_OF_BUCKETS_SUM_HISTOGRAM = 10000
+NUMBER_OF_BUCKETS = 10000
 
 
 class LowerUpperGenerator:
-    """Generates lower-upper bounds for FrequencyBin
+    """Generates lower&upper bounds for FrequencyBin
 
     Attributes:
         left, right: bounds on interval on which we compute histogram.
-        num_buckets: number of buckets on [left, right]. Buckets have the same
+        num_buckets: number of buckets in [left, right]. Buckets have the same
          length.
 
     For general context see file docstring.
@@ -57,7 +57,7 @@ class LowerUpperGenerator:
         self,
         left: float,
         right: float,
-        num_buckets: int = NUMBER_OF_BUCKETS_SUM_HISTOGRAM,
+        num_buckets: int = NUMBER_OF_BUCKETS,
     ):
         assert left <= right, "The left bound must be smaller then the right one, but {left=} and {right=}"
         self.left = left
@@ -152,7 +152,7 @@ def _compute_frequency_histogram_per_key(
             # It is a histogram for one column, return it w/o putting it in a list.
             return index_histogram[0][1]
 
-        # Sort histograms by index and return list of them.
+        # Sort histograms by index and return them as a list.
         # Beam does not like mutating arguments, so copy the argument.
         index_histogram = copy.deepcopy(index_histogram)
         return [histogram for index, histogram in sorted(index_histogram)]
@@ -230,6 +230,7 @@ def _compute_linf_sum_contributions_histogram(
 
     Args:
         col: collection with elements ((privacy_id, partition_key), value(s)).
+         Where value(s) can be one float of list of floats.
         where value can be 1 float or tuple of floats (in case of many columns)
         backend: PipelineBackend to run operations on the collection.
 
@@ -247,7 +248,7 @@ def _compute_linf_sum_contributions_histogram(
 
     return _compute_frequency_histogram_per_key(
         col, backend, hist.HistogramType.LINF_SUM_CONTRIBUTIONS,
-        NUMBER_OF_BUCKETS_SUM_HISTOGRAM)
+        NUMBER_OF_BUCKETS)
 
 
 def _compute_partition_sum_histogram(col,
@@ -276,8 +277,7 @@ def _compute_partition_sum_histogram(col,
                             "Drop partition")
     # col: (index, float)
     return _compute_frequency_histogram_per_key(
-        col, backend, hist.HistogramType.SUM_PER_PARTITION,
-        NUMBER_OF_BUCKETS_SUM_HISTOGRAM)
+        col, backend, hist.HistogramType.SUM_PER_PARTITION, NUMBER_OF_BUCKETS)
 
 
 def _compute_linf_sum_contributions_histogram_on_preaggregated_data(
@@ -312,7 +312,7 @@ def _compute_linf_sum_contributions_histogram_on_preaggregated_data(
 
     return _compute_frequency_histogram_per_key(
         col, backend, hist.HistogramType.LINF_SUM_CONTRIBUTIONS,
-        NUMBER_OF_BUCKETS_SUM_HISTOGRAM)
+        NUMBER_OF_BUCKETS)
 
 
 def _compute_partition_sum_histogram_on_preaggregated_data(
@@ -346,5 +346,4 @@ def _compute_partition_sum_histogram_on_preaggregated_data(
     # col: (index, float)
 
     return _compute_frequency_histogram_per_key(
-        col, backend, hist.HistogramType.SUM_PER_PARTITION,
-        NUMBER_OF_BUCKETS_SUM_HISTOGRAM)
+        col, backend, hist.HistogramType.SUM_PER_PARTITION, NUMBER_OF_BUCKETS)

@@ -32,7 +32,10 @@ class DataExtractors:
 
 @dataclasses.dataclass
 class MultiValueDataExtactors(DataExtractors):
-    """TODO"""
+    """Data extractors with multiple value extractors
+
+    Each extractor corresponds to the different value to aggregate.
+    """
     value_extractors: Optional[List[Callable]] = None
 
     def __post_init__(self):
