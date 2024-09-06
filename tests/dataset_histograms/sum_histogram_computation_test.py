@@ -95,7 +95,7 @@ class SumHistogramComputationTest(parameterized.TestCase):
                 ]),
             dict(
                 testcase_name=
-                '1 privacy id many equal contributions to many partition',
+                '1 privacy id many equal contributions to many partitions',
                 input=lambda: [((0, i), 1.0) for i in range(1234)],
                 # ((privacy_id, partition), value)
                 expected=lambda: [
@@ -149,7 +149,7 @@ class SumHistogramComputationTest(parameterized.TestCase):
                                                       input, expected,
                                                       pre_aggregated):
         # Lambdas are used for returning input and expected. Passing lists
-        # instead lead to printing whole lists as test names in the output.
+        # instead leads to printing whole lists as test names in the output.
         # That complicates debugging.
         input = input()
         expected = expected()

@@ -328,7 +328,7 @@ def _compute_partition_sum_histogram_on_preaggregated_data(
       (partition_key, (count, sum, n_partitions, n_contributions)).
       backend: PipelineBackend to run operations on the collection.
     Returns:
-      1 element collection, which contains the computed histograms.Histogram.
+      1 element collection, which contains the computed histograms.Histogram.g
     """
     col = backend.map_values(
         col,
