@@ -20,7 +20,7 @@ from pipeline_dp import pipeline_backend
 from pipeline_dp.dataset_histograms import histograms as hist
 from pipeline_dp.dataset_histograms import sum_histogram_computation
 
-# Functions _compute_* computes histogram for counts. TODO: move them to
+# Functions _compute_* compute histograms for counts. TODO: move them to
 # a separate file, similar to sum_histogram_computation.py.
 
 
@@ -152,7 +152,8 @@ def _list_to_contribution_histograms(
     for histogram in histograms:
         if isinstance(histogram, Iterable):
             if not histogram:
-                # no histogram were computed, it can be if the dataset is empty
+                # no histograms were computed, this can happen if the dataset is
+                # empty
                 continue
             histogram_type = histogram[0].name
         else:
