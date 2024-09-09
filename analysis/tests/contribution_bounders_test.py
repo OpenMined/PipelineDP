@@ -40,7 +40,8 @@ class SamplingL0LinfContributionBounderTest(parameterized.TestCase):
                                    input,
                                    max_partitions_contributed,
                                    max_contributions_per_partition,
-                                   partitions_sampling_prob: float = 1.0):
+                                   partitions_sampling_prob: float = 1.0,
+                                   aggregate_fn=count_aggregate_fn):
         params = CrossAndPerPartitionContributionParams(
             max_partitions_contributed, max_contributions_per_partition)
 
@@ -50,7 +51,7 @@ class SamplingL0LinfContributionBounderTest(parameterized.TestCase):
             bounder.bound_contributions(input, params,
                                         pipeline_dp.LocalBackend(),
                                         _create_report_generator(),
-                                        count_aggregate_fn))
+                                        aggregate_fn))
 
     def test_contribution_bounding_empty_col(self):
         input = []
@@ -117,8 +118,27 @@ class SamplingL0LinfContributionBounderTest(parameterized.TestCase):
         # Check per- and cross-partition contribution limits are not enforced.
         self.assertEqual(set(expected_result), set(bound_result))
 
+    def test_contribution_bounding_cross_partition_bounding_and_2_column_values(
+            self):
+        input = [("pid1", 'pk1', (1, 2)), ("pid1", 'pk1', (3, 4)),
+                 ("pid1", 'pk2', (-1, 0)), ("pid2", 'pk1', (5, 5))]
+        max_partitions_contributed = 3
+        max_contributions_per_partition = 5
 
-class SamplingL0LinfContributionBounderTest(parameterized.TestCase):
+        bound_result = self._run_contribution_bounding(
+            input,
+            max_partitions_contributed,
+            max_contributions_per_partition,
+            aggregate_fn=lambda x: x)
+
+        expected_result = [(('pid1', 'pk2'), (1, (-1, 0), 2, 3)),
+                           (('pid1', 'pk1'), (2, (4, 6), 2, 3)),
+                           (('pid2', 'pk1'), (1, (5, 5), 1, 1))]
+        # Check per- and cross-partition contribution limits are not enforced.
+        self.assertEqual(set(expected_result), set(bound_result))
+
+
+class NoOpContributionBounderTest(parameterized.TestCase):
 
     def test_contribution_bounding_doesnt_drop_contributions(self):
         # Arrange.

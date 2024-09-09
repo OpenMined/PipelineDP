@@ -12,8 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """ContributionBounder for utility analysis."""
+
+import numpy as np
 from pipeline_dp import contribution_bounders
 from pipeline_dp import sampling_utils
+from typing import Iterable
 
 
 class AnalysisContributionBounder(contribution_bounders.ContributionBounder):
@@ -65,9 +68,33 @@ class AnalysisContributionBounder(contribution_bounders.ContributionBounder):
             for partition_key, values in partition_values:
                 if sampler is not None and not sampler.keep(partition_key):
                     continue
-                yield (privacy_id, partition_key), (len(values), sum(values),
-                                                    num_partitions_contributed,
-                                                    num_contributions)
+                # Sum values.
+                # values can contain multi-columns, the format is the following
+                # 1 column:
+                #   input: values = [v_0:float, ... ]
+                #   output: v_0 + ....
+                # k columns (k > 1):
+                #   input: values = [v_0=(v_00, ... v_0(k-1)), ...]
+                #   output: (v_00+v_10+..., ...)
+                if not values:
+                    # Empty public partitions
+                    sum_values = 0
+                elif len(values) == 1:
+                    # No need to sum, return 0th value
+                    sum_values = values[0]
+                elif not isinstance(values[0], Iterable):
+                    # 1 column
+                    sum_values = sum(values)
+                else:
+                    # multiple value columns, sum each column independently
+                    sum_values = tuple(np.array(values).sum(axis=0).tolist())
+
+                yield (privacy_id, partition_key), (
+                    len(values),
+                    sum_values,
+                    num_partitions_contributed,
+                    num_contributions,
+                )
 
         # Unnest the list per privacy id.
         col = backend.flat_map(
