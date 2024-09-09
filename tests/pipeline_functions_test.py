@@ -106,17 +106,17 @@ class BeamBackendTest(parameterized.TestCase):
     @parameterized.named_parameters(
         dict(testcase_name='empty collection', col=[], expected_min_max=[]),
         dict(testcase_name='collection with one element',
-             col=[1],
-             expected_min_max=[(1, 1)]),
+             col=[("k", 1)],
+             expected_min_max=[("k", (1, 1))]),
         dict(testcase_name='collection with more than two elements',
-             col=[1, 3, 2],
-             expected_min_max=[(1, 3)]))
-    def test_min_max_elements(self, col, expected_min_max):
+             col=[("a", 1), ("a", 5), ("a", 2), ("b", -1), ("b", 10), ("c", 1)],
+             expected_min_max=[("a", (1, 5)), ("b", (-1, 10)), ("c", (1, 1))]))
+    def test_min_max_per_key(self, col, expected_min_max):
         with test_pipeline.TestPipeline() as p:
             col = p | beam.Create(col)
 
-            result = composite_funcs.min_max_elements(self.backend, col,
-                                                      "Min and max elements")
+            result = composite_funcs.min_max_per_key(self.backend, col,
+                                                     "Min and max elements")
 
             beam_util.assert_that(result, beam_util.equal_to(expected_min_max))
 
@@ -170,16 +170,17 @@ class SparkRDDBackendTest(parameterized.TestCase):
     @parameterized.named_parameters(
         dict(testcase_name='empty collection', col=[], expected_min_max=[]),
         dict(testcase_name='collection with one element',
-             col=[1],
-             expected_min_max=[(1, 1)]),
+             col=[("k", 1)],
+             expected_min_max=[("k", (1, 1))]),
         dict(testcase_name='collection with more than two elements',
-             col=[1, 3, 2],
-             expected_min_max=[(1, 3)]))
-    def test_min_max_elements(self, col, expected_min_max):
+             col=[("a", 1), ("a", 5), ("a", 2), ("b", -1), ("b", 10), ("c", 1)],
+             expected_min_max=[("a", (1, 5)), ("b", (-1, 10)), ("c", (1, 1))]))
+    def test_min_max_per_key(self, col, expected_min_max):
         col = self.sc.parallelize(col)
 
-        result = composite_funcs.min_max_elements(
+        result = composite_funcs.min_max_per_key(
             self.backend, col, "Min and max elements").collect()
+        result.sort()
 
         self.assertEqual(expected_min_max, list(result))
 
@@ -248,14 +249,14 @@ class LocalBackendTest(parameterized.TestCase):
     @parameterized.named_parameters(
         dict(testcase_name='empty collection', col=[], expected_min_max=[]),
         dict(testcase_name='collection with one element',
-             col=[1],
-             expected_min_max=[(1, 1)]),
+             col=[("k", 1)],
+             expected_min_max=[("k", (1, 1))]),
         dict(testcase_name='collection with more than two elements',
-             col=[1, 3, 2],
-             expected_min_max=[(1, 3)]))
-    def test_min_max_elements(self, col, expected_min_max):
-        result = composite_funcs.min_max_elements(self.backend, col,
-                                                  "Min and max elements")
+             col=[("a", 1), ("a", 5), ("a", 2), ("b", -1), ("b", 10), ("c", 1)],
+             expected_min_max=[("a", (1, 5)), ("b", (-1, 10)), ("c", (1, 1))]))
+    def test_min_max_per_key(self, col, expected_min_max):
+        result = composite_funcs.min_max_per_key(self.backend, col,
+                                                 "Min and max elements")
 
         self.assertEqual(expected_min_max, list(result))
 
@@ -302,9 +303,9 @@ class MultiProcLocalBackendTest(unittest.TestCase):
                 "z": col_z
             }, TestContainer, "Collect to container")
 
-    def test_min_max_elements_multi_proc_local_is_not_supported(self):
+    def test_min_max_per_key_multi_proc_local_is_not_supported(self):
         col = []
 
         with self.assertRaises(NotImplementedError):
-            composite_funcs.min_max_elements(self.backend, col,
-                                             "Min and max elements")
+            composite_funcs.min_max_per_key(self.backend, col,
+                                            "Min and max elements")
