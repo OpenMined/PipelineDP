@@ -16,7 +16,7 @@
 import abc
 import copy
 from dataclasses import dataclass
-from typing import Any, List, Optional, Tuple
+from typing import Any, Iterable, List, Optional, Tuple
 import numpy as np
 import math
 
@@ -31,7 +31,7 @@ MAX_PROBABILITIES_IN_ACCUMULATOR = 100
 
 # It corresponds to the aggregating per (privacy_id, partition_key).
 # (count, sum, num_partition_privacy_id_contributes).
-PreaggregatedData = Tuple[int, float, int]
+PreaggregatedData = Tuple[int, float | tuple[float], int]
 
 
 class UtilityAnalysisCombiner(pipeline_dp.Combiner):
@@ -236,15 +236,20 @@ class SumCombiner(UtilityAnalysisCombiner):
     def __init__(self,
                  spec: budget_accounting.MechanismSpec,
                  params: pipeline_dp.AggregateParams,
-                 metric: pipeline_dp.Metrics = pipeline_dp.Metrics.SUM):
+                 metric: pipeline_dp.Metrics = pipeline_dp.Metrics.SUM,
+                 i_column: Optional[int] = None):
         self._spec = spec
         self._params = copy.deepcopy(params)
         self._metric = metric
+        self._i_column = i_column
 
     def create_accumulator(
             self, data: Tuple[np.ndarray, np.ndarray,
                               np.ndarray]) -> AccumulatorType:
         count, partition_sum, n_partitions = data
+        if self._i_column != -1:
+            # extract corresponding column in case of multi-column case.
+            partition_sum = partition_sum[:, self._i_column]
         del count  # not used for SumCombiner
         min_bound = self._params.min_sum_per_partition
         max_bound = self._params.max_sum_per_partition
@@ -380,11 +385,20 @@ class CompoundCombiner(pipeline_dp.combiners.CompoundCombiner):
     AccumulatorType = Tuple[Optional[SparseAccumulatorType],
                             Optional[DenseAccumulatorType]]
 
+    def __init__(self, combiners: Iterable['Combiner'],
+                 n_sum_aggregations: int):
+        super().__init__(combiners, return_named_tuple=False)
+        self._n_sum_aggregations = n_sum_aggregations
+
     def create_accumulator(self, data: PreaggregatedData) -> AccumulatorType:
         if not data:
             # Handle empty partitions. Only encountered when public partitions
             # are used.
-            return (([0], [0], [0]), None)
+            if self._n_sum_aggregations > 1:
+                empty_sum = [(0,) * self._n_sum_aggregations]
+            else:
+                empty_sum = [0]
+            return (([0], empty_sum, [0]), None)
         return (([data[0]], [data[1]], [data[2]]), None)
 
     def _to_dense(self,

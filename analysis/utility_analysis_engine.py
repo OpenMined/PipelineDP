@@ -101,7 +101,8 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
     ) -> combiners.CompoundCombiner:
         # Create Utility analysis combiners.
         internal_combiners = [per_partition_combiners.RawStatisticsCombiner()]
-        for params in data_structures.get_aggregate_params(self._options):
+        for params, min_max_sum_per_partition in data_structures.get_aggregate_params(
+                self._options):
             # Each parameter configuration has own BudgetAccountant which allows
             # different mechanisms to be used in different configurations.
             budget_accountant = copy.deepcopy(self._budget_accountant)
@@ -123,20 +124,26 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
                         budget_accountant.request_budget(
                             pipeline_dp.MechanismType.GENERIC), params))
             if pipeline_dp.Metrics.SUM in aggregate_params.metrics:
-                internal_combiners.append(
-                    per_partition_combiners.SumCombiner(
-                        budget_accountant.request_budget(mechanism_type),
-                        params))
+                for i_column, (min_sum,
+                               max_sum) in enumerate(min_max_sum_per_partition):
+                    sum_params = copy.deepcopy(params)
+                    sum_params.min_sum_per_partition = min_sum
+                    sum_params.max_sum_per_partition = max_sum
+                    internal_combiners.append(
+                        per_partition_combiners.SumCombiner(
+                            budget_accountant.request_budget(mechanism_type),
+                            params,
+                            i_column=i_column))
             if pipeline_dp.Metrics.COUNT in aggregate_params.metrics:
                 internal_combiners.append(
                     per_partition_combiners.CountCombiner(
                         budget_accountant.request_budget(mechanism_type),
-                        params))
+                        copy.deepcopy(params)))
             if pipeline_dp.Metrics.PRIVACY_ID_COUNT in aggregate_params.metrics:
                 internal_combiners.append(
                     per_partition_combiners.PrivacyIdCountCombiner(
                         budget_accountant.request_budget(mechanism_type),
-                        params))
+                        copy.deepcopy(params)))
             budget_accountant.compute_budgets()
 
         return per_partition_combiners.CompoundCombiner(

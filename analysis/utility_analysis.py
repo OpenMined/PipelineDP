@@ -160,7 +160,9 @@ def _pack_per_partition_metrics(
     where each element corresponds to one of the configuration of the input
     parameters.
     """
-    n_metrics = len(utility_result) // n_configurations
+    assert (len(utility_result) - 1) % n_configurations == 0
+    n_metrics = (len(utility_result) -
+                 1) // n_configurations  # -1 because of raw_statistics
 
     raw_statistics = utility_result[0]
     # Create 'result' with empty elements.
