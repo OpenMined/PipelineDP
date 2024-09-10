@@ -28,7 +28,7 @@ class DPStrategySelectorTest(parameterized.TestCase):
         dict(testcase_name="count",
              epsilon=1,
              delta=1e-10,
-             metric=pipeline_dp.Metrics.COUNT,
+             metrics=[pipeline_dp.Metrics.COUNT],
              l0s=[1, 10, 10, 20, 100],
              linfs=[1, 1, 10, 1, 5],
              expected_noise_kinds=[pipeline_dp.NoiseKind.LAPLACE] * 3 +
@@ -36,18 +36,28 @@ class DPStrategySelectorTest(parameterized.TestCase):
         dict(testcase_name="sum",
              epsilon=0.1,
              delta=1e-5,
-             metric=pipeline_dp.Metrics.SUM,
+             metrics=[pipeline_dp.Metrics.SUM],
              l0s=[1, 2, 3, 6],
              linfs=[1, 2, 1, 1],
              expected_noise_kinds=[pipeline_dp.NoiseKind.LAPLACE] * 3 +
              [pipeline_dp.NoiseKind.GAUSSIAN]),
+        dict(testcase_name="count_privacy_id_count",
+             epsilon=0.1,
+             delta=1e-5,
+             metrics=[
+                 pipeline_dp.Metrics.PRIVACY_ID_COUNT, pipeline_dp.Metrics.SUM
+             ],
+             l0s=[1, 2, 3, 6],
+             linfs=[1, 1, 1, 1],
+             expected_noise_kinds=[pipeline_dp.NoiseKind.LAPLACE] * 2 +
+             [pipeline_dp.NoiseKind.GAUSSIAN] * 2),
     )
     def test_selection_for_public_partitions(
-            self, epsilon: float, delta: float, metric: pipeline_dp.Metric,
+            self, epsilon: float, delta: float, metrics: pipeline_dp.Metric,
             l0s: List[int], linfs: List[int],
             expected_noise_kinds: List[pipeline_dp.NoiseKind]):
         selector = dp_strategy_selector.DPStrategySelector(
-            epsilon, delta, metric, is_public_partitions=True)
+            epsilon, delta, metrics, is_public_partitions=True)
         for i in range(len(l0s)):
             sensitivities = dp_computations.Sensitivities(l0s[i], linfs[i])
             output = selector.get_dp_strategy(sensitivities)
@@ -60,7 +70,7 @@ class DPStrategySelectorTest(parameterized.TestCase):
             testcase_name="count",
             epsilon=1,
             delta=1e-8,
-            metric=pipeline_dp.Metrics.COUNT,
+            metrics=[pipeline_dp.Metrics.COUNT],
             l0s=[1, 2, 3, 20, 100],
             linfs=[1, 1, 10, 1, 5],
             expected_noise_kinds=[pipeline_dp.NoiseKind.LAPLACE] * 3 +
@@ -72,7 +82,7 @@ class DPStrategySelectorTest(parameterized.TestCase):
         dict(testcase_name="sum",
              epsilon=0.1,
              delta=1e-3,
-             metric=pipeline_dp.Metrics.COUNT,
+             metrics=[pipeline_dp.Metrics.COUNT],
              l0s=[1, 2, 5],
              linfs=[1, 1, 10],
              expected_noise_kinds=[pipeline_dp.NoiseKind.LAPLACE] +
@@ -82,13 +92,13 @@ class DPStrategySelectorTest(parameterized.TestCase):
              ] * 3),
     )
     def test_selection_for_private_partitions_wo_post_aggregation_thresholding(
-        self, epsilon: float, delta: float, metric: pipeline_dp.Metric,
+        self, epsilon: float, delta: float, metrics: pipeline_dp.Metric,
         l0s: List[int], linfs: List[int],
         expected_noise_kinds: List[pipeline_dp.NoiseKind],
         expected_partition_selection_strategies: List[
             pipeline_dp.PartitionSelectionStrategy]):
         selector = dp_strategy_selector.DPStrategySelector(
-            epsilon, delta, metric, is_public_partitions=False)
+            epsilon, delta, metrics, is_public_partitions=False)
         for i in range(len(l0s)):
             sensitivities = dp_computations.Sensitivities(l0s[i], linfs[i])
             output = selector.get_dp_strategy(sensitivities)
@@ -120,7 +130,7 @@ class DPStrategySelectorTest(parameterized.TestCase):
         selector = dp_strategy_selector.DPStrategySelector(
             epsilon=2,
             delta=1e-12,
-            metric=pipeline_dp.Metrics.PRIVACY_ID_COUNT,
+            metrics=[pipeline_dp.Metrics.PRIVACY_ID_COUNT],
             is_public_partitions=False)
         sensitivities = dp_computations.Sensitivities(l0, 1)
         output = selector.get_dp_strategy(sensitivities)
