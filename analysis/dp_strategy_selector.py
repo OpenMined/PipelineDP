@@ -68,7 +68,7 @@ class DPStrategySelector:
             return self._get_strategy_for_select_partition(sensitivities.l0)
 
         n_metrics = len(self._metrics)
-        # Having n metrics is equivalent of multiplying of contributing for
+        # Having n metrics is equivalent to multiplying of contributing for
         # n times more partitions
         scaled_sensitivities = dp_computations.Sensitivities(
             l0=sensitivities.l0 * n_metrics, linf=sensitivities.linf)
