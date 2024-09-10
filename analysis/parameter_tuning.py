@@ -120,68 +120,122 @@ class TuneResult:
 def _find_candidate_parameters(
         hist: histograms.DatasetHistograms,
         parameters_to_tune: ParametersToTune,
-        metric: Optional[pipeline_dp.Metric],
+        aggregate_params: pipeline_dp.AggregateParams,
         max_candidates: int) -> analysis.MultiParameterConfiguration:
     """Finds candidates for l0, l_inf and max_sum_per_partition_bounds parameters.
 
     Args:
+        aggregate_params: parameters of aggregation.
         hist: dataset contribution histogram.
         parameters_to_tune: which parameters to tune.
-        metric: dp aggregation for which candidates are computed. If metric is
-          None, it means no metrics to compute, i.e. only select partitions.
         max_candidates: how many candidates ((l0, linf) pairs) can be in the
           output. Note that output can contain fewer candidates. 100 is default
           heuristically chosen value, better to adjust it for your use-case.
     """
-    calculate_l0_param = parameters_to_tune.max_partitions_contributed
-    generate_linf_count = metric == pipeline_dp.Metrics.COUNT
-    generate_max_sum_per_partition = metric == pipeline_dp.Metrics.SUM
-    calculate_linf_count = (parameters_to_tune.max_contributions_per_partition
-                            and generate_linf_count)
-    calculate_sum_per_partition_param = (
-        parameters_to_tune.max_sum_per_partition and
-        generate_max_sum_per_partition)
-    l0_bounds = linf_bounds = None
-    max_sum_per_partition_bounds = min_sum_per_partition_bounds = None
+    # L0 bounds
+    tune_l0 = parameters_to_tune.max_partitions_contributed
+    metrics = aggregate_params.metrics
+    tune_count_linf = (parameters_to_tune.max_contributions_per_partition and
+                       pipeline_dp.Metrics.COUNT in metrics)
+    tune_sum_linf = (parameters_to_tune.max_sum_per_partition and
+                     pipeline_dp.Metrics.SUM in metrics)
 
-    if calculate_sum_per_partition_param:
-        if hist.linf_sum_contributions_histogram.bins[0].lower < 0:
-            logging.warning(
-                "max_sum_per_partition should not contain negative sums because"
-                " min_sum_per_partition tuning is not supported yet and "
-                "therefore tuning for max_sum_per_partition works only when "
-                "linf_sum_contributions_histogram does not negative sums")
-
-    if calculate_l0_param and calculate_linf_count:
-        l0_bounds, linf_bounds = _find_candidates_parameters_in_2d_grid(
-            hist.l0_contributions_histogram, hist.linf_contributions_histogram,
-            _find_candidates_constant_relative_step,
-            _find_candidates_constant_relative_step, max_candidates)
-    elif calculate_l0_param and calculate_sum_per_partition_param:
-        l0_bounds, max_sum_per_partition_bounds = _find_candidates_parameters_in_2d_grid(
-            hist.l0_contributions_histogram,
-            hist.linf_sum_contributions_histogram,
-            _find_candidates_constant_relative_step,
-            _find_candidates_bins_max_values_subsample, max_candidates)
-        min_sum_per_partition_bounds = [0] * len(max_sum_per_partition_bounds)
-    elif calculate_l0_param:
+    # Find L0 candidates (i.e. max_partitions_contributed)
+    if tune_l0:
+        if tune_count_linf or tune_sum_linf:
+            max_l0_candidates = int(np.sqrt(max_candidates))
+        else:
+            max_l0_candidates = max_candidates
         l0_bounds = _find_candidates_constant_relative_step(
-            hist.l0_contributions_histogram, max_candidates)
-    elif calculate_linf_count:
-        linf_bounds = _find_candidates_constant_relative_step(
-            hist.linf_contributions_histogram, max_candidates)
-    elif calculate_sum_per_partition_param:
-        max_sum_per_partition_bounds = _find_candidates_bins_max_values_subsample(
-            hist.linf_sum_contributions_histogram, max_candidates)
-        min_sum_per_partition_bounds = [0] * len(max_sum_per_partition_bounds)
-    else:
-        assert False, "Nothing to tune."
+            hist.l0_contributions_histogram, max_l0_candidates)
+    else:  # no l0 tuning
+        l0 = aggregate_params.max_partitions_contributed
+        l0_bounds = [l0] if l0 else [1]
 
+    max_linf_candidates = max_candidates // len(l0_bounds)
+
+    # Find Linf count candidates (i.e. max_contributions_per_partition)
+    linf_count_bounds = None
+    if tune_count_linf:
+        linf_count_bounds = _find_candidates_constant_relative_step(
+            hist.linf_contributions_histogram, max_linf_candidates)
+
+    linf_sum_bounds = None
+    if tune_sum_linf:
+        n_sum_columns = hist.num_sum_histograms()
+        linf_sum_bounds = []
+        if n_sum_columns == 1:
+            linf_sum_bounds.append(
+                _find_candidates_bins_max_values_subsample(
+                    hist.linf_sum_contributions_histogram, max_linf_candidates))
+        else:  # n_sums > 1
+            for i in range(n_sum_columns):
+                linf_sum_bounds.append(
+                    _find_candidates_bins_max_values_subsample(
+                        hist.linf_sum_contributions_histogram[i],
+                        max_linf_candidates))
+
+    # Linf COUNT and SUM bounds can have different number of elements, for
+    # running Utility Analysis it is required that they have the same length.
+    # Let us pad each to the max_length with 0-th element.
+    max_linf_len = 1  # max len of counts and sum bounds
+    if tune_count_linf:
+        max_linf_len = len(linf_count_bounds)
+    if tune_sum_linf:
+        max_linf_len = max(max_linf_len, max(map(len, linf_sum_bounds)))
+
+    if tune_count_linf:
+        _pad_list(linf_count_bounds, max_linf_len)
+    if tune_sum_linf:
+        for a in linf_sum_bounds:
+            _pad_list(a, max_linf_len)
+
+    min_sum_per_partition = max_sum_per_partition = None
+    if tune_sum_linf:
+        max_linf_len = max(max_linf_len, len(linf_sum_bounds))
+        n_sum_columns = hist.num_sum_histograms()
+        if n_sum_columns == 1:
+            max_sum_per_partition = linf_sum_bounds[0]
+            min_sum_per_partition = [0] * len(max_sum_per_partition)
+        else:  # n_sum_columns > 1
+            max_sum_per_partition = list(zip(*linf_sum_bounds))
+            min_sum_per_partition = [
+                (0,) * n_sum_columns for _ in range(len(max_sum_per_partition))
+            ]
+
+    # Make cross-product of l0 and linf bounds. That is done by duplicating
+    # each element of l0 bounds and by duplicating the whole arrays of linf
+    # bounds. Example if l0_bound = [1,2] and linf_bounds = [3,4], then
+    # l0_bounds will be [1,1,2,2] and linf_bounds will be [3,4,3,4].
+    l0_duplication = max_linf_len
+    linf_duplication = 1 if l0_bounds is None else len(l0_bounds)
     return analysis.MultiParameterConfiguration(
-        max_partitions_contributed=l0_bounds,
-        max_contributions_per_partition=linf_bounds,
-        min_sum_per_partition=min_sum_per_partition_bounds,
-        max_sum_per_partition=max_sum_per_partition_bounds)
+        max_partitions_contributed=_duplicate_each_element(
+            l0_bounds, l0_duplication),
+        max_contributions_per_partition=_duplicate_list(linf_count_bounds,
+                                                        linf_duplication),
+        min_sum_per_partition=_duplicate_list(min_sum_per_partition,
+                                              linf_duplication),
+        max_sum_per_partition=_duplicate_list(max_sum_per_partition,
+                                              linf_duplication),
+    )
+
+
+def _pad_list(a: Optional[List], size: int):
+    if a is not None and len(a) < size:
+        a.extend([a[0]] * (size - len(a)))
+
+
+def _duplicate_each_element(a: Optional[List], n: int) -> Optional[List]:
+    if a is None:
+        return None
+    return [x for x in a for _ in range(n)]
+
+
+def _duplicate_list(a: Optional[List], n: int) -> Optional[List]:
+    if a is None:
+        return None
+    return a * n
 
 
 def _add_dp_strategy_to_multi_parameter_configuration(
@@ -193,19 +247,16 @@ def _add_dp_strategy_to_multi_parameter_configuration(
         configuration.get_aggregate_params(blueprint_params, i)
         for i in range(configuration.size)
     ]
-    metric = strategy_selector.metric
     # Initialize fields corresponding to DP strategy configuration
     configuration.noise_kind = []
     find_partition_selection = not strategy_selector.is_public_partitions
     if find_partition_selection:
         configuration.partition_selection_strategy = []
     for param in params:
-        if metric is None:
-            # This is select partition case
-            sensitivities = dp_computations.Sensitivities(
-                param.max_partitions_contributed, 1)
-        else:
-            sensitivities = dp_computations.compute_sensitivities(metric, param)
+        # linf sensitivity does not influence strategy choosing, so it's ok
+        # to set linf=1.
+        sensitivities = dp_computations.Sensitivities(
+            l0=param.max_partitions_contributed, linf=1)
         dp_strategy = strategy_selector.get_dp_strategy(sensitivities)
         if noise_kind is None:
             configuration.noise_kind.append(dp_strategy.noise_kind)
@@ -214,60 +265,6 @@ def _add_dp_strategy_to_multi_parameter_configuration(
         if find_partition_selection:
             configuration.partition_selection_strategy.append(
                 dp_strategy.partition_selection_strategy)
-
-
-def _find_candidates_parameters_in_2d_grid(
-        hist1: histograms.Histogram, hist2: histograms.Histogram,
-        find_candidates_func1: Callable[[histograms.Histogram, int],
-                                        Sequence[Number]],
-        find_candidates_func2: Callable[[histograms.Histogram, int],
-                                        Sequence[Number]],
-        max_candidates: int) -> Tuple[Sequence[Number], Sequence[Number]]:
-    """Finds candidates for 2 parameters.
-
-    If we have 2 parameters to tune, then candidates for them form a 2
-    dimensional grid. If for one parameter there is less than
-    sqrt(max_candidates) candidates, we can add more candidates for the other
-    parameter. This function implements this logic.
-
-    Args:
-        hist1: histogram of the distribution of the first parameter.
-        hist2: histogram of the distribution of the second parameter.
-        find_candidates_func1: function that given hist1 and maximum of
-          candidates finds the candidates.
-        find_candidates_func2: function that given hist2 and maximum of
-          candidates finds the candidates.
-        max_candidates: maximum number of the candidates to produce.
-    Returns:
-        Two sequences which represent pairs of candidates for parameters 1 and
-          2. Sequences are of the same length and their lengths do not exceed
-          max_candidates.
-    """
-
-    max_candidates_per_parameter = int(math.sqrt(max_candidates))
-    param1_candidates = find_candidates_func1(hist1,
-                                              max_candidates_per_parameter)
-    param2_candidates = find_candidates_func2(hist2,
-                                              max_candidates_per_parameter)
-    param1_bounds, param2_bounds = [], []
-
-    # if param1 or param2 has fewer candidates than requested then we can add
-    # more candidates for the other parameter.
-    if (len(param2_candidates) < max_candidates_per_parameter and
-            len(param1_candidates) == max_candidates_per_parameter):
-        param1_candidates = find_candidates_func1(
-            hist1, int(max_candidates / len(param2_candidates)))
-    elif (len(param1_candidates) < max_candidates_per_parameter and
-          len(param2_candidates) == max_candidates_per_parameter):
-        param2_candidates = find_candidates_func2(
-            hist2, int(max_candidates / len(param1_candidates)))
-
-    for param1 in param1_candidates:
-        for param2 in param2_candidates:
-            param1_bounds.append(param1)
-            param2_bounds.append(param2)
-
-    return param1_bounds, param2_bounds
 
 
 def _find_candidates_constant_relative_step(histogram: histograms.Histogram,
@@ -304,9 +301,14 @@ def _find_candidates_constant_relative_step(histogram: histograms.Histogram,
 def _find_candidates_bins_max_values_subsample(
         histogram: histograms.Histogram, max_candidates: int) -> List[float]:
     """Takes max values of histogram bins with constant step between each other."""
-    max_candidates = min(max_candidates, len(histogram.bins))
-    ids = np.round(np.linspace(0, len(histogram.bins) - 1,
-                               num=max_candidates)).astype(int)
+    # In order to ensure that max_sum_per_partition > 0, let us skip 0-th
+    # bin if max = 0.
+    # TODO(dvadym): better algorithm for finding candidates.
+    from_bin_idx = 0 if histogram.bins[0].max > 0 else 1
+    max_candidates = min(max_candidates, len(histogram.bins) - from_bin_idx)
+    ids = np.round(
+        np.linspace(from_bin_idx, len(histogram.bins) - 1,
+                    num=max_candidates)).astype(int)
     bin_maximums = np.fromiter(map(lambda bin: bin.max, histogram.bins),
                                dtype=float)
     return bin_maximums[ids].tolist()
@@ -360,23 +362,24 @@ def tune(col,
         strategy_selector_factory = dp_strategy_selector.DPStrategySelectorFactory(
         )
 
-    metric = None
-    if options.aggregate_params.metrics:
-        metric = options.aggregate_params.metrics[0]
-
-    candidates: analysis.MultiParameterConfiguration = _find_candidate_parameters(
-        contribution_histograms, options.parameters_to_tune, metric,
-        options.number_of_parameter_candidates)
+    candidates: analysis.MultiParameterConfiguration = (
+        _find_candidate_parameters(
+            hist=contribution_histograms,
+            parameters_to_tune=options.parameters_to_tune,
+            aggregate_params=options.aggregate_params,
+            max_candidates=options.number_of_parameter_candidates,
+        ))
 
     # Add DP strategy (noise_kind, partition_selection_strategy) to multi
     # parameter configuration.
     noise_kind = None
     if not options.parameters_to_tune.noise_kind:
         noise_kind = options.aggregate_params.noise_kind
+
     strategy_selector = strategy_selector_factory.create(
         options.epsilon,
         options.delta,
-        metric,
+        metrics=options.aggregate_params.metrics,
         is_public_partitions=public_partitions is not None)
     _add_dp_strategy_to_multi_parameter_configuration(candidates,
                                                       options.aggregate_params,

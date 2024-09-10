@@ -14,7 +14,7 @@
 """Choosing DP Strategy (i.e. noise_kind, partition selection strategy etc)
 based on contribution bounding params."""
 from dataclasses import dataclass
-from typing import Optional
+from typing import List, Optional
 
 import pipeline_dp
 from pipeline_dp import aggregate_params
@@ -41,8 +41,7 @@ class DPStrategySelector:
     """
 
     def __init__(self, epsilon: float, delta: float,
-                 metric: Optional[pipeline_dp.Metric],
-                 is_public_partitions: bool):
+                 metrics: List[pipeline_dp.Metric], is_public_partitions: bool):
         input_validators.validate_epsilon_delta(epsilon, delta,
                                                 "DPStrategySelector")
         if delta == 0 and not is_public_partitions:
@@ -50,7 +49,7 @@ class DPStrategySelector:
                              "selection is used, delta must be positive")
         self._epsilon = epsilon
         self._delta = delta
-        self._metric = metric
+        self._metrics = metrics
         self._is_public_partitions = is_public_partitions
 
     @property
@@ -58,21 +57,29 @@ class DPStrategySelector:
         return self._is_public_partitions
 
     @property
-    def metric(self) -> Optional[pipeline_dp.Metric]:
-        return self._metric
+    def metrics(self) -> List[pipeline_dp.Metric]:
+        return self._metrics
 
     def get_dp_strategy(
             self, sensitivities: dp_computations.Sensitivities) -> DPStrategy:
         """Chooses DPStrategy for given sensitivities."""
-        if self._metric is None:
+        if not self._metrics:
             # This is Select partitions case.
             return self._get_strategy_for_select_partition(sensitivities.l0)
+
+        n_metrics = len(self._metrics)
+        # Having n metrics is equivalent to multiplying of contributing for
+        # n times more partitions
+        scaled_sensitivities = dp_computations.Sensitivities(
+            l0=sensitivities.l0 * n_metrics, linf=sensitivities.linf)
+
         if self._is_public_partitions:
-            return self._get_dp_strategy_for_public_partitions(sensitivities)
-        if self.use_post_aggregation_thresholding(self._metric):
+            return self._get_dp_strategy_for_public_partitions(
+                scaled_sensitivities)
+        if self.use_post_aggregation_thresholding(self._metrics):
             return self._get_dp_strategy_with_post_aggregation_threshold(
-                sensitivities.l0)
-        return self._get_dp_strategy_private_partition(sensitivities)
+                scaled_sensitivities.l0)
+        return self._get_dp_strategy_private_partition(scaled_sensitivities)
 
     def _get_strategy_for_select_partition(self,
                                            l0_sensitivity: int) -> DPStrategy:
@@ -92,7 +99,7 @@ class DPStrategySelector:
 
     def _get_dp_strategy_with_post_aggregation_threshold(
             self, l0_sensitivity: int) -> DPStrategy:
-        assert self._metric == pipeline_dp.Metrics.PRIVACY_ID_COUNT
+        assert pipeline_dp.Metrics.PRIVACY_ID_COUNT in self._metrics
         # Half delta goes to the noise, the other half for partition selection.
         # For more details see
         # https://github.com/google/differential-privacy/blob/main/common_docs/Delta_For_Thresholding.pdf
@@ -144,9 +151,9 @@ class DPStrategySelector:
             return pipeline_dp.NoiseKind.GAUSSIAN
         return pipeline_dp.NoiseKind.LAPLACE
 
-    def use_post_aggregation_thresholding(self,
-                                          metric: pipeline_dp.Metric) -> bool:
-        return metric == pipeline_dp.Metrics.PRIVACY_ID_COUNT
+    def use_post_aggregation_thresholding(
+            self, metrics: List[pipeline_dp.Metric]) -> bool:
+        return pipeline_dp.Metrics.PRIVACY_ID_COUNT in metrics
 
     def select_partition_selection_strategy(
             self, epsilon: float, delta: float,
@@ -191,6 +198,5 @@ class DPStrategySelector:
 class DPStrategySelectorFactory:
 
     def create(self, epsilon: float, delta: float,
-               metric: Optional[pipeline_dp.Metric],
-               is_public_partitions: bool):
-        return DPStrategySelector(epsilon, delta, metric, is_public_partitions)
+               metrics: List[pipeline_dp.Metric], is_public_partitions: bool):
+        return DPStrategySelector(epsilon, delta, metrics, is_public_partitions)
