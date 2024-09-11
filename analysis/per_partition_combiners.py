@@ -16,7 +16,7 @@
 import abc
 import copy
 from dataclasses import dataclass
-from typing import Any, Iterable, List, Optional, Tuple
+from typing import Any, Iterable, List, Optional, Tuple, Union
 import numpy as np
 import math
 
@@ -31,7 +31,7 @@ MAX_PROBABILITIES_IN_ACCUMULATOR = 100
 
 # It corresponds to the aggregating per (privacy_id, partition_key).
 # (count, sum, num_partition_privacy_id_contributes).
-PreaggregatedData = Tuple[int, float | tuple[float], int]
+PreaggregatedData = Tuple[int, Union[float, tuple[float]], int]
 
 
 class UtilityAnalysisCombiner(pipeline_dp.Combiner):

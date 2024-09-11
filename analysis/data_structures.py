@@ -65,13 +65,33 @@ class MultiParameterConfiguration:
             raise ValueError(
                 "All set attributes in MultiParameterConfiguration must have "
                 "the same length.")
+        self._size = sizes[0]
         if (self.min_sum_per_partition is None) != (self.max_sum_per_partition
                                                     is None):
             raise ValueError(
                 "MultiParameterConfiguration: min_sum_per_partition and "
                 "max_sum_per_partition must be both set or both None.")
-        # todo: validation
-        self._size = sizes[0]
+        if self.min_sum_per_partition:
+            # If elements of min_sum_per_partition and max_sum_per_partition are
+            # sequences, all of them should have the same size.
+            def all_elements_are_lists(a: list):
+                return all([isinstance(b, Sequence) for b in a])
+
+            def common_value_len(a: list) -> Optional[int]:
+                sizes = [len(v) for v in a]
+                return min(sizes) if min(sizes) == max(sizes) else None
+
+            if all_elements_are_lists(
+                    self.min_sum_per_partition) and all_elements_are_lists(
+                        self.max_sum_per_partition):
+                # multi-column case. Check that each configuration has the
+                # same number of elements (i.e. columns)
+                size1 = common_value_len(self.min_sum_per_partition)
+                size2 = common_value_len(self.max_sum_per_partition)
+                if size1 is None or size2 is None or size1 != size2:
+                    raise ValueError("If elements of min_sum_per_partition and "
+                                     "max_sum_per_partition are sequences, then"
+                                     " they must have the same length.")
 
     @property
     def size(self):
@@ -97,7 +117,7 @@ class MultiParameterConfiguration:
         if self.min_sum_per_partition:
             min_sum = self.min_sum_per_partition[index]
             max_sum = self.max_sum_per_partition[index]
-            if isinstance(min_sum, Iterable):
+            if isinstance(min_sum, Sequence):
                 min_max_sum = list(zip(min_sum, max_sum))
             else:
                 min_max_sum = [min_sum, max_sum]

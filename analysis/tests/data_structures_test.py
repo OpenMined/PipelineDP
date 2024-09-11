@@ -70,6 +70,17 @@ class MultiParameterConfiguration(parameterized.TestCase):
              max_sum_per_partition=None,
              noise_kind=None,
              partition_selection_strategy=None),
+        dict(testcase_name="min_sum_per_partition and max_sum_per_partition"
+             "have different length elements",
+             error_msg="If elements of min_sum_per_partition and "
+             "max_sum_per_partition are sequences, then they must "
+             "have the same length.",
+             max_partitions_contributed=None,
+             max_contributions_per_partition=None,
+             min_sum_per_partition=[(1, 2), (1,)],
+             max_sum_per_partition=[(3, 5), (2, 2)],
+             noise_kind=None,
+             partition_selection_strategy=None),
     )
     def test_validation(self, error_msg, max_partitions_contributed,
                         max_contributions_per_partition, min_sum_per_partition,
@@ -95,18 +106,26 @@ class MultiParameterConfiguration(parameterized.TestCase):
         selection_strategy = [
             pipeline_dp.PartitionSelectionStrategy.GAUSSIAN_THRESHOLDING
         ] * 3
+        max_sum_per_partition = [(1, 2), (3, 4), (5, 6)]
+        min_sum_per_partition = [(0, 0), (0, 0), (0, 1)]
         multi_params = analysis.MultiParameterConfiguration(
             max_partitions_contributed=max_partitions_contributed,
             noise_kind=noise_kind,
-            partition_selection_strategy=selection_strategy)
+            partition_selection_strategy=selection_strategy,
+            min_sum_per_partition=min_sum_per_partition,
+            max_sum_per_partition=max_sum_per_partition)
         self.assertTrue(3, multi_params.size)
 
+        expected_min_max_sum = [[(0, 1), (0, 2)], [(0, 3), (0, 4)],
+                                [(0, 5), (1, 6)]]
+
         for i in range(multi_params.size):
-            ith_params = multi_params.get_aggregate_params(params, i)
+            ith_params, min_max = multi_params.get_aggregate_params(params, i)
             params.max_partitions_contributed = max_partitions_contributed[i]
             params.noise_kind = noise_kind[i]
             params.partition_selection_strategy = selection_strategy[i]
             self.assertEqual(params, ith_params)
+            self.assertEqual(min_max, expected_min_max_sum[i])
 
 
 if __name__ == '__main__':
