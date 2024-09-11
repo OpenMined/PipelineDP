@@ -395,6 +395,108 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
                        data_extractors=data_extractors)
         mock_sampler_init.assert_called_once_with(0.25)
 
+    def test_utility_analysis_for_2_columns(self):
+        # Arrange
+        aggregate_params = pipeline_dp.AggregateParams(
+            noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+            metrics=[pipeline_dp.Metrics.COUNT, pipeline_dp.Metrics.SUM],
+            max_partitions_contributed=1,
+            max_contributions_per_partition=1,
+            max_sum_per_partition=0.5,
+            min_sum_per_partition=0)
+
+        multi_param = analysis.MultiParameterConfiguration(
+            max_partitions_contributed=[1, 2],
+            min_sum_per_partition=[(0, 0), (0, 1)],
+            max_sum_per_partition=[(3, 10), (5, 20)],
+        )
+
+        budget_accountant = pipeline_dp.NaiveBudgetAccountant(total_epsilon=1,
+                                                              total_delta=1e-10)
+
+        engine = utility_analysis_engine.UtilityAnalysisEngine(
+            budget_accountant=budget_accountant,
+            backend=pipeline_dp.LocalBackend())
+
+        # Input collection has 2 privacy id, which contributes to 1 partition
+        # 2 and 1 times correspondingly.
+        input = [(0, "pk", 2, 3), (0, "pk", 0, 1), (1, "pk", 15, 20)]
+        data_extractors = pipeline_dp.data_extractors.MultiValueDataExtractors(
+            privacy_id_extractor=lambda x: x[0],
+            partition_extractor=lambda x: x[1],
+            value_extractors=[lambda x: x[2], lambda x: x[3]])
+
+        options = analysis.UtilityAnalysisOptions(
+            epsilon=1,
+            delta=0,
+            aggregate_params=aggregate_params,
+            multi_param_configuration=multi_param)
+        output = engine.analyze(input,
+                                options=options,
+                                data_extractors=data_extractors,
+                                public_partitions=["pk"])
+
+        budget_accountant.compute_budgets()
+
+        output = list(output)
+        self.assertLen(output, 1)
+        # Each partition has 2 metrics (for both parameter set).
+        [self.assertLen(partition_metrics, 2) for partition_metrics in output]
+
+        expected = [
+            metrics.RawStatistics(privacy_id_count=3, count=3),
+            metrics.SumMetrics(aggregation=pipeline_dp.Metrics.SUM,
+                               sum=17,
+                               clipping_to_min_error=0,
+                               clipping_to_max_error=-12,
+                               expected_l0_bounding_error=0.0,
+                               std_l0_bounding_error=0.0,
+                               std_noise=52.359375,
+                               noise_kind=pipeline_dp.NoiseKind.GAUSSIAN),
+            metrics.SumMetrics(aggregation=pipeline_dp.Metrics.SUM,
+                               sum=24,
+                               clipping_to_min_error=0,
+                               clipping_to_max_error=-10,
+                               expected_l0_bounding_error=0.0,
+                               std_l0_bounding_error=0.0,
+                               std_noise=174.53125,
+                               noise_kind=pipeline_dp.NoiseKind.GAUSSIAN),
+            metrics.SumMetrics(aggregation=pipeline_dp.Metrics.COUNT,
+                               sum=3,
+                               clipping_to_min_error=0.0,
+                               clipping_to_max_error=-1.0,
+                               expected_l0_bounding_error=0.0,
+                               std_l0_bounding_error=0.0,
+                               std_noise=17.453125,
+                               noise_kind=pipeline_dp.NoiseKind.GAUSSIAN),
+            metrics.SumMetrics(aggregation=pipeline_dp.Metrics.SUM,
+                               sum=17,
+                               clipping_to_min_error=0,
+                               clipping_to_max_error=-10,
+                               expected_l0_bounding_error=0.0,
+                               std_l0_bounding_error=0.0,
+                               std_noise=123.41223040396463,
+                               noise_kind=pipeline_dp.NoiseKind.GAUSSIAN),
+            metrics.SumMetrics(aggregation=pipeline_dp.Metrics.SUM,
+                               sum=24,
+                               clipping_to_min_error=1,
+                               clipping_to_max_error=0,
+                               expected_l0_bounding_error=-1.0,
+                               std_l0_bounding_error=0.0,
+                               std_noise=493.6489216158585,
+                               noise_kind=pipeline_dp.NoiseKind.GAUSSIAN),
+            metrics.SumMetrics(aggregation=pipeline_dp.Metrics.COUNT,
+                               sum=3,
+                               clipping_to_min_error=0.0,
+                               clipping_to_max_error=-1.0,
+                               expected_l0_bounding_error=0.0,
+                               std_l0_bounding_error=0.0,
+                               std_noise=24.682446080792925,
+                               noise_kind=pipeline_dp.NoiseKind.GAUSSIAN),
+        ]
+
+        self.assertSequenceEqual(output[0][1], expected)
+
 
 if __name__ == '__main__':
     absltest.main()
