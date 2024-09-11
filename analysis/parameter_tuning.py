@@ -244,7 +244,12 @@ def _add_dp_strategy_to_multi_parameter_configuration(
         noise_kind: Optional[pipeline_dp.NoiseKind],
         strategy_selector: dp_strategy_selector.DPStrategySelector) -> None:
     params = [
-        configuration.get_aggregate_params(blueprint_params, i)
+        # get_aggregate_params returns a tuple (AggregateParams,
+        # min_max_sum_per_partitions)
+        # for multi-columns. DP Strategy (i.e. noise_kind, partition_selection)
+        # is independent from min_max_sum_per_partitions, so it's fine just to
+        # AggregateParams with [0]
+        configuration.get_aggregate_params(blueprint_params, i)[0]
         for i in range(configuration.size)
     ]
     # Initialize fields corresponding to DP strategy configuration

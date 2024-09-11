@@ -120,7 +120,7 @@ class MultiParameterConfiguration:
             if isinstance(min_sum, Sequence):
                 min_max_sum = list(zip(min_sum, max_sum))
             else:
-                min_max_sum = [min_sum, max_sum]
+                min_max_sum = [[min_sum, max_sum]]
         return params, min_max_sum
 
 

@@ -101,6 +101,7 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
     ) -> combiners.CompoundCombiner:
         # Create Utility analysis combiners.
         internal_combiners = [per_partition_combiners.RawStatisticsCombiner()]
+        n_sum_aggregations = 0
         for params, min_max_sum_per_partition in data_structures.get_aggregate_params(
                 self._options):
             # Each parameter configuration has own BudgetAccountant which allows
@@ -124,15 +125,18 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
                         budget_accountant.request_budget(
                             pipeline_dp.MechanismType.GENERIC), params))
             if pipeline_dp.Metrics.SUM in aggregate_params.metrics:
+                n_sum_aggregations = len(min_max_sum_per_partition)
                 for i_column, (min_sum,
                                max_sum) in enumerate(min_max_sum_per_partition):
+                    if len(min_max_sum_per_partition) == 1:
+                        i_column = None  # 1 column, no need to set index
                     sum_params = copy.deepcopy(params)
                     sum_params.min_sum_per_partition = min_sum
                     sum_params.max_sum_per_partition = max_sum
                     internal_combiners.append(
                         per_partition_combiners.SumCombiner(
                             budget_accountant.request_budget(mechanism_type),
-                            params,
+                            sum_params,
                             i_column=i_column))
             if pipeline_dp.Metrics.COUNT in aggregate_params.metrics:
                 internal_combiners.append(
@@ -147,7 +151,7 @@ class UtilityAnalysisEngine(pipeline_dp.DPEngine):
             budget_accountant.compute_budgets()
 
         return per_partition_combiners.CompoundCombiner(
-            internal_combiners, return_named_tuple=False)
+            internal_combiners, n_sum_aggregations=n_sum_aggregations)
 
     def _select_private_partitions_internal(
             self, col, max_partitions_contributed: int,
