@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """UtilityAnalysisCountCombinerTest."""
+import copy
 import dataclasses
 
 import numpy as np
@@ -488,7 +489,25 @@ class CompoundCombinerTest(parameterized.TestCase):
         return combiners.CompoundCombiner([count_combiner],
                                           n_sum_aggregations=0)
 
+    def _create_combiner_2_columns(self) -> combiners.CompoundCombiner:
+        mechanism_spec, params1 = _create_combiner_params_for_sum(0, 1)
+        sum_combiner1 = combiners.SumCombiner(mechanism_spec,
+                                              params1,
+                                              i_column=0)
+        params2 = copy.deepcopy(params1)
+        params2.max_sum_per_partition = 5
+        sum_combiner2 = combiners.SumCombiner(mechanism_spec,
+                                              params2,
+                                              i_column=1)
+        return combiners.CompoundCombiner([sum_combiner1, sum_combiner2],
+                                          n_sum_aggregations=2)
+
     def test_create_accumulator_empty_data(self):
+        sparse, dense = self._create_combiner_2_columns().create_accumulator(())
+        self.assertEqual(sparse, ([0], [(0, 0)], [0]))
+        self.assertIsNone(dense)
+
+    def test_create_accumulator_empty_data_multi_columns(self):
         sparse, dense = self._create_combiner().create_accumulator(())
         self.assertEqual(sparse, ([0], [0], [0]))
         self.assertIsNone(dense)
@@ -502,6 +521,13 @@ class CompoundCombinerTest(parameterized.TestCase):
         self.assertEqual(([len(data)], [sum(data)], [n_partitions]), sparse)
         self.assertIsNone(dense)
 
+    def test_create_accumulator_2_sum_columns(self):
+        combiner = self._create_combiner_2_columns()
+        pre_aggregate_data = [1, [2, 3], 4]  # count, sum, n_partitions
+        sparse, dense = combiner.create_accumulator(pre_aggregate_data)
+        self.assertEqual(([1], [[2, 3]], [4]), sparse)
+        self.assertIsNone(dense)
+
     def test_to_dense(self):
         combiner = self._create_combiner()
         sparse_acc = ([1, 3], [10, 20], [100, 200])
@@ -509,6 +535,16 @@ class CompoundCombinerTest(parameterized.TestCase):
         num_privacy_ids, (count_acc,) = dense
         self.assertEqual(2, num_privacy_ids)
         self.assertSequenceEqual((4, 0, -1.0, -2.98, 0.0298), count_acc)
+
+    def test_to_dense_2_columns(self):
+        combiner = self._create_combiner_2_columns()
+        sparse_acc = ([1, 3], [(10, 20), (100, 200)], [100, 200])
+        dense = combiner._to_dense(sparse_acc)
+        num_privacy_ids, (sum1_acc, sum2_acc) = dense
+        self.assertEqual(2, num_privacy_ids)
+        self.assertSequenceEqual(
+            (110, 0, -108, -1.9849999999999999, 0.014875000000000001), sum1_acc)
+        self.assertSequenceEqual((220, 0, -210, -9.925, 0.371875), sum2_acc)
 
     def test_merge_sparse(self):
         combiner = self._create_combiner()

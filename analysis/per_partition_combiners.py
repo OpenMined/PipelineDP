@@ -16,7 +16,7 @@
 import abc
 import copy
 from dataclasses import dataclass
-from typing import Any, Iterable, List, Optional, Tuple, Union
+from typing import Any, Iterable, List, Optional, Sequence, Tuple, Union
 import numpy as np
 import math
 
@@ -31,7 +31,7 @@ MAX_PROBABILITIES_IN_ACCUMULATOR = 100
 
 # It corresponds to the aggregating per (privacy_id, partition_key).
 # (count, sum, num_partition_privacy_id_contributes).
-PreaggregatedData = Tuple[int, Union[float, tuple[float]], int]
+PreaggregatedData = Tuple[int, Union[float, Sequence[float]], int]
 
 
 class UtilityAnalysisCombiner(pipeline_dp.Combiner):
@@ -239,7 +239,7 @@ class SumCombiner(UtilityAnalysisCombiner):
                  metric: pipeline_dp.Metrics = pipeline_dp.Metrics.SUM,
                  i_column: Optional[int] = None):
         self._spec = spec
-        self._params = copy.deepcopy(params)
+        self._params = params
         self._metric = metric
         self._i_column = i_column
 
@@ -383,7 +383,9 @@ class CompoundCombiner(pipeline_dp.combiners.CompoundCombiner):
     # improvements, on converting from sparse to dense mode, the data are
     # converted to NumPy arrays. And internal combiners perform NumPy vector
     # aggregations.
-    SparseAccumulatorType = Tuple[List[int], List[float], List[int]]
+    SparseAccumulatorType = Tuple[List[int], Union[List[float],
+                                                   List[Sequence[float]]],
+                                  List[int]]
     DenseAccumulatorType = List[Any]
     AccumulatorType = Tuple[Optional[SparseAccumulatorType],
                             Optional[DenseAccumulatorType]]
