@@ -211,12 +211,13 @@ def _per_partition_to_utility_report(
         # > is when there is analysis for SUM(column1), SUM(column2) etc
         assert len(per_partition_utility.metric_errors) >= len(dp_metrics)
         metric_errors = []
-        for metric_error, dp_metric in zip(per_partition_utility.metric_errors,
-                                           dp_metrics):
+        for metric_error in per_partition_utility.metric_errors:
             metric_errors.append(
-                _sum_metrics_to_metric_utility(metric_error, dp_metric,
+                _sum_metrics_to_metric_utility(metric_error,
+                                               metric_error.aggregation,
                                                prob_to_keep, partition_weight))
 
+    # configuration_index is set on the next stages
     return metrics.UtilityReport(configuration_index=-1,
                                  partitions_info=partition_metrics,
                                  metric_errors=metric_errors)

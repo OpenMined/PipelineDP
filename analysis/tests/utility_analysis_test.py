@@ -179,9 +179,10 @@ class UtilityAnalysis(parameterized.TestCase):
             ])
         expected_copy = copy.deepcopy(expected)
         expected.utility_report_histogram = [
-            metrics.UtilityReportBin(partition_size_from=20,
-                                     partition_size_to=50,
-                                     report=expected_copy)
+            metrics.UtilityReportBin(
+                partition_size_from=10,  # 10 privacy ids
+                partition_size_to=20,
+                report=expected_copy)
         ]
         common.assert_dataclasses_are_equal(self, report, expected)
         self.assertLen(per_partition_result, 10)
@@ -322,9 +323,9 @@ class UtilityAnalysis(parameterized.TestCase):
         output = list(utility_analysis._unnest_metrics(input_data))
         self.assertLen(output, 4)
         self.assertEqual(output[0], ((0, None), input_data[0]))
-        self.assertEqual(output[1], ((0, 100), input_data[0]))
+        self.assertEqual(output[1], ((0, 1), input_data[0]))
         self.assertEqual(output[2], ((1, None), input_data[1]))
-        self.assertEqual(output[3], ((1, 100), input_data[1]))
+        self.assertEqual(output[3], ((1, 1), input_data[1]))
 
     @parameterized.named_parameters(
         dict(testcase_name="without pre-threshold",
