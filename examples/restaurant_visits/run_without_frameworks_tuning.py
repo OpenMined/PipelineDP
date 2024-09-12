@@ -40,6 +40,11 @@ flags.DEFINE_boolean('run_on_preaggregated_data', False,
                      'If true, the data is preaggregated before tuning')
 flags.DEFINE_integer('pre_threshold', None,
                      'Pre threshold which is used in the DP aggregation')
+flags.DEFINE_boolean(
+    'multiple_metrics', False,
+    'If True performs tuning for COUNT, PRIVACY_ID_COUNT and '
+    ' SUM(spent_minutes), SUM(spent_money). Otherwise only for '
+    'COUNT')
 
 
 def write_to_file(col, filename):
@@ -64,10 +69,13 @@ def load_data(input_file: str) -> list:
 
 
 def get_aggregate_params():
-    # Limit contributions to 1 per partition, contribution error will be half of the count.
+    metrics = [pipeline_dp.Metrics.COUNT]
+    if FLAGS.multiple_metrics:
+        metrics.extend(
+            [pipeline_dp.Metrics.PRIVACY_ID_COUNT, pipeline_dp.Metrics.SUM])
     return pipeline_dp.AggregateParams(
         noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
-        metrics=[pipeline_dp.Metrics.SUM],
+        metrics=metrics,
         max_partitions_contributed=1,
         max_contributions_per_partition=1,
         max_sum_per_partition=1,
@@ -78,6 +86,16 @@ def get_aggregate_params():
 def get_data_extractors():
     # Specify how to extract privacy_id, partition_key and value from an
     # element of restaurant_visits_rows.
+    if FLAGS.multiple_metrics:
+        return pipeline_dp.data_extractors.MultiValueDataExtractors(
+            partition_extractor=lambda row: row.day,
+            privacy_id_extractor=lambda row: row.user_id,
+            value_extractor=None,
+            value_extractors=[
+                lambda row: row.spent_money,
+                lambda row: row.spent_minutes,
+            ],
+        )
     return pipeline_dp.DataExtractors(
         partition_extractor=lambda row: row.day,
         privacy_id_extractor=lambda row: row.user_id,
@@ -111,7 +129,9 @@ def tune_parameters():
 
     minimizing_function = parameter_tuning.MinimizingFunction.ABSOLUTE_ERROR
     parameters_to_tune = parameter_tuning.ParametersToTune(
-        max_partitions_contributed=True, max_contributions_per_partition=True)
+        max_partitions_contributed=True,
+        max_contributions_per_partition=True,
+        max_sum_per_partition=True)
     tune_options = parameter_tuning.TuneOptions(
         epsilon=1,
         delta=1e-5,

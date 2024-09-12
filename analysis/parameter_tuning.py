@@ -457,9 +457,6 @@ def _check_tune_args(options: TuneOptions, is_public_partitions: bool):
             # Empty metrics means that partition selection tuning is performed.
             raise ValueError("Empty metrics means tuning of partition selection"
                              " but public partitions were provided.")
-    elif len(metrics) > 1:
-        raise ValueError(
-            f"Tuning supports only one metric, but {metrics} given.")
     else:  # len(metrics) == 1
         if metrics[0] not in [
                 pipeline_dp.Metrics.COUNT, pipeline_dp.Metrics.PRIVACY_ID_COUNT,

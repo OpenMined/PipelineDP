@@ -208,7 +208,8 @@ def _per_partition_to_utility_report(
     # Fill metric errors.
     metric_errors = None
     if dp_metrics:
-        assert len(per_partition_utility.metric_errors) == len(dp_metrics)
+        # > is when there is analysis for SUM(column1), SUM(column2) etc
+        assert len(per_partition_utility.metric_errors) >= len(dp_metrics)
         metric_errors = []
         for metric_error, dp_metric in zip(per_partition_utility.metric_errors,
                                            dp_metrics):
