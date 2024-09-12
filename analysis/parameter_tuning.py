@@ -247,8 +247,8 @@ def _add_dp_strategy_to_multi_parameter_configuration(
         # get_aggregate_params returns a tuple (AggregateParams,
         # min_max_sum_per_partitions)
         # for multi-columns. DP Strategy (i.e. noise_kind, partition_selection)
-        # is independent from min_max_sum_per_partitions, so it's fine just to
-        # AggregateParams with [0]
+        # is independent from min_max_sum_per_partitions, it's fine to just get
+        # the first element of AggregateParam
         configuration.get_aggregate_params(blueprint_params, i)[0]
         for i in range(configuration.size)
     ]

@@ -249,8 +249,8 @@ class SumCombiner(UtilityAnalysisCombiner):
         count, partition_sum, n_partitions = data
         if self._i_column is not None:
             # When i_column is set, it means that this is a multi-column
-            # case and this combiner process i-th column. The partition_sum
-            # will be 2d np array: n_examples*n_columns
+            # case and this combiner processes i-th column. The partition_sum
+            # will be a 2d np.array: n_examples*n_columns
             # extract corresponding column in case of multi-column case.
             partition_sum = partition_sum[:, self._i_column]
         del count  # not used for SumCombiner
