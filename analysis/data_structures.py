@@ -15,7 +15,7 @@
 
 import copy
 import dataclasses
-from typing import Iterable, Optional, Sequence, Union
+from typing import Iterable, List, Optional, Sequence, Tuple, Union
 
 import pipeline_dp
 from pipeline_dp import input_validators
@@ -65,19 +65,41 @@ class MultiParameterConfiguration:
             raise ValueError(
                 "All set attributes in MultiParameterConfiguration must have "
                 "the same length.")
+        self._size = sizes[0]
         if (self.min_sum_per_partition is None) != (self.max_sum_per_partition
                                                     is None):
             raise ValueError(
                 "MultiParameterConfiguration: min_sum_per_partition and "
                 "max_sum_per_partition must be both set or both None.")
-        self._size = sizes[0]
+        if self.min_sum_per_partition:
+            # If elements of min_sum_per_partition and max_sum_per_partition are
+            # sequences, all of them should have the same size.
+            def all_elements_are_lists(a: list):
+                return all([isinstance(b, Sequence) for b in a])
+
+            def common_value_len(a: list) -> Optional[int]:
+                sizes = [len(v) for v in a]
+                return min(sizes) if min(sizes) == max(sizes) else None
+
+            if all_elements_are_lists(
+                    self.min_sum_per_partition) and all_elements_are_lists(
+                        self.max_sum_per_partition):
+                # multi-column case. Check that each configuration has the
+                # same number of elements (i.e. columns)
+                size1 = common_value_len(self.min_sum_per_partition)
+                size2 = common_value_len(self.max_sum_per_partition)
+                if size1 is None or size2 is None or size1 != size2:
+                    raise ValueError("If elements of min_sum_per_partition and "
+                                     "max_sum_per_partition are sequences, then"
+                                     " they must have the same length.")
 
     @property
     def size(self):
         return self._size
 
-    def get_aggregate_params(self, params: pipeline_dp.AggregateParams,
-                             index: int) -> pipeline_dp.AggregateParams:
+    def get_aggregate_params(
+        self, params: pipeline_dp.AggregateParams, index: int
+    ) -> Tuple[pipeline_dp.AggregateParams, List[Tuple[float, float]]]:
         """Returns AggregateParams with the index-th parameters."""
         params = copy.copy(params)
         if self.max_partitions_contributed:
@@ -86,16 +108,23 @@ class MultiParameterConfiguration:
         if self.max_contributions_per_partition:
             params.max_contributions_per_partition = self.max_contributions_per_partition[
                 index]
-        if self.min_sum_per_partition:
-            params.min_sum_per_partition = self.min_sum_per_partition[index]
-        if self.max_sum_per_partition:
-            params.max_sum_per_partition = self.max_sum_per_partition[index]
         if self.noise_kind:
             params.noise_kind = self.noise_kind[index]
         if self.partition_selection_strategy:
             params.partition_selection_strategy = self.partition_selection_strategy[
                 index]
-        return params
+        min_max_sum = []
+        if self.min_sum_per_partition:
+            min_sum = self.min_sum_per_partition[index]
+            max_sum = self.max_sum_per_partition[index]
+            if isinstance(min_sum, Sequence):
+                min_max_sum = list(zip(min_sum, max_sum))
+            else:
+                min_max_sum = [[min_sum, max_sum]]
+        else:
+            min_max_sum.append(
+                [params.min_sum_per_partition, params.max_sum_per_partition])
+        return params, min_max_sum
 
 
 @dataclasses.dataclass
@@ -124,12 +153,15 @@ class UtilityAnalysisOptions:
 
 
 def get_aggregate_params(
-        options: UtilityAnalysisOptions
-) -> Iterable[pipeline_dp.AggregateParams]:
+    options: UtilityAnalysisOptions
+) -> Iterable[Tuple[pipeline_dp.AggregateParams, List[Tuple[float, float]]]]:
     """Returns AggregateParams which are specified by UtilityAnalysisOptions."""
     multi_param_configuration = options.multi_param_configuration
     if multi_param_configuration is None:
-        yield options.aggregate_params
+        agg_params = options.aggregate_params
+        yield agg_params, [[
+            agg_params.min_sum_per_partition, agg_params.max_sum_per_partition
+        ]]
     else:
         for i in range(multi_param_configuration.size):
             yield multi_param_configuration.get_aggregate_params(

@@ -576,12 +576,6 @@ class ParameterTuning(parameterized.TestCase):
              " public partitions were provided",
              metrics=[],
              is_public_partitions=True),
-        dict(testcase_name="Multiple metrics",
-             error_msg="Tuning supports only one metric",
-             metrics=[
-                 pipeline_dp.Metrics.COUNT, pipeline_dp.Metrics.PRIVACY_ID_COUNT
-             ],
-             is_public_partitions=True),
         dict(testcase_name="Mean is not supported",
              error_msg=
              "Tuning is supported only for Count, Privacy id count and Sum",

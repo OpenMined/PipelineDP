@@ -31,7 +31,7 @@ class DataExtractors:
 
 
 @dataclasses.dataclass
-class MultiValueDataExtactors(DataExtractors):
+class MultiValueDataExtractors(DataExtractors):
     """Data extractors with multiple value extractors.
 
     Each extractor corresponds to the different value to aggregate.

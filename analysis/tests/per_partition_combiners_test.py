@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """UtilityAnalysisCountCombinerTest."""
+import copy
 import dataclasses
 
 import numpy as np
@@ -58,7 +59,7 @@ def _create_sparse_combiner_acc(
     return (counts, sums, n_partitions)
 
 
-class UtilityAnalysisCountCombinerTest(parameterized.TestCase):
+class CountCombinerTest(parameterized.TestCase):
 
     @parameterized.named_parameters(
         dict(testcase_name='empty',
@@ -273,7 +274,7 @@ def _create_combiner_params_for_sum(
             ))
 
 
-class UtilityAnalysisSumCombinerTest(parameterized.TestCase):
+class SumCombinerTest(parameterized.TestCase):
 
     @parameterized.named_parameters(
         dict(testcase_name='empty',
@@ -366,6 +367,23 @@ class UtilityAnalysisSumCombinerTest(parameterized.TestCase):
         # Test that no type is np.float64
         self.assertTrue(_check_none_are_np_float64(merged_acc))
 
+    def test_create_accumulator_for_multi_columns(self):
+        params = _create_combiner_params_for_sum(0, 5)
+        combiner = combiners.SumCombiner(*params, i_column=1)
+        data = (np.array([1, 1]), np.array([[1, 10],
+                                            [2, 20]]), np.array([100, 150]))
+        partition_sum, clipping_to_min_error, clipping_to_max_error, expected_l0_bounding_error, var_cross_partition_error = combiner.create_accumulator(
+            data)
+        self.assertEqual(partition_sum, 30)
+        self.assertEqual(clipping_to_min_error, 0)
+        self.assertEqual(clipping_to_max_error, -20)
+        self.assertAlmostEqual(expected_l0_bounding_error,
+                               -9.91666667,
+                               delta=1e-8)
+        self.assertAlmostEqual(var_cross_partition_error,
+                               0.41305556,
+                               delta=1e-8)
+
 
 def _create_combiner_params_for_privacy_id_count() -> Tuple[
     pipeline_dp.budget_accounting.MechanismSpec, pipeline_dp.AggregateParams]:
@@ -381,7 +399,7 @@ def _create_combiner_params_for_privacy_id_count() -> Tuple[
             ))
 
 
-class UtilityAnalysisPrivacyIdCountCombinerTest(parameterized.TestCase):
+class PrivacyIdCountCombinerTest(parameterized.TestCase):
 
     @parameterized.named_parameters(
         dict(testcase_name='empty',
@@ -463,17 +481,36 @@ class UtilityAnalysisPrivacyIdCountCombinerTest(parameterized.TestCase):
         self.assertTrue(_check_none_are_np_float64(merged_acc))
 
 
-class UtilityAnalysisCompoundCombinerTest(parameterized.TestCase):
+class CompoundCombinerTest(parameterized.TestCase):
 
     def _create_combiner(self) -> combiners.CompoundCombiner:
         mechanism_spec, params = _create_combiner_params_for_count()
         count_combiner = combiners.CountCombiner(mechanism_spec, params)
         return combiners.CompoundCombiner([count_combiner],
-                                          return_named_tuple=False)
+                                          n_sum_aggregations=0)
+
+    def _create_combiner_2_columns(self) -> combiners.CompoundCombiner:
+        mechanism_spec, params1 = _create_combiner_params_for_sum(0, 1)
+        sum_combiner1 = combiners.SumCombiner(mechanism_spec,
+                                              params1,
+                                              i_column=0)
+        params2 = copy.deepcopy(params1)
+        params2.max_sum_per_partition = 5
+        sum_combiner2 = combiners.SumCombiner(mechanism_spec,
+                                              params2,
+                                              i_column=1)
+        return combiners.CompoundCombiner([sum_combiner1, sum_combiner2],
+                                          n_sum_aggregations=2)
+
+    def test_create_accumulator_empty_data_multi_columns(self):
+
+        sparse, dense = self._create_combiner_2_columns().create_accumulator(())
+        self.assertEqual(sparse, ([], [], []))
+        self.assertIsNone(dense)
 
     def test_create_accumulator_empty_data(self):
         sparse, dense = self._create_combiner().create_accumulator(())
-        self.assertEqual(sparse, ([0], [0], [0]))
+        self.assertEqual(sparse, ([], [], []))
         self.assertIsNone(dense)
 
     def test_create_accumulator(self):
@@ -485,6 +522,13 @@ class UtilityAnalysisCompoundCombinerTest(parameterized.TestCase):
         self.assertEqual(([len(data)], [sum(data)], [n_partitions]), sparse)
         self.assertIsNone(dense)
 
+    def test_create_accumulator_2_sum_columns(self):
+        combiner = self._create_combiner_2_columns()
+        pre_aggregate_data = [1, [2, 3], 4]  # count, sum, n_partitions
+        sparse, dense = combiner.create_accumulator(pre_aggregate_data)
+        self.assertEqual(([1], [[2, 3]], [4]), sparse)
+        self.assertIsNone(dense)
+
     def test_to_dense(self):
         combiner = self._create_combiner()
         sparse_acc = ([1, 3], [10, 20], [100, 200])
@@ -492,6 +536,16 @@ class UtilityAnalysisCompoundCombinerTest(parameterized.TestCase):
         num_privacy_ids, (count_acc,) = dense
         self.assertEqual(2, num_privacy_ids)
         self.assertSequenceEqual((4, 0, -1.0, -2.98, 0.0298), count_acc)
+
+    def test_to_dense_2_columns(self):
+        combiner = self._create_combiner_2_columns()
+        sparse_acc = ([1, 3], [(10, 20), (100, 200)], [100, 200])
+        dense = combiner._to_dense(sparse_acc)
+        num_privacy_ids, (sum1_acc, sum2_acc) = dense
+        self.assertEqual(2, num_privacy_ids)
+        self.assertSequenceEqual(
+            (110, 0, -108, -1.9849999999999999, 0.014875000000000001), sum1_acc)
+        self.assertSequenceEqual((220, 0, -210, -9.925, 0.371875), sum2_acc)
 
     def test_merge_sparse(self):
         combiner = self._create_combiner()
@@ -611,7 +665,7 @@ class UtilityAnalysisCompoundCombinerTest(parameterized.TestCase):
         sum_mechanism_spec, sum_params = _create_combiner_params_for_sum(0, 5)
         sum_combiner = combiners.SumCombiner(sum_mechanism_spec, sum_params)
         combiner = combiners.CompoundCombiner([count_combiner, sum_combiner],
-                                              return_named_tuple=False)
+                                              n_sum_aggregations=1)
 
         data, n_partitions = [1, 2, 3], 100
         acc = combiner.create_accumulator((len(data), sum(data), n_partitions))

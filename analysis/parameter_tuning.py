@@ -244,7 +244,12 @@ def _add_dp_strategy_to_multi_parameter_configuration(
         noise_kind: Optional[pipeline_dp.NoiseKind],
         strategy_selector: dp_strategy_selector.DPStrategySelector) -> None:
     params = [
-        configuration.get_aggregate_params(blueprint_params, i)
+        # get_aggregate_params returns a tuple (AggregateParams,
+        # min_max_sum_per_partitions)
+        # for multi-columns. DP Strategy (i.e. noise_kind, partition_selection)
+        # is independent from min_max_sum_per_partitions, it's fine to just get
+        # the first element of AggregateParam
+        configuration.get_aggregate_params(blueprint_params, i)[0]
         for i in range(configuration.size)
     ]
     # Initialize fields corresponding to DP strategy configuration
@@ -452,9 +457,6 @@ def _check_tune_args(options: TuneOptions, is_public_partitions: bool):
             # Empty metrics means that partition selection tuning is performed.
             raise ValueError("Empty metrics means tuning of partition selection"
                              " but public partitions were provided.")
-    elif len(metrics) > 1:
-        raise ValueError(
-            f"Tuning supports only one metric, but {metrics} given.")
     else:  # len(metrics) == 1
         if metrics[0] not in [
                 pipeline_dp.Metrics.COUNT, pipeline_dp.Metrics.PRIVACY_ID_COUNT,
