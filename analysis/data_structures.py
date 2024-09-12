@@ -121,6 +121,9 @@ class MultiParameterConfiguration:
                 min_max_sum = list(zip(min_sum, max_sum))
             else:
                 min_max_sum = [[min_sum, max_sum]]
+        else:
+            min_max_sum.append(
+                [params.min_sum_per_partition, params.max_sum_per_partition])
         return params, min_max_sum
 
 
@@ -155,7 +158,10 @@ def get_aggregate_params(
     """Returns AggregateParams which are specified by UtilityAnalysisOptions."""
     multi_param_configuration = options.multi_param_configuration
     if multi_param_configuration is None:
-        yield options.aggregate_params, []
+        agg_params = options.aggregate_params
+        yield agg_params, [[
+            agg_params.min_sum_per_partition, agg_params.max_sum_per_partition
+        ]]
     else:
         for i in range(multi_param_configuration.size):
             yield multi_param_configuration.get_aggregate_params(
