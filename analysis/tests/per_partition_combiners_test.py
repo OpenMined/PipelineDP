@@ -502,14 +502,15 @@ class CompoundCombinerTest(parameterized.TestCase):
         return combiners.CompoundCombiner([sum_combiner1, sum_combiner2],
                                           n_sum_aggregations=2)
 
-    def test_create_accumulator_empty_data(self):
+    def test_create_accumulator_empty_data_multi_columns(self):
+
         sparse, dense = self._create_combiner_2_columns().create_accumulator(())
-        self.assertEqual(sparse, ([0], [(0, 0)], [0]))
+        self.assertEqual(sparse, ([], [], []))
         self.assertIsNone(dense)
 
-    def test_create_accumulator_empty_data_multi_columns(self):
+    def test_create_accumulator_empty_data(self):
         sparse, dense = self._create_combiner().create_accumulator(())
-        self.assertEqual(sparse, ([0], [0], [0]))
+        self.assertEqual(sparse, ([], [], []))
         self.assertIsNone(dense)
 
     def test_create_accumulator(self):

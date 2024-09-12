@@ -399,11 +399,12 @@ class CompoundCombiner(pipeline_dp.combiners.CompoundCombiner):
         if not data:
             # Handle empty partitions. Only encountered when public partitions
             # are used.
-            if self._n_sum_aggregations > 1:
-                empty_sum = [(0,) * self._n_sum_aggregations]
-            else:
-                empty_sum = [0]
-            return (([0], empty_sum, [0]), None)
+            return (([], [], []), None)
+            # if self._n_sum_aggregations > 1:
+            #     empty_sum = [(0,) * self._n_sum_aggregations]
+            # else:
+            #     empty_sum = [0]
+            # return (([0], empty_sum, [0]), None)
         return (([data[0]], [data[1]], [data[2]]), None)
 
     def _to_dense(self,

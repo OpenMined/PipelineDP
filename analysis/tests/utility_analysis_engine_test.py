@@ -259,7 +259,7 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
         [self.assertLen(partition_metrics, 2) for partition_metrics in output]
 
         expected_pk0 = [
-            metrics.RawStatistics(privacy_id_count=2, count=1),
+            metrics.RawStatistics(privacy_id_count=1, count=1),
             metrics.SumMetrics(aggregation=pipeline_dp.Metrics.COUNT,
                                sum=1.0,
                                clipping_to_min_error=0.0,
@@ -278,7 +278,7 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
                                noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)
         ]
         expected_pk1 = [
-            metrics.RawStatistics(privacy_id_count=2, count=2),
+            metrics.RawStatistics(privacy_id_count=1, count=2),
             metrics.SumMetrics(aggregation=pipeline_dp.Metrics.COUNT,
                                sum=2.0,
                                clipping_to_min_error=0.0,
@@ -420,7 +420,7 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
 
         # Input collection has 2 privacy id, which contributes to 1 partition
         # 2 and 1 times correspondingly.
-        input = [(0, "pk", 2, 3), (0, "pk", 0, 1), (1, "pk", 15, 20)]
+        input = [(0, "pk", 2, 3), (0, "pk", 0, 0), (1, "pk", 15, 20)]
         data_extractors = pipeline_dp.data_extractors.MultiValueDataExtractors(
             privacy_id_extractor=lambda x: x[0],
             partition_extractor=lambda x: x[1],
@@ -444,7 +444,7 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
         [self.assertLen(partition_metrics, 2) for partition_metrics in output]
 
         expected = [
-            metrics.RawStatistics(privacy_id_count=3, count=3),
+            metrics.RawStatistics(privacy_id_count=2, count=3),
             metrics.SumMetrics(aggregation=pipeline_dp.Metrics.SUM,
                                sum=17,
                                clipping_to_min_error=0,
@@ -454,7 +454,7 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
                                std_noise=52.359375,
                                noise_kind=pipeline_dp.NoiseKind.GAUSSIAN),
             metrics.SumMetrics(aggregation=pipeline_dp.Metrics.SUM,
-                               sum=24,
+                               sum=23,
                                clipping_to_min_error=0,
                                clipping_to_max_error=-10,
                                expected_l0_bounding_error=0.0,
@@ -478,10 +478,10 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
                                std_noise=123.41223040396463,
                                noise_kind=pipeline_dp.NoiseKind.GAUSSIAN),
             metrics.SumMetrics(aggregation=pipeline_dp.Metrics.SUM,
-                               sum=24,
-                               clipping_to_min_error=1,
+                               sum=23,
+                               clipping_to_min_error=0,
                                clipping_to_max_error=0,
-                               expected_l0_bounding_error=-1.0,
+                               expected_l0_bounding_error=0,
                                std_l0_bounding_error=0.0,
                                std_noise=493.6489216158585,
                                noise_kind=pipeline_dp.NoiseKind.GAUSSIAN),
