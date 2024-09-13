@@ -95,10 +95,8 @@ have pip pacakge. It might be possible to compile it from sources for Apple Sili
 
 ## Attack Model
 
-Please refer to the
-[attack model](https://github.com/google/differential-privacy/blob/main/common_docs/attack_model.md)
-of the underlying Google Differential Privacy Library to learn more about
-our assumptions and requirements for using PipelineDP in a safe way.
+PipelineDP has the same [attack model](https://github.com/google/differential-privacy/blob/main/common_docs/attack_model.md)
+as the Google Differential Privacy Library.
  
 ## Development
 
