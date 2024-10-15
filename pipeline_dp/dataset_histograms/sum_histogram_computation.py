@@ -112,7 +112,7 @@ def _compute_frequency_histogram_per_key(
     def _map_to_frequency_bin(
         key_value: Tuple[int, float],
         bucket_generators: List[List[LowerUpperGenerator]]
-    ) -> Tuple[float, hist.FrequencyBin]:
+    ) -> Tuple[Tuple[int, float], hist.FrequencyBin]:
         # bucket_generator is a 1-element list with
         # a single element to be a list of LowerUpperGenerator.
         index, value = key_value
