@@ -92,6 +92,11 @@ Supported Python version >= 3.8.
 **Note for Apple Silicon users:** PipelineDP pip package is currently available only 
 for x86 architecture. The reason is that [PyDP](https://github.com/OpenMined/PyDP) does not
 have pip pacakge. It might be possible to compile it from sources for Apple Silicon.
+
+## Attack Model
+
+PipelineDP has the same [attack model](https://github.com/google/differential-privacy/blob/main/common_docs/attack_model.md)
+as the Google Differential Privacy Library.
  
 ## Development
 
