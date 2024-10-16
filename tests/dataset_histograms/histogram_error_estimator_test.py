@@ -49,8 +49,17 @@ class HistogramErrorEstimatorTest(parameterized.TestCase):
         epsilon: float = 2**0.5 / 2,
         delta: Optional[float] = None,
     ):
-        return histogram_error_estimator.create_error_estimator(
+        return histogram_error_estimator.create_estimator_for_count_privacy_id_count(
             self._get_histograms(), epsilon, delta, metric, noise_kind)
+
+    def _get_estimator_for_sum(
+        self,
+        noise_kind: pipeline_dp.NoiseKind = pipeline_dp.NoiseKind.LAPLACE,
+        epsilon: float = 2**0.5 / 2,
+        delta: Optional[float] = None,
+    ):
+        return histogram_error_estimator.create_estimator_for_sum(
+            self._get_histograms(), epsilon, delta, noise_kind)
 
     @parameterized.named_parameters(
         dict(testcase_name='count_gaussian',
@@ -112,12 +121,32 @@ class HistogramErrorEstimatorTest(parameterized.TestCase):
         self.assertAlmostEqual(estimator.get_ratio_dropped_l0(l0_bound),
                                expected)
 
+    @parameterized.parameters((0, 1), (1, 9 / 11), (2, 8 / 11), (3, 7 / 11),
+                              (9, 1 / 11), (10, 0), (20, 0))
+    # there are 11 (privacy_id, partition) pairs (from 2 privacy units), when
+    # l0_bound=1, 9 are dropped (from 1 privacy unit).
+    def test_get_ratio_dropped_l0_for_sum(self, l0_bound, expected):
+        estimator = self._get_estimator_for_sum()
+        self.assertAlmostEqual(estimator.get_ratio_dropped_l0(l0_bound),
+                               expected)
+
     @parameterized.parameters((0, 1), (1, 19 / 30), (2, 18 / 30), (10, 10 / 30),
                               (20, 0), (21, 0))
     # there are 30 rows (from 2 privacy units), when linf_bound=1, 19 are
     # dropped (from 1 privacy unit, which contributes 20 to 1 partition).
     def test_get_ratio_dropped_linf(self, linf_bound, expected):
         estimator = self._get_estimator(pipeline_dp.Metrics.COUNT)
+        self.assertAlmostEqual(estimator.get_ratio_dropped_linf(linf_bound),
+                               expected)
+
+    @parameterized.parameters((0, 1), (0.5, 0.89), (1, 0.78), (2, 0.76),
+                              (40, 0))
+    # there 1 is contribution 40 and 10 contribution 1.
+    # total contribution = 1*40+10*1 = 50
+    # when linf_bound = 0.5, left after contribution bounding 11*0.5=5.5, i.e.
+    # dropped (50-5.5)/50 = 0.89
+    def test_get_ratio_dropped_linf_for_sum(self, linf_bound, expected):
+        estimator = self._get_estimator_for_sum()
         self.assertAlmostEqual(estimator.get_ratio_dropped_linf(linf_bound),
                                expected)
 
@@ -141,6 +170,10 @@ class HistogramErrorEstimatorTest(parameterized.TestCase):
         estimator = self._get_estimator(pipeline_dp.Metrics.COUNT)
         self.assertAlmostEqual(estimator.estimate_rmse(l0_bound, linf_bound),
                                expected)
+
+    def test_estimate_rmse_sum(self):
+        estimator = self._get_estimator_for_sum()
+        self.assertAlmostEqual(estimator.estimate_rmse(1, 1), 5.93769917)
 
 
 if __name__ == '__main__':
