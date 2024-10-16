@@ -42,15 +42,18 @@ class FrequencyBin:
     count: int
     sum: Union[int, float]
     max: Union[int, float]
+    min: Union[int, float]
 
     def __add__(self, other: 'FrequencyBin') -> 'FrequencyBin':
         self._check_same_bin(other)
         return FrequencyBin(self.lower, self.upper, self.count + other.count,
-                            self.sum + other.sum, max(self.max, other.max))
+                            self.sum + other.sum, max(self.max, other.max),
+                            min(self.min, other.min))
 
     def __eq__(self, other):
         return (self.lower == other.lower and self.count == other.count and
-                self.sum == other.sum and self.max == other.max)
+                self.sum == other.sum and self.max == other.max and
+                self.min == self.min)
 
     def _check_same_bin(self, other: 'FrequencyBin'):
         assert self.lower == other.lower

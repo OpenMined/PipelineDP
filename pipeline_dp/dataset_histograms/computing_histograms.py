@@ -112,7 +112,8 @@ def _compute_frequency_histogram_helper(
                                             upper=bin_upper,
                                             count=frequency,
                                             sum=frequency * value,
-                                            max=value)
+                                            max=value,
+                                            min=value)
 
     col = backend.map_tuple(col, _map_to_frequency_bin, "To FrequencyBin")
     # (lower_bin_value, hist.FrequencyBin)
