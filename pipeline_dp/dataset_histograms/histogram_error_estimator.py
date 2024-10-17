@@ -66,8 +66,7 @@ class ErrorEstimator:
 
     def estimate_rmse(self,
                       l0_bound: int,
-                      linf_bound: Optional[int] = None,
-                      to_print=False) -> float:
+                      linf_bound: Optional[int] = None) -> float:
         """Estimates RMSE error for given l0 and linf bounds.
 
         Estimation algorithm is the following:
@@ -102,9 +101,6 @@ class ErrorEstimator:
             ratio_dropped_linf = self.get_ratio_dropped_linf(linf_bound)
         ratio_dropped = 1 - (1 - ratio_dropped_l0) * (1 - ratio_dropped_linf)
         stddev = self._get_stddev(l0_bound, linf_bound)
-        if to_print:
-            print(f"{ratio_dropped_l0=},"
-                  f" {ratio_dropped_linf=} {ratio_dropped=} {stddev=}")
         return _estimate_rmse_impl(ratio_dropped, stddev,
                                    self._partition_histogram)
 
@@ -142,7 +138,7 @@ class ErrorEstimator:
         return self._base_std * math.sqrt(l0_bound) * linf_bound
 
 
-def create_estimator_for_count_privacy_id_count(
+def create_estimator_for_count_and_privacy_id_count(
     histograms: hist.DatasetHistograms,
     epsilon: float,
     delta: Optional[float],

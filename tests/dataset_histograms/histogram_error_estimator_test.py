@@ -42,14 +42,14 @@ class HistogramErrorEstimatorTest(parameterized.TestCase):
             computing_histograms.compute_dataset_histograms(
                 dataset, data_extractors, pipeline_dp.LocalBackend()))[0]
 
-    def _get_estimator(
+    def _get_estimator_for_count_and_privacy_id_count(
         self,
         metric: pipeline_dp.Metric,
         noise_kind: pipeline_dp.NoiseKind = pipeline_dp.NoiseKind.LAPLACE,
         epsilon: float = 2**0.5 / 2,
         delta: Optional[float] = None,
     ):
-        return histogram_error_estimator.create_estimator_for_count_privacy_id_count(
+        return histogram_error_estimator.create_estimator_for_count_and_privacy_id_count(
             self._get_histograms(), epsilon, delta, metric, noise_kind)
 
     def _get_estimator_for_sum(
@@ -99,10 +99,8 @@ class HistogramErrorEstimatorTest(parameterized.TestCase):
                              delta: Optional[float],
                              noise_kind: pipeline_dp.NoiseKind, l0: float,
                              linf: float, expected: float):
-        estimator = self._get_estimator(metric=metric,
-                                        epsilon=epsilon,
-                                        delta=delta,
-                                        noise_kind=noise_kind)
+        estimator = self._get_estimator_for_count_and_privacy_id_count(
+            metric=metric, epsilon=epsilon, delta=delta, noise_kind=noise_kind)
         self.assertAlmostEqual(estimator._get_stddev(l0, linf),
                                expected,
                                delta=1e-10)
@@ -110,14 +108,16 @@ class HistogramErrorEstimatorTest(parameterized.TestCase):
     def test_sum_not_supported(self):
         with self.assertRaisesRegex(
                 ValueError, "Only COUNT and PRIVACY_ID_COUNT are supported"):
-            self._get_estimator(pipeline_dp.Metrics.SUM)
+            self._get_estimator_for_count_and_privacy_id_count(
+                pipeline_dp.Metrics.SUM)
 
     @parameterized.parameters((0, 1), (1, 9 / 11), (2, 8 / 11), (3, 7 / 11),
                               (9, 1 / 11), (10, 0), (20, 0))
     # there are 11 (privacy_id, partition) pairs (from 2 privacy units), when
     # l0_bound=1, 9 are dropped (from 1 privacy unit).
     def test_get_ratio_dropped_l0(self, l0_bound, expected):
-        estimator = self._get_estimator(pipeline_dp.Metrics.COUNT)
+        estimator = self._get_estimator_for_count_and_privacy_id_count(
+            pipeline_dp.Metrics.COUNT)
         self.assertAlmostEqual(estimator.get_ratio_dropped_l0(l0_bound),
                                expected)
 
@@ -135,13 +135,14 @@ class HistogramErrorEstimatorTest(parameterized.TestCase):
     # there are 30 rows (from 2 privacy units), when linf_bound=1, 19 are
     # dropped (from 1 privacy unit, which contributes 20 to 1 partition).
     def test_get_ratio_dropped_linf(self, linf_bound, expected):
-        estimator = self._get_estimator(pipeline_dp.Metrics.COUNT)
+        estimator = self._get_estimator_for_count_and_privacy_id_count(
+            pipeline_dp.Metrics.COUNT)
         self.assertAlmostEqual(estimator.get_ratio_dropped_linf(linf_bound),
                                expected)
 
     @parameterized.parameters((0, 1), (0.5, 0.89), (1, 0.78), (2, 0.76),
                               (40, 0))
-    # there 1 is contribution 40 and 10 contribution 1.
+    # there 1 is contribution of 40 and 10 contribution of 1.
     # total contribution = 1*40+10*1 = 50
     # when linf_bound = 0.5, left after contribution bounding 11*0.5=5.5, i.e.
     # dropped (50-5.5)/50 = 0.89
@@ -167,7 +168,8 @@ class HistogramErrorEstimatorTest(parameterized.TestCase):
     # rmse2 = sqrt(21*total_ratio_dropped + noise_stddev**2) ~= 19.70177
     # rmse = (9*rmse1+rmse2)/10.
     def test_estimate_rmse_count(self, l0_bound, linf_bound, expected):
-        estimator = self._get_estimator(pipeline_dp.Metrics.COUNT)
+        estimator = self._get_estimator_for_count_and_privacy_id_count(
+            pipeline_dp.Metrics.COUNT)
         self.assertAlmostEqual(estimator.estimate_rmse(l0_bound, linf_bound),
                                expected)
 
