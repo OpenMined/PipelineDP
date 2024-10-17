@@ -20,21 +20,25 @@ import math
 import bisect
 
 
-class CountErrorEstimator:
+class ErrorEstimator:
     """Estimator of the error from DP pipeline from DatasetHistograms.
 
     The recommended way to create this object is to use create_error_estimator.
-    It works only for COUNT and PRIVACY_ID_COUNT.
 
     Partition selection error is not implemented yet. Now only contribution
     bounding and noise error are taken into consideration.
     """
 
-    def __init__(self, epsilon: float, delta: Optional[float],
-                 metric: pipeline_dp.Metric, noise: pipeline_dp.NoiseKind,
-                 l0_ratios_dropped: Sequence[Tuple[int, float]],
-                 linf_ratios_dropped: Sequence[Tuple[int, float]],
-                 partition_histogram: hist.Histogram):
+    def __init__(
+        self,
+        epsilon: float,
+        delta: Optional[float],
+        metric: pipeline_dp.Metric,
+        noise: pipeline_dp.NoiseKind,
+        l0_ratios_dropped: Sequence[Tuple[int, float]],
+        linf_ratios_dropped: Sequence[Tuple[int, float]],
+        partition_histogram: hist.Histogram,
+    ):
         self._base_std = self._get_stddev_for_dp_mechanism(
             epsilon, delta, noise)
         self._metric = metric
@@ -84,15 +88,16 @@ class CountErrorEstimator:
             linf_bound: linf contribution bound, AKA for COUNT as
               max_contributions_per_partition. This parameter is ignored for
               PRIVACY_ID_COUNT
+
         Returns:
             the estimated error.
         """
-        if self._metric == pipeline_dp.Metrics.COUNT:
+        if self._metric != pipeline_dp.Metrics.PRIVACY_ID_COUNT:
             if linf_bound is None:
                 raise ValueError("linf must be given for COUNT")
         ratio_dropped_l0 = self.get_ratio_dropped_l0(l0_bound)
         ratio_dropped_linf = 0
-        if self._metric == pipeline_dp.Metrics.COUNT:
+        if self._metric != pipeline_dp.Metrics.PRIVACY_ID_COUNT:
             ratio_dropped_linf = self.get_ratio_dropped_linf(linf_bound)
         ratio_dropped = 1 - (1 - ratio_dropped_l0) * (1 - ratio_dropped_linf)
         stddev = self._get_stddev(l0_bound, linf_bound)
@@ -133,23 +138,29 @@ class CountErrorEstimator:
         return self._base_std * math.sqrt(l0_bound) * linf_bound
 
 
-def create_error_estimator(histograms: hist.DatasetHistograms, epsilon: float,
-                           delta: Optional[float], metric: pipeline_dp.Metric,
-                           noise: pipeline_dp.NoiseKind) -> CountErrorEstimator:
+def create_estimator_for_count_and_privacy_id_count(
+    histograms: hist.DatasetHistograms,
+    epsilon: float,
+    delta: Optional[float],
+    metric: pipeline_dp.Metric,
+    noise: pipeline_dp.NoiseKind,
+) -> ErrorEstimator:
     """Creates histogram based error estimator for COUNT or PRIVACY_ID_COUNT.
 
     Args:
         histograms: dataset histograms.
         epsilon: epsilon parameter of the DP mechanism for adding noise.
-        delta: delta parameter of the DP mechanism for adding noise (must be
-            None for Laplace noise).
+        delta: delta parameter of the DP mechanism for adding noise (must be None
+          for Laplace noise).
         metric: DP aggregation, COUNT or PRIVACY_ID_COUNT.
         noise: type of DP noise.
+
     Returns:
         Error estimator.
     """
     if metric not in [
-            pipeline_dp.Metrics.COUNT, pipeline_dp.Metrics.PRIVACY_ID_COUNT
+            pipeline_dp.Metrics.COUNT,
+            pipeline_dp.Metrics.PRIVACY_ID_COUNT,
     ]:
         raise ValueError(
             f"Only COUNT and PRIVACY_ID_COUNT are supported, but metric={metric}"
@@ -162,8 +173,15 @@ def create_error_estimator(histograms: hist.DatasetHistograms, epsilon: float,
         partition_histogram = histograms.count_per_partition_histogram
     else:
         partition_histogram = histograms.count_privacy_id_per_partition
-    return CountErrorEstimator(epsilon, delta, metric, noise, l0_ratios_dropped,
-                               linf_ratios_dropped, partition_histogram)
+    return ErrorEstimator(
+        epsilon,
+        delta,
+        metric,
+        noise,
+        l0_ratios_dropped,
+        linf_ratios_dropped,
+        partition_histogram,
+    )
 
 
 def _estimate_rmse_impl(ratio_dropped: float, std: float,
@@ -176,3 +194,45 @@ def _estimate_rmse_impl(ratio_dropped: float, std: float,
                          std**2)
         sum_rmse += bin.count * rmse
     return sum_rmse / num_partitions
+
+
+def create_estimator_for_sum(histograms: hist.DatasetHistograms,
+                             epsilon: float,
+                             delta: Optional[float],
+                             noise: pipeline_dp.NoiseKind,
+                             sum_index: int = 0) -> ErrorEstimator:
+    """Creates histogram based error estimator for SUM.
+
+    Args:
+        histograms: dataset histograms.
+        epsilon: epsilon parameter of the DP mechanism for adding noise.
+        delta: delta parameter of the DP mechanism for adding noise (must be None
+          for Laplace noise).
+        noise: type of DP noise.
+        sum_index: the index of the sum for the case of multi-aggregations.
+
+    Returns:
+        Error estimator.
+    """
+    l0_ratios_dropped = hist.compute_ratio_dropped(
+        histograms.l0_contributions_histogram)
+    if isinstance(histograms.linf_sum_contributions_histogram, hist.Histogram):
+        # 1 sum
+        linf_sum_histograms = histograms.linf_sum_contributions_histogram
+        partition_histogram = histograms.sum_per_partition_histogram
+    else:  # multiple SUM aggregations
+        linf_sum_histograms = histograms.linf_sum_contributions_histogram[
+            sum_index]
+        partition_histogram = histograms.sum_per_partition_histogram[sum_index]
+
+    linf_ratios_dropped = hist.compute_ratio_dropped(linf_sum_histograms)
+
+    return ErrorEstimator(
+        epsilon,
+        delta,
+        pipeline_dp.Metrics.SUM,
+        noise,
+        l0_ratios_dropped,
+        linf_ratios_dropped,
+        partition_histogram,
+    )
