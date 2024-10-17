@@ -56,6 +56,7 @@ def _frequency_bin(max_value: float = 0.0,
                    lower: float = 0.0) -> histograms.FrequencyBin:
     return histograms.FrequencyBin(max=max_value,
                                    lower=lower,
+                                   min=None,
                                    upper=None,
                                    count=None,
                                    sum=None)
