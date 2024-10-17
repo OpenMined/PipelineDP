@@ -25,9 +25,9 @@ class DataExtractors:
     partition key, and value respectively.
     """
 
-    privacy_id_extractor: Callable = None
-    partition_extractor: Callable = None
-    value_extractor: Callable = None
+    privacy_id_extractor: Optional[Callable] = None
+    partition_extractor: Optional[Callable] = None
+    value_extractor: Optional[Callable] = None
 
 
 @dataclasses.dataclass
