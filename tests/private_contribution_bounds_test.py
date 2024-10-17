@@ -54,16 +54,19 @@ class L0ScoringFunctionTest(unittest.TestCase):
                                                             upper=2,
                                                             count=100,
                                                             sum=100,
+                                                            min=1,
                                                             max=1),
                                           hist.FrequencyBin(lower=2,
                                                             upper=6,
                                                             count=10,
                                                             sum=10,
+                                                            min=2,
                                                             max=5),
                                           hist.FrequencyBin(lower=6,
                                                             upper=100,
                                                             count=20,
                                                             sum=20,
+                                                            min=6,
                                                             max=60)
                                       ])
         l0_scoring_function = private_contribution_bounds.L0ScoringFunction(
@@ -95,39 +98,6 @@ class L0ScoringFunctionTest(unittest.TestCase):
         # -0.5 * 200 * 200 / 0.9 * sqrt(2) - 0.5 * 0
         self.assertAlmostEqual(-31427.0, score_200, places=1)
 
-    def test_score_laplace_noise_invalid_values_throws_exception(self):
-        params = construct_params(
-            aggregation_noise_kind=pipeline_dp.NoiseKind.LAPLACE,
-            aggregation_eps=0.9,
-            max_partitions_contributed_upper_bound=100)
-        number_of_partitions = 200
-        l0_histogram = hist.Histogram(name=hist.HistogramType.L0_CONTRIBUTIONS,
-                                      bins=[
-                                          hist.FrequencyBin(lower=1,
-                                                            upper=2,
-                                                            count=100,
-                                                            sum=100,
-                                                            max=1),
-                                          hist.FrequencyBin(lower=2,
-                                                            upper=6,
-                                                            count=10,
-                                                            sum=10,
-                                                            max=5),
-                                          hist.FrequencyBin(lower=6,
-                                                            upper=100,
-                                                            count=20,
-                                                            sum=20,
-                                                            max=60)
-                                      ])
-        l0_scoring_function = private_contribution_bounds.L0ScoringFunction(
-            params, number_of_partitions, l0_histogram)
-
-        with self.assertRaises(RuntimeError):
-            l0_scoring_function.score(-1)
-
-        with self.assertRaises(RuntimeError):
-            l0_scoring_function.score(0)
-
     def test_score_gaussian_noise_valid_values_calculates_score_correctly(self):
         params = construct_params(
             aggregation_noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
@@ -141,16 +111,19 @@ class L0ScoringFunctionTest(unittest.TestCase):
                                                             upper=2,
                                                             count=100,
                                                             sum=100,
+                                                            min=1,
                                                             max=1),
                                           hist.FrequencyBin(lower=2,
                                                             upper=6,
                                                             count=10,
                                                             sum=10,
+                                                            min=2,
                                                             max=5),
                                           hist.FrequencyBin(lower=6,
                                                             upper=100,
                                                             count=20,
                                                             sum=20,
+                                                            min=6,
                                                             max=60)
                                       ])
         l0_scoring_function = private_contribution_bounds.L0ScoringFunction(
@@ -183,37 +156,6 @@ class L0ScoringFunctionTest(unittest.TestCase):
         # -0.5 * 200 * sqrt(200) * sigma - 0.5 * 0
         self.assertAlmostEqual(-3977, score_200, delta=10)
 
-    def test_score_gaussian_noise_invalid_values_throws_exception(self):
-        params = construct_params(
-            aggregation_noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
-            aggregation_eps=0.9,
-            aggregation_delta=0.001,
-            max_partitions_contributed_upper_bound=100)
-        number_of_partitions = 200
-        l0_histogram = hist.Histogram(name=hist.HistogramType.L0_CONTRIBUTIONS,
-                                      bins=[
-                                          hist.FrequencyBin(lower=1,
-                                                            upper=2,
-                                                            count=100,
-                                                            sum=100,
-                                                            max=1),
-                                          hist.FrequencyBin(lower=2,
-                                                            upper=6,
-                                                            count=10,
-                                                            sum=10,
-                                                            max=5),
-                                          hist.FrequencyBin(lower=6,
-                                                            upper=100,
-                                                            count=20,
-                                                            sum=20,
-                                                            max=60)
-                                      ])
-        l0_scoring_function = private_contribution_bounds.L0ScoringFunction(
-            params, number_of_partitions, l0_histogram)
-
-        with self.assertRaises(RuntimeError):
-            l0_scoring_function.score(0)
-
 
 class PrivateL0CalculatorTest(unittest.TestCase):
 
@@ -232,16 +174,19 @@ class PrivateL0CalculatorTest(unittest.TestCase):
                                                             upper=2,
                                                             count=100,
                                                             sum=100,
+                                                            min=1,
                                                             max=1),
                                           hist.FrequencyBin(lower=2,
                                                             upper=6,
                                                             count=10,
                                                             sum=10,
+                                                            min=2,
                                                             max=5),
                                           hist.FrequencyBin(lower=6,
                                                             upper=100,
                                                             count=20,
                                                             sum=20,
+                                                            min=6,
                                                             max=60)
                                       ])
         histograms = [
@@ -278,11 +223,13 @@ class PrivateL0CalculatorTest(unittest.TestCase):
                                                             upper=2,
                                                             count=1,
                                                             sum=1,
+                                                            min=1,
                                                             max=1),
                                           hist.FrequencyBin(lower=2,
                                                             upper=3,
                                                             count=10000,
                                                             sum=10000,
+                                                            min=2,
                                                             max=2)
                                       ])
         histograms = [

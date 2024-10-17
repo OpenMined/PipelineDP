@@ -122,7 +122,8 @@ def _compute_frequency_histogram_per_key(
                                    upper=bin_upper,
                                    count=1,
                                    sum=value,
-                                   max=value)
+                                   max=value,
+                                   min=value)
         return (index, bin_lower), bucket
 
     col = backend.map_with_side_inputs(col, _map_to_frequency_bin,
