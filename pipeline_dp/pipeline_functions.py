@@ -115,10 +115,11 @@ def min_max_per_key(backend: pipeline_backend.PipelineBackend, col,
     # col: (key, (min, max))
     return col
 
-def filter_by_key_with_sharding(
-    backend: pipeline_backend.PipelineBackend, col, keys_to_keep, sharding_factor: int, stage_name: str
-):
-  """Filters out elements with keys which are not in `keys_to_keep`.
+
+def filter_by_key_with_sharding(backend: pipeline_backend.PipelineBackend, col,
+                                keys_to_keep, sharding_factor: int,
+                                stage_name: str):
+    """Filters out elements with keys which are not in `keys_to_keep`.
 
   It's like `backend.filter_by_key`, but for scalable filtering split each key
   into `sharding_factor` subkeys.
@@ -134,27 +135,26 @@ def filter_by_key_with_sharding(
    Returns:
     A filtered collection containing only data belonging to keys_to_keep.
   """
-  if sharding_factor > 1:
-    col = backend.map_tuple(
-        col,
-        lambda k, v: ((k, random.randint(0, sharding_factor-1)), v),
-        f"Sharding each key into {sharding_factor} subkeys",
-    )
-    keys_to_keep = backend.flat_map(
-        keys_to_keep,
-        lambda p: tuple((p, i) for i in range(sharding_factor)),
-        f"Shard partitions into {sharding_factor} keys",
-    )
-    # to_multi_transformable_collection is no-op for not LocalMode. For
-    # local mode it is transform iterable to list, which is neded because
-    # filter_by_key requires list.
-    keys_to_keep = backend.to_multi_transformable_collection(keys_to_keep)
+    if sharding_factor > 1:
+        col = backend.map_tuple(
+            col,
+            lambda k, v: ((k, random.randint(0, sharding_factor - 1)), v),
+            f"Sharding each key into {sharding_factor} subkeys",
+        )
+        keys_to_keep = backend.flat_map(
+            keys_to_keep,
+            lambda p: tuple((p, i) for i in range(sharding_factor)),
+            f"Shard partitions into {sharding_factor} keys",
+        )
+        # to_multi_transformable_collection is no-op for not LocalMode. For
+        # local mode it is transform iterable to list, which is neded because
+        # filter_by_key requires list.
+        keys_to_keep = backend.to_multi_transformable_collection(keys_to_keep)
 
-  col_filtered = backend.filter_by_key(col, keys_to_keep, stage_name)
+    col_filtered = backend.filter_by_key(col, keys_to_keep, stage_name)
 
-  if sharding_factor > 1:
-    col_filtered = backend.map_tuple(
-        col_filtered, lambda k, v: (k[0], v), "Remove sharding factor"
-    )
+    if sharding_factor > 1:
+        col_filtered = backend.map_tuple(col_filtered, lambda k, v: (k[0], v),
+                                         "Remove sharding factor")
 
-  return col_filtered
+    return col_filtered
