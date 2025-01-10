@@ -121,20 +121,20 @@ def filter_by_key_with_sharding(backend: pipeline_backend.PipelineBackend, col,
                                 stage_name: str):
     """Filters out elements with keys which are not in `keys_to_keep`.
 
-  It's like `backend.filter_by_key`, but for scalable filtering split each key
-  into `sharding_factor` subkeys.
+    It's like `backend.filter_by_key`, but for scalable filtering split each key
+    into `sharding_factor` subkeys.
 
-  Args:
-    backend: backend to use to perform the computation.
-    col: collection with elements (key, data).
-    keys_to_keep: collection of keys to keep, both local (currently `list` and
-      `set`) and distributed collections are supported.
-    sharding_factor: number of subkeys to split each key into.
-    stage_name: name of the stage.
+    Args:
+      backend: backend to use to perform the computation.
+      col: collection with elements (key, data).
+      keys_to_keep: collection of keys to keep, both local (currently `list` and
+        `set`) and distributed collections are supported.
+      sharding_factor: number of subkeys to split each key into.
+      stage_name: name of the stage.
 
-   Returns:
-    A filtered collection containing only data belonging to keys_to_keep.
-  """
+     Returns:
+      A filtered collection containing only data belonging to keys_to_keep.
+    """
     if sharding_factor > 1:
         col = backend.map_tuple(
             col,
