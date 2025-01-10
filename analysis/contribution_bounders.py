@@ -107,7 +107,8 @@ class LinfAnalysisContributionBounder(contribution_bounders.ContributionBounder
         # Sample by partition key if sampling_prob < 1.
         if self._sampling_probability < 1:
             sampler = sampling_utils.ValueSampler(self._sampling_probability)
-            col = backend.filter(col, lambda pid, pk, v: sampler.keep(pk),
+            col = backend.filter(col,
+                                 lambda pid_pk_v: sampler.keep(pid_pk_v[1]),
                                  "Sample partitions")
 
         col = backend.map_tuple(

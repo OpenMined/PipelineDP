@@ -48,7 +48,7 @@ def preaggregate(col,
                           data_extractors.value_extractor(row)),
         "Extract (privacy_id, partition_key, value))")
     # col: (privacy_id, partition_key, value):
-    bounder = utility_contribution_bounders.LinfAnalysisContributionBounder(
+    bounder = utility_contribution_bounders.L0LinfAnalysisContributionBounder(
         partitions_sampling_prob)
     col = bounder.bound_contributions(col,
                                       params=None,
