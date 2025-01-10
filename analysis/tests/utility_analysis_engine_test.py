@@ -170,7 +170,8 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
             max_partitions_contributed=1,
             max_contributions_per_partition=2)
 
-        budget_accountant = self._get_default_budget_accountant()
+        budget_accountant = pipeline_dp.NaiveBudgetAccountant(total_epsilon=2,
+                                                              total_delta=1e-10)
 
         data_extractors = pipeline_dp.DataExtractors(
             privacy_id_extractor=lambda x: x[0],
