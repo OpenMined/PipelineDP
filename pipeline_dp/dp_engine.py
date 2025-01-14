@@ -159,7 +159,9 @@ class DPEngine:
             col, combiner, "Reduce accumulators per partition key")
         # col : (partition_key, accumulator)
 
-        if public_partitions is None and not params.post_aggregation_thresholding:
+        if (public_partitions is None and
+                not params.post_aggregation_thresholding and
+                not params.public_partitions_already_filtered):
             # Perform private partition selection.
             max_rows_per_privacy_id = 1
 

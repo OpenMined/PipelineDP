@@ -18,10 +18,10 @@ from unittest.mock import patch
 import copy
 
 import pipeline_dp
-from pipeline_dp import budget_accounting
 from analysis import utility_analysis_engine
 from analysis import metrics
 import analysis
+import analysis.contribution_bounders as utility_contribution_bounders
 
 
 class UtilityAnalysisEngineTest(parameterized.TestCase):
@@ -45,6 +45,16 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
             metrics=[pipeline_dp.Metrics.COUNT],
             max_partitions_contributed=1,
             max_contributions_per_partition=1)
+
+    def _get_default_utility_engine(self):
+        return utility_analysis_engine.UtilityAnalysisEngine(
+            budget_accountant=self._get_default_budget_accountant(),
+            backend=pipeline_dp.LocalBackend())
+
+    def _get_default_budget_accountant(
+            self) -> pipeline_dp.NaiveBudgetAccountant:
+        return pipeline_dp.NaiveBudgetAccountant(total_epsilon=1,
+                                                 total_delta=1e-10)
 
     def test_invalid_utility_analysis_params_throws_exception(self):
         # Arrange.
@@ -89,8 +99,7 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
         }]
 
         for test_case in test_cases:
-            budget_accountant = budget_accounting.NaiveBudgetAccountant(
-                total_epsilon=1, total_delta=1e-10)
+            budget_accountant = self._get_default_budget_accountant()
             options = analysis.UtilityAnalysisOptions(
                 epsilon=1,
                 delta=0,
@@ -112,8 +121,7 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
         # Arrange
         aggregator_params = self._get_default_aggregate_params()
 
-        budget_accountant = pipeline_dp.NaiveBudgetAccountant(total_epsilon=1,
-                                                              total_delta=1e-10)
+        budget_accountant = self._get_default_budget_accountant()
 
         public_partitions = ["pk0", "pk1", "empty_public_partition"]
 
@@ -164,6 +172,7 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
 
         budget_accountant = pipeline_dp.NaiveBudgetAccountant(total_epsilon=2,
                                                               total_delta=1e-10)
+
         data_extractors = pipeline_dp.DataExtractors(
             privacy_id_extractor=lambda x: x[0],
             partition_extractor=lambda x: f"pk{x[1]}",
@@ -224,8 +233,7 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
             max_partitions_contributed=[1, 2],
             max_contributions_per_partition=[1, 2])
 
-        budget_accountant = pipeline_dp.NaiveBudgetAccountant(total_epsilon=1,
-                                                              total_delta=1e-10)
+        budget_accountant = self._get_default_budget_accountant()
 
         engine = utility_analysis_engine.UtilityAnalysisEngine(
             budget_accountant=budget_accountant,
@@ -315,8 +323,7 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
                 pipeline_dp.NoiseKind.LAPLACE, pipeline_dp.NoiseKind.GAUSSIAN
             ])
 
-        budget_accountant = pipeline_dp.NaiveBudgetAccountant(total_epsilon=1,
-                                                              total_delta=1e-10)
+        budget_accountant = self._get_default_budget_accountant()
 
         engine = utility_analysis_engine.UtilityAnalysisEngine(
             budget_accountant=budget_accountant,
@@ -373,8 +380,7 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
         mock_sampler_init.return_value = None
         aggregator_params = self._get_default_aggregate_params()
 
-        budget_accountant = pipeline_dp.NaiveBudgetAccountant(total_epsilon=1,
-                                                              total_delta=1e-10)
+        budget_accountant = self._get_default_budget_accountant()
 
         data_extractors = pipeline_dp.DataExtractors(
             privacy_id_extractor=lambda x: x,
@@ -411,8 +417,7 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
             max_sum_per_partition=[(3, 10), (5, 20)],
         )
 
-        budget_accountant = pipeline_dp.NaiveBudgetAccountant(total_epsilon=1,
-                                                              total_delta=1e-10)
+        budget_accountant = self._get_default_budget_accountant()
 
         engine = utility_analysis_engine.UtilityAnalysisEngine(
             budget_accountant=budget_accountant,
@@ -496,6 +501,39 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
         ]
 
         self.assertSequenceEqual(output[0][1], expected)
+
+    def test_create_contribution_bounder_preaggregated(self):
+        engine = self._get_default_utility_engine()
+        params = self._get_default_aggregate_params()
+        engine._options = analysis.UtilityAnalysisOptions(
+            epsilon=1,
+            delta=0,
+            aggregate_params=params,
+            pre_aggregated_data=True)
+        self.assertIsInstance(
+            engine._create_contribution_bounder(params, False),
+            utility_contribution_bounders.NoOpContributionBounder)
+
+    def test_create_contribution_bounder_l0linf(self):
+        engine = self._get_default_utility_engine()
+        params = self._get_default_aggregate_params()
+
+        engine._options = analysis.UtilityAnalysisOptions(
+            epsilon=1, delta=0, aggregate_params=params)
+        self.assertIsInstance(
+            engine._create_contribution_bounder(params, False),
+            utility_contribution_bounders.L0LinfAnalysisContributionBounder)
+
+    def test_create_contribution_bounder_linf(self):
+        engine = self._get_default_utility_engine()
+        params = self._get_default_aggregate_params()
+        params.perform_cross_partition_contribution_bounding = False
+
+        engine._options = analysis.UtilityAnalysisOptions(
+            epsilon=1, delta=0, aggregate_params=params)
+        self.assertIsInstance(
+            engine._create_contribution_bounder(params, False),
+            utility_contribution_bounders.LinfAnalysisContributionBounder)
 
 
 if __name__ == '__main__':
