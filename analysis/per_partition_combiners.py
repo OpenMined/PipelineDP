@@ -357,7 +357,7 @@ class RawStatisticsCombiner(UtilityAnalysisCombiner):
         self, sparse_acc: Tuple[np.ndarray, np.ndarray,
                                 np.ndarray]) -> AccumulatorType:
         count, _sum, n_partitions = sparse_acc
-        return len(count), np.sum(count).item()
+        return len(count), int(np.sum(count).item())
 
     def compute_metrics(self, acc: AccumulatorType):
         privacy_id_count, count = acc

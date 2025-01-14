@@ -128,7 +128,8 @@ class LinfContributionBounderTest(parameterized.TestCase):
 
     def test_contribution_bounding_empty_col(self):
         input = []
-        max_partitions_contributed = max_contributions_per_partition = 2
+        max_partitions_contributed = 2
+        max_contributions_per_partition = 2
         bound_result = self._run_contribution_bounding(
             input, max_partitions_contributed, max_contributions_per_partition)
 
@@ -139,7 +140,14 @@ class LinfContributionBounderTest(parameterized.TestCase):
                  ("pid1", 'pk2', 4)]
         bound_result = self._run_contribution_bounding(input,
                                                        aggregate_fn=lambda x: x)
-
+        # the output format:
+        # (count_per_partition, sum_per_partition,
+        # num_partition_contributed_per_privacy_id,
+        # num_contribution_per_privacy_id)
+        # Since no cross-partition contribution, we consider that the privacy id
+        # contributes only to this partition, so
+        # num_partition_contributed_per_privacy_id = 1
+        # num_contribution_per_privacy_id = count_per_partition
         expected_result = [(('pid1', 'pk2'), (2, 7, 1, 2)),
                            (('pid1', 'pk1'), (2, 3, 1, 2))]
         self.assertEqual(set(expected_result), set(bound_result))

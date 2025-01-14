@@ -524,7 +524,7 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
             engine._create_contribution_bounder(params, False),
             utility_contribution_bounders.L0LinfAnalysisContributionBounder)
 
-    def test_create_contribution_bounder_l0linf(self):
+    def test_create_contribution_bounder_linf(self):
         engine = self._get_default_utility_engine()
         params = self._get_default_aggregate_params()
         params.perform_cross_partition_contribution_bounding = False

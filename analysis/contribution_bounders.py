@@ -16,7 +16,7 @@
 import numpy as np
 from pipeline_dp import contribution_bounders
 from pipeline_dp import sampling_utils
-from typing import Iterable, Union
+from typing import Iterable, Tuple, Union
 
 
 class L0LinfAnalysisContributionBounder(
@@ -31,9 +31,7 @@ class L0LinfAnalysisContributionBounder(
     is deterministic and depends on partition key.
     """
 
-    def __init__(self,
-                 partitions_sampling_prob: float,
-                 perform_cross_partition_contribution_bounding: bool = True):
+    def __init__(self, partitions_sampling_prob: float):
         super().__init__()
         self._sampling_probability = partitions_sampling_prob
 
@@ -133,7 +131,7 @@ class LinfAnalysisContributionBounder(contribution_bounders.ContributionBounder
                 num_contributions,
             )
 
-        # Unnest the list per privacy id.
+        # Unnest the list per privacy id and per partition key.
         col = backend.flat_map(
             col, rekey_per_privacy_id_per_partition_key_and_unnest,
             "Unnest per-privacy_id")
@@ -143,7 +141,7 @@ class LinfAnalysisContributionBounder(contribution_bounders.ContributionBounder
 
 def _sum_values(
     values: Union[Iterable[float], Iterable[Iterable[float]]]
-) -> Union[float, tuple[float]]:
+) -> Union[float, Tuple[float]]:
     """Sums values"""
     # Sum values.
     # values can contain multi-columns, the format is the following
