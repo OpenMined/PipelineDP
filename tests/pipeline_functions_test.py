@@ -260,6 +260,15 @@ class LocalBackendTest(parameterized.TestCase):
 
         self.assertEqual(expected_min_max, list(result))
 
+    @parameterized.parameters(1, 5)
+    def test_local_filter_by_key(self, sharding_factor):
+        col = [(7, 1), (2, 1), (3, 9), (4, 1), (9, 10), (7, 4), (7, 5)]
+        keys_to_keep = [7, 9]
+        result = composite_funcs.filter_by_key_with_sharding(
+            self.backend, col, keys_to_keep, sharding_factor, "filter_by_key")
+        self.assertEqual(sorted(list(result)), [(7, 1), (7, 4), (7, 5),
+                                                (9, 10)])
+
 
 @unittest.skipIf(sys.platform == 'win32' or sys.platform == 'darwin',
                  "Problems with serialisation on Windows and macOS")
