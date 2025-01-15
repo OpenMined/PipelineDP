@@ -50,7 +50,10 @@ class SumHistogramComputationTest(parameterized.TestCase):
 
     @parameterized.product(
         (
-            dict(testcase_name='empty', input=lambda: [], expected=lambda: []),
+            dict(testcase_name='empty',
+                 input=lambda: [],
+                 expected=lambda: [],
+                 expected_log=lambda: []),
             dict(
                 testcase_name='small_histogram',
                 input=lambda: [((1, 1), 0.5), ((1, 2), 1.5), (
@@ -81,6 +84,26 @@ class SumHistogramComputationTest(parameterized.TestCase):
                                       sum=1.5,
                                       min=1.5,
                                       max=1.5),
+                ],
+                expected_log=lambda: [
+                    hist.FrequencyBin(lower=-2.6,
+                                      upper=-2.5,
+                                      count=1,
+                                      sum=-2.5,
+                                      max=-2.5,
+                                      min=-2.5),
+                    hist.FrequencyBin(lower=1.0,
+                                      upper=1.1,
+                                      count=1,
+                                      sum=1.0,
+                                      max=1.0,
+                                      min=1.0),
+                    hist.FrequencyBin(lower=1.5,
+                                      upper=1.6,
+                                      count=1,
+                                      sum=1.5,
+                                      max=1.5,
+                                      min=1.5)
                 ]),
             dict(
                 testcase_name='Different privacy ids, 1 equal contribution',
@@ -89,6 +112,10 @@ class SumHistogramComputationTest(parameterized.TestCase):
                 expected=lambda: [
                     hist.FrequencyBin(
                         lower=1, upper=1, count=100, sum=100, min=1, max=1),
+                ],
+                expected_log=lambda: [
+                    hist.FrequencyBin(
+                        lower=1, upper=1.1, count=100, sum=100, min=1, max=1),
                 ]),
             dict(
                 testcase_name='Different privacy ids, 1 different contribution',
@@ -109,6 +136,39 @@ class SumHistogramComputationTest(parameterized.TestCase):
                                       sum=19999,
                                       min=9999,
                                       max=10000)
+                ],
+                expected_log=lambda: [
+                    hist.FrequencyBin(
+                        lower=0, upper=0, count=1, sum=0, max=0, min=0)
+                ] + [
+                    hist.FrequencyBin(
+                        lower=i, upper=i + 0.1, count=1, sum=i, max=i, min=i)
+                    for i in range(1, 10)
+                ] + [
+                    hist.FrequencyBin(
+                        lower=i, upper=i + 1, count=1, sum=i, max=i, min=i)
+                    for i in range(10, 100)
+                ] + [
+                    hist.FrequencyBin(lower=i,
+                                      upper=i + 10,
+                                      count=10,
+                                      sum=(i + i + 9) * 10 // 2,
+                                      max=i + 9,
+                                      min=i) for i in range(100, 1000, 10)
+                ] + [
+                    hist.FrequencyBin(lower=i,
+                                      upper=i + 100,
+                                      count=100,
+                                      sum=(i + i + 99) * 100 // 2,
+                                      max=i + 99,
+                                      min=i) for i in range(1000, 10000, 100)
+                ] + [
+                    hist.FrequencyBin(lower=10000,
+                                      upper=11000,
+                                      count=1,
+                                      sum=10000,
+                                      max=10000,
+                                      min=10000)
                 ]),
             dict(
                 testcase_name='1 privacy id many contributions to 1 '
@@ -122,6 +182,14 @@ class SumHistogramComputationTest(parameterized.TestCase):
                                       sum=100.0,
                                       min=100.0,
                                       max=100.0),
+                ],
+                expected_log=lambda: [
+                    hist.FrequencyBin(lower=100.0,
+                                      upper=110.0,
+                                      count=1,
+                                      sum=100.0,
+                                      min=100.0,
+                                      max=100.0)
                 ]),
             dict(
                 testcase_name=
@@ -135,6 +203,14 @@ class SumHistogramComputationTest(parameterized.TestCase):
                                       sum=1234.0,
                                       min=1.0,
                                       max=1),
+                ],
+                expected_log=lambda: [
+                    hist.FrequencyBin(lower=1.0,
+                                      upper=1.1,
+                                      count=1234,
+                                      sum=1234.0,
+                                      min=1.0,
+                                      max=1.0)
                 ]),
             dict(
                 testcase_name=
@@ -156,6 +232,39 @@ class SumHistogramComputationTest(parameterized.TestCase):
                                       sum=19999,
                                       min=9999,
                                       max=10000)
+                ],
+                expected_log=lambda: [
+                    hist.FrequencyBin(
+                        lower=0, upper=0, count=1, sum=0, max=0, min=0)
+                ] + [
+                    hist.FrequencyBin(
+                        lower=i, upper=i + 0.1, count=1, sum=i, max=i, min=i)
+                    for i in range(1, 10)
+                ] + [
+                    hist.FrequencyBin(
+                        lower=i, upper=i + 1, count=1, sum=i, max=i, min=i)
+                    for i in range(10, 100)
+                ] + [
+                    hist.FrequencyBin(lower=i,
+                                      upper=i + 10,
+                                      count=10,
+                                      sum=(i + i + 9) * 10 // 2,
+                                      max=i + 9,
+                                      min=i) for i in range(100, 1000, 10)
+                ] + [
+                    hist.FrequencyBin(lower=i,
+                                      upper=i + 100,
+                                      count=100,
+                                      sum=(i + i + 99) * 100 // 2,
+                                      max=i + 99,
+                                      min=i) for i in range(1000, 10000, 100)
+                ] + [
+                    hist.FrequencyBin(lower=10000,
+                                      upper=11000,
+                                      count=1,
+                                      sum=10000,
+                                      max=10000,
+                                      min=10000)
                 ]),
             dict(
                 testcase_name=
@@ -166,6 +275,10 @@ class SumHistogramComputationTest(parameterized.TestCase):
                 expected=lambda: [
                     hist.FrequencyBin(
                         lower=1.0, upper=1.0, count=30, sum=30, min=1, max=1),
+                ],
+                expected_log=lambda: [
+                    hist.FrequencyBin(
+                        lower=1.0, upper=1.1, count=30, sum=30, min=1, max=1),
                 ]),
             dict(
                 testcase_name='2 privacy ids, same partitions differently '
@@ -185,17 +298,33 @@ class SumHistogramComputationTest(parameterized.TestCase):
                     hist.FrequencyBin(
                         lower=0.9998,
                         upper=1, count=15, sum=15, min=1, max=1),
+                ],
+                expected_log=lambda: [
+                    hist.FrequencyBin(lower=-1.1,
+                                      upper=-1.0,
+                                      count=15,
+                                      sum=-15.0,
+                                      max=-1.0,
+                                      min=-1.0),
+                    hist.FrequencyBin(lower=1.0,
+                                      upper=1.1,
+                                      count=15,
+                                      sum=15.0,
+                                      max=1.0,
+                                      min=1.0)
                 ]),
         ),
         pre_aggregated=(False, True))
     def test_compute_linf_sum_contributions_histogram(self, testcase_name,
                                                       input, expected,
+                                                      expected_log,
                                                       pre_aggregated):
         # Lambdas are used for returning input and expected. Passing lists
         # instead leads to printing whole lists as test names in the output.
         # That complicates debugging.
         input = input()
         expected = expected()
+        expected_log = expected_log()
         backend = pipeline_dp.LocalBackend()
         if pre_aggregated:
             input = list(
@@ -212,10 +341,14 @@ class SumHistogramComputationTest(parameterized.TestCase):
         histogram, log_histogram = list(compute_histograms(input, backend))
         if not input:
             self.assertEqual(histogram, [])
+            self.assertEqual(log_histogram, [])
         else:
             self.assertEqual(hist.HistogramType.LINF_SUM_CONTRIBUTIONS,
                              histogram.name)
             self.assertListEqual(expected, histogram.bins)
+            self.assertEqual(hist.HistogramType.LINF_SUM_CONTRIBUTIONS_LOG,
+                             log_histogram.name)
+            self.assertListEqual(expected_log, log_histogram.bins)
 
     @parameterized.parameters(False, True)
     def test_compute_linf_sum_contributions_histogram_2_columns(
