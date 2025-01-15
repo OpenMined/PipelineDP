@@ -27,8 +27,9 @@ def _list_to_contribution_histograms(
     """Packs histograms from a list to ContributionHistograms."""
     l0_contributions = l1_contributions = None
     linf_contributions = linf_sum_contributions = None
+    linf_sum_contributions_log = None
     count_per_partition = privacy_id_per_partition_count = None
-    sum_per_partition_histogram = None
+    sum_per_partition_histogram = sum_per_partition_histogram_log = None
     for histogram in histograms:
         if isinstance(histogram, Iterable):
             if not histogram:
@@ -47,21 +48,27 @@ def _list_to_contribution_histograms(
             linf_contributions = histogram
         elif histogram_type == hist.HistogramType.LINF_SUM_CONTRIBUTIONS:
             linf_sum_contributions = histogram
+        elif histogram_type == hist.HistogramType.LINF_LOG_SUM_CONTRIBUTIONS:
+            linf_sum_contributions_log = histogram
         elif histogram_type == hist.HistogramType.COUNT_PER_PARTITION:
             count_per_partition = histogram
         elif histogram_type == hist.HistogramType.COUNT_PRIVACY_ID_PER_PARTITION:
             privacy_id_per_partition_count = histogram
         elif histogram_type == hist.HistogramType.SUM_PER_PARTITION:
             sum_per_partition_histogram = histogram
+        elif histogram_type == hist.HistogramType.SUM_LOG_PER_PARTITION:
+            sum_per_partition_histogram_log = histogram
 
     return hist.DatasetHistograms(
         l0_contributions,
         l1_contributions,
         linf_contributions,
         linf_sum_contributions,
+        linf_sum_contributions_log,
         count_per_partition,
         privacy_id_per_partition_count,
         sum_per_partition_histogram,
+        sum_per_partition_histogram_log,
     )
 
 
@@ -120,23 +127,24 @@ def compute_dataset_histograms(col, data_extractors: pipeline_dp.DataExtractors,
         col, backend)
     linf_contributions_histogram = count_histogram_computation._compute_linf_contributions_histogram(
         col, backend)
-    linf_sum_contributions_histogram = sum_histogram_computation._compute_linf_sum_contributions_histogram(
+    linf_sum_contributions_histograms = sum_histogram_computation._compute_linf_sum_contributions_histogram(
         col_with_values, backend)
     partition_count_histogram = count_histogram_computation._compute_partition_count_histogram(
         col, backend)
     partition_privacy_id_count_histogram = count_histogram_computation._compute_partition_privacy_id_count_histogram(
         col_distinct, backend)
-    partition_sum_histogram = sum_histogram_computation._compute_partition_sum_histogram(
+    partition_sum_histograms = sum_histogram_computation._compute_partition_sum_histogram(
         col_with_values, backend)
     # all histograms are 1 element collections which contains ContributionHistogram
 
     # Combine histograms to histograms.DatasetHistograms.
     return _to_dataset_histograms([
-        l0_contributions_histogram, l1_contributions_histogram,
-        linf_contributions_histogram, linf_sum_contributions_histogram,
-        partition_count_histogram, partition_privacy_id_count_histogram,
-        partition_sum_histogram
-    ], backend)
+        l0_contributions_histogram,
+        l1_contributions_histogram,
+        linf_contributions_histogram,
+        partition_count_histogram,
+        partition_privacy_id_count_histogram,
+    ] + partition_sum_histograms + linf_sum_contributions_histograms, backend)
 
 
 def compute_dataset_histograms_on_preaggregated_data(
@@ -169,19 +177,20 @@ def compute_dataset_histograms_on_preaggregated_data(
         col, backend)
     linf_contributions_histogram = count_histogram_computation._compute_linf_contributions_histogram_on_preaggregated_data(
         col, backend)
-    linf_sum_contributions_histogram = sum_histogram_computation._compute_linf_sum_contributions_histogram_on_preaggregated_data(
+    linf_sum_contributions_histograms = sum_histogram_computation._compute_linf_sum_contributions_histogram_on_preaggregated_data(
         col, backend)
     partition_count_histogram = count_histogram_computation._compute_partition_count_histogram_on_preaggregated_data(
         col, backend)
     partition_privacy_id_count_histogram = count_histogram_computation._compute_partition_privacy_id_count_histogram_on_preaggregated_data(
         col, backend)
-    partition_sum_histogram = sum_histogram_computation._compute_partition_sum_histogram_on_preaggregated_data(
+    partition_sum_histograms = sum_histogram_computation._compute_partition_sum_histogram_on_preaggregated_data(
         col, backend)
 
     # Combine histograms to histograms.DatasetHistograms.
     return _to_dataset_histograms([
-        l0_contributions_histogram, l1_contributions_histogram,
-        linf_contributions_histogram, linf_sum_contributions_histogram,
-        partition_count_histogram, partition_privacy_id_count_histogram,
-        partition_sum_histogram
-    ], backend)
+        l0_contributions_histogram,
+        l1_contributions_histogram,
+        linf_contributions_histogram,
+        partition_count_histogram,
+        partition_privacy_id_count_histogram,
+    ] + linf_sum_contributions_histograms + partition_sum_histograms, backend)

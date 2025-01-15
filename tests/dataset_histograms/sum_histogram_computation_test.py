@@ -34,6 +34,17 @@ class LowerUpperGeneratorTest(parameterized.TestCase):
         self.assertEqual(g.get_bucket_index(10), 19)
         self.assertEqual(g.get_bucket_index(11), 19)
 
+    @parameterized.parameters(
+        (0, 0, 0), (1.223, 1.2, 1.3), (-1.223, -1.3, -1.2),
+        (0.00000223, 0.0000022, 0.0000023), (134.223, 130, 140),
+        (2334567, 2300000, 2400000))
+    def test_log_buckets(self, x: float, expected_lower: float,
+                         expected_upper: float):
+        g = sum_histogram_computation.LogLowerUpperGenerator()
+        lower, upper = g.get_lower_upper(x)
+        self.assertAlmostEqual(lower, expected_lower)
+        self.assertAlmostEqual(upper, expected_upper)
+
 
 class SumHistogramComputationTest(parameterized.TestCase):
 
@@ -198,9 +209,7 @@ class SumHistogramComputationTest(parameterized.TestCase):
             compute_histograms = sum_histogram_computation._compute_linf_sum_contributions_histogram_on_preaggregated_data
         else:
             compute_histograms = sum_histogram_computation._compute_linf_sum_contributions_histogram
-        histogram = list(compute_histograms(input, backend))
-        self.assertLen(histogram, 1)
-        histogram = histogram[0]
+        histogram, log_histogram = list(compute_histograms(input, backend))
         if not input:
             self.assertEqual(histogram, [])
         else:
@@ -242,9 +251,7 @@ class SumHistogramComputationTest(parameterized.TestCase):
             compute_histograms = sum_histogram_computation._compute_linf_sum_contributions_histogram_on_preaggregated_data
         else:
             compute_histograms = sum_histogram_computation._compute_linf_sum_contributions_histogram
-        histograms = list(compute_histograms(data, backend))
-        self.assertLen(histograms, 1)
-        histograms = histograms[0]
+        histograms, log_histogram = list(compute_histograms(data, backend))
         self.assertListEqual(histograms, expected)
 
     @parameterized.product(
@@ -415,9 +422,7 @@ class SumHistogramComputationTest(parameterized.TestCase):
             compute_histograms = sum_histogram_computation._compute_partition_sum_histogram_on_preaggregated_data
         else:
             compute_histograms = sum_histogram_computation._compute_partition_sum_histogram
-        histogram = list(compute_histograms(input, backend))
-        self.assertLen(histogram, 1)
-        histogram = histogram[0]
+        histogram, log_histogram = list(compute_histograms(input, backend))
         if not input:
             self.assertEqual(histogram, [])
         else:
@@ -459,9 +464,7 @@ class SumHistogramComputationTest(parameterized.TestCase):
             compute_histograms = sum_histogram_computation._compute_partition_sum_histogram_on_preaggregated_data
         else:
             compute_histograms = sum_histogram_computation._compute_partition_sum_histogram
-        histograms = list(compute_histograms(data, backend))
-        self.assertLen(histograms, 1)
-        histograms = histograms[0]
+        histograms, log_histogram = list(compute_histograms(data, backend))
         self.assertListEqual(histograms, expected)
 
 

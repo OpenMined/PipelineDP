@@ -29,6 +29,7 @@
 # min, max, number of buckets and returns bucket for each number.
 
 import copy
+import math
 import operator
 from typing import Iterable, List, Tuple
 
@@ -85,12 +86,31 @@ class LowerUpperGenerator:
         return self.left + (index + 1) * self.bucket_len
 
 
+def _get_log_lower_upper(x: float) -> Tuple[float, float]:
+    if x == 0:
+        return 0, 0  # Separate bucket for 0.
+
+    if x < 0:
+        lower, upper = _get_log_lower_upper(-x)
+        return -upper, -lower
+
+    # Shift the decimal point to get a number between 10 and 100
+    scale_coeficient = 10**(math.floor(math.log10(x)) - 1)
+    scaled_x = x / scale_coeficient
+
+    # Extract the leading 2 digits and convert to integer and scale back
+    two_leading_digits = int(scaled_x)
+    lower = two_leading_digits * scale_coeficient
+    upper = (two_leading_digits + 1) * scale_coeficient
+    return lower, upper
+
+
 def _compute_frequency_histogram_per_key(
-    col,
-    backend: pipeline_backend.PipelineBackend,
-    name: hist.HistogramType,
-    num_buckets: int,
-):
+        col,
+        backend: pipeline_backend.PipelineBackend,
+        name: hist.HistogramType,
+        num_buckets: int,
+        log_histograms: bool = False):
     """Computes histogram of element frequencies in collection.
 
     This is a helper function for computing sum histograms per key.
@@ -106,8 +126,11 @@ def _compute_frequency_histogram_per_key(
     """
     col = backend.to_multi_transformable_collection(col)
 
-    bucket_generators = _create_bucket_generators_per_key(
-        col, num_buckets, backend)
+    if log_histograms:
+        bucket_generators = []
+    else:
+        bucket_generators = _create_bucket_generators_per_key(
+            col, num_buckets, backend)
 
     def _map_to_frequency_bin(
         key_value: Tuple[int, float],
@@ -116,8 +139,11 @@ def _compute_frequency_histogram_per_key(
         # bucket_generator is a 1-element list with
         # a single element to be a list of LowerUpperGenerator.
         index, value = key_value
-        bucket_generator = bucket_generators[0][index]
-        bin_lower, bin_upper = bucket_generator.get_lower_upper(value)
+        if log_histograms:
+            bin_lower, bin_upper = _get_log_lower_upper(value)
+        else:
+            bucket_generator = bucket_generators[0][index]
+            bin_lower, bin_upper = bucket_generator.get_lower_upper(value)
         bucket = hist.FrequencyBin(lower=bin_lower,
                                    upper=bin_upper,
                                    count=1,
@@ -247,9 +273,20 @@ def _compute_linf_sum_contributions_histogram(
                             "Drop privacy_id, partition_key")
     # col: (index, float)
 
-    return _compute_frequency_histogram_per_key(
-        col, backend, hist.HistogramType.LINF_SUM_CONTRIBUTIONS,
-        NUMBER_OF_BUCKETS)
+    col = backend.to_multi_transformable_collection(col)
+
+    return backend.flatten((_compute_frequency_histogram_per_key(
+        col,
+        backend,
+        hist.HistogramType.LINF_SUM_CONTRIBUTIONS,
+        NUMBER_OF_BUCKETS,
+        log_histograms=False),
+                            _compute_frequency_histogram_per_key(
+                                col,
+                                backend,
+                                hist.HistogramType.LINF_SUM_CONTRIBUTIONS_LOG,
+                                NUMBER_OF_BUCKETS,
+                                log_histograms=True)), "flatten linf_sum")
 
 
 def _compute_partition_sum_histogram(col,
@@ -277,8 +314,22 @@ def _compute_partition_sum_histogram(col,
     col = backend.map_tuple(col, lambda index_pk, value: (index_pk[0], value),
                             "Drop partition")
     # col: (index, float)
-    return _compute_frequency_histogram_per_key(
-        col, backend, hist.HistogramType.SUM_PER_PARTITION, NUMBER_OF_BUCKETS)
+
+    col = backend.to_multi_transformable_collection(col)
+
+    return backend.flatten((_compute_frequency_histogram_per_key(
+        col,
+        backend,
+        hist.HistogramType.SUM_PER_PARTITION,
+        NUMBER_OF_BUCKETS,
+        log_histograms=False),
+                            _compute_frequency_histogram_per_key(
+                                col,
+                                backend,
+                                hist.HistogramType.SUM_PER_PARTITION_LOG,
+                                NUMBER_OF_BUCKETS,
+                                log_histograms=True)),
+                           "Flatten sum_per_partition")
 
 
 def _compute_linf_sum_contributions_histogram_on_preaggregated_data(
@@ -311,9 +362,20 @@ def _compute_linf_sum_contributions_histogram_on_preaggregated_data(
     col = backend.map_tuple(col, lambda k, v: (k[0], v), "Drop dummy key")
     # col: (index, float)
 
-    return _compute_frequency_histogram_per_key(
-        col, backend, hist.HistogramType.LINF_SUM_CONTRIBUTIONS,
-        NUMBER_OF_BUCKETS)
+    col = backend.to_multi_transformable_collection(col)
+
+    return backend.flatten((_compute_frequency_histogram_per_key(
+        col,
+        backend,
+        hist.HistogramType.LINF_SUM_CONTRIBUTIONS,
+        NUMBER_OF_BUCKETS,
+        log_histograms=False),
+                            _compute_frequency_histogram_per_key(
+                                col,
+                                backend,
+                                hist.HistogramType.LINF_SUM_CONTRIBUTIONS_LOG,
+                                NUMBER_OF_BUCKETS,
+                                log_histograms=True)), "flatten linf_sum")
 
 
 def _compute_partition_sum_histogram_on_preaggregated_data(
@@ -346,5 +408,18 @@ def _compute_partition_sum_histogram_on_preaggregated_data(
                             "Drop privacy_id, partition_key")
     # col: (index, float)
 
-    return _compute_frequency_histogram_per_key(
-        col, backend, hist.HistogramType.SUM_PER_PARTITION, NUMBER_OF_BUCKETS)
+    col = backend.to_multi_transformable_collection(col)
+
+    return backend.flatten((_compute_frequency_histogram_per_key(
+        col,
+        backend,
+        hist.HistogramType.SUM_PER_PARTITION,
+        NUMBER_OF_BUCKETS,
+        log_histograms=False),
+                            _compute_frequency_histogram_per_key(
+                                col,
+                                backend,
+                                hist.HistogramType.SUM_PER_PARTITION_LOG,
+                                NUMBER_OF_BUCKETS,
+                                log_histograms=True)),
+                           "Flatten sum_per_partition")

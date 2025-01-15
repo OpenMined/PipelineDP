@@ -74,9 +74,11 @@ class HistogramType(enum.Enum):
     # 'sum' is the total number of contributions for these pairs.
     LINF_CONTRIBUTIONS = 'linf_contributions'
     LINF_SUM_CONTRIBUTIONS = 'linf_sum_contributions'
+    LINF_SUM_CONTRIBUTIONS_LOG = 'linf_sum_contributions_log'
     COUNT_PER_PARTITION = 'count_per_partition'
     COUNT_PRIVACY_ID_PER_PARTITION = 'privacy_id_per_partition_count'
     SUM_PER_PARTITION = 'sum_per_partition'
+    SUM_PER_PARTITION_LOG = 'sum_per_partition_log'
 
 
 @dataclass
@@ -215,9 +217,12 @@ class DatasetHistograms:
     linf_contributions_histogram: Histogram
     linf_sum_contributions_histogram: Optional[Union[Histogram,
                                                      List[Histogram]]]
+    linf_log_sum_contributions_histogram: Optional[Union[Histogram,
+                                                         List[Histogram]]]
     count_per_partition_histogram: Histogram
     count_privacy_id_per_partition: Histogram
     sum_per_partition_histogram: Optional[Union[Histogram, List[Histogram]]]
+    sum_log_per_partition_histogram: Optional[Union[Histogram, List[Histogram]]]
 
     def num_sum_histograms(self) -> int:
         if isinstance(self.linf_sum_contributions_histogram, Histogram):
