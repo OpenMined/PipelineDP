@@ -48,7 +48,7 @@ def _list_to_contribution_histograms(
             linf_contributions = histogram
         elif histogram_type == hist.HistogramType.LINF_SUM_CONTRIBUTIONS:
             linf_sum_contributions = histogram
-        elif histogram_type == hist.HistogramType.LINF_LOG_SUM_CONTRIBUTIONS:
+        elif histogram_type == hist.HistogramType.LINF_SUM_CONTRIBUTIONS_LOG:
             linf_sum_contributions_log = histogram
         elif histogram_type == hist.HistogramType.COUNT_PER_PARTITION:
             count_per_partition = histogram
@@ -56,7 +56,7 @@ def _list_to_contribution_histograms(
             privacy_id_per_partition_count = histogram
         elif histogram_type == hist.HistogramType.SUM_PER_PARTITION:
             sum_per_partition_histogram = histogram
-        elif histogram_type == hist.HistogramType.SUM_LOG_PER_PARTITION:
+        elif histogram_type == hist.HistogramType.SUM_PER_PARTITION_LOG:
             sum_per_partition_histogram_log = histogram
 
     return hist.DatasetHistograms(
@@ -139,12 +139,11 @@ def compute_dataset_histograms(col, data_extractors: pipeline_dp.DataExtractors,
 
     # Combine histograms to histograms.DatasetHistograms.
     return _to_dataset_histograms([
-        l0_contributions_histogram,
-        l1_contributions_histogram,
-        linf_contributions_histogram,
-        partition_count_histogram,
-        partition_privacy_id_count_histogram,
-    ] + partition_sum_histograms + linf_sum_contributions_histograms, backend)
+        l0_contributions_histogram, l1_contributions_histogram,
+        linf_sum_contributions_histograms, linf_contributions_histogram,
+        partition_count_histogram, partition_privacy_id_count_histogram,
+        partition_sum_histograms
+    ], backend)
 
 
 def compute_dataset_histograms_on_preaggregated_data(
@@ -191,6 +190,8 @@ def compute_dataset_histograms_on_preaggregated_data(
         l0_contributions_histogram,
         l1_contributions_histogram,
         linf_contributions_histogram,
+        linf_sum_contributions_histograms,
         partition_count_histogram,
+        partition_sum_histograms,
         partition_privacy_id_count_histogram,
-    ] + linf_sum_contributions_histograms + partition_sum_histograms, backend)
+    ], backend)

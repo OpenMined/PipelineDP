@@ -40,8 +40,7 @@ class LowerUpperGeneratorTest(parameterized.TestCase):
         (2334567, 2300000, 2400000))
     def test_log_buckets(self, x: float, expected_lower: float,
                          expected_upper: float):
-        g = sum_histogram_computation.LogLowerUpperGenerator()
-        lower, upper = g.get_lower_upper(x)
+        lower, upper = sum_histogram_computation._get_log_lower_upper(x)
         self.assertAlmostEqual(lower, expected_lower)
         self.assertAlmostEqual(upper, expected_upper)
 
