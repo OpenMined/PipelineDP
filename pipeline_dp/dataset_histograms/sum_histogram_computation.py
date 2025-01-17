@@ -15,18 +15,15 @@
 
 # This file contains histograms which are useful for analysis of DP SUM
 # aggregation utility.
-# The general structure of these histogram is the following:
-# The input is a collection of values X = (x_0, ... x_n).
-# The computations are as follows:
-# 1. Find min_x = min(X), max_x = max(X) of X
-# 2. Split the segment [min_x, max_x] in NUMBER_OF_BUCKETS_SUM_HISTOGRAM = 10000
-# equal size intervals [l_i, r_i). The last internal includes max_x.
-# 3. Each bin of the histogram corresponds to interval [l_i, r_i), and contains
-# different statistics (count, sum etc) of numbers from X, which lies in this
-# interval.
-#
-# For generating bucket class LowerUpperGenerator is used, which takes
-# min, max, number of buckets and returns bucket for each number.
+# Each bin is specified by lower, upper. It contains count, sum, min, max of
+# elements in [lower, upper) from the datasets.
+# There 2 types of these histograms, which are different how lower, upper
+# are computed.
+# 1. Linear histogram (deprecated and they will be removed): it has 10**4 of
+# bins in [min_x, max_x]
+# 2. Logarithm histogram: lower=ab*10**k, upper=(ab+1)*10**k. Eg. 123 goes to
+# bin [120, 130). See _get_log_lower_upper for details of computing lower,
+# upper.
 
 import copy
 import math
@@ -87,6 +84,7 @@ class LowerUpperGenerator:
 
 
 def _get_log_lower_upper(x: float) -> Tuple[float, float]:
+    """Get bin lower-upper for logarithmic histogram."""
     if x == 0:
         return 0, 0  # Separate bucket for 0.
 
@@ -248,12 +246,9 @@ def _flat_values(col, backend: pipeline_backend.PipelineBackend):
 
 def _compute_linf_sum_contributions_histogram(
         col, backend: pipeline_backend.PipelineBackend):
-    """Computes histogram of per partition privacy id contributions.
+    """Computes histograms (linear and logarithmic) of per partition privacy id contributions.
 
-    This histogram contains: the number of (privacy id, partition_key)-pairs
-    which have sum of values X_1, X_2, ..., X_n, where X_1 = min_sum,
-    X_n = one before max sum and n is equal to
-    NUMBER_OF_BUCKETS_SUM_HISTOGRAM.
+    See in the beginning of file histograms description.
 
     Args:
         col: collection with elements ((privacy_id, partition_key), value(s)).
@@ -291,11 +286,9 @@ def _compute_linf_sum_contributions_histogram(
 
 def _compute_partition_sum_histogram(col,
                                      backend: pipeline_backend.PipelineBackend):
-    """Computes histogram of sum per partition.
+    """Computes histograms (linear and logarithmic) of sum per partition.
 
-    This histogram contains: the number of partition_keys which have sum of
-    values X_1, X_2, ..., X_n, where X_1 = min_sum, X_n = one before max sum and
-    n is equal to NUMBER_OF_BUCKETS_SUM_HISTOGRAM.
+    See in the beginning of file histograms description.
 
     Args:
       col: collection with elements ((privacy_id, partition_key), value).
@@ -334,12 +327,9 @@ def _compute_partition_sum_histogram(col,
 
 def _compute_linf_sum_contributions_histogram_on_preaggregated_data(
         col, backend: pipeline_backend.PipelineBackend):
-    """Computes histogram of per partition privacy id contributions.
+    """Computes histograms (linear and logarithmic) of per partition privacy id contributions.
 
-    This histogram contains: the number of (privacy id, partition_key)-pairs
-    which have sum of values X_1, X_2, ..., X_n, where X_1 = min_sum,
-    X_n = one before max sum and n is equal to
-    NUMBER_OF_BUCKETS_SUM_HISTOGRAM.
+    See in the beginning of file histograms description.
 
     Args:
       col: collection with a pre-aggregated dataset, each element is
@@ -380,11 +370,9 @@ def _compute_linf_sum_contributions_histogram_on_preaggregated_data(
 
 def _compute_partition_sum_histogram_on_preaggregated_data(
         col, backend: pipeline_backend.PipelineBackend):
-    """Computes histogram of counts per partition.
+    """Computes histograms (linear and logarithmic) of counts per partition.
 
-    This histogram contains: the number of partition_keys which have sum of
-    values X_1, X_2, ..., X_n, where X_1 = min_sum, X_n = one before max sum and
-    n is equal to NUMBER_OF_BUCKETS_SUM_HISTOGRAM.
+    See in the beginning of file histograms description.
 
     Args:
       col: collection with a pre-aggregated dataset, each element is
