@@ -370,6 +370,20 @@ class SumHistogramComputationTest(parameterized.TestCase):
                     lower=49.996, upper=50.0, count=2, sum=100, min=50, max=50)
             ])
         ]
+        expected_log = [
+            hist.Histogram(hist.HistogramType.LINF_SUM_CONTRIBUTIONS_LOG, [
+                hist.FrequencyBin(
+                    lower=1.0, upper=1.1, count=1, sum=1, min=1, max=1),
+                hist.FrequencyBin(
+                    lower=5.0, upper=5.1, count=2, sum=10, min=5, max=5)
+            ]),
+            hist.Histogram(hist.HistogramType.LINF_SUM_CONTRIBUTIONS_LOG, [
+                hist.FrequencyBin(
+                    lower=10.0, upper=11, count=1, sum=10, min=10, max=10),
+                hist.FrequencyBin(
+                    lower=50, upper=51, count=2, sum=100, min=50, max=50)
+            ])
+        ]
         if pre_aggregated:
             data = list(
                 pre_aggregation.preaggregate(
@@ -383,14 +397,16 @@ class SumHistogramComputationTest(parameterized.TestCase):
             compute_histograms = sum_histogram_computation._compute_linf_sum_contributions_histogram_on_preaggregated_data
         else:
             compute_histograms = sum_histogram_computation._compute_linf_sum_contributions_histogram
-        histograms, log_histogram = list(compute_histograms(data, backend))
-        self.assertListEqual(histograms, expected)
+        histogram, log_histogram = list(compute_histograms(data, backend))
+        self.assertListEqual(histogram, expected)
+        self.assertListEqual(log_histogram, expected_log)
 
     @parameterized.product(
         (
             dict(testcase_name='empty histogram',
                  input=lambda: [],
-                 expected=lambda: []),
+                 expected=lambda: [],
+                 expected_log=lambda: []),
             dict(
                 testcase_name='small_histogram',
                 input=lambda: [((1, 1), 0.5), ((1, 2), 1.5), (
@@ -410,6 +426,20 @@ class SumHistogramComputationTest(parameterized.TestCase):
                                       sum=1.5,
                                       min=1.5,
                                       max=1.5)
+                ],
+                expected_log=lambda: [
+                    hist.FrequencyBin(lower=-1.6,
+                                      upper=-1.5,
+                                      count=1,
+                                      sum=-1.5,
+                                      min=-1.5,
+                                      max=-1.5),
+                    hist.FrequencyBin(lower=1.5,
+                                      upper=1.6,
+                                      count=1,
+                                      sum=1.5,
+                                      min=1.5,
+                                      max=1.5)
                 ]),
             dict(
                 testcase_name='Different privacy ids, 1 equal contribution and '
@@ -419,7 +449,8 @@ class SumHistogramComputationTest(parameterized.TestCase):
                 expected=lambda: [
                     hist.FrequencyBin(
                         lower=1, upper=1, count=100, sum=100, min=1, max=1),
-                ]),
+                ],
+                expected_log=lambda: []),
             dict(
                 testcase_name='Different privacy ids, 1 different contribution',
                 input=lambda: [((i, i), i) for i in range(10001)],
@@ -439,7 +470,8 @@ class SumHistogramComputationTest(parameterized.TestCase):
                                       sum=19999,
                                       min=9999,
                                       max=10000)
-                ]),
+                ],
+                expected_log=lambda: []),
             dict(
                 testcase_name='1 privacy id many contributions to 1 '
                 'partition',
@@ -452,7 +484,8 @@ class SumHistogramComputationTest(parameterized.TestCase):
                                       sum=100.0,
                                       min=100.0,
                                       max=100.0),
-                ]),
+                ],
+                expected_log=lambda: []),
             dict(
                 testcase_name=
                 '1 privacy id many equal contributions to many partitions',
@@ -465,7 +498,8 @@ class SumHistogramComputationTest(parameterized.TestCase):
                                       sum=1234.0,
                                       min=1,
                                       max=1),
-                ]),
+                ],
+                expected_log=lambda: []),
             dict(
                 testcase_name=
                 '1 privacy id many different contributions to many partitions',
@@ -486,7 +520,8 @@ class SumHistogramComputationTest(parameterized.TestCase):
                                       sum=19999,
                                       min=9999,
                                       max=10000)
-                ]),
+                ],
+                expected_log=lambda: []),
             dict(
                 testcase_name=
                 '2 privacy ids, same partitions equally contributed',
@@ -506,7 +541,8 @@ class SumHistogramComputationTest(parameterized.TestCase):
                                       sum=10.0,
                                       min=2.0,
                                       max=2.0)
-                ]),
+                ],
+                expected_log=lambda: []),
             dict(
                 testcase_name='2 privacy ids, same partitions differently '
                 'contributed',
@@ -534,11 +570,13 @@ class SumHistogramComputationTest(parameterized.TestCase):
                                       sum=10.0,
                                       min=1.0,
                                       max=1.0)
-                ]),
+                ],
+                expected_log=lambda: []),
         ),
         pre_aggregated=(False, True))
     def test_compute_partition_sum_histogram(self, testcase_name, input,
-                                             expected, pre_aggregated):
+                                             expected, expected_log,
+                                             pre_aggregated):
         input = input()
         expected = expected()
         backend = pipeline_dp.LocalBackend()
@@ -561,6 +599,9 @@ class SumHistogramComputationTest(parameterized.TestCase):
             self.assertEqual(hist.HistogramType.SUM_PER_PARTITION,
                              histogram.name)
             self.assertListEqual(expected, histogram.bins)
+            self.assertEqual(hist.HistogramType.SUM_PER_PARTITION_LOG,
+                             log_histogram.name)
+            self.assertListEqual(expected_log, log_histogram.bins)
 
     @parameterized.parameters(False, True)
     def test_compute_partition_sum_histogram_2_columns(self,
@@ -583,6 +624,20 @@ class SumHistogramComputationTest(parameterized.TestCase):
                     lower=59.999, upper=60.0, count=1, sum=60, min=60, max=60)
             ])
         ]
+        expected_log = [
+            hist.Histogram(hist.HistogramType.SUM_PER_PARTITION_LOG, [
+                hist.FrequencyBin(
+                    lower=5.0, upper=5.1, count=1, sum=5, min=5, max=5),
+                hist.FrequencyBin(
+                    lower=6.0, upper=6.1, count=1, sum=6, min=6, max=6)
+            ]),
+            hist.Histogram(hist.HistogramType.SUM_PER_PARTITION_LOG, [
+                hist.FrequencyBin(
+                    lower=50.0, upper=51, count=1, sum=50, min=50, max=50),
+                hist.FrequencyBin(
+                    lower=60.0, upper=61, count=1, sum=60, min=60, max=60)
+            ])
+        ]
         if pre_aggregated:
             data = list(
                 pre_aggregation.preaggregate(
@@ -596,8 +651,9 @@ class SumHistogramComputationTest(parameterized.TestCase):
             compute_histograms = sum_histogram_computation._compute_partition_sum_histogram_on_preaggregated_data
         else:
             compute_histograms = sum_histogram_computation._compute_partition_sum_histogram
-        histograms, log_histogram = list(compute_histograms(data, backend))
-        self.assertListEqual(histograms, expected)
+        histogram, log_histogram = list(compute_histograms(data, backend))
+        self.assertListEqual(histogram, expected)
+        self.assertListEqual(log_histogram, expected_log)
 
 
 if __name__ == '__main__':
