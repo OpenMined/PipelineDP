@@ -19,7 +19,7 @@
 # elements in [lower, upper) from the datasets.
 # There 2 types of these histograms, which are different how lower, upper
 # are computed.
-# 1. Linear histogram (deprecated and they will be removed): it has 10**4 of
+# 1. Linear histogram (deprecated and will be removed): it has 10**4 of
 # bins in [min_x, max_x]
 # 2. Logarithm histogram: lower=ab*10**k, upper=(ab+1)*10**k. Eg. 123 goes to
 # bin [120, 130). See _get_log_lower_upper for details of computing lower,
@@ -270,18 +270,19 @@ def _compute_linf_sum_contributions_histogram(
 
     col = backend.to_multi_transformable_collection(col)
 
-    return backend.flatten((_compute_frequency_histogram_per_key(
+    linear_hist = _compute_frequency_histogram_per_key(
         col,
         backend,
         hist.HistogramType.LINF_SUM_CONTRIBUTIONS,
         NUMBER_OF_BUCKETS,
-        log_histograms=False),
-                            _compute_frequency_histogram_per_key(
-                                col,
-                                backend,
-                                hist.HistogramType.LINF_SUM_CONTRIBUTIONS_LOG,
-                                NUMBER_OF_BUCKETS,
-                                log_histograms=True)), "flatten linf_sum")
+        log_histograms=False)
+    log_hist = _compute_frequency_histogram_per_key(
+        col,
+        backend,
+        hist.HistogramType.LINF_SUM_CONTRIBUTIONS_LOG,
+        NUMBER_OF_BUCKETS,
+        log_histograms=True)
+    return backend.flatten((linear_hist, log_hist), "flatten linf_sum")
 
 
 def _compute_partition_sum_histogram(col,
@@ -310,19 +311,19 @@ def _compute_partition_sum_histogram(col,
 
     col = backend.to_multi_transformable_collection(col)
 
-    return backend.flatten((_compute_frequency_histogram_per_key(
+    linear_hist = _compute_frequency_histogram_per_key(
         col,
         backend,
         hist.HistogramType.SUM_PER_PARTITION,
         NUMBER_OF_BUCKETS,
-        log_histograms=False),
-                            _compute_frequency_histogram_per_key(
-                                col,
-                                backend,
-                                hist.HistogramType.SUM_PER_PARTITION_LOG,
-                                NUMBER_OF_BUCKETS,
-                                log_histograms=True)),
-                           "Flatten sum_per_partition")
+        log_histograms=False)
+    log_hist = _compute_frequency_histogram_per_key(
+        col,
+        backend,
+        hist.HistogramType.SUM_PER_PARTITION_LOG,
+        NUMBER_OF_BUCKETS,
+        log_histograms=True)
+    return backend.flatten((linear_hist, log_hist), "Flatten sum_per_partition")
 
 
 def _compute_linf_sum_contributions_histogram_on_preaggregated_data(
@@ -354,18 +355,19 @@ def _compute_linf_sum_contributions_histogram_on_preaggregated_data(
 
     col = backend.to_multi_transformable_collection(col)
 
-    return backend.flatten((_compute_frequency_histogram_per_key(
+    linear_hist = _compute_frequency_histogram_per_key(
         col,
         backend,
         hist.HistogramType.LINF_SUM_CONTRIBUTIONS,
         NUMBER_OF_BUCKETS,
-        log_histograms=False),
-                            _compute_frequency_histogram_per_key(
-                                col,
-                                backend,
-                                hist.HistogramType.LINF_SUM_CONTRIBUTIONS_LOG,
-                                NUMBER_OF_BUCKETS,
-                                log_histograms=True)), "flatten linf_sum")
+        log_histograms=False)
+    log_hist = _compute_frequency_histogram_per_key(
+        col,
+        backend,
+        hist.HistogramType.LINF_SUM_CONTRIBUTIONS_LOG,
+        NUMBER_OF_BUCKETS,
+        log_histograms=True)
+    return backend.flatten((linear_hist, log_hist), "flatten linf_sum")
 
 
 def _compute_partition_sum_histogram_on_preaggregated_data(
@@ -398,16 +400,16 @@ def _compute_partition_sum_histogram_on_preaggregated_data(
 
     col = backend.to_multi_transformable_collection(col)
 
-    return backend.flatten((_compute_frequency_histogram_per_key(
+    linear_hist = _compute_frequency_histogram_per_key(
         col,
         backend,
         hist.HistogramType.SUM_PER_PARTITION,
         NUMBER_OF_BUCKETS,
-        log_histograms=False),
-                            _compute_frequency_histogram_per_key(
-                                col,
-                                backend,
-                                hist.HistogramType.SUM_PER_PARTITION_LOG,
-                                NUMBER_OF_BUCKETS,
-                                log_histograms=True)),
-                           "Flatten sum_per_partition")
+        log_histograms=False)
+    log_hist = _compute_frequency_histogram_per_key(
+        col,
+        backend,
+        hist.HistogramType.SUM_PER_PARTITION_LOG,
+        NUMBER_OF_BUCKETS,
+        log_histograms=True)
+    return backend.flatten((linear_hist, log_hist), "Flatten sum_per_partition")
