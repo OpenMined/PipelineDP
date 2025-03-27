@@ -17,8 +17,8 @@ import functools
 import multiprocessing as mp
 import random
 import numpy as np
-from collections.abc import Iterable
-from typing import Callable
+from collections.abc import Iterable, Iterator
+from typing import Callable, List
 
 import abc
 import pipeline_dp.combiners as dp_combiners
@@ -474,11 +474,39 @@ class SparkRDDBackend(PipelineBackend):
         raise NotImplementedError("to_list is not implement in SparkBackend.")
 
 
+class ReiterableLazyIterable(Iterable):
+    """A lazy iterable that can be iterated multiple times.
+
+    It generates elements on the first iteration and stores them.
+    Subsequent iterations yield the stored elements.
+    """
+
+    def __init__(self, iterable: Iterable):
+        """Initializes the ReiterableLazyIterable.
+
+        Args:
+            iterable: Iterable to make reiterable
+        """
+        self._iterable = iterable
+        self._cache: List = None
+        self._first_run_complete = False
+
+    def __iter__(self) -> Iterator:
+        if not self._first_run_complete:
+            self._cache = []
+            for item in self._iterable:
+                self._cache.append(item)
+                yield item
+            self._first_run_complete = True
+        else:
+            yield from self._cache
+
+
 class LocalBackend(PipelineBackend):
     """Local Pipeline adapter."""
 
     def to_multi_transformable_collection(self, col):
-        return list(col)
+        return ReiterableLazyIterable(col)
 
     def map(self, col, fn, stage_name: typing.Optional[str] = None):
         return map(fn, col)

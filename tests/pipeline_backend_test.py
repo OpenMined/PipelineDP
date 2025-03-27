@@ -427,6 +427,11 @@ class LocalBackendTest(unittest.TestCase):
             privacy_id_extractor=lambda x: x[0],
             value_extractor=lambda x: x[2])
 
+    def test_to_multi_transformable_collection(self):
+        col = self.backend.to_multi_transformable_collection(range(5))
+        self.assertEqual(list(col), [0, 1, 2, 3, 4])
+        self.assertEqual(list(col), [0, 1, 2, 3, 4])
+
     def test_local_map(self):
         self.assertEqual(list(self.backend.map([], lambda x: x / 0)), [])
 
