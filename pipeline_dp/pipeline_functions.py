@@ -146,10 +146,6 @@ def filter_by_key_with_sharding(backend: pipeline_backend.PipelineBackend, col,
             lambda p: tuple((p, i) for i in range(sharding_factor)),
             f"Shard partitions into {sharding_factor} keys",
         )
-        # to_multi_transformable_collection is no-op for not LocalMode. For
-        # local mode it is transform iterable to list, which is neded because
-        # filter_by_key requires list.
-        keys_to_keep = backend.to_multi_transformable_collection(keys_to_keep)
 
     col_filtered = backend.filter_by_key(col, keys_to_keep, stage_name)
 
