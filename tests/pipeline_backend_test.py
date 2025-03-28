@@ -54,11 +54,11 @@ class BeamBackendTest(parameterized.TestCase):
         with test_pipeline.TestPipeline() as p:
             data = [1, 2]
             col = p | "Create col PCollection" >> beam.Create(data)
-            list_side_input = [3, 4, 5]
+            list_side_input = [[3, 4, 5]]
             list_side_input_col = p | "Create list_side_input PCollection" >>\
                                   beam.Create(
                 list_side_input)
-            one_element_side_input = [6]
+            one_element_side_input = [[6]]
             one_element_side_input_col = p | "Create one_element_side_input " \
                                              "PCollection" >> beam.Create(
                 one_element_side_input)

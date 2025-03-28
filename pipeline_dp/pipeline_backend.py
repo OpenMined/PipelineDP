@@ -156,7 +156,6 @@ class PipelineBackend(abc.ABC):
         Returns:
           A collection of (key, [value]).
         """
-        pass
 
     @abc.abstractmethod
     def count_per_element(self, col, stage_name: str):
@@ -274,7 +273,7 @@ class BeamBackend(PipelineBackend):
                              side_input_cols,
                              stage_name: str = None):
         side_inputs = [
-            beam.pvalue.AsList(side_input_col)
+            beam.pvalue.AsSingleton(side_input_col)
             for side_input_col in side_input_cols
         ]
         return col | self._ulg.unique(stage_name) >> beam.Map(fn, *side_inputs)
@@ -285,7 +284,7 @@ class BeamBackend(PipelineBackend):
     def flat_map_with_side_inputs(self, col, fn, side_input_cols,
                                   stage_name: str):
         side_inputs = [
-            beam.pvalue.AsList(side_input_col)
+            beam.pvalue.AsSingleton(side_input_col)
             for side_input_col in side_input_cols
         ]
         return col | self._ulg.unique(stage_name) >> beam.FlatMap(
@@ -530,7 +529,7 @@ class LocalBackend(PipelineBackend):
                              fn,
                              side_input_cols,
                              stage_name: str = None):
-        side_inputs = [list(side_input) for side_input in side_input_cols]
+        side_inputs = (next(side_input) for side_input in side_input_cols)
         return map(lambda x: fn(x, *side_inputs), col)
 
     def flat_map(self, col, fn, stage_name: str = None):
