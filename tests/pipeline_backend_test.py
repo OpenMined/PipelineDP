@@ -26,7 +26,7 @@ import pipeline_dp.combiners as dp_combiners
 from pipeline_dp import DataExtractors
 from pipeline_dp.pipeline_backend import BeamBackend
 from pipeline_dp.pipeline_backend import LocalBackend
-from pipeline_dp.pipeline_backend import MultiProcLocalBackend, SparkRDDBackend
+from pipeline_dp.pipeline_backend import SparkRDDBackend
 
 
 class BeamBackendTest(parameterized.TestCase):
