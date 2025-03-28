@@ -70,12 +70,40 @@ class PipelineBackend(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def map_with_side_inputs(self, col, fn, side_input_cols, stage_name: str):
-        pass
+    def map_with_side_inputs(self, col, fn, side_input_cols: typing.List,
+                             stage_name: str):
+        """Map with side input.
+
+        Args:
+            col: framework collection to map.
+            fn: callable with arguments (col_record, side_input1, ...,
+              side_inputn).
+            side_input_cols: list of side inputs (side_input1, ...,
+              side_inputn), which are collections which correspond to pipeline
+              framework (e.g. Sequence for Local, PCollection for Beam etc).
+              Side input will be in memory, so they should be small enough.
+            stage_name: stage name.
+        """
 
     @abc.abstractmethod
     def flat_map(self, col, fn, stage_name: str):
-        pass
+        """1-to-many map."""
+
+    @abc.abstractmethod
+    def flat_map_with_side_inputs(self, col, fn, side_input_cols,
+                                  stage_name: str):
+        """1-to-many map with side input.
+
+        Args:
+            col: framework collection to map.
+            fn: callable with arguments (col_record, side_input1, ...,
+             side_inputn) which returns Iterable.
+            side_input_cols: list of side inputs (side_input1, ...,
+              side_inputn), which are collections which correspond to pipeline
+              framework (e.g. Sequence for Local, PCollection for Beam etc).
+              Side input will be in memory, so they should be small enough.
+            stage_name: stage name.
+        """
 
     @abc.abstractmethod
     def map_tuple(self, col, fn, stage_name: str):
@@ -254,6 +282,15 @@ class BeamBackend(PipelineBackend):
     def flat_map(self, col, fn, stage_name: str):
         return col | self._ulg.unique(stage_name) >> beam.FlatMap(fn)
 
+    def flat_map_with_side_inputs(self, col, fn, side_input_cols,
+                                  stage_name: str):
+        side_inputs = [
+            beam.pvalue.AsList(side_input_col)
+            for side_input_col in side_input_cols
+        ]
+        return col | self._ulg.unique(stage_name) >> beam.FlatMap(
+            fn, *side_inputs)
+
     def map_tuple(self, col, fn, stage_name: str):
         return col | self._ulg.unique(stage_name) >> beam.Map(lambda x: fn(*x))
 
@@ -399,6 +436,11 @@ class SparkRDDBackend(PipelineBackend):
     def flat_map(self, rdd, fn, stage_name: str = None):
         return rdd.flatMap(fn)
 
+    def flat_map_with_side_inputs(self, col, fn, side_input_cols,
+                                  stage_name: str):
+        raise NotImplementedError("flat_map_with_side_inputs "
+                                  "is not implement in SparkBackend.")
+
     def map_tuple(self, rdd, fn, stage_name: str = None):
         return rdd.map(lambda x: fn(*x))
 
@@ -493,6 +535,11 @@ class LocalBackend(PipelineBackend):
 
     def flat_map(self, col, fn, stage_name: str = None):
         return (x for el in col for x in fn(el))
+
+    def flat_map_with_side_inputs(self, col, fn, side_input_cols,
+                                  stage_name: str):
+        side_inputs = [list(side_input) for side_input in side_input_cols]
+        return (x for el in col for x in fn(el, *side_inputs))
 
     def map_tuple(self, col, fn, stage_name: str = None):
         return map(lambda x: fn(*x), col)
