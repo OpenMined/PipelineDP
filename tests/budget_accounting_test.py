@@ -121,13 +121,15 @@ class NaiveBudgetAccountantTest(parameterized.TestCase):
             mechanism_type=MechanismType.EXPONENTIAL, weight=2, count=5)
         budget_accountant.compute_budgets()
 
+        # Total_weight = 4 + 3*2 + 2*5 = 20
+        # eps1 = total_epsilon*weight/total_weight = 1*4/20
         self.assertEqual(budget1.eps, 0.2)
         self.assertEqual(budget1.delta, 0)  # delta=0 for Laplace.
 
-        self.assertEqual(budget2.eps, 0.15)
+        self.assertEqual(budget2.eps, 0.15)  # = 1*3/20
         self.assertEqual(budget2.delta, 5e-7)
 
-        self.assertEqual(budget3.eps, 0.1)
+        self.assertEqual(budget3.eps, 0.1)  # = 1*2/20
         self.assertEqual(budget3.delta, 0)  # delta=0 for Exponential.
 
     def test_two_calls_compute_budgets_raise_exception(self):
