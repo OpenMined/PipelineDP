@@ -13,19 +13,18 @@
 # limitations under the License.
 import sys
 import unittest
-from typing import List
+from typing import Iterable, List
 from unittest.mock import Mock, MagicMock, patch
 
 import apache_beam as beam
 import apache_beam.testing.test_pipeline as test_pipeline
 import apache_beam.testing.util as beam_util
-import pytest
 from absl.testing import parameterized
 
 import pipeline_dp.combiners as dp_combiners
 from pipeline_dp import DataExtractors
 from pipeline_dp.pipeline_backend import BeamBackend
-from pipeline_dp.pipeline_backend import LocalBackend
+from pipeline_dp.pipeline_backend import LocalBackend, LazySingleton
 from pipeline_dp.pipeline_backend import SparkRDDBackend
 
 
@@ -52,24 +51,15 @@ class BeamBackendTest(parameterized.TestCase):
 
     def test_map_with_side_inputs(self):
         with test_pipeline.TestPipeline() as p:
-            data = [1, 2]
-            col = p | "Create col PCollection" >> beam.Create(data)
-            list_side_input = [[3, 4, 5]]
-            list_side_input_col = p | "Create list_side_input PCollection" >>\
-                                  beam.Create(
-                list_side_input)
-            one_element_side_input = [[6]]
-            one_element_side_input_col = p | "Create one_element_side_input " \
-                                             "PCollection" >> beam.Create(
-                one_element_side_input)
-            join_lists_fn = lambda x, l1, l2: [x] + l1 + l2
+            col = p | "Create data" >> beam.Create([1, 2])
+            side_input1 = p | "Create side_int1" >> beam.Create([5])
+            side_input2 = p | "Create side_int2" >> beam.Create([30])
+            add_fn = lambda x, s1, s2: x + s1 + s2
 
             result = self.backend.map_with_side_inputs(
-                col, join_lists_fn,
-                [list_side_input_col, one_element_side_input_col],
-                "map_with_side_inputs")
+                col, add_fn, [side_input1, side_input2], "map_with_side_inputs")
 
-            expected_result = [[1, 3, 4, 5, 6], [2, 3, 4, 5, 6]]
+            expected_result = [36, 37]
             beam_util.assert_that(result, beam_util.equal_to(expected_result))
 
     def test_filter_by_key_must_not_be_none(self):
@@ -417,6 +407,43 @@ class SparkRDDBackendTest(parameterized.TestCase):
         cls.sc.stop()
 
 
+class TestLazySingleton(unittest.TestCase):
+
+    def test_with_list(self):
+        ls = LazySingleton([10])
+        self.assertEqual(ls._singleton, 10)
+        self.assertIsNone(ls._iterable)
+        # Also check immediate retrieval
+        self.assertEqual(ls.singleton(), 10)
+
+    def test_init_with_valid_iterable_generator(self):
+        data = (x for x in [10])  # lazy generator
+        ls = LazySingleton(data)
+        self.assertIsNone(ls._singleton)  # Should be lazy
+        self.assertIsInstance(ls._iterable, Iterable)
+        self.assertEqual(ls.singleton(), 10)
+        self.assertEqual(ls.singleton(), 10)
+
+    def test_init_with_empty_list_raises_value_error(self):
+        with self.assertRaisesRegex(ValueError, "exactly one element.*found 0"):
+            LazySingleton([])
+
+    def test_init_with_multi_element_list_raises_value_error(self):
+        with self.assertRaisesRegex(ValueError, "exactly one element.*found 3"):
+            LazySingleton([1, 2, 3])
+
+    def test_init_with_non_iterable_raises_type_error(self):
+        with self.assertRaisesRegex(TypeError,
+                                    "must be a list or an Iterable.*got int"):
+            LazySingleton(123)
+        with self.assertRaisesRegex(
+                TypeError, "must be a list or an Iterable.*got NoneType"):
+            LazySingleton(None)
+        with self.assertRaisesRegex(TypeError,
+                                    "must be a list or an Iterable.*got bool"):
+            LazySingleton(True)
+
+
 class LocalBackendTest(unittest.TestCase):
 
     @classmethod
@@ -442,17 +469,16 @@ class LocalBackendTest(unittest.TestCase):
 
     def test_local_map_with_side_inputs(self):
         col = [1, 2]
-        # side input must be 1-element iterable, and the single element is a list
-        list_side_input_col = [3, 4, 5]
-        one_element_side_input_col = [6]
-        join_lists_fn = lambda x, l1, l2: [x] + l1 + l2
+        # side input must be 1-element iterable.
+        side_input1 = [5]
+        side_input2 = (x for x in [30])  # lazy iterable
+        add_fn = lambda x, s1, s2: x + s1 + s2
 
-        result = self.backend.map_with_side_inputs(
-            col, join_lists_fn,
-            [list_side_input_col, one_element_side_input_col],
-            "map_with_side_inputs")
+        result = self.backend.map_with_side_inputs(col, add_fn,
+                                                   [side_input1, side_input2],
+                                                   "map_with_side_inputs")
 
-        expected_result = [[1, 3, 4, 5, 6], [2, 3, 4, 5, 6]]
+        expected_result = [36, 37]
         self.assertEqual(list(result), expected_result)
 
     def test_local_map_tuple(self):
