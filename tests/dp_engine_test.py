@@ -288,34 +288,6 @@ class DpEngineTest(parameterized.TestCase):
                         max_partitions_contributed=2)
                 ]))
 
-    def test_calculate_private_contribution_does_not_work_on_multi_proc_local_due_to_unsupported_operations(
-            self):
-        # Arrange
-        engine = pipeline_dp.DPEngine(
-            budget_accountant=None,
-            backend=pipeline_dp.pipeline_backend.MultiProcLocalBackend(
-                n_jobs=1))
-        params = pipeline_dp.CalculatePrivateContributionBoundsParams(
-            aggregation_eps=0.9,
-            aggregation_delta=0.001,
-            calculation_eps=0.1,
-            aggregation_noise_kind=pipeline_dp.NoiseKind.LAPLACE,
-            max_partitions_contributed_upper_bound=2)
-        # user 0 contributes only 1 partitions, others contribute to both
-        data = [("pk0", 0)]
-        for i in range(10000):
-            data += [("pk0", i + 1), ("pk1", i + 1)]
-        data_extractors = pipeline_dp.DataExtractors(
-            partition_extractor=lambda x: x[0],
-            privacy_id_extractor=lambda x: x[1],
-            value_extractor=lambda _: 1,
-        )
-        partitions = ["pk0", "pk1"]
-
-        with self.assertRaises(NotImplementedError):
-            engine.calculate_private_contribution_bounds(
-                data, params, data_extractors, partitions)
-
     @unittest.skipIf(
         sys.version_info.minor <= 7 and sys.version_info.major == 3,
         "There are some problems with PySpark setup on older python")

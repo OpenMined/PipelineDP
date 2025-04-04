@@ -17,8 +17,8 @@ import functools
 import multiprocessing as mp
 import random
 import numpy as np
-from collections.abc import Iterable
-from typing import Callable
+from collections.abc import Iterable, Iterator
+from typing import Callable, List
 
 import abc
 import pipeline_dp.combiners as dp_combiners
@@ -515,11 +515,39 @@ class SparkRDDBackend(PipelineBackend):
         raise NotImplementedError("to_list is not implement in SparkBackend.")
 
 
+class ReiterableLazyIterable(Iterable):
+    """A lazy iterable that can be iterated multiple times.
+
+    It generates elements on the first iteration and stores them.
+    Subsequent iterations yield the stored elements.
+    """
+
+    def __init__(self, iterable: Iterable):
+        """Initializes the ReiterableLazyIterable.
+
+        Args:
+            iterable: Iterable to make reiterable
+        """
+        self._iterable = iterable
+        self._cache: List = None
+        self._first_run_complete = False
+
+    def __iter__(self) -> Iterator:
+        if not self._first_run_complete:
+            self._cache = []
+            for item in self._iterable:
+                self._cache.append(item)
+                yield item
+            self._first_run_complete = True
+        else:
+            yield from self._cache
+
+
 class LocalBackend(PipelineBackend):
     """Local Pipeline adapter."""
 
     def to_multi_transformable_collection(self, col):
-        return list(col)
+        return ReiterableLazyIterable(col)
 
     def map(self, col, fn, stage_name: typing.Optional[str] = None):
         return map(fn, col)
@@ -566,6 +594,8 @@ class LocalBackend(PipelineBackend):
         keys_to_keep,
         stage_name: typing.Optional[str] = None,
     ):
+        if not isinstance(keys_to_keep, set):
+            keys_to_keep = set(keys_to_keep)
         return (kv for kv in col if kv[0] in keys_to_keep)
 
     def keys(self, col, stage_name: typing.Optional[str] = None):
@@ -627,246 +657,6 @@ class LocalBackend(PipelineBackend):
 
     def to_list(self, col, stage_name: str):
         return (list(col) for _ in range(1))
-
-
-# workaround for passing lambda functions to multiprocessing
-# according to https://medium.com/@yasufumy/python-multiprocessing-c6d54107dd55
-_pool_current_func = None
-
-
-def _pool_worker_init(func):
-    global _pool_current_func
-    _pool_current_func = func
-
-
-def _pool_worker(row):
-    return _pool_current_func(row)
-
-
-class _LazyMultiProcIterator:
-
-    def __init__(self, job: typing.Callable, job_inputs: typing.Iterable,
-                 chunksize: int, n_jobs: typing.Optional[int], **pool_kwargs):
-        """Utilizes the `multiprocessing.Pool.map` for distributed execution of 
-        a function `job` on an iterable `job_inputs`.
-
-        Args:
-            job: the function to be called on each input
-
-            job_inputs: iterable containing all the inputs
-
-            chunksize: see [multiprocessing.Pool.map signature](https://docs.python.org/3/library/multiprocessing.html#multiprocessing.pool.Pool.map).  
-
-            n_jobs: see [multiprocessing.Pool constructor](https://docs.python.org/3/library/multiprocessing.html#multiprocessing.pool.Pool) arguments
-        """
-        self.job = job
-        self.chunksize = chunksize
-        self.job_inputs = job_inputs
-        self.n_jobs = n_jobs
-        self.pool_kwargs = pool_kwargs
-        self._outputs = None  # type: typing.Optional[typing.Iterator]
-        self._pool = None
-
-    def _init_pool(self):
-        """Creates the multiprocessing.Pool object that will manage the distributed computation."""
-        self._pool = mp.Pool(self.n_jobs,
-                             initializer=_pool_worker_init,
-                             initargs=(self.job,),
-                             **self.pool_kwargs)
-        return self._pool
-
-    def _trigger_iterations(self):
-        """Trigger the Pool operation that iterates over inputs and produces outputs."""
-        if self._outputs is None:
-            self._outputs = self._init_pool().map(_pool_worker, self.job_inputs,
-                                                  self.chunksize)
-
-    def __iter__(self):
-        if isinstance(self.job_inputs, _LazyMultiProcIterator):
-            self.job_inputs._trigger_iterations()
-        self._trigger_iterations()
-        yield from self._outputs
-
-
-class _LazyMultiProcGroupByIterator(_LazyMultiProcIterator):
-
-    def __init__(self, job_inputs: typing.Iterable, chunksize: int,
-                 n_jobs: typing.Optional[int], **pool_kwargs):
-        """Utilizes mp.Pool for distributed group by computation.
-        The results are held in a `mp.Manager.dict[KeyType, np.Manager.list[ValueType]]`.
-
-        The `mp.Manager.{dict, list}` objects are managed by the `manager` to allow multiprocess-safe
-        access to the containers.
-        """
-        self.manager = mp.Manager()
-        self.results_dict = self.manager.dict()
-
-        def insert_row(captures, row):
-            (results_dict_,) = captures
-            key, val = row
-            results_dict_[key].append(val)
-
-        insert_row = functools.partial(insert_row, (self.results_dict,))
-
-        super().__init__(insert_row,
-                         job_inputs,
-                         chunksize=chunksize,
-                         n_jobs=n_jobs,
-                         **pool_kwargs)
-
-    def _trigger_iterations(self):
-        if self._outputs is None:
-            keys = set(k for k, v in self.job_inputs)
-            self.results_dict.update({k: self.manager.list() for k in keys})
-            self._init_pool().map(_pool_worker, self.job_inputs, self.chunksize)
-            self._outputs = ((k, list(v)) for k, v in self.results_dict.items())
-
-
-class _LazyMultiProcCountIterator(_LazyMultiProcIterator):
-
-    def __init__(self, job_inputs: typing.Iterable, chunksize: int,
-                 n_jobs: typing.Optional[int], **pool_kwargs):
-        """Utilizes mp.Pool for distributed group by computation.
-        The results are held in a `mp.Manager.dict[KeyType, int]`.
-
-        The `mp.Manager.dict` object is managed by the `manager` to allow multiprocess-safe
-        access to the container.
-        """
-        self.manager = mp.Manager()
-        self.results_dict = self.manager.dict()
-
-        def insert_row(captures, key):
-            (results_dict_,) = captures
-            results_dict_[key] += 1
-
-        insert_row = functools.partial(insert_row, (self.results_dict,))
-
-        super().__init__(insert_row,
-                         job_inputs,
-                         chunksize=chunksize,
-                         n_jobs=n_jobs,
-                         **pool_kwargs)
-
-    def _trigger_iterations(self):
-        if self._outputs is None:
-            keys = set(self.job_inputs)
-            self.results_dict.update({k: 0 for k in keys})
-            self._init_pool().map(_pool_worker, self.job_inputs, self.chunksize)
-            self._outputs = self.results_dict.items()
-
-
-class MultiProcLocalBackend(PipelineBackend):
-    """Warning: this class is experimental."""
-
-    def __init__(self,
-                 n_jobs: typing.Optional[int] = None,
-                 chunksize: int = 1,
-                 **pool_kwargs):
-        self.n_jobs = n_jobs
-        self.chunksize = chunksize
-        self.pool_kwargs = pool_kwargs
-
-    def map(self, col, fn, stage_name: typing.Optional[str] = None):
-        return _LazyMultiProcIterator(job=fn,
-                                      job_inputs=col,
-                                      n_jobs=self.n_jobs,
-                                      chunksize=self.chunksize,
-                                      **self.pool_kwargs)
-
-    def map_with_side_inputs(self,
-                             col,
-                             fn,
-                             side_input_cols,
-                             stage_name: typing.Optional[str] = None):
-        side_inputs = [list(side_input) for side_input in side_input_cols]
-        return self.map(col, lambda row: fn(row, *side_inputs), stage_name)
-
-    def flat_map(self, col, fn, stage_name: typing.Optional[str] = None):
-        return (e for x in self.map(col, fn, stage_name) for e in x)
-
-    def map_tuple(self, col, fn, stage_name: typing.Optional[str] = None):
-        return self.map(col, lambda row: fn(*row), stage_name)
-
-    def map_values(self, col, fn, stage_name: typing.Optional[str] = None):
-        return self.map(col, lambda x: (x[0], fn(x[1])), stage_name)
-
-    def group_by_key(self, col, stage_name: typing.Optional[str] = None):
-        return _LazyMultiProcGroupByIterator(col, self.chunksize, self.n_jobs,
-                                             **self.pool_kwargs)
-
-    def filter(self, col, fn, stage_name: typing.Optional[str] = None):
-        ordered_predicates = self.map(col, fn, stage_name)
-        return (row for row, keep in zip(col, ordered_predicates) if keep)
-
-    def filter_by_key(self,
-                      col,
-                      keys_to_keep,
-                      stage_name: typing.Optional[str] = None):
-
-        def mapped_fn(keys_to_keep_, kv):
-            return kv, (kv[0] in keys_to_keep_)
-
-        mapped_fn = functools.partial(mapped_fn, keys_to_keep)
-        key_keep = self.map(col, mapped_fn, stage_name)
-        return (row for row, keep in key_keep if keep)
-
-    def keys(self, col, stage_name: typing.Optional[str] = None):
-        # no point in passing through multiproc.
-        return (k for k, v in col)
-
-    def values(self, col, stage_name: typing.Optional[str] = None):
-        # no point in passing through multiproc.
-        return (v for k, v in col)
-
-    def sample_fixed_per_key(self,
-                             col,
-                             n: int,
-                             stage_name: typing.Optional[str] = None):
-
-        def mapped_fn(captures, row):
-            (n_,) = captures
-            partition_key, values = row
-            samples = values
-            if len(samples) > n_:
-                samples = random.sample(samples, n_)
-            return partition_key, samples
-
-        mapped_fn = functools.partial(mapped_fn, (n,))
-        groups = self.group_by_key(col, stage_name)
-        return self.map(groups, mapped_fn, stage_name)
-
-    def count_per_element(self, col, stage_name: typing.Optional[str] = None):
-        return _LazyMultiProcCountIterator(col, self.chunksize, self.n_jobs,
-                                           **self.pool_kwargs)
-
-    def sum_per_key(self, rdd, stage_name: str = None):
-        raise NotImplementedError(
-            "sum_per_key is not implemented for MultiProcLocalBackend")
-
-    def combine_accumulators_per_key(self, col, combiner: dp_combiners.Combiner,
-                                     stage_name: str):
-        raise NotImplementedError(
-            "combine_accumulators_per_key is not implemented for MultiProcLocalBackend"
-        )
-
-    def reduce_per_key(self, col, combine_fn: Callable, stage_name: str):
-        raise NotImplementedError(
-            "reduce_per_key is not implemented for MultiProcLocalBackend")
-
-    def flatten(self, col1, col2, stage_name: str = None):
-        return itertools.chain(col1, col2)
-
-    def distinct(self, col, stage_name: str):
-
-        def generator():
-            for v in set(col):
-                yield v
-
-        return generator()
-
-    def to_list(self, col, stage_name: str):
-        raise NotImplementedError(
-            "to_list is not implemented for MultiProcLocalBackend")
 
 
 class Annotator(abc.ABC):
