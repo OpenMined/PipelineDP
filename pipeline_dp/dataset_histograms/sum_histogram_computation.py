@@ -126,7 +126,7 @@ def _compute_frequency_histogram_per_key(
 
     def _map_to_frequency_bin(
         key_value: Tuple[int, float],
-        bucket_generators: List[List[LowerUpperGenerator]] = None
+        bucket_generators: List[LowerUpperGenerator] = None
     ) -> Tuple[Tuple[int, float], hist.FrequencyBin]:
         # bucket_generator is a 1-element list with
         # a single element to be a list of LowerUpperGenerator.
@@ -134,7 +134,7 @@ def _compute_frequency_histogram_per_key(
         if log_histograms:
             bin_lower, bin_upper = _get_log_lower_upper(value)
         else:
-            bucket_generator = bucket_generators[0][index]
+            bucket_generator = bucket_generators[index]
             bin_lower, bin_upper = bucket_generator.get_lower_upper(value)
         bucket = hist.FrequencyBin(lower=bin_lower,
                                    upper=bin_upper,
@@ -147,11 +147,14 @@ def _compute_frequency_histogram_per_key(
     if log_histograms:
         col = backend.map(col, _map_to_frequency_bin, "To FrequencyBin")
     else:
+        # col = list(col)
+        col = backend.to_multi_transformable_collection(col)
         bucket_generators = _create_bucket_generators_per_key(
             col, num_buckets, backend)
         col = backend.map_with_side_inputs(col, _map_to_frequency_bin,
-                                           (bucket_generators,),
+                                           [bucket_generators],
                                            "To FrequencyBin")
+        col = list(col)
     # (lower_bin_value, hist.FrequencyBin)
 
     col = backend.reduce_per_key(col, operator.add, "Combine FrequencyBins")

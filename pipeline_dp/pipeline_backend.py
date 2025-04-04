@@ -552,10 +552,8 @@ class ReiterableLazyIterable(Iterable):
             self._cache = []
             for item in self._iterable:
                 self._cache.append(item)
-                yield item
             self._first_run_complete = True
-        else:
-            yield from self._cache
+        yield from self._cache
 
 
 class LazySingleton:
@@ -634,7 +632,7 @@ class LocalBackend(PipelineBackend):
                              fn,
                              side_input_cols,
                              stage_name: str = None):
-        side_inputs_singletons = [LazySingleton(i) for i in side_input_cols]
+        side_inputs_singletons = [LazySingleton(s) for s in side_input_cols]
 
         def map_fn(x):
             side_input_values = [s.singleton() for s in side_inputs_singletons]
@@ -667,6 +665,7 @@ class LocalBackend(PipelineBackend):
             d = collections.defaultdict(list)
             for key, value in col:
                 d[key].append(value)
+            print("***", d)
             for item in d.items():
                 yield item
 
