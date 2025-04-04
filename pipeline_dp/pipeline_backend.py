@@ -647,8 +647,13 @@ class LocalBackend(PipelineBackend):
 
     def flat_map_with_side_inputs(self, col, fn, side_input_cols,
                                   stage_name: str):
-        side_inputs = [list(side_input) for side_input in side_input_cols]
-        return (x for el in col for x in fn(el, *side_inputs))
+        side_inputs_singletons = [LazySingleton(i) for i in side_input_cols]
+
+        def map_fn(x):
+            side_input_values = [s.singleton() for s in side_inputs_singletons]
+            return fn(x, *side_input_values)
+
+        return self.flat_map(col, map_fn)
 
     def map_tuple(self, col, fn, stage_name: str = None):
         return map(lambda x: fn(*x), col)
