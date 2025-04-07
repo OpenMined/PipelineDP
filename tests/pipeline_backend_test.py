@@ -13,19 +13,18 @@
 # limitations under the License.
 import sys
 import unittest
-from typing import List
+from typing import Iterable, List
 from unittest.mock import Mock, MagicMock, patch
 
 import apache_beam as beam
 import apache_beam.testing.test_pipeline as test_pipeline
 import apache_beam.testing.util as beam_util
-import pytest
 from absl.testing import parameterized
 
 import pipeline_dp.combiners as dp_combiners
 from pipeline_dp import DataExtractors
 from pipeline_dp.pipeline_backend import BeamBackend
-from pipeline_dp.pipeline_backend import LocalBackend
+from pipeline_dp.pipeline_backend import LocalBackend, LazySingleton
 from pipeline_dp.pipeline_backend import SparkRDDBackend
 
 
@@ -52,24 +51,31 @@ class BeamBackendTest(parameterized.TestCase):
 
     def test_map_with_side_inputs(self):
         with test_pipeline.TestPipeline() as p:
-            data = [1, 2]
-            col = p | "Create col PCollection" >> beam.Create(data)
-            list_side_input = [3, 4, 5]
-            list_side_input_col = p | "Create list_side_input PCollection" >>\
-                                  beam.Create(
-                list_side_input)
-            one_element_side_input = [6]
-            one_element_side_input_col = p | "Create one_element_side_input " \
-                                             "PCollection" >> beam.Create(
-                one_element_side_input)
-            join_lists_fn = lambda x, l1, l2: [x] + l1 + l2
+            col = p | "Create data" >> beam.Create([1, 2])
+            side_input1 = p | "Create side_int1" >> beam.Create([5])
+            side_input2 = p | "Create side_int2" >> beam.Create([30])
+            add_fn = lambda x, s1, s2: x + s1 + s2
 
             result = self.backend.map_with_side_inputs(
-                col, join_lists_fn,
-                [list_side_input_col, one_element_side_input_col],
-                "map_with_side_inputs")
+                col, add_fn, [side_input1, side_input2], "map_with_side_inputs")
 
-            expected_result = [[1, 3, 4, 5, 6], [2, 3, 4, 5, 6]]
+            expected_result = [36, 37]
+            beam_util.assert_that(result, beam_util.equal_to(expected_result))
+
+    def test_flat_map_with_side_inputs(self):
+        with test_pipeline.TestPipeline() as p:
+            col = p | "Create data" >> beam.Create([[1, 2], [3]])
+            side_input1 = p | "Create side_int1" >> beam.Create([5])
+            side_input2 = p | "Create side_int2" >> beam.Create([30])
+
+            def add_fn(elems, s1, s2):
+                for elem in elems:
+                    yield elem + s1 + s2
+
+            result = self.backend.flat_map_with_side_inputs(
+                col, add_fn, [side_input1, side_input2], "map_with_side_inputs")
+
+            expected_result = [36, 37, 38]
             beam_util.assert_that(result, beam_util.equal_to(expected_result))
 
     def test_filter_by_key_must_not_be_none(self):
@@ -417,6 +423,35 @@ class SparkRDDBackendTest(parameterized.TestCase):
         cls.sc.stop()
 
 
+class TestLazySingleton(unittest.TestCase):
+
+    def test_with_list(self):
+        ls = LazySingleton([10])
+        # Also check immediate retrieval
+        self.assertEqual(ls.singleton(), 10)
+
+    def test_init_with_valid_iterable_generator(self):
+        data = (x for x in [10])  # lazy generator
+        ls = LazySingleton(data)
+        self.assertIsNone(ls._singleton)  # Should be lazy
+        self.assertIsInstance(ls._iterable, Iterable)
+        self.assertEqual(ls.singleton(), 10)
+        self.assertEqual(ls.singleton(), 10)
+
+    def test_init_with_empty_list_raises_value_error(self):
+        with self.assertRaisesRegex(ValueError, "exactly one element.*found 0"):
+            LazySingleton([])
+
+    def test_init_with_multi_element_list_raises_value_error(self):
+        with self.assertRaisesRegex(ValueError, "exactly one element.*found 3"):
+            LazySingleton([1, 2, 3])
+
+    def test_init_with_non_iterable_raises_type_error(self):
+        with self.assertRaisesRegex(TypeError,
+                                    "must be a list or an Iterable.*got int"):
+            LazySingleton(123)
+
+
 class LocalBackendTest(unittest.TestCase):
 
     @classmethod
@@ -432,7 +467,7 @@ class LocalBackendTest(unittest.TestCase):
         self.assertEqual(list(col), [0, 1, 2, 3, 4])
         self.assertEqual(list(col), [0, 1, 2, 3, 4])
 
-    def test_local_map(self):
+    def test_map(self):
         self.assertEqual(list(self.backend.map([], lambda x: x / 0)), [])
 
         self.assertEqual(list(self.backend.map([1, 2, 3], str)),
@@ -440,22 +475,48 @@ class LocalBackendTest(unittest.TestCase):
         self.assertEqual(list(self.backend.map(range(5), lambda x: x**2)),
                          [0, 1, 4, 9, 16])
 
-    def test_local_map_with_side_inputs(self):
+    def test_map_with_side_inputs(self):
         col = [1, 2]
-        # side input must be 1-element iterable, and the single element is a list
-        list_side_input_col = [3, 4, 5]
-        one_element_side_input_col = [6]
-        join_lists_fn = lambda x, l1, l2: [x] + l1 + l2
+        # side input must be 1-element iterable.
+        side_input1 = [5]
+        side_input2 = (x for x in [30])  # lazy iterable
+        add_fn = lambda x, s1, s2: x + s1 + s2
 
-        result = self.backend.map_with_side_inputs(
-            col, join_lists_fn,
-            [list_side_input_col, one_element_side_input_col],
-            "map_with_side_inputs")
+        result = self.backend.map_with_side_inputs(col, add_fn,
+                                                   [side_input1, side_input2],
+                                                   "map_with_side_inputs")
 
-        expected_result = [[1, 3, 4, 5, 6], [2, 3, 4, 5, 6]]
+        expected_result = [36, 37]
         self.assertEqual(list(result), expected_result)
 
-    def test_local_map_tuple(self):
+    def test_map_with_side_inputs_raises_not_singleton(self):
+        col = [1, 2]
+        side_input = [10, 20]  # it should be 1 element
+
+        add_fn = lambda x, s: x + s
+        with self.assertRaises(ValueError):
+            result = self.backend.map_with_side_inputs(col, add_fn,
+                                                       [side_input],
+                                                       "map_with_side_inputs")
+
+    def test_flat_map_with_side_inputs(self):
+        col = [[1, 2], [3]]
+        # side input must be 1-element iterable.
+        side_input1 = [5]
+        side_input2 = (x for x in [30])  # lazy iterable
+
+        def add_fn(elems: list, s1, s2):
+            for elem in elems:
+                yield elem + s1 + s2
+
+        result = self.backend.flat_map_with_side_inputs(
+            col, add_fn, [side_input1, side_input2],
+            "flat_map_with_side_inputs")
+
+        expected_result = [36, 37, 38]
+        self.assertEqual(list(result), expected_result)
+
+    def test_map_tuple(self):
         tuple_list = [(1, 2), (2, 3), (3, 4)]
 
         self.assertEqual(
@@ -469,7 +530,7 @@ class LocalBackendTest(unittest.TestCase):
                                                             ("2", "3"),
                                                             ("3", "4")])
 
-    def test_local_map_values(self):
+    def test_map_values(self):
         self.assertEqual(list(self.backend.map_values([], lambda x: x / 0)), [])
 
         tuple_list = [(1, 2), (2, 3), (3, 4)]
@@ -480,7 +541,7 @@ class LocalBackendTest(unittest.TestCase):
             list(self.backend.map_values(tuple_list, lambda x: x**2)),
             [(1, 4), (2, 9), (3, 16)])
 
-    def test_local_group_by_key(self):
+    def test_group_by_key(self):
         some_dict = [("cheese", "brie"), ("bread", "sourdough"),
                      ("cheese", "swiss")]
 
@@ -488,7 +549,7 @@ class LocalBackendTest(unittest.TestCase):
                          [("cheese", ["brie", "swiss"]),
                           ("bread", ["sourdough"])])
 
-    def test_local_filter(self):
+    def test_filter(self):
         self.assertEqual(list(self.backend.filter([], lambda x: True)), [])
         self.assertEqual(list(self.backend.filter([], lambda x: False)), [])
 
@@ -500,33 +561,33 @@ class LocalBackendTest(unittest.TestCase):
             list(self.backend.filter(example_list, lambda x: x < 3)),
             [1, 2, 2, 2])
 
-    def test_local_filter_by_key_empty_keys_to_keep(self):
+    def test_filter_by_key_empty_keys_to_keep(self):
         col = [(7, 1), (2, 1), (3, 9), (4, 1), (9, 10)]
         keys_to_keep = []
         result = self.backend.filter_by_key(col, keys_to_keep, "filter_by_key")
         self.assertEqual(list(result), [])
 
-    def test_local_filter_by_key_remove(self):
+    def test_filter_by_key_remove(self):
         col = [(7, 1), (2, 1), (3, 9), (4, 1), (9, 10)]
         keys_to_keep = [7, 9]
         result = self.backend.filter_by_key(col, keys_to_keep, "filter_by_key")
         self.assertEqual(list(result), [(7, 1), (9, 10)])
 
-    def test_local_keys(self):
+    def test_keys(self):
         self.assertEqual(list(self.backend.keys([])), [])
 
         example_list = [(1, 2), (2, 3), (3, 4), (4, 8)]
 
         self.assertEqual(list(self.backend.keys(example_list)), [1, 2, 3, 4])
 
-    def test_local_values(self):
+    def test_values(self):
         self.assertEqual(list(self.backend.values([])), [])
 
         example_list = [(1, 2), (2, 3), (3, 4), (4, 8)]
 
         self.assertEqual(list(self.backend.values(example_list)), [2, 3, 4, 8])
 
-    def test_local_count_per_element(self):
+    def test_count_per_element(self):
         example_list = [1, 2, 3, 4, 5, 6, 1, 4, 0, 1]
         result = self.backend.count_per_element(example_list)
 
@@ -545,7 +606,7 @@ class LocalBackendTest(unittest.TestCase):
         result = list(self.backend.sum_per_key(data))
         self.assertEqual(result, [(1, 6), (2, -2), (3, 8), (10, 5)])
 
-    def test_local_combine_accumulators_per_key(self):
+    def test_combine_accumulators_per_key(self):
         data = [(1, 2), (2, 1), (1, 4), (3, 8), (2, 3)]
         col = self.backend.group_by_key(data)
         sum_combiner = SumCombiner()
@@ -596,7 +657,7 @@ class LocalBackendTest(unittest.TestCase):
         assert_laziness(self.backend.filter_by_key, [1, 2])
         assert_laziness(self.backend.distinct, str)
 
-    def test_local_sample_fixed_per_key_requires_no_discarding(self):
+    def test_sample_fixed_per_key_requires_no_discarding(self):
         input_col = [("pid1", ('pk1', 1)), ("pid1", ('pk2', 1)),
                      ("pid1", ('pk3', 1)), ("pid2", ('pk4', 1))]
         n = 3
@@ -608,7 +669,7 @@ class LocalBackendTest(unittest.TestCase):
                            ("pid2", [('pk4', 1)])]
         self.assertEqual(sample_fixed_per_key_result, expected_result)
 
-    def test_local_sample_fixed_per_key_with_sampling(self):
+    def test_sample_fixed_per_key_with_sampling(self):
         input_col = [(("pid1", "pk1"), 1), (("pid1", "pk1"), 1),
                      (("pid1", "pk1"), 1), (("pid1", "pk1"), 1),
                      (("pid1", "pk1"), 1), (("pid1", "pk2"), 1),
@@ -623,7 +684,7 @@ class LocalBackendTest(unittest.TestCase):
                 map(lambda pid_pk_v: len(pid_pk_v[1]) <= n,
                     sample_fixed_per_key_result)))
 
-    def test_local_flat_map(self):
+    def test_flat_map(self):
         input_col = [[1, 2, 3, 4], [5, 6, 7, 8]]
         self.assertEqual(list(self.backend.flat_map(input_col, lambda x: x)),
                          [1, 2, 3, 4, 5, 6, 7, 8])
@@ -638,7 +699,7 @@ class LocalBackendTest(unittest.TestCase):
             [("a", 1), ("a", 2), ("a", 3), ("a", 4), ("b", 5), ("b", 6),
              ("b", 7), ("b", 8)])
 
-    def test_local_group_by_key(self):
+    def test_group_by_key(self):
         some_dict = [("cheese", "brie"), ("bread", "sourdough"),
                      ("cheese", "swiss")]
 

@@ -14,11 +14,10 @@
 """Adapters for working with pipeline frameworks."""
 
 import functools
-import multiprocessing as mp
 import random
 import numpy as np
 from collections.abc import Iterable, Iterator
-from typing import Callable, List
+from typing import Callable, List, Union
 
 import abc
 import pipeline_dp.combiners as dp_combiners
@@ -70,12 +69,56 @@ class PipelineBackend(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def map_with_side_inputs(self, col, fn, side_input_cols, stage_name: str):
-        pass
+    def map_with_side_inputs(self, col, fn, side_input_cols: typing.List,
+                             stage_name: str):
+        """Map with additional (side) inputs for mapper functions.
+
+        Side inputs are passed to fn as arguments. For each `record` fn is
+        called with fn(record, side_input1, ..., side_inputn).
+
+        Side input collection, must be singletons (i.e. 1 element collections).
+        If you have larger collection, you can apply backend.to_list() to
+        make it singleton.
+
+        Args:
+            col: framework collection to map.
+            fn: callable with arguments (col_record, side_input1, ...,
+              side_inputn).
+            side_input_cols: list of side inputs (side_input1, ...,
+              side_inputn). Side input can be 1 element Python Sequence or
+              1 element collections which correspond to the pipeline framework
+              (e.g. PCollection for BeamBackend etc). Side inputs will be in
+              memory, so they should be small enough.
+            stage_name: stage name.
+        """
 
     @abc.abstractmethod
     def flat_map(self, col, fn, stage_name: str):
-        pass
+        """1-to-many map."""
+
+    @abc.abstractmethod
+    def flat_map_with_side_inputs(self, col, fn, side_input_cols,
+                                  stage_name: str):
+        """1-to-many map with side input.
+
+        Side inputs are passed to fn as arguments. For each `record` fn is
+        called with fn(record, side_input1, ..., side_inputn).
+
+        Side input collection, must be singletons (i.e. 1 element collections).
+        If you have larger collection, you can apply backend.to_list() to
+        make it singleton.
+
+       Args:
+            col: framework collection to map.
+            fn: callable with arguments (col_record, side_input1, ...,
+              side_inputn).
+            side_input_cols: list of side inputs (side_input1, ...,
+              side_inputn). Side input can be 1 element Python Sequence or
+              1 element collections which correspond to the pipeline framework
+              (e.g. PCollection for BeamBackend etc). Side inputs will be in
+              memory, so they should be small enough.
+            stage_name: stage name.
+        """
 
     @abc.abstractmethod
     def map_tuple(self, col, fn, stage_name: str):
@@ -128,7 +171,6 @@ class PipelineBackend(abc.ABC):
         Returns:
           A collection of (key, [value]).
         """
-        pass
 
     @abc.abstractmethod
     def count_per_element(self, col, stage_name: str):
@@ -246,13 +288,22 @@ class BeamBackend(PipelineBackend):
                              side_input_cols,
                              stage_name: str = None):
         side_inputs = [
-            beam.pvalue.AsList(side_input_col)
+            beam.pvalue.AsSingleton(side_input_col)
             for side_input_col in side_input_cols
         ]
         return col | self._ulg.unique(stage_name) >> beam.Map(fn, *side_inputs)
 
     def flat_map(self, col, fn, stage_name: str):
         return col | self._ulg.unique(stage_name) >> beam.FlatMap(fn)
+
+    def flat_map_with_side_inputs(self, col, fn, side_input_cols,
+                                  stage_name: str):
+        side_inputs = [
+            beam.pvalue.AsSingleton(side_input_col)
+            for side_input_col in side_input_cols
+        ]
+        return col | self._ulg.unique(stage_name) >> beam.FlatMap(
+            fn, *side_inputs)
 
     def map_tuple(self, col, fn, stage_name: str):
         return col | self._ulg.unique(stage_name) >> beam.Map(lambda x: fn(*x))
@@ -399,6 +450,11 @@ class SparkRDDBackend(PipelineBackend):
     def flat_map(self, rdd, fn, stage_name: str = None):
         return rdd.flatMap(fn)
 
+    def flat_map_with_side_inputs(self, col, fn, side_input_cols,
+                                  stage_name: str):
+        raise NotImplementedError("flat_map_with_side_inputs "
+                                  "is not implement in SparkBackend.")
+
     def map_tuple(self, rdd, fn, stage_name: str = None):
         return rdd.map(lambda x: fn(*x))
 
@@ -496,10 +552,70 @@ class ReiterableLazyIterable(Iterable):
             self._cache = []
             for item in self._iterable:
                 self._cache.append(item)
-                yield item
             self._first_run_complete = True
+        yield from self._cache
+
+
+class LazySingleton:
+    """Represents a lazily evaluated object expected to resolve to a single value.
+
+    This class accepts either a list, which must contain exactly one element,
+    or an iterable, which is expected to yield exactly one element upon
+    iteration.
+
+    If initialized with a list, the single element is stored immediately.
+    If initialized with an iterable, the iterable is stored, and the element
+    is fetched and validated only when the `singleton()` method is first called.
+    The fetched element is then cached for subsequent calls.
+    """
+
+    def __init__(self, iterable_or_list: Union[List, Iterable]):
+        """Initializes the LazySingleton.
+
+        Args:
+            iterable_or_list: Either a list containing exactly one element,
+                              or an iterable expected to yield one element.
+
+        Raises:
+            ValueError: If the input is a list but does not contain exactly
+                        one element.
+            TypeError: If the input is neither a list nor an instance of
+                       collections.abc.Iterable.
+        """
+        self._singleton = None
+        self._iterable = None
+
+        if isinstance(iterable_or_list, list):
+            if len(iterable_or_list) != 1:
+                raise ValueError(
+                    f"Input list must contain exactly one element, but found "
+                    f"{len(iterable_or_list)} elements.")
+            self._singleton = iterable_or_list[0]
         else:
-            yield from self._cache
+            if not isinstance(iterable_or_list, Iterable):
+                raise TypeError(f"Input must be a list or an Iterable, but got "
+                                f"{type(iterable_or_list).__name__}.")
+            self._iterable = iterable_or_list
+
+    def singleton(self):
+        """Retrieves the single underlying value.
+
+        Returns:
+           The single element represented by this instance.
+
+        Raises:
+           ValueError: If the instance was initialized with an iterable that
+                       yields more than one element.
+        """
+        if self._singleton:
+            return self._singleton
+        it = iter(self._iterable)
+        self._singleton = next(it)
+        try:
+            next(it)
+        except StopIteration:
+            return self._singleton
+        raise ValueError("The collection contains more than 1 element.")
 
 
 class LocalBackend(PipelineBackend):
@@ -516,11 +632,26 @@ class LocalBackend(PipelineBackend):
                              fn,
                              side_input_cols,
                              stage_name: str = None):
-        side_inputs = [list(side_input) for side_input in side_input_cols]
-        return map(lambda x: fn(x, *side_inputs), col)
+        side_inputs_singletons = [LazySingleton(s) for s in side_input_cols]
+
+        def map_fn(x):
+            side_input_values = [s.singleton() for s in side_inputs_singletons]
+            return fn(x, *side_input_values)
+
+        return map(map_fn, col)
 
     def flat_map(self, col, fn, stage_name: str = None):
         return (x for el in col for x in fn(el))
+
+    def flat_map_with_side_inputs(self, col, fn, side_input_cols,
+                                  stage_name: str):
+        side_inputs_singletons = [LazySingleton(i) for i in side_input_cols]
+
+        def map_fn(x):
+            side_input_values = [s.singleton() for s in side_inputs_singletons]
+            return fn(x, *side_input_values)
+
+        return self.flat_map(col, map_fn)
 
     def map_tuple(self, col, fn, stage_name: str = None):
         return map(lambda x: fn(*x), col)
