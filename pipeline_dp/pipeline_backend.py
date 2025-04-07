@@ -615,7 +615,7 @@ class LazySingleton:
             next(it)
         except StopIteration:
             return self._singleton
-        raise ValueError("")
+        raise ValueError("The collection contains more than 1 element.")
 
 
 class LocalBackend(PipelineBackend):
@@ -665,7 +665,6 @@ class LocalBackend(PipelineBackend):
             d = collections.defaultdict(list)
             for key, value in col:
                 d[key].append(value)
-            print("***", d)
             for item in d.items():
                 yield item
 

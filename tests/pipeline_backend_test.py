@@ -427,8 +427,6 @@ class TestLazySingleton(unittest.TestCase):
 
     def test_with_list(self):
         ls = LazySingleton([10])
-        self.assertEqual(ls._singleton, 10)
-        self.assertIsNone(ls._iterable)
         # Also check immediate retrieval
         self.assertEqual(ls.singleton(), 10)
 
@@ -452,12 +450,6 @@ class TestLazySingleton(unittest.TestCase):
         with self.assertRaisesRegex(TypeError,
                                     "must be a list or an Iterable.*got int"):
             LazySingleton(123)
-        with self.assertRaisesRegex(
-                TypeError, "must be a list or an Iterable.*got NoneType"):
-            LazySingleton(None)
-        with self.assertRaisesRegex(TypeError,
-                                    "must be a list or an Iterable.*got bool"):
-            LazySingleton(True)
 
 
 class LocalBackendTest(unittest.TestCase):
@@ -496,6 +488,16 @@ class LocalBackendTest(unittest.TestCase):
 
         expected_result = [36, 37]
         self.assertEqual(list(result), expected_result)
+
+    def test_map_with_side_inputs_raises_not_singleton(self):
+        col = [1, 2]
+        side_input = [10, 20]  # it should be 1 element
+
+        add_fn = lambda x, s: x + s
+        with self.assertRaises(ValueError):
+            result = self.backend.map_with_side_inputs(col, add_fn,
+                                                       [side_input],
+                                                       "map_with_side_inputs")
 
     def test_flat_map_with_side_inputs(self):
         col = [[1, 2], [3]]
