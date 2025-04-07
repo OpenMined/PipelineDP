@@ -141,8 +141,8 @@ class DPEngine:
                                           "Drop privacy id")
             # col : (partition_key, accumulator)
         else:
-            col = self._backend.map(col, lambda row: row[1:],
-                                    "Remove privacy_id")
+            col = self._backend.map_tuple(col, lambda pid, pk, v: (pk, v),
+                                          "Drop privacy id")
             # col : (partition_key, value)
 
             col = self._backend.map_values(
