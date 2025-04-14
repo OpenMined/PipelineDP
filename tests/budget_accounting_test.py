@@ -110,21 +110,27 @@ class NaiveBudgetAccountantTest(parameterized.TestCase):
         self.assertEqual(budget1.eps, 1.0 / (1.0 + 0.5))
         self.assertEqual(budget2.eps, 0.5 / (1.0 + 0.5))
 
-    def test_count(self):
+    def test_weights_count(self):
         budget_accountant = NaiveBudgetAccountant(total_epsilon=1,
                                                   total_delta=1e-6)
         budget1 = budget_accountant.request_budget(
             mechanism_type=MechanismType.LAPLACE, weight=4)
         budget2 = budget_accountant.request_budget(
             mechanism_type=MechanismType.GAUSSIAN, weight=3, count=2)
+        budget3 = budget_accountant.request_budget(
+            mechanism_type=MechanismType.EXPONENTIAL, weight=2, count=5)
         budget_accountant.compute_budgets()
 
-        self.assertEqual(budget1.eps, 0.4)
-        self.assertEqual(budget1.delta,
-                         0)  # Delta should be 0 if mechanism is Laplace.
+        # Total_weight = 4 + 3*2 + 2*5 = 20
+        # eps1 = total_epsilon*weight/total_weight = 1*4/20
+        self.assertEqual(budget1.eps, 0.2)
+        self.assertEqual(budget1.delta, 0)  # delta=0 for Laplace.
 
-        self.assertEqual(budget2.eps, 0.3)
+        self.assertEqual(budget2.eps, 0.15)  # = 1*3/20
         self.assertEqual(budget2.delta, 5e-7)
+
+        self.assertEqual(budget3.eps, 0.1)  # = 1*2/20
+        self.assertEqual(budget3.delta, 0)  # delta=0 for Exponential.
 
     def test_two_calls_compute_budgets_raise_exception(self):
         budget_accountant = NaiveBudgetAccountant(total_epsilon=1,
@@ -467,7 +473,26 @@ class PLDBudgetAccountantTest(unittest.TestCase):
                         weight=8,
                         sensitivity=3),
                 ],
-                expected_pipeline_noise_std=40.02)
+                expected_pipeline_noise_std=40.02),
+            ComputeBudgetTestCase(
+                name="gaussian_exponential",
+                epsilon=1.0,
+                delta=1e-6,
+                mechanisms=[
+                    ComputeBudgetMechanisms(
+                        count=4,
+                        expected_noise_std=1.295,
+                        mechanism_type=MechanismType.EXPONENTIAL,
+                        weight=4,
+                        sensitivity=1),
+                    ComputeBudgetMechanisms(
+                        count=6,
+                        expected_noise_std=10.356,
+                        mechanism_type=MechanismType.GAUSSIAN,
+                        weight=2,
+                        sensitivity=4),
+                ],
+                expected_pipeline_noise_std=5.178)
         ]
 
         for case in testcases:

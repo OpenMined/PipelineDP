@@ -94,6 +94,7 @@ class MechanismType(Enum):
     GAUSSIAN = 'Gaussian'
     LAPLACE_THRESHOLDING = 'Laplace Thresholding'
     GAUSSIAN_THRESHOLDING = 'Gaussian Thresholding'
+    EXPONENTIAL = 'Exponential'
     GENERIC = 'Generic'
 
     def to_noise_kind(self):

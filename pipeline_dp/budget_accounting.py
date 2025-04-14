@@ -104,7 +104,10 @@ class MechanismSpec:
         self._noise_standard_deviation = stddev
 
     def use_delta(self) -> bool:
-        return self.mechanism_type != agg_params.MechanismType.LAPLACE
+        return self.mechanism_type not in [
+            agg_params.MechanismType.LAPLACE,
+            agg_params.MechanismType.EXPONENTIAL
+        ]
 
     @property
     def standard_deviation_is_set(self) -> bool:
@@ -117,6 +120,15 @@ class MechanismSpecInternal:
     sensitivity: float
     weight: float
     mechanism_spec: MechanismSpec
+
+    def __post_init__(self):
+        mechanism_type = self.mechanism_spec.mechanism_type
+        if self.sensitivity != 1 and mechanism_type in [
+                agg_params.MechanismType.EXPONENTIAL,
+                agg_params.MechanismType.GENERIC
+        ]:
+            raise ValueError(
+                f"Mechanism {mechanism_type} does not support sensitivity.")
 
 
 Budget = collections.namedtuple("Budget", ["epsilon", "delta"])
