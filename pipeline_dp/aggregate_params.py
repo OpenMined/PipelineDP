@@ -116,6 +116,12 @@ class MechanismType(Enum):
         raise ValueError(f"MechanismType {self.value} can not be converted to "
                          f"PartitionSelectionStrategy")
 
+    def is_thresholding_mechanism(self):
+        return self.value in [
+            MechanismType.LAPLACE_THRESHOLDING.value,
+            MechanismType.GAUSSIAN_THRESHOLDING.value
+        ]
+
 
 def noise_to_thresholding(noise_kind: NoiseKind) -> MechanismType:
     if noise_kind == NoiseKind.LAPLACE:
