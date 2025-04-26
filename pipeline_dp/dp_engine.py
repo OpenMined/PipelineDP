@@ -601,8 +601,7 @@ class DPEngine:
             lambda: f"Adding {create_mechanism().noise_kind} noise with "
             f"parameter {create_mechanism().noise_parameter}")
         anonymized_col = self._backend.map_values(
-            col, lambda value: create_mechanism().add_noise(float(value)),
-            "Add noise")
+            col, lambda value: create_mechanism().add_noise(value), "Add noise")
 
         budget = self._budget_accountant._compute_budget_for_aggregation(
             params.budget_weight)
