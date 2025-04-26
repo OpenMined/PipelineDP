@@ -409,11 +409,24 @@ class SelectPartitionsParams:
             partition selection.
         partition_selection_strategy: which strategy to use for private
          partition selection.
+        pre_threshold: the minimum amount of privacy units which are required
+         for keeping a partition in private partition selection. Note that this
+         is in addition to a differentially private partition selection, so a
+         partition with pre_threshold privacy units isn't necessarily kept. It
+         is ignored when public partitions are used.
+         More details on pre-thresholding are in
+         https://github.com/google/differential-privacy/blob/main/common_docs/pre_thresholding.md
+        contribution_bounds_already_enforced: assume that the input dataset
+         complies with the bounds provided in max_partitions_contributed and
+         max_contributions_per_partition. This option can be used if the dataset
+         does not contain any identifiers that can be used to enforce
+         contribution bounds automatically.
     """
     max_partitions_contributed: int
     budget_weight: float = 1
     partition_selection_strategy: PartitionSelectionStrategy = PartitionSelectionStrategy.TRUNCATED_GEOMETRIC
     pre_threshold: Optional[int] = None
+    contribution_bounds_already_enforced: bool = False
 
     # TODO: Add support for contribution_bounds_already_enforced
 

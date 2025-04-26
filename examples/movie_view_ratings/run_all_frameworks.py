@@ -142,7 +142,10 @@ def get_private_movies(movie_views, backend):
     # Run aggregation.
     dp_result = dp_engine.select_partitions(
         movie_views,
-        pipeline_dp.SelectPartitionsParams(max_partitions_contributed=2),
+        pipeline_dp.SelectPartitionsParams(
+            max_partitions_contributed=2,
+            contribution_bounds_already_enforced=FLAGS.
+            contribution_bounds_already_enforced),
         data_extractors=data_extractors)
 
     budget_accountant.compute_budgets()
