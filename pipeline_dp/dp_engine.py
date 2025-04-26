@@ -568,7 +568,8 @@ class DPEngine:
 
         Args:
           col: collection with elements (partition_key, value). Where value has
-            a number type. It is assumed that all partition_key are different.
+            a number type or np.ndarray. It is assumed that all partition_key
+            are different.
           params: specifies parameters for noise addition.
           out_explain_computation_report: an output argument, if specified,
             it will contain the Explain Computation report for this aggregation.
