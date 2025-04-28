@@ -444,6 +444,7 @@ class AdditiveMechanismTests(parameterized.TestCase):
                                delta=1e-12)
         self.assertEqual(mechanism.sensitivity, l1_sensitivity)
         self.assertIsInstance(mechanism.add_noise(1000), float)
+        self.assertIsInstance(mechanism.add_noise(np.array([1, 2])), np.ndarray)
 
     def test_laplace_create_from_stddev(self):
         mechanism = dp_computations.LaplaceMechanism.create_from_std_deviation(
@@ -478,6 +479,20 @@ class AdditiveMechanismTests(parameterized.TestCase):
         expected_cdf = stats.laplace(loc=value, scale=expected_noise_scale).cdf
 
         noised_values = [mechanism.add_noise(value) for _ in range(30000)]
+
+        res = stats.ks_1samp(noised_values, expected_cdf)
+        self.assertGreater(res.pvalue, 1e-4)
+
+    def test_laplace_mechanism_distribution_np_ndarray(self):
+        # Use Kolmogorov-Smirnov test to verify the output noise distribution.
+        # https://en.wikipedia.org/wiki/Kolmogorov-Smirnov_test
+        mechanism = dp_computations.LaplaceMechanism.create_from_epsilon(
+            epsilon=1.0, l1_sensitivity=3.0)
+        expected_noise_scale = 3.0 / 1.0
+        expected_cdf = stats.laplace(loc=1.0, scale=expected_noise_scale).cdf
+
+        noised_values = mechanism.add_noise(np.ones(1000))
+        self.assertIsInstance(noised_values, np.ndarray)
 
         res = stats.ks_1samp(noised_values, expected_cdf)
         self.assertGreater(res.pvalue, 1e-4)
@@ -540,6 +555,25 @@ class AdditiveMechanismTests(parameterized.TestCase):
 
         expected_cdf = stats.norm(loc=value, scale=expected_noise_scale).cdf
         noised_values = [mechanism.add_noise(value) for _ in range(30000)]
+
+        res = stats.ks_1samp(noised_values, expected_cdf)
+        self.assertGreater(res.pvalue, 1e-4)
+
+    def test_gaussian_mechanism_distribution_nd_array(self):
+        epsilon = 0.1
+        delta = 1e-5
+        l2_sensitivity = 0.55
+        value = 2000
+        expected_noise_scale = 16.9125
+        # Use Kolmogorov-Smirnov test to verify the output noise distribution.
+        # https://en.wikipedia.org/wiki/Kolmogorov-Smirnov_test
+        mechanism = dp_computations.GaussianMechanism.create_from_epsilon_delta(
+            epsilon=epsilon, delta=delta, l2_sensitivity=l2_sensitivity)
+        self.assertEqual(mechanism.std, expected_noise_scale)
+
+        expected_cdf = stats.norm(loc=value, scale=expected_noise_scale).cdf
+        noised_values = mechanism.add_noise(np.ones(10000) * value)
+        self.assertIsInstance(noised_values, np.ndarray)
 
         res = stats.ks_1samp(noised_values, expected_cdf)
         self.assertGreater(res.pvalue, 1e-4)

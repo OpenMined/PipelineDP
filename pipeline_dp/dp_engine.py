@@ -573,7 +573,8 @@ class DPEngine:
 
         Args:
           col: collection with elements (partition_key, value). Where value has
-            a number type. It is assumed that all partition_key are different.
+            a number type or np.ndarray. It is assumed that all partition_key
+            are different.
           params: specifies parameters for noise addition.
           out_explain_computation_report: an output argument, if specified,
             it will contain the Explain Computation report for this aggregation.
@@ -586,7 +587,10 @@ class DPEngine:
         mechanism_type = params.noise_kind.convert_to_mechanism_type()
         mechanism_spec = self._budget_accountant.request_budget(mechanism_type)
         sensitivities = dp_computations.Sensitivities(
-            l0=params.l0_sensitivity, linf=params.linf_sensitivity)
+            l0=params.l0_sensitivity,
+            linf=params.linf_sensitivity,
+            l1=params.l1_sensitivity,
+            l2=params.l2_sensitivity)
 
         # Initialize ReportGenerator.
         self._report_generators.append(
@@ -606,8 +610,7 @@ class DPEngine:
             lambda: f"Adding {create_mechanism().noise_kind} noise with "
             f"parameter {create_mechanism().noise_parameter}")
         anonymized_col = self._backend.map_values(
-            col, lambda value: create_mechanism().add_noise(float(value)),
-            "Add noise")
+            col, lambda value: create_mechanism().add_noise(value), "Add noise")
 
         budget = self._budget_accountant._compute_budget_for_aggregation(
             params.budget_weight)

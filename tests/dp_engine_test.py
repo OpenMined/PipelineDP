@@ -1379,18 +1379,35 @@ class DpEngineTest(parameterized.TestCase):
             engine.aggregate([1], aggregate_params,
                              self._get_default_extractors())
 
-    @parameterized.parameters(pipeline_dp.NoiseKind.GAUSSIAN,
-                              pipeline_dp.NoiseKind.LAPLACE)
+    @parameterized.named_parameters(
+        dict(testcase_name='Gaussian',
+             noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+             l0_sensitivity=3,
+             linf_sensitivity=10,
+             l1_sensitivity=None,
+             l2_sensitivity=None),
+        dict(testcase_name='Laplace',
+             noise_kind=pipeline_dp.NoiseKind.LAPLACE,
+             l0_sensitivity=None,
+             linf_sensitivity=None,
+             l1_sensitivity=5,
+             l2_sensitivity=None),
+    )
     @patch('pipeline_dp.dp_computations.create_additive_mechanism')
     def test_add_dp_noise_check_correct_adding_mechanism_created(
-            self, noise_kind, mock_create_additive_mechanism):
+            self, mock_create_additive_mechanism, noise_kind, l0_sensitivity,
+            linf_sensitivity, l1_sensitivity, l2_sensitivity):
         # Arrange
         data = [(0, 0)]
         accountant = pipeline_dp.NaiveBudgetAccountant(total_epsilon=0.5,
                                                        total_delta=1e-8)
         engine = pipeline_dp.DPEngine(accountant, pipeline_dp.LocalBackend())
         params = pipeline_dp.aggregate_params.AddDPNoiseParams(
-            noise_kind=noise_kind, l0_sensitivity=3, linf_sensitivity=10)
+            noise_kind=noise_kind,
+            l0_sensitivity=l0_sensitivity,
+            linf_sensitivity=linf_sensitivity,
+            l1_sensitivity=l1_sensitivity,
+            l2_sensitivity=l2_sensitivity)
 
         # Act
         output = engine.add_dp_noise(data, params)
@@ -1404,7 +1421,11 @@ class DpEngineTest(parameterized.TestCase):
             budget_accounting.MechanismSpec(
                 noise_kind.convert_to_mechanism_type(),
                 _eps=0.5,
-                _delta=expected_delta), dp_computations.Sensitivities(3, 10))
+                _delta=expected_delta),
+            dp_computations.Sensitivities(l0=l0_sensitivity,
+                                          linf=linf_sensitivity,
+                                          l1=l1_sensitivity,
+                                          l2=l2_sensitivity))
 
     def test_run_e2e_add_dp_noise(self):
         # Arrange
