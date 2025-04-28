@@ -922,7 +922,7 @@ class DpEngineTest(parameterized.TestCase):
         # A partition with sufficient amount of users to pass max_partitions_contributed=100.
         col = ["pk-many-contribs"] * 2000
 
-        # A partition with less contributions, it is eleased when
+        # A partition with less contributions, it is released when
         # max_partitions_contributed=1, but dropped when
         # max_partitions_contributed=100.
         col += ["pk-medium-contribs"] * 50
@@ -949,10 +949,8 @@ class DpEngineTest(parameterized.TestCase):
         if max_partitions_contributed == 1:
             self.assertEqual(["pk-many-contribs", "pk-medium-contribs"],
                              sorted(col))
-        elif max_partitions_contributed == 100:
+        else:  # max_partitions_contributed == 100:
             self.assertEqual(["pk-many-contribs"], col)
-        else:
-            assert False, "{max_partitions_contributed=} is unexpected"
 
     def test_check_select_partitions(self):
         """ Tests validation of parameters for select_partitions()"""
