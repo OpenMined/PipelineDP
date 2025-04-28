@@ -239,39 +239,44 @@ class DPEngine:
         """Implementation of select_partitions computational graph."""
         max_partitions_contributed = params.max_partitions_contributed
 
-        # Extract the columns.
-        col = self._backend.map(
-            col, lambda row: (data_extractors.privacy_id_extractor(row),
-                              data_extractors.partition_extractor(row)),
-            "Extract (privacy_id, partition_key))")
-        # col : (privacy_id, partition_key)
+        if params.contribution_bounds_already_enforced:
+            col = self._backend.map(col, data_extractors.partition_extractor,
+                                    "Extract partition_key")
+            # col: partition_key
+        else:
+            # Perform contribution bounding
+            # Extract the columns.
+            col = self._backend.map(
+                col, lambda row: (data_extractors.privacy_id_extractor(row),
+                                  data_extractors.partition_extractor(row)),
+                "Extract (privacy_id, partition_key))")
+            # col : (privacy_id, partition_key)
 
-        # Apply cross-partition contribution bounding
-        col = self._backend.group_by_key(col, "Group by privacy_id")
+            # Apply cross-partition contribution bounding
+            col = self._backend.group_by_key(col, "Group by privacy_id")
 
-        # col : (privacy_id, [partition_key])
+            # col : (privacy_id, [partition_key])
 
-        # Note: This may not be scalable if a single privacy ID contributes
-        # to _way_ too many partitions.
-        def sample_unique_elements_fn(pid_and_pks):
-            pid, pks = pid_and_pks
-            unique_pks = list(set(pks))
-            sampled_elements = \
-                sampling_utils.choose_from_list_without_replacement(
+            # Note: This may not be scalable if a single privacy ID contributes
+            # to _way_ too many partitions.
+            def sample_unique_elements_fn(pid_and_pks):
+                pid, pks = pid_and_pks
+                unique_pks = list(set(pks))
+                return sampling_utils.choose_from_list_without_replacement(
                     unique_pks, max_partitions_contributed)
-            return ((pid, pk) for pk in sampled_elements)
 
-        col = self._backend.flat_map(col, sample_unique_elements_fn,
-                                     "Sample cross-partition contributions")
-        # col : (privacy_id, partition_key)
+            col = self._backend.flat_map(
+                col, sample_unique_elements_fn,
+                "Sample cross-partition contributions")
+            # col : partition_key
 
         # A compound accumulator without any child accumulators is used to
         # calculate the raw privacy ID count.
         compound_combiner = combiners.CompoundCombiner([],
                                                        return_named_tuple=False)
-        col = self._backend.map_tuple(
-            col, lambda pid, pk: (pk, compound_combiner.create_accumulator([])),
-            "Drop privacy id and add accumulator")
+        col = self._backend.map(
+            col, lambda pk: (pk, compound_combiner.create_accumulator([])),
+            "Create accumulator")
         # col : (partition_key, accumulator)
 
         col = self._backend.combine_accumulators_per_key(
