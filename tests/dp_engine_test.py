@@ -902,6 +902,58 @@ class DpEngineTest(parameterized.TestCase):
         # applying the "max_partitions_contributed" bound is retained.
         self.assertEqual(["pk-many-contribs"], col)
 
+    @parameterized.parameters(1, 100)
+    def test_select_partitions_contribution_bounds_already_enforced(
+            self, max_partitions_contributed):
+        # This test is probabilistic, but the parameters were chosen to ensure
+        # flakiness less than 1e-4.
+
+        # Arrange
+        params = pipeline_dp.SelectPartitionsParams(
+            max_partitions_contributed=max_partitions_contributed,
+            contribution_bounds_already_enforced=True)
+
+        budget_accountant = NaiveBudgetAccountant(total_epsilon=1,
+                                                  total_delta=1e-6)
+
+        # Generate dataset as a list of partition_key.
+        # There partitions are generated to reflect several scenarios.
+
+        # A partition with sufficient amount of users to pass max_partitions_contributed=100.
+        col = ["pk-many-contribs"] * 2000
+
+        # A partition with less contributions, it is eleased when
+        # max_partitions_contributed=1, but dropped when
+        # max_partitions_contributed=100.
+        col += ["pk-medium-contribs"] * 50
+
+        # A partition with few contributions (will be dropped almost always).
+        col += ["pk-few-contribs"]
+
+        data_extractor = pipeline_dp.DataExtractors(
+            # privacy id is not needed for contribution_bounds_already_enforced.
+            privacy_id_extractor=None,
+            partition_extractor=lambda x: x)
+
+        engine = pipeline_dp.DPEngine(budget_accountant=budget_accountant,
+                                      backend=pipeline_dp.LocalBackend())
+
+        col = engine.select_partitions(col=col,
+                                       params=params,
+                                       data_extractors=data_extractor)
+        budget_accountant.compute_budgets()
+
+        col = list(col)
+
+        # Assert
+        if max_partitions_contributed == 1:
+            self.assertEqual(["pk-many-contribs", "pk-medium-contribs"],
+                             sorted(col))
+        elif max_partitions_contributed == 100:
+            self.assertEqual(["pk-many-contribs"], col)
+        else:
+            assert False, "{max_partitions_contributed=} is unexpected"
+
     def test_check_select_partitions(self):
         """ Tests validation of parameters for select_partitions()"""
         default_extractors = self._get_default_extractors()
