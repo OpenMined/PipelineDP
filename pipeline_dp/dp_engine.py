@@ -587,7 +587,10 @@ class DPEngine:
         mechanism_type = params.noise_kind.convert_to_mechanism_type()
         mechanism_spec = self._budget_accountant.request_budget(mechanism_type)
         sensitivities = dp_computations.Sensitivities(
-            l0=params.l0_sensitivity, linf=params.linf_sensitivity)
+            l0=params.l0_sensitivity,
+            linf=params.linf_sensitivity,
+            l1=params.l1_sensitivity,
+            l2=params.l2_sensitivity)
 
         # Initialize ReportGenerator.
         self._report_generators.append(

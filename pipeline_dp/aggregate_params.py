@@ -679,11 +679,11 @@ class AddDPNoiseParams:
     l1_sensitivity = l0_sensitivity*linf_sensitivity
     l2_sensitivity = sqrt(l0_sensitivity)*linf_sensitivity
 
-    For applying the Laplace mechanism or l1_sensitivity or
-    l0_sensitivity, linf_sensitivity must be specified.
+    For applying the Laplace mechanism either l1_sensitivity or
+    (l0_sensitivity, linf_sensitivity) must be specified.
     
-    For applying the Gaussian mechanism or l2_sensitivity or
-    l0_sensitivity, linf_sensitivity must be specified.
+    For applying the Gaussian mechanism either l2_sensitivity or
+    (l0_sensitivity, linf_sensitivity) must be specified.
 
     Attributes:
        noise_kind: The type of noise to use for the DP calculations.
