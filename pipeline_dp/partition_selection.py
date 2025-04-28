@@ -14,9 +14,7 @@
 
 import pipeline_dp
 import pydp.algorithms.partition_selection as partition_selection
-from pydp.algorithms import numerical_mechanisms as dp_mechanisms
 from typing import Optional
-import math
 
 PARTITION_STRATEGY_ENUM_TO_STR = {
     pipeline_dp.PartitionSelectionStrategy.TRUNCATED_GEOMETRIC:
@@ -44,28 +42,3 @@ def create_partition_selection_strategy(
         return partition_selection.create_partition_strategy(
             strategy_name, epsilon, delta, max_partitions_contributed,
             pre_threshold)
-
-
-def create_gaussian_thresholding(
-        sigma: float,
-        delta: float,
-        max_partitions_contributed: int,
-        pre_threshold: Optional[int] = None) -> "PartitionSelectionStrategy":
-    """Creates PyDP partition selection object."""
-    epsilon = pipeline_dp.dp_computations.gaussian_eps(sigma, delta)
-    return create_partition_selection_strategy(
-        pipeline_dp.PartitionSelectionStrategy.GAUSSIAN_THRESHOLDING, epsilon,
-        2 * delta, max_partitions_contributed, pre_threshold)
-
-
-def create_laplace_thresholding(
-        sigma: float,
-        delta: float,
-        max_partitions_contributed: int,
-        pre_threshold: Optional[int] = None) -> "PartitionSelectionStrategy":
-    """Creates PyDP partition selection object."""
-    b = sigma / math.sqrt(2)
-    epsilon = 1 / b
-    return create_partition_selection_strategy(
-        pipeline_dp.PartitionSelectionStrategy.LAPLACE_THRESHOLDING, epsilon,
-        delta, max_partitions_contributed, pre_threshold)

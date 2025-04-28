@@ -116,14 +116,6 @@ def compute_sigma(eps: float, delta: float, l2_sensitivity: float) -> float:
     return dp_mechanisms.GaussianMechanism(eps, delta, l2_sensitivity).std
 
 
-def gaussian_delta(sigma: float, eps: float) -> float:
-    pass
-
-
-def gaussian_eps(sigma: float, delta: float) -> float:
-    pass
-
-
 def apply_laplace_mechanism(value: float, eps: float, l1_sensitivity: float):
     """Applies the Laplace mechanism to the value.
 

@@ -603,13 +603,10 @@ class PLDBudgetAccountant(BudgetAccountant):
                     noise_standard_deviation / mechanism_spec_internal.weight,
                     value_discretization_interval=self._pld_discretization)
             elif mechanism_spec_internal.mechanism_spec.mechanism_type == agg_params.MechanismType.GENERIC:
-                # It is required to convert between the noise_standard_deviation
-                # of a Laplace or Gaussian mechanism and the (epsilon, delta)
-                # Generic mechanism because the calibration is defined by one
-                # parameter. There are multiple ways to do this; here it is
-                # assumed that (epsilon, delta) specifies the Laplace mechanism
-                # and epsilon is computed based on this. The delta is computed
-                # to be proportional to epsilon.
+                # It is required to convert between the noise_standard_deviation of a Laplace or Gaussian mechanism
+                # and the (epsilon, delta) Generic mechanism because the calibration is defined by one parameter.
+                # There are multiple ways to do this; here it is assumed that (epsilon, delta) specifies the Laplace
+                # mechanism and epsilon is computed based on this. The delta is computed to be proportional to epsilon.
                 epsilon_0_interim = math.sqrt(2) / noise_standard_deviation
                 delta_0_interim = epsilon_0_interim / self._total_epsilon * self._total_delta
                 pld = pldlib.from_privacy_parameters(
@@ -620,17 +617,3 @@ class PLDBudgetAccountant(BudgetAccountant):
             composed = pld if composed is None else composed.compose(pld)
 
         return composed
-
-    def _count_thresholding_mechanisms(self):
-        return len(self._thresholding_mechanisms())
-
-    def _get_thresholding_delta(self) -> float:
-        has_threshold_mechanisms = bool(self._thresholding_mechanisms())
-        return 0.25 * self._total_delta if has_threshold_mechanisms else 0
-
-    def _thresholding_mechanisms(self):
-        result = []
-        for m in self._mechanisms:
-            if m.mechanism_spec.mechanism_type.is_thresholding_mechanism():
-                result.append(m)
-        return result
