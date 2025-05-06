@@ -626,7 +626,8 @@ class PLDBudgetAccountant(BudgetAccountant):
             self, noise_stddev: float, mechanism: MechanismSpecInternal
     ) -> 'pldlib.PrivacyLossDistribution':
         # The Laplace distribution parameter = std/sqrt(2).
-        laplace_b = noise_stddev / math.sqrt(2) * mechanism.weight
+        laplace_b = mechanism.sensitivity * noise_stddev / math.sqrt(
+            2) / mechanism.weight
         return pldlib.from_laplace_mechanism(
             laplace_b, value_discretization_interval=self._pld_discretization)
 
