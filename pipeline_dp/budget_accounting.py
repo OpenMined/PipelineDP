@@ -577,46 +577,33 @@ class PLDBudgetAccountant(BudgetAccountant):
         return max_noise_std
 
     def _compose_distributions(
-            self, noise_standard_deviation: float
-    ) -> 'pldlib.PrivacyLossDistribution':
+            self, noise_stddev: float) -> 'pldlib.PrivacyLossDistribution':
         """Uses the Privacy Loss Distribution library to compose distributions.
 
         Args:
-            noise_standard_deviation: The noise of the distributions to construct.
+            noise_stddev: The base noise standard deviation of the distributions
+              to construct.
 
         Returns:
-            A PrivacyLossDistribution object for the pipeline.
+            A PrivacyLossDistribution which corresponds to self._mechanisms and
+            the base noise 'noise_stddev'.
         """
         composed, pld = None, None
 
-        for mechanism_spec_internal in self._mechanisms:
-            if mechanism_spec_internal.mechanism_spec.mechanism_type == agg_params.MechanismType.LAPLACE:
-                # The Laplace distribution parameter = std/sqrt(2).
-                pld = pldlib.from_laplace_mechanism(
-                    mechanism_spec_internal.sensitivity *
-                    noise_standard_deviation / math.sqrt(2) /
-                    mechanism_spec_internal.weight,
-                    value_discretization_interval=self._pld_discretization)
-            elif mechanism_spec_internal.mechanism_spec.mechanism_type == agg_params.MechanismType.GAUSSIAN:
-                pld = pldlib.from_gaussian_mechanism(
-                    mechanism_spec_internal.sensitivity *
-                    noise_standard_deviation / mechanism_spec_internal.weight,
-                    value_discretization_interval=self._pld_discretization)
-            elif mechanism_spec_internal.mechanism_spec.mechanism_type == agg_params.MechanismType.GENERIC:
-                # It is required to convert between the noise_standard_deviation
-                # of a Laplace or Gaussian mechanism and the (epsilon, delta)
-                # Generic mechanism because the calibration is defined by one
-                # parameter. There are multiple ways to do this; here it is
-                # assumed that (epsilon, delta) specifies the Laplace mechanism
-                # and epsilon is computed based on this. The delta is computed
-                # to be proportional to epsilon.
-                epsilon_0_interim = math.sqrt(2) / noise_standard_deviation
-                delta_0_interim = epsilon_0_interim / self._total_epsilon * self._total_delta
-                pld = pldlib.from_privacy_parameters(
-                    common.DifferentialPrivacyParameters(
-                        epsilon_0_interim, delta_0_interim),
-                    value_discretization_interval=self._pld_discretization)
-
+        for mechanism in self._mechanisms:  # MechanismSpecInternal
+            mechanism_type = mechanism.mechanism_spec.mechanism_type
+            if mechanism_type == agg_params.MechanismType.LAPLACE:
+                pld = self._create_pld_for_laplace(noise_stddev, mechanism)
+            elif mechanism_type == agg_params.MechanismType.LAPLACE_THRESHOLDING:
+                # todo
+                pld = self._create_pld_for_laplace(noise_stddev, mechanism)
+            elif mechanism_type == agg_params.MechanismType.GAUSSIAN:
+                pld = self._create_pld_for_gaussian(noise_stddev, mechanism)
+            elif mechanism_type == agg_params.MechanismType.GAUSSIAN_THRESHOLDING:
+                # todo
+                pld = self._create_pld_for_gaussian(noise_stddev, mechanism)
+            elif mechanism_type == agg_params.MechanismType.GENERIC:
+                pld = self._create_pld_for_generic(noise_stddev, mechanism)
             composed = pld if composed is None else composed.compose(pld)
 
         return composed
@@ -634,3 +621,35 @@ class PLDBudgetAccountant(BudgetAccountant):
             if m.mechanism_spec.mechanism_type.is_thresholding_mechanism():
                 result.append(m)
         return result
+
+    def _create_pld_for_laplace(
+            self, noise_stddev: float, mechanism: MechanismSpecInternal
+    ) -> 'pldlib.PrivacyLossDistribution':
+        # The Laplace distribution parameter = std/sqrt(2).
+        laplace_b = noise_stddev / math.sqrt(2) * mechanism.weight
+        return pldlib.from_laplace_mechanism(
+            laplace_b, value_discretization_interval=self._pld_discretization)
+
+    def _create_pld_for_gaussian(
+            self, noise_stddev: float, mechanism: MechanismSpecInternal
+    ) -> 'pldlib.PrivacyLossDistribution':
+        return pldlib.from_gaussian_mechanism(
+            mechanism.sensitivity * noise_stddev / mechanism.weight,
+            value_discretization_interval=self._pld_discretization)
+
+    def _create_pld_for_generic(
+            self, noise_stddev: float, mechanism: MechanismSpecInternal
+    ) -> 'pldlib.PrivacyLossDistribution':
+        # It is required to convert between the noise_standard_deviation
+        # of a Laplace or Gaussian mechanism and the (epsilon, delta)
+        # Generic mechanism because the calibration is defined by one
+        # parameter. There are multiple ways to do this; here it is
+        # assumed that (epsilon, delta) specifies the Laplace mechanism
+        # and epsilon is computed based on this. The delta is computed
+        # to be proportional to epsilon.
+        epsilon_0_interim = math.sqrt(2) / noise_stddev
+        delta_0_interim = epsilon_0_interim / self._total_epsilon * self._total_delta
+        return pldlib.from_privacy_parameters(
+            common.DifferentialPrivacyParameters(epsilon_0_interim,
+                                                 delta_0_interim),
+            value_discretization_interval=self._pld_discretization)
