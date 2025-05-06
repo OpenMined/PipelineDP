@@ -902,6 +902,56 @@ class DpEngineTest(parameterized.TestCase):
         # applying the "max_partitions_contributed" bound is retained.
         self.assertEqual(["pk-many-contribs"], col)
 
+    @parameterized.parameters(1, 100)
+    def test_select_partitions_contribution_bounds_already_enforced(
+            self, max_partitions_contributed):
+        # This test is probabilistic, but the parameters were chosen to ensure
+        # flakiness less than 1e-4.
+
+        # Arrange
+        params = pipeline_dp.SelectPartitionsParams(
+            max_partitions_contributed=max_partitions_contributed,
+            contribution_bounds_already_enforced=True)
+
+        budget_accountant = NaiveBudgetAccountant(total_epsilon=1,
+                                                  total_delta=1e-6)
+
+        # Generate dataset as a list of partition_key.
+        # There partitions are generated to reflect several scenarios.
+
+        # A partition with sufficient amount of users to pass max_partitions_contributed=100.
+        col = ["pk-many-contribs"] * 2000
+
+        # A partition with less contributions, it is released when
+        # max_partitions_contributed=1, but dropped when
+        # max_partitions_contributed=100.
+        col += ["pk-medium-contribs"] * 50
+
+        # A partition with few contributions (will be dropped almost always).
+        col += ["pk-few-contribs"]
+
+        data_extractor = pipeline_dp.DataExtractors(
+            # privacy id is not needed for contribution_bounds_already_enforced.
+            privacy_id_extractor=None,
+            partition_extractor=lambda x: x)
+
+        engine = pipeline_dp.DPEngine(budget_accountant=budget_accountant,
+                                      backend=pipeline_dp.LocalBackend())
+
+        col = engine.select_partitions(col=col,
+                                       params=params,
+                                       data_extractors=data_extractor)
+        budget_accountant.compute_budgets()
+
+        col = list(col)
+
+        # Assert
+        if max_partitions_contributed == 1:
+            self.assertEqual(["pk-many-contribs", "pk-medium-contribs"],
+                             sorted(col))
+        else:  # max_partitions_contributed == 100:
+            self.assertEqual(["pk-many-contribs"], col)
+
     def test_check_select_partitions(self):
         """ Tests validation of parameters for select_partitions()"""
         default_extractors = self._get_default_extractors()
@@ -1329,18 +1379,35 @@ class DpEngineTest(parameterized.TestCase):
             engine.aggregate([1], aggregate_params,
                              self._get_default_extractors())
 
-    @parameterized.parameters(pipeline_dp.NoiseKind.GAUSSIAN,
-                              pipeline_dp.NoiseKind.LAPLACE)
+    @parameterized.named_parameters(
+        dict(testcase_name='Gaussian',
+             noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+             l0_sensitivity=3,
+             linf_sensitivity=10,
+             l1_sensitivity=None,
+             l2_sensitivity=None),
+        dict(testcase_name='Laplace',
+             noise_kind=pipeline_dp.NoiseKind.LAPLACE,
+             l0_sensitivity=None,
+             linf_sensitivity=None,
+             l1_sensitivity=5,
+             l2_sensitivity=None),
+    )
     @patch('pipeline_dp.dp_computations.create_additive_mechanism')
     def test_add_dp_noise_check_correct_adding_mechanism_created(
-            self, noise_kind, mock_create_additive_mechanism):
+            self, mock_create_additive_mechanism, noise_kind, l0_sensitivity,
+            linf_sensitivity, l1_sensitivity, l2_sensitivity):
         # Arrange
         data = [(0, 0)]
         accountant = pipeline_dp.NaiveBudgetAccountant(total_epsilon=0.5,
                                                        total_delta=1e-8)
         engine = pipeline_dp.DPEngine(accountant, pipeline_dp.LocalBackend())
         params = pipeline_dp.aggregate_params.AddDPNoiseParams(
-            noise_kind=noise_kind, l0_sensitivity=3, linf_sensitivity=10)
+            noise_kind=noise_kind,
+            l0_sensitivity=l0_sensitivity,
+            linf_sensitivity=linf_sensitivity,
+            l1_sensitivity=l1_sensitivity,
+            l2_sensitivity=l2_sensitivity)
 
         # Act
         output = engine.add_dp_noise(data, params)
@@ -1354,7 +1421,11 @@ class DpEngineTest(parameterized.TestCase):
             budget_accounting.MechanismSpec(
                 noise_kind.convert_to_mechanism_type(),
                 _eps=0.5,
-                _delta=expected_delta), dp_computations.Sensitivities(3, 10))
+                _delta=expected_delta),
+            dp_computations.Sensitivities(l0=l0_sensitivity,
+                                          linf=linf_sensitivity,
+                                          l1=l1_sensitivity,
+                                          l2=l2_sensitivity))
 
     def test_run_e2e_add_dp_noise(self):
         # Arrange

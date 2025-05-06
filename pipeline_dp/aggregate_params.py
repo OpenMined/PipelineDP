@@ -236,8 +236,8 @@ class AggregateParams:
         pre_threshold: the minimum amount of privacy units which are required
          for keeping a partition in private partition selection. Note that this
          is in addition to a differentially private partition selection, so a
-         partition with pre_threshold privacy units isn't necessarily kept. It
-         is ignored when public partitions are used.
+         partition with at least pre_threshold privacy units isn't necessarily
+         kept. It is ignored when public partitions are used.
          More details on pre-thresholding are in
          https://github.com/google/differential-privacy/blob/main/common_docs/pre_thresholding.md
         perform_cross_partition_contribution_bounding: whether to perform cross
@@ -415,11 +415,24 @@ class SelectPartitionsParams:
             partition selection.
         partition_selection_strategy: which strategy to use for private
          partition selection.
+        pre_threshold: the minimum amount of privacy units which are required
+         for keeping a partition in private partition selection. Note that this
+         is in addition to a differentially private partition selection, so a
+         partition with at least pre_threshold privacy units isn't necessarily
+         kept. It is ignored when public partitions are used.
+         More details on pre-thresholding are in
+         https://github.com/google/differential-privacy/blob/main/common_docs/pre_thresholding.md
+        contribution_bounds_already_enforced: assume that the input dataset
+         complies with the bounds provided in max_partitions_contributed and
+         max_contributions_per_partition. This option can be used if the dataset
+         does not contain any identifiers that can be used to enforce
+         contribution bounds automatically.
     """
     max_partitions_contributed: int
     budget_weight: float = 1
     partition_selection_strategy: PartitionSelectionStrategy = PartitionSelectionStrategy.TRUNCATED_GEOMETRIC
     pre_threshold: Optional[int] = None
+    contribution_bounds_already_enforced: bool = False
 
     # TODO: Add support for contribution_bounds_already_enforced
 
@@ -656,18 +669,44 @@ class AddDPNoiseParams:
     sensitivity by contribution bounding and relies on the caller to ensure the
     provided data satisfies the provided bound.
 
-   Attributes:
+    The noise in DP is scaled with sensitivity, where sensitivity for query q is
+     sensitivity = \max_{D, D' neighbouring} ||q(D)-q(D')||
+    Where ||.|| should be a proper norm, L1 for Laplace Mechanism, L2 for
+    Gaussian Mechanism.
+    See https://en.wikipedia.org/wiki/Norm_(mathematics)#p-norm on norm details.
+
+    In our case, q values are represented as collection of
+    (partition_key, value). Where partition_key is any identifier, value is
+    a scalar. q values can be represented as a vector indexed by partition_key.
+    One of the convenient ways to define l1/l2 sensitivity is through l0/linf
+    sensitivities.
+    Namely
+
+    l1_sensitivity = l0_sensitivity*linf_sensitivity
+    l2_sensitivity = sqrt(l0_sensitivity)*linf_sensitivity
+
+    For applying the Laplace mechanism either l1_sensitivity or
+    (l0_sensitivity, linf_sensitivity) must be specified.
+    
+    For applying the Gaussian mechanism either l2_sensitivity or
+    (l0_sensitivity, linf_sensitivity) must be specified.
+
+    Attributes:
        noise_kind: The type of noise to use for the DP calculations.
        l0_sensitivity: the maximum number of partition for which 1 privacy unit
          can contribute.
        linf_sensitivity: the maximum difference of values in one partition which
          can achieved by adding or removing one privacy unit from the dataset.
+       l1_sensitivity: the sensitivity in L1 norm.
+       l2_sensitivity: the sensitivity in L2 norm.
        budget_weight: Relative weight of the privacy budget allocated to this
          aggregation.
    """
     noise_kind: NoiseKind
-    l0_sensitivity: int
-    linf_sensitivity: float
+    l0_sensitivity: Optional[int] = None
+    linf_sensitivity: Optional[float] = None
+    l1_sensitivity: Optional[float] = None
+    l2_sensitivity: Optional[float] = None
     budget_weight: float = 1
 
     def __post_init__(self):
@@ -678,6 +717,8 @@ class AddDPNoiseParams:
 
         check_is_positive(self.l0_sensitivity, "l0_sensitivity")
         check_is_positive(self.linf_sensitivity, "linf_sensitivity")
+        check_is_positive(self.l1_sensitivity, "l1_sensitivity")
+        check_is_positive(self.l2_sensitivity, "l2_sensitivity")
         check_is_positive(self.budget_weight, "budget_weight")
 
 

@@ -405,9 +405,15 @@ def compute_dp_sum_noise_std(dp_params: ScalarNoiseParams) -> float:
 class AdditiveMechanism(abc.ABC):
     """Base class for addition DP mechanism (like Laplace of Gaussian)."""
 
-    @abc.abstractmethod
-    def add_noise(self, value: Union[int, float]) -> float:
+    def add_noise(
+            self, value: Union[int, float,
+                               np.ndarray]) -> Union[float, np.ndarray]:
         """Anonymizes value by adding noise."""
+        if isinstance(value, np.ndarray):
+            add_noise_vectorized = np.vectorize(
+                lambda x: self._mechanism.add_noise(1.0 * x))
+            return add_noise_vectorized(value)
+        return self._mechanism.add_noise(1.0 * value)
 
     @property
     @abc.abstractmethod
@@ -461,9 +467,6 @@ class LaplaceMechanism(AdditiveMechanism):
             dp_mechanisms.LaplaceMechanism(epsilon=1 / b,
                                            sensitivity=l1_sensitivity))
 
-    def add_noise(self, value: Union[int, float]) -> float:
-        return self._mechanism.add_noise(1.0 * value)
-
     @property
     def noise_parameter(self) -> float:
         return self._mechanism.diversity
@@ -512,9 +515,6 @@ class GaussianMechanism(AdditiveMechanism):
             dp_mechanisms.GaussianMechanism.create_from_standard_deviation(
                 stddev),
             l2_sensitivity=l2_sensitivity)
-
-    def add_noise(self, value: Union[int, float]) -> float:
-        return self._mechanism.add_noise(1.0 * value)
 
     @property
     def noise_kind(self) -> pipeline_dp.NoiseKind:
