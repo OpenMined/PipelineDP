@@ -239,6 +239,10 @@ class AggregateParams:
          Warning: turn off cross partition contribution bounding only when the 
          number of contributed partitions per privacy unit is already bounded
          by max_partitions_contributed.
+        output_noise_stddev: if True, the output will contain the applied noise
+         standard deviation, in form <metric_name>_noise_stddev, e.g.
+         count_noise_stddev. Currenlty COUNT, PRIVACY_ID_COUNT, SUM are
+         supported.
     """
     metrics: List[Metric]
     noise_kind: NoiseKind = NoiseKind.LAPLACE
@@ -260,6 +264,7 @@ class AggregateParams:
     pre_threshold: Optional[int] = None
     post_aggregation_thresholding: bool = False
     perform_cross_partition_contribution_bounding: bool = True
+    output_noise_stddev: bool = False
 
     @property
     def metrics_str(self) -> str:
