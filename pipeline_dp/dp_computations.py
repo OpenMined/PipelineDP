@@ -416,7 +416,6 @@ class AdditiveMechanism(abc.ABC):
     @abc.abstractmethod
     def noise_parameter(self) -> float:
         """Noise distribution parameter."""
-        pass
 
     @property
     @abc.abstractmethod

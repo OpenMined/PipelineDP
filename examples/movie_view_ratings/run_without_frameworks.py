@@ -77,7 +77,8 @@ def main(unused_argv):
         # .. with minimal rating of "1"
         min_value=1,
         # .. and maximum rating of "5"
-        max_value=5)
+        max_value=5,
+        output_noise_stddev=True)
 
     if FLAGS.pre_threshold:
         params.pre_threshold = FLAGS.pre_threshold
