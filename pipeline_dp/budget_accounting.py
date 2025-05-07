@@ -542,8 +542,10 @@ class PLDBudgetAccountant(BudgetAccountant):
             minimum_noise_std = self._find_minimum_noise_std()
 
         self.minimum_noise_std = minimum_noise_std
-        thresholding_delta_per_mechanism = self._get_thresholding_delta(
-        ) / self._count_thresholding_mechanisms()
+        thresholding_delta_per_mechanism = 0
+        if self._count_thresholding_mechanisms() > 0:
+            thresholding_delta_per_mechanism = self._get_thresholding_delta(
+            ) / self._count_thresholding_mechanisms()
         for mechanism in self._mechanisms:
             mechanism_noise_std = mechanism.sensitivity * minimum_noise_std / mechanism.weight
             mechanism.mechanism_spec._noise_standard_deviation = mechanism_noise_std
