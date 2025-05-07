@@ -359,9 +359,9 @@ class DPEngine:
             privacy_id_count = divide_and_round_up(row_count,
                                                    max_rows_per_privacy_id)
 
-            selector = partition_selection.create_partition_selection_strategy(
-                strategy, budget.eps, budget.delta, max_partitions,
-                pre_threshold)
+            selector = _create_partition_selector(strategy, budget,
+                                                  max_partitions, pre_threshold)
+
             return selector.should_keep(privacy_id_count)
 
         # make filter_fn serializable
@@ -636,3 +636,20 @@ def _check_data_extractors(data_extractors: pipeline_dp.DataExtractors):
         raise ValueError("data_extractors must be set to a DataExtractors")
     if not isinstance(data_extractors, pipeline_dp.DataExtractors):
         raise TypeError("data_extractors must be set to a DataExtractors")
+
+
+def _create_partition_selector(strategy: pipeline_dp.PartitionSelectionStrategy,
+                               budget: budget_accounting.MechanismSpec,
+                               max_partitions: int, pre_threshold: int):
+    if budget.standard_deviation_is_set:
+        assert strategy.is_thresholding()
+        if strategy == pipeline_dp.PartitionSelectionStrategy.LAPLACE_THRESHOLDING:
+            return partition_selection.create_laplace_thresholding(
+                budget.noise_standard_deviation, budget.thresholding_delta,
+                max_partitions, pre_threshold)
+        return partition_selection.create_gaussian_thresholding(
+            budget.noise_standard_deviation, budget.thresholding_delta,
+            max_partitions, pre_threshold)
+
+    return partition_selection.create_partition_selection_strategy(
+        strategy, budget.eps, budget.delta, max_partitions, pre_threshold)

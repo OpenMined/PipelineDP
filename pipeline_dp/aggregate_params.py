@@ -88,6 +88,11 @@ class PartitionSelectionStrategy(Enum):
     LAPLACE_THRESHOLDING = 'Laplace Thresholding'
     GAUSSIAN_THRESHOLDING = 'Gaussian Thresholding'
 
+    def is_thresholding(self) -> bool:
+        return self.value in [
+            self.LAPLACE_THRESHOLDING, self.GAUSSIAN_THRESHOLDING
+        ]
+
 
 class MechanismType(Enum):
     LAPLACE = 'Laplace'
@@ -115,6 +120,12 @@ class MechanismType(Enum):
             return PartitionSelectionStrategy.GAUSSIAN_THRESHOLDING
         raise ValueError(f"MechanismType {self.value} can not be converted to "
                          f"PartitionSelectionStrategy")
+
+    def is_thresholding_mechanism(self):
+        return self.value in [
+            MechanismType.LAPLACE_THRESHOLDING.value,
+            MechanismType.GAUSSIAN_THRESHOLDING.value
+        ]
 
 
 def noise_to_thresholding(noise_kind: NoiseKind) -> MechanismType:

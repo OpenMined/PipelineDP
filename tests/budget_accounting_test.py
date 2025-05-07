@@ -485,8 +485,8 @@ class PLDBudgetAccountantTest(unittest.TestCase):
                              sensitivity=mechanism.sensitivity)))
             self.assertEqual(
                 len(actual_mechanisms), len(accountant._mechanisms),
-                f"failed test {case.name} expected len {len(actual_mechanisms)} "
-                f"got len {len(accountant._mechanisms)}")
+                f"failed test {case.name} expected len {len(actual_mechanisms)}"
+                f" got len {len(accountant._mechanisms)}")
             if case.delta > 0:
                 compare_pld = accountant._compose_distributions(
                     case.expected_pipeline_noise_std)
