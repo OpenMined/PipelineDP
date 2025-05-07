@@ -15,8 +15,10 @@
 
 import abc
 from dataclasses import dataclass
+import functools
 import math
 import numpy as np
+from scipy import stats
 from typing import Any, List, Optional, Tuple, Union
 
 import pipeline_dp
@@ -116,12 +118,39 @@ def compute_sigma(eps: float, delta: float, l2_sensitivity: float) -> float:
     return dp_mechanisms.GaussianMechanism(eps, delta, l2_sensitivity).std
 
 
-def gaussian_delta(sigma: float, eps: float) -> float:
-    pass
+def gaussian_delta(sigma: float, epsilon: float) -> float:
+    if sigma <= 0:
+        raise ValueError(f"sigma must be > 0, but {sigma=}")
+    a = 1 / sigma
+    rv = stats.norm(a**2 / 2, a)
+    return rv.sf(epsilon) - np.exp(epsilon) * rv.cdf(-epsilon)
 
 
-def gaussian_eps(sigma: float, delta: float) -> float:
-    pass
+def gaussian_epsilon(sigma: float, delta: float) -> float:
+    if sigma <= 0:
+        raise ValueError(f"sigma must be > 0, but {sigma=}")
+    if delta < 0 or delta > 1:
+        raise ValueError(f"delta must be in [0, 1], but {delta=}")
+    f = functools.partial(gaussian_delta, sigma)
+    if f(0) >= delta:
+        L = 0
+        R = 1
+        while f(R) > delta:
+            R *= 2
+    else:
+        R = 0
+        L = -1
+        while f(L) < delta:
+            L *= 2
+
+    while R - L > 1e-10:
+        M = (R + L) / 2
+        if f(M) >= delta:
+            L = M
+        else:
+            R = M
+
+    return (L + R) / 2
 
 
 def apply_laplace_mechanism(value: float, eps: float, l1_sensitivity: float):

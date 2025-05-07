@@ -48,19 +48,20 @@ def create_partition_selection_strategy(
 
 def create_gaussian_thresholding(
         sigma: float,
-        delta: float,
+        thresholding_delta: float,
         max_partitions_contributed: int,
         pre_threshold: Optional[int] = None) -> "PartitionSelectionStrategy":
     """Creates PyDP partition selection object."""
-    epsilon = pipeline_dp.dp_computations.gaussian_eps(sigma, delta)
+    epsilon = pipeline_dp.dp_computations.gaussian_eps(sigma,
+                                                       thresholding_delta)
     return create_partition_selection_strategy(
         pipeline_dp.PartitionSelectionStrategy.GAUSSIAN_THRESHOLDING, epsilon,
-        2 * delta, max_partitions_contributed, pre_threshold)
+        2 * thresholding_delta, max_partitions_contributed, pre_threshold)
 
 
 def create_laplace_thresholding(
         sigma: float,
-        delta: float,
+        thresholding_delta: float,
         max_partitions_contributed: int,
         pre_threshold: Optional[int] = None) -> "PartitionSelectionStrategy":
     """Creates PyDP partition selection object."""
@@ -68,4 +69,4 @@ def create_laplace_thresholding(
     epsilon = 1 / b
     return create_partition_selection_strategy(
         pipeline_dp.PartitionSelectionStrategy.LAPLACE_THRESHOLDING, epsilon,
-        delta, max_partitions_contributed, pre_threshold)
+        thresholding_delta, max_partitions_contributed, pre_threshold)

@@ -46,10 +46,11 @@ class MechanismSpec:
     (_eps, _delta) are parameters of (eps, delta)-differential privacy
     """
     mechanism_type: agg_params.MechanismType
-    _noise_standard_deviation: float = None
-    _eps: float = None
-    _delta: float = None
-    _count: int = 1
+    _noise_standard_deviation: Optional[float] = None
+    _eps: Optional[float] = None
+    _delta: Optional[float] = None
+    _count: Optional[int] = 1
+    _thresholding_delta: Optional[float] = None
 
     @property
     def noise_standard_deviation(self):
@@ -102,6 +103,13 @@ class MechanismSpec:
 
     def set_noise_standard_deviation(self, stddev: float):
         self._noise_standard_deviation = stddev
+
+    def set_thresholding_delta(self, delta):
+        self._thresholding_delta = delta
+
+    @property
+    def thresholding_delta(self) -> float:
+        return self._thresholding_delta
 
     def use_delta(self) -> bool:
         return self.mechanism_type != agg_params.MechanismType.LAPLACE
@@ -534,6 +542,8 @@ class PLDBudgetAccountant(BudgetAccountant):
             minimum_noise_std = self._find_minimum_noise_std()
 
         self.minimum_noise_std = minimum_noise_std
+        thresholding_delta_per_mechanism = self._get_thresholding_delta(
+        ) / self._count_thresholding_mechanisms()
         for mechanism in self._mechanisms:
             mechanism_noise_std = mechanism.sensitivity * minimum_noise_std / mechanism.weight
             mechanism.mechanism_spec._noise_standard_deviation = mechanism_noise_std
@@ -541,6 +551,10 @@ class PLDBudgetAccountant(BudgetAccountant):
                 epsilon_0 = math.sqrt(2) / mechanism_noise_std
                 delta_0 = epsilon_0 / self._total_epsilon * self._total_delta
                 mechanism.mechanism_spec.set_eps_delta(epsilon_0, delta_0)
+            elif mechanism.mechanism_spec.mechanism_type.is_thresholding_mechanism(
+            ):
+                mechanism.set_thresholding_delta(
+                    thresholding_delta_per_mechanism)
 
     def _find_minimum_noise_std(self) -> float:
         """Finds the minimum noise which satisfies the total budget.
@@ -552,13 +566,14 @@ class PLDBudgetAccountant(BudgetAccountant):
         Returns:
             The noise value adjusted for the given epsilon.
         """
+        delta = self._total_delta - self._get_thresholding_delta()
         threshold = 1e-4
         maximum_noise_std = self._calculate_max_noise_std()
         low, high = 0, maximum_noise_std
         while low + threshold < high:
             mid = (high - low) / 2 + low
             pld = self._compose_distributions(mid)
-            pld_epsilon = pld.get_epsilon_for_delta(self._total_delta)
+            pld_epsilon = pld.get_epsilon_for_delta(delta)
             if pld_epsilon <= self._total_epsilon:
                 high = mid
             elif pld_epsilon > self._total_epsilon:

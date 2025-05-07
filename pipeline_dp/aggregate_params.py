@@ -88,6 +88,11 @@ class PartitionSelectionStrategy(Enum):
     LAPLACE_THRESHOLDING = 'Laplace Thresholding'
     GAUSSIAN_THRESHOLDING = 'Gaussian Thresholding'
 
+    def is_thresholding(self) -> bool:
+        return self.value in [
+            self.LAPLACE_THRESHOLDING, self.GAUSSIAN_THRESHOLDING
+        ]
+
 
 class MechanismType(Enum):
     LAPLACE = 'Laplace'
