@@ -17,7 +17,7 @@ import functools
 import random
 import numpy as np
 from collections.abc import Iterable, Iterator
-from typing import Callable, List, Union
+from typing import Callable, List, Optional, Union
 
 import abc
 import pipeline_dp.combiners as dp_combiners
@@ -134,6 +134,11 @@ class PipelineBackend(abc.ABC):
 
     @abc.abstractmethod
     def filter(self, col, fn, stage_name: str):
+        pass
+
+    @abc.abstractmethod
+    def filter_with_side_inputs(self, col, fn, side_input_cols,
+                                stage_name: str):
         pass
 
     @abc.abstractmethod
@@ -329,6 +334,15 @@ class BeamBackend(PipelineBackend):
     def filter(self, col, fn, stage_name: str):
         return col | self._ulg.unique(stage_name) >> beam.Filter(fn)
 
+    def filter_with_side_inputs(self, col, fn, side_input_cols,
+                                stage_name: str):
+        side_inputs = [
+            beam.pvalue.AsSingleton(side_input_col)
+            for side_input_col in side_input_cols
+        ]
+        return col | self._ulg.unique(stage_name) >> beam.Filter(
+            fn, *side_inputs)
+
     def filter_by_key(self, col, keys_to_keep, stage_name: str):
 
         class PartitionsFilterJoin(beam.DoFn):
@@ -477,6 +491,11 @@ class SparkRDDBackend(PipelineBackend):
 
     def filter(self, rdd, fn, stage_name: str = None):
         return rdd.filter(fn)
+
+    def filter_with_side_inputs(self, rdd, fn, side_input_cols,
+                                stage_name: str):
+        raise NotImplementedError(
+            "filter_with_side_inputs is not implement in SparkBackend.")
 
     def filter_by_key(self, rdd, keys_to_keep, stage_name: str = None):
 
@@ -672,6 +691,19 @@ class LocalBackend(PipelineBackend):
 
     def filter(self, col, fn, stage_name: typing.Optional[str] = None):
         return filter(fn, col)
+
+    def filter_with_side_inputs(self,
+                                col,
+                                fn,
+                                side_input_cols,
+                                stage_name: Optional[str] = None):
+        side_inputs_singletons = [LazySingleton(i) for i in side_input_cols]
+
+        def map_fn(x):
+            side_input_values = [s.singleton() for s in side_inputs_singletons]
+            return fn(x, *side_input_values)
+
+        return self.filter(col, map_fn)
 
     def filter_by_key(
         self,
