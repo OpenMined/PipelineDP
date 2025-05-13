@@ -240,8 +240,8 @@ class AggregateParams:
          number of contributed partitions per privacy unit is already bounded
          by max_partitions_contributed.
         output_noise_stddev: if True, the output will contain the applied noise
-         standard deviation, in form <metric_name>_noise_stddev, e.g.
-         count_noise_stddev. Currenlty COUNT, PRIVACY_ID_COUNT, SUM are
+         standard deviation, in form <lower_case_metric_name>_noise_stddev, e.g.
+         count_noise_stddev. Currently COUNT, PRIVACY_ID_COUNT, SUM are
          supported.
     """
     metrics: List[Metric]

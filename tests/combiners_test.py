@@ -313,7 +313,7 @@ class CountCombinerTest(parameterized.TestCase):
                                expected_stddev,
                                delta=1e-8)
         # check that noised count is within 10 stddev, which for Laplace
-        # should be with probability 7.213541e-07 (=flakiness probability)
+        # should not be with probability 7.213541e-07 (=flakiness probability)
         self.assertTrue(2 - 10 * expected_stddev <= output["count"] <= 2 +
                         10 * expected_stddev)
 
