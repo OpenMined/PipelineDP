@@ -1454,6 +1454,8 @@ class DpEngineTest(parameterized.TestCase):
                 (value.noisified_value - index) for index, value in output
             ]
             self.assertAlmostEqual(output[0][1].noise_stddev, 53.03, delta=0.01)
+        else:
+            noise_values = [(value - index) for index, value in output]
         self.assertGreater(np.std(noise_values), 10)
         # Expected Laplace parameter is
         # l0_sensitivity*linf_sensitivity/epsilon = 5*15/2 = 37.5
