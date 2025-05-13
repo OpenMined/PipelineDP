@@ -110,6 +110,6 @@ class ExplainComputationReport:
                              " passed as an argument to DP aggregation method?")
         try:
             return self._report_generator.report()
-        except e:
+        except Exception as e:
             raise ValueError("Explain computation report failed to be generated"
                              ".\nWas BudgetAccountant.compute_budget() called?")

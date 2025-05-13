@@ -37,6 +37,9 @@ def _check_pldlib_imported() -> bool:
     return "dp_accounting.pld.privacy_loss_distribution" in sys.modules
 
 
+MechanismType = agg_params.MechanismType
+
+
 @dataclass
 class MechanismSpec:
     """Specifies the parameters for a DP mechanism.
@@ -45,7 +48,7 @@ class MechanismSpec:
     _noise_standard_deviation is the minimized noise standard deviation.
     (_eps, _delta) are parameters of (eps, delta)-differential privacy
     """
-    mechanism_type: agg_params.MechanismType
+    mechanism_type: MechanismType
     _noise_standard_deviation: Optional[float] = None
     _eps: Optional[float] = None
     _delta: Optional[float] = None
@@ -101,10 +104,10 @@ class MechanismSpec:
         self._delta = delta
         return
 
-    def set_noise_standard_deviation(self, stddev: float):
+    def set_noise_standard_deviation(self, stddev: float) -> None:
         self._noise_standard_deviation = stddev
 
-    def set_thresholding_delta(self, delta):
+    def set_thresholding_delta(self, delta: float) -> None:
         self._thresholding_delta = delta
 
     @property
@@ -112,7 +115,7 @@ class MechanismSpec:
         return self._thresholding_delta
 
     def use_delta(self) -> bool:
-        return self.mechanism_type != agg_params.MechanismType.LAPLACE
+        return self.mechanism_type != MechanismType.LAPLACE
 
     @property
     def standard_deviation_is_set(self) -> bool:
@@ -165,7 +168,7 @@ class BudgetAccountant(abc.ABC):
     @abc.abstractmethod
     def request_budget(
             self,
-            mechanism_type: agg_params.MechanismType,
+            mechanism_type: MechanismType,
             sensitivity: float = 1,
             weight: float = 1,
             count: int = 1,
@@ -340,7 +343,7 @@ class NaiveBudgetAccountant(BudgetAccountant):
 
     def request_budget(
             self,
-            mechanism_type: agg_params.MechanismType,
+            mechanism_type: MechanismType,
             sensitivity: float = 1,
             weight: float = 1,
             count: int = 1,
@@ -371,10 +374,12 @@ class NaiveBudgetAccountant(BudgetAccountant):
             raise NotImplementedError(
                 "Count and noise standard deviation have not been implemented yet."
             )
-        if mechanism_type == agg_params.MechanismType.GAUSSIAN and self._total_delta == 0:
+        if mechanism_type == MechanismType.GAUSSIAN and self._total_delta == 0:
             raise ValueError(
                 "The Gaussian mechanism requires that the pipeline delta is greater than 0"
             )
+        if mechanism_type.is_thresholding_mechanism():
+            raise
         mechanism_spec = MechanismSpec(mechanism_type=mechanism_type,
                                        _count=count)
         mechanism_spec_internal = MechanismSpecInternal(
@@ -471,7 +476,7 @@ class PLDBudgetAccountant(BudgetAccountant):
 
     def request_budget(
             self,
-            mechanism_type: agg_params.MechanismType,
+            mechanism_type: MechanismType,
             sensitivity: float = 1,
             weight: float = 1,
             count: int = 1,
@@ -503,7 +508,7 @@ class PLDBudgetAccountant(BudgetAccountant):
             raise NotImplementedError(
                 "Count and noise standard deviation have not been implemented yet."
             )
-        if mechanism_type == agg_params.MechanismType.GAUSSIAN and self._total_delta == 0:
+        if mechanism_type == MechanismType.GAUSSIAN and self._total_delta == 0:
             raise AssertionError(
                 "The Gaussian mechanism requires that the pipeline delta is greater than 0"
             )
@@ -537,28 +542,31 @@ class PLDBudgetAccountant(BudgetAccountant):
             sum_weights = 0
             for mechanism in self._mechanisms:
                 sum_weights += mechanism.weight
-            minimum_noise_std = sum_weights / self._total_epsilon * math.sqrt(2)
+            base_noise_std = sum_weights / self._total_epsilon * math.sqrt(2)
         else:
-            minimum_noise_std = self._find_minimum_noise_std()
+            base_noise_std = self._find_minimum_base_noise_std()
 
-        self.minimum_noise_std = minimum_noise_std
+        self.base_noise_std = base_noise_std
         thresholding_delta_per_mechanism = 0
         if self._count_thresholding_mechanisms() > 0:
             thresholding_delta_per_mechanism = self._get_thresholding_delta(
             ) / self._count_thresholding_mechanisms()
+
         for mechanism in self._mechanisms:
-            mechanism_noise_std = mechanism.sensitivity * minimum_noise_std / mechanism.weight
-            mechanism.mechanism_spec._noise_standard_deviation = mechanism_noise_std
-            if mechanism.mechanism_spec.mechanism_type == agg_params.MechanismType.GENERIC:
+            mechanism_noise_std = mechanism.sensitivity * base_noise_std / mechanism.weight
+            spec = mechanism.mechanism_spec
+            if spec.mechanism_type in [
+                    MechanismType.GENERIC, MechanismType.TRUNCATED_GEOMETRIC
+            ]:
                 epsilon_0 = math.sqrt(2) / mechanism_noise_std
                 delta_0 = epsilon_0 / self._total_epsilon * self._total_delta
                 mechanism.mechanism_spec.set_eps_delta(epsilon_0, delta_0)
-            elif mechanism.mechanism_spec.mechanism_type.is_thresholding_mechanism(
-            ):
-                mechanism.set_thresholding_delta(
-                    thresholding_delta_per_mechanism)
+            else:
+                spec.set_noise_standard_deviation(mechanism_noise_std)
+            if spec.mechanism_type.is_thresholding_mechanism():
+                spec.set_thresholding_delta(thresholding_delta_per_mechanism)
 
-    def _find_minimum_noise_std(self) -> float:
+    def _find_minimum_base_noise_std(self) -> float:
         """Finds the minimum noise which satisfies the total budget.
 
         Use binary search to find a minimum noise value that gives a
@@ -607,19 +615,19 @@ class PLDBudgetAccountant(BudgetAccountant):
         """
         composed, pld = None, None
 
-        for mechanism in self._mechanisms:  # MechanismSpecInternal
+        for mechanism in self._mechanisms:
             mechanism_type = mechanism.mechanism_spec.mechanism_type
-            if mechanism_type == agg_params.MechanismType.LAPLACE:
+            if mechanism_type == MechanismType.LAPLACE:
                 pld = self._create_pld_for_laplace(noise_stddev, mechanism)
-            elif mechanism_type == agg_params.MechanismType.LAPLACE_THRESHOLDING:
+            elif mechanism_type == MechanismType.LAPLACE_THRESHOLDING:
                 # todo
                 pld = self._create_pld_for_laplace(noise_stddev, mechanism)
-            elif mechanism_type == agg_params.MechanismType.GAUSSIAN:
+            elif mechanism_type == MechanismType.GAUSSIAN:
                 pld = self._create_pld_for_gaussian(noise_stddev, mechanism)
-            elif mechanism_type == agg_params.MechanismType.GAUSSIAN_THRESHOLDING:
+            elif mechanism_type == MechanismType.GAUSSIAN_THRESHOLDING:
                 # todo
                 pld = self._create_pld_for_gaussian(noise_stddev, mechanism)
-            elif mechanism_type == agg_params.MechanismType.GENERIC:
+            elif mechanism_type == MechanismType.GENERIC:
                 pld = self._create_pld_for_generic(noise_stddev, mechanism)
             composed = pld if composed is None else composed.compose(pld)
 

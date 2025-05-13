@@ -88,10 +88,19 @@ class PartitionSelectionStrategy(Enum):
     LAPLACE_THRESHOLDING = 'Laplace Thresholding'
     GAUSSIAN_THRESHOLDING = 'Gaussian Thresholding'
 
+    @property
     def is_thresholding(self) -> bool:
         return self.value in [
             self.LAPLACE_THRESHOLDING, self.GAUSSIAN_THRESHOLDING
         ]
+
+    @property
+    def mechanism_type(self) -> 'MechanismType':
+        if self.value == self.GAUSSIAN_THRESHOLDING.value:
+            return MechanismType.GAUSSIAN_THRESHOLDING
+        if self.value == self.LAPLACE_THRESHOLDING.value:
+            return MechanismType.LAPLACE_THRESHOLDING
+        return MechanismType.TRUNCATED_GEOMETRIC
 
 
 class MechanismType(Enum):
@@ -99,6 +108,7 @@ class MechanismType(Enum):
     GAUSSIAN = 'Gaussian'
     LAPLACE_THRESHOLDING = 'Laplace Thresholding'
     GAUSSIAN_THRESHOLDING = 'Gaussian Thresholding'
+    TRUNCATED_GEOMETRIC = 'Truncated Geometric'
     GENERIC = 'Generic'
 
     def to_noise_kind(self):

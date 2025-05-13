@@ -336,8 +336,7 @@ class DPEngine:
         Returns:
             collection of elements (partition_key, accumulator).
         """
-        budget = self._budget_accountant.request_budget(
-            mechanism_type=pipeline_dp.MechanismType.GENERIC)
+        budget = self._budget_accountant.request_budget(strategy.mechanism_type)
 
         def filter_fn(
             budget: 'MechanismSpec', max_partitions: int,
@@ -533,9 +532,6 @@ class DPEngine:
                       pipeline_dp.NaiveBudgetAccountant):
             # All aggregations support NaiveBudgetAccountant.
             return
-        if not is_public_partition:
-            raise NotImplementedError("PLD budget accounting does not support "
-                                      "private partition selection")
         supported_metrics = [
             pipeline_dp.Metrics.COUNT, pipeline_dp.Metrics.PRIVACY_ID_COUNT,
             pipeline_dp.Metrics.SUM, pipeline_dp.Metrics.MEAN
