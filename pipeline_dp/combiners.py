@@ -247,10 +247,11 @@ class CountCombiner(Combiner, AdditiveMechanismMixin):
     AccumulatorType = int
 
     def __init__(self, mechanism_spec: budget_accounting.MechanismSpec,
-                 aggregate_params: pipeline_dp.AggregateParams):
+                 params: pipeline_dp.AggregateParams):
         self._mechanism_spec = mechanism_spec
         self._sensitivities = dp_computations.compute_sensitivities_for_count(
-            aggregate_params)
+            params)
+        self._output_noise_stddev = params.output_noise_stddev
 
     def create_accumulator(self, values: Sized) -> AccumulatorType:
         return len(values)
@@ -260,7 +261,11 @@ class CountCombiner(Combiner, AdditiveMechanismMixin):
         return count1 + count2
 
     def compute_metrics(self, count: AccumulatorType) -> dict:
-        return {'count': self.get_mechanism().add_noise(count)}
+        mechanism = self.get_mechanism()
+        result = {'count': mechanism.add_noise(count)}
+        if self._output_noise_stddev:
+            result["count_noise_stddev"] = mechanism.std
+        return result
 
     def metrics_names(self) -> List[str]:
         return ['count']
@@ -289,10 +294,11 @@ class PrivacyIdCountCombiner(Combiner, AdditiveMechanismMixin):
     AccumulatorType = int
 
     def __init__(self, mechanism_spec: budget_accounting.MechanismSpec,
-                 aggregate_params: pipeline_dp.AggregateParams):
+                 params: pipeline_dp.AggregateParams):
         self._mechanism_spec = mechanism_spec
         self._sensitivities = dp_computations.compute_sensitivities_for_privacy_id_count(
-            aggregate_params)
+            params)
+        self._output_noise_stddev = params.output_noise_stddev
 
     def create_accumulator(self, values: Sized) -> AccumulatorType:
         return 1 if values else 0
@@ -302,7 +308,11 @@ class PrivacyIdCountCombiner(Combiner, AdditiveMechanismMixin):
         return accumulator1 + accumulator2
 
     def compute_metrics(self, count: AccumulatorType) -> dict:
-        return {"privacy_id_count": self.get_mechanism().add_noise(count)}
+        mechanism = self.get_mechanism()
+        result = {'privacy_id_count': mechanism.add_noise(count)}
+        if self._output_noise_stddev:
+            result["privacy_id_count_noise_stddev"] = mechanism.std
+        return result
 
     def metrics_names(self) -> List[str]:
         return ['privacy_id_count']
@@ -391,17 +401,18 @@ class SumCombiner(Combiner, AdditiveMechanismMixin):
     AccumulatorType = float
 
     def __init__(self, mechanism_spec: budget_accounting.MechanismSpec,
-                 aggregate_params: pipeline_dp.AggregateParams):
+                 params: pipeline_dp.AggregateParams):
         self._mechanism_spec = mechanism_spec
         self._sensitivities = dp_computations.compute_sensitivities_for_sum(
-            aggregate_params)
-        self._bounding_per_partition = aggregate_params.bounds_per_partition_are_set
+            params)
+        self._bounding_per_partition = params.bounds_per_partition_are_set
         if self._bounding_per_partition:
-            self._min_bound = aggregate_params.min_sum_per_partition
-            self._max_bound = aggregate_params.max_sum_per_partition
+            self._min_bound = params.min_sum_per_partition
+            self._max_bound = params.max_sum_per_partition
         else:
-            self._min_bound = aggregate_params.min_value
-            self._max_bound = aggregate_params.max_value
+            self._min_bound = params.min_value
+            self._max_bound = params.max_value
+        self._output_noise_stddev = params.output_noise_stddev
 
     def create_accumulator(self, values: Iterable[float]) -> AccumulatorType:
         if self._bounding_per_partition:
@@ -414,7 +425,11 @@ class SumCombiner(Combiner, AdditiveMechanismMixin):
         return sum1 + sum2
 
     def compute_metrics(self, sum_: AccumulatorType) -> dict:
-        return {"sum": self.get_mechanism().add_noise(sum_)}
+        mechanism = self.get_mechanism()
+        result = {'sum': mechanism.add_noise(sum_)}
+        if self._output_noise_stddev:
+            result["sum_noise_stddev"] = mechanism.std
+        return result
 
     def metrics_names(self) -> List[str]:
         return ['sum']
