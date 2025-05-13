@@ -1427,7 +1427,8 @@ class DpEngineTest(parameterized.TestCase):
                                           l1=l1_sensitivity,
                                           l2=l2_sensitivity))
 
-    def test_run_e2e_add_dp_noise(self):
+    @parameterized.parameters(False, True)
+    def test_run_e2e_add_dp_noise(self, output_noise_stddev: bool):
         # Arrange
         data = [(i, i) for i in range(100)]
         accountant = pipeline_dp.NaiveBudgetAccountant(total_epsilon=2,
@@ -1437,7 +1438,8 @@ class DpEngineTest(parameterized.TestCase):
         params = pipeline_dp.aggregate_params.AddDPNoiseParams(
             noise_kind=pipeline_dp.NoiseKind.LAPLACE,
             l0_sensitivity=5,
-            linf_sensitivity=15)
+            linf_sensitivity=15,
+            output_noise_stddev=output_noise_stddev)
 
         # Act
         output = engine.add_dp_noise(
@@ -1447,7 +1449,11 @@ class DpEngineTest(parameterized.TestCase):
         accountant.compute_budgets()
         output = list(output)
         # Assert
-        noise_values = [(value - index) for index, value in output]
+        if output_noise_stddev:
+            noise_values = [
+                (value.noisified_value - index) for index, value in output
+            ]
+            self.assertAlmostEqual(output[0][1].noise_stddev, 53.03, delta=0.01)
         self.assertGreater(np.std(noise_values), 10)
         # Expected Laplace parameter is
         # l0_sensitivity*linf_sensitivity/epsilon = 5*15/2 = 37.5
