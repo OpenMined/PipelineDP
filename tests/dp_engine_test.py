@@ -466,7 +466,7 @@ class DpEngineTest(parameterized.TestCase):
                 "Cross-partition contribution bounding: for each privacy id "
                 "randomly select max(actual_partition_contributed, 3)",
                 "Private Partition selection: using Truncated Geometric "
-                "method with (eps="
+                "method with (epsilon="
             ],
         )
 

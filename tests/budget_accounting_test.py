@@ -531,6 +531,43 @@ class PLDBudgetAccountantTest(unittest.TestCase):
                         f"{expected_mechanism_noise_std} "
                         f"got {actual_mechanism.noise_standard_deviation}")
 
+    def test_compute_budgets_gaussian_thresholding(self):
+        accountant = PLDBudgetAccountant(total_epsilon=1.0, total_delta=1e-8)
+        thresholding_budget = accountant.request_budget(
+            MechanismType.GAUSSIAN_THRESHOLDING)
+        guasisan_budget = accountant.request_budget(MechanismType.GAUSSIAN)
+        accountant.compute_budgets()
+
+        # Gaussian mechanism thresholding and Gaussian mechanism have to have the
+        # same sigma, since Gaussian mechanism thresholding is modeled with
+        # Gaussian.
+        self.assertAlmostEqual(thresholding_budget.noise_standard_deviation,
+                               7.284667,
+                               delta=1e-5)
+        self.assertAlmostEqual(guasisan_budget.noise_standard_deviation,
+                               7.284667,
+                               delta=1e-5)
+        self.assertEqual(thresholding_budget.thresholding_delta, 1e-8 / 4)
+
+    def test_compute_budgets_laplace_thresholding(self):
+        accountant = PLDBudgetAccountant(total_epsilon=1.0, total_delta=1e-8)
+        thresholding_budget = accountant.request_budget(
+            MechanismType.LAPLACE_THRESHOLDING)
+        guasisan_budget = accountant.request_budget(MechanismType.LAPLACE,
+                                                    weight=2)
+        accountant.compute_budgets()
+
+        # Laplace mechanism thresholding and Laplace mechanism have to have the
+        # same sigma differ in weight=2 times.
+        expected_stddev = 2.121551513
+        self.assertAlmostEqual(thresholding_budget.noise_standard_deviation,
+                               2 * expected_stddev,
+                               delta=1e-5)
+        self.assertAlmostEqual(guasisan_budget.noise_standard_deviation,
+                               expected_stddev,
+                               delta=1e-5)
+        self.assertEqual(thresholding_budget.thresholding_delta, 1e-8 / 4)
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -622,12 +622,16 @@ class PLDBudgetAccountant(BudgetAccountant):
             if mechanism_type == MechanismType.LAPLACE:
                 pld = self._create_pld_for_laplace(noise_stddev, mechanism)
             elif mechanism_type == MechanismType.LAPLACE_THRESHOLDING:
-                # todo
+                # Laplace thresholding is emulated with Laplace mechanism
+                # with an additional threshold delta (which is substracted from
+                # total delta)
                 pld = self._create_pld_for_laplace(noise_stddev, mechanism)
             elif mechanism_type == MechanismType.GAUSSIAN:
                 pld = self._create_pld_for_gaussian(noise_stddev, mechanism)
             elif mechanism_type == MechanismType.GAUSSIAN_THRESHOLDING:
-                # todo
+                # Gaussian thresholding is emulated with Gaussian mechanism
+                # with an additional threshold delta (which is substracted from
+                # total delta)
                 pld = self._create_pld_for_gaussian(noise_stddev, mechanism)
             elif mechanism_type == MechanismType.GENERIC:
                 pld = self._create_pld_for_generic(noise_stddev, mechanism)
@@ -640,6 +644,7 @@ class PLDBudgetAccountant(BudgetAccountant):
 
     def _get_thresholding_delta(self) -> float:
         has_threshold_mechanisms = bool(self._thresholding_mechanisms())
+        # 0.25 of total_delta is dedicated for threshold_delta.
         return 0.25 * self._total_delta if has_threshold_mechanisms else 0
 
     def _thresholding_mechanisms(self):

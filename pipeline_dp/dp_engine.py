@@ -374,9 +374,13 @@ class DPEngine:
         def generate_partition_selection_text() -> str:
             if budget.standard_deviation_is_set:
                 # PLD case for thresholding.
-                parameters = f"stddev={budget.noise_standard_deviation}, delta={budget.delta}"
+                noise_stddev = budget.noise_standard_deviation
+                thresholding_delta = budget.thresholding_delta
+                parameters = f"{noise_stddev=}, {thresholding_delta=}"
             else:
-                parameters = f"eps={budget.eps}, delta={budget.delta}"
+                epsilon = budget.eps
+                delta = budget.delta
+                parameters = f"{epsilon=}, delta={delta=}"
             text = f"""Private Partition selection: using {strategy.value}
             f"method with ({parameters}, {pre_threshold_str})"""
             return text
