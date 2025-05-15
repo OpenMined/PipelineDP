@@ -370,10 +370,18 @@ class DPEngine:
                                       max_rows_per_privacy_id, strategy,
                                       pre_threshold)
         pre_threshold_str = f", pre_threshold={pre_threshold}" if pre_threshold else ""
-        # self._add_report_stage(
-        #     lambda: f"Private Partition selection: using {strategy.value} "
-        #     f"method with (eps={budget.eps}, delta={budget.delta}"
-        #     f"{pre_threshold_str})")
+
+        def generate_partition_selection_text() -> str:
+            if budget.standard_deviation_is_set:
+                # PLD case for thresholding.
+                parameters = f"stddev={budget.noise_standard_deviation}, delta={budget.delta}"
+            else:
+                parameters = f"eps={budget.eps}, delta={budget.delta}"
+            text = f"""Private Partition selection: using {strategy.value}
+            f"method with ({parameters}, {pre_threshold_str})"""
+            return text
+
+        self._add_report_stage(generate_partition_selection_text)
 
         return self._backend.filter(col, filter_fn, "Filter private partitions")
 
