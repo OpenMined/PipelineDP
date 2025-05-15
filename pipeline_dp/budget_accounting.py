@@ -378,8 +378,10 @@ class NaiveBudgetAccountant(BudgetAccountant):
             raise ValueError(
                 "The Gaussian mechanism requires that the pipeline delta is greater than 0"
             )
-        if mechanism_type.is_thresholding_mechanism():
-            raise
+        if mechanism_type.is_partition_selection and self._total_delta == 0:
+            raise ValueError(
+                "The private partition selections requires that the pipeline delta is greater than 0"
+            )
         mechanism_spec = MechanismSpec(mechanism_type=mechanism_type,
                                        _count=count)
         mechanism_spec_internal = MechanismSpecInternal(

@@ -110,29 +110,37 @@ class MechanismType(Enum):
     GENERIC = 'Generic'
 
     def to_noise_kind(self):
-        if self.value == MechanismType.LAPLACE.value:
+        if self == MechanismType.LAPLACE:
             return NoiseKind.LAPLACE
-        if self.value == MechanismType.GAUSSIAN.value:
+        if self == MechanismType.GAUSSIAN:
             return NoiseKind.GAUSSIAN
-        if self.value == MechanismType.LAPLACE_THRESHOLDING.value:
+        if self == MechanismType.LAPLACE_THRESHOLDING:
             return NoiseKind.LAPLACE
-        if self.value == MechanismType.GAUSSIAN_THRESHOLDING.value:
+        if self == MechanismType.GAUSSIAN_THRESHOLDING:
             return NoiseKind.GAUSSIAN
         raise ValueError(f"MechanismType {self.value} can not be converted to "
                          f"NoiseKind")
 
     def to_partition_selection_strategy(self) -> PartitionSelectionStrategy:
-        if self.value == MechanismType.LAPLACE_THRESHOLDING.value:
+        if self == MechanismType.LAPLACE_THRESHOLDING:
             return PartitionSelectionStrategy.LAPLACE_THRESHOLDING
-        if self.value == MechanismType.GAUSSIAN_THRESHOLDING.value:
+        if self == MechanismType.GAUSSIAN_THRESHOLDING:
             return PartitionSelectionStrategy.GAUSSIAN_THRESHOLDING
         raise ValueError(f"MechanismType {self.value} can not be converted to "
                          f"PartitionSelectionStrategy")
 
-    def is_thresholding_mechanism(self):
-        return self.value in [
-            MechanismType.LAPLACE_THRESHOLDING.value,
-            MechanismType.GAUSSIAN_THRESHOLDING.value
+    @property
+    def is_thresholding_mechanism(self) -> bool:
+        return self in [
+            MechanismType.LAPLACE_THRESHOLDING,
+            MechanismType.GAUSSIAN_THRESHOLDING
+        ]
+
+    @property
+    def is_partition_selection(self) -> bool:
+        return self in [
+            MechanismType.LAPLACE_THRESHOLDING,
+            MechanismType.GAUSSIAN_THRESHOLDING
         ]
 
 
