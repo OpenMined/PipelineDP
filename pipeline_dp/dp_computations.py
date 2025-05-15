@@ -119,6 +119,9 @@ def compute_sigma(eps: float, delta: float, l2_sensitivity: float) -> float:
 
 
 def gaussian_delta(sigma: float, epsilon: float) -> float:
+    """Computes minimum delta such that the Gaussian(sigma) mechanism is (eps, delta)-dp"""
+    # The optimal delta is found with
+    # https://proceedings.mlr.press/v80/balle18a/balle18a.pdf ALgorithm 1.
     if sigma <= 0:
         raise ValueError(f"sigma must be > 0, but {sigma=}")
     a = 1 / sigma
@@ -127,10 +130,13 @@ def gaussian_delta(sigma: float, epsilon: float) -> float:
 
 
 def gaussian_epsilon(sigma: float, delta: float) -> float:
+    """Computes minimum eps such that the Gaussian(sigma) mechanism is (eps, delta)-dp"""
     if sigma <= 0:
         raise ValueError(f"sigma must be > 0, but {sigma=}")
     if delta < 0 or delta > 1:
         raise ValueError(f"delta must be in [0, 1], but {delta=}")
+    # For a fixed sigma a function delta(epsilon) is decreasing. Solve the
+    # equation gaussian_delta(sigma, epsilon) = delta with binary search.
     f = functools.partial(gaussian_delta, sigma)
     if f(0) >= delta:
         L = 0

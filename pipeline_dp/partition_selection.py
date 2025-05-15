@@ -52,8 +52,8 @@ def create_gaussian_thresholding(
         max_partitions_contributed: int,
         pre_threshold: Optional[int] = None) -> "PartitionSelectionStrategy":
     """Creates PyDP partition selection object."""
-    epsilon = pipeline_dp.dp_computations.gaussian_eps(sigma,
-                                                       thresholding_delta)
+    epsilon = pipeline_dp.dp_computations.gaussian_epsilon(
+        sigma, thresholding_delta)
     return create_partition_selection_strategy(
         pipeline_dp.PartitionSelectionStrategy.GAUSSIAN_THRESHOLDING, epsilon,
         2 * thresholding_delta, max_partitions_contributed, pre_threshold)

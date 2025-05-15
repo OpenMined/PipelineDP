@@ -90,9 +90,7 @@ class PartitionSelectionStrategy(Enum):
 
     @property
     def is_thresholding(self) -> bool:
-        return self.value in [
-            self.LAPLACE_THRESHOLDING, self.GAUSSIAN_THRESHOLDING
-        ]
+        return self in [self.LAPLACE_THRESHOLDING, self.GAUSSIAN_THRESHOLDING]
 
     @property
     def mechanism_type(self) -> 'MechanismType':

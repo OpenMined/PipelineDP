@@ -370,10 +370,10 @@ class DPEngine:
                                       max_rows_per_privacy_id, strategy,
                                       pre_threshold)
         pre_threshold_str = f", pre_threshold={pre_threshold}" if pre_threshold else ""
-        self._add_report_stage(
-            lambda: f"Private Partition selection: using {strategy.value} "
-            f"method with (eps={budget.eps}, delta={budget.delta}"
-            f"{pre_threshold_str})")
+        # self._add_report_stage(
+        #     lambda: f"Private Partition selection: using {strategy.value} "
+        #     f"method with (eps={budget.eps}, delta={budget.delta}"
+        #     f"{pre_threshold_str})")
 
         return self._backend.filter(col, filter_fn, "Filter private partitions")
 
@@ -651,7 +651,7 @@ def _create_partition_selector(strategy: pipeline_dp.PartitionSelectionStrategy,
                                budget: budget_accounting.MechanismSpec,
                                max_partitions: int, pre_threshold: int):
     if budget.standard_deviation_is_set:
-        assert strategy.is_thresholding()
+        assert strategy.is_thresholding
         if strategy == pipeline_dp.PartitionSelectionStrategy.LAPLACE_THRESHOLDING:
             return partition_selection.create_laplace_thresholding(
                 budget.noise_standard_deviation, budget.thresholding_delta,
