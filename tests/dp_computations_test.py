@@ -404,6 +404,23 @@ class DPComputationsTest(parameterized.TestCase):
 
         self.assertAlmostEqual(scale, expected_std)
 
+    def test_gaussian_delta(self):
+        self.assertAlmostEqual(dp_computations.gaussian_delta(5, 1.0),
+                               1.75463e-8,
+                               delta=1e-12)
+        self.assertAlmostEqual(dp_computations.gaussian_delta(3.42, 1.1),
+                               1.00362244e-5,
+                               delta=1e-10)
+
+    def test_gaussian_epsilon(self):
+        self.assertAlmostEqual(dp_computations.gaussian_epsilon(5, 1.75463e-8),
+                               1.00000007214,
+                               delta=1e-10)
+        self.assertAlmostEqual(dp_computations.gaussian_epsilon(
+            3.42, 1.00362244e-5),
+                               1.1000000002386,
+                               delta=1e-10)
+
 
 def create_aggregate_params(
         max_partitions_contributed: Optional[int] = None,
