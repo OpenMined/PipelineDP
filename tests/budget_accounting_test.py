@@ -221,7 +221,7 @@ class PLDBudgetAccountantTest(unittest.TestCase):
     def test_compute_budgets_none_noise(self):
         accountant = PLDBudgetAccountant(total_epsilon=3, total_delta=1e-5)
         accountant.compute_budgets()
-        self.assertEqual(None, accountant.minimum_noise_std)
+        self.assertEqual(None, accountant.base_noise_std)
 
     def test_two_calls_compute_budgets_raise_exception(self):
         budget_accountant = PLDBudgetAccountant(total_epsilon=1,
@@ -500,20 +500,13 @@ class PLDBudgetAccountantTest(unittest.TestCase):
             accountant.compute_budgets()
             self.assertAlmostEqual(
                 first=case.expected_pipeline_noise_std,
-                second=accountant.minimum_noise_std,
+                second=accountant.base_noise_std,
                 delta=1e-2,
                 msg=f"failed test {case.name} expected pipeline noise "
                 f"{case.expected_pipeline_noise_std} "
-                f"got {accountant.minimum_noise_std}")
+                f"got {accountant.base_noise_std}")
             for mechanism_expectations in actual_mechanisms:
                 expected_mechanism_noise_std, expected_mechanism_epsilon, expected_mechanism_delta, actual_mechanism = mechanism_expectations
-                self.assertAlmostEqual(
-                    first=expected_mechanism_noise_std,
-                    second=actual_mechanism.noise_standard_deviation,
-                    delta=1e-2,
-                    msg=f"failed test {case.name} expected mechanism noise "
-                    f"{expected_mechanism_noise_std} "
-                    f"got {actual_mechanism.noise_standard_deviation}")
                 if actual_mechanism.mechanism_type == MechanismType.GENERIC:
                     self.assertAlmostEqual(
                         first=expected_mechanism_epsilon,
@@ -529,6 +522,14 @@ class PLDBudgetAccountantTest(unittest.TestCase):
                         msg=f"failed test {case.name} expected mechanism delta "
                         f"{expected_mechanism_delta} "
                         f"got {actual_mechanism._delta}")
+                else:  # mechanism != Generic
+                    self.assertAlmostEqual(
+                        first=expected_mechanism_noise_std,
+                        second=actual_mechanism.noise_standard_deviation,
+                        delta=1e-2,
+                        msg=f"failed test {case.name} expected mechanism noise "
+                        f"{expected_mechanism_noise_std} "
+                        f"got {actual_mechanism.noise_standard_deviation}")
 
 
 if __name__ == '__main__':

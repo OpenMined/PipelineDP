@@ -473,7 +473,7 @@ class PLDBudgetAccountant(BudgetAccountant):
                               "NaiveBudgetAccountant instead of "
                               "PLDBudgetAccountant")
 
-        self.minimum_noise_std = None
+        self.base_noise_std = None
         self._pld_discretization = pld_discretization
 
     def request_budget(

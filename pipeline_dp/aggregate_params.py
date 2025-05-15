@@ -77,9 +77,9 @@ class NoiseKind(Enum):
     GAUSSIAN = 'gaussian'
 
     def convert_to_mechanism_type(self):
-        if self.value == NoiseKind.LAPLACE.value:
+        if self == NoiseKind.LAPLACE:
             return MechanismType.LAPLACE
-        if self.value == NoiseKind.GAUSSIAN.value:
+        if self == NoiseKind.GAUSSIAN:
             return MechanismType.GAUSSIAN
 
 
@@ -94,9 +94,9 @@ class PartitionSelectionStrategy(Enum):
 
     @property
     def mechanism_type(self) -> 'MechanismType':
-        if self.value == self.GAUSSIAN_THRESHOLDING.value:
+        if self == self.GAUSSIAN_THRESHOLDING:
             return MechanismType.GAUSSIAN_THRESHOLDING
-        if self.value == self.LAPLACE_THRESHOLDING.value:
+        if self == self.LAPLACE_THRESHOLDING:
             return MechanismType.LAPLACE_THRESHOLDING
         return MechanismType.TRUNCATED_GEOMETRIC
 
