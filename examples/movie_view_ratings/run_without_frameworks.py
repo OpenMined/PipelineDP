@@ -27,6 +27,10 @@ flags.DEFINE_bool(
     'is used, if true PLD accounting')
 flags.DEFINE_integer('pre_threshold', None,
                      'Pre threshold which is used in the DP aggregation')
+flags.DEFINE_bool(
+    'output_noise_stddev', False,
+    'If true, the output will contain the applied noise '
+    'standard deviation.')
 
 
 def main(unused_argv):
@@ -79,7 +83,8 @@ def main(unused_argv):
         # .. and maximum rating of "5"
         max_value=5,
         partition_selection_strategy=pipeline_dp.PartitionSelectionStrategy.
-        GAUSSIAN_THRESHOLDING)
+        GAUSSIAN_THRESHOLDING,
+        output_noise_stddev=FLAGS.output_noise_stddev)
 
     if FLAGS.pre_threshold:
         params.pre_threshold = FLAGS.pre_threshold

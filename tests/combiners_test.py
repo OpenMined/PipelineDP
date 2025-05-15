@@ -58,9 +58,12 @@ def _create_mechanism_spec(
     return ba.MechanismSpec(mechanism_type, None, eps, delta)
 
 
-def _create_aggregate_params(max_value: float = 1,
-                             vector_size: int = 1,
-                             vector_norm_kind=pipeline_dp.NormKind.Linf):
+def _create_aggregate_params(
+    max_value: float = 1,
+    vector_size: int = 1,
+    vector_norm_kind=pipeline_dp.NormKind.Linf,
+    output_noise_stddev: bool = False,
+):
     return pipeline_dp.AggregateParams(
         min_value=0,
         max_value=max_value,
@@ -70,7 +73,8 @@ def _create_aggregate_params(max_value: float = 1,
         metrics=[pipeline_dp.Metrics.COUNT],
         vector_norm_kind=vector_norm_kind,
         vector_max_norm=5,
-        vector_size=vector_size)
+        vector_size=vector_size,
+        output_noise_stddev=output_noise_stddev)
 
 
 class CreateCompoundCombinersTest(parameterized.TestCase):
@@ -229,10 +233,12 @@ class CountCombinerTest(parameterized.TestCase):
         self,
         no_noise: bool,
         mechanism_type: pipeline_dp.MechanismType = pipeline_dp.MechanismType.
-        GAUSSIAN
+        GAUSSIAN,
+        output_noise_stddev: bool = False,
     ) -> dp_combiners.CountCombiner:
         mechanism_spec = _create_mechanism_spec(no_noise, mechanism_type)
-        aggregate_params = _create_aggregate_params()
+        aggregate_params = _create_aggregate_params(
+            output_noise_stddev=output_noise_stddev)
         return dp_combiners.CountCombiner(mechanism_spec, aggregate_params)
 
     @parameterized.named_parameters(
@@ -255,9 +261,9 @@ class CountCombinerTest(parameterized.TestCase):
 
     def test_compute_metrics_no_noise(self):
         combiner = self._create_combiner(no_noise=True)
-        self.assertAlmostEqual(3,
-                               combiner.compute_metrics(3)['count'],
-                               delta=1e-5)
+        output = combiner.compute_metrics(3)
+        self.assertLen(output, 1)
+        self.assertAlmostEqual(3, output['count'], delta=1e-5)
 
     @patch("pipeline_dp.dp_computations.GaussianMechanism.add_noise")
     def test_compute_metrics_with_noise(self, mock_add_noise):
@@ -293,6 +299,24 @@ class CountCombinerTest(parameterized.TestCase):
                     "parameter=15.8.*eps=1.0  delta=1e-05.*l2_sensitivity=4.2")
         self.assertRegex(combiner.explain_computation()(), expected)
 
+    def test_noise_stddev(self):
+        combiner = self._create_combiner(
+            no_noise=False,
+            mechanism_type=pipeline_dp.MechanismType.LAPLACE,
+            output_noise_stddev=True)
+        output = combiner.compute_metrics(5)
+        self.assertLen(output, 2)
+        # For COUNT and Laplace noise
+        # stddev = 1/eps*max_partitions_contributed*max_contributions_per_partition*sqrt(2)
+        expected_stddev = 1 / 1 * 2 * 3 * np.sqrt(2)
+        self.assertAlmostEqual(output['count_noise_stddev'],
+                               expected_stddev,
+                               delta=1e-8)
+        # check that noised count is within 10 stddev, which for Laplace
+        # should not be with probability 7.213541e-07 (=flakiness probability)
+        self.assertTrue(2 - 10 * expected_stddev <= output["count"] <= 2 +
+                        10 * expected_stddev)
+
 
 class PrivacyIdCountCombinerTest(parameterized.TestCase):
 
@@ -300,10 +324,12 @@ class PrivacyIdCountCombinerTest(parameterized.TestCase):
         self,
         no_noise: bool,
         mechanism_type: pipeline_dp.MechanismType = pipeline_dp.MechanismType.
-        GAUSSIAN
+        GAUSSIAN,
+        output_noise_stddev: bool = False,
     ) -> dp_combiners.PrivacyIdCountCombiner:
         mechanism_spec = _create_mechanism_spec(no_noise, mechanism_type)
-        aggregate_params = _create_aggregate_params()
+        aggregate_params = _create_aggregate_params(
+            output_noise_stddev=output_noise_stddev)
         return dp_combiners.PrivacyIdCountCombiner(mechanism_spec,
                                                    aggregate_params)
 
@@ -364,6 +390,24 @@ class PrivacyIdCountCombinerTest(parameterized.TestCase):
         expected = ("Computed DP privacy_id_count.*\n.*Gaussian mechanism:  "
                     "parameter=5.2.*eps=1.0  delta=1e-05.*l2_sensitivity=1.4")
         self.assertRegex(combiner.explain_computation()(), expected)
+
+    def test_noise_stddev(self):
+        combiner = self._create_combiner(
+            no_noise=False,
+            mechanism_type=pipeline_dp.MechanismType.LAPLACE,
+            output_noise_stddev=True)
+        output = combiner.compute_metrics(5)
+        self.assertLen(output, 2)
+        # For PRIVACY_ID_COUNT and Laplace stddev = 1/eps*max_partitions_contributed*sqrt(2)
+        expected_stddev = 1 / 1 * 2 * np.sqrt(2)
+        self.assertAlmostEqual(output['privacy_id_count_noise_stddev'],
+                               expected_stddev,
+                               delta=1e-8)
+        # check that noised count is within 10 stddev, which for Laplace
+        # should be with probability 7.213541e-07 (=flakiness probability)
+        self.assertTrue(
+            2 - 10 * expected_stddev <= output["privacy_id_count"] <= 2 +
+            10 * expected_stddev)
 
 
 class PostAggregationThresholdingCombinerTest(parameterized.TestCase):
@@ -482,14 +526,16 @@ class PostAggregationThresholdingCombinerTest(parameterized.TestCase):
 
 class SumCombinerTest(parameterized.TestCase):
 
-    def _create_aggregate_params_per_partition_bound(self):
+    def _create_aggregate_params_per_partition_bound(
+            self, output_noise_stddev: bool = False):
         return pipeline_dp.AggregateParams(
             min_sum_per_partition=0,
             max_sum_per_partition=3,
             max_contributions_per_partition=1,
             max_partitions_contributed=1,
             noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
-            metrics=[pipeline_dp.Metrics.SUM])
+            metrics=[pipeline_dp.Metrics.SUM],
+            output_noise_stddev=output_noise_stddev)
 
     def _create_combiner(
         self,
@@ -497,13 +543,15 @@ class SumCombinerTest(parameterized.TestCase):
         per_partition_bound: bool,
         max_value=1.0,
         mechanism_type: pipeline_dp.MechanismType = pipeline_dp.MechanismType.
-        GAUSSIAN
+        GAUSSIAN,
+        output_noise_stddev: bool = False,
     ) -> dp_combiners.SumCombiner:
         mechanism_spec = _create_mechanism_spec(no_noise, mechanism_type)
         if per_partition_bound:
             aggr_params = self._create_aggregate_params_per_partition_bound()
         else:
-            aggr_params = _create_aggregate_params(max_value=max_value)
+            aggr_params = _create_aggregate_params(
+                max_value=max_value, output_noise_stddev=output_noise_stddev)
             aggr_params.metrics = [pipeline_dp.Metrics.SUM]
         return dp_combiners.SumCombiner(mechanism_spec, aggr_params)
 
@@ -598,6 +646,25 @@ class SumCombinerTest(parameterized.TestCase):
         expected = ("Computed DP sum.*\n.*Gaussian mechanism:  "
                     "parameter=15.*eps=1.0  delta=1e-05.*l2_sensitivity=4.2")
         self.assertRegex(combiner.explain_computation()(), expected)
+
+    def test_noise_stddev(self):
+        combiner = self._create_combiner(
+            no_noise=False,
+            per_partition_bound=False,
+            max_value=5,
+            mechanism_type=pipeline_dp.MechanismType.LAPLACE,
+            output_noise_stddev=True)
+        output = combiner.compute_metrics(5)
+        self.assertLen(output, 2)
+        # For SUM and Laplace stddev = 1/eps*max_partitions_contributed*max_contributions_per_partition*max_value*sqrt(2)
+        expected_stddev = 1 / 1 * 2 * 3 * 5 * np.sqrt(2)
+        self.assertAlmostEqual(output['sum_noise_stddev'],
+                               expected_stddev,
+                               delta=1e-8)
+        # check that noised count is within 10 stddev, which for Laplace
+        # should be with probability 7.213541e-07 (=flakiness probability)
+        self.assertTrue(2 - 10 * expected_stddev <= output["sum"] <= 2 +
+                        10 * expected_stddev)
 
 
 class MeanCombinerTest(parameterized.TestCase):
