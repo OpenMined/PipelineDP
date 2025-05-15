@@ -16,8 +16,8 @@ from pipeline_dp import partition_selection
 
 from absl.testing import absltest
 from absl.testing import parameterized
-import unittest
 from unittest.mock import patch
+import math
 
 
 class PartitionSelectionTest(parameterized.TestCase):
@@ -66,6 +66,27 @@ class PartitionSelectionTest(parameterized.TestCase):
             delta, max_partitions, pre_threshold)
         mock_method.assert_called_once_with("gaussian", eps, delta,
                                             max_partitions, pre_threshold)
+
+    @patch("pydp.algorithms.partition_selection.create_partition_strategy")
+    def test_truncated_laplace_thresholding_with_sigma(self, mock_method):
+        sigma, delta, max_partitions_contributed, pre_threshold = 1.5, 1e-5, 2, 3
+        partition_selection.create_laplace_thresholding(
+            sigma, delta, max_partitions_contributed, pre_threshold)
+        mock_method.assert_called_once_with("laplace",
+                                            math.sqrt(2) / sigma, delta,
+                                            max_partitions_contributed,
+                                            pre_threshold)
+
+    @patch("pydp.algorithms.partition_selection.create_partition_strategy")
+    def test_truncated_gaussian_thresholding_with_sigma(self, mock_method):
+        sigma, delta, max_partitions_contributed, pre_threshold = 1.5, 1e-5, 5, 10
+        partition_selection.create_gaussian_thresholding(
+            sigma, delta, max_partitions_contributed, pre_threshold)
+        expected_epsilon = 2.7533813795016613
+        mock_method.assert_called_once_with("gaussian", expected_epsilon,
+                                            2 * delta,
+                                            max_partitions_contributed,
+                                            pre_threshold)
 
 
 if __name__ == '__main__':

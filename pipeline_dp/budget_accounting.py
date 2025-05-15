@@ -565,7 +565,7 @@ class PLDBudgetAccountant(BudgetAccountant):
                 mechanism.mechanism_spec.set_eps_delta(epsilon_0, delta_0)
             else:
                 spec.set_noise_standard_deviation(mechanism_noise_std)
-            if spec.mechanism_type.is_thresholding_mechanism():
+            if spec.mechanism_type.is_thresholding_mechanism:
                 spec.set_thresholding_delta(thresholding_delta_per_mechanism)
 
     def _find_minimum_base_noise_std(self) -> float:
@@ -645,7 +645,7 @@ class PLDBudgetAccountant(BudgetAccountant):
     def _thresholding_mechanisms(self):
         result = []
         for m in self._mechanisms:
-            if m.mechanism_spec.mechanism_type.is_thresholding_mechanism():
+            if m.mechanism_spec.mechanism_type.is_thresholding_mechanism:
                 result.append(m)
         return result
 

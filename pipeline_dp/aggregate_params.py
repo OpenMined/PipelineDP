@@ -139,6 +139,7 @@ class MechanismType(Enum):
     @property
     def is_partition_selection(self) -> bool:
         return self in [
+            MechanismType.TRUNCATED_GEOMETRIC,
             MechanismType.LAPLACE_THRESHOLDING,
             MechanismType.GAUSSIAN_THRESHOLDING
         ]
