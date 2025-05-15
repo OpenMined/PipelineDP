@@ -700,6 +700,9 @@ class AddDPNoiseParams:
        l2_sensitivity: the sensitivity in L2 norm.
        budget_weight: Relative weight of the privacy budget allocated to this
          aggregation.
+       output_noise_stddev: if True, the output will contain the applied noise
+         standard deviation, namely the output will be NamedTuple(noisified_value,
+         noise_stddev).
    """
     noise_kind: NoiseKind
     l0_sensitivity: Optional[int] = None
@@ -707,6 +710,7 @@ class AddDPNoiseParams:
     l1_sensitivity: Optional[float] = None
     l2_sensitivity: Optional[float] = None
     budget_weight: float = 1
+    output_noise_stddev: bool = False
 
     def __post_init__(self):
 

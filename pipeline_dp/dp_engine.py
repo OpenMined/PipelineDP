@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """DP aggregations."""
+import collections
 import functools
 from typing import Any, Callable, Optional, Sequence, Tuple, Union
 
@@ -609,8 +610,20 @@ class DPEngine:
         self._add_report_stage(
             lambda: f"Adding {create_mechanism().noise_kind} noise with "
             f"parameter {create_mechanism().noise_parameter}")
-        anonymized_col = self._backend.map_values(
-            col, lambda value: create_mechanism().add_noise(value), "Add noise")
+
+        if params.output_noise_stddev:
+            Output = collections.namedtuple("Output",
+                                            ["noised_value", "noise_stddev"])
+
+            def add_noise(value: Union[int, float]) -> float:
+                mechanism = create_mechanism()
+                return Output(mechanism.add_noise(value), mechanism.std)
+        else:
+
+            def add_noise(value: Union[int, float]) -> float:
+                return create_mechanism().add_noise(value)
+
+        anonymized_col = self._backend.map_values(col, add_noise, "Add noise")
 
         budget = self._budget_accountant._compute_budget_for_aggregation(
             params.budget_weight)
