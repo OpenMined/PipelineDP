@@ -1451,7 +1451,7 @@ class DpEngineTest(parameterized.TestCase):
         # Assert
         if output_noise_stddev:
             noise_values = [
-                (value.noisified_value - index) for index, value in output
+                (value.noised_value - index) for index, value in output
             ]
             self.assertAlmostEqual(output[0][1].noise_stddev, 53.03, delta=0.01)
         else:

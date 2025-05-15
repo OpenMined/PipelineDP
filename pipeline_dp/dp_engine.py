@@ -613,7 +613,7 @@ class DPEngine:
 
         if params.output_noise_stddev:
             Output = collections.namedtuple("Output",
-                                            ["noisified_value", "noise_stddev"])
+                                            ["noised_value", "noise_stddev"])
 
             def add_noise(value: Union[int, float]) -> float:
                 mechanism = create_mechanism()
