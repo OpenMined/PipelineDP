@@ -81,14 +81,16 @@ class BeamBackendTest(parameterized.TestCase):
     def test_filter_with_side_inputs(self):
         with test_pipeline.TestPipeline() as p:
             data = p | "Create data" >> beam.Create([1, 2, 3, 4, 5, 6])
-            side_input = p | "Create side_input" >> beam.Create([[2, 4]])
+            side_input1 = p | "Create side_input1" >> beam.Create([[2, 4]])
+            side_input2 = p | "Create side_input2" >> beam.Create([[5]])
 
-            def filter_fn(x, side_input):
-                return x in side_input
+            def filter_fn(x, side_input1, side_input2):
+                return x in side_input1 or x in side_input2
 
             result = self.backend.filter_with_side_inputs(
-                data, filter_fn, [side_input], "Filter")
-            beam_util.assert_that(result, beam_util.equal_to([2, 4]))
+                data, filter_fn, [side_input1, side_input2], "Filter")
+
+            beam_util.assert_that(result, beam_util.equal_to([2, 4, 5]))
 
     def test_filter_by_key_must_not_be_none(self):
         with test_pipeline.TestPipeline() as p:
@@ -575,7 +577,7 @@ class LocalBackendTest(unittest.TestCase):
 
     def test_filter_with_side_inputs(self):
         data = [1, 2, 3, 4, 5, 6]
-        side_input = [[2, 4]]
+        side_input = [[2, 4]]  # side_input must be singleton (i.e. 1 element).
 
         def filter_fn(x, side_input):
             return x in side_input

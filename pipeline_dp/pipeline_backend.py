@@ -139,7 +139,26 @@ class PipelineBackend(abc.ABC):
     @abc.abstractmethod
     def filter_with_side_inputs(self, col, fn, side_input_cols,
                                 stage_name: str):
-        pass
+        """Filter with side input.
+
+        Side inputs are passed to fn as arguments. For each `record` fn is
+        called with fn(record, side_input1, ..., side_inputn).
+
+        Side input collection, must be singletons (i.e. 1 element collections).
+        If you have larger collection, you can apply backend.to_list() to
+        make it singleton.
+
+        Args:
+           col: framework collection to map.
+           fn: callable with arguments (col_record, side_input1, ...,
+             side_inputn).
+           side_input_cols: list of side inputs (side_input1, ...,
+             side_inputn). Side input can be 1 element Python Sequence or
+             1 element collections which correspond to the pipeline framework
+             (e.g. PCollection for BeamBackend etc). Side inputs will be in
+             memory, so they should be small enough.
+           stage_name: stage name.
+        """
 
     @abc.abstractmethod
     def filter_by_key(self, col, keys_to_keep, stage_name: str):
