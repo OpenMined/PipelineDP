@@ -506,15 +506,15 @@ class PLDBudgetAccountant(BudgetAccountant):
                 "Please ensure that compute_budgets() is called after DP "
                 "aggregations.")
 
-        if count != 1 or noise_standard_deviation is not None:
+        if noise_standard_deviation is not None:
             raise NotImplementedError(
-                "Count and noise standard deviation have not been implemented yet."
-            )
+                "Noise standard deviation have not been implemented yet.")
         if mechanism_type == MechanismType.GAUSSIAN and self._total_delta == 0:
             raise AssertionError(
                 "The Gaussian mechanism requires that the pipeline delta is greater than 0"
             )
-        mechanism_spec = MechanismSpec(mechanism_type=mechanism_type)
+        mechanism_spec = MechanismSpec(mechanism_type=mechanism_type,
+                                       _count=count)
         mechanism_spec_internal = MechanismSpecInternal(
             mechanism_spec=mechanism_spec,
             sensitivity=sensitivity,
@@ -635,6 +635,10 @@ class PLDBudgetAccountant(BudgetAccountant):
                 pld = self._create_pld_for_gaussian(noise_stddev, mechanism)
             elif mechanism_type == MechanismType.GENERIC:
                 pld = self._create_pld_for_generic(noise_stddev, mechanism)
+
+            count = mechanism_spec_internal.mechanism_spec.count
+            if count > 1:
+                pld = pld.self_compose(count)
             composed = pld if composed is None else composed.compose(pld)
 
         return composed
