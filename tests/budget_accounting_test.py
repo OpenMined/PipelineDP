@@ -474,7 +474,7 @@ class PLDBudgetAccountantTest(unittest.TestCase):
             accountant = PLDBudgetAccountant(case.epsilon, case.delta, 1e-2)
             actual_mechanisms = []
             for mechanism in case.mechanisms:
-                for _ in range(0, mechanism.count):
+                for _ in range(mechanism.count):
                     actual_mechanisms.append(
                         (mechanism.expected_noise_std,
                          mechanism.expected_mechanism_epsilon,
@@ -529,6 +529,20 @@ class PLDBudgetAccountantTest(unittest.TestCase):
                         msg=f"failed test {case.name} expected mechanism delta "
                         f"{expected_mechanism_delta} "
                         f"got {actual_mechanism._delta}")
+
+    def test_compute_budets_with_count_greater_1(self):
+        accountant = PLDBudgetAccountant(1.0, 1e-12, 1e-2)
+        budget = accountant.request_budget(MechanismType.LAPLACE,
+                                           weight=1.0,
+                                           count=100)
+        accountant.compute_budgets()
+        self.assertEqual(budget.count, 100)
+        # W/o PLD, with Naive composition, the standard deviation for the noise
+        # would be count/eps*sqrt(2) ~= 100/1.0*1.41421 ~= 141, with PLD it's
+        # clearly better.
+        self.assertAlmostEqual(budget.noise_standard_deviation,
+                               94.656,
+                               delta=1e-3)
 
 
 if __name__ == '__main__':
