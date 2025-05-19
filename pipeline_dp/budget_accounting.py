@@ -636,7 +636,7 @@ class PLDBudgetAccountant(BudgetAccountant):
             elif mechanism_type == MechanismType.GENERIC:
                 pld = self._create_pld_for_generic(noise_stddev, mechanism)
 
-            count = mechanism_spec_internal.mechanism_spec.count
+            count = mechanism.mechanism_spec.count
             if count > 1:
                 pld = pld.self_compose(count)
             composed = pld if composed is None else composed.compose(pld)
