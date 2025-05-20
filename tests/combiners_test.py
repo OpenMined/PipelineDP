@@ -880,6 +880,18 @@ class VectorSumCombinerTest(parameterized.TestCase):
         dict(testcase_name='no_noise', no_noise=True),
         dict(testcase_name='noise', no_noise=False),
     )
+    def test_create_accumulator_clips_individual_contributions(self, no_noise):
+        combiner = self._create_combiner(no_noise, vector_size=1)
+        self.assertEqual(np.array([5]), combiner.create_accumulator([[6]]))
+        self.assertEqual(
+            np.array([5]),
+            combiner.create_accumulator([np.array([7]),
+                                         np.array([8])]))
+
+    @parameterized.named_parameters(
+        dict(testcase_name='no_noise', no_noise=True),
+        dict(testcase_name='noise', no_noise=False),
+    )
     def test_merge_accumulators(self, no_noise):
         combiner = self._create_combiner(no_noise, vector_size=1)
         self.assertEqual(

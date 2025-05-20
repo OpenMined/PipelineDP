@@ -15,10 +15,10 @@
 
 import abc
 import copy
-from typing import Callable, Iterable, Sized, Tuple, List, Union
+from typing import Callable, Iterable, Sized, Tuple, List, Union, Optional
 
 import pipeline_dp
-from pipeline_dp import dp_computations
+from pipeline_dp import dp_computations, NormKind
 from pipeline_dp import budget_accounting
 import numpy as np
 import collections
@@ -822,7 +822,21 @@ class VectorSumCombiner(Combiner):
                 array_sum = val
             else:
                 array_sum += val
-        return array_sum
+        return self._clip_vector(array_sum)
+
+    def _clip_vector(self, vec: np.ndarray):
+        norm_kind: NormKind = self._params.aggregate_params.vector_norm_kind
+        max_norm: Optional[
+            float] = self._params.aggregate_params.vector_max_norm
+        if norm_kind == NormKind.Linf:
+            return np.clip(vec, -max_norm, max_norm)
+        if norm_kind in {NormKind.L1, NormKind.L2}:
+            norm_digit = int(str(norm_kind.value)[-1])  # 1 or 2
+            vec_norm = np.linalg.norm(vec, ord=norm_digit)
+            mul_coef = min(1, int(float(max_norm) / float(vec_norm)))
+            return vec * mul_coef
+        raise NotImplementedError(
+            f"Vector Norm of kind '{norm_kind}' is not supported.")
 
     def merge_accumulators(self, array_sum1: AccumulatorType,
                            array_sum2: AccumulatorType):
