@@ -82,6 +82,8 @@ def main(unused_argv):
         min_value=1,
         # .. and maximum rating of "5"
         max_value=5,
+        partition_selection_strategy=pipeline_dp.PartitionSelectionStrategy.
+        GAUSSIAN_THRESHOLDING,
         output_noise_stddev=FLAGS.output_noise_stddev)
 
     if FLAGS.pre_threshold:
@@ -107,7 +109,6 @@ def main(unused_argv):
         movie_views,
         params,
         data_extractors,
-        public_partitions=list(range(1, 100)),
         out_explain_computation_report=explain_computation_report)
 
     budget_accountant.compute_budgets()

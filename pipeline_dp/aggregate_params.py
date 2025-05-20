@@ -77,9 +77,9 @@ class NoiseKind(Enum):
     GAUSSIAN = 'gaussian'
 
     def convert_to_mechanism_type(self):
-        if self.value == NoiseKind.LAPLACE.value:
+        if self == NoiseKind.LAPLACE:
             return MechanismType.LAPLACE
-        if self.value == NoiseKind.GAUSSIAN.value:
+        if self == NoiseKind.GAUSSIAN:
             return MechanismType.GAUSSIAN
 
 
@@ -88,33 +88,61 @@ class PartitionSelectionStrategy(Enum):
     LAPLACE_THRESHOLDING = 'Laplace Thresholding'
     GAUSSIAN_THRESHOLDING = 'Gaussian Thresholding'
 
+    @property
+    def is_thresholding(self) -> bool:
+        return self in [self.LAPLACE_THRESHOLDING, self.GAUSSIAN_THRESHOLDING]
+
+    @property
+    def mechanism_type(self) -> 'MechanismType':
+        if self == self.GAUSSIAN_THRESHOLDING:
+            return MechanismType.GAUSSIAN_THRESHOLDING
+        if self == self.LAPLACE_THRESHOLDING:
+            return MechanismType.LAPLACE_THRESHOLDING
+        return MechanismType.TRUNCATED_GEOMETRIC
+
 
 class MechanismType(Enum):
     LAPLACE = 'Laplace'
     GAUSSIAN = 'Gaussian'
     LAPLACE_THRESHOLDING = 'Laplace Thresholding'
     GAUSSIAN_THRESHOLDING = 'Gaussian Thresholding'
+    TRUNCATED_GEOMETRIC = 'Truncated Geometric'
     GENERIC = 'Generic'
 
     def to_noise_kind(self):
-        if self.value == MechanismType.LAPLACE.value:
+        if self == MechanismType.LAPLACE:
             return NoiseKind.LAPLACE
-        if self.value == MechanismType.GAUSSIAN.value:
+        if self == MechanismType.GAUSSIAN:
             return NoiseKind.GAUSSIAN
-        if self.value == MechanismType.LAPLACE_THRESHOLDING.value:
+        if self == MechanismType.LAPLACE_THRESHOLDING:
             return NoiseKind.LAPLACE
-        if self.value == MechanismType.GAUSSIAN_THRESHOLDING.value:
+        if self == MechanismType.GAUSSIAN_THRESHOLDING:
             return NoiseKind.GAUSSIAN
         raise ValueError(f"MechanismType {self.value} can not be converted to "
                          f"NoiseKind")
 
     def to_partition_selection_strategy(self) -> PartitionSelectionStrategy:
-        if self.value == MechanismType.LAPLACE_THRESHOLDING.value:
+        if self == MechanismType.LAPLACE_THRESHOLDING:
             return PartitionSelectionStrategy.LAPLACE_THRESHOLDING
-        if self.value == MechanismType.GAUSSIAN_THRESHOLDING.value:
+        if self == MechanismType.GAUSSIAN_THRESHOLDING:
             return PartitionSelectionStrategy.GAUSSIAN_THRESHOLDING
         raise ValueError(f"MechanismType {self.value} can not be converted to "
                          f"PartitionSelectionStrategy")
+
+    @property
+    def is_thresholding_mechanism(self) -> bool:
+        return self in [
+            MechanismType.LAPLACE_THRESHOLDING,
+            MechanismType.GAUSSIAN_THRESHOLDING
+        ]
+
+    @property
+    def is_partition_selection(self) -> bool:
+        return self in [
+            MechanismType.TRUNCATED_GEOMETRIC,
+            MechanismType.LAPLACE_THRESHOLDING,
+            MechanismType.GAUSSIAN_THRESHOLDING
+        ]
 
 
 def noise_to_thresholding(noise_kind: NoiseKind) -> MechanismType:

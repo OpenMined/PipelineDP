@@ -466,7 +466,7 @@ class DpEngineTest(parameterized.TestCase):
                 "Cross-partition contribution bounding: for each privacy id "
                 "randomly select max(actual_partition_contributed, 3)",
                 "Private Partition selection: using Truncated Geometric "
-                "method with (eps="
+                "method with (epsilon="
             ],
         )
 
@@ -1363,21 +1363,6 @@ class DpEngineTest(parameterized.TestCase):
             aggregate_params.metrics = [pipeline_dp.Metrics.VARIANCE]
             engine.aggregate([1], aggregate_params,
                              self._get_default_extractors(), public_partitions)
-
-    @unittest.skipIf(
-        sys.version_info.major == 3 and sys.version_info.minor <= 8,
-        "dp_accounting library only support python >=3.9")
-    def test_pld_not_support_private_partition_selection(self):
-        with self.assertRaisesRegex(
-                NotImplementedError,
-                "PLD budget accounting does not support private partition"):
-            budget_accountant = pipeline_dp.PLDBudgetAccountant(
-                total_epsilon=1, total_delta=1e-10)
-            engine = pipeline_dp.DPEngine(budget_accountant=budget_accountant,
-                                          backend=pipeline_dp.LocalBackend())
-            aggregate_params, _ = self._create_params_default()
-            engine.aggregate([1], aggregate_params,
-                             self._get_default_extractors())
 
     @parameterized.named_parameters(
         dict(testcase_name='Gaussian',
