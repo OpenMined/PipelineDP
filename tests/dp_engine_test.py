@@ -1189,7 +1189,7 @@ class DpEngineTest(parameterized.TestCase):
         sys.version_info.major == 3 and sys.version_info.minor <= 8,
         "dp_accounting library only support python >=3.9")
     @parameterized.parameters(False, True)
-    def test_run_e2e_count_public_partition_local(self, pld_accounting=True):
+    def test_run_e2e_count_public_partition_local(self, pld_accounting):
         Accountant = pipeline_dp.PLDBudgetAccountant if pld_accounting else pipeline_dp.NaiveBudgetAccountant
         accountant = Accountant(total_epsilon=1,
                                 total_delta=1e-3,

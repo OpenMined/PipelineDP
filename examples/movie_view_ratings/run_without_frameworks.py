@@ -109,7 +109,6 @@ def main(unused_argv):
         movie_views,
         params,
         data_extractors,
-        # public_partitions=list(range(1, 100)),
         out_explain_computation_report=explain_computation_report)
 
     budget_accountant.compute_budgets()

@@ -52,7 +52,7 @@ class MechanismSpec:
     _noise_standard_deviation: Optional[float] = None
     _eps: Optional[float] = None
     _delta: Optional[float] = None
-    _count: Optional[int] = 1
+    _count: int = 1
     _thresholding_delta: Optional[float] = None
 
     @property

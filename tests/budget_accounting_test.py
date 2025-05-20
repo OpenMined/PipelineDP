@@ -535,7 +535,7 @@ class PLDBudgetAccountantTest(unittest.TestCase):
         accountant = PLDBudgetAccountant(total_epsilon=1.0, total_delta=1e-8)
         thresholding_budget = accountant.request_budget(
             MechanismType.GAUSSIAN_THRESHOLDING)
-        guasisan_budget = accountant.request_budget(MechanismType.GAUSSIAN)
+        gaussian_budget = accountant.request_budget(MechanismType.GAUSSIAN)
         accountant.compute_budgets()
 
         # Gaussian mechanism thresholding and Gaussian mechanism have to have the
@@ -544,16 +544,16 @@ class PLDBudgetAccountantTest(unittest.TestCase):
         self.assertAlmostEqual(thresholding_budget.noise_standard_deviation,
                                7.284667,
                                delta=1e-5)
-        self.assertAlmostEqual(guasisan_budget.noise_standard_deviation,
-                               7.284667,
-                               delta=1e-5)
+        self.assertEqual(gaussian_budget.noise_standard_deviation,
+                         thresholding_budget.noise_standard_deviation)
+        # thresholding gets 25% of total delta
         self.assertEqual(thresholding_budget.thresholding_delta, 1e-8 / 4)
 
     def test_compute_budgets_laplace_thresholding(self):
         accountant = PLDBudgetAccountant(total_epsilon=1.0, total_delta=1e-8)
         thresholding_budget = accountant.request_budget(
             MechanismType.LAPLACE_THRESHOLDING)
-        guasisan_budget = accountant.request_budget(MechanismType.LAPLACE,
+        gaussian_budget = accountant.request_budget(MechanismType.LAPLACE,
                                                     weight=2)
         accountant.compute_budgets()
 
@@ -563,7 +563,7 @@ class PLDBudgetAccountantTest(unittest.TestCase):
         self.assertAlmostEqual(thresholding_budget.noise_standard_deviation,
                                2 * expected_stddev,
                                delta=1e-5)
-        self.assertAlmostEqual(guasisan_budget.noise_standard_deviation,
+        self.assertAlmostEqual(gaussian_budget.noise_standard_deviation,
                                expected_stddev,
                                delta=1e-5)
         self.assertEqual(thresholding_budget.thresholding_delta, 1e-8 / 4)

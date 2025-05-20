@@ -141,7 +141,7 @@ def gaussian_epsilon(sigma: float, delta: float) -> float:
     if f(0) >= delta:
         L = 0
         R = 1
-        while f(R) > delta:
+        while f(R) >= delta:
             R *= 2
     else:
         R = 0
@@ -149,6 +149,7 @@ def gaussian_epsilon(sigma: float, delta: float) -> float:
         while f(L) < delta:
             L *= 2
 
+    # TODO: consider using algorithms from scipy.optimize.
     while R - L > 1e-10:
         M = (R + L) / 2
         if f(M) >= delta:

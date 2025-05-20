@@ -59,7 +59,7 @@ def create_gaussian_thresholding(
       else:
         return "not-release"
     Where `threshold` is chosen, such that the probability of releasing of a
-    partition with 1 privacy unit is less equal to thresholding_delta, i.e.
+    partition with 1 privacy unit is less or equal to thresholding_delta, i.e.
       P(1 + N(0, sigma^2) >= threshold) <= thresholding_delta.
 
     Args:
