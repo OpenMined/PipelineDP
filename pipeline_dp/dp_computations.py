@@ -238,20 +238,6 @@ class AdditiveVectorNoiseParams:
     noise_kind: pipeline_dp.NoiseKind
 
 
-def _clip_vector(vec: np.ndarray, max_norm: float,
-                 norm_kind: pipeline_dp.NormKind):
-    norm_kind = norm_kind.value  # type: str
-    if norm_kind == "linf":
-        return np.clip(vec, -max_norm, max_norm)
-    if norm_kind in {"l1", "l2"}:
-        norm_kind = int(norm_kind[-1])
-        vec_norm = np.linalg.norm(vec, ord=norm_kind)
-        mul_coef = min(1, max_norm / vec_norm)
-        return vec * mul_coef
-    raise NotImplementedError(
-        f"Vector Norm of kind '{norm_kind}' is not supported.")
-
-
 def add_noise_vector(vec: np.ndarray, noise_params: AdditiveVectorNoiseParams):
     """Adds noise to vector to make the vector sum computation (eps, delta)-DP.
 
@@ -259,7 +245,6 @@ def add_noise_vector(vec: np.ndarray, noise_params: AdditiveVectorNoiseParams):
         vec: the queried raw vector
         noise_params: parameters of the noise to add to the computation
     """
-    vec = _clip_vector(vec, noise_params.max_norm, noise_params.norm_kind)
     vec = np.array([
         _add_random_noise(
             s,
