@@ -776,7 +776,11 @@ class LocalBackend(PipelineBackend):
         return self._maybe_reiterable(sample_fixed_per_key_generator())
 
     def count_per_element(self, col, stage_name: typing.Optional[str] = None):
-        return self._maybe_reiterable(collections.Counter(col).items())
+
+        def not_reiterable():
+            yield from collections.Counter(col).items()
+
+        return self._maybe_reiterable(not_reiterable())
 
     def sum_per_key(self, col, stage_name: typing.Optional[str] = None):
         return self._maybe_reiterable(
