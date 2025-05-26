@@ -119,10 +119,7 @@ def main(unused_argv):
 
     # Here's where the lazy iterator initiates computations and gets transformed
     # into actual results
-    import time
-    start = time.time()
     dp_result = list(dp_result)
-    print(f"Elapsed time = {time.time()-start}")
 
     # Save the results
     write_to_file(dp_result, FLAGS.output_file)

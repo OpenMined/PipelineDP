@@ -659,11 +659,28 @@ class LazySingleton:
 class LocalBackend(PipelineBackend):
     """Local Pipeline adapter."""
 
+    def __init__(self, output_reiterable: bool = True):
+        """
+        Args:
+          output_reiterable: if true, output of all methods are reiterable,
+           i.e. it's possible to run iteration any number of time. It is
+           guaranteed that the iteration output is the same on each iteration.
+           Setting it to False, make things faster (~16%), and require ~2 times
+           less memory (no need to cache each output) but can lead to
+           errors.
+        """
+        self._output_reiterable = output_reiterable
+
+    def _maybe_reiterable(self, col):
+        if self._output_reiterable:
+            return ReiterableLazyIterable(col)
+        return col
+
     def to_multi_transformable_collection(self, col):
         return ReiterableLazyIterable(col)
 
     def map(self, col, fn, stage_name: typing.Optional[str] = None):
-        return ReiterableLazyIterable(map(fn, col))
+        return self._maybe_reiterable(map(fn, col))
 
     def map_with_side_inputs(self,
                              col,
@@ -676,10 +693,10 @@ class LocalBackend(PipelineBackend):
             side_input_values = [s.singleton() for s in side_inputs_singletons]
             return fn(x, *side_input_values)
 
-        return ReiterableLazyIterable(map(map_fn, col))
+        return self._maybe_reiterable(map(map_fn, col))
 
     def flat_map(self, col, fn, stage_name: str = None):
-        return ReiterableLazyIterable((x for el in col for x in fn(el)))
+        return self._maybe_reiterable((x for el in col for x in fn(el)))
 
     def flat_map_with_side_inputs(self, col, fn, side_input_cols,
                                   stage_name: str):
@@ -689,13 +706,13 @@ class LocalBackend(PipelineBackend):
             side_input_values = [s.singleton() for s in side_inputs_singletons]
             return fn(x, *side_input_values)
 
-        return ReiterableLazyIterable(self.flat_map(col, map_fn))
+        return self._maybe_reiterable(self.flat_map(col, map_fn))
 
     def map_tuple(self, col, fn, stage_name: str = None):
-        return ReiterableLazyIterable(map(lambda x: fn(*x), col))
+        return self._maybe_reiterable(map(lambda x: fn(*x), col))
 
     def map_values(self, col, fn, stage_name: typing.Optional[str] = None):
-        return ReiterableLazyIterable(((k, fn(v)) for k, v in col))
+        return self._maybe_reiterable(((k, fn(v)) for k, v in col))
 
     def group_by_key(self, col, stage_name: typing.Optional[str] = None):
 
@@ -706,10 +723,10 @@ class LocalBackend(PipelineBackend):
             for item in d.items():
                 yield item
 
-        return ReiterableLazyIterable(group_by_key_generator())
+        return self._maybe_reiterable(group_by_key_generator())
 
     def filter(self, col, fn, stage_name: typing.Optional[str] = None):
-        return ReiterableLazyIterable(filter(fn, col))
+        return self._maybe_reiterable(filter(fn, col))
 
     def filter_with_side_inputs(self,
                                 col,
@@ -722,7 +739,7 @@ class LocalBackend(PipelineBackend):
             side_input_values = [s.singleton() for s in side_inputs_singletons]
             return fn(x, *side_input_values)
 
-        return ReiterableLazyIterable(self.filter(col, map_fn))
+        return self._maybe_reiterable(self.filter(col, map_fn))
 
     def filter_by_key(
         self,
@@ -735,10 +752,10 @@ class LocalBackend(PipelineBackend):
         return (kv for kv in col if kv[0] in keys_to_keep)
 
     def keys(self, col, stage_name: typing.Optional[str] = None):
-        return ReiterableLazyIterable((k for k, v in col))
+        return self._maybe_reiterable((k for k, v in col))
 
     def values(self, col, stage_name: typing.Optional[str] = None):
-        return ReiterableLazyIterable((v for k, v in col))
+        return self._maybe_reiterable((v for k, v in col))
 
     def sample_fixed_per_key(self,
                              col,
@@ -756,13 +773,13 @@ class LocalBackend(PipelineBackend):
                     values = [values[i] for i in sampled_indices]
                 yield key, values
 
-        return ReiterableLazyIterable(sample_fixed_per_key_generator())
+        return self._maybe_reiterable(sample_fixed_per_key_generator())
 
     def count_per_element(self, col, stage_name: typing.Optional[str] = None):
-        return ReiterableLazyIterable(collections.Counter(col).items())
+        return self._maybe_reiterable(collections.Counter(col).items())
 
     def sum_per_key(self, col, stage_name: typing.Optional[str] = None):
-        return ReiterableLazyIterable(
+        return self._maybe_reiterable(
             self.map_values(self.group_by_key(col), sum))
 
     def combine_accumulators_per_key(self,
@@ -775,16 +792,16 @@ class LocalBackend(PipelineBackend):
                 lambda acc1, acc2: combiner.merge_accumulators(acc1, acc2),
                 accumulators)
 
-        return ReiterableLazyIterable(
+        return self._maybe_reiterable(
             self.map_values(self.group_by_key(col), merge_accumulators))
 
     def reduce_per_key(self, col, fn: Callable, stage_name: str):
         combine_fn = lambda elements: functools.reduce(fn, elements)
-        return ReiterableLazyIterable(
+        return self._maybe_reiterable(
             self.map_values(self.group_by_key(col), combine_fn))
 
     def flatten(self, cols, stage_name: str = None):
-        return ReiterableLazyIterable(itertools.chain(*cols))
+        return self._maybe_reiterable(itertools.chain(*cols))
 
     def distinct(self, col, stage_name: str):
 
@@ -792,10 +809,10 @@ class LocalBackend(PipelineBackend):
             for v in set(col):
                 yield v
 
-        return ReiterableLazyIterable(generator())
+        return self._maybe_reiterable(generator())
 
     def to_list(self, col, stage_name: str):
-        return ReiterableLazyIterable((list(col) for _ in range(1)))
+        return self._maybe_reiterable((list(col) for _ in range(1)))
 
 
 class Annotator(abc.ABC):
