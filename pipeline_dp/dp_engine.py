@@ -28,6 +28,9 @@ from pipeline_dp import sampling_utils
 from pipeline_dp.dataset_histograms import computing_histograms
 from pipeline_dp.private_contribution_bounds import PrivateL0Calculator
 
+AddDPNoiseOutput = collections.namedtuple("AddDPNoiseOutput",
+                                          ["noised_value", "noise_stddev"])
+
 
 class DPEngine:
     """Performs DP aggregations."""
@@ -589,8 +592,10 @@ class DPEngine:
             it will contain the Explain Computation report for this aggregation.
             For more details see the docstring to report_generator.py.
         Returns:
-            Collection of (partition_key, value + noise) with the same
-            partition keys as in the input collection.
+            In case of params.output_noise_stddev it returns collection of
+            (partition_key, AddDPNoiseOutput) else
+            collection of (partition_key, value + noise).
+            Output partition keys are the same as in the input collection.
         """
         # Request budget and create Sensitivities object
         mechanism_type = params.noise_kind.convert_to_mechanism_type()
@@ -620,12 +625,11 @@ class DPEngine:
             f"parameter {create_mechanism().noise_parameter}")
 
         if params.output_noise_stddev:
-            Output = collections.namedtuple("Output",
-                                            ["noised_value", "noise_stddev"])
 
-            def add_noise(value: Union[int, float]) -> float:
+            def add_noise(value: Union[int, float]) -> AddDPNoiseOutput:
                 mechanism = create_mechanism()
-                return Output(mechanism.add_noise(value), mechanism.std)
+                return AddDPNoiseOutput(mechanism.add_noise(value),
+                                        mechanism.std)
         else:
 
             def add_noise(value: Union[int, float]) -> float:
