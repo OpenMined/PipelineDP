@@ -663,7 +663,7 @@ class LocalBackend(PipelineBackend):
         return ReiterableLazyIterable(col)
 
     def map(self, col, fn, stage_name: typing.Optional[str] = None):
-        return map(fn, col)
+        return ReiterableLazyIterable(map(fn, col))
 
     def map_with_side_inputs(self,
                              col,
@@ -676,10 +676,10 @@ class LocalBackend(PipelineBackend):
             side_input_values = [s.singleton() for s in side_inputs_singletons]
             return fn(x, *side_input_values)
 
-        return map(map_fn, col)
+        return ReiterableLazyIterable(map(map_fn, col))
 
     def flat_map(self, col, fn, stage_name: str = None):
-        return (x for el in col for x in fn(el))
+        return ReiterableLazyIterable((x for el in col for x in fn(el)))
 
     def flat_map_with_side_inputs(self, col, fn, side_input_cols,
                                   stage_name: str):
@@ -689,13 +689,13 @@ class LocalBackend(PipelineBackend):
             side_input_values = [s.singleton() for s in side_inputs_singletons]
             return fn(x, *side_input_values)
 
-        return self.flat_map(col, map_fn)
+        return ReiterableLazyIterable(self.flat_map(col, map_fn))
 
     def map_tuple(self, col, fn, stage_name: str = None):
-        return map(lambda x: fn(*x), col)
+        return ReiterableLazyIterable(map(lambda x: fn(*x), col))
 
     def map_values(self, col, fn, stage_name: typing.Optional[str] = None):
-        return ((k, fn(v)) for k, v in col)
+        return ReiterableLazyIterable(((k, fn(v)) for k, v in col))
 
     def group_by_key(self, col, stage_name: typing.Optional[str] = None):
 
@@ -706,10 +706,10 @@ class LocalBackend(PipelineBackend):
             for item in d.items():
                 yield item
 
-        return group_by_key_generator()
+        return ReiterableLazyIterable(group_by_key_generator())
 
     def filter(self, col, fn, stage_name: typing.Optional[str] = None):
-        return filter(fn, col)
+        return ReiterableLazyIterable(filter(fn, col))
 
     def filter_with_side_inputs(self,
                                 col,
@@ -722,7 +722,7 @@ class LocalBackend(PipelineBackend):
             side_input_values = [s.singleton() for s in side_inputs_singletons]
             return fn(x, *side_input_values)
 
-        return self.filter(col, map_fn)
+        return ReiterableLazyIterable(self.filter(col, map_fn))
 
     def filter_by_key(
         self,
@@ -735,10 +735,10 @@ class LocalBackend(PipelineBackend):
         return (kv for kv in col if kv[0] in keys_to_keep)
 
     def keys(self, col, stage_name: typing.Optional[str] = None):
-        return (k for k, v in col)
+        return ReiterableLazyIterable((k for k, v in col))
 
     def values(self, col, stage_name: typing.Optional[str] = None):
-        return (v for k, v in col)
+        return ReiterableLazyIterable((v for k, v in col))
 
     def sample_fixed_per_key(self,
                              col,
@@ -756,13 +756,14 @@ class LocalBackend(PipelineBackend):
                     values = [values[i] for i in sampled_indices]
                 yield key, values
 
-        return sample_fixed_per_key_generator()
+        return ReiterableLazyIterable(sample_fixed_per_key_generator())
 
     def count_per_element(self, col, stage_name: typing.Optional[str] = None):
-        yield from collections.Counter(col).items()
+        return ReiterableLazyIterable(collections.Counter(col).items())
 
     def sum_per_key(self, col, stage_name: typing.Optional[str] = None):
-        return self.map_values(self.group_by_key(col), sum)
+        return ReiterableLazyIterable(
+            self.map_values(self.group_by_key(col), sum))
 
     def combine_accumulators_per_key(self,
                                      col,
@@ -774,14 +775,16 @@ class LocalBackend(PipelineBackend):
                 lambda acc1, acc2: combiner.merge_accumulators(acc1, acc2),
                 accumulators)
 
-        return self.map_values(self.group_by_key(col), merge_accumulators)
+        return ReiterableLazyIterable(
+            self.map_values(self.group_by_key(col), merge_accumulators))
 
     def reduce_per_key(self, col, fn: Callable, stage_name: str):
         combine_fn = lambda elements: functools.reduce(fn, elements)
-        return self.map_values(self.group_by_key(col), combine_fn)
+        return ReiterableLazyIterable(
+            self.map_values(self.group_by_key(col), combine_fn))
 
     def flatten(self, cols, stage_name: str = None):
-        return itertools.chain(*cols)
+        return ReiterableLazyIterable(itertools.chain(*cols))
 
     def distinct(self, col, stage_name: str):
 
@@ -789,10 +792,10 @@ class LocalBackend(PipelineBackend):
             for v in set(col):
                 yield v
 
-        return generator()
+        return ReiterableLazyIterable(generator())
 
     def to_list(self, col, stage_name: str):
-        return (list(col) for _ in range(1))
+        return ReiterableLazyIterable((list(col) for _ in range(1)))
 
 
 class Annotator(abc.ABC):
