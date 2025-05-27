@@ -21,7 +21,7 @@ from typing import List, Optional
 import pipeline_dp
 import pipeline_dp.combiners as dp_combiners
 import pipeline_dp.budget_accounting as ba
-from pipeline_dp import aggregate_params
+from pipeline_dp import aggregate_params, NormKind
 
 import numpy as np
 
@@ -46,9 +46,9 @@ class EmptyCombiner(dp_combiners.Combiner):
 
 
 def _create_mechanism_spec(
-    no_noise: bool,
-    mechanism_type: pipeline_dp.MechanismType = pipeline_dp.MechanismType.
-    GAUSSIAN
+        no_noise: bool,
+        mechanism_type: pipeline_dp.MechanismType = pipeline_dp.MechanismType.
+        GAUSSIAN
 ) -> ba.MechanismSpec:
     if no_noise:
         eps, delta = 1e5, 1.0 - 1e-5
@@ -226,10 +226,10 @@ class CreateCompoundCombinersTest(parameterized.TestCase):
 class CountCombinerTest(parameterized.TestCase):
 
     def _create_combiner(
-        self,
-        no_noise: bool,
-        mechanism_type: pipeline_dp.MechanismType = pipeline_dp.MechanismType.
-        GAUSSIAN
+            self,
+            no_noise: bool,
+            mechanism_type: pipeline_dp.MechanismType = pipeline_dp.MechanismType.
+            GAUSSIAN
     ) -> dp_combiners.CountCombiner:
         mechanism_spec = _create_mechanism_spec(no_noise, mechanism_type)
         aggregate_params = _create_aggregate_params()
@@ -297,10 +297,10 @@ class CountCombinerTest(parameterized.TestCase):
 class PrivacyIdCountCombinerTest(parameterized.TestCase):
 
     def _create_combiner(
-        self,
-        no_noise: bool,
-        mechanism_type: pipeline_dp.MechanismType = pipeline_dp.MechanismType.
-        GAUSSIAN
+            self,
+            no_noise: bool,
+            mechanism_type: pipeline_dp.MechanismType = pipeline_dp.MechanismType.
+            GAUSSIAN
     ) -> dp_combiners.PrivacyIdCountCombiner:
         mechanism_spec = _create_mechanism_spec(no_noise, mechanism_type)
         aggregate_params = _create_aggregate_params()
@@ -369,12 +369,12 @@ class PrivacyIdCountCombinerTest(parameterized.TestCase):
 class PostAggregationThresholdingCombinerTest(parameterized.TestCase):
 
     def _create_combiner(
-        self,
-        small_noise: bool = False,
-        noise_kind: pipeline_dp.NoiseKind = pipeline_dp.NoiseKind.GAUSSIAN,
-        pre_threshold: Optional[int] = None
+            self,
+            small_noise: bool = False,
+            noise_kind: pipeline_dp.NoiseKind = pipeline_dp.NoiseKind.GAUSSIAN,
+            pre_threshold: Optional[int] = None
     ) -> dp_combiners.PostAggregationThresholdingCombiner:
-        eps, delta = (10**3, 0.1) if small_noise else (1, 1e-10)
+        eps, delta = (10 ** 3, 0.1) if small_noise else (1, 1e-10)
         budget_accountant = pipeline_dp.NaiveBudgetAccountant(eps, delta)
         aggregate_params = _create_aggregate_params()
         aggregate_params.noise_kind = noise_kind
@@ -492,12 +492,12 @@ class SumCombinerTest(parameterized.TestCase):
             metrics=[pipeline_dp.Metrics.SUM])
 
     def _create_combiner(
-        self,
-        no_noise: bool,
-        per_partition_bound: bool,
-        max_value=1.0,
-        mechanism_type: pipeline_dp.MechanismType = pipeline_dp.MechanismType.
-        GAUSSIAN
+            self,
+            no_noise: bool,
+            per_partition_bound: bool,
+            max_value=1.0,
+            mechanism_type: pipeline_dp.MechanismType = pipeline_dp.MechanismType.
+            GAUSSIAN
     ) -> dp_combiners.SumCombiner:
         mechanism_spec = _create_mechanism_spec(no_noise, mechanism_type)
         if per_partition_bound:
@@ -783,7 +783,7 @@ class CompoundCombinerTest(parameterized.TestCase):
             dp_combiners.CountCombiner(mechanism_spec, aggregate_params),
             dp_combiners.SumCombiner(mechanism_spec, aggregate_params)
         ],
-                                             return_named_tuple=True)
+            return_named_tuple=True)
 
     @parameterized.named_parameters(
         dict(testcase_name='no_noise', no_noise=True),
@@ -834,7 +834,6 @@ class CompoundCombinerTest(parameterized.TestCase):
         self.assertTrue(np.var(noised_sum) > 1)  # check that noise is added
 
     def test_expects_per_partition_sampling(self):
-
         class MockCombiner(EmptyCombiner):
 
             def __init__(self, return_value: bool):
@@ -877,14 +876,31 @@ class VectorSumCombinerTest(parameterized.TestCase):
                                          np.array([1.])]))
 
     @parameterized.named_parameters(
-        dict(testcase_name='no_noise', no_noise=True),
-        dict(testcase_name='noise', no_noise=False),
+        dict(testcase_name='Linf_no_noise',
+             norm_kind=NormKind.Linf,
+             no_noise=True),
+        dict(testcase_name='Linf_noise',
+             norm_kind=NormKind.Linf,
+             no_noise=False),
+        # L0 noise not implemented at the moment
+        dict(testcase_name='L1_no_noise', norm_kind=NormKind.L1, no_noise=True),
+        dict(testcase_name='L1_noise', norm_kind=NormKind.L1, no_noise=False),
+        dict(testcase_name='L2_no_noise', norm_kind=NormKind.L2, no_noise=True),
+        dict(testcase_name='L2_noise', norm_kind=NormKind.L2, no_noise=False),
     )
-    def test_create_accumulator_clips_individual_contributions(self, no_noise):
-        combiner = self._create_combiner(no_noise, vector_size=1)
-        self.assertEqual(np.array([5]), combiner.create_accumulator([[6]]))
+    def test_create_accumulator_clips_individual_contributions(
+            self, norm_kind, no_noise):
+        norm = 5
+        mechanism_spec = _create_mechanism_spec(no_noise)
+        aggregate_params = _create_aggregate_params(vector_size=1)
+        aggregate_params.vector_max_norm = norm
+        aggregate_params.vector_norm_kind = norm_kind
+        params = dp_combiners.CombinerParams(mechanism_spec, aggregate_params)
+        combiner = dp_combiners.VectorSumCombiner(params)
+
+        self.assertEqual(np.array([norm]), combiner.create_accumulator([[6]]))
         self.assertEqual(
-            np.array([5]),
+            np.array([norm]),
             combiner.create_accumulator([np.array([7]),
                                          np.array([8])]))
 
