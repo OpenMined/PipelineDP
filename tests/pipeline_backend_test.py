@@ -21,6 +21,7 @@ import apache_beam.testing.test_pipeline as test_pipeline
 import apache_beam.testing.util as beam_util
 from absl.testing import parameterized
 
+import pipeline_dp
 import pipeline_dp.combiners as dp_combiners
 from pipeline_dp import DataExtractors
 from pipeline_dp.pipeline_backend import BeamBackend
@@ -742,6 +743,12 @@ class LocalBackendTest(unittest.TestCase):
         input = [3, 2, 1, 3, 5, 4, 1, 1, 2]
         output = set(self.backend.distinct(input, "distinct"))
         self.assertSetEqual({1, 2, 3, 4, 5}, output)
+
+    def test_output_reiterable(self):
+        backend = pipeline_dp.LocalBackend()
+        output = backend.map([1, 2, 3], lambda x: x, "Map")
+        self.assertEqual(list(output), [1, 2, 3])
+        self.assertEqual(list(output), [1, 2, 3])
 
 
 class SumCombiner(dp_combiners.Combiner):
