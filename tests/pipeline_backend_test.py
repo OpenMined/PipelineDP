@@ -744,14 +744,8 @@ class LocalBackendTest(unittest.TestCase):
         output = set(self.backend.distinct(input, "distinct"))
         self.assertSetEqual({1, 2, 3, 4, 5}, output)
 
-    def test_output_reiterable_false(self):
-        backend = pipeline_dp.LocalBackend(output_reiterable=False)
-        output = backend.map([1, 2, 3], lambda x: x, "Map")
-        self.assertEqual(list(output), [1, 2, 3])
-        self.assertEqual(list(output), [])
-
-    def test_output_reiterable_true(self):
-        backend = pipeline_dp.LocalBackend(output_reiterable=True)
+    def test_output_reiterable(self):
+        backend = pipeline_dp.LocalBackend()
         output = backend.map([1, 2, 3], lambda x: x, "Map")
         self.assertEqual(list(output), [1, 2, 3])
         self.assertEqual(list(output), [1, 2, 3])
