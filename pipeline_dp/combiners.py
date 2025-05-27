@@ -55,7 +55,8 @@ class Combiner(abc.ABC):
 
     @abc.abstractmethod
     def create_accumulator(self, values):
-        """Creates accumulator from 'values'. values are from one privacy ID"""
+        """Creates accumulator from 'values'. Values should be all the contributions of a given privacy ID for a
+        partition."""
 
     @abc.abstractmethod
     def merge_accumulators(self, accumulator1, accumulator2):
@@ -831,9 +832,9 @@ class VectorSumCombiner(Combiner):
         if norm_kind == NormKind.Linf:
             return np.clip(vec, -max_norm, max_norm)
         if norm_kind in {NormKind.L1, NormKind.L2}:
-            norm_digit = int(str(norm_kind.value)[-1])  # 1 or 2
+            norm_digit = int(norm_kind.value[-1])  # 1 or 2
             vec_norm = np.linalg.norm(vec, ord=norm_digit)
-            mul_coef = min(1, int(float(max_norm) / float(vec_norm)))
+            mul_coef = min(1, max_norm / vec_norm)
             return vec * mul_coef
         raise NotImplementedError(
             f"Vector Norm of kind '{norm_kind}' is not supported.")
