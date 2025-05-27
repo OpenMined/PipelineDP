@@ -21,6 +21,7 @@ import apache_beam.testing.test_pipeline as test_pipeline
 import apache_beam.testing.util as beam_util
 from absl.testing import parameterized
 
+import pipeline_dp
 import pipeline_dp.combiners as dp_combiners
 from pipeline_dp import DataExtractors
 from pipeline_dp.pipeline_backend import BeamBackend
@@ -77,6 +78,20 @@ class BeamBackendTest(parameterized.TestCase):
 
             expected_result = [36, 37, 38]
             beam_util.assert_that(result, beam_util.equal_to(expected_result))
+
+    def test_filter_with_side_inputs(self):
+        with test_pipeline.TestPipeline() as p:
+            data = p | "Create data" >> beam.Create([1, 2, 3, 4, 5, 6])
+            side_input1 = p | "Create side_input1" >> beam.Create([[2, 4]])
+            side_input2 = p | "Create side_input2" >> beam.Create([[5]])
+
+            def filter_fn(x, side_input1, side_input2):
+                return x in side_input1 or x in side_input2
+
+            result = self.backend.filter_with_side_inputs(
+                data, filter_fn, [side_input1, side_input2], "Filter")
+
+            beam_util.assert_that(result, beam_util.equal_to([2, 4, 5]))
 
     def test_filter_by_key_must_not_be_none(self):
         with test_pipeline.TestPipeline() as p:
@@ -561,6 +576,17 @@ class LocalBackendTest(unittest.TestCase):
             list(self.backend.filter(example_list, lambda x: x < 3)),
             [1, 2, 2, 2])
 
+    def test_filter_with_side_inputs(self):
+        data = [1, 2, 3, 4, 5, 6]
+        side_input = [[2, 4]]  # side_input must be singleton (i.e. 1 element).
+
+        def filter_fn(x, side_input):
+            return x in side_input
+
+        result = list(
+            self.backend.filter_with_side_inputs(data, filter_fn, [side_input]))
+        self.assertEqual(result, [2, 4])
+
     def test_filter_by_key_empty_keys_to_keep(self):
         col = [(7, 1), (2, 1), (3, 9), (4, 1), (9, 10)]
         keys_to_keep = []
@@ -717,6 +743,12 @@ class LocalBackendTest(unittest.TestCase):
         input = [3, 2, 1, 3, 5, 4, 1, 1, 2]
         output = set(self.backend.distinct(input, "distinct"))
         self.assertSetEqual({1, 2, 3, 4, 5}, output)
+
+    def test_output_reiterable(self):
+        backend = pipeline_dp.LocalBackend()
+        output = backend.map([1, 2, 3], lambda x: x, "Map")
+        self.assertEqual(list(output), [1, 2, 3])
+        self.assertEqual(list(output), [1, 2, 3])
 
 
 class SumCombiner(dp_combiners.Combiner):

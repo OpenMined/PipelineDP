@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """DP aggregations."""
+import collections
 import functools
 from typing import Any, Callable, Optional, Sequence, Tuple, Union
 
@@ -26,6 +27,9 @@ from pipeline_dp import report_generator
 from pipeline_dp import sampling_utils
 from pipeline_dp.dataset_histograms import computing_histograms
 from pipeline_dp.private_contribution_bounds import PrivateL0Calculator
+
+DpNoiseAdditionResult = collections.namedtuple("DpNoiseAdditionResult",
+                                               ["noised_value", "noise_stddev"])
 
 
 class DPEngine:
@@ -336,8 +340,7 @@ class DPEngine:
         Returns:
             collection of elements (partition_key, accumulator).
         """
-        budget = self._budget_accountant.request_budget(
-            mechanism_type=pipeline_dp.MechanismType.GENERIC)
+        budget = self._budget_accountant.request_budget(strategy.mechanism_type)
 
         def filter_fn(
             budget: 'MechanismSpec', max_partitions: int,
@@ -359,9 +362,9 @@ class DPEngine:
             privacy_id_count = divide_and_round_up(row_count,
                                                    max_rows_per_privacy_id)
 
-            selector = partition_selection.create_partition_selection_strategy(
-                strategy, budget.eps, budget.delta, max_partitions,
-                pre_threshold)
+            selector = _create_partition_selector(strategy, budget,
+                                                  max_partitions, pre_threshold)
+
             return selector.should_keep(privacy_id_count)
 
         # make filter_fn serializable
@@ -370,10 +373,22 @@ class DPEngine:
                                       max_rows_per_privacy_id, strategy,
                                       pre_threshold)
         pre_threshold_str = f", pre_threshold={pre_threshold}" if pre_threshold else ""
-        self._add_report_stage(
-            lambda: f"Private Partition selection: using {strategy.value} "
-            f"method with (eps={budget.eps}, delta={budget.delta}"
-            f"{pre_threshold_str})")
+
+        def generate_partition_selection_text() -> str:
+            if budget.standard_deviation_is_set:
+                # PLD case for thresholding.
+                noise_stddev = budget.noise_standard_deviation
+                thresholding_delta = budget.thresholding_delta
+                parameters = f"{noise_stddev=}, {thresholding_delta=}"
+            else:
+                epsilon = budget.eps
+                delta = budget.delta
+                parameters = f"{epsilon=}, delta={delta=}"
+            text = f"""Private Partition selection: using {strategy.value}
+            f"method with ({parameters}, {pre_threshold_str})"""
+            return text
+
+        self._add_report_stage(generate_partition_selection_text)
 
         return self._backend.filter(col, filter_fn, "Filter private partitions")
 
@@ -533,9 +548,6 @@ class DPEngine:
                       pipeline_dp.NaiveBudgetAccountant):
             # All aggregations support NaiveBudgetAccountant.
             return
-        if not is_public_partition:
-            raise NotImplementedError("PLD budget accounting does not support "
-                                      "private partition selection")
         supported_metrics = [
             pipeline_dp.Metrics.COUNT, pipeline_dp.Metrics.PRIVACY_ID_COUNT,
             pipeline_dp.Metrics.SUM, pipeline_dp.Metrics.MEAN
@@ -580,8 +592,10 @@ class DPEngine:
             it will contain the Explain Computation report for this aggregation.
             For more details see the docstring to report_generator.py.
         Returns:
-            Collection of (partition_key, value + noise) with the same
-            partition keys as in the input collection.
+            In case of params.output_noise_stddev it returns collection of
+            (partition_key, DpNoiseAdditionResult) else
+            collection of (partition_key, value + noise).
+            Output partition keys are the same as in the input collection.
         """
         # Request budget and create Sensitivities object
         mechanism_type = params.noise_kind.convert_to_mechanism_type()
@@ -609,8 +623,19 @@ class DPEngine:
         self._add_report_stage(
             lambda: f"Adding {create_mechanism().noise_kind} noise with "
             f"parameter {create_mechanism().noise_parameter}")
-        anonymized_col = self._backend.map_values(
-            col, lambda value: create_mechanism().add_noise(value), "Add noise")
+
+        if params.output_noise_stddev:
+
+            def add_noise(value: Union[int, float]) -> DpNoiseAdditionResult:
+                mechanism = create_mechanism()
+                return DpNoiseAdditionResult(mechanism.add_noise(value),
+                                             mechanism.std)
+        else:
+
+            def add_noise(value: Union[int, float]) -> float:
+                return create_mechanism().add_noise(value)
+
+        anonymized_col = self._backend.map_values(col, add_noise, "Add noise")
 
         budget = self._budget_accountant._compute_budget_for_aggregation(
             params.budget_weight)
@@ -636,3 +661,20 @@ def _check_data_extractors(data_extractors: pipeline_dp.DataExtractors):
         raise ValueError("data_extractors must be set to a DataExtractors")
     if not isinstance(data_extractors, pipeline_dp.DataExtractors):
         raise TypeError("data_extractors must be set to a DataExtractors")
+
+
+def _create_partition_selector(strategy: pipeline_dp.PartitionSelectionStrategy,
+                               budget: budget_accounting.MechanismSpec,
+                               max_partitions: int, pre_threshold: int):
+    if budget.standard_deviation_is_set:
+        assert strategy.is_thresholding
+        if strategy == pipeline_dp.PartitionSelectionStrategy.LAPLACE_THRESHOLDING:
+            return partition_selection.create_laplace_thresholding(
+                budget.noise_standard_deviation, budget.thresholding_delta,
+                max_partitions, pre_threshold)
+        return partition_selection.create_gaussian_thresholding(
+            budget.noise_standard_deviation, budget.thresholding_delta,
+            max_partitions, pre_threshold)
+
+    return partition_selection.create_partition_selection_strategy(
+        strategy, budget.eps, budget.delta, max_partitions, pre_threshold)

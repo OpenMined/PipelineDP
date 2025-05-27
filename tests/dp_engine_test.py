@@ -466,7 +466,7 @@ class DpEngineTest(parameterized.TestCase):
                 "Cross-partition contribution bounding: for each privacy id "
                 "randomly select max(actual_partition_contributed, 3)",
                 "Private Partition selection: using Truncated Geometric "
-                "method with (eps="
+                "method with (epsilon="
             ],
         )
 
@@ -1364,21 +1364,6 @@ class DpEngineTest(parameterized.TestCase):
             engine.aggregate([1], aggregate_params,
                              self._get_default_extractors(), public_partitions)
 
-    @unittest.skipIf(
-        sys.version_info.major == 3 and sys.version_info.minor <= 8,
-        "dp_accounting library only support python >=3.9")
-    def test_pld_not_support_private_partition_selection(self):
-        with self.assertRaisesRegex(
-                NotImplementedError,
-                "PLD budget accounting does not support private partition"):
-            budget_accountant = pipeline_dp.PLDBudgetAccountant(
-                total_epsilon=1, total_delta=1e-10)
-            engine = pipeline_dp.DPEngine(budget_accountant=budget_accountant,
-                                          backend=pipeline_dp.LocalBackend())
-            aggregate_params, _ = self._create_params_default()
-            engine.aggregate([1], aggregate_params,
-                             self._get_default_extractors())
-
     @parameterized.named_parameters(
         dict(testcase_name='Gaussian',
              noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
@@ -1427,7 +1412,8 @@ class DpEngineTest(parameterized.TestCase):
                                           l1=l1_sensitivity,
                                           l2=l2_sensitivity))
 
-    def test_run_e2e_add_dp_noise(self):
+    @parameterized.parameters(False, True)
+    def test_run_e2e_add_dp_noise(self, output_noise_stddev: bool):
         # Arrange
         data = [(i, i) for i in range(100)]
         accountant = pipeline_dp.NaiveBudgetAccountant(total_epsilon=2,
@@ -1437,7 +1423,8 @@ class DpEngineTest(parameterized.TestCase):
         params = pipeline_dp.aggregate_params.AddDPNoiseParams(
             noise_kind=pipeline_dp.NoiseKind.LAPLACE,
             l0_sensitivity=5,
-            linf_sensitivity=15)
+            linf_sensitivity=15,
+            output_noise_stddev=output_noise_stddev)
 
         # Act
         output = engine.add_dp_noise(
@@ -1447,7 +1434,13 @@ class DpEngineTest(parameterized.TestCase):
         accountant.compute_budgets()
         output = list(output)
         # Assert
-        noise_values = [(value - index) for index, value in output]
+        if output_noise_stddev:
+            noise_values = [
+                (value.noised_value - index) for index, value in output
+            ]
+            self.assertAlmostEqual(output[0][1].noise_stddev, 53.03, delta=0.01)
+        else:
+            noise_values = [(value - index) for index, value in output]
         self.assertGreater(np.std(noise_values), 10)
         # Expected Laplace parameter is
         # l0_sensitivity*linf_sensitivity/epsilon = 5*15/2 = 37.5
