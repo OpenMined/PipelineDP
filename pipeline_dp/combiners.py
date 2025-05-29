@@ -14,16 +14,17 @@
 """Combiners for computing DP aggregations."""
 
 import abc
-import copy
-from typing import Callable, Iterable, Sized, Tuple, List, Union, Optional
-
-import pipeline_dp
-from pipeline_dp import dp_computations, NormKind
-from pipeline_dp import budget_accounting
-import numpy as np
 import collections
+import copy
+from typing import Callable, Iterable, Sized, Tuple, List, Union
+
+import numpy as np
 import pydp
 from pydp.algorithms import quantile_tree
+
+import pipeline_dp
+from pipeline_dp import budget_accounting
+from pipeline_dp import dp_computations, NormKind
 
 ArrayLike = Union[np.ndarray, List[float]]
 ExplainComputationReport = Union[Callable, str, List[Union[Callable, str]]]
@@ -55,8 +56,16 @@ class Combiner(abc.ABC):
 
     @abc.abstractmethod
     def create_accumulator(self, values):
-        """Creates accumulator from 'values'. Values should be all the contributions of a given privacy ID for a
-        partition."""
+        """Creates an accumulator from a collection of privacy ID contributions.
+
+            Args:
+                values: A collection of contributions from a single privacy ID within a
+                    specific partition. These contributions will be aggregated into
+                    the accumulator.
+
+            Returns:
+                An accumulator object representing the aggregated contributions.
+        """
 
     @abc.abstractmethod
     def merge_accumulators(self, accumulator1, accumulator2):
@@ -842,8 +851,7 @@ class VectorSumCombiner(Combiner):
 
     def _clip_vector(self, vec: np.ndarray):
         norm_kind: NormKind = self._params.aggregate_params.vector_norm_kind
-        max_norm: Optional[
-            float] = self._params.aggregate_params.vector_max_norm
+        max_norm: float = self._params.aggregate_params.vector_max_norm
         if norm_kind == NormKind.Linf:
             return np.clip(vec, -max_norm, max_norm)
         if norm_kind in {NormKind.L1, NormKind.L2}:

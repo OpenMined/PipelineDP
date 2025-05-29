@@ -11,19 +11,19 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import typing
 import unittest.mock as mock
+from typing import List, Optional
 from unittest.mock import patch
 
+import numpy as np
 from absl.testing import absltest
 from absl.testing import parameterized
-import typing
-from typing import List, Optional
-import pipeline_dp
-import pipeline_dp.combiners as dp_combiners
-import pipeline_dp.budget_accounting as ba
-from pipeline_dp import aggregate_params, NormKind
 
-import numpy as np
+import pipeline_dp
+import pipeline_dp.budget_accounting as ba
+import pipeline_dp.combiners as dp_combiners
+from pipeline_dp import aggregate_params, NormKind
 
 
 class EmptyCombiner(dp_combiners.Combiner):
@@ -59,10 +59,11 @@ def _create_mechanism_spec(
 
 
 def _create_aggregate_params(
-    max_value: float = 1,
-    vector_size: int = 1,
-    vector_norm_kind=pipeline_dp.NormKind.Linf,
-    output_noise_stddev: bool = False,
+        max_value: float = 1,
+        vector_size: int = 1,
+        vector_norm_kind: NormKind = pipeline_dp.NormKind.Linf,
+        vector_max_norm: int = 5,
+        output_noise_stddev: bool = False,
 ):
     return pipeline_dp.AggregateParams(
         min_value=0,
@@ -72,7 +73,7 @@ def _create_aggregate_params(
         noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
         metrics=[pipeline_dp.Metrics.COUNT],
         vector_norm_kind=vector_norm_kind,
-        vector_max_norm=5,
+        vector_max_norm=vector_max_norm,
         vector_size=vector_size,
         output_noise_stddev=output_noise_stddev)
 
@@ -453,10 +454,10 @@ class PostAggregationThresholdingCombinerTest(parameterized.TestCase):
         # Arrange/act
         budget_accountant = pipeline_dp.NaiveBudgetAccountant(total_epsilon=1,
                                                               total_delta=1e-10)
-        aggregate_params = _create_aggregate_params()
-        aggregate_params.noise_kind = noise_kind
+        params = _create_aggregate_params()
+        params.noise_kind = noise_kind
         combiner = dp_combiners.PostAggregationThresholdingCombiner(
-            budget_accountant, aggregate_params)
+            budget_accountant, params)
         budget_accountant.compute_budgets()
 
         # Assert
@@ -924,63 +925,54 @@ class CompoundCombinerTest(parameterized.TestCase):
 
 class VectorSumCombinerTest(parameterized.TestCase):
 
-    def _create_combiner(self, no_noise, vector_size):
+    def _create_combiner(self, no_noise: bool, vector_size: int, vector_norm_kind: NormKind = NormKind.Linf,
+                         vector_max_norm: int = 5) -> dp_combiners.VectorSumCombiner:
         mechanism_spec = _create_mechanism_spec(no_noise)
-        aggregate_params = _create_aggregate_params(vector_size=vector_size)
+        aggregate_params = _create_aggregate_params(vector_size=vector_size, vector_norm_kind=vector_norm_kind,
+                                                    vector_max_norm=vector_max_norm)
         params = dp_combiners.CombinerParams(mechanism_spec, aggregate_params)
         return dp_combiners.VectorSumCombiner(params)
 
-    @parameterized.named_parameters(
-        dict(testcase_name='no_noise', no_noise=True),
-        dict(testcase_name='noise', no_noise=False),
+    @parameterized.product(
+        testcase=[dict(input_vector=[[]], output_vector=[]),
+                  dict(input_vector=[[0]], output_vector=[0]),
+                  dict(input_vector=[[0, 0]], output_vector=[0, 0]),
+                  dict(input_vector=[[1], [2]], output_vector=[3]),
+                  dict(input_vector=[[1, 2], [3, 4]], output_vector=[4, 6]),
+                  dict(input_vector=[[1, 2, 3], [4, 5, 6]], output_vector=[5, 7, 9])],
+        norm_kind=[NormKind.Linf, NormKind.L1, NormKind.L2]
     )
-    def test_create_accumulator(self, no_noise):
-        combiner = self._create_combiner(no_noise, vector_size=1)
-        self.assertEqual(np.array([0.]), combiner.create_accumulator([[0.]]))
-        self.assertEqual(
-            np.array([2.]),
-            combiner.create_accumulator([np.array([1.]),
-                                         np.array([1.])]))
+    def test_create_accumulator_sums_correctly(self, testcase, norm_kind):
+        combiner = self._create_combiner(no_noise=True, vector_size=len(testcase['input_vector'][0]),
+                                         vector_norm_kind=norm_kind,
+                                         vector_max_norm=999)  # no clipping
+        self.assertIsNone(np.testing.assert_array_equal(
+            combiner.create_accumulator(testcase['input_vector']), testcase['output_vector']))
 
-    @parameterized.named_parameters(
-        dict(testcase_name='Linf_no_noise',
-             norm_kind=NormKind.Linf,
-             no_noise=True),
-        dict(testcase_name='Linf_noise',
-             norm_kind=NormKind.Linf,
-             no_noise=False),
+    @parameterized.parameters(
+        dict(norm_kind=NormKind.Linf, norm=5, input_vector=[[6]], output_vector=[5]),
+        dict(norm_kind=NormKind.Linf, norm=5, input_vector=[[6], [7]], output_vector=[5]),
+        dict(norm_kind=NormKind.Linf, norm=5, input_vector=[[5, 6]], output_vector=[5, 5]),
         # L0 noise not implemented at the moment
-        dict(testcase_name='L1_no_noise', norm_kind=NormKind.L1, no_noise=True),
-        dict(testcase_name='L1_noise', norm_kind=NormKind.L1, no_noise=False),
-        dict(testcase_name='L2_no_noise', norm_kind=NormKind.L2, no_noise=True),
-        dict(testcase_name='L2_noise', norm_kind=NormKind.L2, no_noise=False),
+        dict(norm_kind=NormKind.L1, norm=10, input_vector=[[11]], output_vector=[10]),
+        dict(norm_kind=NormKind.L1, norm=10, input_vector=[[5], [6]], output_vector=[10]),
+        dict(norm_kind=NormKind.L1, norm=5, input_vector=[[6, 6]], output_vector=[2.5, 2.5]),
+        dict(norm_kind=NormKind.L2, norm=5, input_vector=[[6]], output_vector=[5]),
+        dict(norm_kind=NormKind.L2, norm=5, input_vector=[[4], [4]], output_vector=[5]),
+        dict(norm_kind=NormKind.L2, norm=4, input_vector=[[3, 4]], output_vector=[2.4, 3.2]),
     )
-    def test_create_accumulator_clips_individual_contributions(
-            self, norm_kind, no_noise):
-        norm = 5
-        mechanism_spec = _create_mechanism_spec(no_noise)
-        aggregate_params = _create_aggregate_params(vector_size=1)
-        aggregate_params.vector_max_norm = norm
-        aggregate_params.vector_norm_kind = norm_kind
-        params = dp_combiners.CombinerParams(mechanism_spec, aggregate_params)
-        combiner = dp_combiners.VectorSumCombiner(params)
+    def test_create_accumulator_clips_correctly(self, norm_kind, norm, input_vector, output_vector):
+        combiner = self._create_combiner(no_noise=True, vector_size=len(input_vector[0]), vector_norm_kind=norm_kind,
+                                         vector_max_norm=norm)  # clips by norm
+        self.assertIsNone(
+            np.testing.assert_almost_equal(combiner.create_accumulator(input_vector), output_vector, decimal=3))
 
-        self.assertEqual(np.array([norm]), combiner.create_accumulator([[6]]))
-        self.assertEqual(
-            np.array([norm]),
-            combiner.create_accumulator([np.array([7]),
-                                         np.array([8])]))
-
-    @parameterized.named_parameters(
-        dict(testcase_name='no_noise', no_noise=True),
-        dict(testcase_name='noise', no_noise=False),
-    )
-    def test_merge_accumulators(self, no_noise):
-        combiner = self._create_combiner(no_noise, vector_size=1)
+    def test_merge_accumulators(self):
+        combiner = self._create_combiner(no_noise=True, vector_size=1)
         self.assertEqual(
             np.array([0.]),
             combiner.merge_accumulators(np.array([0.]), np.array([0.])))
-        combiner = self._create_combiner(no_noise, vector_size=2)
+        combiner = self._create_combiner(no_noise=True, vector_size=2)
         merge_result = combiner.merge_accumulators(np.array([1., 1.]),
                                                    np.array([1., 4.]))
         self.assertTrue(np.array_equal(np.array([2., 5.]), merge_result))
