@@ -46,9 +46,9 @@ class EmptyCombiner(dp_combiners.Combiner):
 
 
 def _create_mechanism_spec(
-        no_noise: bool,
-        mechanism_type: pipeline_dp.MechanismType = pipeline_dp.MechanismType.
-        GAUSSIAN
+    no_noise: bool,
+    mechanism_type: pipeline_dp.MechanismType = pipeline_dp.MechanismType.
+    GAUSSIAN
 ) -> ba.MechanismSpec:
     if no_noise:
         eps, delta = 1e5, 1.0 - 1e-5
@@ -59,11 +59,11 @@ def _create_mechanism_spec(
 
 
 def _create_aggregate_params(
-        max_value: float = 1,
-        vector_size: int = 1,
-        vector_norm_kind: NormKind = pipeline_dp.NormKind.Linf,
-        vector_max_norm: int = 5,
-        output_noise_stddev: bool = False,
+    max_value: float = 1,
+    vector_size: int = 1,
+    vector_norm_kind: NormKind = pipeline_dp.NormKind.Linf,
+    vector_max_norm: int = 5,
+    output_noise_stddev: bool = False,
 ):
     return pipeline_dp.AggregateParams(
         min_value=0,
@@ -454,10 +454,10 @@ class PostAggregationThresholdingCombinerTest(parameterized.TestCase):
         # Arrange/act
         budget_accountant = pipeline_dp.NaiveBudgetAccountant(total_epsilon=1,
                                                               total_delta=1e-10)
-        params = _create_aggregate_params()
-        params.noise_kind = noise_kind
+        aggregate_params = _create_aggregate_params()
+        aggregate_params.noise_kind = noise_kind
         combiner = dp_combiners.PostAggregationThresholdingCombiner(
-            budget_accountant, params)
+            budget_accountant, aggregate_params)
         budget_accountant.compute_budgets()
 
         # Assert
@@ -851,7 +851,7 @@ class CompoundCombinerTest(parameterized.TestCase):
             dp_combiners.CountCombiner(mechanism_spec, aggregate_params),
             dp_combiners.SumCombiner(mechanism_spec, aggregate_params)
         ],
-            return_named_tuple=True)
+                                             return_named_tuple=True)
 
     @parameterized.named_parameters(
         dict(testcase_name='no_noise', no_noise=True),
@@ -902,6 +902,7 @@ class CompoundCombinerTest(parameterized.TestCase):
         self.assertTrue(np.var(noised_sum) > 1)  # check that noise is added
 
     def test_expects_per_partition_sampling(self):
+
         class MockCombiner(EmptyCombiner):
 
             def __init__(self, return_value: bool):
