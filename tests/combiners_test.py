@@ -46,9 +46,9 @@ class EmptyCombiner(dp_combiners.Combiner):
 
 
 def _create_mechanism_spec(
-        no_noise: bool,
-        mechanism_type: pipeline_dp.MechanismType = pipeline_dp.MechanismType.
-        GAUSSIAN
+    no_noise: bool,
+    mechanism_type: pipeline_dp.MechanismType = pipeline_dp.MechanismType.
+    GAUSSIAN
 ) -> ba.MechanismSpec:
     if no_noise:
         eps, delta = 1e5, 1.0 - 1e-5
@@ -59,11 +59,11 @@ def _create_mechanism_spec(
 
 
 def _create_aggregate_params(
-        max_value: float = 1,
-        vector_size: int = 1,
-        vector_norm_kind: NormKind = pipeline_dp.NormKind.Linf,
-        vector_max_norm: int = 5,
-        output_noise_stddev: bool = False,
+    max_value: float = 1,
+    vector_size: int = 1,
+    vector_norm_kind: NormKind = pipeline_dp.NormKind.Linf,
+    vector_max_norm: int = 5,
+    output_noise_stddev: bool = False,
 ):
     return pipeline_dp.AggregateParams(
         min_value=0,
@@ -231,11 +231,11 @@ class CreateCompoundCombinersTest(parameterized.TestCase):
 class CountCombinerTest(parameterized.TestCase):
 
     def _create_combiner(
-            self,
-            no_noise: bool,
-            mechanism_type: pipeline_dp.MechanismType = pipeline_dp.MechanismType.
-            GAUSSIAN,
-            output_noise_stddev: bool = False,
+        self,
+        no_noise: bool,
+        mechanism_type: pipeline_dp.MechanismType = pipeline_dp.MechanismType.
+        GAUSSIAN,
+        output_noise_stddev: bool = False,
     ) -> dp_combiners.CountCombiner:
         mechanism_spec = _create_mechanism_spec(no_noise, mechanism_type)
         aggregate_params = _create_aggregate_params(
@@ -322,11 +322,11 @@ class CountCombinerTest(parameterized.TestCase):
 class PrivacyIdCountCombinerTest(parameterized.TestCase):
 
     def _create_combiner(
-            self,
-            no_noise: bool,
-            mechanism_type: pipeline_dp.MechanismType = pipeline_dp.MechanismType.
-            GAUSSIAN,
-            output_noise_stddev: bool = False,
+        self,
+        no_noise: bool,
+        mechanism_type: pipeline_dp.MechanismType = pipeline_dp.MechanismType.
+        GAUSSIAN,
+        output_noise_stddev: bool = False,
     ) -> dp_combiners.PrivacyIdCountCombiner:
         mechanism_spec = _create_mechanism_spec(no_noise, mechanism_type)
         aggregate_params = _create_aggregate_params(
@@ -414,12 +414,12 @@ class PrivacyIdCountCombinerTest(parameterized.TestCase):
 class PostAggregationThresholdingCombinerTest(parameterized.TestCase):
 
     def _create_combiner(
-            self,
-            small_noise: bool = False,
-            noise_kind: pipeline_dp.NoiseKind = pipeline_dp.NoiseKind.GAUSSIAN,
-            pre_threshold: Optional[int] = None
+        self,
+        small_noise: bool = False,
+        noise_kind: pipeline_dp.NoiseKind = pipeline_dp.NoiseKind.GAUSSIAN,
+        pre_threshold: Optional[int] = None
     ) -> dp_combiners.PostAggregationThresholdingCombiner:
-        eps, delta = (10 ** 3, 0.1) if small_noise else (1, 1e-10)
+        eps, delta = (10**3, 0.1) if small_noise else (1, 1e-10)
         budget_accountant = pipeline_dp.NaiveBudgetAccountant(eps, delta)
         aggregate_params = _create_aggregate_params()
         aggregate_params.noise_kind = noise_kind
@@ -539,13 +539,13 @@ class SumCombinerTest(parameterized.TestCase):
             output_noise_stddev=output_noise_stddev)
 
     def _create_combiner(
-            self,
-            no_noise: bool,
-            per_partition_bound: bool,
-            max_value=1.0,
-            mechanism_type: pipeline_dp.MechanismType = pipeline_dp.MechanismType.
-            GAUSSIAN,
-            output_noise_stddev: bool = False,
+        self,
+        no_noise: bool,
+        per_partition_bound: bool,
+        max_value=1.0,
+        mechanism_type: pipeline_dp.MechanismType = pipeline_dp.MechanismType.
+        GAUSSIAN,
+        output_noise_stddev: bool = False,
     ) -> dp_combiners.SumCombiner:
         mechanism_spec = _create_mechanism_spec(no_noise, mechanism_type)
         if per_partition_bound:
@@ -851,7 +851,7 @@ class CompoundCombinerTest(parameterized.TestCase):
             dp_combiners.CountCombiner(mechanism_spec, aggregate_params),
             dp_combiners.SumCombiner(mechanism_spec, aggregate_params)
         ],
-            return_named_tuple=True)
+                                             return_named_tuple=True)
 
     @parameterized.named_parameters(
         dict(testcase_name='no_noise', no_noise=True),
@@ -902,6 +902,7 @@ class CompoundCombinerTest(parameterized.TestCase):
         self.assertTrue(np.var(noised_sum) > 1)  # check that noise is added
 
     def test_expects_per_partition_sampling(self):
+
         class MockCombiner(EmptyCombiner):
 
             def __init__(self, return_value: bool):
@@ -925,25 +926,33 @@ class CompoundCombinerTest(parameterized.TestCase):
 
 class VectorSumCombinerTest(parameterized.TestCase):
 
-    def _create_combiner(self, no_noise: bool, vector_size: int, vector_norm_kind: NormKind = NormKind.Linf,
-                         vector_max_norm: int = 5) -> dp_combiners.VectorSumCombiner:
+    def _create_combiner(
+            self,
+            no_noise: bool,
+            vector_size: int,
+            vector_norm_kind: NormKind = NormKind.Linf,
+            vector_max_norm: int = 5) -> dp_combiners.VectorSumCombiner:
         mechanism_spec = _create_mechanism_spec(no_noise)
-        aggregate_params = _create_aggregate_params(vector_size=vector_size, vector_norm_kind=vector_norm_kind,
-                                                    vector_max_norm=vector_max_norm)
+        aggregate_params = _create_aggregate_params(
+            vector_size=vector_size,
+            vector_norm_kind=vector_norm_kind,
+            vector_max_norm=vector_max_norm)
         params = dp_combiners.CombinerParams(mechanism_spec, aggregate_params)
         return dp_combiners.VectorSumCombiner(params)
 
-    @parameterized.product(
-        testcase=[dict(input_vector=[[]], output_vector=[]),
-                  dict(input_vector=[[0]], output_vector=[0]),
-                  dict(input_vector=[[0, 0]], output_vector=[0, 0]),
-                  dict(input_vector=[[1], [2]], output_vector=[3]),
-                  dict(input_vector=[[1, 2], [3, 4]], output_vector=[4, 6]),
-                  dict(input_vector=[[1, 2, 3], [4, 5, 6]], output_vector=[5, 7, 9])],
-        norm_kind=[NormKind.Linf, NormKind.L1, NormKind.L2]
-    )
+    @parameterized.product(testcase=[
+        dict(input_vector=[[]], output_vector=[]),
+        dict(input_vector=[[0]], output_vector=[0]),
+        dict(input_vector=[[0, 0]], output_vector=[0, 0]),
+        dict(input_vector=[[1], [2]], output_vector=[3]),
+        dict(input_vector=[[1, 2], [3, 4]], output_vector=[4, 6]),
+        dict(input_vector=[[1, 2, 3], [4, 5, 6]], output_vector=[5, 7, 9])
+    ],
+                           norm_kind=[NormKind.Linf, NormKind.L1, NormKind.L2])
     def test_create_accumulator_sums_correctly(self, testcase, norm_kind):
-        combiner = self._create_combiner(no_noise=True, vector_size=len(testcase['input_vector'][0]),
+        combiner = self._create_combiner(no_noise=True,
+                                         vector_size=len(
+                                             testcase['input_vector'][0]),
                                          vector_norm_kind=norm_kind,
                                          vector_max_norm=999)  # no clipping
 
@@ -952,18 +961,48 @@ class VectorSumCombinerTest(parameterized.TestCase):
         np.testing.assert_array_equal(result, testcase['output_vector'])
 
     @parameterized.parameters(
-        dict(norm_kind=NormKind.Linf, norm=5, input_vector=[[6]], output_vector=[5]),
-        dict(norm_kind=NormKind.Linf, norm=5, input_vector=[[6], [7]], output_vector=[5]),
-        dict(norm_kind=NormKind.Linf, norm=5, input_vector=[[5, 6]], output_vector=[5, 5]),
-        dict(norm_kind=NormKind.L1, norm=10, input_vector=[[11]], output_vector=[10]),
-        dict(norm_kind=NormKind.L1, norm=10, input_vector=[[5], [6]], output_vector=[10]),
-        dict(norm_kind=NormKind.L1, norm=5, input_vector=[[6, 6]], output_vector=[2.5, 2.5]),
-        dict(norm_kind=NormKind.L2, norm=5, input_vector=[[6]], output_vector=[5]),
-        dict(norm_kind=NormKind.L2, norm=5, input_vector=[[4], [4]], output_vector=[5]),
-        dict(norm_kind=NormKind.L2, norm=4, input_vector=[[3, 4]], output_vector=[2.4, 3.2]),
+        dict(norm_kind=NormKind.Linf,
+             norm=5,
+             input_vector=[[6]],
+             output_vector=[5]),
+        dict(norm_kind=NormKind.Linf,
+             norm=5,
+             input_vector=[[6], [7]],
+             output_vector=[5]),
+        dict(norm_kind=NormKind.Linf,
+             norm=5,
+             input_vector=[[5, 6]],
+             output_vector=[5, 5]),
+        dict(norm_kind=NormKind.L1,
+             norm=10,
+             input_vector=[[11]],
+             output_vector=[10]),
+        dict(norm_kind=NormKind.L1,
+             norm=10,
+             input_vector=[[5], [6]],
+             output_vector=[10]),
+        dict(norm_kind=NormKind.L1,
+             norm=5,
+             input_vector=[[6, 6]],
+             output_vector=[2.5, 2.5]),
+        dict(norm_kind=NormKind.L2,
+             norm=5,
+             input_vector=[[6]],
+             output_vector=[5]),
+        dict(norm_kind=NormKind.L2,
+             norm=5,
+             input_vector=[[4], [4]],
+             output_vector=[5]),
+        dict(norm_kind=NormKind.L2,
+             norm=4,
+             input_vector=[[3, 4]],
+             output_vector=[2.4, 3.2]),
     )
-    def test_create_accumulator_clips_correctly(self, norm_kind, norm, input_vector, output_vector):
-        combiner = self._create_combiner(no_noise=True, vector_size=len(input_vector[0]), vector_norm_kind=norm_kind,
+    def test_create_accumulator_clips_correctly(self, norm_kind, norm,
+                                                input_vector, output_vector):
+        combiner = self._create_combiner(no_noise=True,
+                                         vector_size=len(input_vector[0]),
+                                         vector_norm_kind=norm_kind,
                                          vector_max_norm=norm)  # clips by norm
 
         result = combiner.create_accumulator(input_vector)
