@@ -14,16 +14,17 @@
 """Combiners for computing DP aggregations."""
 
 import abc
+import collections
 import copy
 from typing import Callable, Iterable, Sized, Tuple, List, Union
 
-import pipeline_dp
-from pipeline_dp import dp_computations
-from pipeline_dp import budget_accounting
 import numpy as np
-import collections
 import pydp
 from pydp.algorithms import quantile_tree
+
+import pipeline_dp
+from pipeline_dp import budget_accounting
+from pipeline_dp import dp_computations, NormKind
 
 ArrayLike = Union[np.ndarray, List[float]]
 ExplainComputationReport = Union[Callable, str, List[Union[Callable, str]]]
@@ -55,7 +56,16 @@ class Combiner(abc.ABC):
 
     @abc.abstractmethod
     def create_accumulator(self, values):
-        """Creates accumulator from 'values'. values are from one privacy ID"""
+        """Creates an accumulator from a collection of privacy ID contributions.
+
+            Args:
+                values: A collection of contributions from a single privacy ID within a
+                    specific partition. These contributions will be aggregated into
+                    the accumulator.
+
+            Returns:
+                An accumulator object representing the aggregated contributions.
+        """
 
     @abc.abstractmethod
     def merge_accumulators(self, accumulator1, accumulator2):
@@ -837,7 +847,22 @@ class VectorSumCombiner(Combiner):
                 array_sum = val
             else:
                 array_sum += val
-        return array_sum
+        return self._clip_vector(array_sum)
+
+    def _clip_vector(self, vec: np.ndarray):
+        norm_kind: NormKind = self._params.aggregate_params.vector_norm_kind
+        max_norm: float = self._params.aggregate_params.vector_max_norm
+        if norm_kind == NormKind.Linf:
+            return np.clip(vec, -max_norm, max_norm)
+        if norm_kind in {NormKind.L1, NormKind.L2}:
+            norm_ord = 1 if norm_kind == NormKind.L1 else 2
+            vec_norm = np.linalg.norm(vec, ord=norm_ord)
+            if vec_norm == 0.0:
+                return vec
+            mul_coef = min(1, max_norm / vec_norm)
+            return vec * mul_coef
+        raise NotImplementedError(
+            f"Vector Norm of kind '{norm_kind}' is not supported.")
 
     def merge_accumulators(self, array_sum1: AccumulatorType,
                            array_sum2: AccumulatorType):
