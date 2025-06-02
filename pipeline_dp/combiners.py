@@ -857,6 +857,8 @@ class VectorSumCombiner(Combiner):
         if norm_kind in {NormKind.L1, NormKind.L2}:
             norm_ord = 1 if norm_kind == NormKind.L1 else 2
             vec_norm = np.linalg.norm(vec, ord=norm_ord)
+            if vec_norm == 0.0:
+                return vec
             mul_coef = min(1, max_norm / vec_norm)
             return vec * mul_coef
         raise NotImplementedError(
