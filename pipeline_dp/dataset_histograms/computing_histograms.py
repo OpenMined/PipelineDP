@@ -105,19 +105,10 @@ def compute_dataset_histograms(col, data_extractors: pipeline_dp.DataExtractors,
         "Extract ((privacy_id, partition_key), value)")
     # col: ((pid, pk), value)
 
-    col_with_values = backend.to_multi_transformable_collection(col_with_values)
-    # col: ((pid, pk), value)
-
     col = backend.keys(col_with_values, "Drop values")
     # col: (pid, pk)
 
-    col = backend.to_multi_transformable_collection(col)
-    # col: (pid, pk)
-
     col_distinct = backend.distinct(col, "Distinct (privacy_id, partition_key)")
-    # col: (pid, pk)
-
-    col_distinct = backend.to_multi_transformable_collection(col_distinct)
     # col: (pid, pk)
 
     # Compute histograms.
@@ -164,9 +155,6 @@ def compute_dataset_histograms_on_preaggregated_data(
         col, lambda row: (data_extractors.partition_extractor(row),
                           data_extractors.preaggregate_extractor(row)),
         "Extract (partition_key, preaggregate_data))")
-    # col: (partition_key, (count, sum, n_partitions, n_contributions))
-
-    col = backend.to_multi_transformable_collection(col)
     # col: (partition_key, (count, sum, n_partitions, n_contributions))
 
     # Compute histograms.
