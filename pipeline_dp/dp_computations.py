@@ -229,8 +229,8 @@ def _add_random_noise(
 
 @dataclass
 class AdditiveVectorNoiseParams:
-    eps_per_coordinate: float
-    delta_per_coordinate: float
+    eps: float
+    delta: float
     max_norm: float
     l0_sensitivity: float
     linf_sensitivity: float
@@ -248,8 +248,8 @@ def add_noise_vector(vec: np.ndarray, noise_params: AdditiveVectorNoiseParams):
     vec = np.array([
         _add_random_noise(
             s,
-            noise_params.eps_per_coordinate,
-            noise_params.delta_per_coordinate,
+            noise_params.eps,
+            noise_params.delta,
             noise_params.l0_sensitivity,
             noise_params.linf_sensitivity,
             noise_params.noise_kind,

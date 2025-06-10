@@ -186,8 +186,8 @@ class CombinerParams:
     def additive_vector_noise_params(
             self) -> dp_computations.AdditiveVectorNoiseParams:
         return dp_computations.AdditiveVectorNoiseParams(
-            eps_per_coordinate=self.eps / self.aggregate_params.vector_size,
-            delta_per_coordinate=self.delta / self.aggregate_params.vector_size,
+            eps=self.eps,
+            delta=self.delta,
             max_norm=self.aggregate_params.vector_max_norm,
             l0_sensitivity=self.aggregate_params.max_partitions_contributed,
             linf_sensitivity=self.aggregate_params.
@@ -212,6 +212,7 @@ class MechanismContainerMixin(abc.ABC):
 
     def __getstate__(self):
         # This method is called when serialization happens and its output is
+        # serialized. So we can choose what will be serialized. It is needed
         # serialized. So we can choose what will be serialized. It is needed
         # because '_mechanism' is not serializable, and it can be created on
         # demand. So '_mechanism' is dropped from serialization.
