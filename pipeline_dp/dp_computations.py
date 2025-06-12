@@ -14,17 +14,18 @@
 """Differential privacy computing of count, sum, mean, variance."""
 
 import abc
-from dataclasses import dataclass
 import functools
 import math
-import numpy as np
-from scipy import stats
+from dataclasses import dataclass
 from typing import Any, List, Optional, Tuple, Union
 
-import pipeline_dp
-from pipeline_dp import budget_accounting
-from pipeline_dp import partition_selection
+import numpy as np
 from pydp.algorithms import numerical_mechanisms as dp_mechanisms
+from scipy import stats
+
+import pipeline_dp
+from pipeline_dp import budget_accounting, NormKind
+from pipeline_dp import partition_selection
 
 
 @dataclass
@@ -43,10 +44,10 @@ class ScalarNoiseParams:
 
     def __post_init__(self):
         assert (self.min_value is None) == (
-            self.max_value is None
+                self.max_value is None
         ), "min_value and max_value should be or both set or both None."
         assert (self.min_sum_per_partition is None) == (
-            self.max_sum_per_partition is None
+                self.max_sum_per_partition is None
         ), "min_sum_per_partition and max_sum_per_partition should be or both set or both None."
 
     def l0_sensitivity(self) -> int:
@@ -66,8 +67,8 @@ def compute_squares_interval(min_value: float,
                              max_value: float) -> Tuple[float, float]:
     """Returns the bounds of the interval [min_value^2, max_value^2]."""
     if min_value < 0 < max_value:
-        return 0, max(min_value**2, max_value**2)
-    return min_value**2, max_value**2
+        return 0, max(min_value ** 2, max_value ** 2)
+    return min_value ** 2, max_value ** 2
 
 
 def compute_middle(min_value: float, max_value: float) -> float:
@@ -77,32 +78,56 @@ def compute_middle(min_value: float, max_value: float) -> float:
     return min_value + (max_value - min_value) / 2
 
 
-def compute_l1_sensitivity(l0_sensitivity: float,
-                           linf_sensitivity: float) -> float:
-    """Calculates the L1 sensitivity based on the L0 and Linf sensitivities.
+def compute_l1_sensitivity(norm_kind: NormKind,
+                           vector_max_norm: float,
+                           vector_size: int,
+                           max_partition_contributed: int) -> float:
+    """Calculates the L1 sensitivity.
 
     Args:
-        l0_sensitivity: The L0 sensitivity.
-        linf_sensitivity: The Linf sensitivity.
+        norm_kind: The kind of norm.
+        vector_max_norm: The max norm of the vector.
+        vector_size: The size of the vector.
+        max_partition_contributed: Max number of partition a single privacyId contributes, aka L0.
 
     Returns:
         The L1 sensitivity.
     """
-    return l0_sensitivity * linf_sensitivity
+    match norm_kind:
+        case NormKind.L1:
+            return vector_max_norm * max_partition_contributed
+        case NormKind.L2:
+            raise ValueError("L2 norm is not supported for Laplace mechanism.")
+        case NormKind.Linf:
+            return vector_max_norm * vector_size * max_partition_contributed
+        case _:
+            raise ValueError("Unknown norm kind.")
 
 
-def compute_l2_sensitivity(l0_sensitivity: float,
-                           linf_sensitivity: float) -> float:
-    """Calculates the L2 sensitivity based on the L0 and Linf sensitivities.
+def compute_l2_sensitivity(norm_kind: NormKind,
+                           vector_max_norm: float,
+                           vector_size: int,
+                           max_partition_contributed: int) -> float:
+    """Calculates the L1 sensitivity.
 
     Args:
-        l0_sensitivity: The L0 sensitivity.
-        linf_sensitivity: The Linf sensitivity.
+        norm_kind: The kind of norm.
+        vector_max_norm: The max norm of the vector.
+        vector_size: The size of the vector.
+        max_partition_contributed: Max number of partition a single privacyId contributes, aka L0.
 
     Returns:
-        The L2 sensitivity.
+        The L1 sensitivity.
     """
-    return np.sqrt(l0_sensitivity) * linf_sensitivity
+    match norm_kind:
+        case NormKind.L1:
+            raise ValueError("L1 norm is not supported for Gaussian mechanism.")
+        case NormKind.L2:
+            return vector_max_norm * np.sqrt(max_partition_contributed)
+        case NormKind.Linf:
+            return vector_max_norm * np.sqrt(vector_size) * np.sqrt(max_partition_contributed)
+        case _:
+            raise ValueError("Unknown norm kind.")
 
 
 def compute_sigma(eps: float, delta: float, l2_sensitivity: float) -> float:
@@ -125,7 +150,7 @@ def gaussian_delta(sigma: float, epsilon: float) -> float:
     if sigma <= 0:
         raise ValueError(f"sigma must be > 0, but {sigma=}")
     a = 1 / sigma
-    rv = stats.norm(a**2 / 2, a)
+    rv = stats.norm(a ** 2 / 2, a)
     return rv.sf(epsilon) - np.exp(epsilon) * rv.cdf(-epsilon)
 
 
@@ -196,12 +221,14 @@ def apply_gaussian_mechanism(value: float, eps: float, delta: float,
 
 
 def _add_random_noise(
-    value: float,
-    eps: float,
-    delta: float,
-    l0_sensitivity: float,
-    linf_sensitivity: float,
-    noise_kind: pipeline_dp.NoiseKind,
+        value: float,
+        eps: float,
+        delta: float,
+        noise_kind: pipeline_dp.NoiseKind,
+        norm_kind: pipeline_dp.NormKind,
+        max_norm: float,
+        vector_size: int,
+        max_partition_contributed: int,
 ) -> float:
     """Adds random noise according to the parameters.
 
@@ -217,12 +244,10 @@ def _add_random_noise(
         The value resulted after adding the random noise.
     """
     if noise_kind == pipeline_dp.NoiseKind.LAPLACE:
-        l1_sensitivity = compute_l1_sensitivity(l0_sensitivity,
-                                                linf_sensitivity)
+        l1_sensitivity = compute_l1_sensitivity(norm_kind, max_norm, vector_size, max_partition_contributed)
         return apply_laplace_mechanism(value, eps, l1_sensitivity)
     if noise_kind == pipeline_dp.NoiseKind.GAUSSIAN:
-        l2_sensitivity = compute_l2_sensitivity(l0_sensitivity,
-                                                linf_sensitivity)
+        l2_sensitivity = compute_l2_sensitivity(norm_kind, max_norm, vector_size, max_partition_contributed)
         return apply_gaussian_mechanism(value, eps, delta, l2_sensitivity)
     raise ValueError("Noise kind must be either Laplace or Gaussian.")
 
@@ -250,9 +275,11 @@ def add_noise_vector(vec: np.ndarray, noise_params: AdditiveVectorNoiseParams):
             s,
             noise_params.eps,
             noise_params.delta,
-            noise_params.l0_sensitivity,
-            noise_params.linf_sensitivity,
             noise_params.noise_kind,
+            noise_params.norm_kind,
+            noise_params.max_norm,
+            vec.size,
+            max_partition_contributed=int(noise_params.l0_sensitivity)
         ) for s in vec
     ])
     return vec
@@ -290,15 +317,16 @@ def equally_split_budget(eps: float, delta: float, no_mechanisms: int):
 
 
 def _compute_mean_for_normalized_sum(
-    dp_count: float,
-    sum: float,
-    min_value: float,
-    max_value: float,
-    eps: float,
-    delta: float,
-    l0_sensitivity: float,
-    max_contributions_per_partition: float,
-    noise_kind: pipeline_dp.NoiseKind,
+        dp_count: float,
+        sum: float,
+        min_value: float,
+        max_value: float,
+        eps: float,
+        delta: float,
+        l0_sensitivity: float,
+        max_contributions_per_partition: float,
+        noise_kind: pipeline_dp.NoiseKind,
+        norm_kind: pipeline_dp.NormKind,
 ):
     """Helper function to compute the DP mean of a raw sum using the DP count.
 
@@ -323,8 +351,7 @@ def _compute_mean_for_normalized_sum(
     middle = compute_middle(min_value, max_value)
     linf_sensitivity = max_contributions_per_partition * abs(middle - min_value)
 
-    dp_normalized_sum = _add_random_noise(sum, eps, delta, l0_sensitivity,
-                                          linf_sensitivity, noise_kind)
+    dp_normalized_sum = _add_random_noise(sum, eps, delta, noise_kind, norm_kind, max_norm=100, vector_size=)
     # Clamps dp_count to 1.0. We know that actual count > 1 except when the
     # input set is empty, in which case it shouldn't matter much what the
     # denominator is.
@@ -387,7 +414,7 @@ def compute_dp_var(count: int, normalized_sum: float,
         sum_squares_eps, sum_squares_delta, l0_sensitivity,
         dp_params.max_contributions_per_partition, dp_params.noise_kind)
 
-    dp_var = dp_mean_squares - dp_mean**2
+    dp_var = dp_mean_squares - dp_mean ** 2
     if dp_params.min_value != dp_params.max_value:
         dp_mean += compute_middle(dp_params.min_value, dp_params.max_value)
 
@@ -428,7 +455,7 @@ class AdditiveMechanism(abc.ABC):
 
     def add_noise(
             self, value: Union[int, float,
-                               np.ndarray]) -> Union[float, np.ndarray]:
+            np.ndarray]) -> Union[float, np.ndarray]:
         """Anonymizes value by adding noise."""
         if isinstance(value, np.ndarray):
             add_noise_vectorized = np.vectorize(
@@ -519,7 +546,7 @@ class GaussianMechanism(AdditiveMechanism):
                                   l2_sensitivity: float) -> 'GaussianMechanism':
         return GaussianMechanism(dp_mechanisms.GaussianMechanism(
             epsilon=epsilon, delta=delta, sensitivity=l2_sensitivity),
-                                 l2_sensitivity=l2_sensitivity)
+            l2_sensitivity=l2_sensitivity)
 
     @classmethod
     def create_from_std_deviation(cls, normalized_stddev: float,
