@@ -13,19 +13,20 @@
 # limitations under the License.
 """Adapters for working with pipeline frameworks."""
 
+import abc
+import collections
 import functools
+import itertools
+import operator
 import random
-import numpy as np
+import typing
+import warnings
 from collections.abc import Iterable, Iterator
 from typing import Callable, List, Optional, Union
 
-import abc
+import numpy as np
+
 import pipeline_dp.combiners as dp_combiners
-import typing
-import collections
-import itertools
-import operator
-import warnings
 
 try:
     import apache_beam as beam

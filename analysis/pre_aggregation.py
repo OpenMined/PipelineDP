@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import pipeline_dp
 import analysis.contribution_bounders as utility_contribution_bounders
+import pipeline_dp
 
 
 def preaggregate(col,

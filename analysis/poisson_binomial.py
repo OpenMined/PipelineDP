@@ -55,7 +55,7 @@ def compute_exp_std_skewness(
     exp = np.sum(probabilities)
     std = np.sqrt(np.sum([p * (1 - p) for p in probabilities]))
     skewness = np.sum([p * (1 - p) * (1 - 2 * p) for p in probabilities
-                       ]) / std ** 3
+                      ]) / std**3
     return exp, std, skewness
 
 

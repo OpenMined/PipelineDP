@@ -164,7 +164,7 @@ class DPStrategySelector:
         strategies are compared by the number of privacy units, which is needed
         for achieving the probability of releasing partition to be 50%. That is
         number is equal to the threshold for thresholding strategies.
-
+ 
         Args:
             epsilon, delta: DP budget for partition selection
             l0_sensitivity: l0 sensitivity of the query, i.e., the maximum
@@ -175,8 +175,8 @@ class DPStrategySelector:
         """
 
         def create_mechanism(
-                strategy: pipeline_dp.PartitionSelectionStrategy) -> (
-                dp_computations.ThresholdingMechanism):
+            strategy: pipeline_dp.PartitionSelectionStrategy
+        ) -> (dp_computations.ThresholdingMechanism):
             return dp_computations.ThresholdingMechanism(epsilon,
                                                          delta,
                                                          strategy,
@@ -187,8 +187,8 @@ class DPStrategySelector:
             pipeline_dp.PartitionSelectionStrategy.LAPLACE_THRESHOLDING)
         gaussian_thresholding_mechanism = create_mechanism(
             pipeline_dp.PartitionSelectionStrategy.GAUSSIAN_THRESHOLDING)
-        if (laplace_thresholding_mechanism.threshold() <
-                gaussian_thresholding_mechanism.threshold()):
+        if (laplace_thresholding_mechanism.threshold()
+                < gaussian_thresholding_mechanism.threshold()):
             # Truncated geometric strategy is slightly better than Laplace
             # thresholding, so returns it instead.
             # Truncated geometric does not have a threshold, that is why

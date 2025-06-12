@@ -313,8 +313,7 @@ class PrivacyIdCountCombiner(Combiner, AdditiveMechanismMixin):
                  params: pipeline_dp.AggregateParams):
         self._mechanism_spec = mechanism_spec
         self._sensitivities = (
-            dp_computations.compute_sensitivities_for_privacy_id_count(
-                params))
+            dp_computations.compute_sensitivities_for_privacy_id_count(params))
         self._output_noise_stddev = params.output_noise_stddev
 
     def create_accumulator(self, values: Sized) -> AccumulatorType:
@@ -563,8 +562,7 @@ class VarianceCombiner(Combiner):
     """
     AccumulatorType = Tuple[int, float, float]
 
-    def __init__(self, params: CombinerParams,
-                 metrics_to_compute: list[str]):
+    def __init__(self, params: CombinerParams, metrics_to_compute: list[str]):
         self._params = params
         if len(metrics_to_compute) != len(set(metrics_to_compute)):
             raise ValueError(f"{metrics_to_compute} cannot contain duplicates")
@@ -587,7 +585,7 @@ class VarianceCombiner(Combiner):
         normalized_values = clipped_values - middle
 
         return len(values), normalized_values.sum(), (
-                normalized_values ** 2).sum()
+            normalized_values**2).sum()
 
     def merge_accumulators(self, accum1: AccumulatorType,
                            accum2: AccumulatorType):

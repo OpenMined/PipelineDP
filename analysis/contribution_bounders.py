@@ -35,11 +35,11 @@ class L0LinfAnalysisContributionBounder(
         super().__init__()
         self._sampling_probability = partitions_sampling_prob
 
-    def bound_contributions(self, col, params: 'pipeline_dp.AggregateParams',
-                            backend: 'pipeline_dp.PipelineBackend',
-                            report_generator:
-                            'pipeline_dp.report_generator.ReportGenerator',
-                            aggregate_fn):
+    def bound_contributions(
+            self, col, params: 'pipeline_dp.AggregateParams',
+            backend: 'pipeline_dp.PipelineBackend',
+            report_generator: 'pipeline_dp.report_generator.ReportGenerator',
+            aggregate_fn):
         """See docstrings for this class and the base class."""
 
         col = backend.map_tuple(
@@ -86,8 +86,8 @@ class L0LinfAnalysisContributionBounder(
         return backend.map_values(col, aggregate_fn, "Apply aggregate_fn")
 
 
-class LinfAnalysisContributionBounder(
-    contribution_bounders.ContributionBounder):
+class LinfAnalysisContributionBounder(contribution_bounders.ContributionBounder
+                                     ):
     """'Bounds' the contribution by privacy_id per partitions.
 
     Because this is for Utility Analysis, it doesn't actually ensure that

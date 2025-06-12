@@ -12,12 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Dataclasses with Utility Analysis result metrics."""
-from enum import Enum
 
-import pipeline_dp
 from dataclasses import dataclass
 from typing import List, Optional
-import math
+
+import pipeline_dp
 
 
 @dataclass
@@ -99,7 +98,7 @@ class ContributionBoundingErrors:
         """Converts from the absolute to the relative error dividing by
         actual value."""
         l0_rel_mean_var = MeanVariance(self.l0.mean / value,
-                                       self.l0.var / value ** 2)
+                                       self.l0.var / value**2)
         return ContributionBoundingErrors(l0=l0_rel_mean_var,
                                           linf_min=self.linf_min / value,
                                           linf_max=self.linf_max / value)
@@ -119,7 +118,7 @@ class ValueErrors:
     averaged across partitions, e.g.,
       rmse_per_partition = sqrt(E(dp_value - actual_value)^2)
       self.rmse = mean(rmse_per_partition)
-
+ 
     Attributes:
         bounding_errors: contribution bounding errors.
         mean: averaged across partitions E(dp_value - actual_value), aka
@@ -164,7 +163,7 @@ class ValueErrors:
         return ValueErrors(
             self.bounding_errors.to_relative(value),
             mean=self.mean / value,
-            variance=self.variance / value ** 2,
+            variance=self.variance / value**2,
             rmse=self.rmse / value,
             l1=self.l1 / value,
             rmse_with_dropped_partitions=self.rmse_with_dropped_partitions /

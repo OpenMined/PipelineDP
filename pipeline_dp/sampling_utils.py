@@ -12,9 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import numpy as np
 import hashlib
 from typing import Any
+
+import numpy as np
 
 
 def choose_from_list_without_replacement(a: list, size: int) -> list:
@@ -45,7 +46,7 @@ class ValueSampler:
     """
 
     def __init__(self, sampling_rate: float):
-        self._sample_bound = int(round(2 ** 64 * sampling_rate))
+        self._sample_bound = int(round(2**64 * sampling_rate))
 
     def keep(self, value: Any) -> bool:
         """Returns true if the value should be kept."""

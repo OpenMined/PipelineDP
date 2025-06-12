@@ -14,17 +14,17 @@
 """Utility Analysis per-partition Combiners."""
 
 import abc
-import copy
+import math
 from dataclasses import dataclass
 from typing import Any, Iterable, List, Optional, Sequence, Tuple, Union
+
 import numpy as np
-import math
 
 import pipeline_dp
-from pipeline_dp import budget_accounting
-from pipeline_dp import dp_computations
 from analysis import metrics
 from analysis import poisson_binomial
+from pipeline_dp import budget_accounting
+from pipeline_dp import dp_computations
 from pipeline_dp import partition_selection
 
 MAX_PROBABILITIES_IN_ACCUMULATOR = 100
@@ -157,8 +157,8 @@ class PartitionSelectionCalculator:
 # If len(probabilities) <= MAX_PROBABILITIES_IN_ACCUMULATOR then 'probabilities'
 # are used otherwise 'moments'. For more details see docstring to
 # PartitionSelectionCalculator.
-PartitionSelectionAccumulator = Tuple[
-    Optional[List[float]], Optional[SumOfRandomVariablesMoments]]
+PartitionSelectionAccumulator = Tuple[Optional[List[float]],
+                                      Optional[SumOfRandomVariablesMoments]]
 
 
 def _merge_list(a: List, b: List) -> List:
@@ -204,10 +204,9 @@ class PartitionSelectionCombiner(UtilityAnalysisCombiner):
         self._spec = spec
         self._params = params
 
-    def create_accumulator(self,
-                           sparse_acc: Tuple[
-                               np.ndarray, np.ndarray, np.ndarray]) -> (
-            PartitionSelectionAccumulator):
+    def create_accumulator(
+        self, sparse_acc: Tuple[np.ndarray, np.ndarray, np.ndarray]
+    ) -> (PartitionSelectionAccumulator):
         count, sum_, n_partitions = sparse_acc
         max_partitions = self._params.max_partitions_contributed
         prob_keep_partition = np.where(
@@ -251,8 +250,9 @@ class SumCombiner(UtilityAnalysisCombiner):
         self._metric = metric
         self._i_column = i_column
 
-    def create_accumulator(self, data: Tuple[
-        np.ndarray | None, np.ndarray, np.ndarray]) -> AccumulatorType:
+    def create_accumulator(
+        self, data: Tuple[np.ndarray | None, np.ndarray,
+                          np.ndarray]) -> AccumulatorType:
         count, partition_sum, n_partitions = data
         if self._i_column is not None:
             # When i_column is set, it means that this is a multi-column
@@ -317,8 +317,8 @@ class CountCombiner(SumCombiner):
         super().__init__(mechanism_spec, params, pipeline_dp.Metrics.COUNT)
 
     def create_accumulator(
-            self, sparse_acc: Tuple[np.ndarray, np.ndarray,
-            np.ndarray]) -> AccumulatorType:
+        self, sparse_acc: Tuple[np.ndarray, np.ndarray,
+                                np.ndarray]) -> AccumulatorType:
         count, _sum, n_partitions = sparse_acc
         data = None, count, n_partitions
         self._params.min_sum_per_partition = 0.0

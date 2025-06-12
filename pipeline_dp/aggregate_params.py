@@ -744,6 +744,7 @@ class AddDPNoiseParams:
     output_noise_stddev: bool = False
 
     def __post_init__(self):
+
         def check_is_positive(num: Any, name: str):
             if num is not None and num <= 0:
                 raise ValueError(f"{name} must be positive, but {num} given.")

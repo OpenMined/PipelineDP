@@ -12,25 +12,25 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Public API for performing utility analysis."""
+import bisect
+import copy
 from typing import Any, Iterable, List, Tuple, Union
 
-import pipeline_dp
-from pipeline_dp import pipeline_backend
 import analysis
+import pipeline_dp
+from analysis import cross_partition_combiners
 from analysis import data_structures
 from analysis import metrics
 from analysis import utility_analysis_engine
-from analysis import cross_partition_combiners
-import copy
-import bisect
+from pipeline_dp import pipeline_backend
 
 
 def _generate_bucket_bounds():
     result = [0, 1]
     for i in range(1, 13):
-        result.append(10 ** i)
-        result.append(2 * 10 ** i)
-        result.append(5 * 10 ** i)
+        result.append(10**i)
+        result.append(2 * 10**i)
+        result.append(5 * 10**i)
     return tuple(result)
 
 
@@ -198,7 +198,7 @@ def _get_upper_bound(n: int) -> int:
 
 
 def _unnest_metrics(
-        metrics: List[metrics.PerPartitionMetrics]
+    metrics: List[metrics.PerPartitionMetrics]
 ) -> Iterable[Tuple[Any, metrics.PerPartitionMetrics]]:
     """Unnests metrics from different configurations."""
     for i, metric in enumerate(metrics):

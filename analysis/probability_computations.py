@@ -13,8 +13,9 @@
 # limitations under the License.
 """Computations related to probabilistic distributions."""
 
-import numpy as np
 from typing import List, Sequence
+
+import numpy as np
 
 
 def compute_sum_laplace_gaussian_quantiles(laplace_b: float,

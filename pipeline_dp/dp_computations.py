@@ -14,17 +14,18 @@
 """Differential privacy computing of count, sum, mean, variance."""
 
 import abc
-from dataclasses import dataclass
 import functools
 import math
-import numpy as np
-from scipy import stats
+from dataclasses import dataclass
 from typing import Any, List, Optional, Tuple, Union
+
+import numpy as np
+from pydp.algorithms import numerical_mechanisms as dp_mechanisms
+from scipy import stats
 
 import pipeline_dp
 from pipeline_dp import budget_accounting
 from pipeline_dp import partition_selection
-from pydp.algorithms import numerical_mechanisms as dp_mechanisms
 
 
 @dataclass
@@ -66,8 +67,8 @@ def compute_squares_interval(min_value: float,
                              max_value: float) -> Tuple[float, float]:
     """Returns the bounds of the interval [min_value^2, max_value^2]."""
     if min_value < 0 < max_value:
-        return 0, max(min_value ** 2, max_value ** 2)
-    return min_value ** 2, max_value ** 2
+        return 0, max(min_value**2, max_value**2)
+    return min_value**2, max_value**2
 
 
 def compute_middle(min_value: float, max_value: float) -> float:
@@ -387,7 +388,7 @@ def compute_dp_var(count: int, normalized_sum: float,
         sum_squares_eps, sum_squares_delta, l0_sensitivity,
         dp_params.max_contributions_per_partition, dp_params.noise_kind)
 
-    dp_var = dp_mean_squares - dp_mean ** 2
+    dp_var = dp_mean_squares - dp_mean**2
     if dp_params.min_value != dp_params.max_value:
         dp_mean += compute_middle(dp_params.min_value, dp_params.max_value)
 

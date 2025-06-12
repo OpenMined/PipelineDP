@@ -13,12 +13,12 @@
 # limitations under the License.
 """Utility Analysis cross partition combiners."""
 import copy
+import dataclasses
+import math
+from typing import List, Tuple, Callable
 
 import pipeline_dp
 from analysis import metrics
-import dataclasses
-from typing import List, Tuple, Callable
-import math
 
 
 def _sum_metrics_to_data_dropped(
@@ -51,7 +51,7 @@ def _create_contribution_bounding_errors(
         sum_metrics: metrics.SumMetrics) -> metrics.ContributionBoundingErrors:
     """Creates ContributionBoundingErrors from per-partition metrics."""
     l0_mean = sum_metrics.expected_l0_bounding_error
-    l0_var = sum_metrics.std_l0_bounding_error ** 2
+    l0_var = sum_metrics.std_l0_bounding_error**2
     l0_mean_var = metrics.MeanVariance(mean=l0_mean, var=l0_var)
     linf_min = sum_metrics.clipping_to_min_error
     linf_max = sum_metrics.clipping_to_max_error
@@ -69,7 +69,7 @@ def _sum_metrics_to_value_error(sum_metrics: metrics.SumMetrics,
     mean = bounding_errors.l0.mean + bounding_errors.linf_min + bounding_errors.linf_max
     variance = sum_metrics.std_l0_bounding_error**2 + sum_metrics.std_noise**2
 
-    rmse = math.sqrt(mean ** 2 + variance)
+    rmse = math.sqrt(mean**2 + variance)
     l1 = 0  # TODO(dvadym) compute it.
     rmse_with_dropped_partitions = keep_prob * rmse + (1 -
                                                        keep_prob) * abs(value)
@@ -170,8 +170,8 @@ def _add_dataclasses_by_fields(dataclass1, dataclass2,
         setattr(dataclass1, field.name, value1 + value2)
 
 
-def _multiply_float_dataclasses_field(dataclass, factor: float,
-                                      fields_to_ignore: List[str] = ()) -> None:
+def _multiply_float_dataclasses_field(
+    dataclass, factor: float, fields_to_ignore: List[str] = ()) -> None:
     """Recursively multiplies all float fields of the dataclass by the given
     number.
 

@@ -17,9 +17,9 @@ import abc
 import collections
 import logging
 import math
+from dataclasses import dataclass
 from typing import Optional
 
-from dataclasses import dataclass
 import pipeline_dp.aggregate_params as agg_params
 from pipeline_dp import input_validators
 
@@ -197,8 +197,8 @@ class BudgetAccountant(abc.ABC):
         """
         return BudgetAccountantScope(self, weight)
 
-    def _compute_budget_for_aggregation(self, weight: float) -> Optional[
-        Budget]:
+    def _compute_budget_for_aggregation(self,
+                                        weight: float) -> Optional[Budget]:
         """Computes budget per aggregation.
 
         It splits the budget using the naive composition.

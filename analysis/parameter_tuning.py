@@ -11,25 +11,23 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import logging
+import dataclasses
 import math
-from numbers import Number
+from dataclasses import dataclass
+from enum import Enum
+from typing import Callable, List, Optional, Tuple, Union
 
-import pipeline_dp
-from pipeline_dp import dp_computations
-from pipeline_dp import pipeline_backend
-from pipeline_dp import input_validators
-from pipeline_dp.dataset_histograms import histograms
+import numpy as np
+
 import analysis
+import pipeline_dp
+from analysis import dp_strategy_selector
 from analysis import metrics
 from analysis import utility_analysis
-from analysis import dp_strategy_selector
-
-import dataclasses
-from dataclasses import dataclass
-from typing import Callable, List, Optional, Tuple, Union, Sequence
-from enum import Enum
-import numpy as np
+from pipeline_dp import dp_computations
+from pipeline_dp import input_validators
+from pipeline_dp import pipeline_backend
+from pipeline_dp.dataset_histograms import histograms
 
 
 class MinimizingFunction(Enum):
@@ -429,8 +427,8 @@ def _convert_utility_analysis_to_tune_result(
     # TODO(dvadym): implement relative error.
     # TODO(dvadym): take into consideration partition selection from private
     # partition selection.
-    assert (tune_options.function_to_minimize ==
-            MinimizingFunction.ABSOLUTE_ERROR)
+    assert (
+        tune_options.function_to_minimize == MinimizingFunction.ABSOLUTE_ERROR)
 
     # Sort utility reports by configuration index.
     sorted_utility_reports = sorted(utility_reports,

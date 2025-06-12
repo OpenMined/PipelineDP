@@ -13,9 +13,10 @@
 # limitations under the License.
 """Contains dataset summary and the computation of the summary."""
 
-import pipeline_dp
 import dataclasses
 from typing import Iterable
+
+import pipeline_dp
 
 
 @dataclasses.dataclass

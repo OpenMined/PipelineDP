@@ -18,8 +18,9 @@ from collections import namedtuple
 from dataclasses import dataclass
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Union
 
-import pipeline_dp
 import pyspark
+
+import pipeline_dp
 
 SparkDataFrame = pyspark.sql.dataframe.DataFrame
 
