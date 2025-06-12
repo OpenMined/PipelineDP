@@ -13,9 +13,9 @@
 # limitations under the License.
 """Explain DP computation reports.
 
-An Explain Computation report contains a human readable description of a DP
+An Explain Computation report contains a human-readable description of a DP
 aggregation performed by PipelineDP. It includes
-1. The input parameters (i.e. pipeline_dp.AggregateParams)
+1. The input parameters (i.e., pipeline_dp.AggregateParams)
 2. The main stages the computation graphs.
 
 Example of the report
@@ -56,7 +56,7 @@ class ReportGenerator:
                  method_name: str,
                  is_public_partition: Optional[bool] = None):
         """Initialize the ReportGenerator."""
-        self._params_str = None
+        self._params_str: Optional[str] = None
         if params:
             self._params_str = agg.parameters_to_readable_string(
                 params, is_public_partition)
@@ -70,7 +70,7 @@ class ReportGenerator:
             stage_description: description of the stage. Note that it might be
             a Callable that returns str. Support Callable is needed to support
             cases when the description contains information which is not yet
-            available during the pipeline construction, e.g. the budget.
+            available during the pipeline construction, e.g., the budget.
         """
         self._stages.append(stage_description)
 

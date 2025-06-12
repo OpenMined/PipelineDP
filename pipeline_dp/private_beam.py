@@ -33,7 +33,7 @@ _beam_backend = None
 
 def _get_beam_backend() -> pipeline_dp.BeamBackend:
     global _beam_backend
-    if _beam_backend == None:
+    if _beam_backend is None:
         _beam_backend = pipeline_dp.BeamBackend()
     return _beam_backend
 

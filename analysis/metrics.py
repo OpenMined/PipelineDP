@@ -30,10 +30,10 @@ class SumMetrics:
         aggregation: DP aggregation for which this analysis was performed. It
           can be COUNT, PRIVACY_ID_COUNT or SUM.
         sum: Non-DP sum of contributions to the aggregated metric being
-          analyzed. In case of SUM, this field stores the sum of all values
-          contributed by privacy IDs, in  case of COUNT, it is the count of
-          contributed values, and in case of PRIVACY_ID_COUNT, the field
-          contains count of privacy IDs that contribute to a partition.
+          analyzed. In the case of SUM, this field stores the sum of all values
+          contributed by privacy IDs, in the case of COUNT, it is the count of
+          contributed values, and in the case of PRIVACY_ID_COUNT, the field
+          contains the count of privacy IDs that contribute to a partition.
         clipping_to_min_error: the amount of error due to contribution min
           clipping.
         clipping_to_max_error: the amount of error due to contribution max
@@ -85,8 +85,9 @@ class ContributionBoundingErrors:
     Attributes:
         l0: max_partition_contributed (aka l0) bounding error. The output of l0
           bounding is a random variable for each partition. Its distribution is
-          close to normal when number of contribution per partition is large.
-        linf_min & linf_max: represents error due to min & max contribution
+          close to normal when the number of contributions per partition is
+          large.
+        linf_min & linf_max: represents error due to min and max contribution
           bounding, respectively (only populated for Sum metrics). It is
           deterministic for each partition.
     """
@@ -95,9 +96,10 @@ class ContributionBoundingErrors:
     linf_max: float
 
     def to_relative(self, value: float) -> 'ContributionBoundingErrors':
-        """Converts from the absolute to the relative error dividing by actual value."""
+        """Converts from the absolute to the relative error dividing by
+        actual value."""
         l0_rel_mean_var = MeanVariance(self.l0.mean / value,
-                                       self.l0.var / value**2)
+                                       self.l0.var / value ** 2)
         return ContributionBoundingErrors(l0=l0_rel_mean_var,
                                           linf_min=self.linf_min / value,
                                           linf_max=self.linf_max / value)
@@ -107,13 +109,14 @@ class ContributionBoundingErrors:
 class ValueErrors:
     """Errors between actual and dp metric.
 
-    This class describes breakdown of errors for (dp_value - actual_value),
-    where value can be a metric like count, sum etc. The value error is a random
-    variable and it comes from different sources - contribution bounding error
+    This class describes the breakdown of errors for (dp_value - actual_value),
+    where value can be a metric like count, sum, etc. The value error is a
+    random
+    variable, and it comes from different sources - contribution bounding error
     and DP noise. This class contains different error metrics.
 
     All attributes correspond to the errors computed per partition and then
-    averaged across partitions, e.g.
+    averaged across partitions, e.g.,
       rmse_per_partition = sqrt(E(dp_value - actual_value)^2)
       self.rmse = mean(rmse_per_partition)
 
@@ -137,12 +140,12 @@ class ValueErrors:
     # The following error metrics include error from dropped partitions for
     # private partition selection. For example:
     #    rmse = sqrt(E(actual_value-dp_output)^2) = f(actual_value-dp_output).
-    # For the partition with probability to keep = p.
+    # For the partition with the probability to keep = p.
     #    rmse_with_dropped_partitions = p*rmse + (1-p)*f(actual_value-0).
     rmse_with_dropped_partitions: float
     l1_with_dropped_partitions: float
 
-    def to_relative(self, value: float):
+    def to_relative(self, value: float) -> 'ValueErrors':
         """Converts from absolute to relative error dividing by actual_value."""
         if value == 0:
             # When the actual value is 0, the relative error can't be computed.
@@ -161,7 +164,7 @@ class ValueErrors:
         return ValueErrors(
             self.bounding_errors.to_relative(value),
             mean=self.mean / value,
-            variance=self.variance / value**2,
+            variance=self.variance / value ** 2,
             rmse=self.rmse / value,
             l1=self.l1 / value,
             rmse_with_dropped_partitions=self.rmse_with_dropped_partitions /
@@ -221,8 +224,8 @@ class PartitionsInfo:
     """Stores aggregate metrics about partitions and partition selection.
 
     Attributes:
-        public_partitions: true if public partitinos are used.
-        num_dataset_partitions: the number of partitions in dataset.
+        public_partitions: true if public partitions are used.
+        num_dataset_partitions: the number of partitions in the dataset.
         num_non_public_partitions: the number of partitions dropped because
           of public partitions.
         num_empty_partitions: the number of empty partitions added because of
@@ -252,9 +255,9 @@ class UtilityReport:
     Attributes:
         configuration_index: the index of the input parameter configuration for
           which this report was computed.
-        partitions_info: utility analysis of selected partition.
-        metric_errors: utility analysis of metrics (e.g. COUNT, SUM,
-          PRIVACY_ID_COUNT).
+        partitions_info: utility analysis of the selected partition.
+        metric_errors: utility analysis of metrics (e.g., COUNT, SUM,
+        PRIVACY_ID_COUNT).
         utility_report_histogram:
     """
     configuration_index: int

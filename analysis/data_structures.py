@@ -94,7 +94,7 @@ class MultiParameterConfiguration:
                                      " they must have the same length.")
 
     @property
-    def size(self):
+    def size(self) -> int:
         return self._size
 
     def get_aggregate_params(

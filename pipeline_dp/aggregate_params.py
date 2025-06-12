@@ -31,7 +31,7 @@ class Metric:
 
     Attributes:
         name: the name of the metric, like 'COUNT', 'PERCENTILE'.
-        parameter: an optional parameter of the metric, e.g. for 90th
+        parameter: an optional parameter of the metric, e.g., for 90th
         percentile, parameter = 90.
     """
     name: str
@@ -81,6 +81,7 @@ class NoiseKind(Enum):
             return MechanismType.LAPLACE
         if self == NoiseKind.GAUSSIAN:
             return MechanismType.GAUSSIAN
+        return None
 
 
 class PartitionSelectionStrategy(Enum):
@@ -232,10 +233,10 @@ class AggregateParams:
         min_value: Lower bound on each value.
         max_value: Upper bound on each value.
         min_sum_per_partition: Lower bound on sum per partition. Used only for
-        SUM metric calculations. It can not be set when min_value/max_value is
+        SUM metric calculations. It cannot be set when min_value/max_value is
          set.
         max_sum_per_partition: Upper bound on sum per partition. Used only for
-        SUM metric calculations. It can not be set when min_value/max_value is
+        SUM metric calculations. It cannot be set when min_value/max_value is
          set.
         custom_combiners: Warning: experimental@ Combiners for computing custom
           metrics.
@@ -261,15 +262,17 @@ class AggregateParams:
          partition with at least pre_threshold privacy units isn't necessarily
          kept. It is ignored when public partitions are used.
          More details on pre-thresholding are in
-         https://github.com/google/differential-privacy/blob/main/common_docs/pre_thresholding.md
+         https://github.com/google/differential-privacy/blob/main/common_docs
+         /pre_thresholding.md
         perform_cross_partition_contribution_bounding: whether to perform cross
-         partition contribution bounding.  
-         Warning: turn off cross partition contribution bounding only when the 
+         partition contribution bounding.
+         Warning: turn off cross partition contribution bounding only when the
          number of contributed partitions per privacy unit is already bounded
          by max_partitions_contributed.
         output_noise_stddev: if True, the output will contain the applied noise
-         standard deviation, in form <lower_case_metric_name>_noise_stddev, e.g.
-         count_noise_stddev. Currently COUNT, PRIVACY_ID_COUNT, SUM are
+         standard deviation, in form <lower_case_metric_name>_noise_stddev,
+         e.g.,
+         count_noise_stddev. Currently, COUNT, PRIVACY_ID_COUNT, SUM are
          supported.
     """
     metrics: List[Metric]
@@ -282,7 +285,7 @@ class AggregateParams:
     max_value: Optional[float] = None
     min_sum_per_partition: Optional[float] = None
     max_sum_per_partition: Optional[float] = None
-    custom_combiners: Sequence['CustomCombiner'] = None
+    custom_combiners: Optional[Sequence['CustomCombiner']] = None
     vector_norm_kind: Optional[NormKind] = None
     vector_max_norm: Optional[float] = None
     vector_size: Optional[int] = None
@@ -741,8 +744,7 @@ class AddDPNoiseParams:
     output_noise_stddev: bool = False
 
     def __post_init__(self):
-
-        def check_is_positive(num: Any, name: str) -> bool:
+        def check_is_positive(num: Any, name: str):
             if num is not None and num <= 0:
                 raise ValueError(f"{name} must be positive, but {num} given.")
 
@@ -754,7 +756,7 @@ class AddDPNoiseParams:
 
 
 def _not_a_proper_number(num: Any) -> bool:
-    """Returns true if num is inf or NaN, false otherwise."""
+    """Returns true if 'num' is inf or NaN, false otherwise."""
     return math.isnan(num) or math.isinf(num)
 
 
@@ -764,7 +766,7 @@ def _check_is_positive_int(num: Any, field_name: str) -> None:
             f"{field_name} has to be positive integer, but {num} given.")
 
 
-def _count_not_none(*args):
+def _count_not_none(*args: Sequence[int]):
     return sum([1 for arg in args if arg is not None])
 
 

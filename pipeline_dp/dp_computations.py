@@ -66,8 +66,8 @@ def compute_squares_interval(min_value: float,
                              max_value: float) -> Tuple[float, float]:
     """Returns the bounds of the interval [min_value^2, max_value^2]."""
     if min_value < 0 < max_value:
-        return 0, max(min_value**2, max_value**2)
-    return min_value**2, max_value**2
+        return 0, max(min_value ** 2, max_value ** 2)
+    return min_value ** 2, max_value ** 2
 
 
 def compute_middle(min_value: float, max_value: float) -> float:
@@ -387,7 +387,7 @@ def compute_dp_var(count: int, normalized_sum: float,
         sum_squares_eps, sum_squares_delta, l0_sensitivity,
         dp_params.max_contributions_per_partition, dp_params.noise_kind)
 
-    dp_var = dp_mean_squares - dp_mean**2
+    dp_var = dp_mean_squares - dp_mean ** 2
     if dp_params.min_value != dp_params.max_value:
         dp_mean += compute_middle(dp_params.min_value, dp_params.max_value)
 

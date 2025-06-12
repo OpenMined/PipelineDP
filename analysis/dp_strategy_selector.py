@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Choosing DP Strategy (i.e. noise_kind, partition selection strategy etc)
+"""Choosing DP Strategy (i.e., noise_kind, partition selection strategy, etc.)
 based on contribution bounding params."""
 from dataclasses import dataclass
 from typing import List, Optional
@@ -32,11 +32,11 @@ class DPStrategy:
 
 
 class DPStrategySelector:
-    """Chooses DPStrategy based on DP budget, computation sensitivites, etc
+    """Chooses DPStrategy based on DP budget, computation sensitivities, etc.
 
     It chooses noise_kind to minimize the noise std deviation.
-    For non-public partitions it chooses partition selection strategy to
-    minimize threshold. For more details see docstring to
+    For non-public partitions it chooses a partition selection strategy to
+    minimize the threshold. For more details see docstring to
     select_partition_selection_strategy().
     """
 
@@ -167,14 +167,16 @@ class DPStrategySelector:
 
         Args:
             epsilon, delta: DP budget for partition selection
-            l0_sensitivity: l0 sensitivity of the query, i.e. the maximum
+            l0_sensitivity: l0 sensitivity of the query, i.e., the maximum
               number of partitions, which 1 privacy unit can influence.
 
         Returns:
             the selected strategy.
         """
 
-        def create_mechanism(strategy: pipeline_dp.PartitionSelectionStrategy):
+        def create_mechanism(
+                strategy: pipeline_dp.PartitionSelectionStrategy) -> (
+                dp_computations.ThresholdingMechanism):
             return dp_computations.ThresholdingMechanism(epsilon,
                                                          delta,
                                                          strategy,
@@ -185,12 +187,11 @@ class DPStrategySelector:
             pipeline_dp.PartitionSelectionStrategy.LAPLACE_THRESHOLDING)
         gaussian_thresholding_mechanism = create_mechanism(
             pipeline_dp.PartitionSelectionStrategy.GAUSSIAN_THRESHOLDING)
-        if laplace_thresholding_mechanism.threshold(
-        ) < gaussian_thresholding_mechanism.threshold():
+        if (laplace_thresholding_mechanism.threshold() <
+                gaussian_thresholding_mechanism.threshold()):
             # Truncated geometric strategy is slightly better than Laplace
             # thresholding, so returns it instead.
-            # Truncated geometric does not have threshold, that is why
-            #
+            # Truncated geometric does not have a threshold, that is why
             return pipeline_dp.PartitionSelectionStrategy.TRUNCATED_GEOMETRIC
         return pipeline_dp.PartitionSelectionStrategy.GAUSSIAN_THRESHOLDING
 
@@ -198,5 +199,6 @@ class DPStrategySelector:
 class DPStrategySelectorFactory:
 
     def create(self, epsilon: float, delta: float,
-               metrics: List[pipeline_dp.Metric], is_public_partitions: bool):
+               metrics: List[pipeline_dp.Metric],
+               is_public_partitions: bool) -> DPStrategySelector:
         return DPStrategySelector(epsilon, delta, metrics, is_public_partitions)

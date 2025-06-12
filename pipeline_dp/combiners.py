@@ -16,7 +16,7 @@
 import abc
 import collections
 import copy
-from typing import Callable, Iterable, Sized, Tuple, List, Union
+from typing import Callable, Iterable, Sized, Tuple, List, Union, Optional
 
 import numpy as np
 import pydp
@@ -141,7 +141,7 @@ class CustomCombiner(Combiner, abc.ABC):
         """
         self._aggregate_params = aggregate_params
 
-    def metrics_names(self) -> List[str]:
+    def metrics_names(self) -> str:
         """Metrics that 'self' computes.
 
         It returns the class name by default.
@@ -153,7 +153,7 @@ class CombinerParams:
     """Parameters for a combiner.
 
     Wraps all the information needed by the combiner to do the
-    differentially-private computation, e.g. privacy budget and mechanism.
+    differentially-private computation, e.g., privacy budget and mechanism.
 
     Note: 'aggregate_params' is copied.
     """
@@ -197,11 +197,17 @@ class CombinerParams:
 
 
 class MechanismContainerMixin(abc.ABC):
-    """Abstract class with implementation of handling DP mechanism.
+    """Abstract class with implementation for handling DP mechanism.
 
     A class that inherits this Mixin and implements create_mechanism() will get
      a support for managing a DP mechanism instance.
     """
+
+    # TODO: define an interface for this
+    def __init__(self):
+        self._mechanism: Optional[Union[
+            dp_computations.AdditiveMechanism, dp_computations.MeanMechanism,
+            dp_computations.ThresholdingMechanism]] = None
 
     @abc.abstractmethod
     def create_mechanism(
@@ -306,15 +312,16 @@ class PrivacyIdCountCombiner(Combiner, AdditiveMechanismMixin):
     def __init__(self, mechanism_spec: budget_accounting.MechanismSpec,
                  params: pipeline_dp.AggregateParams):
         self._mechanism_spec = mechanism_spec
-        self._sensitivities = dp_computations.compute_sensitivities_for_privacy_id_count(
-            params)
+        self._sensitivities = (
+            dp_computations.compute_sensitivities_for_privacy_id_count(
+                params))
         self._output_noise_stddev = params.output_noise_stddev
 
     def create_accumulator(self, values: Sized) -> AccumulatorType:
         return 1 if values else 0
 
     def merge_accumulators(self, accumulator1: AccumulatorType,
-                           accumulator2: AccumulatorType):
+                           accumulator2: AccumulatorType) -> AccumulatorType:
         return accumulator1 + accumulator2
 
     def compute_metrics(self, count: AccumulatorType) -> dict:
@@ -476,7 +483,7 @@ class MeanCombiner(Combiner, MechanismContainerMixin):
     def __init__(self, count_spec: budget_accounting.MechanismSpec,
                  sum_spec: budget_accounting.MechanismSpec,
                  params: pipeline_dp.AggregateParams,
-                 metrics_to_compute: Iterable[str]):
+                 metrics_to_compute: list[str]):
         if len(metrics_to_compute) != len(set(metrics_to_compute)):
             raise ValueError(f"{metrics_to_compute} cannot contain duplicates")
         for metric in metrics_to_compute:
@@ -496,7 +503,7 @@ class MeanCombiner(Combiner, MechanismContainerMixin):
         self._sum_sensitivities = dp_computations.compute_sensitivities_for_normalized_sum(
             params)
 
-    def create_accumulator(self, values: Iterable[float]) -> AccumulatorType:
+    def create_accumulator(self, values: list[float]) -> AccumulatorType:
         middle = dp_computations.compute_middle(self._min_value,
                                                 self._max_value)
         normalized_values = np.clip(values, self._min_value,
@@ -557,7 +564,7 @@ class VarianceCombiner(Combiner):
     AccumulatorType = Tuple[int, float, float]
 
     def __init__(self, params: CombinerParams,
-                 metrics_to_compute: Iterable[str]):
+                 metrics_to_compute: list[str]):
         self._params = params
         if len(metrics_to_compute) != len(set(metrics_to_compute)):
             raise ValueError(f"{metrics_to_compute} cannot contain duplicates")
@@ -571,7 +578,7 @@ class VarianceCombiner(Combiner):
                 f"one of the {metrics_to_compute} should be 'variance'")
         self._metrics_to_compute = metrics_to_compute
 
-    def create_accumulator(self, values: Iterable[float]) -> AccumulatorType:
+    def create_accumulator(self, values: list[float]) -> AccumulatorType:
         min_value = self._params.aggregate_params.min_value
         max_value = self._params.aggregate_params.max_value
         middle = dp_computations.compute_middle(min_value, max_value)
@@ -580,7 +587,7 @@ class VarianceCombiner(Combiner):
         normalized_values = clipped_values - middle
 
         return len(values), normalized_values.sum(), (
-            normalized_values**2).sum()
+                normalized_values ** 2).sum()
 
     def merge_accumulators(self, accum1: AccumulatorType,
                            accum2: AccumulatorType):
@@ -700,12 +707,12 @@ _named_tuple_cache = {}
 
 
 def _get_or_create_named_tuple(type_name: str,
-                               field_names: tuple) -> 'MetricsTuple':
+                               field_names: list[str]) -> 'MetricsTuple':
     """Creates namedtuple type with a custom serializer."""
 
     # The custom serializer is required for supporting serialization of
     # namedtuples in Apache Beam.
-    cache_key = (type_name, field_names)
+    cache_key = (type_name, tuple(field_names))
     named_tuple = _named_tuple_cache.get(cache_key)
     if named_tuple is None:
         named_tuple = collections.namedtuple(type_name, field_names)
@@ -716,7 +723,8 @@ def _get_or_create_named_tuple(type_name: str,
     return named_tuple
 
 
-def _create_named_tuple_instance(type_name: str, field_names: tuple, values):
+def _create_named_tuple_instance(type_name: str, field_names: list[str],
+                                 values):
     return _get_or_create_named_tuple(type_name, field_names)(*values)
 
 
@@ -757,7 +765,7 @@ class CompoundCombiner(Combiner):
     def __init__(self, combiners: Iterable['Combiner'],
                  return_named_tuple: bool):
         self._combiners = list(combiners)
-        self._metrics_to_compute = []
+        self._metrics_to_compute: list[str] = []
         self._return_named_tuple = return_named_tuple
         if not self._return_named_tuple:
             return
@@ -767,7 +775,7 @@ class CompoundCombiner(Combiner):
         if len(self._metrics_to_compute) != len(set(self._metrics_to_compute)):
             raise ValueError(
                 f"two combiners in {combiners} cannot compute the same metrics")
-        self._metrics_to_compute = tuple(self._metrics_to_compute)
+        self._metrics_to_compute = list(self._metrics_to_compute)
         self._MetricsTuple = _get_or_create_named_tuple(
             "MetricsTuple", self._metrics_to_compute)
 
@@ -786,7 +794,7 @@ class CompoundCombiner(Combiner):
         for combiner, acc1, acc2 in zip(self._combiners, accumulator1,
                                         accumulator2):
             merged_accumulators.append(combiner.merge_accumulators(acc1, acc2))
-        return (row_count1 + row_count2, tuple(merged_accumulators))
+        return row_count1 + row_count2, tuple(merged_accumulators)
 
     def compute_metrics(self, compound_accumulator: AccumulatorType):
         _, accumulator = compound_accumulator
@@ -809,7 +817,7 @@ class CompoundCombiner(Combiner):
                     )
             combined_metrics.update(metrics_for_combiner)
         return _create_named_tuple_instance("MetricsTuple",
-                                            tuple(combined_metrics.keys()),
+                                            list(combined_metrics.keys()),
                                             tuple(combined_metrics.values()))
 
     def metrics_names(self) -> List[str]:

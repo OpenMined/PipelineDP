@@ -28,9 +28,9 @@ import bisect
 def _generate_bucket_bounds():
     result = [0, 1]
     for i in range(1, 13):
-        result.append(10**i)
-        result.append(2 * 10**i)
-        result.append(5 * 10**i)
+        result.append(10 ** i)
+        result.append(2 * 10 ** i)
+        result.append(5 * 10 ** i)
     return tuple(result)
 
 
@@ -126,11 +126,12 @@ def perform_utility_analysis(
     result = backend.map_tuple(cross_partition_metrics, _group_utility_reports,
                                "Group utility reports")
     if public_partitions is None:
-        # Add partition selection strategy for private partitions.
+        # Add the partition selection strategy for private partitions.
         strategies = data_structures.get_partition_selection_strategy(options)
 
         def add_partition_selection_strategy(report: metrics.UtilityReport):
-            # Beam does not allow to change input arguments in map, so copy it.
+            # Beam does not allow changing input arguments in the map,
+            # so copy it.
             report = copy.deepcopy(report)
             strategy = strategies[report.configuration_index]
             report.partitions_info.strategy = strategy
@@ -147,17 +148,17 @@ def perform_utility_analysis(
 
 def _pack_per_partition_metrics(
         utility_result: List[Any],
-        n_configurations: int) -> Tuple[metrics.PerPartitionMetrics]:
+        n_configurations: int) -> List[metrics.PerPartitionMetrics]:
     """Packs per-partition metrics.
 
     Arguments:
         utility_result: a list with per-partition results, which contains
           results for all configurations.
-        n_configurations: the number of configuration of parameters for which
+        n_configurations: the number of configurations of parameters for which
           the utility analysis is computed.
 
-    Returns: a list of element (i_configuration, PerPartitionMetrics),
-    where each element corresponds to one of the configuration of the input
+    Returns: a list of elements (i_configuration, PerPartitionMetrics),
+    where each element corresponds to one of the configurations of the input
     parameters.
     """
     assert (len(utility_result) - 1) % n_configurations == 0
@@ -168,7 +169,7 @@ def _pack_per_partition_metrics(
     # Create 'result' with empty elements.
     empty_partition_metric = lambda: metrics.PerPartitionMetrics(
         1, raw_statistics, [])
-    result = tuple(empty_partition_metric() for _ in range(n_configurations))
+    result = list(empty_partition_metric() for _ in range(n_configurations))
 
     # Fill 'result' from 'utility_metrics'.
     for i, metric in enumerate(utility_result[1:]):
@@ -197,27 +198,28 @@ def _get_upper_bound(n: int) -> int:
 
 
 def _unnest_metrics(
-    metrics: List[metrics.PerPartitionMetrics]
+        metrics: List[metrics.PerPartitionMetrics]
 ) -> Iterable[Tuple[Any, metrics.PerPartitionMetrics]]:
     """Unnests metrics from different configurations."""
     for i, metric in enumerate(metrics):
-        yield ((i, None), metric)
-        # Choose bucket based on the number of privacy id count.
+        yield (i, None), metric
+        # Choose a bucket based on the number of privacy id count.
         partition_size = metrics[0].raw_statistics.privacy_id_count
         bucket = _get_lower_bound(partition_size)
 
         # Emits metrics for computing histogram by partition size.
-        yield ((i, bucket), metric)
+        yield (i, bucket), metric
 
 
 def _group_utility_reports(
         configuration_index: int,
-        reports: List[metrics.UtilityReport]) -> metrics.UtilityReport:
+        reports: List[metrics.UtilityReport]) -> metrics.UtilityReport | None:
     """Groups utility reports for one configuration.
 
-    'reports' contains the global report, i.e. which corresponds to all
-    partitions and reports that corresponds to partitions of some size range.
-    This function creates UtilityReport histogram from reports by size range and
+    'reports' contains the global report, i.e., which corresponds to all
+    partitions and reports that correspond to partitions of some size range.
+    This function creates a UtilityReport histogram from reports by size
+    range and
     sets it to the global report.
     """
     global_report = None
@@ -234,7 +236,7 @@ def _group_utility_reports(
         else:
             histogram_reports.append((lower_bucket_bound, report))
     if global_report is None:
-        # it should not happen, but it better to process gracefully in case
+        # it should not happen, but it is better to process gracefully in case
         # if it happens and return None.
         return None
 
