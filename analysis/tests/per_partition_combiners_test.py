@@ -566,8 +566,8 @@ class CompoundCombinerTest(parameterized.TestCase):
         sparse, dense = combiner.merge_accumulators(acc1, acc2)
         self.assertIsNone(sparse)
         self.assertEqual(
-            (3, ((15, 0, -10, -4.973333333333334, 0.04308888888888889),)),
-            dense)
+            [3,
+             ((15, 0, -10, -4.973333333333334, 0.04308888888888889),)], dense)
 
     def test_merge_dense(self):
         combiner = self._create_combiner()
