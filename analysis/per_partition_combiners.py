@@ -248,8 +248,8 @@ class SumCombiner(UtilityAnalysisCombiner):
         self._i_column = i_column
 
     def create_accumulator(
-        self, data: Tuple[np.ndarray | None, np.ndarray,
-                          np.ndarray]) -> AccumulatorType:
+        self, data: Tuple[Optional[np.ndarray], np.ndarray, np.ndarray]
+    ) -> AccumulatorType:
         count, partition_sum, n_partitions = data
         if self._i_column is not None:
             # When i_column is set, it means that this is a multi-column

@@ -14,7 +14,7 @@
 """Public API for performing utility analysis."""
 import bisect
 import copy
-from typing import Any, Iterable, List, Tuple, Union
+from typing import Any, Iterable, List, Tuple, Union, Optional
 
 import analysis
 import pipeline_dp
@@ -212,8 +212,8 @@ def _unnest_metrics(
 
 
 def _group_utility_reports(
-        configuration_index: int,
-        reports: List[metrics.UtilityReport]) -> metrics.UtilityReport | None:
+        configuration_index: int, reports: List[metrics.UtilityReport]
+) -> Optional[metrics.UtilityReport]:
     """Groups utility reports for one configuration.
 
     'reports' contains the global report, i.e., which corresponds to all
