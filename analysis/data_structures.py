@@ -75,12 +75,12 @@ class MultiParameterConfiguration:
             # If elements of min_sum_per_partition and max_sum_per_partition are
             # sequences, all of them should have the same size.
             def all_elements_are_lists(
-                    a: list | Sequence[float] | Sequence[Sequence[float]]
-            ) -> bool:
+                a: Union[List, Sequence[float],
+                         Sequence[Sequence[float]]]) -> bool:
                 return all([isinstance(b, Sequence) for b in a])
 
             def common_value_len(
-                a: list | Sequence[float] | Sequence[Sequence[float]]
+                a: Union[List, Sequence[float], Sequence[Sequence[float]]]
             ) -> Optional[int]:
                 sizes = [len(v) for v in a]
                 return min(sizes) if min(sizes) == max(sizes) else None
