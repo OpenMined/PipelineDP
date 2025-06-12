@@ -78,9 +78,10 @@ class ReportGenerator:
         """Constructs a report based on stages and metrics."""
         if not self._params_str:
             return ""
-        result = [f"DPEngine method: {self._method_name}"]
-        result.append(self._params_str)
-        result.append("Computation graph:")
+        result = [
+            f"DPEngine method: {self._method_name}", self._params_str,
+            "Computation graph:"
+        ]
         for i, stage_str in enumerate(self._stages):
             if hasattr(stage_str, "__call__"):
                 result.append(f" {i+1}. {stage_str()}")

@@ -342,8 +342,9 @@ class AggregateParams:
                         "AggregateParams: vector sum can not be computed "
                         "together with scalar metrics such as sum, mean etc")
             elif partition_bound:
-                all_allowed_metrics = set(
-                    [Metrics.SUM, Metrics.PRIVACY_ID_COUNT, Metrics.COUNT])
+                all_allowed_metrics = {
+                    Metrics.SUM, Metrics.PRIVACY_ID_COUNT, Metrics.COUNT
+                }
                 not_allowed_metrics = set(
                     self.metrics).difference(all_allowed_metrics)
                 if not_allowed_metrics:
@@ -352,8 +353,7 @@ class AggregateParams:
                         f"compatible with metrics {not_allowed_metrics}. Please"
                         f"use min_value/max_value.")
             elif not partition_bound and not value_bound:
-                all_allowed_metrics = set(
-                    [Metrics.PRIVACY_ID_COUNT, Metrics.COUNT])
+                all_allowed_metrics = {Metrics.PRIVACY_ID_COUNT, Metrics.COUNT}
                 not_allowed_metrics = set(
                     self.metrics).difference(all_allowed_metrics)
                 if not_allowed_metrics:

@@ -16,10 +16,11 @@
 More details on Poisson binomial distribution https://en.wikipedia.org/wiki/Poisson_binomial_distribution
 """
 
+from dataclasses import dataclass
+from typing import Sequence, Tuple
+
 import numpy as np
 from scipy.stats import norm
-from typing import Sequence, Tuple
-from dataclasses import dataclass
 
 
 @dataclass
@@ -36,7 +37,7 @@ class PMF:
     probabilities: np.ndarray
 
 
-def compute_pmf(probabilities: Sequence[float]) -> np.ndarray:
+def compute_pmf(probabilities: Sequence[float]) -> PMF:
     """Computes probability mass function of Poisson binomial distribution."""
     # Compute coefficients of Probability Generating Function (PGF), which
     # equals to

@@ -126,8 +126,10 @@ class ValueErrors:
         variance: averaged across partitions Var(dp_value - actual_value).
         rmse: averaged across partitions sqrt(E(dp_value - actual_value)^2).
         l1: averaged across partitions E|dp_value - actual_value|.
-        with_dropped_partitions: error which takes into consideration partitions
-          dropped due to partition selection. See example below.
+        rmse_with_dropped_partitions: error which takes into consideration
+        partitions dropped due to partition selection. See example below.
+        l1_with_dropped_partitions: error which takes into consideration
+        partitions dropped due to partition selection. See example below.
     """
     bounding_errors: ContributionBoundingErrors
     mean: float
@@ -186,7 +188,7 @@ class DataDropInfo:
 
     # This cannot be computed at PartitionSelectionUtility and needs to be
     # computed for each aggregation separately, since it takes into account data
-    # drop from contribution bounding and that is aggregation-specific.
+    # drops from contribution bounding and that is aggregation-specific.
     partition_selection: float
 
 
@@ -194,7 +196,7 @@ class DataDropInfo:
 class MetricUtility:
     """Stores aggregate cross-partition metrics for utility analysis.
 
-    It contains utility analysis for 1 DP metric (COUNT, SUM etc).
+    It contains utility analysis for 1 DP metric (COUNT, SUM, etc.).
 
     Attributes:
         metric: DP metric for which this analysis was performed.

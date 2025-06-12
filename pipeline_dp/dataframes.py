@@ -90,7 +90,7 @@ class SparkConverter(DataFrameConvertor):
             partition_key = row[1] if num_partition_columns == 1 else row[
                 1:1 + num_partition_columns]
             value = row[1 + num_partition_columns] if value_present else 0
-            return (privacy_key, partition_key, value)
+            return privacy_key, partition_key, value
 
         return df.rdd.map(extractor)
 

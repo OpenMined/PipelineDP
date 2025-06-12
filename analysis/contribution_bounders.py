@@ -14,6 +14,8 @@
 """ContributionBounder for utility analysis."""
 
 import numpy as np
+
+import pipeline_dp
 from pipeline_dp import contribution_bounders
 from pipeline_dp import sampling_utils
 from typing import Iterable, Tuple, Union

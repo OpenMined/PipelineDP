@@ -166,7 +166,8 @@ class DPStrategySelector:
         number is equal to the threshold for thresholding strategies.
  
         Args:
-            epsilon, delta: DP budget for partition selection
+            epsilon: DP budget for partition selection
+            delta: DP budget for partition selection
             l0_sensitivity: l0 sensitivity of the query, i.e., the maximum
               number of partitions, which 1 privacy unit can influence.
 
@@ -176,7 +177,7 @@ class DPStrategySelector:
 
         def create_mechanism(
             strategy: pipeline_dp.PartitionSelectionStrategy
-        ) -> (dp_computations.ThresholdingMechanism):
+        ) -> dp_computations.ThresholdingMechanism:
             return dp_computations.ThresholdingMechanism(epsilon,
                                                          delta,
                                                          strategy,

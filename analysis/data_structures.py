@@ -51,7 +51,7 @@ class MultiParameterConfiguration:
                                  Sequence[Sequence[float]]] = None
     max_sum_per_partition: Union[Sequence[float],
                                  Sequence[Sequence[float]]] = None
-    noise_kind: Sequence[pipeline_dp.NoiseKind] = None
+    noise_kind: list[pipeline_dp.NoiseKind] = None
     partition_selection_strategy: Sequence[
         pipeline_dp.PartitionSelectionStrategy] = None
 
@@ -74,10 +74,14 @@ class MultiParameterConfiguration:
         if self.min_sum_per_partition:
             # If elements of min_sum_per_partition and max_sum_per_partition are
             # sequences, all of them should have the same size.
-            def all_elements_are_lists(a: list):
+            def all_elements_are_lists(
+                    a: list | Sequence[float] | Sequence[Sequence[float]]
+            ) -> bool:
                 return all([isinstance(b, Sequence) for b in a])
 
-            def common_value_len(a: list) -> Optional[int]:
+            def common_value_len(
+                a: list | Sequence[float] | Sequence[Sequence[float]]
+            ) -> Optional[int]:
                 sizes = [len(v) for v in a]
                 return min(sizes) if min(sizes) == max(sizes) else None
 
@@ -85,7 +89,7 @@ class MultiParameterConfiguration:
                     self.min_sum_per_partition) and all_elements_are_lists(
                         self.max_sum_per_partition):
                 # multi-column case. Check that each configuration has the
-                # same number of elements (i.e. columns)
+                # same number of elements (i.e., columns)
                 size1 = common_value_len(self.min_sum_per_partition)
                 size2 = common_value_len(self.max_sum_per_partition)
                 if size1 is None or size2 is None or size1 != size2:
@@ -117,7 +121,7 @@ class MultiParameterConfiguration:
         if self.min_sum_per_partition:
             min_sum = self.min_sum_per_partition[index]
             max_sum = self.max_sum_per_partition[index]
-            if isinstance(min_sum, Sequence):
+            if isinstance(min_sum, Sequence) and isinstance(max_sum, Sequence):
                 min_max_sum = list(zip(min_sum, max_sum))
             else:
                 min_max_sum = [[min_sum, max_sum]]
@@ -159,9 +163,8 @@ def get_aggregate_params(
     multi_param_configuration = options.multi_param_configuration
     if multi_param_configuration is None:
         agg_params = options.aggregate_params
-        yield agg_params, [[
-            agg_params.min_sum_per_partition, agg_params.max_sum_per_partition
-        ]]
+        yield agg_params, [(agg_params.min_sum_per_partition,
+                            agg_params.max_sum_per_partition)]
     else:
         for i in range(multi_param_configuration.size):
             yield multi_param_configuration.get_aggregate_params(

@@ -22,8 +22,8 @@ from analysis import metrics
 
 
 def _sum_metrics_to_data_dropped(
-        sum_metrics: metrics.SumMetrics, partition_keep_probability: float,
-        dp_metric: pipeline_dp.Metric) -> metrics.DataDropInfo:
+        sum_metrics: metrics.SumMetrics,
+        partition_keep_probability: float) -> metrics.DataDropInfo:
     """Finds Data drop information from per-partition metrics."""
 
     # This function attributes the data that is dropped to the various
