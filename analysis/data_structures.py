@@ -51,7 +51,7 @@ class MultiParameterConfiguration:
                                  Sequence[Sequence[float]]] = None
     max_sum_per_partition: Union[Sequence[float],
                                  Sequence[Sequence[float]]] = None
-    noise_kind: list[pipeline_dp.NoiseKind] = None
+    noise_kind: List[pipeline_dp.NoiseKind] = None
     partition_selection_strategy: Sequence[
         pipeline_dp.PartitionSelectionStrategy] = None
 

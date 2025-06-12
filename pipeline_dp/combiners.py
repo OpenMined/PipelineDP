@@ -482,7 +482,7 @@ class MeanCombiner(Combiner, MechanismContainerMixin):
     def __init__(self, count_spec: budget_accounting.MechanismSpec,
                  sum_spec: budget_accounting.MechanismSpec,
                  params: pipeline_dp.AggregateParams,
-                 metrics_to_compute: list[str]):
+                 metrics_to_compute: List[str]):
         if len(metrics_to_compute) != len(set(metrics_to_compute)):
             raise ValueError(f"{metrics_to_compute} cannot contain duplicates")
         for metric in metrics_to_compute:
@@ -502,7 +502,7 @@ class MeanCombiner(Combiner, MechanismContainerMixin):
         self._sum_sensitivities = dp_computations.compute_sensitivities_for_normalized_sum(
             params)
 
-    def create_accumulator(self, values: list[float]) -> AccumulatorType:
+    def create_accumulator(self, values: List[float]) -> AccumulatorType:
         middle = dp_computations.compute_middle(self._min_value,
                                                 self._max_value)
         normalized_values = np.clip(values, self._min_value,
@@ -562,7 +562,7 @@ class VarianceCombiner(Combiner):
     """
     AccumulatorType = Tuple[int, float, float]
 
-    def __init__(self, params: CombinerParams, metrics_to_compute: list[str]):
+    def __init__(self, params: CombinerParams, metrics_to_compute: List[str]):
         self._params = params
         if len(metrics_to_compute) != len(set(metrics_to_compute)):
             raise ValueError(f"{metrics_to_compute} cannot contain duplicates")
@@ -576,7 +576,7 @@ class VarianceCombiner(Combiner):
                 f"one of the {metrics_to_compute} should be 'variance'")
         self._metrics_to_compute = metrics_to_compute
 
-    def create_accumulator(self, values: list[float]) -> AccumulatorType:
+    def create_accumulator(self, values: List[float]) -> AccumulatorType:
         min_value = self._params.aggregate_params.min_value
         max_value = self._params.aggregate_params.max_value
         middle = dp_computations.compute_middle(min_value, max_value)
@@ -705,7 +705,7 @@ _named_tuple_cache = {}
 
 
 def _get_or_create_named_tuple(type_name: str,
-                               field_names: list[str]) -> 'MetricsTuple':
+                               field_names: List[str]) -> 'MetricsTuple':
     """Creates namedtuple type with a custom serializer."""
 
     # The custom serializer is required for supporting serialization of
@@ -721,7 +721,7 @@ def _get_or_create_named_tuple(type_name: str,
     return named_tuple
 
 
-def _create_named_tuple_instance(type_name: str, field_names: list[str],
+def _create_named_tuple_instance(type_name: str, field_names: List[str],
                                  values):
     return _get_or_create_named_tuple(type_name, field_names)(*values)
 
@@ -762,8 +762,9 @@ class CompoundCombiner(Combiner):
 
     def __init__(self, combiners: Iterable['Combiner'],
                  return_named_tuple: bool):
+
         self._combiners = list(combiners)
-        self._metrics_to_compute: list[str] = []
+        self._metrics_to_compute: List[str] = []
         self._return_named_tuple = return_named_tuple
         if not self._return_named_tuple:
             return
