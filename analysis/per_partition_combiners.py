@@ -180,9 +180,6 @@ def _merge_partition_selection_accumulators(
     probs1, moments1 = acc1
     probs2, moments2 = acc2
 
-    assert probs1 is not None
-    assert probs2 is not None
-
     if ((probs1 is not None) and (probs2 is not None) and
             len(probs1) + len(probs2) <= MAX_PROBABILITIES_IN_ACCUMULATOR):
         merged: List[float] = _merge_list(list(probs1), list(probs2))
