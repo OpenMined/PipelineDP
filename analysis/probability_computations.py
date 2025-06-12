@@ -13,8 +13,9 @@
 # limitations under the License.
 """Computations related to probabilistic distributions."""
 
-import numpy as np
 from typing import List, Sequence
+
+import numpy as np
 
 
 def compute_sum_laplace_gaussian_quantiles(laplace_b: float,
@@ -32,4 +33,4 @@ def compute_sum_laplace_gaussian_quantiles(laplace_b: float,
     samples = np.random.laplace(
         scale=laplace_b, size=num_samples) + np.random.normal(
             loc=0, scale=gaussian_sigma, size=num_samples)
-    return np.quantile(samples, quantiles)
+    return list(np.quantile(samples, quantiles))

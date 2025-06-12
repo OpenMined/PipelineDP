@@ -12,10 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import pipeline_dp
-import pydp.algorithms.partition_selection as partition_selection
-from typing import Optional
 import math
+from typing import Optional
+
+import pydp.algorithms.partition_selection as partition_selection
+
+import pipeline_dp
 
 PARTITION_STRATEGY_ENUM_TO_STR = {
     pipeline_dp.PartitionSelectionStrategy.TRUNCATED_GEOMETRIC:

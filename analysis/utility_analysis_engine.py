@@ -15,15 +15,15 @@
 import copy
 from typing import Optional, Union
 
+import analysis
+import analysis.contribution_bounders as utility_contribution_bounders
 import pipeline_dp
+from analysis import data_structures
+from analysis import per_partition_combiners
 from pipeline_dp import budget_accounting
 from pipeline_dp import combiners
 from pipeline_dp import contribution_bounders
 from pipeline_dp import pipeline_backend
-import analysis
-import analysis.contribution_bounders as utility_contribution_bounders
-from analysis import per_partition_combiners
-from analysis import data_structures
 
 
 class UtilityAnalysisEngine(pipeline_dp.DPEngine):

@@ -32,9 +32,11 @@ class ContributionBounder(abc.ABC):
     """Interface for objects which perform contribution bounding."""
 
     @abc.abstractmethod
-    def bound_contributions(self, col, params: pipeline_dp.AggregateParams,
-                            backend: pipeline_backend.PipelineBackend,
-                            aggregate_fn: Callable):
+    def bound_contributions(
+            self, col, params: pipeline_dp.AggregateParams,
+            backend: pipeline_backend.PipelineBackend,
+            report_generator: pipeline_dp.report_generator.ReportGenerator,
+            aggregate_fn: Callable):
         """Bound contributions of privacy id.
 
         Contribution bounding is performed to ensure that sensitivity of the
@@ -51,6 +53,7 @@ class ContributionBounder(abc.ABC):
             partition_key, value).
           params: contains parameters needed for contribution bounding.
           backend: pipeline backend for performing operations on collections.
+          report_generator: to create a report from the computation
           aggregate_fn: function that takes a list of values and returns an
             aggregator object.
         Returns:

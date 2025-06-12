@@ -19,9 +19,8 @@ from typing import List
 
 import pipeline_dp
 from pipeline_dp import dp_computations
-
-from pipeline_dp.dataset_histograms.histograms import Histogram
 from pipeline_dp import pipeline_functions
+from pipeline_dp.dataset_histograms.histograms import Histogram
 
 
 class PrivateL0Calculator:

@@ -14,11 +14,12 @@
 import abc
 import dataclasses
 import typing
-from apache_beam.transforms import ptransform
 from abc import abstractmethod
 from typing import Any, Callable, Optional
-from apache_beam import pvalue
+
 import apache_beam as beam
+from apache_beam import pvalue
+from apache_beam.transforms import ptransform
 
 import pipeline_dp
 from pipeline_dp import aggregate_params, budget_accounting
@@ -33,7 +34,7 @@ _beam_backend = None
 
 def _get_beam_backend() -> pipeline_dp.BeamBackend:
     global _beam_backend
-    if _beam_backend == None:
+    if _beam_backend is None:
         _beam_backend = pipeline_dp.BeamBackend()
     return _beam_backend
 

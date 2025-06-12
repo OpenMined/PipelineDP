@@ -13,19 +13,20 @@
 # limitations under the License.
 """Adapters for working with pipeline frameworks."""
 
+import abc
+import collections
 import functools
+import itertools
+import operator
 import random
-import numpy as np
+import typing
+import warnings
 from collections.abc import Iterable, Iterator
 from typing import Callable, List, Optional, Union
 
-import abc
+import numpy as np
+
 import pipeline_dp.combiners as dp_combiners
-import typing
-import collections
-import itertools
-import operator
-import warnings
 
 try:
     import apache_beam as beam
@@ -588,7 +589,7 @@ class ReiterableLazyIterable(Iterable):
             iterable: Iterable to make reiterable
         """
         self._iterable = iterable
-        self._cache: List = None
+        self._cache: Optional[List] = None
         self._first_run_complete = False
 
     def __iter__(self) -> Iterator:
@@ -706,8 +707,7 @@ class LocalBackend(PipelineBackend):
             d = collections.defaultdict(list)
             for key, value in col:
                 d[key].append(value)
-            for item in d.items():
-                yield item
+            yield from d.items()
 
         return ReiterableLazyIterable(group_by_key_generator())
 
@@ -796,8 +796,7 @@ class LocalBackend(PipelineBackend):
     def distinct(self, col, stage_name: str):
 
         def generator():
-            for v in set(col):
-                yield v
+            yield from set(col)
 
         return ReiterableLazyIterable(generator())
 

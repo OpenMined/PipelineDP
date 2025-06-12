@@ -11,25 +11,23 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import logging
+import dataclasses
 import math
-from numbers import Number
+from dataclasses import dataclass
+from enum import Enum
+from typing import Callable, List, Optional, Tuple, Union
 
-import pipeline_dp
-from pipeline_dp import dp_computations
-from pipeline_dp import pipeline_backend
-from pipeline_dp import input_validators
-from pipeline_dp.dataset_histograms import histograms
+import numpy as np
+
 import analysis
+import pipeline_dp
+from analysis import dp_strategy_selector
 from analysis import metrics
 from analysis import utility_analysis
-from analysis import dp_strategy_selector
-
-import dataclasses
-from dataclasses import dataclass
-from typing import Callable, List, Optional, Tuple, Union, Sequence
-from enum import Enum
-import numpy as np
+from pipeline_dp import dp_computations
+from pipeline_dp import input_validators
+from pipeline_dp import pipeline_backend
+from pipeline_dp.dataset_histograms import histograms
 
 
 class MinimizingFunction(Enum):
@@ -58,7 +56,8 @@ class ParametersToTune:
 class TuneOptions:
     """Options for the tuning process.
 
-    Note that parameters that are not tuned (e.g. metrics, noise kind) are taken
+    Note that parameters that are not tuned (e.g., metrics, noise kind) are
+    taken
     from aggregate_params.
 
     Attributes:
@@ -104,7 +103,7 @@ class TuneResult:
         utility_analysis_parameters: contains tune parameter values for which
         utility analysis ran.
         index_best: index of the recommended according to minimizing function
-         (best) configuration in utility_analysis_parameters. Note, that those
+         (best) configuration in utility_analysis_parameters. Note that those
           parameters might not necessarily be optimal, since finding the optimal
           parameters is not always feasible.
         utility_reports: the results of all utility analysis runs that
@@ -122,14 +121,16 @@ def _find_candidate_parameters(
         parameters_to_tune: ParametersToTune,
         aggregate_params: pipeline_dp.AggregateParams,
         max_candidates: int) -> analysis.MultiParameterConfiguration:
-    """Finds candidates for l0, l_inf and max_sum_per_partition_bounds parameters.
+    """Finds candidates for l0, l_inf and max_sum_per_partition_bounds
+    parameters.
 
     Args:
         aggregate_params: parameters of aggregation.
         hist: dataset contribution histogram.
         parameters_to_tune: which parameters to tune.
         max_candidates: how many candidates ((l0, linf) pairs) can be in the
-          output. Note that output can contain fewer candidates. 100 is default
+          output. Note that output can contain fewer candidates. 100 is the
+          default
           heuristically chosen value, better to adjust it for your use-case.
     """
     # L0 bounds
@@ -221,7 +222,7 @@ def _find_candidate_parameters(
     )
 
 
-def _pad_list(a: Optional[List], size: int):
+def _pad_list(a: Optional[List], size: int) -> Optional[List]:
     if a is not None and len(a) < size:
         a.extend([a[0]] * (size - len(a)))
 
@@ -305,7 +306,8 @@ def _find_candidates_constant_relative_step(histogram: histograms.Histogram,
 
 def _find_candidates_bins_max_values_subsample(
         histogram: histograms.Histogram, max_candidates: int) -> List[float]:
-    """Takes max values of histogram bins with constant step between each other."""
+    """Takes max values of histogram bins with constant step between each
+    other."""
     # In order to ensure that max_sum_per_partition > 0, let us skip 0-th
     # bin if max = 0.
     # TODO(dvadym): better algorithm for finding candidates.
@@ -420,19 +422,21 @@ def _convert_utility_analysis_to_tune_result(
         tune_options: TuneOptions,
         run_configurations: analysis.MultiParameterConfiguration,
         use_public_partitions: bool,
-        contribution_histograms: histograms.DatasetHistograms):
+        contribution_histograms: histograms.DatasetHistograms) -> TuneResult:
     assert len(utility_reports) == run_configurations.size
     # TODO(dvadym): implement relative error.
     # TODO(dvadym): take into consideration partition selection from private
     # partition selection.
-    assert tune_options.function_to_minimize == MinimizingFunction.ABSOLUTE_ERROR
+    assert (
+        tune_options.function_to_minimize == MinimizingFunction.ABSOLUTE_ERROR)
 
     # Sort utility reports by configuration index.
     sorted_utility_reports = sorted(utility_reports,
                                     key=lambda e: e.configuration_index)
 
     index_best = -1  # not found
-    # Find best index if there are metrics to compute. Absence of metrics to
+    # Find the best index if there are metrics to compute. The absence of
+    # metrics to
     # compute means that this is SelectPartition analysis.
     if tune_options.aggregate_params.metrics:
         rmse = [

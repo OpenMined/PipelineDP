@@ -12,16 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Tests for cross-partition utility analysis combiners."""
-from absl.testing import absltest
-from absl.testing import parameterized
 import dataclasses
 import math
 from unittest import mock
 from unittest.mock import patch
 
-from analysis import metrics
-from analysis import cross_partition_combiners
+from absl.testing import absltest
+from absl.testing import parameterized
+
 import pipeline_dp
+from analysis import cross_partition_combiners
+from analysis import metrics
 
 
 def _get_default_sum_metrics(metric=pipeline_dp.Metrics.COUNT, sum=10.0):
@@ -180,9 +181,7 @@ class PerPartitionToCrossPartitionMetrics(parameterized.TestCase):
                                    std_noise=4.0,
                                    noise_kind=pipeline_dp.NoiseKind.LAPLACE)
         output = cross_partition_combiners._sum_metrics_to_data_dropped(
-            input,
-            partition_keep_probability=0.5,
-            dp_metric=pipeline_dp.Metrics.COUNT)
+            input, partition_keep_probability=0.5)
         self.assertEqual(
             output,
             metrics.DataDropInfo(l0=2.0, linf=5.0, partition_selection=1.5))
@@ -198,9 +197,7 @@ class PerPartitionToCrossPartitionMetrics(parameterized.TestCase):
                                    noise_kind=pipeline_dp.NoiseKind.LAPLACE)
 
         output = cross_partition_combiners._sum_metrics_to_data_dropped(
-            input,
-            partition_keep_probability=0.5,
-            dp_metric=pipeline_dp.Metrics.SUM)
+            input, partition_keep_probability=0.5)
 
         self.assertEqual(
             output,
@@ -209,9 +206,7 @@ class PerPartitionToCrossPartitionMetrics(parameterized.TestCase):
     def test_sum_metrics_to_data_dropped_public_partition(self):
         input = _get_default_sum_metrics(metric=pipeline_dp.Metrics.COUNT)
         output = cross_partition_combiners._sum_metrics_to_data_dropped(
-            input,
-            partition_keep_probability=1.0,
-            dp_metric=pipeline_dp.Metrics.COUNT)
+            input, partition_keep_probability=1.0)
         self.assertEqual(
             output,
             metrics.DataDropInfo(l0=2.0, linf=5.0, partition_selection=0.0))
@@ -226,9 +221,7 @@ class PerPartitionToCrossPartitionMetrics(parameterized.TestCase):
                                    std_noise=1.0,
                                    noise_kind=pipeline_dp.NoiseKind.LAPLACE)
         output = cross_partition_combiners._sum_metrics_to_data_dropped(
-            input,
-            partition_keep_probability=1.0,
-            dp_metric=pipeline_dp.Metrics.COUNT)
+            input, partition_keep_probability=1.0)
         self.assertEqual(
             output,
             metrics.DataDropInfo(l0=0.0, linf=0.0, partition_selection=0.0))

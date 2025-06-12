@@ -14,17 +14,18 @@
 """Differential privacy computing of count, sum, mean, variance."""
 
 import abc
-from dataclasses import dataclass
 import functools
 import math
-import numpy as np
-from scipy import stats
+from dataclasses import dataclass
 from typing import Any, List, Optional, Tuple, Union
+
+import numpy as np
+from pydp.algorithms import numerical_mechanisms as dp_mechanisms
+from scipy import stats
 
 import pipeline_dp
 from pipeline_dp import budget_accounting
 from pipeline_dp import partition_selection
-from pydp.algorithms import numerical_mechanisms as dp_mechanisms
 
 
 @dataclass
@@ -613,7 +614,7 @@ class Sensitivities:
 
     def __post_init__(self):
 
-        def check_is_positive(num: Any, name: str) -> bool:
+        def check_is_positive(num: Any, name: str):
             if num is not None and num <= 0:
                 raise ValueError(f"{name} must be positive, but {num} given.")
 

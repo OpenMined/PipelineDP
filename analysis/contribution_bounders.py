@@ -14,6 +14,8 @@
 """ContributionBounder for utility analysis."""
 
 import numpy as np
+
+import pipeline_dp
 from pipeline_dp import contribution_bounders
 from pipeline_dp import sampling_utils
 from typing import Iterable, Tuple, Union
@@ -23,20 +25,23 @@ class L0LinfAnalysisContributionBounder(
         contribution_bounders.ContributionBounder):
     """'Bounds' the contribution by privacy_id per and cross partitions.
 
-    Because this is for Utility Analysis, it doesn't actually ensure that
-    contribution bounds are enforced. Instead, it keeps track the information
+    Because this is for Utility Analysis, it doesn't ensure that
+    contribution bounds are enforced. Instead, it keeps track of the information
     needed for computing impact of contribution bounding.
 
     If partitions_sampling_prob < 1.0, partitions are subsampled. This sampling
-    is deterministic and depends on partition key.
+    is deterministic and depends on the partition key.
     """
 
     def __init__(self, partitions_sampling_prob: float):
         super().__init__()
         self._sampling_probability = partitions_sampling_prob
 
-    def bound_contributions(self, col, params, backend, report_generator,
-                            aggregate_fn):
+    def bound_contributions(
+            self, col, params: 'pipeline_dp.AggregateParams',
+            backend: 'pipeline_dp.PipelineBackend',
+            report_generator: 'pipeline_dp.report_generator.ReportGenerator',
+            aggregate_fn):
         """See docstrings for this class and the base class."""
 
         col = backend.map_tuple(
@@ -88,11 +93,11 @@ class LinfAnalysisContributionBounder(contribution_bounders.ContributionBounder
     """'Bounds' the contribution by privacy_id per partitions.
 
     Because this is for Utility Analysis, it doesn't actually ensure that
-    contribution bounds are enforced. Instead, it keeps track the information
+    contribution bounds are enforced. Instead, it keeps track of the information
     needed for computing impact of contribution bounding.
 
     If partitions_sampling_prob < 1.0, partitions are subsampled. This sampling
-    is deterministic and depends on partition key.
+    is deterministic and depends on the partition key.
     """
 
     def __init__(self, partitions_sampling_prob: float):
@@ -154,10 +159,11 @@ def _sum_values(
     if not values:
         # Empty public partitions
         return 0
-    if len(values) == 1:
+    tolist = list(values)
+    if len(tolist) == 1:
         # No need to sum, return 0th value
-        return values[0]
-    if not isinstance(values[0], Iterable):
+        return tolist[0]
+    if not isinstance(tolist[0], Iterable):
         # 1 column
         return sum(values)
     # multiple value columns, sum each column independently
