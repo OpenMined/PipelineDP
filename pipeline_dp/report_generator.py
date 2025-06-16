@@ -70,7 +70,7 @@ class ReportGenerator:
             stage_description: description of the stage. Note that it might be
             a Callable that returns str. Support Callable is needed to support
             cases when the description contains information which is not yet
-            available during the pipeline construction, e.g. the budget.
+            available during the pipeline construction, e.g., the budget.
         """
         self._stages.append(stage_description)
 
