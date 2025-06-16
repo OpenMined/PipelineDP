@@ -126,11 +126,12 @@ def perform_utility_analysis(
     result = backend.map_tuple(cross_partition_metrics, _group_utility_reports,
                                "Group utility reports")
     if public_partitions is None:
-        # Add partition selection strategy for private partitions.
+        # Add the partition selection strategy for private partitions.
         strategies = data_structures.get_partition_selection_strategy(options)
 
         def add_partition_selection_strategy(report: metrics.UtilityReport):
-            # Beam does not allow to change input arguments in map, so copy it.
+            # Beam does not allow changing input arguments in the map,
+            # so copy it.
             report = copy.deepcopy(report)
             strategy = strategies[report.configuration_index]
             report.partitions_info.strategy = strategy
@@ -153,11 +154,11 @@ def _pack_per_partition_metrics(
     Arguments:
         utility_result: a list with per-partition results, which contains
           results for all configurations.
-        n_configurations: the number of configuration of parameters for which
+        n_configurations: the number of configurations of parameters for which
           the utility analysis is computed.
 
-    Returns: a list of element (i_configuration, PerPartitionMetrics),
-    where each element corresponds to one of the configuration of the input
+    Returns: a list of elements (i_configuration, PerPartitionMetrics),
+    where each element corresponds to one of the configurations of the input
     parameters.
     """
     assert (len(utility_result) - 1) % n_configurations == 0
@@ -215,9 +216,10 @@ def _group_utility_reports(
         reports: List[metrics.UtilityReport]) -> metrics.UtilityReport:
     """Groups utility reports for one configuration.
 
-    'reports' contains the global report, i.e. which corresponds to all
-    partitions and reports that corresponds to partitions of some size range.
-    This function creates UtilityReport histogram from reports by size range and
+    'reports' contains the global report, i.e., which corresponds to all
+    partitions and reports that correspond to partitions of some size range.
+    This function creates a UtilityReport histogram from reports by size
+    range and
     sets it to the global report.
     """
     global_report = None
@@ -234,7 +236,7 @@ def _group_utility_reports(
         else:
             histogram_reports.append((lower_bucket_bound, report))
     if global_report is None:
-        # it should not happen, but it better to process gracefully in case
+        # it should not happen, but it is better to process gracefully in case
         # if it happens and return None.
         return None
 

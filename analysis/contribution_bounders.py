@@ -23,12 +23,12 @@ class L0LinfAnalysisContributionBounder(
         contribution_bounders.ContributionBounder):
     """'Bounds' the contribution by privacy_id per and cross partitions.
 
-    Because this is for Utility Analysis, it doesn't actually ensure that
-    contribution bounds are enforced. Instead, it keeps track the information
+    Because this is for Utility Analysis, it doesn't ensure that
+    contribution bounds are enforced. Instead, it keeps track of the information
     needed for computing impact of contribution bounding.
 
     If partitions_sampling_prob < 1.0, partitions are subsampled. This sampling
-    is deterministic and depends on partition key.
+    is deterministic and depends on the partition key.
     """
 
     def __init__(self, partitions_sampling_prob: float):
@@ -88,11 +88,11 @@ class LinfAnalysisContributionBounder(contribution_bounders.ContributionBounder
     """'Bounds' the contribution by privacy_id per partitions.
 
     Because this is for Utility Analysis, it doesn't actually ensure that
-    contribution bounds are enforced. Instead, it keeps track the information
+    contribution bounds are enforced. Instead, it keeps track of the information
     needed for computing impact of contribution bounding.
 
     If partitions_sampling_prob < 1.0, partitions are subsampled. This sampling
-    is deterministic and depends on partition key.
+    is deterministic and depends on the partition key.
     """
 
     def __init__(self, partitions_sampling_prob: float):

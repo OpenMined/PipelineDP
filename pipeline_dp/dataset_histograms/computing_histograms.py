@@ -93,7 +93,7 @@ def compute_dataset_histograms(col, data_extractors: pipeline_dp.DataExtractors,
         col: collection with elements of the same type.
         backend: PipelineBackend to run operations on the collection.
     Returns:
-        1 element collection, which contains a histograms.DatasetHistograms
+        1 element collection, which contains a 'histograms.DatasetHistograms'
         object.
     """
 
@@ -157,7 +157,7 @@ def compute_dataset_histograms_on_preaggregated_data(
         backend: PipelineBackend to run operations on the collection.
 
     Returns:
-        1 element collection, which contains a histograms.DatasetHistograms object.
+        1 element collection, which contains a 'histograms.DatasetHistograms' object.
   """
 
     col = backend.map(

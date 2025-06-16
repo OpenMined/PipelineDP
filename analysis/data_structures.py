@@ -85,7 +85,7 @@ class MultiParameterConfiguration:
                     self.min_sum_per_partition) and all_elements_are_lists(
                         self.max_sum_per_partition):
                 # multi-column case. Check that each configuration has the
-                # same number of elements (i.e. columns)
+                # same number of elements (i.e., columns)
                 size1 = common_value_len(self.min_sum_per_partition)
                 size2 = common_value_len(self.max_sum_per_partition)
                 if size1 is None or size2 is None or size1 != size2:

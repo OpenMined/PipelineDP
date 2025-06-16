@@ -36,10 +36,10 @@ class Combiner(abc.ABC):
     Combiners are objects that encapsulate aggregations and computations of
     differential private metrics. Combiners use accumulators to store the
     aggregation state. Combiners contain logic, while accumulators contain data.
-    The API of combiners are inspired by Apache Beam CombineFn class.
+    The API of combiners is inspired by Apache Beam CombineFn class.
     https://beam.apache.org/documentation/transforms/python/aggregation/combineperkey/#example-5-combining-with-a-combinefn
 
-    Here's how PipelineDP uses combiners to performs an aggregation on some
+    Here's how PipelineDP uses combiners to perform an aggregation on some
     dataset X:
     1. Split dataset X on sub-datasets which might be kept in memory.
     2. Call create_accumulators() for each sub-dataset and keep resulting accumulators.
@@ -50,8 +50,8 @@ class Combiner(abc.ABC):
     Assumption: merge_accumulators is an associative binary operation.
 
     The type of accumulator depends on the aggregation performed by this Combiner.
-    For example, this can be a primitive type (e.g. int for a simple "count"
-    aggregation) or a more complex structure (e.g. for "mean")
+    For example, this can be a primitive type (e.g., int for a simple "count"
+    aggregation) or a more complex structure (e.g., for "mean")
     """
 
     @abc.abstractmethod
@@ -88,8 +88,8 @@ class Combiner(abc.ABC):
 
         If this method returns True, the framework samples data per partition
         up to aggregate_params.max_contributions_per_partition elements before
-        calling self.create_accumulator(). Otherwise all elements per
-        (privacy_id, partition_key) are passed to create_accumulator() and this
+        calling self.create_accumulator(). Otherwise, all elements per
+        (privacy_id, partition_key) are passed to create_accumulator(), and this
         combiner has the full responsibility to bound sensitivity.
         """
         return True
@@ -153,7 +153,7 @@ class CombinerParams:
     """Parameters for a combiner.
 
     Wraps all the information needed by the combiner to do the
-    differentially-private computation, e.g. privacy budget and mechanism.
+    differentially-private computation, e.g., privacy budget and mechanism.
 
     Note: 'aggregate_params' is copied.
     """
@@ -197,7 +197,7 @@ class CombinerParams:
 
 
 class MechanismContainerMixin(abc.ABC):
-    """Abstract class with implementation of handling DP mechanism.
+    """Abstract class with implementation for handling DP mechanism.
 
     A class that inherits this Mixin and implements create_mechanism() will get
      a support for managing a DP mechanism instance.

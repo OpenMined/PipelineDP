@@ -51,6 +51,7 @@ class ContributionBounder(abc.ABC):
             partition_key, value).
           params: contains parameters needed for contribution bounding.
           backend: pipeline backend for performing operations on collections.
+          report_generator: to create a report from the computation
           aggregate_fn: function that takes a list of values and returns an
             aggregator object.
         Returns:

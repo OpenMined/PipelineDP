@@ -12,9 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Classes for representing dataset histograms."""
-
-from dataclasses import dataclass, field
 import enum
+from dataclasses import dataclass, field
 from typing import List, Optional, Sequence, Tuple, Union
 
 
@@ -114,8 +113,8 @@ class Histogram:
         There are 2 types of histograms:
           * Integer histogram, which is used for counts and bins are spaced
             logarithmically (see computing_histograms._to_bin_lower_logarithmic
-            for details how bins are generated )
-          * Floating histograms, which is used for sums per partition. Which
+            for details how bins are generated)
+          * Floating histograms, which are used for sums per partition. Which
             has the same size bins.
         """
         return self.name not in [
@@ -139,7 +138,7 @@ class Histogram:
         this histogram. For each target quantile q it returns the lower bound of
         the first bin, such that all bins from the left contain not more than
         q part of the data.
-        E.g. for quantile 0.8, the returned value is bin.lower for the first
+        E.g., for quantile 0.8, the returned value is bin.lower for the first
         bin such that the ratio of data in bins to left from 'bin' is <= 0.8.
 
         Args:
@@ -169,13 +168,13 @@ class Histogram:
 
 def compute_ratio_dropped(
         contribution_histogram: Histogram) -> Sequence[Tuple[int, float]]:
-    """Computes ratio of dropped data for different bounding thresholds.
+    """Computes the ratio of dropped data for different bounding thresholds.
 
     For each FrequencyBin.lower in contribution_histogram it computes what would
     the ratio of data dropped because of contribution bounding when it is taken
-    as bounding threshold (e.g. in case of L0 histogram bounding_threshold it is
-    max_partition_contribution). For convenience the (0, 1) is added as 1st
-    element.
+    as a bounding threshold (e.g., in the case of L0 histogram
+    bounding_threshold it is max_partition_contribution). For convenience the
+    (0, 1) is added as the 1st element.
 
     Args:
         contribution_histogram: histogram of contributions. It can be L0, L1,

@@ -21,7 +21,7 @@ import bisect
 
 
 class ErrorEstimator:
-    """Estimator of the error from DP pipeline from DatasetHistograms.
+    """Estimator of the error from the DP pipeline from DatasetHistograms.
 
     The recommended way to create this object is to use create_error_estimator.
 
@@ -145,7 +145,7 @@ def create_estimator_for_count_and_privacy_id_count(
     metric: pipeline_dp.Metric,
     noise: pipeline_dp.NoiseKind,
 ) -> ErrorEstimator:
-    """Creates histogram based error estimator for COUNT or PRIVACY_ID_COUNT.
+    """Creates histogram-based error estimator for COUNT or PRIVACY_ID_COUNT.
 
     Args:
         histograms: dataset histograms.
@@ -201,7 +201,7 @@ def create_estimator_for_sum(histograms: hist.DatasetHistograms,
                              delta: Optional[float],
                              noise: pipeline_dp.NoiseKind,
                              sum_index: int = 0) -> ErrorEstimator:
-    """Creates histogram based error estimator for SUM.
+    """Creates histogram-based error estimator for SUM.
 
     Args:
         histograms: dataset histograms.

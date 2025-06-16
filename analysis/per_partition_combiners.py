@@ -96,13 +96,14 @@ def _probabilities_to_moments(
 
 @dataclass
 class PartitionSelectionCalculator:
-    """Computes probability of keeping the partition.
+    """Computes the probability of keeping the partition.
 
     Args:
         probabilities: probabilities that each specific user contributes to the
         partition after contribution bounding.
         moments: contains moments of the sum of independent random
-        variables, which represent whether user contributes to the partition.
+        variables, which represent whether the user contributes to the
+        partition.
 
     Those variables are set mutually exclusive. If len(probabilities) <=
     MAX_PROBABILITIES_IN_ACCUMULATOR then 'probabilities' are used otherwise
@@ -206,7 +207,7 @@ class PartitionSelectionCombiner(UtilityAnalysisCombiner):
             n_partitions > 0, np.minimum(1, max_partitions / n_partitions), 0)
         acc = (list(prob_keep_partition), None)
         empty_acc = ([], None)
-        # 'acc' can contain many probabilities and in that case it is better to
+        # 'acc' can contain many probabilities, and in that case it is better to
         # convert it to moments. The next line achieves this.
         return _merge_partition_selection_accumulators(acc, empty_acc)
 
@@ -251,7 +252,7 @@ class SumCombiner(UtilityAnalysisCombiner):
             # When i_column is set, it means that this is a multi-column
             # case and this combiner processes i-th column. The partition_sum
             # will be a 2d np.array: n_examples*n_columns
-            # extract corresponding column in case of multi-column case.
+            # extract the corresponding column in case of multi-column case.
             partition_sum = partition_sum[:, self._i_column]
         del count  # not used for SumCombiner
         min_bound = self._params.min_sum_per_partition
@@ -367,20 +368,20 @@ class RawStatisticsCombiner(UtilityAnalysisCombiner):
 class CompoundCombiner(pipeline_dp.combiners.CompoundCombiner):
     """Compound combiner for Utility analysis per partition metrics."""
 
-    # For improving memory usage the compound accumulator has 2 modes:
+    # For improving the memory usage, the compound accumulator has 2 modes:
     # 1. Sparse mode (for small datasets): which contains information about each
     # privacy id's aggregated contributions per partition.
     # 2. Dense mode (for large datasets): which contains accumulators from
     # internal combiners.
     # Since the utility analysis can be run for many configurations, there can
-    # be 100s of the internal combiners, as a result the compound
+    # be 100s of the internal combiners, as a result, the compound
     # accumulator can contain 100s accumulators. Converting each privacy id
     # contribution to such accumulators leads to memory usage blow-up. That is
     # why sparse mode introduced - until the number of privacy id contributions
     # is small, they are saved instead of creating accumulators.
     # In Sparse mode, data (which contains counts, sums, n_partitions) are kept
     # in lists and merge is merging of those lists. For further performance
-    # improvements, on converting from sparse to dense mode, the data are
+    # improvements, on converting from sparse to dense mode, the data is
     # converted to NumPy arrays. And internal combiners perform NumPy vector
     # aggregations.
     SparseAccumulatorType = Tuple[List[int], Union[List[float],

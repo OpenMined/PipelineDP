@@ -31,7 +31,7 @@ class Metric:
 
     Attributes:
         name: the name of the metric, like 'COUNT', 'PERCENTILE'.
-        parameter: an optional parameter of the metric, e.g. for 90th
+        parameter: an optional parameter of the metric, e.g., for 90th
         percentile, parameter = 90.
     """
     name: str
@@ -224,19 +224,19 @@ class AggregateParams:
         max_partitions_contributed: A bound on the number of partitions to
           which one unit of privacy (e.g., a user) can contribute.
         max_contributions_per_partition: A bound on the number of times one
-          unit of privacy (e.g. a user) can contribute to a partition.
+          unit of privacy (e.g., a user) can contribute to a partition.
         max_contributions: A bound on the total number of times one unit of
           privacy (e.g., a user) can contribute.
         budget_weight: Relative weight of the privacy budget allocated to this
           aggregation.
         min_value: Lower bound on each value.
         max_value: Upper bound on each value.
-        min_sum_per_partition: Lower bound on sum per partition. Used only for
-        SUM metric calculations. It can not be set when min_value/max_value is
-         set.
-        max_sum_per_partition: Upper bound on sum per partition. Used only for
-        SUM metric calculations. It can not be set when min_value/max_value is
-         set.
+        min_sum_per_partition: Lower bound on the sum per partition. Used
+         only for SUM metric calculations. It cannot be set when
+         min_value/max_value is set.
+        max_sum_per_partition: Upper bound on the sum per partition. Used
+         only for SUM metric calculations. It cannot be set when
+         min_value/max_value is set.
         custom_combiners: Warning: experimental@ Combiners for computing custom
           metrics.
         vector_norm_kind: The type of norm. Used only for VECTOR_SUM metric
@@ -261,15 +261,17 @@ class AggregateParams:
          partition with at least pre_threshold privacy units isn't necessarily
          kept. It is ignored when public partitions are used.
          More details on pre-thresholding are in
-         https://github.com/google/differential-privacy/blob/main/common_docs/pre_thresholding.md
-        perform_cross_partition_contribution_bounding: whether to perform cross
-         partition contribution bounding.  
-         Warning: turn off cross partition contribution bounding only when the 
+         https://github.com/google/differential-privacy/blob/main/common_docs
+         /pre_thresholding.md
+        perform_cross_partition_contribution_bounding: whether to perform
+         cross-partition contribution bounding.
+         Warning: turn off cross-partition contribution bounding only when the
          number of contributed partitions per privacy unit is already bounded
          by max_partitions_contributed.
         output_noise_stddev: if True, the output will contain the applied noise
-         standard deviation, in form <lower_case_metric_name>_noise_stddev, e.g.
-         count_noise_stddev. Currently COUNT, PRIVACY_ID_COUNT, SUM are
+         standard deviation, in form <lower_case_metric_name>_noise_stddev,
+         e.g.,
+         count_noise_stddev. Currently, COUNT, PRIVACY_ID_COUNT, SUM are
          supported.
     """
     metrics: List[Metric]
@@ -479,7 +481,7 @@ class SumParams:
         max_partitions_contributed: A bounds on the number of partitions to
             which one unit of privacy (e.g., a user) can contribute.
         max_contributions_per_partition: A bound on the number of times one unit
-            of privacy (e.g. a user) can contribute to a partition.
+            of privacy (e.g., a user) can contribute to a partition.
         min_value: Lower bound on each value.
         max_value: Upper bound on each value.
         partition_extractor: A function which, given an input element, will
@@ -573,7 +575,7 @@ class MeanParams:
         max_partitions_contributed: Bounds the number of partitions in which one
             unit of privacy (e.g., a user) can participate.
         max_contributions_per_partition: Bounds the number of times one unit of
-            privacy (e.g. a user) can contribute to a partition.
+            privacy (e.g., a user) can contribute to a partition.
         min_value: Lower bound on a value contributed by a unit of privacy in
             a partition.
         max_value: Upper bound on a value contributed by a unit of privacy in a
@@ -619,7 +621,7 @@ class CountParams:
         max_partitions_contributed: A bound on the number of partitions to which
             one unit of privacy (e.g., a user) can contribute.
         max_contributions_per_partition: A bound on the number of times one unit
-            of privacy (e.g. a user) can contribute to a partition.
+            of privacy (e.g., a user) can contribute to a partition.
         partition_extractor: A function which, given an input element, will
             return its partition id.
         budget_weight: Relative weight of the privacy budget allocated for this
@@ -754,7 +756,7 @@ class AddDPNoiseParams:
 
 
 def _not_a_proper_number(num: Any) -> bool:
-    """Returns true if num is inf or NaN, false otherwise."""
+    """Returns true if 'num' is inf or NaN, false otherwise."""
     return math.isnan(num) or math.isinf(num)
 
 

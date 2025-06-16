@@ -56,7 +56,7 @@ def _to_bin_lower_upper_logarithmic(value: int) -> Tuple[int, int]:
 
 def _compute_frequency_histogram(col, backend: pipeline_backend.PipelineBackend,
                                  name: hist.HistogramType):
-    """Computes histogram of element frequencies in collection.
+    """Computes histogram of element frequencies in the collection.
 
   Args:
       col: collection with positive integers.
@@ -76,7 +76,7 @@ def _compute_frequency_histogram(col, backend: pipeline_backend.PipelineBackend,
 def _compute_weighted_frequency_histogram(
         col, backend: pipeline_backend.PipelineBackend,
         name: hist.HistogramType):
-    """Computes histogram of element frequencies in collection.
+    """Computes histogram of element frequencies in the collection.
 
   Args:
       col: collection of (positive integers, weight).
@@ -100,7 +100,7 @@ def _compute_weighted_frequency_histogram(
 def _compute_frequency_histogram_helper(
         col, backend: pipeline_backend.PipelineBackend,
         name: hist.HistogramType):
-    """Computes histogram of element frequencies in collection.
+    """Computes histogram of element frequencies in the collection.
 
   This is a helper function for _compute_frequency_histogram and
   _compute_weighted_frequency_histogram.
@@ -246,7 +246,7 @@ def _compute_partition_count_histogram(
     """Computes histogram of counts per partition.
 
   This histogram contains: the number of partitions with total count of
-  contributions = 1, 2 etc.
+  contributions = 1, 2, etc.
 
   Args:
       col: collection with elements (privacy_id, partition_key).
