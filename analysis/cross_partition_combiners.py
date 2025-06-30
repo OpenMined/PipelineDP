@@ -304,8 +304,7 @@ class CrossPartitionCombiner(pipeline_dp.combiners.Combiner):
     # 2. metrics.UtilityReport contains error metrics.
     # 3. Accumulated weight. Used to calculate total weight after accumulation.
     # During creation of the accumulator in `create_accumulator` the initial
-    # weight
-    # is applied to metric errors of a partition.
+    # weight is applied to metric errors of a partition.
     AccumulatorType = Tuple[Tuple, metrics.UtilityReport, float]
 
     def __init__(self,

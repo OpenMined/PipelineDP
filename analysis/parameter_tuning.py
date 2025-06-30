@@ -436,8 +436,7 @@ def _convert_utility_analysis_to_tune_result(
 
     index_best = -1  # not found
     # Find the best index if there are metrics to compute. The absence of
-    # metrics to
-    # compute means that this is SelectPartition analysis.
+    # metrics to compute means that this is SelectPartition analysis.
     if tune_options.aggregate_params.metrics:
         rmse = [
             ur.metric_errors[0].absolute_error.rmse
