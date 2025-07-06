@@ -331,8 +331,7 @@ def _compute_mean_for_normalized_sum(
     delta: float,
     l0_sensitivity: float,
     max_contributions_per_partition: float,
-    noise_kind: pipeline_dp.NoiseKind,
-    norm_kind: pipeline_dp.NormKind,
+    noise_kind: pipeline_dp.NoiseKind
 ):
     """Helper function to compute the DP mean of a raw sum using the DP count.
 
