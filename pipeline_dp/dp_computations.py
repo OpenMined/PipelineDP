@@ -24,7 +24,6 @@ from scipy import stats
 from typing import Any, List, Optional, Tuple, Union
 
 import pipeline_dp
-from examples.utility_analysis_demo_for_PEPR_2024 import max_partitions_contributed
 from pipeline_dp import budget_accounting
 from pipeline_dp import partition_selection
 from pydp.algorithms import numerical_mechanisms as dp_mechanisms
