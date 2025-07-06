@@ -213,7 +213,6 @@ class MechanismContainerMixin(abc.ABC):
     def __getstate__(self):
         # This method is called when serialization happens and its output is
         # serialized. So we can choose what will be serialized. It is needed
-        # serialized. So we can choose what will be serialized. It is needed
         # because '_mechanism' is not serializable, and it can be created on
         # demand. So '_mechanism' is dropped from serialization.
         state = self.__dict__.copy()

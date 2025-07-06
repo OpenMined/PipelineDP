@@ -351,7 +351,7 @@ def _compute_mean_for_normalized_sum(
     middle = compute_middle(min_value, max_value)
     linf_sensitivity = max_contributions_per_partition * abs(middle - min_value)
 
-    dp_normalized_sum = _add_random_noise(sum, eps, delta, noise_kind, norm_kind, max_norm=100, vector_size=)
+    dp_normalized_sum = _add_random_noise(sum, eps, delta, noise_kind, norm_kind, max_norm=100, vector_size=3)
     # Clamps dp_count to 1.0. We know that actual count > 1 except when the
     # input set is empty, in which case it shouldn't matter much what the
     # denominator is.
