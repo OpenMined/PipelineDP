@@ -245,44 +245,40 @@ def add_noise_vector(vec: np.ndarray, noise_params: AdditiveVectorNoiseParams):
         vec: the queried raw vector
         noise_params: parameters of the noise to add to the computation
     """
-
-    def _sensitivity(vec: np.ndarray) -> float:
-        max_partition_contributed = noise_params.l0_sensitivity
-        if noise_params.noise_kind == pipeline_dp.NoiseKind.LAPLACE:
+    max_partition_contributed = noise_params.l0_sensitivity
+    sensitivity: Optional[float] = None
+    match noise_params.noise_kind:
+        case pipeline_dp.NoiseKind.LAPLACE:
             match noise_params.norm_kind:
                 case pipeline_dp.NormKind.L1:
-                    return noise_params.max_norm * max_partition_contributed
-                case pipeline_dp.NormKind.L2:
-                    raise ValueError(
-                        "L2 norm is not supported for Laplace mechanism.")
+                    sensitivity = noise_params.max_norm * max_partition_contributed
                 case pipeline_dp.NormKind.Linf:
                     return noise_params.max_norm * vec.size * max_partition_contributed
-                case _:
-                    raise ValueError("Unknown norm kind.")
-        elif noise_params.noise_kind == pipeline_dp.NoiseKind.GAUSSIAN:
+            if sensitivity is None:
+                raise ValueError(
+                    "Unknown or invalid noise kind for Laplace mechanism.")
+        case pipeline_dp.NoiseKind.GAUSSIAN:
             match noise_params.norm_kind:
-                case pipeline_dp.NormKind.L1:
-                    raise ValueError(
-                        "L1 norm is not supported for Gaussian mechanism.")
                 case pipeline_dp.NormKind.L2:
                     return noise_params.max_norm * np.sqrt(
                         max_partition_contributed)
                 case pipeline_dp.NormKind.Linf:
                     return noise_params.max_norm * np.sqrt(
                         vec.size) * np.sqrt(max_partition_contributed)
-                case _:
-                    raise ValueError("Unknown norm kind.")
-        else:
+            if sensitivity is None:
+                raise ValueError(
+                    "Unknown or invalid noise kind for Gaussian mechanism.")
+        case _:
             raise ValueError("Unknown noise kind.")
 
-    def _add_noise(vec: np.ndarray) -> float:
+    def _add_noise(value: float) -> float:
         match noise_params.noise_kind:
             case pipeline_dp.NoiseKind.LAPLACE:
-                return apply_laplace_mechanism(vec, noise_params.eps,
-                                               _sensitivity(vec))
+                return apply_laplace_mechanism(value, noise_params.eps,
+                                               sensitivity)
             case pipeline_dp.NoiseKind.GAUSSIAN:
-                return apply_gaussian_mechanism(vec, noise_params.eps,
-                                                _sensitivity(vec))
+                return apply_gaussian_mechanism(value, noise_params.eps,
+                                                sensitivity)
             case _:
                 raise ValueError("Unknown noise kind.")
 
@@ -320,17 +316,12 @@ def equally_split_budget(eps: float, delta: float, no_mechanisms: int):
     return budgets
 
 
-def _compute_mean_for_normalized_sum(
-    dp_count: float,
-    sum: float,
-    min_value: float,
-    max_value: float,
-    eps: float,
-    delta: float,
-    l0_sensitivity: float,
-    max_contributions_per_partition: float,
-    noise_kind: pipeline_dp.NoiseKind
-):
+def _compute_mean_for_normalized_sum(dp_count: float, sum: float,
+                                     min_value: float, max_value: float,
+                                     eps: float, delta: float,
+                                     l0_sensitivity: float,
+                                     max_contributions_per_partition: float,
+                                     noise_kind: pipeline_dp.NoiseKind):
     """Helper function to compute the DP mean of a raw sum using the DP count.
 
     Args:
