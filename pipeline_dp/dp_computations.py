@@ -14,18 +14,20 @@
 """Differential privacy computing of count, sum, mean, variance."""
 
 import abc
+from dataclasses import dataclass
 import functools
 import math
-from dataclasses import dataclass
-from typing import Any, List, Optional, Tuple, Union
 
 import numpy as np
-from pydp.algorithms import numerical_mechanisms as dp_mechanisms
+
 from scipy import stats
+from typing import Any, List, Optional, Tuple, Union
 
 import pipeline_dp
-from pipeline_dp import budget_accounting, NormKind
+from examples.utility_analysis_demo_for_PEPR_2024 import max_partitions_contributed
+from pipeline_dp import budget_accounting
 from pipeline_dp import partition_selection
+from pydp.algorithms import numerical_mechanisms as dp_mechanisms
 
 
 @dataclass
@@ -78,55 +80,32 @@ def compute_middle(min_value: float, max_value: float) -> float:
     return min_value + (max_value - min_value) / 2
 
 
-def compute_l1_sensitivity(norm_kind: NormKind, vector_max_norm: float,
-                           vector_size: int,
-                           max_partition_contributed: int) -> float:
-    """Calculates the L1 sensitivity.
+def compute_l1_sensitivity(l0_sensitivity: float,
+                           linf_sensitivity: float) -> float:
+    """Calculates the L1 sensitivity based on the L0 and Linf sensitivities.
 
     Args:
-        norm_kind: The kind of norm.
-        vector_max_norm: The max norm of the vector.
-        vector_size: The size of the vector.
-        max_partition_contributed: Max number of partition a single privacyId contributes, aka L0.
+        l0_sensitivity: The L0 sensitivity.
+        linf_sensitivity: The Linf sensitivity.
 
     Returns:
         The L1 sensitivity.
     """
-    match norm_kind:
-        case NormKind.L1:
-            return vector_max_norm * max_partition_contributed
-        case NormKind.L2:
-            raise ValueError("L2 norm is not supported for Laplace mechanism.")
-        case NormKind.Linf:
-            return vector_max_norm * vector_size * max_partition_contributed
-        case _:
-            raise ValueError("Unknown norm kind.")
+    return l0_sensitivity * linf_sensitivity
 
 
-def compute_l2_sensitivity(norm_kind: NormKind, vector_max_norm: float,
-                           vector_size: int,
-                           max_partition_contributed: int) -> float:
-    """Calculates the L1 sensitivity.
+def compute_l2_sensitivity(l0_sensitivity: float,
+                           linf_sensitivity: float) -> float:
+    """Calculates the L2 sensitivity based on the L0 and Linf sensitivities.
 
     Args:
-        norm_kind: The kind of norm.
-        vector_max_norm: The max norm of the vector.
-        vector_size: The size of the vector.
-        max_partition_contributed: Max number of partition a single privacyId contributes, aka L0.
+        l0_sensitivity: The L0 sensitivity.
+        linf_sensitivity: The Linf sensitivity.
 
     Returns:
-        The L1 sensitivity.
+        The L2 sensitivity.
     """
-    match norm_kind:
-        case NormKind.L1:
-            raise ValueError("L1 norm is not supported for Gaussian mechanism.")
-        case NormKind.L2:
-            return vector_max_norm * np.sqrt(max_partition_contributed)
-        case NormKind.Linf:
-            return vector_max_norm * np.sqrt(vector_size) * np.sqrt(
-                max_partition_contributed)
-        case _:
-            raise ValueError("Unknown norm kind.")
+    return np.sqrt(l0_sensitivity) * linf_sensitivity
 
 
 def compute_sigma(eps: float, delta: float, l2_sensitivity: float) -> float:
@@ -223,11 +202,9 @@ def _add_random_noise(
     value: float,
     eps: float,
     delta: float,
+    l0_sensitivity: float,
+    linf_sensitivity: float,
     noise_kind: pipeline_dp.NoiseKind,
-    norm_kind: pipeline_dp.NormKind,
-    max_norm: float,
-    vector_size: int,
-    max_partition_contributed: int,
 ) -> float:
     """Adds random noise according to the parameters.
 
@@ -243,14 +220,12 @@ def _add_random_noise(
         The value resulted after adding the random noise.
     """
     if noise_kind == pipeline_dp.NoiseKind.LAPLACE:
-        l1_sensitivity = compute_l1_sensitivity(norm_kind, max_norm,
-                                                vector_size,
-                                                max_partition_contributed)
+        l1_sensitivity = compute_l1_sensitivity(l0_sensitivity,
+                                                linf_sensitivity)
         return apply_laplace_mechanism(value, eps, l1_sensitivity)
     if noise_kind == pipeline_dp.NoiseKind.GAUSSIAN:
-        l2_sensitivity = compute_l2_sensitivity(norm_kind, max_norm,
-                                                vector_size,
-                                                max_partition_contributed)
+        l2_sensitivity = compute_l2_sensitivity(l0_sensitivity,
+                                                linf_sensitivity)
         return apply_gaussian_mechanism(value, eps, delta, l2_sensitivity)
     raise ValueError("Noise kind must be either Laplace or Gaussian.")
 
@@ -273,18 +248,48 @@ def add_noise_vector(vec: np.ndarray, noise_params: AdditiveVectorNoiseParams):
         vec: the queried raw vector
         noise_params: parameters of the noise to add to the computation
     """
-    vec = np.array([
-        _add_random_noise(s,
-                          noise_params.eps,
-                          noise_params.delta,
-                          noise_params.noise_kind,
-                          noise_params.norm_kind,
-                          noise_params.max_norm,
-                          vec.size,
-                          max_partition_contributed=int(
-                              noise_params.l0_sensitivity)) for s in vec
-    ])
-    return vec
+
+    def _sensitivity(vec: np.ndarray) -> float:
+        max_partition_contributed = noise_params.l0_sensitivity
+        if noise_params.noise_kind == pipeline_dp.NoiseKind.LAPLACE:
+            match noise_params.norm_kind:
+                case pipeline_dp.NormKind.L1:
+                    return noise_params.max_norm * max_partition_contributed
+                case pipeline_dp.NormKind.L2:
+                    raise ValueError(
+                        "L2 norm is not supported for Laplace mechanism.")
+                case pipeline_dp.NormKind.Linf:
+                    return noise_params.max_norm * vec.size * max_partition_contributed
+                case _:
+                    raise ValueError("Unknown norm kind.")
+        elif noise_params.noise_kind == pipeline_dp.NoiseKind.GAUSSIAN:
+            match noise_params.norm_kind:
+                case pipeline_dp.NormKind.L1:
+                    raise ValueError(
+                        "L1 norm is not supported for Gaussian mechanism.")
+                case pipeline_dp.NormKind.L2:
+                    return noise_params.max_norm * np.sqrt(
+                        max_partition_contributed)
+                case pipeline_dp.NormKind.Linf:
+                    return noise_params.max_norm * np.sqrt(
+                        vec.size) * np.sqrt(max_partition_contributed)
+                case _:
+                    raise ValueError("Unknown norm kind.")
+        else:
+            raise ValueError("Unknown noise kind.")
+
+    def _add_noise(vec: np.ndarray) -> float:
+        match noise_params.noise_kind:
+            case pipeline_dp.NoiseKind.LAPLACE:
+                return apply_laplace_mechanism(vec, noise_params.eps,
+                                               _sensitivity(vec))
+            case pipeline_dp.NoiseKind.GAUSSIAN:
+                return apply_gaussian_mechanism(vec, noise_params.eps,
+                                                _sensitivity(vec))
+            case _:
+                raise ValueError("Unknown noise kind.")
+
+    return np.array([_add_noise(s) for s in vec])
 
 
 def equally_split_budget(eps: float, delta: float, no_mechanisms: int):
@@ -353,13 +358,8 @@ def _compute_mean_for_normalized_sum(
     middle = compute_middle(min_value, max_value)
     linf_sensitivity = max_contributions_per_partition * abs(middle - min_value)
 
-    dp_normalized_sum = _add_random_noise(sum,
-                                          eps,
-                                          delta,
-                                          noise_kind,
-                                          norm_kind,
-                                          max_norm=100,
-                                          vector_size=3)
+    dp_normalized_sum = _add_random_noise(sum, eps, delta, l0_sensitivity,
+                                          linf_sensitivity, noise_kind)
     # Clamps dp_count to 1.0. We know that actual count > 1 except when the
     # input set is empty, in which case it shouldn't matter much what the
     # denominator is.
