@@ -247,40 +247,34 @@ def add_noise_vector(vec: np.ndarray, noise_params: AdditiveVectorNoiseParams):
     """
     max_partition_contributed = noise_params.l0_sensitivity
     sensitivity: Optional[float] = None
-    match noise_params.noise_kind:
-        case pipeline_dp.NoiseKind.LAPLACE:
-            match noise_params.norm_kind:
-                case pipeline_dp.NormKind.L1:
-                    sensitivity = noise_params.max_norm * max_partition_contributed
-                case pipeline_dp.NormKind.Linf:
-                    return noise_params.max_norm * vec.size * max_partition_contributed
-            if sensitivity is None:
-                raise ValueError(
-                    "Unknown or invalid noise kind for Laplace mechanism.")
-        case pipeline_dp.NoiseKind.GAUSSIAN:
-            match noise_params.norm_kind:
-                case pipeline_dp.NormKind.L2:
-                    return noise_params.max_norm * np.sqrt(
-                        max_partition_contributed)
-                case pipeline_dp.NormKind.Linf:
-                    return noise_params.max_norm * np.sqrt(
-                        vec.size) * np.sqrt(max_partition_contributed)
-            if sensitivity is None:
-                raise ValueError(
-                    "Unknown or invalid noise kind for Gaussian mechanism.")
-        case _:
-            raise ValueError("Unknown noise kind.")
+    if noise_params.noise_kind == pipeline_dp.NoiseKind.LAPLACE:
+        if noise_params.norm_kind == pipeline_dp.NormKind.L1:
+            sensitivity = noise_params.max_norm * max_partition_contributed
+        elif noise_params.norm_kind == pipeline_dp.NormKind.Linf:
+            sensitivity = noise_params.max_norm * vec.size * max_partition_contributed
+        if sensitivity is None:
+            raise ValueError(
+                "Unknown or invalid noise kind for Laplace mechanism.")
+    if noise_params.noise_kind == pipeline_dp.NoiseKind.GAUSSIAN:
+        if noise_params.norm_kind == pipeline_dp.NormKind.L2:
+            sensitivity = noise_params.max_norm * np.sqrt(
+                max_partition_contributed)
+        elif noise_params.norm_kind == pipeline_dp.NormKind.Linf:
+            sensitivity = noise_params.max_norm * np.sqrt(
+                vec.size) * np.sqrt(max_partition_contributed)
+        if sensitivity is None:
+            raise ValueError(
+                "Unknown or invalid noise kind for Gaussian mechanism.")
+    else:
+        raise ValueError("Unknown noise kind.")
 
     def _add_noise(value: float) -> float:
-        match noise_params.noise_kind:
-            case pipeline_dp.NoiseKind.LAPLACE:
-                return apply_laplace_mechanism(value, noise_params.eps,
-                                               sensitivity)
-            case pipeline_dp.NoiseKind.GAUSSIAN:
-                return apply_gaussian_mechanism(value, noise_params.eps,
-                                                sensitivity)
-            case _:
-                raise ValueError("Unknown noise kind.")
+        if noise_params.noise_kind == pipeline_dp.NoiseKind.LAPLACE:
+            return apply_laplace_mechanism(value, noise_params.eps, sensitivity)
+        if noise_params.noise_kind == pipeline_dp.NoiseKind.GAUSSIAN:
+            return apply_gaussian_mechanism(value, noise_params.eps,
+                                            noise_params.delta, sensitivity)
+        raise ValueError("Unknown noise kind.")
 
     return np.array([_add_noise(s) for s in vec])
 
