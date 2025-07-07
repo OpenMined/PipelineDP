@@ -40,7 +40,7 @@ class LowerUpperGenerator:
     """Generates lower&upper bounds for FrequencyBin
 
     Attributes:
-        left, right: bounds on interval on which we compute histogram.
+        left, right: bounds on the interval on which we compute histogram.
         num_buckets: number of buckets in [left, right]. Buckets have the same
          length.
 
@@ -48,7 +48,7 @@ class LowerUpperGenerator:
     i-th bucket corresponds to numbers from
     [left+i*bucket_len, right+(i+1)*bucket_len), where
     bucket_len = (right-left)/num_buckets.
-    The last bucket includes right end-point.
+    The last bucket includes the right end-point.
     """
 
     def __init__(
@@ -109,7 +109,7 @@ def _compute_frequency_histogram_per_key(
         name: hist.HistogramType,
         num_buckets: int,
         log_histograms: bool = False):
-    """Computes histogram of element frequencies in collection.
+    """Computes histogram of element frequencies in the collection.
 
     This is a helper function for computing sum histograms per key.
 
@@ -120,7 +120,8 @@ def _compute_frequency_histogram_per_key(
       num_buckets: the number of buckets in the output histogram.
 
     Returns:
-      1 element collection which contains list [hist.Histogram], sorted by key.
+      1 element collection which contains a list [hist.Histogram], sorted by
+      key.
     """
     col = backend.to_multi_transformable_collection(col)
 
@@ -184,7 +185,7 @@ def _compute_frequency_histogram_per_key(
         return [histogram for index, histogram in sorted(index_histogram)]
 
     col = backend.map(col, sort_histograms_by_index, "sort histogram by index")
-    # 1 element collection with list of histograms: [hist.FrequencyBin]
+    # 1 element collection with a list of histograms: [hist.FrequencyBin]
     return col
 
 
@@ -219,7 +220,7 @@ def _create_bucket_generators_per_key(
 
 
 def _flat_values(col, backend: pipeline_backend.PipelineBackend):
-    """Unnests values in (key, value) collection.
+    """Unnests values in the (key, value) collection.
 
     Args:
         col: collection of (key, value) or (key, [value])
@@ -247,9 +248,10 @@ def _flat_values(col, backend: pipeline_backend.PipelineBackend):
 
 def _compute_linf_sum_contributions_histogram(
         col, backend: pipeline_backend.PipelineBackend):
-    """Computes histograms (linear and logarithmic) of per partition privacy id contributions.
+    """Computes histograms (linear and logarithmic) of per-partition privacy
+    id contributions.
 
-    See in the beginning of file histograms description.
+    See the beginning of this file for histogram descriptions.
 
     Args:
         col: collection with elements ((privacy_id, partition_key), value(s)).
@@ -290,7 +292,7 @@ def _compute_partition_sum_histogram(col,
                                      backend: pipeline_backend.PipelineBackend):
     """Computes histograms (linear and logarithmic) of sum per partition.
 
-    See in the beginning of file histograms description.
+    See the beginning of this file for histogram descriptions.
 
     Args:
       col: collection with elements ((privacy_id, partition_key), value).
@@ -329,9 +331,10 @@ def _compute_partition_sum_histogram(col,
 
 def _compute_linf_sum_contributions_histogram_on_preaggregated_data(
         col, backend: pipeline_backend.PipelineBackend):
-    """Computes histograms (linear and logarithmic) of per partition privacy id contributions.
+    """Computes histograms (linear and logarithmic) of per-partition privacy
+    id contributions.
 
-    See in the beginning of file histograms description.
+    See the beginning of this file for histogram descriptions.
 
     Args:
       col: collection with a pre-aggregated dataset, each element is
@@ -375,7 +378,7 @@ def _compute_partition_sum_histogram_on_preaggregated_data(
         col, backend: pipeline_backend.PipelineBackend):
     """Computes histograms (linear and logarithmic) of counts per partition.
 
-    See in the beginning of file histograms description.
+    See the beginning of this file for histogram descriptions.
 
     Args:
       col: collection with a pre-aggregated dataset, each element is

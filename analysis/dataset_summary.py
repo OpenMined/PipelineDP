@@ -39,7 +39,7 @@ def compute_public_partitions_summary(col, backend: pipeline_dp.PipelineBackend,
         col: the raw dataset. The collection where all elements are of the same
             type.
         backend: pipeline backend which corresponds to the type of 'col'.
-        extractors: functions that extract needed pieces of information
+        extractors: functions that extract the needed pieces of information
             from elements of 'col'.
         public_partitions: a collection of partition keys that will be present
           in the result. If not provided, partitions will be selected in a DP
@@ -72,8 +72,8 @@ def compute_public_partitions_summary(col, backend: pipeline_dp.PipelineBackend,
     # (partition, Iterable)
 
     def process_fn(_, a: Iterable[bool]) -> int:
-        # a contains up to 2 booleans.
-        # True means that the partition is dataset.
+        # 'a' contains up to 2 booleans.
+        # True means that the partition is a dataset.
         # False means that the partition is in public partitions.
         a = list(a)
         if len(a) == 2:
@@ -90,7 +90,7 @@ def compute_public_partitions_summary(col, backend: pipeline_dp.PipelineBackend,
 
     col = backend.to_list(col, "To list")
 
-    # 1 element with list of tuples (partition_type, count_partition_type)
+    # 1 element with a list of tuples (partition_type, count_partition_type)
 
     def to_summary(partition_types_count: list) -> PublicPartitionsSummary:
         num_dataset_public = num_dataset_non_public = num_empty_public = 0

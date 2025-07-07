@@ -322,9 +322,9 @@ class NaiveBudgetAccountant(BudgetAccountant):
             total_epsilon: epsilon for the entire pipeline.
             total_delta: delta for the entire pipeline.
             num_aggregations: number of DP aggregations in the pipeline for
-             which  'self' manages the budget. All aggregations should have
+             which 'self' manages the budget. All aggregations should have
              'budget_weight' = 1. When specified, all aggregations will have
-             equal budget. It is useful to ensure that the pipeline has fixed
+             equal budget. It is useful to ensure that the pipeline has a fixed
              number of DP aggregations.
             aggregation_weights: 'budget_weight' of aggregations for which
              'self' manages the budget. It is useful to ensure that the pipeline
@@ -335,7 +335,8 @@ class NaiveBudgetAccountant(BudgetAccountant):
 
         Raises:
             A ValueError if either argument is out of range.
-            A ValueError if num_aggregations and aggregation_weights are both set.
+            A ValueError if num_aggregations and aggregation_weights are both
+            set.
         """
         super().__init__(total_epsilon, total_delta, num_aggregations,
                          aggregation_weights)
