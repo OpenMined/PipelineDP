@@ -276,13 +276,14 @@ single-line-if-stmt=yes
 # Disable checks for the number of spacing characters, to allow for tabulation
 # in dicts, etc.: {1  : 1,\n222: 2}, and to allows a space between comma and
 # closing bracket: (a, )
-disable=C0326
+# Disable line-length checks: yapf is the authority for line length
+disable=C0326, line-too-long
 
 # Maximum number of lines in a module
 max-module-lines=99999
 
 # String used as indentation unit.  The internal Google style guide mandates 2
-# spaces.  Google's externaly-published style guide says 4, consistent with
+# spaces.  Google's externally-published style guide says 4, consistent with
 # PEP 8.  Here, we use 2 spaces, for conformity with many open-sourced Google
 # projects (like TensorFlow).
 indent-string='    '

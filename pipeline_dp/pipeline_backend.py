@@ -29,8 +29,8 @@ import warnings
 
 try:
     import apache_beam as beam
-    import apache_beam.transforms.combiners as combiners
-except:
+    from apache_beam.transforms import combiners
+except ModuleNotFoundError:
     # It is fine if Apache Beam is not installed, other backends can be used.
     pass
 

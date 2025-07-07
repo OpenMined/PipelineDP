@@ -792,7 +792,7 @@ def parameters_to_readable_string(params,
         result.append(f" noise_kind={params.noise_kind.value}")
     if hasattr(params, "budget_weight"):
         result.append(f" budget_weight={params.budget_weight}")
-    result.append(f" Contribution bounding:")
+    result.append(" Contribution bounding:")
     _add_if_obj_has_property(params, "max_partitions_contributed", 2, result)
     _add_if_obj_has_property(params, "max_contributions_per_partition", 2,
                              result)

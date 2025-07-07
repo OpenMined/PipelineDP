@@ -407,7 +407,7 @@ def _compute_noise_std(linf_sensitivity: float,
         l2_sensitivity = compute_l2_sensitivity(dp_params.l0_sensitivity(),
                                                 linf_sensitivity)
         return compute_sigma(dp_params.eps, dp_params.delta, l2_sensitivity)
-    assert "Only Laplace and Gaussian noise is supported."
+    raise ValueError("Only Laplace and Gaussian noise is supported.")
 
 
 def compute_dp_count_noise_std(dp_params: ScalarNoiseParams) -> float:

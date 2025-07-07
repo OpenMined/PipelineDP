@@ -132,7 +132,7 @@ class DPEngine:
                                         public_partitions,
                                         partition_extractor=lambda row: row[1])
             self._add_report_stage(
-                f"Public partition selection: dropped non public partitions")
+                "Public partition selection: dropped non public partitions")
         if not params.contribution_bounds_already_enforced:
             contribution_bounder = self._create_contribution_bounder(
                 params, combiner.expects_per_partition_sampling())
@@ -264,7 +264,7 @@ class DPEngine:
             # Note: This may not be scalable if a single privacy ID contributes
             # to _way_ too many partitions.
             def sample_unique_elements_fn(pid_and_pks):
-                pid, pks = pid_and_pks
+                _, pks = pid_and_pks
                 unique_pks = list(set(pks))
                 return sampling_utils.choose_from_list_without_replacement(
                     unique_pks, max_partitions_contributed)
@@ -557,15 +557,15 @@ class DPEngine:
             raise NotImplementedError(f"Metrics {non_supported_metrics} do not "
                                       f"support PLD budget accounting")
         if custom_combiner:
-            raise ValueError(f"PLD budget accounting does not support custom "
-                             f"combiners")
+            raise ValueError(
+                "PLD budget accounting does not support custom combiners")
 
     def _drop_partitions_under_threshold(self, col):
         self._add_report_stage("Drop partitions which have noised "
                                "privacy_id_count less than threshold.")
-        return self._backend.filter(col,
-                                    lambda row: row[1].privacy_id_count != None,
-                                    "Drop partitions under threshold")
+        return self._backend.filter(
+            col, lambda row: row[1].privacy_id_count is not None,
+            "Drop partitions under threshold")
 
     def add_dp_noise(self,
                      col,

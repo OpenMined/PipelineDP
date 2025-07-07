@@ -13,7 +13,7 @@
 # limitations under the License.
 
 import pipeline_dp
-import pydp.algorithms.partition_selection as partition_selection
+from pydp.algorithms import partition_selection
 from typing import Optional
 import math
 

@@ -347,7 +347,7 @@ class QueryBuilder:
                     raise ValueError(
                         f"Column {column} is not present in DataFrame")
         else:
-            raise ValueError(f"by argument must be column name(s)")
+            raise ValueError("by argument must be column name(s)")
         self._by = by
         self._max_partitions_contributed = max_groups_contributed
         self._max_contributions_per_partition = max_contributions_per_group

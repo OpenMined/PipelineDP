@@ -13,6 +13,7 @@
 # limitations under the License.
 """Privacy budget accounting for DP pipelines."""
 
+import sys
 import abc
 import collections
 import logging
@@ -26,14 +27,13 @@ from pipeline_dp import input_validators
 try:
     from dp_accounting.pld import privacy_loss_distribution as pldlib
     from dp_accounting.pld import common
-except:
+except ModuleNotFoundError:
     # dp_accounting library is needed only for PLDBudgetAccountant which is
     # currently in experimental mode.
     pass
 
 
 def _check_pldlib_imported() -> bool:
-    import sys
     return "dp_accounting.pld.privacy_loss_distribution" in sys.modules
 
 
@@ -102,7 +102,6 @@ class MechanismSpec:
             raise AssertionError("eps must not be None.")
         self._eps = eps
         self._delta = delta
-        return
 
     def set_noise_standard_deviation(self, stddev: float) -> None:
         self._noise_standard_deviation = stddev

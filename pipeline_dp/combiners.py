@@ -525,8 +525,8 @@ class MeanCombiner(Combiner, MechanismContainerMixin):
         return self._metrics_to_compute
 
     def explain_computation(self) -> ExplainComputationReport:
-        return lambda: f"DP mean computation:\n" + self.get_mechanism(
-        ).describe()
+        return lambda: "DP mean computation:\n" + self.get_mechanism().describe(
+        )
 
     def create_mechanism(self) -> dp_computations.MeanMechanism:
         range_middle = dp_computations.compute_middle(self._min_value,
@@ -804,7 +804,7 @@ class CompoundCombiner(Combiner):
             metrics_for_combiner = combiner.compute_metrics(acc)
             for metric, value in metrics_for_combiner.items():
                 if metric in combined_metrics:
-                    raise Exception(
+                    raise ValueError(
                         f"{metric} computed by {combiner} was already computed by another combiner"
                     )
             combined_metrics.update(metrics_for_combiner)
