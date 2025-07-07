@@ -277,7 +277,7 @@ single-line-if-stmt=yes
 # in dicts, etc.: {1  : 1,\n222: 2}, and to allows a space between comma and
 # closing bracket: (a, )
 # Disable line-length checks: yapf is the authority for line length
-disable=C0326, line-too-long
+disable=bad-whitespace, line-too-long
 
 # Maximum number of lines in a module
 max-module-lines=99999
