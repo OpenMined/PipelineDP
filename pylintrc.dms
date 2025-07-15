@@ -155,12 +155,6 @@ disable=abstract-method,
 # mypackage.mymodule.MyReporterClass.
 output-format=text
 
-# Put messages in a separate file for each module / package specified on the
-# command line instead of printing them on stdout. Reports (if any) will be
-# written in a file name "pylint_global.[txt|html]". This option is deprecated
-# and it will be removed in Pylint 2.0.
-files-output=no
-
 # Tells whether to display a full report or only the messages
 reports=no
 
@@ -279,11 +273,10 @@ ignore-long-lines=(?x)(
 # else.
 single-line-if-stmt=yes
 
-# List of optional constructs for which whitespace checking is disabled. `dict-
-# separator` is used to allow tabulation in dicts, etc.: {1  : 1,\n222: 2}.
-# `trailing-comma` allows a space between comma and closing bracket: (a, ).
-# `empty-line` allows space-only lines.
-no-space-check=
+# Disable checks for the number of spacing characters, to allow for tabulation
+# in dicts, etc.: {1  : 1,\n222: 2}, and to allows a space between comma and
+# closing bracket: (a, )
+disable=C0326
 
 # Maximum number of lines in a module
 max-module-lines=99999
@@ -436,6 +429,6 @@ valid-metaclass-classmethod-first-arg=mcs
 
 # Exceptions that will emit a warning when being caught. Defaults to
 # "Exception"
-overgeneral-exceptions=StandardError,
-                       Exception,
-                       BaseException
+overgeneral-exceptions=builtins.StandardError,
+                       builtins.Exception,
+                       builtins.BaseException
