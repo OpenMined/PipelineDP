@@ -27,3 +27,9 @@ indent_width = 4
 [build-system]
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
+
+# Fixes docutils install on Python 3.11
+# See https://github.com/python-poetry/poetry/issues/9293#issuecomment-2048205226
+[[tool.poetry.source]]
+name = "pypi-public"
+url = "https://pypi.org/simple/"
