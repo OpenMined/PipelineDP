@@ -325,23 +325,6 @@ url = "https://pypi.org/simple"
 reference = "pypi-public"
 
 [[package]]
-name = "bumpversion"
-version = "0.5.3"
-description = "Version-bump your software with a single command!"
-optional = false
-python-versions = "*"
-groups = ["dev"]
-files = [
-    {file = "bumpversion-0.5.3-py2.py3-none-any.whl", hash = "sha256:6753d9ff3552013e2130f7bc03c1007e24473b4835952679653fb132367bdd57"},
-    {file = "bumpversion-0.5.3.tar.gz", hash = "sha256:6744c873dd7aafc24453d8b6a1a0d6d109faf63cd0cd19cb78fd46e74932c77e"},
-]
-
-[package.source]
-type = "legacy"
-url = "https://pypi.org/simple"
-reference = "pypi-public"
-
-[[package]]
 name = "certifi"
 version = "2025.7.14"
 description = "Python package for providing Mozilla's CA Bundle."
@@ -4593,4 +4576,4 @@ reference = "pypi-public"
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.8,<3.12"
-content-hash = "e67f344122c792c409fc6b48fb5278daf2d6e0c2561e5b513c9c2fdd4ba5aeab"
+content-hash = "4479506acaba5ad7b1315a5201d140b5ca5743edd34aa6a063aa818b61b33c86"
