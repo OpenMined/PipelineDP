@@ -2391,6 +2391,23 @@ url = "https://pypi.org/simple"
 reference = "pypi-public"
 
 [[package]]
+name = "poetry-core"
+version = "1.6.0"
+description = "Poetry PEP 517 Build Backend"
+optional = false
+python-versions = ">=3.7,<4.0"
+groups = ["dev"]
+files = [
+    {file = "poetry_core-1.6.0-py3-none-any.whl", hash = "sha256:ff96620579f02ec30ee9f789fa5dfdcddd9ab4ac848394f6f8f2f4e88306b534"},
+    {file = "poetry_core-1.6.0.tar.gz", hash = "sha256:a9c7296a12d6c8e4f8aa50a66ef3c967b2b50fba634da144d358e676fad9989f"},
+]
+
+[package.source]
+type = "legacy"
+url = "https://pypi.org/simple"
+reference = "pypi-public"
+
+[[package]]
 name = "proto-plus"
 version = "1.26.1"
 description = "Beautiful, Pythonic protocol buffers"
@@ -4576,4 +4593,4 @@ reference = "pypi-public"
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.8, < 3.12"
-content-hash = "d87bfac9bc0d4e9d8ee787ee73b352f555ef20e7c71f0c85088c380ee70963f6"
+content-hash = "ad6a21ccf4dc671f36549afe67d3f3006c969d787c709cead3b2c7e2c8c2db79"
