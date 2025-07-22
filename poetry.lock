@@ -2392,14 +2392,14 @@ reference = "pypi-public"
 
 [[package]]
 name = "poetry-core"
-version = "1.6.0"
+version = "1.9.1"
 description = "Poetry PEP 517 Build Backend"
 optional = false
-python-versions = ">=3.7,<4.0"
-groups = ["dev"]
+python-versions = ">=3.8,<4.0"
+groups = ["main", "dev"]
 files = [
-    {file = "poetry_core-1.6.0-py3-none-any.whl", hash = "sha256:ff96620579f02ec30ee9f789fa5dfdcddd9ab4ac848394f6f8f2f4e88306b534"},
-    {file = "poetry_core-1.6.0.tar.gz", hash = "sha256:a9c7296a12d6c8e4f8aa50a66ef3c967b2b50fba634da144d358e676fad9989f"},
+    {file = "poetry_core-1.9.1-py3-none-any.whl", hash = "sha256:6f45dd3598e0de8d9b0367360253d4c5d4d0110c8f5c71120a14f0e0f116c1a0"},
+    {file = "poetry_core-1.9.1.tar.gz", hash = "sha256:7a2d49214bf58b4f17f99d6891d947a9836c9899a67a5069f52d7b67217f61b8"},
 ]
 
 [package.source]
@@ -4592,5 +4592,5 @@ reference = "pypi-public"
 
 [metadata]
 lock-version = "2.1"
-python-versions = "^3.8, < 3.12"
-content-hash = "ad6a21ccf4dc671f36549afe67d3f3006c969d787c709cead3b2c7e2c8c2db79"
+python-versions = ">=3.8,<3.12"
+content-hash = "e67f344122c792c409fc6b48fb5278daf2d6e0c2561e5b513c9c2fdd4ba5aeab"

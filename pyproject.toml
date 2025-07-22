@@ -1,14 +1,16 @@
-[tool.poetry]
+[project]
 name = "pipeline-dp"
 version = "0.2.2rc2"
 description = ""
-authors = ["Chinmay Shah <chinmayshah3899@gmail.com>", "Vadym Doroshenko <dvadym@google.com>"]
-license = "Apache-2.0"
+authors = [{ name = "Chinmay Shah", email = "chinmayshah3899@gmail.com" }, { name = "Vadym Doroshenko", email = "dvadym@google.com" }]
+license = { text = "Apache-2.0" }
+requires-python = ">=3.8,<3.12"
 
-[tool.poetry.dependencies]
-python = "^3.8, < 3.12"
-python-dp = "^1.1.5rc4"
-numpy = "^1.20.1"
+dependencies = [
+    "python-dp (>=1.1.5rc4)",
+    "numpy (>=1.20.1,<2.0.0)",
+    "poetry-core (>=1.6.0)",
+]
 
 [tool.poetry.group.dev.dependencies]
 yapf = "^0.32.0"
@@ -24,7 +26,7 @@ pandas = "^1.4.0"
 pyspark = "^3.4.4"
 apache-beam = "^2.48.0"
 dp-accounting = "^0.5.0"
-poetry-core = "1.6.0"
+poetry-core = "^1.6.0"
 
 [tool.yapf]
 based_on_style = "google"
