@@ -10,7 +10,7 @@ python = "^3.8, < 3.12"
 python-dp = "^1.1.5rc4"
 numpy = "^1.20.1"
 
-[tool.poetry.dev-dependencies]
+[tool.poetry.group.dev.dependencies]
 yapf = "^0.32.0"
 twine = "^3.7.1"
 pytest = "^6.2.5"
