@@ -1,7 +1,7 @@
 [project]
 name = "pipeline-dp"
 version = "0.2.2rc2"
-description = ""
+description = "A library for differentially private data analysis pipelines."
 authors = [{ name = "Chinmay Shah", email = "chinmayshah3899@gmail.com" }, { name = "Vadym Doroshenko", email = "dvadym@google.com" }]
 license = { text = "Apache-2.0" }
 requires-python = ">=3.8,<3.13"
