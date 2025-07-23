@@ -4,12 +4,12 @@ version = "0.2.2rc2"
 description = ""
 authors = [{ name = "Chinmay Shah", email = "chinmayshah3899@gmail.com" }, { name = "Vadym Doroshenko", email = "dvadym@google.com" }]
 license = { text = "Apache-2.0" }
-requires-python = ">=3.8,<3.12"
+requires-python = ">=3.8,<3.13"
+keywords = ["differential privacy", "data analysis", "apache beam", "pyspark", "dp"]
 
 dependencies = [
-    "python-dp (>=1.1.5rc4)",
+    "python-dp (>=1.1.5rc4, <2.0.0)",
     "numpy (>=1.20.1,<2.0.0)",
-    "poetry-core (>=1.6.0)",
 ]
 
 [tool.poetry.group.dev.dependencies]
