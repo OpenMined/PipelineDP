@@ -27,7 +27,7 @@ jobs:
         run: |
           pip install --upgrade pip
           pip install poetry
-          poetry install
+          poetry install -v
 
       - name: Check formatting
         run: |
@@ -56,7 +56,7 @@ jobs:
         run: |
           pip install --upgrade pip
           pip install poetry
-          poetry install
+          poetry install -v
 
       - name: Run pytest
         run: |
