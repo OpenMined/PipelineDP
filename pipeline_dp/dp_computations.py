@@ -256,7 +256,7 @@ def add_noise_vector(vec: np.ndarray, noise_params: AdditiveVectorNoiseParams):
             raise ValueError(
                 f"Unknown or invalid norm kind {noise_params.norm_kind} for Laplace mechanism."
             )
-    if noise_params.noise_kind == pipeline_dp.NoiseKind.GAUSSIAN:
+    elif noise_params.noise_kind == pipeline_dp.NoiseKind.GAUSSIAN:
         if noise_params.norm_kind == pipeline_dp.NormKind.L2:
             sensitivity = noise_params.max_norm * np.sqrt(
                 max_partition_contributed)
