@@ -42,3 +42,11 @@ build-backend = "poetry.core.masonry.api"
 [[tool.poetry.source]]
 name = "pypi-public"
 url = "https://pypi.org/simple/"
+
+# must be kept around for python 3.8
+[tool.poetry]
+name = "pipeline-dp"
+version = "0.2.2rc2"
+description = "A library for differentially private data analysis pipelines."
+authors = ["Chinmay Shah <chinmayshah3899@gmail.com>", "Vadym Doroshenko <dvadym@google.com>"]
+license = "Apache-2.0"
