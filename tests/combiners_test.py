@@ -60,21 +60,23 @@ def _create_mechanism_spec(
 
 def _create_aggregate_params(
         max_value: float = 1,
+        max_partition_contributed: int = 2,
         vector_size: int = 1,
         vector_norm_kind: NormKind = pipeline_dp.NormKind.Linf,
         vector_max_norm: int = 5,
         output_noise_stddev: bool = False,
         noise_kind: pipeline_dp.NoiseKind = pipeline_dp.NoiseKind.GAUSSIAN):
-    return pipeline_dp.AggregateParams(min_value=0,
-                                       max_value=max_value,
-                                       max_partitions_contributed=2,
-                                       max_contributions_per_partition=3,
-                                       noise_kind=noise_kind,
-                                       metrics=[pipeline_dp.Metrics.COUNT],
-                                       vector_norm_kind=vector_norm_kind,
-                                       vector_max_norm=vector_max_norm,
-                                       vector_size=vector_size,
-                                       output_noise_stddev=output_noise_stddev)
+    return pipeline_dp.AggregateParams(
+        min_value=0,
+        max_value=max_value,
+        max_partitions_contributed=max_partition_contributed,
+        max_contributions_per_partition=3,
+        noise_kind=noise_kind,
+        metrics=[pipeline_dp.Metrics.COUNT],
+        vector_norm_kind=vector_norm_kind,
+        vector_max_norm=vector_max_norm,
+        vector_size=vector_size,
+        output_noise_stddev=output_noise_stddev)
 
 
 class CreateCompoundCombinersTest(parameterized.TestCase):
@@ -931,7 +933,8 @@ class VectorSumCombinerTest(parameterized.TestCase):
         vector_size: int,
         vector_norm_kind: NormKind = NormKind.Linf,
         vector_max_norm: int = 5,
-        noise_kind: pipeline_dp.NoiseKind = pipeline_dp.NoiseKind.GAUSSIAN
+        noise_kind: pipeline_dp.NoiseKind = pipeline_dp.NoiseKind.GAUSSIAN,
+        max_partition_contributed: int = 2,
     ) -> dp_combiners.VectorSumCombiner:
         mechanism_type = pipeline_dp.MechanismType.GAUSSIAN
         if noise_kind == NoiseKind.LAPLACE:
@@ -939,6 +942,7 @@ class VectorSumCombinerTest(parameterized.TestCase):
         mechanism_spec = _create_mechanism_spec(no_noise, mechanism_type)
         aggregate_params = _create_aggregate_params(
             vector_size=vector_size,
+            max_partition_contributed=max_partition_contributed,
             vector_norm_kind=vector_norm_kind,
             vector_max_norm=vector_max_norm,
             noise_kind=noise_kind)
@@ -1031,19 +1035,21 @@ class VectorSumCombinerTest(parameterized.TestCase):
                                    [5]))['vector_sum'],
                                delta=1e-5)
 
+    # The noise added by Gaussian mechanism has mean 0, std_dev=sqrt(2*ln(1.25/delta))*sensitivity/epsilon
+    # The noise added by Laplace mechanism has mean 0, std_dev=sqrt(2)*sensitivity/epsilon
     @parameterized.parameters(
         dict(noise_kind=NoiseKind.GAUSSIAN,
              norm_kind=NormKind.Linf,
-             max_std_dev=3000),
+             max_std_dev=484),
         dict(noise_kind=NoiseKind.GAUSSIAN,
              norm_kind=NormKind.L2,
-             max_std_dev=30),
+             max_std_dev=4.84),
         dict(noise_kind=NoiseKind.LAPLACE,
              norm_kind=NormKind.Linf,
-             max_std_dev=150000),
+             max_std_dev=14140),
         dict(noise_kind=NoiseKind.LAPLACE,
              norm_kind=NormKind.L1,
-             max_std_dev=15),
+             max_std_dev=1.41),
     )
     def test_vector_sensitivity_not_per_component(self, noise_kind, norm_kind,
                                                   max_std_dev):
@@ -1053,14 +1059,19 @@ class VectorSumCombinerTest(parameterized.TestCase):
         # overall sensitivity of the vector with a global budget, not per component. This results in much
         # lower noise for the same privacy guarantee.
         vector_size = 10000
+        # a pretty wide margin, but way below what the std_dev becomes if eps/delta are divided by vector_size
+        margin_error = 2
         combiner = self._create_combiner(no_noise=False,
                                          vector_size=vector_size,
                                          noise_kind=noise_kind,
-                                         vector_norm_kind=norm_kind)
+                                         vector_norm_kind=norm_kind,
+                                         vector_max_norm=1,
+                                         max_partition_contributed=1)
 
         m = combiner.compute_metrics(np.array([0] * vector_size))
 
-        self.assertLessEqual(np.std(m['vector_sum']), max_std_dev)
+        self.assertLessEqual(np.std(m['vector_sum']),
+                             margin_error * max_std_dev)
 
     def test_compute_metrics_with_noise(self):
         combiner = self._create_combiner(no_noise=False, vector_size=2)
