@@ -1053,9 +1053,10 @@ class VectorSumCombinerTest(parameterized.TestCase):
     )
     def test_vector_sensitivity_not_per_component(self, noise_kind, norm_kind,
                                                   max_std_dev):
+        # This tests checks that the noise added is below a certain standard deviation.
         # Before https://github.com/OpenMined/PipelineDP/pull/559, the budget (epsilon, delta) was computed
         # per component of a vector. For large vectors, this resulted in a large noise, since the budget was
-        # spread across each component evently. The correct way of computing the noise is by computing the
+        # spread across each component evenly. The correct way of computing the noise is by computing the
         # overall sensitivity of the vector with a global budget, not per component. This results in much
         # lower noise for the same privacy guarantee.
         vector_size = 10000
