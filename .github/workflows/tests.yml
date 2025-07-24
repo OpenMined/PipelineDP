@@ -26,7 +26,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install poetry
-          poetry install --no-interaction --no-ansi
+          poetry install
 
       - name: Check formatting
         run: |
@@ -54,7 +54,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install poetry
-          poetry install --no-interaction --no-ansi
+          poetry install
 
       - name: Run pytest
         run: |
