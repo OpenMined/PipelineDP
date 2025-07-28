@@ -1054,14 +1054,9 @@ class VectorSumCombinerTest(parameterized.TestCase):
     def test_vector_sensitivity_not_per_component(self, noise_kind, norm_kind,
                                                   max_std_dev):
         # This tests checks that the noise added is below a certain standard deviation.
-        # Before https://github.com/OpenMined/PipelineDP/pull/559, the budget (epsilon, delta) was computed
-        # per component of a vector. For large vectors, this resulted in a large noise, since the budget was
-        # spread across each component evenly. The correct way of computing the noise is by computing the
-        # overall sensitivity of the vector with a global budget, not per component. This results in much
-        # lower noise for the same privacy guarantee.
+        # If the noise is computed per component of the vector, it would be much bigger than these values.
         vector_size = 10000
         # a pretty wide margin, but way below what the std_dev becomes if eps/delta are divided by vector_size
-        margin_error = 2
         combiner = self._create_combiner(no_noise=False,
                                          vector_size=vector_size,
                                          noise_kind=noise_kind,
@@ -1071,8 +1066,9 @@ class VectorSumCombinerTest(parameterized.TestCase):
 
         m = combiner.compute_metrics(np.array([0] * vector_size))
 
-        self.assertLessEqual(np.std(m['vector_sum']),
-                             margin_error * max_std_dev)
+        # check that all values are within -4*std_dev and 4*std_dev, which should happen >99.993% of the time
+        for value in m['vector_sum']:
+            self.assertLessEqual(np.abs(value), 4 * max_std_dev)
 
     def test_compute_metrics_with_noise(self):
         combiner = self._create_combiner(no_noise=False, vector_size=2)
