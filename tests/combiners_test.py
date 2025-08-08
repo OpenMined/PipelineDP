@@ -1034,15 +1034,12 @@ class VectorSumCombinerTest(parameterized.TestCase):
                                combiner.compute_metrics(np.array(
                                    [5]))['vector_sum'],
                                delta=1e-5)
+
     @parameterized.parameters(
-        dict(noise_kind=NoiseKind.GAUSSIAN,
-             norm_kind=NormKind.Linf),
-        dict(noise_kind=NoiseKind.GAUSSIAN,
-             norm_kind=NormKind.L2),
-        dict(noise_kind=NoiseKind.LAPLACE,
-             norm_kind=NormKind.Linf),
-        dict(noise_kind=NoiseKind.LAPLACE,
-             norm_kind=NormKind.L1),
+        dict(noise_kind=NoiseKind.GAUSSIAN, norm_kind=NormKind.Linf),
+        dict(noise_kind=NoiseKind.GAUSSIAN, norm_kind=NormKind.L2),
+        dict(noise_kind=NoiseKind.LAPLACE, norm_kind=NormKind.Linf),
+        dict(noise_kind=NoiseKind.LAPLACE, norm_kind=NormKind.L1),
     )
     def test_vector_sensitivity_not_per_component(self, noise_kind, norm_kind):
         # This tests checks that the noise added is close to zero.
