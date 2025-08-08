@@ -4,7 +4,7 @@ version = "0.2.2rc2"
 description = "A library for differentially private data analysis pipelines."
 authors = [{ name = "Chinmay Shah", email = "chinmayshah3899@gmail.com" }, { name = "Vadym Doroshenko", email = "dvadym@google.com" }]
 license = { text = "Apache-2.0" }
-requires-python = ">=3.8,<3.13"
+requires-python = ">=3.9,<3.12"
 keywords = ["differential privacy", "data analysis", "apache beam", "pyspark", "dp"]
 
 dependencies = [
@@ -42,19 +42,3 @@ build-backend = "poetry.core.masonry.api"
 [[tool.poetry.source]]
 name = "pypi-public"
 url = "https://pypi.org/simple/"
-
-# Must be kept around for python 3.8 which requires poetry <= 1.8.5
-# Must be equal to the fields in [project]
-[tool.poetry]
-name = "pipeline-dp"
-version = "0.2.2rc2"
-description = "A library for differentially private data analysis pipelines."
-authors = ["Chinmay Shah <chinmayshah3899@gmail.com>", "Vadym Doroshenko <dvadym@google.com>"]
-license = "Apache-2.0"
-
-# Must be kept around for python 3.8 which requires poetry <= 1.8.5
-# Must be equal to the dependencies in [project]
-[tool.poetry.dependencies]
-python = "^3.8, < 3.12"
-python-dp = "^1.1.5rc4"
-numpy = "^1.20.1"

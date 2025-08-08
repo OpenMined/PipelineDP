@@ -24,10 +24,9 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Install dependencies
-        # pin on 1.8.5 since it is the latest that supports python 3.8. the lock file changes between 1.8.5 and 2.x
         run: |
           pip install --upgrade pip
-          pip install poetry==1.8.5
+          pip install poetry
           poetry install --no-interaction --no-root
 
       - name: Check formatting
@@ -54,10 +53,9 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Install dependencies
-        # pin on 1.8.5 since it is the latest that supports python 3.8. the lock file changes between 1.8.5 and 2.x
         run: |
           pip install --upgrade pip
-          pip install poetry==1.8.5
+          pip install poetry
           poetry install --no-interaction --no-root
 
       - name: Run pytest

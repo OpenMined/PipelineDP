@@ -14,8 +14,7 @@ ENV YOUR_ENV=${YOUR_ENV} \
   POETRY_NO_INTERACTION=1 \
   POETRY_VIRTUALENVS_CREATE=false \
   POETRY_CACHE_DIR='/var/cache/pypoetry' \
-  POETRY_HOME='/usr/local' \
-  POETRY_VERSION=2.1.3
+  POETRY_HOME='/usr/local'
 
 # Install poetry
 RUN curl -sSL https://install.python-poetry.org | python3 -
