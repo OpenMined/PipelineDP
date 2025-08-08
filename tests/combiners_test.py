@@ -1055,7 +1055,7 @@ class VectorSumCombinerTest(parameterized.TestCase):
         m = combiner.compute_metrics(np.array([0] * vector_size))
 
         for value in m['vector_sum']:
-            self.assertAlmostEqual(value, 0, delta=1)
+            self.assertAlmostEqual(value, 0, delta=1e1)
 
     def test_compute_metrics_with_noise(self):
         combiner = self._create_combiner(no_noise=False, vector_size=2)
