@@ -2,17 +2,17 @@
 
 .PHONY: format
 format:
-	yapf -i -r pipeline_dp analysis tests examples || \
+	poetry run yapf -i -r pipeline_dp analysis tests examples || \
 	    yapf3 -i -r pipeline_dp analysis tests examples || \
 	    python3 -m yapf -i -r pipeline_dp analysis tests examples
 
 .PHONY: lint
 lint:
-	pylint --rcfile=pylintrc.dms pipeline_dp tests
+	poetry run pylint --rcfile=pylintrc.dms pipeline_dp tests
 
 .PHONY: test
 test:
-	pytest tests analysis/tests
+	poetry run pytest tests analysis/tests
 
 .PHONY: clean
 clean:
@@ -23,7 +23,7 @@ precommit: lint test format clean
 
 .PHONY: dev
 dev: 
-	pip install -r requirements.dev.txt
+	poetry install
 
 .PHONY: dist
 dist: 

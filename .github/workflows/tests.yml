@@ -25,12 +25,13 @@ jobs:
 
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install -r requirements.dev.txt
+          pip install --upgrade pip
+          pip install poetry==2.1.4
+          poetry install --no-interaction --no-root
 
       - name: Check formatting
         run: |
-          yapf --diff --recursive pipeline_dp tests analysis
+          poetry run yapf --diff --recursive pipeline_dp tests analysis
 
   test:
     runs-on: ${{ matrix.os }}
@@ -40,7 +41,7 @@ jobs:
       max-parallel: 3
       matrix:
         os: [ubuntu-latest]
-        python-version: ["3.8", "3.9", "3.10", "3.11"]
+        python-version: ["3.9", "3.10", "3.11"]
 
     steps:
       - uses: actions/checkout@v2
@@ -53,9 +54,10 @@ jobs:
 
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install -r requirements.dev.txt
+          pip install --upgrade pip
+          pip install poetry==2.1.4
+          poetry install --no-interaction --no-root
 
       - name: Run pytest
         run: |
-          pytest tests analysis/tests
+          poetry run pytest tests analysis/tests

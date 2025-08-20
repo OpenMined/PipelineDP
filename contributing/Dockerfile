@@ -1,7 +1,7 @@
 FROM python:3.11-slim
 
 RUN apt-get update \
- && apt-get install -y --no-install-recommends git make zsh-theme-powerlevel9k \
+ && apt-get install -y --no-install-recommends git make zsh-theme-powerlevel9k curl \
  && apt-get purge -y --auto-remove \
  && rm -rf /var/lib/apt/lists/*
 
@@ -9,14 +9,25 @@ RUN apt-get update \
 RUN echo "export TERM='xterm-256color'\n \
 source /usr/share/powerlevel9k/powerlevel9k.zsh-theme" >> ~/.zshrc
 
-COPY . /code
+# Set poetry env for docker
+ENV YOUR_ENV=${YOUR_ENV} \
+  POETRY_NO_INTERACTION=1 \
+  POETRY_VIRTUALENVS_CREATE=false \
+  POETRY_CACHE_DIR='/var/cache/pypoetry' \
+  POETRY_HOME='/usr/local' \
+  POETRY_VERSION=2.1.4
+
+# Install poetry
+RUN curl -sSL https://install.python-poetry.org | python3 -
 
 WORKDIR /code
 
-RUN pip install --no-cache-dir -r requirements.dev.txt
+# First copy only the requirements, to cache them in docker layer
+COPY poetry.lock pyproject.toml /code/
 
-# Install PipelineDP in Development mode
-RUN pip install -e .
+RUN poetry install --no-interaction --no-ansi --no-root
+
+COPY . /code
 
 # Spark/Beam run on JVM (Java Virtual Machine)
 # Therefore, we need to install JRE or JDK to be able to run all the tests
@@ -30,4 +41,4 @@ RUN export JAVA_HOME
 # Clean up
 RUN apt-get autoremove -y \
     && apt-get clean -y \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \

@@ -1,24 +1,33 @@
-[tool.poetry]
+[project]
 name = "pipeline-dp"
 version = "0.2.2rc2"
-description = ""
-authors = ["Chinmay Shah <chinmayshah3899@gmail.com>", "Vadym Doroshenko <dvadym@google.com>"]
-license = "Apache-2.0"
+description = "A library for differentially private data analysis pipelines."
+authors = [{ name = "Chinmay Shah", email = "chinmayshah3899@gmail.com" }, { name = "Vadym Doroshenko", email = "dvadym@google.com" }]
+license = { text = "Apache-2.0" }
+requires-python = ">=3.9,<3.12"
+keywords = ["differential privacy", "data analysis", "apache beam", "pyspark", "dp"]
 
-[tool.poetry.dependencies]
-python = "^3.8, < 3.12"
-python-dp = "^1.1.5rc4"
-numpy = "^1.20.1"
+dependencies = [
+    "python-dp (>=1.1.5rc4,<2.0.0)",
+    "numpy (>=1.20.1,<2.0.0)",
+]
 
-[tool.poetry.dev-dependencies]
-yapf = "^0.32.0"
+[tool.poetry.group.dev.dependencies]
+yapf = "^0.43.0"
 twine = "^3.7.1"
 pytest = "^6.2.5"
 pytest-timeout = "^2.1.0"
-pylint = "2.12.0"
-bumpversion = "==0.5.3"
+pylint = "^2.15.0"
 wheel = "^0.37.1"
 setuptools = "^60.5.0"
+scipy = "^1.9.3"
+pandas = "^1.4.0"
+pyspark = "^3.4.4"
+apache-beam = "^2.48.0"
+dp-accounting = "^0.5.0"
+poetry-core = "^1.6.0"
+bump-my-version = "^1.2.1"
+absl-py = "^1.4.0"
 
 [tool.yapf]
 based_on_style = "google"
@@ -27,3 +36,10 @@ indent_width = 4
 [build-system]
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
+
+# Fixes docutils install on Python 3.11
+# See https://github.com/python-poetry/poetry/issues/9293#issuecomment-2048205226
+[[tool.poetry.source]]
+name = "pypi-public"
+url = "https://pypi.org/simple/"
+
