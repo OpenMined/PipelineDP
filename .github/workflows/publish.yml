@@ -49,7 +49,7 @@ jobs:
 
       - name: Install Poetry
         run: |
-          pip install poetry
+          pip install poetry==2.1.4
 
       - name: Get poetry cache dir
         id: poetry-cache

@@ -26,7 +26,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install --upgrade pip
-          pip install poetry
+          pip install poetry==2.1.4
           poetry install --no-interaction --no-root
 
       - name: Check formatting
@@ -55,7 +55,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install --upgrade pip
-          pip install poetry
+          pip install poetry==2.1.4
           poetry install --no-interaction --no-root
 
       - name: Run pytest

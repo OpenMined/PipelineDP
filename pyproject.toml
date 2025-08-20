@@ -8,7 +8,7 @@ requires-python = ">=3.9,<3.12"
 keywords = ["differential privacy", "data analysis", "apache beam", "pyspark", "dp"]
 
 dependencies = [
-    "python-dp (>=1.1.5rc4, <2.0.0)",
+    "python-dp (>=1.1.5rc4,<2.0.0)",
     "numpy (>=1.20.1,<2.0.0)",
 ]
 
@@ -42,3 +42,4 @@ build-backend = "poetry.core.masonry.api"
 [[tool.poetry.source]]
 name = "pypi-public"
 url = "https://pypi.org/simple/"
+
