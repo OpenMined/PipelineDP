@@ -229,8 +229,8 @@ def _add_random_noise(
 
 @dataclass
 class AdditiveVectorNoiseParams:
-    eps_per_coordinate: float
-    delta_per_coordinate: float
+    eps: float
+    delta: float
     max_norm: float
     l0_sensitivity: float
     linf_sensitivity: float
@@ -245,17 +245,40 @@ def add_noise_vector(vec: np.ndarray, noise_params: AdditiveVectorNoiseParams):
         vec: the queried raw vector
         noise_params: parameters of the noise to add to the computation
     """
-    vec = np.array([
-        _add_random_noise(
-            s,
-            noise_params.eps_per_coordinate,
-            noise_params.delta_per_coordinate,
-            noise_params.l0_sensitivity,
-            noise_params.linf_sensitivity,
-            noise_params.noise_kind,
-        ) for s in vec
-    ])
-    return vec
+    max_partition_contributed = noise_params.l0_sensitivity
+    sensitivity: Optional[float] = None
+    if noise_params.noise_kind == pipeline_dp.NoiseKind.LAPLACE:
+        if noise_params.norm_kind == pipeline_dp.NormKind.L1:
+            sensitivity = noise_params.max_norm * max_partition_contributed
+        elif noise_params.norm_kind == pipeline_dp.NormKind.Linf:
+            sensitivity = noise_params.max_norm * vec.size * max_partition_contributed
+        if sensitivity is None:
+            raise ValueError(
+                f"Unknown or invalid norm kind {noise_params.norm_kind} for Laplace mechanism."
+            )
+    elif noise_params.noise_kind == pipeline_dp.NoiseKind.GAUSSIAN:
+        if noise_params.norm_kind == pipeline_dp.NormKind.L2:
+            sensitivity = noise_params.max_norm * np.sqrt(
+                max_partition_contributed)
+        elif noise_params.norm_kind == pipeline_dp.NormKind.Linf:
+            sensitivity = noise_params.max_norm * np.sqrt(
+                vec.size) * np.sqrt(max_partition_contributed)
+        if sensitivity is None:
+            raise ValueError(
+                f"Unknown or invalid norm kind {noise_params.norm_kind} for Gaussian mechanism."
+            )
+    else:
+        raise ValueError("Unknown noise kind.")
+
+    def _add_noise(value: float) -> float:
+        if noise_params.noise_kind == pipeline_dp.NoiseKind.LAPLACE:
+            return apply_laplace_mechanism(value, noise_params.eps, sensitivity)
+        if noise_params.noise_kind == pipeline_dp.NoiseKind.GAUSSIAN:
+            return apply_gaussian_mechanism(value, noise_params.eps,
+                                            noise_params.delta, sensitivity)
+        raise ValueError("Unknown noise kind.")
+
+    return np.array([_add_noise(s) for s in vec])
 
 
 def equally_split_budget(eps: float, delta: float, no_mechanisms: int):
@@ -289,17 +312,12 @@ def equally_split_budget(eps: float, delta: float, no_mechanisms: int):
     return budgets
 
 
-def _compute_mean_for_normalized_sum(
-    dp_count: float,
-    sum: float,
-    min_value: float,
-    max_value: float,
-    eps: float,
-    delta: float,
-    l0_sensitivity: float,
-    max_contributions_per_partition: float,
-    noise_kind: pipeline_dp.NoiseKind,
-):
+def _compute_mean_for_normalized_sum(dp_count: float, sum: float,
+                                     min_value: float, max_value: float,
+                                     eps: float, delta: float,
+                                     l0_sensitivity: float,
+                                     max_contributions_per_partition: float,
+                                     noise_kind: pipeline_dp.NoiseKind):
     """Helper function to compute the DP mean of a raw sum using the DP count.
 
     Args:

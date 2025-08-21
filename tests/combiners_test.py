@@ -23,7 +23,7 @@ from absl.testing import parameterized
 import pipeline_dp
 import pipeline_dp.budget_accounting as ba
 import pipeline_dp.combiners as dp_combiners
-from pipeline_dp import aggregate_params, NormKind
+from pipeline_dp import aggregate_params, NormKind, NoiseKind
 
 
 class EmptyCombiner(dp_combiners.Combiner):
@@ -59,18 +59,19 @@ def _create_mechanism_spec(
 
 
 def _create_aggregate_params(
-    max_value: float = 1,
-    vector_size: int = 1,
-    vector_norm_kind: NormKind = pipeline_dp.NormKind.Linf,
-    vector_max_norm: int = 5,
-    output_noise_stddev: bool = False,
-):
+        max_value: float = 1,
+        max_partition_contributed: int = 2,
+        vector_size: int = 1,
+        vector_norm_kind: NormKind = pipeline_dp.NormKind.Linf,
+        vector_max_norm: int = 5,
+        output_noise_stddev: bool = False,
+        noise_kind: pipeline_dp.NoiseKind = pipeline_dp.NoiseKind.GAUSSIAN):
     return pipeline_dp.AggregateParams(
         min_value=0,
         max_value=max_value,
-        max_partitions_contributed=2,
+        max_partitions_contributed=max_partition_contributed,
         max_contributions_per_partition=3,
-        noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+        noise_kind=noise_kind,
         metrics=[pipeline_dp.Metrics.COUNT],
         vector_norm_kind=vector_norm_kind,
         vector_max_norm=vector_max_norm,
@@ -927,16 +928,24 @@ class CompoundCombinerTest(parameterized.TestCase):
 class VectorSumCombinerTest(parameterized.TestCase):
 
     def _create_combiner(
-            self,
-            no_noise: bool,
-            vector_size: int,
-            vector_norm_kind: NormKind = NormKind.Linf,
-            vector_max_norm: int = 5) -> dp_combiners.VectorSumCombiner:
-        mechanism_spec = _create_mechanism_spec(no_noise)
+        self,
+        no_noise: bool,
+        vector_size: int,
+        vector_norm_kind: NormKind = NormKind.Linf,
+        vector_max_norm: int = 5,
+        noise_kind: pipeline_dp.NoiseKind = pipeline_dp.NoiseKind.GAUSSIAN,
+        max_partition_contributed: int = 2,
+    ) -> dp_combiners.VectorSumCombiner:
+        mechanism_type = pipeline_dp.MechanismType.GAUSSIAN
+        if noise_kind == NoiseKind.LAPLACE:
+            mechanism_type = pipeline_dp.MechanismType.LAPLACE
+        mechanism_spec = _create_mechanism_spec(no_noise, mechanism_type)
         aggregate_params = _create_aggregate_params(
             vector_size=vector_size,
+            max_partition_contributed=max_partition_contributed,
             vector_norm_kind=vector_norm_kind,
-            vector_max_norm=vector_max_norm)
+            vector_max_norm=vector_max_norm,
+            noise_kind=noise_kind)
         params = dp_combiners.CombinerParams(mechanism_spec, aggregate_params)
         return dp_combiners.VectorSumCombiner(params)
 
@@ -1025,6 +1034,25 @@ class VectorSumCombinerTest(parameterized.TestCase):
                                combiner.compute_metrics(np.array(
                                    [5]))['vector_sum'],
                                delta=1e-5)
+
+    @parameterized.parameters(
+        dict(noise_kind=NoiseKind.GAUSSIAN, norm_kind=NormKind.L2),
+        dict(noise_kind=NoiseKind.LAPLACE, norm_kind=NormKind.L1))
+    def test_vector_sensitivity_not_per_component(self, noise_kind, norm_kind):
+        # This tests checks that the noise added is close to zero.
+        # If the noise is computed per component of the vector, the noise added would be much larger.
+        vector_size = 10000
+        combiner = self._create_combiner(no_noise=True,
+                                         vector_size=vector_size,
+                                         noise_kind=noise_kind,
+                                         vector_norm_kind=norm_kind,
+                                         vector_max_norm=1,
+                                         max_partition_contributed=1)
+
+        m = combiner.compute_metrics(np.array([0] * vector_size))
+
+        for value in m['vector_sum']:
+            self.assertAlmostEqual(value, 0, delta=1e-1)
 
     def test_compute_metrics_with_noise(self):
         combiner = self._create_combiner(no_noise=False, vector_size=2)
