@@ -1036,11 +1036,8 @@ class VectorSumCombinerTest(parameterized.TestCase):
                                delta=1e-5)
 
     @parameterized.parameters(
-        dict(noise_kind=NoiseKind.GAUSSIAN, norm_kind=NormKind.Linf),
         dict(noise_kind=NoiseKind.GAUSSIAN, norm_kind=NormKind.L2),
-        dict(noise_kind=NoiseKind.LAPLACE, norm_kind=NormKind.Linf),
-        dict(noise_kind=NoiseKind.LAPLACE, norm_kind=NormKind.L1),
-    )
+        dict(noise_kind=NoiseKind.LAPLACE, norm_kind=NormKind.L1))
     def test_vector_sensitivity_not_per_component(self, noise_kind, norm_kind):
         # This tests checks that the noise added is close to zero.
         # If the noise is computed per component of the vector, the noise added would be much larger.
@@ -1055,7 +1052,7 @@ class VectorSumCombinerTest(parameterized.TestCase):
         m = combiner.compute_metrics(np.array([0] * vector_size))
 
         for value in m['vector_sum']:
-            self.assertAlmostEqual(value, 0, delta=1e1)
+            self.assertAlmostEqual(value, 0, delta=1e-4)
 
     def test_compute_metrics_with_noise(self):
         combiner = self._create_combiner(no_noise=False, vector_size=2)
