@@ -106,9 +106,9 @@ class DPEngine:
                     self._current_report_generator)
             col = self._aggregate(col, params, data_extractors,
                                   public_partitions)
-            budget = self._budget_accountant._compute_budget_for_aggregation(
+            budgets = self._budget_accountant._compute_budgets_for_aggregation(
                 params.budget_weight)
-            return self._annotate(col, params=params, budget=budget)
+            return self._annotate(col, params=params, budget=budgets)
 
     def _aggregate(self, col, params: pipeline_dp.AggregateParams,
                    data_extractors: pipeline_dp.DataExtractors,
@@ -233,9 +233,9 @@ class DPEngine:
         with self._budget_accountant.scope(weight=params.budget_weight):
             self._add_report_generator(params, "select_partitions")
             col = self._select_partitions(col, params, data_extractors)
-            budget = self._budget_accountant._compute_budget_for_aggregation(
+            budgets = self._budget_accountant._compute_budgets_for_aggregation(
                 params.budget_weight)
-            return self._annotate(col, params=params, budget=budget)
+            return self._annotate(col, params=params, budget=budgets)
 
     def _select_partitions(self, col,
                            params: pipeline_dp.SelectPartitionsParams,
@@ -597,6 +597,20 @@ class DPEngine:
             collection of (partition_key, value + noise).
             Output partition keys are the same as in the input collection.
         """
+        with self._budget_accountant.scope(weight=params.budget_weight):
+            self._add_report_generator(params,
+                                       "add_dp_noise",
+                                       is_public_partition=True)
+            if out_explain_computation_report is not None:
+                out_explain_computation_report._set_report_generator(
+                    self._current_report_generator)
+            anonymized_col = self._add_dp_noise(col, params)
+            budgets = self._budget_accountant._compute_budgets_for_aggregation(
+                params.budget_weight)
+            return self._annotate(anonymized_col, params=params, budget=budgets)
+
+    def _add_dp_noise(self, col,
+                      params: pipeline_dp.aggregate_params.AddDPNoiseParams):
         # Request budget and create Sensitivities object
         mechanism_type = params.noise_kind.convert_to_mechanism_type()
         mechanism_spec = self._budget_accountant.request_budget(mechanism_type)
@@ -605,15 +619,6 @@ class DPEngine:
             linf=params.linf_sensitivity,
             l1=params.l1_sensitivity,
             l2=params.l2_sensitivity)
-
-        # Initialize ReportGenerator.
-        self._report_generators.append(
-            report_generator.ReportGenerator(params,
-                                             "add_dp_noise",
-                                             is_public_partition=True))
-        if out_explain_computation_report is not None:
-            out_explain_computation_report._set_report_generator(
-                self._current_report_generator)
 
         # Add noise to values.
         def create_mechanism() -> dp_computations.AdditiveMechanism:
@@ -635,11 +640,7 @@ class DPEngine:
             def add_noise(value: Union[int, float]) -> float:
                 return create_mechanism().add_noise(value)
 
-        anonymized_col = self._backend.map_values(col, add_noise, "Add noise")
-
-        budget = self._budget_accountant._compute_budget_for_aggregation(
-            params.budget_weight)
-        return self._annotate(anonymized_col, params=params, budget=budget)
+        return self._backend.map_values(col, add_noise, "Add noise")
 
     def _annotate(self, col, params: Union[pipeline_dp.AggregateParams,
                                            pipeline_dp.SelectPartitionsParams,

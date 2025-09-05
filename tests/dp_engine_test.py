@@ -1304,6 +1304,12 @@ class DpEngineTest(parameterized.TestCase):
                                                   total_delta,
                                                   num_aggregations=3)
         dp_engine = self._create_dp_engine_default(budget_accountant)
+        aggregate_params = pipeline_dp.AggregateParams(
+            noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+            metrics=[agg.Metrics.COUNT],
+            max_partitions_contributed=1,
+            max_contributions_per_partition=1)
+        public_partitions = ["pk0", "pk10", "pk11"]
         aggregate_params, public_partitions = self._create_params_default()
         select_partition_params = pipeline_dp.SelectPartitionsParams(2)
         extractors = self._get_default_extractors()
@@ -1320,9 +1326,9 @@ class DpEngineTest(parameterized.TestCase):
         # Assert
         self.assertEqual(3, mock_annotate_fn.call_count)
         for i_call in range(3):
-            budget = mock_annotate_fn.call_args_list[i_call][1]['budget']
-            self.assertEqual(total_epsilon / 3, budget.epsilon)
-            self.assertEqual(total_delta / 3, budget.delta)
+            budgets = mock_annotate_fn.call_args_list[i_call][1]['budget']
+            self.assertEqual(total_epsilon / 3, budgets[0].epsilon)
+            self.assertEqual(total_delta / 3, budgets[0].delta)
 
     def test_min_max_sum_per_partition(self):
         dp_engine, budget_accountant = self._create_dp_engine_default(

@@ -144,6 +144,14 @@ class MechanismType(Enum):
             MechanismType.GAUSSIAN_THRESHOLDING
         ]
 
+    @property
+    def uses_delta(self) -> bool:
+        return self in [
+            MechanismType.GAUSSIAN, MechanismType.TRUNCATED_GEOMETRIC,
+            MechanismType.LAPLACE_THRESHOLDING,
+            MechanismType.GAUSSIAN_THRESHOLDING
+        ]
+
 
 def noise_to_thresholding(noise_kind: NoiseKind) -> MechanismType:
     if noise_kind == NoiseKind.LAPLACE:

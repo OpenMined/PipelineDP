@@ -130,7 +130,8 @@ class MechanismSpecInternal:
     mechanism_spec: MechanismSpec
 
 
-Budget = collections.namedtuple("Budget", ["epsilon", "delta"])
+Budget = collections.namedtuple("Budget",
+                                ["epsilon", "delta", "mechanism_type"])
 
 
 class BudgetAccountant(abc.ABC):
@@ -197,10 +198,12 @@ class BudgetAccountant(abc.ABC):
         """
         return BudgetAccountantScope(self, weight)
 
-    def _compute_budget_for_aggregation(self, weight: float) -> Budget:
+    def _compute_budgets_for_aggregation(self, weight: float) -> Budget:
         """Computes budget per aggregation.
 
-        It splits the budget using the naive composition.
+        It splits the budget using the naive composition. If neither
+        'num_aggregations' nor 'aggregation_weights' is set in the constructor,
+        it returns an empty list.
 
         Warning: This function changes the 'self' internal state. It can be
         called only from the API function of DPEngine, like aggregate() or
@@ -210,18 +213,48 @@ class BudgetAccountant(abc.ABC):
             weight: the budget weight of the aggregation.
 
         Returns:
-            the budget.
+            budgets for each mechanism used in the aggregation.
         """
+        budgets = []
         self._actual_aggregation_weights.append(weight)
         if self._expected_num_aggregations:
-            return Budget(self._total_epsilon / self._expected_num_aggregations,
-                          self._total_delta / self._expected_num_aggregations)
-        if self._expected_aggregation_weights:
+            epsilon = self._total_epsilon / self._expected_num_aggregations
+            delta = self._total_delta / self._expected_num_aggregations
+        elif self._expected_aggregation_weights:
             budget_ratio = weight / sum(self._expected_aggregation_weights)
-            return Budget(self._total_epsilon * budget_ratio,
-                          self._total_delta * budget_ratio)
-        # No expectations on aggregations, no way to compute budget.
-        return None
+            epsilon = self._total_epsilon * budget_ratio
+            delta = self._total_delta * budget_ratio
+        else:
+            # No expectations on aggregations, no way to compute budget.
+            return budgets
+
+        if not self._scopes_stack:
+            raise ValueError(
+                "No scope is active. Did you forget to use 'with'?")
+        current_scope = self._scopes_stack[-1]
+        current_scope._normalise_mechanism_weights()
+        eps_weights = []
+        del_weights = []
+        for mechanism in current_scope.mechanisms:
+            if mechanism.mechanism_spec.mechanism_type.uses_delta:
+                eps_weights.append(mechanism.weight)
+                del_weights.append(mechanism.weight)
+            else:
+                eps_weights.append(mechanism.weight)
+                del_weights.append(0)
+        sum_eps_weights = sum(eps_weights)
+        sum_del_weights = sum(del_weights)
+        if sum_del_weights == 0:
+            sum_del_weights = 1
+
+        for i, mechanism in enumerate(current_scope.mechanisms):
+            budgets.append(
+                Budget(
+                    epsilon=epsilon * eps_weights[i] / sum_eps_weights,
+                    delta=delta * del_weights[i] / sum_del_weights,
+                    mechanism_type=mechanism.mechanism_spec.mechanism_type,
+                ))
+        return budgets
 
     def _check_aggregation_restrictions(self):
         if self._expected_num_aggregations:

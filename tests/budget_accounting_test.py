@@ -153,11 +153,14 @@ class NaiveBudgetAccountantTest(parameterized.TestCase):
             total_delta=total_delta,
             num_aggregations=num_aggregations)
         for _ in range(num_aggregations):
-            budget = budget_accountant._compute_budget_for_aggregation(1)
-            expected_epsilon = total_epsilon / num_aggregations
-            expected_delta = total_delta / num_aggregations
-            self.assertAlmostEqual(expected_epsilon, budget.epsilon)
-            self.assertAlmostEqual(expected_delta, budget.delta)
+            with budget_accountant.scope(weight=1):
+                budget_accountant.request_budget(
+                    mechanism_type=MechanismType.GAUSSIAN)
+                budgets = budget_accountant._compute_budgets_for_aggregation(1)
+                expected_epsilon = total_epsilon / num_aggregations
+                expected_delta = total_delta / num_aggregations
+                self.assertAlmostEqual(expected_epsilon, budgets[0].epsilon)
+                self.assertAlmostEqual(expected_delta, budgets[0].delta)
 
         budget_accountant.compute_budgets()
 
@@ -169,11 +172,15 @@ class NaiveBudgetAccountantTest(parameterized.TestCase):
                                                   total_delta=total_delta,
                                                   aggregation_weights=weights)
         for weight in weights:
-            budget = budget_accountant._compute_budget_for_aggregation(weight)
-            expected_epsilon = total_epsilon * weight / sum(weights)
-            expected_delta = total_delta * weight / sum(weights)
-            self.assertAlmostEqual(expected_epsilon, budget.epsilon)
-            self.assertAlmostEqual(expected_delta, budget.delta)
+            with budget_accountant.scope(weight=weight):
+                budget_accountant.request_budget(
+                    mechanism_type=MechanismType.GAUSSIAN)
+                budgets = budget_accountant._compute_budgets_for_aggregation(
+                    weight)
+                expected_epsilon = total_epsilon * weight / sum(weights)
+                expected_delta = total_delta * weight / sum(weights)
+                self.assertAlmostEqual(expected_epsilon, budgets[0].epsilon)
+                self.assertAlmostEqual(expected_delta, budgets[0].delta)
 
         budget_accountant.compute_budgets()
 
@@ -190,7 +197,8 @@ class NaiveBudgetAccountantTest(parameterized.TestCase):
             num_aggregations=num_aggregations,
             aggregation_weights=weights)
 
-        budget_accountant._compute_budget_for_aggregation(1)
+        with budget_accountant.scope(weight=1):
+            budget_accountant._compute_budgets_for_aggregation(1)
         with self.assertRaises(ValueError):
             # num_aggregations = 2, but only 1 aggregation_scope was created
             budget_accountant.compute_budgets()
