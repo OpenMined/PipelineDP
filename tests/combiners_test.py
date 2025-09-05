@@ -213,7 +213,9 @@ class CreateCompoundCombinersTest(parameterized.TestCase):
         # Act.
         compound_combiner = dp_combiners.create_compound_combiner(
             params, budget_accountant)
-        budget_accountant._compute_budget_for_aggregation(params.budget_weight)
+        with budget_accountant.scope(weight=params.budget_weight):
+            budget_accountant._compute_budgets_for_aggregation(
+                params.budget_weight)
         budget_accountant.compute_budgets()
 
         # Assert
