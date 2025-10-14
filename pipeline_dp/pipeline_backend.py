@@ -249,6 +249,10 @@ class PipelineBackend(abc.ABC):
         """Returns a collection containing distinct elements of the input collection."""
 
     @abc.abstractmethod
+    def reshuffle(self, col, stage_name: str):
+        """Reshuffles a collection over workers to allow for more parallelism."""
+
+    @abc.abstractmethod
     def to_list(self, col, stage_name: str):
         """Returns a 1-element collection with a list of all elements."""
 
@@ -452,6 +456,9 @@ class BeamBackend(PipelineBackend):
     def distinct(self, col, stage_name: str):
         return col | self._ulg.unique(stage_name) >> beam.Distinct()
 
+    def reshuffle(self, col, stage_name: str):
+        return col | self._ulg.unique(stage_name) >> beam.Reshuffle()
+
     def to_list(self, col, stage_name: str):
         return col | self._ulg.unique(stage_name) >> beam.combiners.ToList()
 
@@ -569,6 +576,9 @@ class SparkRDDBackend(PipelineBackend):
 
     def distinct(self, col, stage_name: str):
         return col.distinct()
+
+    def reshuffle(self, col, stage_name: str):
+        raise NotImplementedError("reshuffle is not implement in SparkBackend.")
 
     def to_list(self, col, stage_name: str):
         raise NotImplementedError("to_list is not implement in SparkBackend.")
@@ -800,6 +810,10 @@ class LocalBackend(PipelineBackend):
                 yield v
 
         return ReiterableLazyIterable(generator())
+
+    def reshuffle(self, col, stage_name: str):
+        # In local backend, reshuffle is a no-op.
+        return col
 
     def to_list(self, col, stage_name: str):
         return ReiterableLazyIterable((list(col) for _ in range(1)))
