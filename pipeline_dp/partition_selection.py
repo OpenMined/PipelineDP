@@ -89,14 +89,14 @@ def create_gaussian_thresholding(
         total_delta, max_partitions_contributed, pre_threshold)
 
 
-def create_weighted_gaussian_thresholding(epsilon: float,
-                                          delta: float,
+def create_weighted_gaussian_thresholding(epsilon: float, delta: float,
                                           max_partitions_contributed: int):
-   noise_delta = thresholding_delta = delta/2
-   sigma = pipeline_dp.dp_computations.compute_sigma(
-       epsilon, noise_delta, l2_sensitivity=1)
-   return create_gaussian_thresholding(sigma, thresholding_delta,
-                                       max_partitions_contributed)
+    noise_delta = thresholding_delta = delta / 2
+    sigma = pipeline_dp.dp_computations.compute_sigma(epsilon,
+                                                      noise_delta,
+                                                      l2_sensitivity=1)
+    return create_gaussian_thresholding(sigma, thresholding_delta,
+                                        max_partitions_contributed)
 
 
 def create_laplace_thresholding(

@@ -288,7 +288,6 @@ class DpEngineTest(parameterized.TestCase):
                         max_partitions_contributed=2)
                 ]))
 
-
     @unittest.skip("No support of Spark in Google3.")
     def test_calculate_private_contribution_does_not_work_on_spark_due_to_unsupported_operations(
             self):
@@ -1449,8 +1448,9 @@ class DpEngineTest(parameterized.TestCase):
 
     def test_weighted_gaussian_calculate_weights(self):
         engine = self.create_dp_engine_default()
-        data_extractors = pipeline_dp.DataExtractors(
-            lambda x: x[0], lambda x: x[1], lambda _: None)
+        data_extractors = pipeline_dp.DataExtractors(lambda x: x[0],
+                                                     lambda x: x[1],
+                                                     lambda _: None)
 
         # With one privacy id per partition key, the weights should be 1.0.
         one_pid_per_pks = [(100 + i, i) for i in range(5)]
@@ -1476,38 +1476,35 @@ class DpEngineTest(parameterized.TestCase):
         # of each privacy id should be 1/2.
         four_pids_per_pks = [(100 + i // 4, i) for i in range(12)]
         weights_of_four_contributions = (
-            engine._weighted_gaussian_calculate_weights(
-                four_pids_per_pks, data_extractors, 100)
-        )
+            engine._weighted_gaussian_calculate_weights(four_pids_per_pks,
+                                                        data_extractors, 100))
         weights_of_four_contributions = list(weights_of_four_contributions)
         self.assertLen(weights_of_four_contributions, 12)
         for pk, weight in weights_of_four_contributions:
-          self.assertIn(pk, set(range(12)))
-          self.assertEqual(weight, 0.5)
+            self.assertIn(pk, set(range(12)))
+            self.assertEqual(weight, 0.5)
 
         # If we repeat the previous test but limit the number of partitions to
         # 3, then the weights should be 1/sqrt(3).
         weights_of_four_contributions_limited = list(
-            engine._weighted_gaussian_calculate_weights(
-                four_pids_per_pks, data_extractors, 3)
-        )
+            engine._weighted_gaussian_calculate_weights(four_pids_per_pks,
+                                                        data_extractors, 3))
         # Now there are only 3 contributions per privacy id, so 9 in total.
         self.assertLen(weights_of_four_contributions_limited, 9)
         for pk, weight in weights_of_four_contributions_limited:
-          self.assertIn(pk, set(range(12)))
-          self.assertAlmostEqual(weight, 1.0/np.sqrt(3), delta=1e-12)
+            self.assertIn(pk, set(range(12)))
+            self.assertAlmostEqual(weight, 1.0 / np.sqrt(3), delta=1e-12)
 
         # In the following dataset there are 3 pids, each contributing to 4 pks.
         # The weight should therefore be 3*0.5 = 1.5.
         three_pids_per_pks = [(100 + i // 4, i % 4) for i in range(12)]
         weights_of_tree_pids_per_pks = list(
-            engine._weighted_gaussian_calculate_weights(
-                three_pids_per_pks, data_extractors, 100)
-        )
+            engine._weighted_gaussian_calculate_weights(three_pids_per_pks,
+                                                        data_extractors, 100))
         self.assertLen(weights_of_tree_pids_per_pks, 4)
         for pk, weight in weights_of_tree_pids_per_pks:
-          self.assertIn(pk, set(range(4)))
-          self.assertAlmostEqual(weight, 1.5, delta=0.01)
+            self.assertIn(pk, set(range(4)))
+            self.assertAlmostEqual(weight, 1.5, delta=0.01)
 
     @parameterized.parameters(
         # In all the following cases, threshold=74.563438 and sigma=4.367188.
@@ -1525,9 +1522,14 @@ class DpEngineTest(parameterized.TestCase):
         dict(num_pids=32, num_pks=1, expected_num_partitions=0),
     )
     def test_select_partitions_weighted_gaussian(
-        self, num_pids: int, num_pks: int, expected_num_partitions: int,
-        max_partitions_contributed: int = 10, delta: float = 1e-6,
-        min_success_probability: float = 0.93, num_experiments: int = 100):
+            self,
+            num_pids: int,
+            num_pks: int,
+            expected_num_partitions: int,
+            max_partitions_contributed: int = 10,
+            delta: float = 1e-6,
+            min_success_probability: float = 0.93,
+            num_experiments: int = 100):
         # This is a probablistic test. We run an experiment where we select
         # partitions with a weighted gaussian strategy. We do this
         # num_experiments times. We then check that at least
@@ -1536,22 +1538,18 @@ class DpEngineTest(parameterized.TestCase):
         num_successes = 0
         for _ in range(num_experiments):
             engine = self.create_dp_engine_default(
-                accountant=pipeline_dp.NaiveBudgetAccountant(
-                    total_epsilon=1, total_delta=delta)
-            )
+                accountant=pipeline_dp.NaiveBudgetAccountant(total_epsilon=1,
+                                                             total_delta=delta))
             data_extractors = pipeline_dp.DataExtractors(
                 lambda x: x[0], lambda x: x[1], lambda _: None)
 
-            col = [
-                (100 + i // num_pks, i % num_pks)
-                for i in range(num_pids * num_pks)
-            ]
+            col = [(100 + i // num_pks, i % num_pks)
+                   for i in range(num_pids * num_pks)]
             params = pipeline_dp.SelectPartitionsParams(
                 max_partitions_contributed=max_partitions_contributed,
                 partition_selection_strategy=(
                     pipeline_dp.PartitionSelectionStrategy.
-                    WEIGHTED_GAUSSIAN_THRESHOLDING
-                ),
+                    WEIGHTED_GAUSSIAN_THRESHOLDING),
             )
             output = engine.select_partitions(col, params, data_extractors)
             engine._budget_accountant.compute_budgets()

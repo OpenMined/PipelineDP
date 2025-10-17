@@ -234,8 +234,8 @@ class DPEngine:
         with self._budget_accountant.scope(weight=params.budget_weight):
             self._add_report_generator(params, "select_partitions")
             if params.partition_selection_strategy.is_weighted_gaussian:
-                return self._select_partitions_weighted_gaussian(col, params,
-                                                                 data_extractors)
+                return self._select_partitions_weighted_gaussian(
+                    col, params, data_extractors)
             col = self._select_partitions(col, params, data_extractors)
             budget = self._budget_accountant._compute_budget_for_aggregation(
                 params.budget_weight)
@@ -655,8 +655,8 @@ class DPEngine:
                                       budget=budget)
 
     def _weighted_gaussian_calculate_weights(
-        self, col, data_extractors: pipeline_dp.DataExtractors,
-        max_partitions_contributed: int):
+            self, col, data_extractors: pipeline_dp.DataExtractors,
+            max_partitions_contributed: int):
         """Calculate weights for weighted gaussian partition selection.
 
         Args:
@@ -675,8 +675,10 @@ class DPEngine:
         col = self._backend.distinct(col, "Dedup (privacy_id, partition_key)")
         col = self._backend.sample_fixed_per_key(
             col, max_partitions_contributed, "Group pks by pid with sampling")
+
         def weight(pks):
-          return 1.0 / np.sqrt(len(pks))
+            return 1.0 / np.sqrt(len(pks))
+
         col = self._backend.flat_map(
             col, lambda row: [(pk, weight(row[1])) for pk in row[1]],
             "Compute weight per contribution per partition")
@@ -684,25 +686,24 @@ class DPEngine:
         return col
 
     def _select_partitions_weighted_gaussian(
-        self, col,
-        params: pipeline_dp.SelectPartitionsParams,
-        data_extractors: pipeline_dp.DataExtractors):
+            self, col, params: pipeline_dp.SelectPartitionsParams,
+            data_extractors: pipeline_dp.DataExtractors):
         """Selects partitions using the weighted gaussian mechanism."""
         col = self._weighted_gaussian_calculate_weights(
             col, data_extractors, params.max_partitions_contributed)
         budget = self._budget_accountant.request_budget(
             params.partition_selection_strategy.mechanism_type)
+
         def filter_fn(row: Tuple[Any, float]) -> bool:
             partition_selector = (
                 partition_selection.create_weighted_gaussian_thresholding(
-                    budget.eps,
-                    budget.delta,
-                    params.max_partitions_contributed)
-            )
+                    budget.eps, budget.delta,
+                    params.max_partitions_contributed))
             return partition_selector.should_keep(row[1])
+
         col = self._backend.filter(col, filter_fn, "Filter partitions")
-        return self._backend.map(
-            col, lambda row: row[0], "Extract partition keys")
+        return self._backend.map(col, lambda row: row[0],
+                                 "Extract partition keys")
 
 
 def _check_col(col):
