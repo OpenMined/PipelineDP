@@ -107,7 +107,7 @@ class DPEngine:
                     self._current_report_generator)
             col = self._aggregate(col, params, data_extractors,
                                   public_partitions)
-            budget = self._budget_accountant._compute_budget_for_aggregation(
+            budget = self._budget_accountant._compute_budgets_for_aggregation(
                 params.budget_weight)
             return self._annotate(col, params=params, budget=budget)
 
@@ -237,7 +237,7 @@ class DPEngine:
                 return self._select_partitions_weighted_gaussian(
                     col, params, data_extractors)
             col = self._select_partitions(col, params, data_extractors)
-            budget = self._budget_accountant._compute_budget_for_aggregation(
+            budget = self._budget_accountant._compute_budgets_for_aggregation(
                 params.budget_weight)
             return self._annotate(col, params=params, budget=budget)
 
@@ -641,7 +641,7 @@ class DPEngine:
 
         anonymized_col = self._backend.map_values(col, add_noise, "Add noise")
 
-        budget = self._budget_accountant._compute_budget_for_aggregation(
+        budget = self._budget_accountant._compute_budgets_for_aggregation(
             params.budget_weight)
         return self._annotate(anonymized_col, params=params, budget=budget)
 

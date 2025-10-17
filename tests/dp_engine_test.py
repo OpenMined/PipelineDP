@@ -288,7 +288,9 @@ class DpEngineTest(parameterized.TestCase):
                         max_partitions_contributed=2)
                 ]))
 
-    @unittest.skip("No support of Spark in Google3.")
+    @unittest.skipIf(
+        sys.version_info.minor <= 7 and sys.version_info.major == 3,
+        "There are some problems with PySpark setup on older python")
     def test_calculate_private_contribution_does_not_work_on_spark_due_to_unsupported_operations(
             self):
         # Arrange
@@ -1318,9 +1320,9 @@ class DpEngineTest(parameterized.TestCase):
         # Assert
         self.assertEqual(3, mock_annotate_fn.call_count)
         for i_call in range(3):
-            budget = mock_annotate_fn.call_args_list[i_call][1]['budget']
-            self.assertEqual(total_epsilon / 3, budget.epsilon)
-            self.assertEqual(total_delta / 3, budget.delta)
+            budgets = mock_annotate_fn.call_args_list[i_call][1]['budget']
+            self.assertEqual(total_epsilon / 3, budgets[0].epsilon)
+            self.assertEqual(total_delta / 3, budgets[0].delta)
 
     def test_min_max_sum_per_partition(self):
         dp_engine, budget_accountant = self._create_dp_engine_default(
