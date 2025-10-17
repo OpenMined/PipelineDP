@@ -1304,7 +1304,12 @@ class DpEngineTest(parameterized.TestCase):
                                                   total_delta,
                                                   num_aggregations=3)
         dp_engine = self._create_dp_engine_default(budget_accountant)
-        aggregate_params, public_partitions = self._create_params_default()
+        aggregate_params = pipeline_dp.AggregateParams(
+            noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+            metrics=[agg.Metrics.COUNT],
+            max_partitions_contributed=1,
+            max_contributions_per_partition=1)
+        public_partitions = ["pk0", "pk10", "pk11"]
         select_partition_params = pipeline_dp.SelectPartitionsParams(2)
         extractors = self._get_default_extractors()
         input = [1, 2, 3]
