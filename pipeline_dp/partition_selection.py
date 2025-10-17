@@ -15,6 +15,7 @@
 import pipeline_dp
 import pydp.algorithms.partition_selection as partition_selection
 from typing import Optional
+import logging
 import math
 
 PARTITION_STRATEGY_ENUM_TO_STR = {
@@ -23,7 +24,9 @@ PARTITION_STRATEGY_ENUM_TO_STR = {
     pipeline_dp.PartitionSelectionStrategy.LAPLACE_THRESHOLDING:
         "laplace",
     pipeline_dp.PartitionSelectionStrategy.GAUSSIAN_THRESHOLDING:
-        "gaussian"
+        "gaussian",
+    pipeline_dp.PartitionSelectionStrategy.WEIGHTED_GAUSSIAN_THRESHOLDING:
+        "gaussian",
 }
 
 
@@ -84,6 +87,16 @@ def create_gaussian_thresholding(
     return create_partition_selection_strategy(
         pipeline_dp.PartitionSelectionStrategy.GAUSSIAN_THRESHOLDING, epsilon,
         total_delta, max_partitions_contributed, pre_threshold)
+
+
+def create_weighted_gaussian_thresholding(epsilon: float, delta: float,
+                                          max_partitions_contributed: int):
+    noise_delta = thresholding_delta = delta / 2
+    sigma = pipeline_dp.dp_computations.compute_sigma(epsilon,
+                                                      noise_delta,
+                                                      l2_sensitivity=1)
+    return create_gaussian_thresholding(sigma, thresholding_delta,
+                                        max_partitions_contributed)
 
 
 def create_laplace_thresholding(

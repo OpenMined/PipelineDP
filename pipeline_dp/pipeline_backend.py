@@ -661,7 +661,7 @@ class LazySingleton:
            ValueError: If the instance was initialized with an iterable that
                        yields more than one element.
         """
-        if self._singleton:
+        if self._singleton is not None:
             return self._singleton
         it = iter(self._iterable)
         self._singleton = next(it)
