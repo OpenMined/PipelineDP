@@ -198,7 +198,7 @@ class BudgetAccountant(abc.ABC):
         """
         return BudgetAccountantScope(self, weight)
 
-    def _compute_budgets_for_aggregation(self, weight: float) -> Budget:
+    def _compute_budgets_for_aggregation(self, weight: float) -> list[Budget]:
         """Computes budget per aggregation.
 
         It splits the budget using the naive composition. If neither

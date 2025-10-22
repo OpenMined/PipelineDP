@@ -14,6 +14,7 @@
 """DP aggregations."""
 import collections
 import functools
+import numpy as np
 from typing import Any, Callable, Optional, Sequence, Tuple, Union
 
 import pipeline_dp
@@ -232,6 +233,9 @@ class DPEngine:
 
         with self._budget_accountant.scope(weight=params.budget_weight):
             self._add_report_generator(params, "select_partitions")
+            if params.partition_selection_strategy.is_weighted_gaussian:
+                return self._select_partitions_weighted_gaussian(
+                    col, params, data_extractors)
             col = self._select_partitions(col, params, data_extractors)
             budgets = self._budget_accountant._compute_budgets_for_aggregation(
                 params.budget_weight)
@@ -597,6 +601,7 @@ class DPEngine:
             collection of (partition_key, value + noise).
             Output partition keys are the same as in the input collection.
         """
+        # Request budget and create Sensitivities object
         with self._budget_accountant.scope(weight=params.budget_weight):
             self._add_report_generator(params,
                                        "add_dp_noise",
@@ -611,7 +616,6 @@ class DPEngine:
 
     def _add_dp_noise(self, col,
                       params: pipeline_dp.aggregate_params.AddDPNoiseParams):
-        # Request budget and create Sensitivities object
         mechanism_type = params.noise_kind.convert_to_mechanism_type()
         mechanism_spec = self._budget_accountant.request_budget(mechanism_type)
         sensitivities = dp_computations.Sensitivities(
@@ -640,7 +644,11 @@ class DPEngine:
             def add_noise(value: Union[int, float]) -> float:
                 return create_mechanism().add_noise(value)
 
-        return self._backend.map_values(col, add_noise, "Add noise")
+        anonymized_col = self._backend.map_values(col, add_noise, "Add noise")
+
+        budget = self._budget_accountant._compute_budgets_for_aggregation(
+            params.budget_weight)
+        return self._annotate(anonymized_col, params=params, budget=budget)
 
     def _annotate(self, col, params: Union[pipeline_dp.AggregateParams,
                                            pipeline_dp.SelectPartitionsParams,
@@ -650,6 +658,57 @@ class DPEngine:
                                       "annotation",
                                       params=params,
                                       budget=budget)
+
+    def _weighted_gaussian_calculate_weights(
+            self, col, data_extractors: pipeline_dp.DataExtractors,
+            max_partitions_contributed: int):
+        """Calculate weights for weighted gaussian partition selection.
+
+        Args:
+            col: collection of values from which privacy_ids and partition_keys
+              can be extracted.
+            data_extractors: a pipeline_dp.DataExtractors for the values in col.
+            max_partitions_contributed: the maximum number of partitions a
+              privacy id can contribute to.
+        Returns:
+            A collection of (partition_key, weight) pairs.
+        """
+        col = self._backend.map(
+            col, lambda row: (data_extractors.privacy_id_extractor(row),
+                              data_extractors.partition_extractor(row)),
+            "Extract (privacy_id, partition_key))")
+        col = self._backend.distinct(col, "Dedup (privacy_id, partition_key)")
+        col = self._backend.sample_fixed_per_key(
+            col, max_partitions_contributed, "Group pks by pid with sampling")
+
+        def weight(pks):
+            return 1.0 / np.sqrt(len(pks))
+
+        col = self._backend.flat_map(
+            col, lambda row: [(pk, weight(row[1])) for pk in row[1]],
+            "Compute weight per contribution per partition")
+        col = self._backend.sum_per_key(col, "Sum weights per partition")
+        return col
+
+    def _select_partitions_weighted_gaussian(
+            self, col, params: pipeline_dp.SelectPartitionsParams,
+            data_extractors: pipeline_dp.DataExtractors):
+        """Selects partitions using the weighted gaussian mechanism."""
+        col = self._weighted_gaussian_calculate_weights(
+            col, data_extractors, params.max_partitions_contributed)
+        budget = self._budget_accountant.request_budget(
+            params.partition_selection_strategy.mechanism_type)
+
+        def filter_fn(row: Tuple[Any, float]) -> bool:
+            partition_selector = (
+                partition_selection.create_weighted_gaussian_thresholding(
+                    budget.eps, budget.delta,
+                    params.max_partitions_contributed))
+            return partition_selector.should_keep(row[1])
+
+        col = self._backend.filter(col, filter_fn, "Filter partitions")
+        return self._backend.map(col, lambda row: row[0],
+                                 "Extract partition keys")
 
 
 def _check_col(col):
