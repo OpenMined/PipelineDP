@@ -34,9 +34,9 @@ from pipeline_dp.combiners import CustomCombiner
 from pipeline_dp.data_extractors import DataExtractors
 from pipeline_dp.data_extractors import PreAggregateExtractors
 from pipeline_dp.dp_engine import DPEngine
-from pipeline_dp.pipeline_backend import BeamBackend
+from pipeline_dp.beam_backend import BeamBackend
 from pipeline_dp.pipeline_backend import LocalBackend
 from pipeline_dp.pipeline_backend import PipelineBackend
-from pipeline_dp.pipeline_backend import SparkRDDBackend
+from pipeline_dp.spark_rdd_backend import SparkRDDBackend
 
 __version__ = '0.2.2rc2'

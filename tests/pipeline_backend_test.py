@@ -13,6 +13,7 @@
 # limitations under the License.
 import sys
 import unittest
+import warnings
 from typing import Iterable, List
 from unittest.mock import Mock, MagicMock, patch
 
@@ -24,15 +25,16 @@ from absl.testing import parameterized
 import pipeline_dp
 import pipeline_dp.combiners as dp_combiners
 from pipeline_dp import DataExtractors
-from pipeline_dp.pipeline_backend import BeamBackend
+from pipeline_dp.beam_backend import BeamBackend
 from pipeline_dp.pipeline_backend import LocalBackend, LazySingleton
-from pipeline_dp.pipeline_backend import SparkRDDBackend
+from pipeline_dp.spark_rdd_backend import SparkRDDBackend
 
 
 class BeamBackendTest(parameterized.TestCase):
 
     @classmethod
     def setUpClass(cls):
+        warnings.simplefilter('ignore', ResourceWarning)
         cls.backend = BeamBackend()
         cls.data_extractors = DataExtractors(
             partition_extractor=lambda x: x[1],
@@ -313,8 +315,9 @@ class SparkRDDBackendTest(parameterized.TestCase):
 
     @classmethod
     def setUpClass(cls):
+        warnings.simplefilter('ignore', ResourceWarning)
         import pyspark
-        conf = pyspark.SparkConf()
+        conf = pyspark.SparkConf().set("spark.log.level", "ERROR")
         cls.sc = pyspark.SparkContext.getOrCreate(conf=conf)
         cls.data_extractors = DataExtractors(
             partition_extractor=lambda x: x[1],
@@ -478,7 +481,7 @@ class LocalBackendTest(unittest.TestCase):
             value_extractor=lambda x: x[2])
 
     def test_to_multi_transformable_collection(self):
-        col = self.backend.to_multi_transformable_collection(range(5))
+        col = range(5)
         self.assertEqual(list(col), [0, 1, 2, 3, 4])
         self.assertEqual(list(col), [0, 1, 2, 3, 4])
 
