@@ -29,6 +29,17 @@ from pipeline_dp import dp_computations, NormKind
 ArrayLike = Union[np.ndarray, List[float]]
 ExplainComputationReport = Union[Callable, str, List[Union[Callable, str]]]
 
+# This is a workaround which is useful when Quantiles form PyDP are failed to
+# be serialized. It was observed only from Google colab. Disabling of the
+# proto serialization can work only with LocalBackend.
+# Ideally we should find a better solution.
+_proto_serialization_disabled = False
+
+
+def disable_proto_serialization():
+    global _proto_serialization_disabled
+    _proto_serialization_disabled = True
+
 
 class Combiner(abc.ABC):
     """Base class for all combiners.
@@ -623,7 +634,7 @@ class QuantileCombiner(Combiner):
     The accumulator is QuantileTree object serialized to string.
     """
 
-    AccumulatorType = str
+    AccumulatorType = Union[bytes, List[float]]
 
     def __init__(self, params, percentiles_to_compute: List[float]):
         self._params = params
@@ -631,6 +642,8 @@ class QuantileCombiner(Combiner):
         self._quantiles_to_compute = [p / 100 for p in percentiles_to_compute]
 
     def create_accumulator(self, values) -> AccumulatorType:
+        if _proto_serialization_disabled:
+            return values
         tree = self._create_empty_quantile_tree()
         for value in values:
             tree.add_entry(value)
@@ -638,15 +651,24 @@ class QuantileCombiner(Combiner):
 
     def merge_accumulators(self, accumulator1: AccumulatorType,
                            accumulator2: AccumulatorType) -> AccumulatorType:
-        tree = self._create_empty_quantile_tree()
+        if _proto_serialization_disabled:
+            return accumulator1 + accumulator2  # union of lists
 
-        tree.merge(pydp._pydp.bytes_to_summary(accumulator1))
-        tree.merge(pydp._pydp.bytes_to_summary(accumulator2))
+        tree = self._create_empty_quantile_tree()
+        if accumulator1:
+            tree.merge(pydp._pydp.bytes_to_summary(accumulator1))
+        if accumulator2:
+            tree.merge(pydp._pydp.bytes_to_summary(accumulator2))
         return tree.serialize().to_bytes()
 
     def compute_metrics(self, accumulator: AccumulatorType) -> AccumulatorType:
-        tree = self._create_empty_quantile_tree()
-        tree.merge(pydp._pydp.bytes_to_summary(accumulator))
+        if _proto_serialization_disabled:
+            tree = self._create_empty_quantile_tree()
+            for value in accumulator:
+                tree.add_entry(value)
+        else:
+            tree = self._create_empty_quantile_tree()
+            tree.merge(pydp._pydp.bytes_to_summary(accumulator))
 
         quantiles = tree.compute_quantiles(
             self._params.eps, self._params.delta,

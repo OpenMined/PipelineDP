@@ -17,10 +17,11 @@ import functools
 import numpy as np
 from typing import Any, Callable, Optional, Sequence, Tuple, Union
 
-import pipeline_dp
+from pipeline_dp import aggregate_params
 from pipeline_dp import budget_accounting
 from pipeline_dp import combiners
 from pipeline_dp import contribution_bounders
+from pipeline_dp import data_extractors as extractors
 from pipeline_dp import dp_computations
 from pipeline_dp import partition_selection
 from pipeline_dp import pipeline_functions
@@ -69,11 +70,11 @@ class DPEngine:
 
     def aggregate(self,
                   col,
-                  params: pipeline_dp.AggregateParams,
-                  data_extractors: pipeline_dp.DataExtractors,
+                  params: aggregate_params.AggregateParams,
+                  data_extractors: extractors.DataExtractors,
                   public_partitions=None,
                   out_explain_computation_report: Optional[
-                      pipeline_dp.ExplainComputationReport] = None):
+                      report_generator.ExplainComputationReport] = None):
         """Computes DP aggregate metrics.
 
         Args:
@@ -111,8 +112,8 @@ class DPEngine:
                 params.budget_weight)
             return self._annotate(col, params=params, budget=budgets)
 
-    def _aggregate(self, col, params: pipeline_dp.AggregateParams,
-                   data_extractors: pipeline_dp.DataExtractors,
+    def _aggregate(self, col, params: aggregate_params.AggregateParams,
+                   data_extractors: extractors.DataExtractors,
                    public_partitions):
 
         if params.custom_combiners:
@@ -194,15 +195,15 @@ class DPEngine:
         return col
 
     def _check_select_private_partitions(
-            self, col, params: pipeline_dp.SelectPartitionsParams,
-            data_extractors: pipeline_dp.DataExtractors):
+            self, col, params: aggregate_params.SelectPartitionsParams,
+            data_extractors: extractors.DataExtractors):
         """Verifies that arguments for select_partitions are correct."""
         if col is None or not col:
             raise ValueError("col must be non-empty")
         if params is None:
             raise ValueError(
                 "params must be set to a valid SelectPrivatePartitionsParams")
-        if not isinstance(params, pipeline_dp.SelectPartitionsParams):
+        if not isinstance(params, aggregate_params.SelectPartitionsParams):
             raise TypeError(
                 "params must be set to a valid SelectPrivatePartitionsParams")
         if not isinstance(params.max_partitions_contributed,
@@ -212,12 +213,13 @@ class DPEngine:
         if data_extractors is None:
             raise ValueError(
                 "data_extractors must be set to a pipeline_dp.DataExtractors")
-        if not isinstance(data_extractors, pipeline_dp.DataExtractors):
+        if not isinstance(data_extractors, extractors.DataExtractors):
             raise TypeError(
                 "data_extractors must be set to a pipeline_dp.DataExtractors")
 
-    def select_partitions(self, col, params: pipeline_dp.SelectPartitionsParams,
-                          data_extractors: pipeline_dp.DataExtractors):
+    def select_partitions(self, col,
+                          params: aggregate_params.SelectPartitionsParams,
+                          data_extractors: extractors.DataExtractors):
         """Retrieves a collection of differentially-private partitions.
 
         Args:
@@ -242,8 +244,8 @@ class DPEngine:
             return self._annotate(col, params=params, budget=budgets)
 
     def _select_partitions(self, col,
-                           params: pipeline_dp.SelectPartitionsParams,
-                           data_extractors: pipeline_dp.DataExtractors):
+                           params: aggregate_params.SelectPartitionsParams,
+                           data_extractors: extractors.DataExtractors):
         """Implementation of select_partitions computational graph."""
         max_partitions_contributed = params.max_partitions_contributed
 
@@ -330,7 +332,7 @@ class DPEngine:
     def _select_private_partitions_internal(
             self, col, max_partitions_contributed: int,
             max_rows_per_privacy_id: int,
-            strategy: pipeline_dp.PartitionSelectionStrategy,
+            strategy: aggregate_params.PartitionSelectionStrategy,
             pre_threshold: Optional[int]):
         """Selects and returns private partitions.
 
@@ -349,7 +351,7 @@ class DPEngine:
         def filter_fn(
             budget: 'MechanismSpec', max_partitions: int,
             max_rows_per_privacy_id: int,
-            strategy: pipeline_dp.PartitionSelectionStrategy,
+            strategy: aggregate_params.PartitionSelectionStrategy,
             pre_threshold: Optional[int],
             row: Tuple[Any,
                        combiners.CompoundCombiner.AccumulatorType]) -> bool:
@@ -397,14 +399,14 @@ class DPEngine:
         return self._backend.filter(col, filter_fn, "Filter private partitions")
 
     def _create_compound_combiner(
-            self,
-            params: pipeline_dp.AggregateParams) -> combiners.CompoundCombiner:
+            self, params: aggregate_params.AggregateParams
+    ) -> combiners.CompoundCombiner:
         """Creates CompoundCombiner based on aggregation parameters."""
         return combiners.create_compound_combiner(params,
                                                   self._budget_accountant)
 
     def _create_contribution_bounder(
-        self, params: pipeline_dp.AggregateParams,
+        self, params: aggregate_params.AggregateParams,
         expects_per_partition_sampling: bool
     ) -> contribution_bounders.ContributionBounder:
         """Creates ContributionBounder based on aggregation parameters."""
@@ -425,8 +427,7 @@ class DPEngine:
         # bounding.
         return contribution_bounders.NoOpSampler()
 
-    def _extract_columns(self, col,
-                         data_extractors: pipeline_dp.DataExtractors):
+    def _extract_columns(self, col, data_extractors: extractors.DataExtractors):
         """Extract columns using data_extractors."""
         if data_extractors.privacy_id_extractor is None:
             # This is the case when contribution bounding already enforced and
@@ -442,13 +443,14 @@ class DPEngine:
 
     def _check_aggregate_params(self,
                                 col,
-                                params: pipeline_dp.AggregateParams,
-                                data_extractors: pipeline_dp.DataExtractors,
+                                params: aggregate_params.AggregateParams,
+                                data_extractors: extractors.DataExtractors,
                                 check_data_extractors: bool = True):
         if params.max_contributions is not None:
             supported_metrics = [
-                pipeline_dp.Metrics.PRIVACY_ID_COUNT, pipeline_dp.Metrics.COUNT,
-                pipeline_dp.Metrics.SUM, pipeline_dp.Metrics.MEAN
+                aggregate_params.Metrics.PRIVACY_ID_COUNT,
+                aggregate_params.Metrics.COUNT, aggregate_params.Metrics.SUM,
+                aggregate_params.Metrics.MEAN
             ]
             not_supported_metrics = set(
                 params.metrics).difference(supported_metrics)
@@ -459,25 +461,25 @@ class DPEngine:
         _check_col(col)
         if params is None:
             raise ValueError("params must be set to a valid AggregateParams")
-        if not isinstance(params, pipeline_dp.AggregateParams):
+        if not isinstance(params, aggregate_params.AggregateParams):
             raise TypeError("params must be set to a valid AggregateParams")
         if check_data_extractors:
             _check_data_extractors(data_extractors)
         if params.contribution_bounds_already_enforced:
-            if pipeline_dp.Metrics.PRIVACY_ID_COUNT in params.metrics:
+            if aggregate_params.Metrics.PRIVACY_ID_COUNT in params.metrics:
                 raise ValueError(
                     "PRIVACY_ID_COUNT cannot be computed when "
                     "contribution_bounds_already_enforced is True.")
         if params.post_aggregation_thresholding:
-            if pipeline_dp.Metrics.PRIVACY_ID_COUNT not in params.metrics:
+            if aggregate_params.Metrics.PRIVACY_ID_COUNT not in params.metrics:
                 raise ValueError("When post_aggregation_thresholding = True, "
                                  "PRIVACY_ID_COUNT must be in metrics")
 
     def calculate_private_contribution_bounds(
             self,
             col,
-            params: pipeline_dp.CalculatePrivateContributionBoundsParams,
-            data_extractors: pipeline_dp.DataExtractors,
+            params: aggregate_params.CalculatePrivateContributionBoundsParams,
+            data_extractors: extractors.DataExtractors,
             partitions: Any,
             partitions_already_filtered: bool = False):
         """Computes contribution bounds in a differentially private way.
@@ -523,22 +525,23 @@ class DPEngine:
         return pipeline_functions.collect_to_container(
             self._backend,
             {"max_partitions_contributed": l0_calculator.calculate()},
-            pipeline_dp.PrivateContributionBounds,
+            aggregate_params.PrivateContributionBounds,
             "Collect calculated private contribution bounds into "
             "PrivateContributionBounds dataclass")
 
     def _check_calculate_private_contribution_bounds_params(
             self,
             col,
-            params: pipeline_dp.CalculatePrivateContributionBoundsParams,
-            data_extractors: pipeline_dp.DataExtractors,
+            params: aggregate_params.CalculatePrivateContributionBoundsParams,
+            data_extractors: extractors.DataExtractors,
             check_data_extractors: bool = True):
         _check_col(col)
         if params is None:
             raise ValueError("params must be set to a valid "
                              "CalculatePrivateContributionBoundsParams")
-        if not isinstance(params,
-                          pipeline_dp.CalculatePrivateContributionBoundsParams):
+        if not isinstance(
+                params,
+                aggregate_params.CalculatePrivateContributionBoundsParams):
             raise TypeError("params must be set to a valid "
                             "CalculatePrivateContributionBoundsParams")
         if check_data_extractors:
@@ -546,15 +549,16 @@ class DPEngine:
 
     def _check_budget_accountant_compatibility(self, is_public_partition: bool,
                                                metrics: Sequence[
-                                                   pipeline_dp.Metric],
+                                                   aggregate_params.Metrics],
                                                custom_combiner: bool) -> None:
         if isinstance(self._budget_accountant,
-                      pipeline_dp.NaiveBudgetAccountant):
+                      budget_accounting.NaiveBudgetAccountant):
             # All aggregations support NaiveBudgetAccountant.
             return
         supported_metrics = [
-            pipeline_dp.Metrics.COUNT, pipeline_dp.Metrics.PRIVACY_ID_COUNT,
-            pipeline_dp.Metrics.SUM, pipeline_dp.Metrics.MEAN
+            aggregate_params.Metrics.COUNT,
+            aggregate_params.Metrics.PRIVACY_ID_COUNT,
+            aggregate_params.Metrics.SUM, aggregate_params.Metrics.MEAN
         ]
         non_supported_metrics = set(metrics) - set(supported_metrics)
         if non_supported_metrics:
@@ -573,9 +577,9 @@ class DPEngine:
 
     def add_dp_noise(self,
                      col,
-                     params: pipeline_dp.aggregate_params.AddDPNoiseParams,
+                     params: aggregate_params.AddDPNoiseParams,
                      out_explain_computation_report: Optional[
-                         pipeline_dp.ExplainComputationReport] = None):
+                         report_generator.ExplainComputationReport] = None):
         """Adds DP noise to the aggregated data.
 
         This method allows applying differential privacy to pre-aggregated data.
@@ -601,7 +605,6 @@ class DPEngine:
             collection of (partition_key, value + noise).
             Output partition keys are the same as in the input collection.
         """
-        # Request budget and create Sensitivities object
         with self._budget_accountant.scope(weight=params.budget_weight):
             self._add_report_generator(params,
                                        "add_dp_noise",
@@ -614,8 +617,8 @@ class DPEngine:
                 params.budget_weight)
             return self._annotate(anonymized_col, params=params, budget=budgets)
 
-    def _add_dp_noise(self, col,
-                      params: pipeline_dp.aggregate_params.AddDPNoiseParams):
+    def _add_dp_noise(self, col, params: aggregate_params.AddDPNoiseParams):
+        # Request budget and create Sensitivities object
         mechanism_type = params.noise_kind.convert_to_mechanism_type()
         mechanism_spec = self._budget_accountant.request_budget(mechanism_type)
         sensitivities = dp_computations.Sensitivities(
@@ -650,9 +653,10 @@ class DPEngine:
             params.budget_weight)
         return self._annotate(anonymized_col, params=params, budget=budget)
 
-    def _annotate(self, col, params: Union[pipeline_dp.AggregateParams,
-                                           pipeline_dp.SelectPartitionsParams,
-                                           pipeline_dp.AddDPNoiseParams],
+    def _annotate(self, col,
+                  params: Union[aggregate_params.AggregateParams,
+                                aggregate_params.SelectPartitionsParams,
+                                aggregate_params.AddDPNoiseParams],
                   budget: budget_accounting.Budget):
         return self._backend.annotate(col,
                                       "annotation",
@@ -660,7 +664,7 @@ class DPEngine:
                                       budget=budget)
 
     def _weighted_gaussian_calculate_weights(
-            self, col, data_extractors: pipeline_dp.DataExtractors,
+            self, col, data_extractors: extractors.DataExtractors,
             max_partitions_contributed: int):
         """Calculate weights for weighted gaussian partition selection.
 
@@ -691,8 +695,8 @@ class DPEngine:
         return col
 
     def _select_partitions_weighted_gaussian(
-            self, col, params: pipeline_dp.SelectPartitionsParams,
-            data_extractors: pipeline_dp.DataExtractors):
+            self, col, params: aggregate_params.SelectPartitionsParams,
+            data_extractors: extractors.DataExtractors):
         """Selects partitions using the weighted gaussian mechanism."""
         col = self._weighted_gaussian_calculate_weights(
             col, data_extractors, params.max_partitions_contributed)
@@ -716,19 +720,20 @@ def _check_col(col):
         raise ValueError("col must be non-empty")
 
 
-def _check_data_extractors(data_extractors: pipeline_dp.DataExtractors):
+def _check_data_extractors(data_extractors: extractors.DataExtractors):
     if data_extractors is None:
         raise ValueError("data_extractors must be set to a DataExtractors")
-    if not isinstance(data_extractors, pipeline_dp.DataExtractors):
+    if not isinstance(data_extractors, extractors.DataExtractors):
         raise TypeError("data_extractors must be set to a DataExtractors")
 
 
-def _create_partition_selector(strategy: pipeline_dp.PartitionSelectionStrategy,
-                               budget: budget_accounting.MechanismSpec,
-                               max_partitions: int, pre_threshold: int):
+def _create_partition_selector(
+        strategy: aggregate_params.PartitionSelectionStrategy,
+        budget: budget_accounting.MechanismSpec, max_partitions: int,
+        pre_threshold: int):
     if budget.standard_deviation_is_set:
         assert strategy.is_thresholding
-        if strategy == pipeline_dp.PartitionSelectionStrategy.LAPLACE_THRESHOLDING:
+        if strategy == aggregate_params.PartitionSelectionStrategy.LAPLACE_THRESHOLDING:
             return partition_selection.create_laplace_thresholding(
                 budget.noise_standard_deviation, budget.thresholding_delta,
                 max_partitions, pre_threshold)
