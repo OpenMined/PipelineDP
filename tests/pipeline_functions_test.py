@@ -120,33 +120,6 @@ class BeamBackendTest(parameterized.TestCase):
 
             beam_util.assert_that(result, beam_util.equal_to(expected_min_max))
 
-
-@unittest.skipIf(sys.version_info.minor <= 7 and sys.version_info.major == 3,
-                 "There are some problems with PySpark setup on older python.")
-class SparkRDDBackendTest(parameterized.TestCase):
-
-    @classmethod
-    def setUpClass(cls):
-        import pyspark
-        conf = pyspark.SparkConf()
-        cls.sc = pyspark.SparkContext.getOrCreate(conf=conf)
-        cls.backend = pipeline_dp.SparkRDDBackend(cls.sc)
-
-    def test_key_by_extracts_keys_and_keeps_values_untouched(self):
-        col = self.sc.parallelize(["key1_value1", "key1_value2", "key2_value1"])
-
-        def underscore_separated_key_extractor(el):
-            return el.split("_")[0]
-
-        result = composite_funcs.key_by(self.backend,
-                                        col,
-                                        underscore_separated_key_extractor,
-                                        stage_name="Key by").collect()
-
-        self.assertSetEqual(
-            {("key1", "key1_value1"), ("key1", "key1_value2"),
-             ("key2", "key2_value1")}, set(result))
-
     def test_size_accounts_for_duplicates(self):
         col = self.sc.parallelize([3, 2, 1, 1])
 

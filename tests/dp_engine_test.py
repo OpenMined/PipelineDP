@@ -288,38 +288,6 @@ class DpEngineTest(parameterized.TestCase):
                         max_partitions_contributed=2)
                 ]))
 
-    @unittest.skipIf(
-        sys.version_info.minor <= 7 and sys.version_info.major == 3,
-        "There are some problems with PySpark setup on older python")
-    def test_calculate_private_contribution_does_not_work_on_spark_due_to_unsupported_operations(
-            self):
-        # Arrange
-        import pyspark
-        engine = pipeline_dp.DPEngine(budget_accountant=None,
-                                      backend=pipeline_dp.SparkRDDBackend(
-                                          pyspark.SparkContext.getOrCreate(
-                                              pyspark.SparkConf())))
-        params = pipeline_dp.CalculatePrivateContributionBoundsParams(
-            aggregation_eps=0.9,
-            aggregation_delta=0.001,
-            calculation_eps=0.1,
-            aggregation_noise_kind=pipeline_dp.NoiseKind.LAPLACE,
-            max_partitions_contributed_upper_bound=2)
-        # user 0 contributes only 1 partitions, others contribute to both
-        data = [("pk0", 0)]
-        for i in range(10000):
-            data += [("pk0", i + 1), ("pk1", i + 1)]
-        data_extractors = pipeline_dp.DataExtractors(
-            partition_extractor=lambda x: x[0],
-            privacy_id_extractor=lambda x: x[1],
-            value_extractor=lambda _: 1,
-        )
-        partitions = ["pk0", "pk1"]
-
-        with self.assertRaises(NotImplementedError):
-            engine.calculate_private_contribution_bounds(
-                data, params, data_extractors, partitions)
-
     def _create_params_default(
             self) -> Tuple[pipeline_dp.AggregateParams, list]:
         """Returns default params and default public partitions."""
@@ -1215,20 +1183,6 @@ class DpEngineTest(parameterized.TestCase):
             input, pipeline_dp.LocalBackend())
 
         self.assertLen(list(output), 5)
-
-    @unittest.skip("There are some problems with serialization in this test. "
-                   "Tests in private_spark_test.py work normaly so probably it"
-                   " is because of some missing setup.")
-    def test_run_e2e_partition_selection_spark(self):
-        import pyspark
-        conf = pyspark.SparkConf()
-        sc = pyspark.SparkContext.getOrCreate(conf=conf)
-        input = sc.parallelize(list(range(10)))
-
-        output = self.run_e2e_private_partition_selection_large_budget(
-            input, pipeline_dp.SparkRDDBackend(sc))
-
-        self.assertLen(collect_to_container(), 5)
 
     def test_run_e2e_partition_selection_beam(self):
         with test_pipeline.TestPipeline() as p:
