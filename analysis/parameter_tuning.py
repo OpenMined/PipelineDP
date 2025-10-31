@@ -162,6 +162,8 @@ def _find_candidate_parameters(
     if tune_count_linf:
         linf_count_bounds = _find_candidates_constant_relative_step(
             hist.linf_contributions_histogram, max_linf_candidates)
+    elif pipeline_dp.Metrics.COUNT in metrics:
+        linf_count_bounds = [aggregate_params.max_contributions_per_partition]
 
     linf_sum_bounds = None
     if tune_sum_linf:
@@ -331,7 +333,8 @@ def tune(col,
                                 pipeline_dp.PreAggregateExtractors],
          public_partitions=None,
          strategy_selector_factory: Optional[
-             dp_strategy_selector.DPStrategySelectorFactory] = None):
+             dp_strategy_selector.DPStrategySelectorFactory] = None,
+         candidates: Optional[analysis.MultiParameterConfiguration] = None):
     """Tunes parameters.
 
     It works in the following way:
@@ -371,13 +374,14 @@ def tune(col,
         strategy_selector_factory = dp_strategy_selector.DPStrategySelectorFactory(
         )
 
-    candidates: analysis.MultiParameterConfiguration = (
-        _find_candidate_parameters(
-            hist=contribution_histograms,
-            parameters_to_tune=options.parameters_to_tune,
-            aggregate_params=options.aggregate_params,
-            max_candidates=options.number_of_parameter_candidates,
-        ))
+    if candidates is None:
+        candidates: analysis.MultiParameterConfiguration = (
+            _find_candidate_parameters(
+                hist=contribution_histograms,
+                parameters_to_tune=options.parameters_to_tune,
+                aggregate_params=options.aggregate_params,
+                max_candidates=options.number_of_parameter_candidates,
+            ))
 
     # Add DP strategy (noise_kind, partition_selection_strategy) to multi
     # parameter configuration.
@@ -429,6 +433,7 @@ def _convert_utility_analysis_to_tune_result(
     # TODO(dvadym): implement relative error.
     # TODO(dvadym): take into consideration partition selection from private
     # partition selection.
+    assert tune_options.function_to_minimize == MinimizingFunction.ABSOLUTE_ERROR
 
     # Sort utility reports by configuration index.
     sorted_utility_reports = sorted(utility_reports,
