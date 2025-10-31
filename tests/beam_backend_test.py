@@ -301,6 +301,8 @@ class BeamBackendStageNameTest(unittest.TestCase):
                       backend._ulg._labels)
         self.assertIn("SAME_MAP_NAME_2_UNIQUE_BACKEND_SUFFIX",
                       backend._ulg._labels)
+
+
 class SumCombiner(dp_combiners.Combiner):
 
     def create_accumulator(self, values) -> float:
