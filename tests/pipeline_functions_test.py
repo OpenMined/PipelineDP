@@ -120,43 +120,6 @@ class BeamBackendTest(parameterized.TestCase):
 
             beam_util.assert_that(result, beam_util.equal_to(expected_min_max))
 
-    def test_size_accounts_for_duplicates(self):
-        col = self.sc.parallelize([3, 2, 1, 1])
-
-        result = composite_funcs.size(self.backend, col,
-                                      stage_name="Size").collect()
-
-        self.assertEqual([4], result)
-
-    def test_collect_to_container_spark_is_not_supported(self):
-        col_x = self.sc.parallelize([2])
-        col_y = self.sc.parallelize(["str"])
-        col_z = self.sc.parallelize([["str1", "str2"]])
-
-        with self.assertRaises(NotImplementedError):
-            composite_funcs.collect_to_container(self.backend, {
-                "x": col_x,
-                "y": col_y,
-                "z": col_z
-            }, TestContainer, "Collect to container")
-
-    @parameterized.named_parameters(
-        dict(testcase_name='empty collection', col=[], expected_min_max=[]),
-        dict(testcase_name='collection with one element',
-             col=[("k", 1)],
-             expected_min_max=[("k", (1, 1))]),
-        dict(testcase_name='collection with more than two elements',
-             col=[("a", 1), ("a", 5), ("a", 2), ("b", -1), ("b", 10), ("c", 1)],
-             expected_min_max=[("a", (1, 5)), ("b", (-1, 10)), ("c", (1, 1))]))
-    def test_min_max_per_key(self, col, expected_min_max):
-        col = self.sc.parallelize(col)
-
-        result = composite_funcs.min_max_per_key(
-            self.backend, col, "Min and max elements").collect()
-        result.sort()
-
-        self.assertEqual(expected_min_max, list(result))
-
 
 class LocalBackendTest(parameterized.TestCase):
 
