@@ -62,42 +62,49 @@ reference = "pypi-public"
 
 [[package]]
 name = "apache-beam"
-version = "2.66.0"
+version = "2.69.0"
 description = "Apache Beam SDK for Python"
 optional = false
 python-versions = ">=3.9"
 groups = ["dev"]
 files = [
-    {file = "apache_beam-2.66.0-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:57194f57aa56daf5cb5573156ece2d11656c624b179c0812e731fcdd022efb1c"},
-    {file = "apache_beam-2.66.0-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:36d54fb4c495c5bdd6b92e770ebc9c7b7a60f858da5cfc04de0da9b5ffafc5ba"},
-    {file = "apache_beam-2.66.0-cp310-cp310-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:411b79d07e2a40943ef2d1948ffdacb8cd92488bd26c77cd4f1e6a0307095f26"},
-    {file = "apache_beam-2.66.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:6c7a9fb98c7f024efb9106d03e4e7d4b4c271fa9d7f165aaf7871b4b50c7bea5"},
-    {file = "apache_beam-2.66.0-cp310-cp310-win32.whl", hash = "sha256:dc57571ff8e39bf96a5df4fb1bccbd75805d3cde7be846fd870c57c9ef81ca1c"},
-    {file = "apache_beam-2.66.0-cp310-cp310-win_amd64.whl", hash = "sha256:b2828e3802cbe7f81948f730b2ef49e0154f35569d97c16000befe1c8262d1aa"},
-    {file = "apache_beam-2.66.0-cp311-cp311-macosx_10_9_x86_64.whl", hash = "sha256:f21bab90d854a4c988da8ffe2f1c73bf47e03e652832c74d624d32a492364d0e"},
-    {file = "apache_beam-2.66.0-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:4e2c0ac30ef7745e9e511720a98eefca3f50be39003c8495a55a76fe0da10234"},
-    {file = "apache_beam-2.66.0-cp311-cp311-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:6312f89c6edeedd7d496bd8fea066e471340e8dbd0bf79739f677c2ec4bd4883"},
-    {file = "apache_beam-2.66.0-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:c5ee4b59d733a4f2b16b09de2063f292d7f76bd441413dda936e1c8eafacdd5d"},
-    {file = "apache_beam-2.66.0-cp311-cp311-win32.whl", hash = "sha256:690bda947defb719312076a4a7c9da304622682016fbd4759b2e93bfa11a63fb"},
-    {file = "apache_beam-2.66.0-cp311-cp311-win_amd64.whl", hash = "sha256:8de9063ad2713f528db665d3b582dc71d183d02f8398ca32627439480787792b"},
-    {file = "apache_beam-2.66.0-cp312-cp312-macosx_10_9_x86_64.whl", hash = "sha256:4abfc3b223f20b46144b97f25046a3b8f407393d383eaee8114c77acbca113e9"},
-    {file = "apache_beam-2.66.0-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:12c51f419437e08ee4a66350cfc851c438b64aab7c83c2e4ac841cf07fad028a"},
-    {file = "apache_beam-2.66.0-cp312-cp312-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:9d30b98c21dd5bb261f7c944a157f7d0174e7c18ec009d6968122e0b3e97c7d5"},
-    {file = "apache_beam-2.66.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:0b0ff83b6e010975f78d4839c42600cd09b443020fc7088bef3f629398c22d43"},
-    {file = "apache_beam-2.66.0-cp312-cp312-win32.whl", hash = "sha256:9cce28270e42b3b6fe4e5f0c2e2028754ef662de593ae7185b19df3a88597a84"},
-    {file = "apache_beam-2.66.0-cp312-cp312-win_amd64.whl", hash = "sha256:66459ca6ba7a1ede5ff998196310d27302b9f1f12549e654e4316dbd46f9de5f"},
-    {file = "apache_beam-2.66.0-cp39-cp39-macosx_10_9_x86_64.whl", hash = "sha256:b82280fc549e3ae775667f454e950630f5c91eace804bf154315695b83e9e5ef"},
-    {file = "apache_beam-2.66.0-cp39-cp39-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:306e7b1534add7c79236b1123dd2f789313dfc67426cd6a240f2d718754d2975"},
-    {file = "apache_beam-2.66.0-cp39-cp39-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:bc75c29104a772030f938fb4aaf2f3f6fbf2993668d3e34ce8ee38d3432d2aa0"},
-    {file = "apache_beam-2.66.0-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:71ffa3e7f607dfe91875243248b2ba247990348b16477c5efbd2488d13ee041e"},
-    {file = "apache_beam-2.66.0-cp39-cp39-win32.whl", hash = "sha256:fee377893ae3a6d7945188b37808d0db2c0a3e2f7aa2508f91dd55084a1e05ad"},
-    {file = "apache_beam-2.66.0-cp39-cp39-win_amd64.whl", hash = "sha256:6dfda2517d428fd95e1bde4c3c337890a33e59f28919b7bf3e13d3fd4f523c66"},
-    {file = "apache_beam-2.66.0.tar.gz", hash = "sha256:b5249949fde93dd8d6929c32ab8fce44eb78ce80953a2a77e652fc407ece1ea2"},
+    {file = "apache_beam-2.69.0-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:e886f85730e08510464a08d751158fc6ecf632ed906d77fb992e663831574b69"},
+    {file = "apache_beam-2.69.0-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:5391f46314e764cd85f5d5a04bb33d784e82eac54425212af66398d8b918302e"},
+    {file = "apache_beam-2.69.0-cp310-cp310-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:33b839c0288fbc16ef094277175d701fca1a8d08c550f3f72ae1cb807918a8ff"},
+    {file = "apache_beam-2.69.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:cc9ac2521b3db197097a2ffcebced9c0b16665934bed988d2c8f93c8eefe675c"},
+    {file = "apache_beam-2.69.0-cp310-cp310-win32.whl", hash = "sha256:0b1b0299e34a00fe9dfe0c45302b099a132fb356ee02321d4e2921c3e6ec1aa2"},
+    {file = "apache_beam-2.69.0-cp310-cp310-win_amd64.whl", hash = "sha256:9043e106e98bd1c7c1f8abaa625651d9394403ea36af4ee7e34a066dff0f95df"},
+    {file = "apache_beam-2.69.0-cp311-cp311-macosx_10_9_x86_64.whl", hash = "sha256:034c379f66c321b9885ea9222bef2cbeca787dcc41c7159c9368c8ea323c80ca"},
+    {file = "apache_beam-2.69.0-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:d892eac4910aeebd8e96942b321c5eebcaf6ed3a86d54c72c1d577589ca60ca2"},
+    {file = "apache_beam-2.69.0-cp311-cp311-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:061f1f9c0167651b5939e339746f3e0f5893d6dda6875236c0a313ccce97eafa"},
+    {file = "apache_beam-2.69.0-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:5150c92e1e01f63eb27e3d826f73266336b73377a205d1bd4f6e1412c456a8ab"},
+    {file = "apache_beam-2.69.0-cp311-cp311-win32.whl", hash = "sha256:cba204201a3fcf516b340d38b06f35753e8d93f54728dfcf8ccc4feeaa9938a1"},
+    {file = "apache_beam-2.69.0-cp311-cp311-win_amd64.whl", hash = "sha256:0d23240c9e69130fea99f7aa4c30396825d223eeab9367695681a0764bb418ea"},
+    {file = "apache_beam-2.69.0-cp312-cp312-macosx_10_13_x86_64.whl", hash = "sha256:7b9af1182f888f71d2b8fe0339125b4e2faad294b1330e50f7c21a60c5cb0854"},
+    {file = "apache_beam-2.69.0-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:cdc318cebad21d2f727a4d5650784547ab670d9c6e1797d5aa916528601ccfe7"},
+    {file = "apache_beam-2.69.0-cp312-cp312-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:bc5fd9876b4b8e3cdf827f0b45ee460760bbdac5fbbccf1d8515cc2203611083"},
+    {file = "apache_beam-2.69.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:e8297f6fa31e2c3e8db74fb0678715ee380056c5d3a16c06e76b256a4bd45a66"},
+    {file = "apache_beam-2.69.0-cp312-cp312-win32.whl", hash = "sha256:59d53a1e95bcc3b57bf91d3417b278311c1edccad7e5623b9c165e90ce79a4f0"},
+    {file = "apache_beam-2.69.0-cp312-cp312-win_amd64.whl", hash = "sha256:dbf23a29057080adf143b2acccabad6802f60863291b904d5f3d1ae8cb6f936e"},
+    {file = "apache_beam-2.69.0-cp313-cp313-macosx_10_13_x86_64.whl", hash = "sha256:445f12c7c224f012144aa42dbf3355c434e329e641047f198f0fc6e795f6b215"},
+    {file = "apache_beam-2.69.0-cp313-cp313-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:79e723011c3134c0af4eaa4efb48e6ac337e5267fa9ca159cf1c48c3848655d6"},
+    {file = "apache_beam-2.69.0-cp313-cp313-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:fd8e187016809b282d673948709dbad7ca95edff788466a24c3b17304d91b4e0"},
+    {file = "apache_beam-2.69.0-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:0589352e5f12dc09dc878449f94da45474ae466692729a7a613372484ed8b3e0"},
+    {file = "apache_beam-2.69.0-cp313-cp313-win32.whl", hash = "sha256:80dab6c53ce5b28947d27c13b3c1015ec5d6c7f28e1c13a0b36a25f3faae5f06"},
+    {file = "apache_beam-2.69.0-cp313-cp313-win_amd64.whl", hash = "sha256:8a095fced1f60c26388fb516b77894d0a5fb8f65d956aaf490e9430469cb4cd3"},
+    {file = "apache_beam-2.69.0-cp39-cp39-macosx_10_9_x86_64.whl", hash = "sha256:5ba73f65377f969645ff7036a4e1ecf0e3d2fd267be2a15ee45d0f601d1a3782"},
+    {file = "apache_beam-2.69.0-cp39-cp39-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:03e28d66491f636d37db0faa6392fc8652de0c0a628224f261f5274d224bb11e"},
+    {file = "apache_beam-2.69.0-cp39-cp39-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:e42815340e4238a588590e2e3e8d250c03b2e4a68e25cb9e2144203d37559f7e"},
+    {file = "apache_beam-2.69.0-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:3d577416d460f9e50f735b5ff5d8eb11178633ad20cf51565aa93f5d4a3a9a92"},
+    {file = "apache_beam-2.69.0-cp39-cp39-win32.whl", hash = "sha256:0cac2d92b49ccbc2b6a5bb0dd2c61fd6eebdb2d57f8903f59c066993624cbc76"},
+    {file = "apache_beam-2.69.0-cp39-cp39-win_amd64.whl", hash = "sha256:a3af984559870d9fff6cd80cbc2347484ce8ba2a2a834f4003b790d2c1913641"},
+    {file = "apache_beam-2.69.0.tar.gz", hash = "sha256:97039d80e5c90cf0f321ca9106a0e5fa853cc14e2c17c543f08473a5c78367dc"},
 ]
 
 [package.dependencies]
+beartype = ">=0.21.0,<0.22.0"
 crcmod = ">=1.7,<2.0"
-dill = ">=0.3.1.1,<0.3.2"
+cryptography = ">=39.0.0,<48.0.0"
 fastavro = ">=0.23.6,<2"
 fasteners = ">=0.3,<1.0"
 grpcio = {version = ">=1.33.1,<1.48.0 || >1.48.0,<1.59.dev0 || >1.62.0,<1.62.1 || >1.62.1,<1.66.0", markers = "python_version <= \"3.12\""}
@@ -110,7 +117,7 @@ objsize = ">=0.6.1,<0.8.0"
 orjson = ">=3.9.7,<4"
 packaging = ">=22.0"
 proto-plus = ">=1.7.1,<2"
-protobuf = ">=3.20.3,<4.0.dev0 || >=4.1.dev0,<4.21.dev0 || >4.22.0,<4.23.dev0 || >=4.25.dev0,<6.0.0.dev0"
+protobuf = ">=3.20.3,<4.0.dev0 || >=4.1.dev0,<4.21.dev0 || >4.22.0,<4.23.dev0 || >=4.25.dev0,<7.0.0.dev0"
 pyarrow = ">=3.0.0,<19.0.0"
 pyarrow-hotfix = "<1"
 pydot = ">=1.2.0,<2"
@@ -120,7 +127,7 @@ pytz = ">=2018.3"
 pyyaml = ">=3.12,<7.0.0"
 redis = ">=5.0.0,<6"
 regex = ">=2020.6.8"
-requests = ">=2.24.0,<3.0.0"
+requests = ">=2.32.4,<3.0.0"
 sortedcontainers = ">=2.4.0"
 typing-extensions = ">=3.7.0"
 zstandard = ">=0.18.0,<1"
@@ -130,43 +137,24 @@ aws = ["boto3 (>=1.9,<2)"]
 azure = ["azure-core (>=1.7.0,<2)", "azure-identity (>=1.12.0,<2)", "azure-storage-blob (>=12.3.2,<13)"]
 dask = ["dask (>=2024.4.2)", "distributed (>=2024.4.2)"]
 dataframe = ["pandas (>=1.4.3,!=1.5.0,!=1.5.1,<2.3)"]
+dill = ["dill (>=0.3.1.1,<0.3.2)"]
 docs = ["Sphinx (>=7.0.0,<8.0)", "docstring-parser (>=0.15,<1.0)", "docutils (>=0.18.1)", "jinja2 (>=3.0,<3.2)", "markdown", "openai", "pandas (<2.3.0)", "virtualenv-clone (>=0.5,<1.0)"]
-gcp = ["cachetools (>=3.1.0,<6)", "google-api-core (>=2.0.0,<3)", "google-apitools (>=0.5.31,<0.5.32) ; python_version <= \"3.12\"", "google-apitools (>=0.5.32,<0.5.33) ; python_version >= \"3.13\"", "google-auth (>=1.18.0,<3)", "google-auth-httplib2 (>=0.1.0,<0.3.0)", "google-cloud-aiplatform (>=1.26.0,<2.0)", "google-cloud-bigquery (>=2.0.0,<4)", "google-cloud-bigquery-storage (>=2.6.3,<3)", "google-cloud-bigtable (>=2.19.0,<3)", "google-cloud-core (>=2.0.0,<3)", "google-cloud-datastore (>=2.0.0,<3)", "google-cloud-dlp (>=3.0.0,<4)", "google-cloud-language (>=2.0,<3)", "google-cloud-pubsub (>=2.1.0,<3)", "google-cloud-pubsublite (>=1.2.0,<2)", "google-cloud-recommendations-ai (>=0.1.0,<0.11.0)", "google-cloud-spanner (>=3.0.0,<4)", "google-cloud-storage (>=2.18.2,<3)", "google-cloud-videointelligence (>=2.0,<3)", "google-cloud-vision (>=2,<4)", "keyrings.google-artifactregistry-auth"]
+gcp = ["PyMySQL (>=1.1.0)", "cachetools (>=3.1.0,<7)", "cloud-sql-python-connector (>=1.18.2,<2.0.0)", "google-api-core (>=2.0.0,<3)", "google-apitools (>=0.5.31,<0.5.32) ; python_version < \"3.13\"", "google-apitools (>=0.5.35) ; python_version >= \"3.13\"", "google-auth (>=1.18.0,<3)", "google-auth-httplib2 (>=0.1.0,<0.3.0)", "google-cloud-aiplatform (>=1.26.0,<2.0)", "google-cloud-bigquery (>=2.0.0,<4)", "google-cloud-bigquery-storage (>=2.6.3,<3)", "google-cloud-bigtable (>=2.19.0,<3)", "google-cloud-core (>=2.0.0,<3)", "google-cloud-datastore (>=2.0.0,<3)", "google-cloud-dlp (>=3.0.0,<4)", "google-cloud-language (>=2.0,<3)", "google-cloud-pubsub (>=2.1.0,<3)", "google-cloud-pubsublite (>=1.2.0,<2)", "google-cloud-recommendations-ai (>=0.1.0,<0.11.0)", "google-cloud-secret-manager (>=2.0,<3)", "google-cloud-spanner (>=3.0.0,<4)", "google-cloud-storage (>=2.18.2,<3)", "google-cloud-videointelligence (>=2.0,<3)", "google-cloud-vision (>=2,<4)", "keyrings.google-artifactregistry-auth", "pg8000 (>=1.31.1)", "python-tds (>=1.16.1)"]
 interactive = ["facets-overview (>=1.1.0,<2)", "google-cloud-dataproc (>=5.0.0,<6)", "ipykernel (>=6,<7)", "ipython (>=7,<9)", "ipywidgets (>=8,<9)", "jupyter-client (>=6.1.11,!=6.1.13,<8.2.1)", "nbconvert (>=6.2.0,<8)", "nbformat (>=5.0.5,<6)", "pandas (>=1.4.3,!=1.5.0,!=1.5.1,<2.3)", "timeloop (>=1.0.2,<2)"]
 interactive-test = ["chromedriver-binary (>=117,<118)", "needle (>=0.5.0,<1)", "pillow (>=7.1.1,<10)", "urllib3 (>=1.21.1,<2)"]
-ml-test = ["datatable", "embeddings", "langchain", "onnxruntime", "pillow", "pyod", "sentence-transformers", "skl2onnx", "tensorflow", "tensorflow-hub", "tensorflow-transform", "tf2onnx", "torch", "transformers"]
+milvus = ["pymilvus (>=2.5.10,<3.0.0)"]
+ml-test = ["datatable", "dill", "embeddings", "langchain", "onnxruntime", "pillow", "pyod", "sentence-transformers (>=2.2.2) ; python_version >= \"3.10\"", "sentence-transformers (>=2.2.2,<3.0.0) ; python_version < \"3.10\"", "skl2onnx", "tensorflow", "tensorflow-hub", "tensorflow-transform", "tf2onnx", "torch", "transformers"]
 onnx = ["onnxruntime (==1.13.1)", "skl2onnx (==1.13)", "tensorflow (==2.11.0)", "tf2onnx (==1.13.0)", "torch (==1.13.1)", "transformers (==4.25.1)"]
-p312-ml-test = ["datatable", "embeddings", "langchain", "onnxruntime", "pillow", "pyod", "sentence-transformers", "skl2onnx", "tensorflow", "tensorflow-hub", "tf2onnx", "torch", "transformers"]
-tensorflow = ["tensorflow (>=2.12rc1,<2.13)"]
+p312-ml-test = ["datatable", "embeddings", "langchain", "onnxruntime", "pillow", "pyod", "sentence-transformers (>=2.2.2) ; python_version >= \"3.10\"", "sentence-transformers (>=2.2.2,<3.0.0) ; python_version < \"3.10\"", "skl2onnx", "tensorflow", "tensorflow-hub", "tf2onnx", "torch", "transformers"]
+p313-ml-test = ["embeddings", "langchain", "onnxruntime", "pillow", "pyod", "sentence-transformers (>=2.2.2) ; python_version >= \"3.10\"", "sentence-transformers (>=2.2.2,<3.0.0) ; python_version < \"3.10\"", "skl2onnx", "tensorflow", "tensorflow-hub", "tf2onnx", "torch", "transformers"]
+tensorflow = ["tensorflow (>=2.12rc1,<2.21)"]
 tensorflow-hub = ["tensorflow-hub (>=0.14.0,<0.16.0)"]
-test = ["cloud-sql-python-connector[pg8000] (>=1.0.0,<2.0.0)", "cryptography (>=41.0.2)", "docstring-parser (>=0.15,<1.0)", "freezegun (>=0.3.12)", "hypothesis (>5.0.0,<7.0.0)", "jinja2 (>=3.0,<3.2)", "joblib (>=1.0.1)", "mock (>=1.0.1,<6.0.0)", "mysql-connector-python (>=9.3.0)", "oracledb (>=3.1.1)", "pandas (<2.3.0)", "parameterized (>=0.7.1,<0.10.0)", "psycopg2-binary (>=2.8.5,<2.9.10) ; python_version <= \"3.9\"", "psycopg2-binary (>=2.8.5,<3.0) ; python_version >= \"3.10\"", "pyhamcrest (>=1.9,!=1.10.0,<3.0.0)", "pytest (>=7.1.2,<8.0)", "pytest-timeout (>=2.1.0,<3)", "pytest-xdist (>=2.5.0,<4)", "python-tds (>=1.16.1)", "requests_mock (>=1.7,<2.0)", "scikit-learn (>=0.20.0)", "setuptools", "sqlalchemy (>=1.3,<3.0)", "sqlalchemy-pytds (>=1.0.2)", "tenacity (>=8.0.0,<9)", "testcontainers[kafka,mysql] (>=3.0.3,<4.0.0)", "virtualenv-clone (>=0.5,<1.0)"]
-tft = ["tensorflow_transform (>=1.14.0,<1.15.0)"]
-torch = ["torch (<=1.13.0)"]
-transformers = ["tensorflow (==2.12.0)", "torch (>=1.9.0,<2.1.0)", "transformers (>=4.28.0,<4.49.0)"]
+test = ["PyMySQL (>=1.1.0)", "cloud-sql-python-connector[pg8000] (>=1.0.0,<2.0.0)", "cryptography (>=41.0.2)", "docstring-parser (>=0.15,<1.0)", "freezegun (>=0.3.12)", "hypothesis (>5.0.0,<7.0.0)", "jinja2 (>=3.0,<3.2)", "joblib (>=1.0.1)", "mock (>=1.0.1,<6.0.0)", "oracledb (>=3.1.1)", "pandas (<2.3.0)", "parameterized (>=0.7.1,<0.10.0)", "pg8000 (>=1.31.1)", "psycopg2-binary (>=2.8.5,<2.9.10) ; python_version <= \"3.9\"", "psycopg2-binary (>=2.8.5,<3.0) ; python_version >= \"3.10\"", "pyhamcrest (>=1.9,!=1.10.0,<3.0.0)", "pymilvus (>=2.5.10,<3.0.0)", "pytest (>=7.1.2,<9.0)", "pytest-timeout (>=2.1.0,<3)", "pytest-xdist (>=2.5.0,<4)", "python-tds (>=1.16.1)", "requests_mock (>=1.7,<2.0)", "scikit-learn (>=0.20.0)", "sqlalchemy (>=1.3,<3.0)", "sqlalchemy-pytds (>=1.0.2)", "tenacity (>=8.0.0,<9)", "testcontainers[kafka,milvus,mysql] (>=4.0.0,<5.0.0)", "virtualenv-clone (>=0.5,<1.0)"]
+tft = ["dill", "tensorflow_transform (>=1.14.0,<1.15.0)"]
+torch = ["torch (>=1.9.0,<2.8.0)"]
+transformers = ["tensorflow (>=2.12.0)", "torch (>=1.9.0)", "transformers (>=4.28.0,<4.55.0) ; python_version < \"3.10\"", "transformers (>=4.28.0,<4.56.0) ; python_version >= \"3.10\""]
 xgboost = ["datatable (==1.0.0)", "xgboost (>=1.6.0,<2.1.3)"]
 yaml = ["docstring-parser (>=0.15,<1.0)", "jinja2 (>=3.0,<3.2)", "js2py (>=0.74,<1) ; python_version < \"3.12\"", "pandas (>=1.4.3,!=1.5.0,!=1.5.1,<2.3)", "virtualenv-clone (>=0.5,<1.0)"]
-
-[package.source]
-type = "legacy"
-url = "https://pypi.org/simple"
-reference = "pypi-public"
-
-[[package]]
-name = "astroid"
-version = "2.13.5"
-description = "An abstract syntax tree for Python with inference support."
-optional = false
-python-versions = ">=3.7.2"
-groups = ["dev"]
-markers = "python_version == \"3.11\""
-files = [
-    {file = "astroid-2.13.5-py3-none-any.whl", hash = "sha256:6891f444625b6edb2ac798829b689e95297e100ddf89dbed5a8c610e34901501"},
-    {file = "astroid-2.13.5.tar.gz", hash = "sha256:df164d5ac811b9f44105a72b8f9d5edfb7b5b2d7e979b04ea377a77b3229114a"},
-]
-
-[package.dependencies]
-lazy-object-proxy = ">=1.4.0"
-wrapt = {version = ">=1.14,<2", markers = "python_version >= \"3.11\""}
 
 [package.source]
 type = "legacy"
@@ -180,7 +168,6 @@ description = "An abstract syntax tree for Python with inference support."
 optional = false
 python-versions = ">=3.7.2"
 groups = ["dev"]
-markers = "python_version < \"3.11\""
 files = [
     {file = "astroid-2.15.8-py3-none-any.whl", hash = "sha256:1aa149fc5c6589e3d0ece885b4491acd80af4f087baafa3fb5203b113e68cd3c"},
     {file = "astroid-2.15.8.tar.gz", hash = "sha256:6c107453dffee9055899705de3c9ead36e74119cee151e5a9aaf7f0b0e020a6a"},
@@ -189,7 +176,10 @@ files = [
 [package.dependencies]
 lazy-object-proxy = ">=1.4.0"
 typing-extensions = {version = ">=4.0.0", markers = "python_version < \"3.11\""}
-wrapt = {version = ">=1.11,<2", markers = "python_version < \"3.11\""}
+wrapt = [
+    {version = ">=1.11,<2", markers = "python_version < \"3.11\""},
+    {version = ">=1.14,<2", markers = "python_version >= \"3.11\""},
+]
 
 [package.source]
 type = "legacy"
@@ -278,6 +268,30 @@ url = "https://pypi.org/simple"
 reference = "pypi-public"
 
 [[package]]
+name = "beartype"
+version = "0.21.0"
+description = "Unbearably fast near-real-time hybrid runtime-static type-checking in pure Python."
+optional = false
+python-versions = ">=3.9"
+groups = ["dev"]
+files = [
+    {file = "beartype-0.21.0-py3-none-any.whl", hash = "sha256:b6a1bd56c72f31b0a496a36cc55df6e2f475db166ad07fa4acc7e74f4c7f34c0"},
+    {file = "beartype-0.21.0.tar.gz", hash = "sha256:f9a5078f5ce87261c2d22851d19b050b64f6a805439e8793aecf01ce660d3244"},
+]
+
+[package.extras]
+dev = ["autoapi (>=0.9.0)", "click", "coverage (>=5.5)", "equinox ; sys_platform == \"linux\"", "jax[cpu] ; sys_platform == \"linux\"", "jaxtyping ; sys_platform == \"linux\"", "langchain", "mypy (>=0.800) ; platform_python_implementation != \"PyPy\"", "nuitka (>=1.2.6) ; sys_platform == \"linux\"", "numba ; python_version < \"3.13.0\"", "numpy ; sys_platform != \"darwin\" and platform_python_implementation != \"PyPy\"", "pandera", "pydata-sphinx-theme (<=0.7.2)", "pygments", "pyright (>=1.1.370)", "pytest (>=4.0.0)", "rich-click", "sphinx", "sphinx (>=4.2.0,<6.0.0)", "sphinxext-opengraph (>=0.7.5)", "sqlalchemy", "tox (>=3.20.1)", "typing-extensions (>=3.10.0.0)", "xarray"]
+doc-rtd = ["autoapi (>=0.9.0)", "pydata-sphinx-theme (<=0.7.2)", "sphinx (>=4.2.0,<6.0.0)", "sphinxext-opengraph (>=0.7.5)"]
+test = ["click", "coverage (>=5.5)", "equinox ; sys_platform == \"linux\"", "jax[cpu] ; sys_platform == \"linux\"", "jaxtyping ; sys_platform == \"linux\"", "langchain", "mypy (>=0.800) ; platform_python_implementation != \"PyPy\"", "nuitka (>=1.2.6) ; sys_platform == \"linux\"", "numba ; python_version < \"3.13.0\"", "numpy ; sys_platform != \"darwin\" and platform_python_implementation != \"PyPy\"", "pandera", "pygments", "pyright (>=1.1.370)", "pytest (>=4.0.0)", "rich-click", "sphinx", "sqlalchemy", "tox (>=3.20.1)", "typing-extensions (>=3.10.0.0)", "xarray"]
+test-tox = ["click", "equinox ; sys_platform == \"linux\"", "jax[cpu] ; sys_platform == \"linux\"", "jaxtyping ; sys_platform == \"linux\"", "langchain", "mypy (>=0.800) ; platform_python_implementation != \"PyPy\"", "nuitka (>=1.2.6) ; sys_platform == \"linux\"", "numba ; python_version < \"3.13.0\"", "numpy ; sys_platform != \"darwin\" and platform_python_implementation != \"PyPy\"", "pandera", "pygments", "pyright (>=1.1.370)", "pytest (>=4.0.0)", "rich-click", "sphinx", "sqlalchemy", "typing-extensions (>=3.10.0.0)", "xarray"]
+test-tox-coverage = ["coverage (>=5.5)"]
+
+[package.source]
+type = "legacy"
+url = "https://pypi.org/simple"
+reference = "pypi-public"
+
+[[package]]
 name = "bracex"
 version = "2.6"
 description = "Bash style brace expander."
@@ -346,7 +360,7 @@ description = "Foreign Function Interface for Python calling C code."
 optional = false
 python-versions = ">=3.8"
 groups = ["dev"]
-markers = "platform_python_implementation != \"PyPy\" and sys_platform == \"linux\""
+markers = "platform_python_implementation != \"PyPy\""
 files = [
     {file = "cffi-1.17.1-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:df8b1c11f177bc2313ec4b2d46baec87a5f3e71fc8b45dab2ee7cae86d9aba14"},
     {file = "cffi-1.17.1-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:8f2cdc858323644ab277e9bb925ad72ae0e67f69e804f4898c070998d50b1a67"},
@@ -601,7 +615,7 @@ description = "cryptography is a package which provides cryptographic recipes an
 optional = false
 python-versions = ">=3.7"
 groups = ["dev"]
-markers = "python_version == \"3.9\" and sys_platform == \"linux\""
+markers = "python_version == \"3.9\""
 files = [
     {file = "cryptography-43.0.3-cp37-abi3-macosx_10_9_universal2.whl", hash = "sha256:bf7a1932ac4176486eab36a19ed4c0492da5d97123f1406cf15e41b05e787d2e"},
     {file = "cryptography-43.0.3-cp37-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:63efa177ff54aec6e1c0aefaa1a241232dcd37413835a9b674b6e3f0ae2bfd3e"},
@@ -657,7 +671,7 @@ description = "cryptography is a package which provides cryptographic recipes an
 optional = false
 python-versions = ">=3.7, !=3.9.0, !=3.9.1"
 groups = ["dev"]
-markers = "python_version >= \"3.10\" and sys_platform == \"linux\""
+markers = "python_version >= \"3.10\""
 files = [
     {file = "cryptography-45.0.6-cp311-abi3-macosx_10_9_universal2.whl", hash = "sha256:048e7ad9e08cf4c0ab07ff7f36cc3115924e22e2266e034450a890d9e312dd74"},
     {file = "cryptography-45.0.6-cp311-abi3-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:44647c5d796f5fc042bbc6d61307d04bf29bccb74d188f18051b635f20a9c75f"},
@@ -718,17 +732,19 @@ reference = "pypi-public"
 
 [[package]]
 name = "dill"
-version = "0.3.1.1"
-description = "serialize all of python"
+version = "0.4.0"
+description = "serialize all of Python"
 optional = false
-python-versions = ">=2.6, !=3.0.*"
-groups = ["dev"]
+python-versions = ">=3.8"
+groups = ["main", "dev"]
 files = [
-    {file = "dill-0.3.1.1.tar.gz", hash = "sha256:42d8ef819367516592a825746a18073ced42ca169ab1f5f4044134703e7a049c"},
+    {file = "dill-0.4.0-py3-none-any.whl", hash = "sha256:44f54bf6412c2c8464c14e8243eb163690a9800dbe2c367330883b19c7561049"},
+    {file = "dill-0.4.0.tar.gz", hash = "sha256:0633f1d2df477324f53a895b02c901fb961bdbf65a17122586ea7019292cbcf0"},
 ]
 
 [package.extras]
 graph = ["objgraph (>=1.7.2)"]
+profile = ["gprof2dot (>=2022.7.29)"]
 
 [package.source]
 type = "legacy"
@@ -2211,7 +2227,7 @@ description = "C parser in Python"
 optional = false
 python-versions = ">=3.8"
 groups = ["dev"]
-markers = "platform_python_implementation != \"PyPy\" and sys_platform == \"linux\""
+markers = "platform_python_implementation != \"PyPy\""
 files = [
     {file = "pycparser-2.22-py3-none-any.whl", hash = "sha256:c3702b6d3dd8c7abc1afa565d7e63d53a1d0bd86cdc24edd75470f4de499cfcc"},
     {file = "pycparser-2.22.tar.gz", hash = "sha256:491c8be9c040f5390f5bf44a5b07752bd07f56edf992381b05c701439eec10f6"},
@@ -2460,43 +2476,11 @@ reference = "pypi-public"
 
 [[package]]
 name = "pylint"
-version = "2.15.8"
-description = "python code static checker"
-optional = false
-python-versions = ">=3.7.2"
-groups = ["dev"]
-markers = "python_version == \"3.11\""
-files = [
-    {file = "pylint-2.15.8-py3-none-any.whl", hash = "sha256:ea82cd6a1e11062dc86d555d07c021b0fb65afe39becbe6fe692efd6c4a67443"},
-    {file = "pylint-2.15.8.tar.gz", hash = "sha256:ec4a87c33da054ab86a6c79afa6771dc8765cb5631620053e727fcf3ef8cbed7"},
-]
-
-[package.dependencies]
-astroid = ">=2.12.13,<=2.14.0-dev0"
-colorama = {version = ">=0.4.5", markers = "sys_platform == \"win32\""}
-dill = ">=0.2"
-isort = ">=4.2.5,<6"
-mccabe = ">=0.6,<0.8"
-platformdirs = ">=2.2.0"
-tomlkit = ">=0.10.1"
-
-[package.extras]
-spelling = ["pyenchant (>=3.2,<4.0)"]
-testutils = ["gitpython (>3)"]
-
-[package.source]
-type = "legacy"
-url = "https://pypi.org/simple"
-reference = "pypi-public"
-
-[[package]]
-name = "pylint"
 version = "2.17.7"
 description = "python code static checker"
 optional = false
 python-versions = ">=3.7.2"
 groups = ["dev"]
-markers = "python_version < \"3.11\""
 files = [
     {file = "pylint-2.17.7-py3-none-any.whl", hash = "sha256:27a8d4c7ddc8c2f8c18aa0050148f89ffc09838142193fdbe98f172781a3ff87"},
     {file = "pylint-2.17.7.tar.gz", hash = "sha256:f4fcac7ae74cfe36bc8451e931d8438e4a476c20314b1101c458ad0f05191fad"},
@@ -2505,7 +2489,10 @@ files = [
 [package.dependencies]
 astroid = ">=2.15.8,<=2.17.0-dev0"
 colorama = {version = ">=0.4.5", markers = "sys_platform == \"win32\""}
-dill = {version = ">=0.2", markers = "python_version < \"3.11\""}
+dill = [
+    {version = ">=0.2", markers = "python_version < \"3.11\""},
+    {version = ">=0.3.6", markers = "python_version >= \"3.11\""},
+]
 isort = ">=4.2.5,<6"
 mccabe = ">=0.6,<0.8"
 platformdirs = ">=2.2.0"
@@ -4160,4 +4147,4 @@ reference = "pypi-public"
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.9,<3.12"
-content-hash = "c315a6f9a0e764c06c6c42d7d59409d50ee292ade6472298e446f93c86cf6f9f"
+content-hash = "15b620deb464e355b17d1495509c12a950208b6acf81ebb4dc13c05653bb2db7"
