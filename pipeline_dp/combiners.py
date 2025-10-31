@@ -634,7 +634,7 @@ class QuantileCombiner(Combiner):
     The accumulator is QuantileTree object serialized to string.
     """
 
-    AccumulatorType = bytes | list[float]
+    AccumulatorType = Union[bytes, List[float]]
 
     def __init__(self, params, percentiles_to_compute: List[float]):
         self._params = params
