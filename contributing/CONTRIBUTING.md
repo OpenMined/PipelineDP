@@ -43,7 +43,7 @@ The example below uses a sample from the `combined_data_1.txt` in the [Netflix p
 
 To run the example, in the terminal:
 ```
-python examples/movie_view_ratings/run_all_frameworks.py \
+python -m examples.movie_view_ratings.run_all_frameworks \
        --input_file=contributing/sample_combined_data_1.txt \
        --output_file=result_example.txt
 ```
