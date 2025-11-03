@@ -18,7 +18,7 @@ from absl import app
 from absl import flags
 import pipeline_dp
 
-from common_utils import parse_file, write_to_file
+from examples.movie_view_ratings.common_utils import parse_file, write_to_file
 from examples.movie_view_ratings import common_utils
 
 FLAGS = flags.FLAGS
@@ -135,3 +135,5 @@ if __name__ == '__main__':
     flags.mark_flag_as_required("input_file")
     flags.mark_flag_as_required("output_file")
     app.run(main)
+
+

@@ -27,7 +27,7 @@ import pipeline_dp
 from pipeline_dp import private_beam
 from pipeline_dp import SumParams
 from pipeline_dp.private_beam import MakePrivate
-from common_utils import ParseFile
+from examples.movie_view_ratings.common_utils import ParseFile
 
 FLAGS = flags.FLAGS
 flags.DEFINE_string('input_file', None, 'The file with the movie view data')
@@ -78,7 +78,8 @@ def main(unused_argv):
             pre_threshold=5)
 
         dp_result = private_movie_views | "Private Sum" >> private_beam.Sum(
-            params)
+            params,
+            out_explain_computaton_report=explain_computation_report)
         budget_accountant.compute_budgets()
 
         # Generate the Explain Computation Report. It must be called after
