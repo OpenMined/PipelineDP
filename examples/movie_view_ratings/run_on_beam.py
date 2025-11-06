@@ -78,8 +78,7 @@ def main(unused_argv):
             pre_threshold=5)
 
         dp_result = private_movie_views | "Private Sum" >> private_beam.Sum(
-            params,
-            out_explain_computaton_report=explain_computation_report)
+            params, out_explain_computaton_report=explain_computation_report)
         budget_accountant.compute_budgets()
 
         # Generate the Explain Computation Report. It must be called after
