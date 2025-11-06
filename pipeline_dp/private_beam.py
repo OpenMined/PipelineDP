@@ -151,7 +151,9 @@ class Variance(PrivatePTransform):
             max_contributions_per_partition,
             min_value=self._variance_params.min_value,
             max_value=self._variance_params.max_value,
-            pre_threshold=self._variance_params.pre_threshold)
+            pre_threshold=self._variance_params.pre_threshold,
+            perform_cross_partition_contribution_bounding=self._variance_params.
+            perform_cross_partition_contribution_bounding)
 
         data_extractors = pipeline_dp.DataExtractors(
             partition_extractor=lambda x: self._variance_params.
@@ -216,7 +218,9 @@ class Mean(PrivatePTransform):
             max_contributions_per_partition,
             min_value=self._mean_params.min_value,
             max_value=self._mean_params.max_value,
-            pre_threshold=self._mean_params.pre_threshold)
+            pre_threshold=self._mean_params.pre_threshold,
+            perform_cross_partition_contribution_bounding=self._mean_params.
+            perform_cross_partition_contribution_bounding)
 
         data_extractors = pipeline_dp.DataExtractors(
             partition_extractor=lambda x: self._mean_params.partition_extractor(
@@ -280,7 +284,9 @@ class Sum(PrivatePTransform):
             max_contributions_per_partition,
             min_value=self._sum_params.min_value,
             max_value=self._sum_params.max_value,
-            pre_threshold=self._sum_params.pre_threshold)
+            pre_threshold=self._sum_params.pre_threshold,
+            perform_cross_partition_contribution_bounding=self._sum_params.
+            perform_cross_partition_contribution_bounding)
 
         data_extractors = pipeline_dp.DataExtractors(
             partition_extractor=lambda x: self._sum_params.partition_extractor(
@@ -342,7 +348,9 @@ class Count(PrivatePTransform):
             max_partitions_contributed,
             max_contributions_per_partition=self._count_params.
             max_contributions_per_partition,
-            pre_threshold=self._count_params.pre_threshold)
+            pre_threshold=self._count_params.pre_threshold,
+            perform_cross_partition_contribution_bounding=self._count_params.
+            perform_cross_partition_contribution_bounding)
 
         data_extractors = pipeline_dp.DataExtractors(
             partition_extractor=lambda x: self._count_params.
@@ -405,7 +413,10 @@ class PrivacyIdCount(PrivatePTransform):
             max_partitions_contributed=self._privacy_id_count_params.
             max_partitions_contributed,
             max_contributions_per_partition=1,
-            pre_threshold=self._privacy_id_count_params.pre_threshold)
+            pre_threshold=self._privacy_id_count_params.pre_threshold,
+            perform_cross_partition_contribution_bounding=self.
+            _privacy_id_count_params.
+            perform_cross_partition_contribution_bounding)
 
         data_extractors = pipeline_dp.DataExtractors(
             partition_extractor=lambda x: self._privacy_id_count_params.
