@@ -162,7 +162,8 @@ class PrivateBeamTest(unittest.TestCase):
                 budget_weight=1,
                 partition_extractor=lambda x: f"pk:{x // 10}",
                 value_extractor=lambda x: x,
-                pre_threshold=3)
+                pre_threshold=3,
+                perform_cross_partition_contribution_bounding=True)
 
             # Act
             transformer = private_beam.Variance(variance_params=variance_params,
@@ -184,7 +185,8 @@ class PrivateBeamTest(unittest.TestCase):
                 max_contributions_per_partition,
                 min_value=variance_params.min_value,
                 max_value=variance_params.max_value,
-                pre_threshold=3)
+                pre_threshold=3,
+                perform_cross_partition_contribution_bounding=True)
             self.assertEqual(params, args[1])
 
     def test_variance_returns_sensible_result(self):
@@ -292,7 +294,8 @@ class PrivateBeamTest(unittest.TestCase):
                 budget_weight=1,
                 partition_extractor=lambda x: f"pk:{x // 10}",
                 value_extractor=lambda x: x,
-                pre_threshold=7)
+                pre_threshold=7,
+                perform_cross_partition_contribution_bounding=False)
 
             # Act
             transformer = private_beam.Mean(mean_params=mean_params,
@@ -314,7 +317,8 @@ class PrivateBeamTest(unittest.TestCase):
                 max_contributions_per_partition,
                 min_value=mean_params.min_value,
                 max_value=mean_params.max_value,
-                pre_threshold=7)
+                pre_threshold=7,
+                perform_cross_partition_contribution_bounding=False)
             self.assertEqual(params, args[1])
 
     def test_mean_returns_sensible_result(self):
@@ -419,7 +423,8 @@ class PrivateBeamTest(unittest.TestCase):
                 max_value=5,
                 budget_weight=1,
                 partition_extractor=lambda x: f"pk:{x // 10}",
-                value_extractor=lambda x: x)
+                value_extractor=lambda x: x,
+                perform_cross_partition_contribution_bounding=False)
 
             # Act
             transformer = private_beam.Sum(sum_params=sum_params,
@@ -440,7 +445,8 @@ class PrivateBeamTest(unittest.TestCase):
                 max_contributions_per_partition=sum_params.
                 max_contributions_per_partition,
                 min_value=sum_params.min_value,
-                max_value=sum_params.max_value)
+                max_value=sum_params.max_value,
+                perform_cross_partition_contribution_bounding=False)
             self.assertEqual(params, args[1])
 
     def test_sum_returns_sensible_result(self):
@@ -561,7 +567,8 @@ class PrivateBeamTest(unittest.TestCase):
                 max_partitions_contributed,
                 max_contributions_per_partition=count_params.
                 max_contributions_per_partition,
-                pre_threshold=3)
+                pre_threshold=3,
+                perform_cross_partition_contribution_bounding=True)
             self.assertEqual(args[1], params)
 
     def test_count_returns_sensible_result(self):
@@ -654,7 +661,8 @@ class PrivateBeamTest(unittest.TestCase):
                 max_partitions_contributed=2,
                 budget_weight=1,
                 partition_extractor=lambda x: f"pk:{x // 10}",
-                pre_threshold=8)
+                pre_threshold=8,
+                perform_cross_partition_contribution_bounding=False)
 
             # Act
             transformer = private_beam.PrivacyIdCount(
@@ -673,7 +681,8 @@ class PrivateBeamTest(unittest.TestCase):
                 max_partitions_contributed=privacy_id_count_params.
                 max_partitions_contributed,
                 max_contributions_per_partition=1,
-                pre_threshold=8)
+                pre_threshold=8,
+                perform_cross_partition_contribution_bounding=False)
             self.assertEqual(args[1], params)
 
     def test_privacy_id_count_returns_sensible_result(self):

@@ -515,6 +515,11 @@ class SumParams:
          is ignored when public partitions are used.
          More details on pre-thresholding are in
          https://github.com/google/differential-privacy/blob/main/common_docs/pre_thresholding.md
+        perform_cross_partition_contribution_bounding: whether to perform cross
+         partition contribution bounding.
+         Warning: turn off cross partition contribution bounding only when the
+         number of contributed partitions per privacy unit is already bounded
+         by max_partitions_contributed.
     """
     max_partitions_contributed: int
     max_contributions_per_partition: int
@@ -526,6 +531,7 @@ class SumParams:
     noise_kind: NoiseKind = NoiseKind.LAPLACE
     contribution_bounds_already_enforced: bool = False
     pre_threshold: Optional[int] = None
+    perform_cross_partition_contribution_bounding: bool = True
 
     # TODO: add validation in __post_init__
 
@@ -563,6 +569,11 @@ class VarianceParams:
          is ignored when public partitions are used.
          More details on pre-thresholding are in
          https://github.com/google/differential-privacy/blob/main/common_docs/pre_thresholding.md
+        perform_cross_partition_contribution_bounding: whether to perform cross
+         partition contribution bounding.
+         Warning: turn off cross partition contribution bounding only when the
+         number of contributed partitions per privacy unit is already bounded
+         by max_partitions_contributed.
     """
     max_partitions_contributed: int
     max_contributions_per_partition: int
@@ -574,6 +585,7 @@ class VarianceParams:
     noise_kind: NoiseKind = NoiseKind.LAPLACE
     contribution_bounds_already_enforced: bool = False
     pre_threshold: Optional[int] = None
+    perform_cross_partition_contribution_bounding: bool = True
 
     # TODO: add validation in __post_init__
 
@@ -609,6 +621,11 @@ class MeanParams:
          is ignored when public partitions are used.
          More details on pre-thresholding are in
          https://github.com/google/differential-privacy/blob/main/common_docs/pre_thresholding.md
+        perform_cross_partition_contribution_bounding: whether to perform cross
+         partition contribution bounding.
+         Warning: turn off cross partition contribution bounding only when the
+         number of contributed partitions per privacy unit is already bounded
+         by max_partitions_contributed.
     """
     max_partitions_contributed: int
     max_contributions_per_partition: int
@@ -620,6 +637,7 @@ class MeanParams:
     noise_kind: NoiseKind = NoiseKind.LAPLACE
     contribution_bounds_already_enforced: bool = False
     pre_threshold: Optional[int] = None
+    perform_cross_partition_contribution_bounding: bool = True
 
     # TODO: add validation in __post_init__
 
@@ -650,6 +668,11 @@ class CountParams:
          is ignored when public partitions are used.
          More details on pre-thresholding are in
          https://github.com/google/differential-privacy/blob/main/common_docs/pre_thresholding.md
+        perform_cross_partition_contribution_bounding: whether to perform cross
+         partition contribution bounding.
+         Warning: turn off cross partition contribution bounding only when the
+         number of contributed partitions per privacy unit is already bounded
+         by max_partitions_contributed.
     """
 
     noise_kind: NoiseKind
@@ -659,6 +682,7 @@ class CountParams:
     budget_weight: float = 1
     contribution_bounds_already_enforced: bool = False
     pre_threshold: Optional[int] = None
+    perform_cross_partition_contribution_bounding: bool = True
 
     # TODO: add validation in __post_init__
 
@@ -690,6 +714,11 @@ class PrivacyIdCountParams:
          is ignored when public partitions are used.
          More details on pre-thresholding are in
          https://github.com/google/differential-privacy/blob/main/common_docs/pre_thresholding.md
+        perform_cross_partition_contribution_bounding: whether to perform cross
+         partition contribution bounding.
+         Warning: turn off cross partition contribution bounding only when the
+         number of contributed partitions per privacy unit is already bounded
+         by max_partitions_contributed.
     """
 
     noise_kind: NoiseKind
@@ -698,6 +727,7 @@ class PrivacyIdCountParams:
     budget_weight: float = 1
     contribution_bounds_already_enforced: bool = False
     pre_threshold: Optional[int] = None
+    perform_cross_partition_contribution_bounding: bool = True
 
     # TODO: add validation in __post_init__
 
