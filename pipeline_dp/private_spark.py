@@ -99,11 +99,9 @@ class PrivateRDD:
 
         # aggregate() returns a namedtuple of metrics for each partition key.
         # Here is only one metric - variance. Extract it from the list.
-        dp_result = backend.map_values(dp_result, lambda v: v.variance,
-                                       "Extract variance")
         # dp_result : (partition_key, dp_variance)
-
-        return dp_result
+        return backend.map_values(dp_result, lambda v: v.variance,
+                                  "Extract variance")
 
     def mean(
         self,
@@ -143,11 +141,8 @@ class PrivateRDD:
 
         # aggregate() returns a namedtuple of metrics for each partition key.
         # Here is only one metric - mean. Extract it from the list.
-        dp_result = backend.map_values(dp_result, lambda v: v.mean,
-                                       "Extract mean")
         # dp_result : (partition_key, dp_mean)
-
-        return dp_result
+        return backend.map_values(dp_result, lambda v: v.mean, "Extract mean")
 
     def sum(
         self,
@@ -187,11 +182,8 @@ class PrivateRDD:
 
         # aggregate() returns a namedtuple of metrics for each partition key.
         # Here is only one metric - sum. Extract it from the list.
-        dp_result = backend.map_values(dp_result, lambda v: v.sum,
-                                       "Extract sum")
         # dp_result : (partition_key, dp_sum)
-
-        return dp_result
+        return backend.map_values(dp_result, lambda v: v.sum, "Extract sum")
 
     def count(
         self,
@@ -232,11 +224,8 @@ class PrivateRDD:
 
         # aggregate() returns a namedtuple of metrics for each partition key.
         # Here is only one metric - count. Extract it from the list.
-        dp_result = backend.map_values(dp_result, lambda v: v.count,
-                                       "Extract count")
         # dp_result : (partition_key, dp_count)
-
-        return dp_result
+        return backend.map_values(dp_result, lambda v: v.count, "Extract count")
 
     def privacy_id_count(
         self,
@@ -278,11 +267,9 @@ class PrivateRDD:
 
         # aggregate() returns a namedtuple of metrics for each partition key.
         # Here is only one metric - privacy id count. Extract it from the list.
-        dp_result = backend.map_values(dp_result, lambda v: v.privacy_id_count,
-                                       "Extract privacy id count")
         # dp_result : (partition_key, dp_privacy_id_count)
-
-        return dp_result
+        return backend.map_values(dp_result, lambda v: v.privacy_id_count,
+                                  "Extract privacy id count")
 
     def select_partitions(
             self,
