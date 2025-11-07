@@ -142,16 +142,7 @@ class Variance(PrivatePTransform):
         backend = _get_beam_backend()
         dp_engine = pipeline_dp.DPEngine(self._budget_accountant, backend)
 
-        params = pipeline_dp.AggregateParams(
-            noise_kind=self._variance_params.noise_kind,
-            metrics=[pipeline_dp.Metrics.VARIANCE],
-            max_partitions_contributed=self._variance_params.
-            max_partitions_contributed,
-            max_contributions_per_partition=self._variance_params.
-            max_contributions_per_partition,
-            min_value=self._variance_params.min_value,
-            max_value=self._variance_params.max_value,
-            pre_threshold=self._variance_params.pre_threshold)
+        params = self._variance_params.to_aggregate_params()
 
         data_extractors = pipeline_dp.DataExtractors(
             partition_extractor=lambda x: self._variance_params.
@@ -207,16 +198,7 @@ class Mean(PrivatePTransform):
         backend = _get_beam_backend()
         dp_engine = pipeline_dp.DPEngine(self._budget_accountant, backend)
 
-        params = pipeline_dp.AggregateParams(
-            noise_kind=self._mean_params.noise_kind,
-            metrics=[pipeline_dp.Metrics.MEAN],
-            max_partitions_contributed=self._mean_params.
-            max_partitions_contributed,
-            max_contributions_per_partition=self._mean_params.
-            max_contributions_per_partition,
-            min_value=self._mean_params.min_value,
-            max_value=self._mean_params.max_value,
-            pre_threshold=self._mean_params.pre_threshold)
+        params = self._mean_params.to_aggregate_params()
 
         data_extractors = pipeline_dp.DataExtractors(
             partition_extractor=lambda x: self._mean_params.partition_extractor(
@@ -271,16 +253,7 @@ class Sum(PrivatePTransform):
         backend = _get_beam_backend()
         dp_engine = pipeline_dp.DPEngine(self._budget_accountant, backend)
 
-        params = pipeline_dp.AggregateParams(
-            noise_kind=self._sum_params.noise_kind,
-            metrics=[pipeline_dp.Metrics.SUM],
-            max_partitions_contributed=self._sum_params.
-            max_partitions_contributed,
-            max_contributions_per_partition=self._sum_params.
-            max_contributions_per_partition,
-            min_value=self._sum_params.min_value,
-            max_value=self._sum_params.max_value,
-            pre_threshold=self._sum_params.pre_threshold)
+        params = self._sum_params.to_aggregate_params()
 
         data_extractors = pipeline_dp.DataExtractors(
             partition_extractor=lambda x: self._sum_params.partition_extractor(
@@ -335,14 +308,7 @@ class Count(PrivatePTransform):
         backend = _get_beam_backend()
         dp_engine = pipeline_dp.DPEngine(self._budget_accountant, backend)
 
-        params = pipeline_dp.AggregateParams(
-            noise_kind=self._count_params.noise_kind,
-            metrics=[pipeline_dp.Metrics.COUNT],
-            max_partitions_contributed=self._count_params.
-            max_partitions_contributed,
-            max_contributions_per_partition=self._count_params.
-            max_contributions_per_partition,
-            pre_threshold=self._count_params.pre_threshold)
+        params = self._count_params.to_aggregate_params()
 
         data_extractors = pipeline_dp.DataExtractors(
             partition_extractor=lambda x: self._count_params.
@@ -399,13 +365,7 @@ class PrivacyIdCount(PrivatePTransform):
         backend = _get_beam_backend()
         dp_engine = pipeline_dp.DPEngine(self._budget_accountant, backend)
 
-        params = pipeline_dp.AggregateParams(
-            noise_kind=self._privacy_id_count_params.noise_kind,
-            metrics=[pipeline_dp.Metrics.PRIVACY_ID_COUNT],
-            max_partitions_contributed=self._privacy_id_count_params.
-            max_partitions_contributed,
-            max_contributions_per_partition=1,
-            pre_threshold=self._privacy_id_count_params.pre_threshold)
+        params = self._privacy_id_count_params.to_aggregate_params()
 
         data_extractors = pipeline_dp.DataExtractors(
             partition_extractor=lambda x: self._privacy_id_count_params.

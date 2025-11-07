@@ -82,18 +82,7 @@ class PrivateRDD:
         backend = pipeline_dp.SparkRDDBackend(self._rdd.context)
         dp_engine = pipeline_dp.DPEngine(self._budget_accountant, backend)
 
-        params = pipeline_dp.AggregateParams(
-            noise_kind=variance_params.noise_kind,
-            metrics=[pipeline_dp.Metrics.VARIANCE],
-            max_partitions_contributed=variance_params.
-            max_partitions_contributed,
-            max_contributions_per_partition=variance_params.
-            max_contributions_per_partition,
-            min_value=variance_params.min_value,
-            max_value=variance_params.max_value,
-            budget_weight=variance_params.budget_weight,
-            contribution_bounds_already_enforced=variance_params.
-            contribution_bounds_already_enforced)
+        params = variance_params.to_aggregate_params()
 
         value_extractor_needed = not variance_params.contribution_bounds_already_enforced
         data_extractors = pipeline_dp.DataExtractors(
@@ -141,17 +130,7 @@ class PrivateRDD:
         backend = pipeline_dp.SparkRDDBackend(self._rdd.context)
         dp_engine = pipeline_dp.DPEngine(self._budget_accountant, backend)
 
-        params = pipeline_dp.AggregateParams(
-            noise_kind=mean_params.noise_kind,
-            metrics=[pipeline_dp.Metrics.MEAN],
-            max_partitions_contributed=mean_params.max_partitions_contributed,
-            max_contributions_per_partition=mean_params.
-            max_contributions_per_partition,
-            min_value=mean_params.min_value,
-            max_value=mean_params.max_value,
-            budget_weight=mean_params.budget_weight,
-            contribution_bounds_already_enforced=mean_params.
-            contribution_bounds_already_enforced)
+        params = mean_params.to_aggregate_params()
 
         data_extractors = pipeline_dp.DataExtractors(
             partition_extractor=lambda x: mean_params.partition_extractor(x[1]),
@@ -197,17 +176,7 @@ class PrivateRDD:
         backend = pipeline_dp.SparkRDDBackend(self._rdd.context)
         dp_engine = pipeline_dp.DPEngine(self._budget_accountant, backend)
 
-        params = pipeline_dp.AggregateParams(
-            noise_kind=sum_params.noise_kind,
-            metrics=[pipeline_dp.Metrics.SUM],
-            max_partitions_contributed=sum_params.max_partitions_contributed,
-            max_contributions_per_partition=sum_params.
-            max_contributions_per_partition,
-            min_value=sum_params.min_value,
-            max_value=sum_params.max_value,
-            budget_weight=sum_params.budget_weight,
-            contribution_bounds_already_enforced=sum_params.
-            contribution_bounds_already_enforced)
+        params = sum_params.to_aggregate_params()
 
         data_extractors = pipeline_dp.DataExtractors(
             partition_extractor=lambda x: sum_params.partition_extractor(x[1]),
@@ -253,15 +222,7 @@ class PrivateRDD:
         backend = pipeline_dp.SparkRDDBackend(self._rdd.context)
         dp_engine = pipeline_dp.DPEngine(self._budget_accountant, backend)
 
-        params = pipeline_dp.AggregateParams(
-            noise_kind=count_params.noise_kind,
-            metrics=[pipeline_dp.Metrics.COUNT],
-            max_partitions_contributed=count_params.max_partitions_contributed,
-            max_contributions_per_partition=count_params.
-            max_contributions_per_partition,
-            budget_weight=count_params.budget_weight,
-            contribution_bounds_already_enforced=count_params.
-            contribution_bounds_already_enforced)
+        params = count_params.to_aggregate_params()
 
         data_extractors = pipeline_dp.DataExtractors(
             partition_extractor=lambda x: count_params.partition_extractor(x[1]
@@ -308,14 +269,7 @@ class PrivateRDD:
         backend = pipeline_dp.SparkRDDBackend(self._rdd.context)
         dp_engine = pipeline_dp.DPEngine(self._budget_accountant, backend)
 
-        params = pipeline_dp.AggregateParams(
-            noise_kind=privacy_id_count_params.noise_kind,
-            metrics=[pipeline_dp.Metrics.PRIVACY_ID_COUNT],
-            max_partitions_contributed=privacy_id_count_params.
-            max_partitions_contributed,
-            max_contributions_per_partition=1,
-            contribution_bounds_already_enforced=privacy_id_count_params.
-            contribution_bounds_already_enforced)
+        params = privacy_id_count_params.to_aggregate_params()
 
         data_extractors = pipeline_dp.DataExtractors(
             partition_extractor=lambda x: privacy_id_count_params.

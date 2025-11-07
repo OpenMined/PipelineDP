@@ -527,6 +527,19 @@ class SumParams:
     contribution_bounds_already_enforced: bool = False
     pre_threshold: Optional[int] = None
 
+    def to_aggregate_params(self) -> "AggregateParams":
+        return AggregateParams(
+            noise_kind=self.noise_kind,
+            metrics=[Metrics.SUM],
+            max_partitions_contributed=self.max_partitions_contributed,
+            max_contributions_per_partition=self.
+            max_contributions_per_partition,
+            min_value=self.min_value,
+            max_value=self.max_value,
+            budget_weight=self.budget_weight,
+            contribution_bounds_already_enforced=self.
+            contribution_bounds_already_enforced,
+            pre_threshold=self.pre_threshold)
     # TODO: add validation in __post_init__
 
 
@@ -575,6 +588,17 @@ class VarianceParams:
     contribution_bounds_already_enforced: bool = False
     pre_threshold: Optional[int] = None
 
+    def to_aggregate_params(self) -> "AggregateParams":
+        return AggregateParams(
+            noise_kind=self.noise_kind,
+            metrics=[Metrics.VARIANCE],
+            max_partitions_contributed=self.max_partitions_contributed,
+            max_contributions_per_partition=self.max_contributions_per_partition,
+            min_value=self.min_value,
+            max_value=self.max_value,
+            budget_weight=self.budget_weight,
+            contribution_bounds_already_enforced=self.contribution_bounds_already_enforced,
+            pre_threshold=self.pre_threshold)
     # TODO: add validation in __post_init__
 
 
@@ -621,6 +645,18 @@ class MeanParams:
     contribution_bounds_already_enforced: bool = False
     pre_threshold: Optional[int] = None
 
+    def to_aggregate_params(self) -> "AggregateParams":
+        return AggregateParams(
+            noise_kind=self.noise_kind,
+            metrics=[Metrics.MEAN],
+            max_partitions_contributed=self.max_partitions_contributed,
+            max_contributions_per_partition=self.max_contributions_per_partition,
+            min_value=self.min_value,
+            max_value=self.max_value,
+            budget_weight=self.budget_weight,
+            contribution_bounds_already_enforced=self.contribution_bounds_already_enforced,
+            pre_threshold=self.pre_threshold)
+
     # TODO: add validation in __post_init__
 
 
@@ -659,6 +695,18 @@ class CountParams:
     budget_weight: float = 1
     contribution_bounds_already_enforced: bool = False
     pre_threshold: Optional[int] = None
+
+    def to_aggregate_params(self) -> "AggregateParams":
+        return AggregateParams(
+            noise_kind=self.noise_kind,
+            metrics=[Metrics.COUNT],
+            max_partitions_contributed=self.max_partitions_contributed,
+            max_contributions_per_partition=self.
+            max_contributions_per_partition,
+            budget_weight=self.budget_weight,
+            contribution_bounds_already_enforced=self.
+            contribution_bounds_already_enforced,
+            pre_threshold=self.pre_threshold)
 
     # TODO: add validation in __post_init__
 
@@ -699,6 +747,17 @@ class PrivacyIdCountParams:
     contribution_bounds_already_enforced: bool = False
     pre_threshold: Optional[int] = None
 
+
+    def to_aggregate_params(self) -> "AggregateParams":
+        return AggregateParams(
+            noise_kind=self.noise_kind,
+            metrics=[Metrics.PRIVACY_ID_COUNT],
+            max_partitions_contributed=self.max_partitions_contributed,
+            max_contributions_per_partition=1,
+            budget_weight=self.budget_weight,
+            contribution_bounds_already_enforced=self.
+            contribution_bounds_already_enforced,
+            pre_threshold=self.pre_threshold)
     # TODO: add validation in __post_init__
 
 

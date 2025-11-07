@@ -384,3 +384,109 @@ class CalculatePrivateContributionBoundsParamsTest(parameterized.TestCase):
             pipeline_dp.CalculatePrivateContributionBoundsParams(
                 aggregation_noise_kind, aggregation_eps, aggregation_delta,
                 calculation_eps, max_partitions_contributed_upper_bound)
+
+
+class ToAggregateParamsTest(parameterized.TestCase):
+
+    def test_count_params(self):
+        count_params = pipeline_dp.CountParams(
+            noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+            max_partitions_contributed=1,
+            max_contributions_per_partition=2,
+            partition_extractor=None,
+            budget_weight=3,
+            contribution_bounds_already_enforced=True,
+            pre_threshold=4)
+        agg_params = count_params.to_aggregate_params()
+        self.assertEqual(agg_params.noise_kind, pipeline_dp.NoiseKind.GAUSSIAN)
+        self.assertEqual(agg_params.metrics, [pipeline_dp.Metrics.COUNT])
+        self.assertEqual(agg_params.max_partitions_contributed, 1)
+        self.assertEqual(agg_params.max_contributions_per_partition, 2)
+        self.assertEqual(agg_params.budget_weight, 3)
+        self.assertTrue(agg_params.contribution_bounds_already_enforced)
+        self.assertEqual(agg_params.pre_threshold, 4)
+
+    def test_sum_params(self):
+        sum_params = pipeline_dp.SumParams(noise_kind=pipeline_dp.NoiseKind.LAPLACE,
+                                           max_partitions_contributed=1,
+                                           max_contributions_per_partition=2,
+                                           min_value=3,
+                                           max_value=4,
+                                           budget_weight=5,
+                                           partition_extractor=None,
+                                           value_extractor=None,
+                                           contribution_bounds_already_enforced=True,
+                                           pre_threshold=6)
+        agg_params = sum_params.to_aggregate_params()
+        self.assertEqual(agg_params.noise_kind, pipeline_dp.NoiseKind.LAPLACE)
+        self.assertEqual(agg_params.metrics, [pipeline_dp.Metrics.SUM])
+        self.assertEqual(agg_params.max_partitions_contributed, 1)
+        self.assertEqual(agg_params.max_contributions_per_partition, 2)
+        self.assertEqual(agg_params.min_value, 3)
+        self.assertEqual(agg_params.max_value, 4)
+        self.assertEqual(agg_params.budget_weight, 5)
+        self.assertTrue(agg_params.contribution_bounds_already_enforced)
+        self.assertEqual(agg_params.pre_threshold, 6)
+
+    def test_mean_params(self):
+        mean_params = aggregate_params.MeanParams(noise_kind=pipeline_dp.NoiseKind.LAPLACE,
+                                             max_partitions_contributed=1,
+                                             max_contributions_per_partition=2,
+                                             min_value=3,
+                                             max_value=4,
+                                             budget_weight=5,
+                                             partition_extractor=None,
+                                             value_extractor=None,
+                                             contribution_bounds_already_enforced=True,
+                                             pre_threshold=6)
+        agg_params = mean_params.to_aggregate_params()
+        self.assertEqual(agg_params.noise_kind, pipeline_dp.NoiseKind.LAPLACE)
+        self.assertEqual(agg_params.metrics, [pipeline_dp.Metrics.MEAN])
+        self.assertEqual(agg_params.max_partitions_contributed, 1)
+        self.assertEqual(agg_params.max_contributions_per_partition, 2)
+        self.assertEqual(agg_params.min_value, 3)
+        self.assertEqual(agg_params.max_value, 4)
+        self.assertEqual(agg_params.budget_weight, 5)
+        self.assertTrue(agg_params.contribution_bounds_already_enforced)
+        self.assertEqual(agg_params.pre_threshold, 6)
+
+    def test_variance_params(self):
+        variance_params = aggregate_params.VarianceParams(
+            noise_kind=pipeline_dp.NoiseKind.LAPLACE,
+            max_partitions_contributed=1,
+            max_contributions_per_partition=2,
+            min_value=3,
+            max_value=4,
+            budget_weight=5,
+            partition_extractor=None,
+            value_extractor=None,
+            contribution_bounds_already_enforced=True,
+            pre_threshold=6)
+        agg_params = variance_params.to_aggregate_params()
+        self.assertEqual(agg_params.noise_kind, pipeline_dp.NoiseKind.LAPLACE)
+        self.assertEqual(agg_params.metrics, [pipeline_dp.Metrics.VARIANCE])
+        self.assertEqual(agg_params.max_partitions_contributed, 1)
+        self.assertEqual(agg_params.max_contributions_per_partition, 2)
+        self.assertEqual(agg_params.min_value, 3)
+        self.assertEqual(agg_params.max_value, 4)
+        self.assertEqual(agg_params.budget_weight, 5)
+        self.assertTrue(agg_params.contribution_bounds_already_enforced)
+        self.assertEqual(agg_params.pre_threshold, 6)
+
+    def test_privacy_id_count_params(self):
+        privacy_id_count_params = pipeline_dp.PrivacyIdCountParams(
+            noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+            max_partitions_contributed=1,
+            budget_weight=3,
+            partition_extractor=None,
+            contribution_bounds_already_enforced=False,
+            pre_threshold=4)
+        agg_params = privacy_id_count_params.to_aggregate_params()
+        self.assertEqual(agg_params.noise_kind, pipeline_dp.NoiseKind.GAUSSIAN)
+        self.assertEqual(agg_params.metrics,
+                         [pipeline_dp.Metrics.PRIVACY_ID_COUNT])
+        self.assertEqual(agg_params.max_partitions_contributed, 1)
+        self.assertEqual(agg_params.max_contributions_per_partition, 1)
+        self.assertEqual(agg_params.budget_weight, 3)
+        self.assertFalse(agg_params.contribution_bounds_already_enforced)
+        self.assertEqual(agg_params.pre_threshold, 4)
