@@ -527,7 +527,7 @@ class SumParams:
     contribution_bounds_already_enforced: bool = False
     pre_threshold: Optional[int] = None
 
-    def to_aggregate_params(self) -> "AggregateParams":
+    def to_aggregate_params(self) -> AggregateParams:
         return AggregateParams(
             noise_kind=self.noise_kind,
             metrics=[Metrics.SUM],
@@ -589,7 +589,7 @@ class VarianceParams:
     contribution_bounds_already_enforced: bool = False
     pre_threshold: Optional[int] = None
 
-    def to_aggregate_params(self) -> "AggregateParams":
+    def to_aggregate_params(self) -> AggregateParams:
         return AggregateParams(
             noise_kind=self.noise_kind,
             metrics=[Metrics.VARIANCE],
@@ -649,7 +649,7 @@ class MeanParams:
     contribution_bounds_already_enforced: bool = False
     pre_threshold: Optional[int] = None
 
-    def to_aggregate_params(self) -> "AggregateParams":
+    def to_aggregate_params(self) -> AggregateParams:
         return AggregateParams(
             noise_kind=self.noise_kind,
             metrics=[Metrics.MEAN],
@@ -702,7 +702,7 @@ class CountParams:
     contribution_bounds_already_enforced: bool = False
     pre_threshold: Optional[int] = None
 
-    def to_aggregate_params(self) -> "AggregateParams":
+    def to_aggregate_params(self) -> AggregateParams:
         return AggregateParams(
             noise_kind=self.noise_kind,
             metrics=[Metrics.COUNT],
@@ -753,7 +753,7 @@ class PrivacyIdCountParams:
     contribution_bounds_already_enforced: bool = False
     pre_threshold: Optional[int] = None
 
-    def to_aggregate_params(self) -> "AggregateParams":
+    def to_aggregate_params(self) -> AggregateParams:
         return AggregateParams(
             noise_kind=self.noise_kind,
             metrics=[Metrics.PRIVACY_ID_COUNT],

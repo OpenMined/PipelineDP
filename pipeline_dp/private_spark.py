@@ -82,19 +82,16 @@ class PrivateRDD:
         backend = pipeline_dp.SparkRDDBackend(self._rdd.context)
         dp_engine = pipeline_dp.DPEngine(self._budget_accountant, backend)
 
-        params = variance_params.to_aggregate_params()
-
-        value_extractor_needed = not variance_params.contribution_bounds_already_enforced
         data_extractors = pipeline_dp.DataExtractors(
             partition_extractor=lambda x: variance_params.partition_extractor(x[
                 1]),
             privacy_id_extractor=self._get_privacy_id_extractor(
-                params.contribution_bounds_already_enforced),
+                variance_params.contribution_bounds_already_enforced),
             value_extractor=lambda x: variance_params.value_extractor(x[1]))
 
         dp_result = dp_engine.aggregate(
             self._rdd,
-            params,
+            variance_params.to_aggregate_params(),
             data_extractors,
             public_partitions,
             out_explain_computation_report=out_explain_computaton_report)
@@ -130,17 +127,15 @@ class PrivateRDD:
         backend = pipeline_dp.SparkRDDBackend(self._rdd.context)
         dp_engine = pipeline_dp.DPEngine(self._budget_accountant, backend)
 
-        params = mean_params.to_aggregate_params()
-
         data_extractors = pipeline_dp.DataExtractors(
             partition_extractor=lambda x: mean_params.partition_extractor(x[1]),
             privacy_id_extractor=self._get_privacy_id_extractor(
-                params.contribution_bounds_already_enforced),
+                mean_params.contribution_bounds_already_enforced),
             value_extractor=lambda x: mean_params.value_extractor(x[1]))
 
         dp_result = dp_engine.aggregate(
             self._rdd,
-            params,
+            mean_params.to_aggregate_params(),
             data_extractors,
             public_partitions,
             out_explain_computation_report=out_explain_computaton_report)
@@ -176,17 +171,15 @@ class PrivateRDD:
         backend = pipeline_dp.SparkRDDBackend(self._rdd.context)
         dp_engine = pipeline_dp.DPEngine(self._budget_accountant, backend)
 
-        params = sum_params.to_aggregate_params()
-
         data_extractors = pipeline_dp.DataExtractors(
             partition_extractor=lambda x: sum_params.partition_extractor(x[1]),
             privacy_id_extractor=self._get_privacy_id_extractor(
-                params.contribution_bounds_already_enforced),
+                sum_params.contribution_bounds_already_enforced),
             value_extractor=lambda x: sum_params.value_extractor(x[1]))
 
         dp_result = dp_engine.aggregate(
             self._rdd,
-            params,
+            sum_params.to_aggregate_params(),
             data_extractors,
             public_partitions,
             out_explain_computation_report=out_explain_computaton_report)
@@ -222,18 +215,16 @@ class PrivateRDD:
         backend = pipeline_dp.SparkRDDBackend(self._rdd.context)
         dp_engine = pipeline_dp.DPEngine(self._budget_accountant, backend)
 
-        params = count_params.to_aggregate_params()
-
         data_extractors = pipeline_dp.DataExtractors(
             partition_extractor=lambda x: count_params.partition_extractor(x[1]
                                                                           ),
             privacy_id_extractor=self._get_privacy_id_extractor(
-                params.contribution_bounds_already_enforced),
+                count_params.contribution_bounds_already_enforced),
             value_extractor=lambda x: None)
 
         dp_result = dp_engine.aggregate(
             self._rdd,
-            params,
+            count_params.to_aggregate_params(),
             data_extractors,
             public_partitions,
             out_explain_computation_report=out_explain_computaton_report)
@@ -269,19 +260,17 @@ class PrivateRDD:
         backend = pipeline_dp.SparkRDDBackend(self._rdd.context)
         dp_engine = pipeline_dp.DPEngine(self._budget_accountant, backend)
 
-        params = privacy_id_count_params.to_aggregate_params()
-
         data_extractors = pipeline_dp.DataExtractors(
             partition_extractor=lambda x: privacy_id_count_params.
             partition_extractor(x[1]),
             privacy_id_extractor=self._get_privacy_id_extractor(
-                params.contribution_bounds_already_enforced),
+                privacy_id_count_params.contribution_bounds_already_enforced),
             # PrivacyIdCount ignores values.
             value_extractor=lambda x: None)
 
         dp_result = dp_engine.aggregate(
             self._rdd,
-            params,
+            privacy_id_count_params.to_aggregate_params(),
             data_extractors,
             public_partitions,
             out_explain_computation_report=out_explain_computaton_report)

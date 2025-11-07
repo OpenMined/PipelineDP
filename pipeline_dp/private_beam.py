@@ -142,8 +142,6 @@ class Variance(PrivatePTransform):
         backend = _get_beam_backend()
         dp_engine = pipeline_dp.DPEngine(self._budget_accountant, backend)
 
-        params = self._variance_params.to_aggregate_params()
-
         data_extractors = pipeline_dp.DataExtractors(
             partition_extractor=lambda x: self._variance_params.
             partition_extractor(x[1]),
@@ -153,7 +151,7 @@ class Variance(PrivatePTransform):
 
         dp_result = dp_engine.aggregate(
             pcol,
-            params,
+            self._variance_params.to_aggregate_params(),
             data_extractors,
             self._public_partitions,
             out_explain_computation_report=self._explain_computaton_report)
@@ -198,8 +196,6 @@ class Mean(PrivatePTransform):
         backend = _get_beam_backend()
         dp_engine = pipeline_dp.DPEngine(self._budget_accountant, backend)
 
-        params = self._mean_params.to_aggregate_params()
-
         data_extractors = pipeline_dp.DataExtractors(
             partition_extractor=lambda x: self._mean_params.partition_extractor(
                 x[1]),
@@ -208,7 +204,7 @@ class Mean(PrivatePTransform):
 
         dp_result = dp_engine.aggregate(
             pcol,
-            params,
+            self._mean_params.to_aggregate_params(),
             data_extractors,
             self._public_partitions,
             out_explain_computation_report=self._explain_computaton_report)
@@ -253,8 +249,6 @@ class Sum(PrivatePTransform):
         backend = _get_beam_backend()
         dp_engine = pipeline_dp.DPEngine(self._budget_accountant, backend)
 
-        params = self._sum_params.to_aggregate_params()
-
         data_extractors = pipeline_dp.DataExtractors(
             partition_extractor=lambda x: self._sum_params.partition_extractor(
                 x[1]),
@@ -263,7 +257,7 @@ class Sum(PrivatePTransform):
 
         dp_result = dp_engine.aggregate(
             pcol,
-            params,
+            self._sum_params.to_aggregate_params(),
             data_extractors,
             self._public_partitions,
             out_explain_computation_report=self._explain_computaton_report)
@@ -308,8 +302,6 @@ class Count(PrivatePTransform):
         backend = _get_beam_backend()
         dp_engine = pipeline_dp.DPEngine(self._budget_accountant, backend)
 
-        params = self._count_params.to_aggregate_params()
-
         data_extractors = pipeline_dp.DataExtractors(
             partition_extractor=lambda x: self._count_params.
             partition_extractor(x[1]),
@@ -320,7 +312,7 @@ class Count(PrivatePTransform):
 
         dp_result = dp_engine.aggregate(
             pcol,
-            params,
+            self._count_params.to_aggregate_params(),
             data_extractors,
             self._public_partitions,
             out_explain_computation_report=self._explain_computaton_report)
@@ -365,8 +357,6 @@ class PrivacyIdCount(PrivatePTransform):
         backend = _get_beam_backend()
         dp_engine = pipeline_dp.DPEngine(self._budget_accountant, backend)
 
-        params = self._privacy_id_count_params.to_aggregate_params()
-
         data_extractors = pipeline_dp.DataExtractors(
             partition_extractor=lambda x: self._privacy_id_count_params.
             partition_extractor(x[1]),
@@ -376,7 +366,7 @@ class PrivacyIdCount(PrivatePTransform):
 
         dp_result = dp_engine.aggregate(
             pcol,
-            params,
+            self._privacy_id_count_params.to_aggregate_params(),
             data_extractors,
             self._public_partitions,
             out_explain_computation_report=self._explain_computaton_report)
