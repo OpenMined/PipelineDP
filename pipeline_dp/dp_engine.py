@@ -647,11 +647,7 @@ class DPEngine:
             def add_noise(value: Union[int, float]) -> float:
                 return create_mechanism().add_noise(value)
 
-        anonymized_col = self._backend.map_values(col, add_noise, "Add noise")
-
-        budget = self._budget_accountant._compute_budgets_for_aggregation(
-            params.budget_weight)
-        return self._annotate(anonymized_col, params=params, budget=budget)
+        return self._backend.map_values(col, add_noise, "Add noise")
 
     def _annotate(self, col,
                   params: Union[aggregate_params.AggregateParams,
