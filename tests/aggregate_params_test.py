@@ -407,16 +407,17 @@ class ToAggregateParamsTest(parameterized.TestCase):
         self.assertEqual(agg_params.pre_threshold, 4)
 
     def test_sum_params(self):
-        sum_params = pipeline_dp.SumParams(noise_kind=pipeline_dp.NoiseKind.LAPLACE,
-                                           max_partitions_contributed=1,
-                                           max_contributions_per_partition=2,
-                                           min_value=3,
-                                           max_value=4,
-                                           budget_weight=5,
-                                           partition_extractor=None,
-                                           value_extractor=None,
-                                           contribution_bounds_already_enforced=True,
-                                           pre_threshold=6)
+        sum_params = pipeline_dp.SumParams(
+            noise_kind=pipeline_dp.NoiseKind.LAPLACE,
+            max_partitions_contributed=1,
+            max_contributions_per_partition=2,
+            min_value=3,
+            max_value=4,
+            budget_weight=5,
+            partition_extractor=None,
+            value_extractor=None,
+            contribution_bounds_already_enforced=True,
+            pre_threshold=6)
         agg_params = sum_params.to_aggregate_params()
         self.assertEqual(agg_params.noise_kind, pipeline_dp.NoiseKind.LAPLACE)
         self.assertEqual(agg_params.metrics, [pipeline_dp.Metrics.SUM])
@@ -429,16 +430,17 @@ class ToAggregateParamsTest(parameterized.TestCase):
         self.assertEqual(agg_params.pre_threshold, 6)
 
     def test_mean_params(self):
-        mean_params = aggregate_params.MeanParams(noise_kind=pipeline_dp.NoiseKind.LAPLACE,
-                                             max_partitions_contributed=1,
-                                             max_contributions_per_partition=2,
-                                             min_value=3,
-                                             max_value=4,
-                                             budget_weight=5,
-                                             partition_extractor=None,
-                                             value_extractor=None,
-                                             contribution_bounds_already_enforced=True,
-                                             pre_threshold=6)
+        mean_params = aggregate_params.MeanParams(
+            noise_kind=pipeline_dp.NoiseKind.LAPLACE,
+            max_partitions_contributed=1,
+            max_contributions_per_partition=2,
+            min_value=3,
+            max_value=4,
+            budget_weight=5,
+            partition_extractor=None,
+            value_extractor=None,
+            contribution_bounds_already_enforced=True,
+            pre_threshold=6)
         agg_params = mean_params.to_aggregate_params()
         self.assertEqual(agg_params.noise_kind, pipeline_dp.NoiseKind.LAPLACE)
         self.assertEqual(agg_params.metrics, [pipeline_dp.Metrics.MEAN])
