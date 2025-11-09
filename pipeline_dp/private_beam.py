@@ -159,7 +159,6 @@ class Variance(PrivatePTransform):
 
         # aggregate() returns a namedtuple of metrics for each partition key.
         # Here is only one metric - variance. Extract it from the list.
-        # dp_result : (partition_key, dp_variance)
         return backend.map_values(dp_result, lambda v: v.variance,
                                   "Extract variance")
 
@@ -210,7 +209,6 @@ class Mean(PrivatePTransform):
 
         # aggregate() returns a namedtuple of metrics for each partition key.
         # Here is only one metric - mean. Extract it from the list.
-        # dp_result : (partition_key, dp_mean)
         return backend.map_values(dp_result, lambda v: v.mean, "Extract mean")
 
 
@@ -260,7 +258,6 @@ class Sum(PrivatePTransform):
 
         # aggregate() returns a namedtuple of metrics for each partition key.
         # Here is only one metric - sum. Extract it from the list.
-        # dp_result : (partition_key, dp_sum)
         return backend.map_values(dp_result, lambda v: v.sum, "Extract sum")
 
 
@@ -312,7 +309,6 @@ class Count(PrivatePTransform):
 
         # aggregate() returns a namedtuple of metrics for each partition key.
         # Here is only one metric - count. Extract it from the list.
-        # dp_result : (partition_key, dp_count)
         return backend.map_values(dp_result, lambda v: v.count, "Extract count")
 
 
@@ -363,7 +359,6 @@ class PrivacyIdCount(PrivatePTransform):
 
         # aggregate() returns a namedtuple of metrics for each partition key.
         # Here is only one metric - privacy_id_count. Extract it from the list.
-        # dp_result : (partition_key, dp_privacy_id_count)
         return backend.map_values(dp_result, lambda v: v.privacy_id_count,
                                   "Extract privacy_id_count")
 
@@ -579,8 +574,4 @@ class CombinePerKey(PrivatePTransform):
 
         # aggregate() returns a tuple with on 1 element per combiner.
         # Here is only one combiner. Extract it from the tuple.
-        dp_result = backend.map_values(dp_result, lambda v: v[0],
-                                       "Unnest tuple")
-        # dp_result : (partition_key, result)
-
-        return dp_result
+        return backend.map_values(dp_result, lambda v: v[0], "Unnest tuple")
