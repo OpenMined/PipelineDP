@@ -24,7 +24,8 @@ from pydp.algorithms import quantile_tree
 
 import pipeline_dp
 from pipeline_dp import budget_accounting
-from pipeline_dp import dp_computations, NormKind
+from pipeline_dp import dp_computations
+from pipeline_dp.aggregate_params import NormKind
 
 ArrayLike = Union[np.ndarray, List[float]]
 ExplainComputationReport = Union[Callable, str, List[Union[Callable, str]]]

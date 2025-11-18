@@ -18,8 +18,8 @@ from collections import namedtuple
 from dataclasses import dataclass
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Union
 
-import pipeline_dp
 import pyspark
+from pipeline_dp import aggregate_params, pipeline_backend, DPEngine, NaiveBudgetAccountant, DataExtractors
 
 SparkDataFrame = pyspark.sql.dataframe.DataFrame
 
@@ -30,7 +30,7 @@ class Budget:
     delta: float = 0
 
     def __post_init__(self):
-        pipeline_dp.input_validators.validate_epsilon_delta(
+        aggregate_params.input_validators.validate_epsilon_delta(
             self.epsilon, self.delta, "Budget")
 
 
@@ -119,10 +119,10 @@ class SparkConverter(DataFrameConvertor):
 
 
 def _create_backend_for_dataframe(
-        df: SparkDataFrame) -> pipeline_dp.PipelineBackend:
+        df: SparkDataFrame) -> pipeline_backend.PipelineBackend:
     """Creates a pipeline backend based on type of DataFrame."""
     if isinstance(df, SparkDataFrame):
-        return pipeline_dp.SparkRDDBackend(df.sparkSession.sparkContext)
+        return pipeline_backend.SparkRDDBackend(df.sparkSession.sparkContext)
     raise NotImplementedError(
         f"Dataframes of type {type(df)} not yet supported")
 
@@ -142,7 +142,7 @@ class Query:
     """
 
     def __init__(self, df: SparkDataFrame, columns: Columns,
-                 metrics_output_columns: Dict[pipeline_dp.Metric, str],
+                 metrics_output_columns: Dict[aggregate_params.Metric, str],
                  contribution_bounds: ContributionBounds,
                  public_partitions: Optional[Iterable]):
         """Constructor.
@@ -164,10 +164,10 @@ class Query:
         self._contribution_bounds = contribution_bounds
         self._public_partitions = public_partitions
 
-    def run_query(
-            self,
-            budget: Budget,
-            noise_kind: pipeline_dp.NoiseKind = pipeline_dp.NoiseKind.LAPLACE):
+    def run_query(self,
+                  budget: Budget,
+                  noise_kind: aggregate_params.NoiseKind = aggregate_params.
+                  NoiseKind.LAPLACE):
         """Runs the DP query and returns a DataFrame.
 
         Args:
@@ -179,12 +179,12 @@ class Query:
         converter = _create_dataframe_converter(self._df)
         backend = _create_backend_for_dataframe(self._df)
         col = converter.dataframe_to_collection(self._df, self._columns)
-        budget_accountant = pipeline_dp.NaiveBudgetAccountant(
-            total_epsilon=budget.epsilon, total_delta=budget.delta)
+        budget_accountant = NaiveBudgetAccountant(total_epsilon=budget.epsilon,
+                                                  total_delta=budget.delta)
 
-        dp_engine = pipeline_dp.DPEngine(budget_accountant, backend)
+        dp_engine = DPEngine(budget_accountant, backend)
         metrics = list(self._metrics_output_columns.keys())
-        params = pipeline_dp.AggregateParams(
+        params = aggregate_params.AggregateParams(
             noise_kind=noise_kind,
             metrics=metrics,
             max_partitions_contributed=self._contribution_bounds.
@@ -194,7 +194,7 @@ class Query:
             min_value=self._contribution_bounds.min_value,
             max_value=self._contribution_bounds.max_value)
 
-        data_extractors = pipeline_dp.DataExtractors(
+        data_extractors = DataExtractors(
             privacy_id_extractor=lambda row: row[0],
             partition_extractor=lambda row: row[1],
             value_extractor=lambda row: row[2])
@@ -254,7 +254,7 @@ class _AggregationSpec:
           output_column: the name of the output column.
           min_value, max_value: capping limits to each value.
     """
-    metric: pipeline_dp.Metric
+    metric: aggregate_params.Metric
     input_column: Optional[str]
     output_column: Optional[str]
     min_value: Optional[float] = None
@@ -361,7 +361,7 @@ class QueryBuilder:
             name: the name of the output column.
         """
         return self._add_aggregation(
-            _AggregationSpec(metric=pipeline_dp.Metrics.COUNT,
+            _AggregationSpec(metric=aggregate_params.Metrics.COUNT,
                              input_column=None,
                              output_column=name))
 
@@ -379,7 +379,7 @@ class QueryBuilder:
             name: the name of the output column.
         """
         return self._add_aggregation(
-            _AggregationSpec(metric=pipeline_dp.Metrics.SUM,
+            _AggregationSpec(metric=aggregate_params.Metrics.SUM,
                              input_column=column,
                              output_column=name,
                              min_value=min_value,
@@ -400,7 +400,7 @@ class QueryBuilder:
         """
 
         return self._add_aggregation(
-            _AggregationSpec(metric=pipeline_dp.Metrics.MEAN,
+            _AggregationSpec(metric=aggregate_params.Metrics.MEAN,
                              input_column=column,
                              output_column=name,
                              min_value=min_value,
@@ -459,7 +459,7 @@ class QueryBuilder:
             )
         return input_columns[0] if input_columns else None
 
-    def _check_metrics(self) -> List[pipeline_dp.Metric]:
+    def _check_metrics(self) -> List[aggregate_params.Metric]:
         metrics = [spec.metric for spec in self._aggregations_specs]
         if len(set(metrics)) != len(metrics):
             raise ValueError("Each aggregation can be added only once.")
@@ -468,8 +468,10 @@ class QueryBuilder:
     def _get_value_caps(self) -> Tuple[Optional[float], Optional[float]]:
         metrics = set([spec.metric for spec in self._aggregations_specs])
         # COUNT, PPRIVACY_ID_COUNT do not require caps.
-        metrics_which_need_caps = metrics.difference(
-            [pipeline_dp.Metrics.COUNT, pipeline_dp.Metrics.PRIVACY_ID_COUNT])
+        metrics_which_need_caps = metrics.difference([
+            aggregate_params.Metrics.COUNT,
+            aggregate_params.Metrics.PRIVACY_ID_COUNT
+        ])
         if not metrics_which_need_caps:
             return None, None
         min_values = [
