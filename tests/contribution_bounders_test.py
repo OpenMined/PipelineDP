@@ -18,6 +18,7 @@ from absl.testing import parameterized
 
 import pipeline_dp
 import pipeline_dp.contribution_bounders as contribution_bounders
+from pipeline_dp.pipeline_backend import LocalBackend
 
 MaxContributionsParams = collections.namedtuple("MaxContributionParams",
                                                 ["max_contributions"])
@@ -47,7 +48,7 @@ class SamplingCrossAndPerPartitionContributionBounderTest(
         )
         return list(
             bounder.bound_contributions(input, params,
-                                        pipeline_dp.LocalBackend(),
+                                        LocalBackend(),
                                         _create_report_generator(),
                                         aggregate_fn))
 
@@ -123,7 +124,7 @@ class SamplingPerPrivacyIdContributionBounderTest(parameterized.TestCase):
         )
         return list(
             bounder.bound_contributions(input, params,
-                                        pipeline_dp.LocalBackend(),
+                                        LocalBackend(),
                                         _create_report_generator(),
                                         aggregate_fn))
 
@@ -162,7 +163,7 @@ class LinfSamplerTest(parameterized.TestCase):
         bounder = contribution_bounders.LinfSampler()
         return list(
             bounder.bound_contributions(input, params,
-                                        pipeline_dp.LocalBackend(),
+                                        LocalBackend(),
                                         _create_report_generator(),
                                         lambda x: x))
 
@@ -203,7 +204,7 @@ class NoOpContributionBounderTest(parameterized.TestCase):
         bound_result = bounder.bound_contributions(
             input,
             params=(),
-            backend=pipeline_dp.LocalBackend(),
+            backend=LocalBackend(),
             report_generator=_create_report_generator(),
             aggregate_fn=lambda x: x)
         self.assertEqual(list(bound_result), [(('pid1', 'pk1'), [1, 2]),

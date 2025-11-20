@@ -15,6 +15,7 @@ from absl.testing import parameterized
 
 import pipeline_dp
 from pipeline_dp import budget_accounting, aggregate_params
+from pipeline_dp.pipeline_backend import LocalBackend
 """Aggregate Params Test"""
 
 Metric = aggregate_params.Metric
@@ -183,7 +184,7 @@ class AggregateParamsTest(parameterized.TestCase):
             budget_accountant = budget_accounting.NaiveBudgetAccountant(
                 total_epsilon=1, total_delta=1e-10)
             engine = pipeline_dp.DPEngine(budget_accountant=budget_accountant,
-                                          backend=pipeline_dp.LocalBackend())
+                                          backend=LocalBackend())
             engine.aggregate(
                 [0],
                 pipeline_dp.AggregateParams(
@@ -253,7 +254,7 @@ class AggregateParamsTest(parameterized.TestCase):
             budget_accountant = budget_accounting.NaiveBudgetAccountant(
                 total_epsilon=1, total_delta=1e-10)
             engine = pipeline_dp.DPEngine(budget_accountant=budget_accountant,
-                                          backend=pipeline_dp.LocalBackend())
+                                          backend=LocalBackend())
             engine.aggregate([0],
                              pipeline_dp.AggregateParams(
                                  noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
@@ -289,7 +290,7 @@ class AggregateParamsTest(parameterized.TestCase):
             budget_accountant = budget_accounting.NaiveBudgetAccountant(
                 total_epsilon=1, total_delta=1e-10)
             engine = pipeline_dp.DPEngine(budget_accountant=budget_accountant,
-                                          backend=pipeline_dp.LocalBackend())
+                                          backend=LocalBackend())
             engine.aggregate([0],
                              pipeline_dp.AggregateParams(
                                  noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,

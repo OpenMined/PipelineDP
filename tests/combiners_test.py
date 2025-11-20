@@ -23,6 +23,7 @@ from absl.testing import parameterized
 import pipeline_dp
 import pipeline_dp.budget_accounting as ba
 import pipeline_dp.combiners as dp_combiners
+from pipeline_dp import aggregate_params
 from pipeline_dp.aggregate_params import NormKind, NoiseKind, MechanismType
 
 
