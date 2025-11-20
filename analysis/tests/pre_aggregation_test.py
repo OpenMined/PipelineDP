@@ -17,7 +17,7 @@ from absl.testing import parameterized
 
 import pipeline_dp
 import analysis
-from pipeline_dp.pipeline_backend import LocalBackend
+from pipeline_dp import pipeline_backend
 
 
 class PreaggregationTests(parameterized.TestCase):
@@ -47,7 +47,8 @@ class PreaggregationTests(parameterized.TestCase):
             value_extractor=lambda row: row[2])
 
         output = list(
-            analysis.preaggregate(input, LocalBackend(), data_extractors))
+            analysis.preaggregate(input, pipeline_backend.LocalBackend(),
+                                  data_extractors))
 
         self.assertSequenceEqual(output, expected_output)
 

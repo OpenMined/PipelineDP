@@ -19,9 +19,9 @@ from unittest.mock import patch
 import apache_beam.testing.util as beam_util
 from apache_beam.testing.test_pipeline import TestPipeline
 
-import pipeline_dp
 from pipeline_dp import private_beam
-from pipeline_dp import aggregate_params, budget_accounting
+from pipeline_dp import aggregate_params as ap
+from pipeline_dp import budget_accounting as ba
 
 
 class SimplePrivatePTransform(private_beam.PrivatePTransform):
@@ -58,8 +58,8 @@ class PrivateBeamTest(unittest.TestCase):
             # Arrange
             pcol = pipeline | 'Create produce' >> beam.Create(
                 [1, 2, 3, 4, 5, 6])
-            budget_accountant = budget_accounting.NaiveBudgetAccountant(
-                total_epsilon=1, total_delta=0.01)
+            budget_accountant = ba.NaiveBudgetAccountant(total_epsilon=1,
+                                                         total_delta=0.01)
 
             # Act
             private_collection = (
@@ -79,8 +79,8 @@ class PrivateBeamTest(unittest.TestCase):
             # Arrange
             pcol = pipeline | 'Create produce' >> beam.Create(
                 [1, 2, 3, 4, 5, 6])
-            budget_accountant = budget_accounting.NaiveBudgetAccountant(
-                total_epsilon=1, total_delta=0.01)
+            budget_accountant = ba.NaiveBudgetAccountant(total_epsilon=1,
+                                                         total_delta=0.01)
             private_collection = (
                 pcol | 'Create private collection' >> private_beam.MakePrivate(
                     budget_accountant=budget_accountant,
@@ -103,8 +103,8 @@ class PrivateBeamTest(unittest.TestCase):
             # Arrange
             pcol = pipeline | 'Create produce' >> beam.Create(
                 [1, 2, 3, 4, 5, 6])
-            budget_accountant = budget_accounting.NaiveBudgetAccountant(
-                total_epsilon=1, total_delta=0.01)
+            budget_accountant = ba.NaiveBudgetAccountant(total_epsilon=1,
+                                                         total_delta=0.01)
             private_collection = (
                 pcol | 'Create private collection' >> private_beam.MakePrivate(
                     budget_accountant=budget_accountant,
@@ -125,8 +125,8 @@ class PrivateBeamTest(unittest.TestCase):
             # Arrange
             pcol = pipeline | 'Create produce' >> beam.Create(
                 [1, 2, 3, 4, 5, 6])
-            budget_accountant = budget_accounting.NaiveBudgetAccountant(
-                total_epsilon=1, total_delta=0.01)
+            budget_accountant = ba.NaiveBudgetAccountant(total_epsilon=1,
+                                                         total_delta=0.01)
             private_collection = (
                 pcol | 'Create private collection' >> private_beam.MakePrivate(
                     budget_accountant=budget_accountant,
@@ -146,15 +146,15 @@ class PrivateBeamTest(unittest.TestCase):
             # Arrange
             pcol = pipeline | 'Create produce' >> beam.Create(
                 [1, 2, 3, 4, 5, 6])
-            budget_accountant = budget_accounting.NaiveBudgetAccountant(
-                total_epsilon=1, total_delta=0.01)
+            budget_accountant = ba.NaiveBudgetAccountant(total_epsilon=1,
+                                                         total_delta=0.01)
             private_collection = (
                 pcol | 'Create private collection' >> private_beam.MakePrivate(
                     budget_accountant=budget_accountant,
                     privacy_id_extractor=PrivateBeamTest.privacy_id_extractor))
 
-            variance_params = aggregate_params.VarianceParams(
-                noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+            variance_params = ap.VarianceParams(
+                noise_kind=ap.NoiseKind.GAUSSIAN,
                 max_partitions_contributed=2,
                 max_contributions_per_partition=3,
                 min_value=1,
@@ -175,9 +175,9 @@ class PrivateBeamTest(unittest.TestCase):
 
             args = mock_aggregate.call_args[0]
 
-            params = pipeline_dp.AggregateParams(
-                noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
-                metrics=[pipeline_dp.Metrics.VARIANCE],
+            params = ap.AggregateParams(
+                noise_kind=ap.NoiseKind.GAUSSIAN,
+                metrics=[ap.Metrics.VARIANCE],
                 max_partitions_contributed=variance_params.
                 max_partitions_contributed,
                 max_contributions_per_partition=variance_params.
@@ -195,15 +195,16 @@ class PrivateBeamTest(unittest.TestCase):
             pcol = pipeline | 'Create produce' >> beam.Create(col)
             # Use very high epsilon and delta to minimize noise and test
             # flakiness.
-            budget_accountant = budget_accounting.NaiveBudgetAccountant(
-                total_epsilon=800, total_delta=0.999, num_aggregations=1)
+            budget_accountant = ba.NaiveBudgetAccountant(total_epsilon=800,
+                                                         total_delta=0.999,
+                                                         num_aggregations=1)
             private_collection = (
                 pcol | 'Create private collection' >> private_beam.MakePrivate(
                     budget_accountant=budget_accountant,
                     privacy_id_extractor=lambda x: x[0]))
 
-            variance_params = aggregate_params.VarianceParams(
-                noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+            variance_params = ap.VarianceParams(
+                noise_kind=ap.NoiseKind.GAUSSIAN,
                 max_partitions_contributed=1,
                 max_contributions_per_partition=1,
                 min_value=1.55,  # -100 should be clipped to this value
@@ -236,15 +237,16 @@ class PrivateBeamTest(unittest.TestCase):
             pcol = pipeline | 'Create produce' >> beam.Create(col)
             # Use very high epsilon and delta to minimize noise and test
             # flakiness.
-            budget_accountant = budget_accounting.NaiveBudgetAccountant(
-                total_epsilon=8000, total_delta=0.9999999, num_aggregations=1)
+            budget_accountant = ba.NaiveBudgetAccountant(total_epsilon=8000,
+                                                         total_delta=0.9999999,
+                                                         num_aggregations=1)
             private_collection = (
                 pcol | 'Create private collection' >> private_beam.MakePrivate(
                     budget_accountant=budget_accountant,
                     privacy_id_extractor=lambda x: x[0]))
 
-            variance_params = aggregate_params.VarianceParams(
-                noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+            variance_params = ap.VarianceParams(
+                noise_kind=ap.NoiseKind.GAUSSIAN,
                 max_partitions_contributed=1,
                 max_contributions_per_partition=1,
                 min_value=1.55,  # -100 should be clipped to this value
@@ -276,15 +278,15 @@ class PrivateBeamTest(unittest.TestCase):
             # Arrange
             pcol = pipeline | 'Create produce' >> beam.Create(
                 [1, 2, 3, 4, 5, 6])
-            budget_accountant = budget_accounting.NaiveBudgetAccountant(
-                total_epsilon=1, total_delta=0.01)
+            budget_accountant = ba.NaiveBudgetAccountant(total_epsilon=1,
+                                                         total_delta=0.01)
             private_collection = (
                 pcol | 'Create private collection' >> private_beam.MakePrivate(
                     budget_accountant=budget_accountant,
                     privacy_id_extractor=PrivateBeamTest.privacy_id_extractor))
 
-            mean_params = aggregate_params.MeanParams(
-                noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+            mean_params = ap.MeanParams(
+                noise_kind=ap.NoiseKind.GAUSSIAN,
                 max_partitions_contributed=2,
                 max_contributions_per_partition=3,
                 min_value=1,
@@ -305,9 +307,9 @@ class PrivateBeamTest(unittest.TestCase):
 
             args = mock_aggregate.call_args[0]
 
-            params = pipeline_dp.AggregateParams(
-                noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
-                metrics=[pipeline_dp.Metrics.MEAN],
+            params = ap.AggregateParams(
+                noise_kind=ap.NoiseKind.GAUSSIAN,
+                metrics=[ap.Metrics.MEAN],
                 max_partitions_contributed=mean_params.
                 max_partitions_contributed,
                 max_contributions_per_partition=mean_params.
@@ -325,15 +327,16 @@ class PrivateBeamTest(unittest.TestCase):
             pcol = pipeline | 'Create produce' >> beam.Create(col)
             # Use very high epsilon and delta to minimize noise and test
             # flakiness.
-            budget_accountant = budget_accounting.NaiveBudgetAccountant(
-                total_epsilon=800, total_delta=0.999, num_aggregations=1)
+            budget_accountant = ba.NaiveBudgetAccountant(total_epsilon=800,
+                                                         total_delta=0.999,
+                                                         num_aggregations=1)
             private_collection = (
                 pcol | 'Create private collection' >> private_beam.MakePrivate(
                     budget_accountant=budget_accountant,
                     privacy_id_extractor=lambda x: x[0]))
 
-            mean_params = aggregate_params.MeanParams(
-                noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+            mean_params = ap.MeanParams(
+                noise_kind=ap.NoiseKind.GAUSSIAN,
                 max_partitions_contributed=1,
                 max_contributions_per_partition=1,
                 min_value=1.55,  # -100 should be clipped to this value
@@ -365,15 +368,16 @@ class PrivateBeamTest(unittest.TestCase):
             pcol = pipeline | 'Create produce' >> beam.Create(col)
             # Use very high epsilon and delta to minimize noise and test
             # flakiness.
-            budget_accountant = budget_accounting.NaiveBudgetAccountant(
-                total_epsilon=800, total_delta=0.999, num_aggregations=1)
+            budget_accountant = ba.NaiveBudgetAccountant(total_epsilon=800,
+                                                         total_delta=0.999,
+                                                         num_aggregations=1)
             private_collection = (
                 pcol | 'Create private collection' >> private_beam.MakePrivate(
                     budget_accountant=budget_accountant,
                     privacy_id_extractor=lambda x: x[0]))
 
-            mean_params = aggregate_params.MeanParams(
-                noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+            mean_params = ap.MeanParams(
+                noise_kind=ap.NoiseKind.GAUSSIAN,
                 max_partitions_contributed=1,
                 max_contributions_per_partition=1,
                 min_value=1.55,  # -100 should be clipped to this value
@@ -404,15 +408,15 @@ class PrivateBeamTest(unittest.TestCase):
             # Arrange
             pcol = pipeline | 'Create produce' >> beam.Create(
                 float(i) for i in range(1, 7))
-            budget_accountant = budget_accounting.NaiveBudgetAccountant(
-                total_epsilon=1, total_delta=0.01)
+            budget_accountant = ba.NaiveBudgetAccountant(total_epsilon=1,
+                                                         total_delta=0.01)
             private_collection = (
                 pcol | 'Create private collection' >> private_beam.MakePrivate(
                     budget_accountant=budget_accountant,
                     privacy_id_extractor=PrivateBeamTest.privacy_id_extractor))
 
-            sum_params = aggregate_params.SumParams(
-                noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+            sum_params = ap.SumParams(
+                noise_kind=ap.NoiseKind.GAUSSIAN,
                 max_partitions_contributed=2,
                 max_contributions_per_partition=3,
                 min_value=1,
@@ -432,9 +436,9 @@ class PrivateBeamTest(unittest.TestCase):
 
             args = mock_aggregate.call_args[0]
 
-            params = pipeline_dp.AggregateParams(
-                noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
-                metrics=[pipeline_dp.Metrics.SUM],
+            params = ap.AggregateParams(
+                noise_kind=ap.NoiseKind.GAUSSIAN,
+                metrics=[ap.Metrics.SUM],
                 max_partitions_contributed=sum_params.
                 max_partitions_contributed,
                 max_contributions_per_partition=sum_params.
@@ -451,22 +455,22 @@ class PrivateBeamTest(unittest.TestCase):
             pcol = pipeline | 'Create produce' >> beam.Create(col)
             # Use very high epsilon and delta to minimize noise and test
             # flakiness.
-            budget_accountant = budget_accounting.NaiveBudgetAccountant(
-                total_epsilon=800, total_delta=0.999, num_aggregations=1)
+            budget_accountant = ba.NaiveBudgetAccountant(total_epsilon=800,
+                                                         total_delta=0.999,
+                                                         num_aggregations=1)
             private_collection = (
                 pcol | 'Create private collection' >> private_beam.MakePrivate(
                     budget_accountant=budget_accountant,
                     privacy_id_extractor=lambda x: x[0]))
 
-            sum_params = aggregate_params.SumParams(
-                noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
-                max_partitions_contributed=2,
-                max_contributions_per_partition=3,
-                min_value=1.55,
-                max_value=2.7889,
-                budget_weight=1,
-                partition_extractor=lambda x: x[1],
-                value_extractor=lambda x: x[2])
+            sum_params = ap.SumParams(noise_kind=ap.NoiseKind.GAUSSIAN,
+                                      max_partitions_contributed=2,
+                                      max_contributions_per_partition=3,
+                                      min_value=1.55,
+                                      max_value=2.7889,
+                                      budget_weight=1,
+                                      partition_extractor=lambda x: x[1],
+                                      value_extractor=lambda x: x[2])
 
             # Act
             result = private_collection | private_beam.Sum(
@@ -491,22 +495,22 @@ class PrivateBeamTest(unittest.TestCase):
             pcol = pipeline | 'Create produce' >> beam.Create(col)
             # Use very high epsilon and delta to minimize noise and test
             # flakiness.
-            budget_accountant = budget_accounting.NaiveBudgetAccountant(
-                total_epsilon=800, total_delta=0.999, num_aggregations=1)
+            budget_accountant = ba.NaiveBudgetAccountant(total_epsilon=800,
+                                                         total_delta=0.999,
+                                                         num_aggregations=1)
             private_collection = (
                 pcol | 'Create private collection' >> private_beam.MakePrivate(
                     budget_accountant=budget_accountant,
                     privacy_id_extractor=lambda x: x[0]))
 
-            sum_params = aggregate_params.SumParams(
-                noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
-                max_partitions_contributed=2,
-                max_contributions_per_partition=3,
-                min_value=1.55,
-                max_value=2.7889,
-                budget_weight=1,
-                partition_extractor=lambda x: x[1],
-                value_extractor=lambda x: x[2])
+            sum_params = ap.SumParams(noise_kind=ap.NoiseKind.GAUSSIAN,
+                                      max_partitions_contributed=2,
+                                      max_contributions_per_partition=3,
+                                      min_value=1.55,
+                                      max_value=2.7889,
+                                      budget_weight=1,
+                                      partition_extractor=lambda x: x[1],
+                                      value_extractor=lambda x: x[2])
 
             # Act
             result = private_collection | private_beam.Sum(
@@ -529,15 +533,15 @@ class PrivateBeamTest(unittest.TestCase):
             # Arrange
             pcol = pipeline | 'Create produce' >> beam.Create(
                 [1, 2, 3, 4, 5, 6])
-            budget_accountant = budget_accounting.NaiveBudgetAccountant(
-                total_epsilon=1, total_delta=0.01)
+            budget_accountant = ba.NaiveBudgetAccountant(total_epsilon=1,
+                                                         total_delta=0.01)
             private_collection = (
                 pcol | 'Create private collection' >> private_beam.MakePrivate(
                     budget_accountant=budget_accountant,
                     privacy_id_extractor=PrivateBeamTest.privacy_id_extractor))
 
-            count_params = aggregate_params.CountParams(
-                noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+            count_params = ap.CountParams(
+                noise_kind=ap.NoiseKind.GAUSSIAN,
                 max_partitions_contributed=2,
                 max_contributions_per_partition=3,
                 budget_weight=1,
@@ -554,9 +558,9 @@ class PrivateBeamTest(unittest.TestCase):
 
             args = mock_aggregate.call_args[0]
 
-            params = pipeline_dp.AggregateParams(
-                noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
-                metrics=[pipeline_dp.Metrics.COUNT],
+            params = ap.AggregateParams(
+                noise_kind=ap.NoiseKind.GAUSSIAN,
+                metrics=[ap.Metrics.COUNT],
                 max_partitions_contributed=count_params.
                 max_partitions_contributed,
                 max_contributions_per_partition=count_params.
@@ -571,19 +575,19 @@ class PrivateBeamTest(unittest.TestCase):
             pcol = pipeline | 'Create produce' >> beam.Create(col)
             # Use very high epsilon and delta to minimize noise and test
             # flakiness.
-            budget_accountant = budget_accounting.NaiveBudgetAccountant(
-                total_epsilon=800, total_delta=0.999, num_aggregations=1)
+            budget_accountant = ba.NaiveBudgetAccountant(total_epsilon=800,
+                                                         total_delta=0.999,
+                                                         num_aggregations=1)
             private_collection = (
                 pcol | 'Create private collection' >> private_beam.MakePrivate(
                     budget_accountant=budget_accountant,
                     privacy_id_extractor=lambda x: x[0]))
 
-            count_params = aggregate_params.CountParams(
-                noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
-                max_partitions_contributed=2,
-                max_contributions_per_partition=3,
-                budget_weight=1,
-                partition_extractor=lambda x: x[1])
+            count_params = ap.CountParams(noise_kind=ap.NoiseKind.GAUSSIAN,
+                                          max_partitions_contributed=2,
+                                          max_contributions_per_partition=3,
+                                          budget_weight=1,
+                                          partition_extractor=lambda x: x[1])
 
             # Act
             result = private_collection | private_beam.Count(
@@ -607,19 +611,19 @@ class PrivateBeamTest(unittest.TestCase):
             pcol = pipeline | 'Create produce' >> beam.Create(col)
             # Use very high epsilon and delta to minimize noise and test
             # flakiness.
-            budget_accountant = budget_accounting.NaiveBudgetAccountant(
-                total_epsilon=800, total_delta=0.999, num_aggregations=1)
+            budget_accountant = ba.NaiveBudgetAccountant(total_epsilon=800,
+                                                         total_delta=0.999,
+                                                         num_aggregations=1)
             private_collection = (
                 pcol | 'Create private collection' >> private_beam.MakePrivate(
                     budget_accountant=budget_accountant,
                     privacy_id_extractor=lambda x: x[0]))
 
-            count_params = aggregate_params.CountParams(
-                noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
-                max_partitions_contributed=2,
-                max_contributions_per_partition=3,
-                budget_weight=1,
-                partition_extractor=lambda x: x[1])
+            count_params = ap.CountParams(noise_kind=ap.NoiseKind.GAUSSIAN,
+                                          max_partitions_contributed=2,
+                                          max_contributions_per_partition=3,
+                                          budget_weight=1,
+                                          partition_extractor=lambda x: x[1])
 
             # Act
             result = private_collection | private_beam.Count(
@@ -642,15 +646,15 @@ class PrivateBeamTest(unittest.TestCase):
             # Arrange
             pcol = pipeline | 'Create produce' >> beam.Create(
                 [1, 2, 3, 4, 5, 6])
-            budget_accountant = budget_accounting.NaiveBudgetAccountant(
-                total_epsilon=1, total_delta=0.01)
+            budget_accountant = ba.NaiveBudgetAccountant(total_epsilon=1,
+                                                         total_delta=0.01)
             private_collection = (
                 pcol | 'Create private collection' >> private_beam.MakePrivate(
                     budget_accountant=budget_accountant,
                     privacy_id_extractor=PrivateBeamTest.privacy_id_extractor))
 
-            privacy_id_count_params = aggregate_params.PrivacyIdCountParams(
-                noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+            privacy_id_count_params = ap.PrivacyIdCountParams(
+                noise_kind=ap.NoiseKind.GAUSSIAN,
                 max_partitions_contributed=2,
                 budget_weight=1,
                 partition_extractor=lambda x: f"pk:{x // 10}",
@@ -667,9 +671,9 @@ class PrivateBeamTest(unittest.TestCase):
 
             args = mock_aggregate.call_args[0]
 
-            params = pipeline_dp.AggregateParams(
-                noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
-                metrics=[pipeline_dp.Metrics.PRIVACY_ID_COUNT],
+            params = ap.AggregateParams(
+                noise_kind=ap.NoiseKind.GAUSSIAN,
+                metrics=[ap.Metrics.PRIVACY_ID_COUNT],
                 max_partitions_contributed=privacy_id_count_params.
                 max_partitions_contributed,
                 max_contributions_per_partition=1,
@@ -683,15 +687,16 @@ class PrivateBeamTest(unittest.TestCase):
             pcol = pipeline | 'Create produce' >> beam.Create(col)
             # Use very high epsilon and delta to minimize noise and test
             # flakiness.
-            budget_accountant = budget_accounting.NaiveBudgetAccountant(
-                total_epsilon=800, total_delta=0.999, num_aggregations=1)
+            budget_accountant = ba.NaiveBudgetAccountant(total_epsilon=800,
+                                                         total_delta=0.999,
+                                                         num_aggregations=1)
             private_collection = (
                 pcol | 'Create private collection' >> private_beam.MakePrivate(
                     budget_accountant=budget_accountant,
                     privacy_id_extractor=lambda x: x[0]))
 
-            privacy_id_count_params = aggregate_params.PrivacyIdCountParams(
-                noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+            privacy_id_count_params = ap.PrivacyIdCountParams(
+                noise_kind=ap.NoiseKind.GAUSSIAN,
                 max_partitions_contributed=2,
                 budget_weight=1,
                 partition_extractor=lambda x: x[1])
@@ -719,15 +724,16 @@ class PrivateBeamTest(unittest.TestCase):
             pcol = pipeline | 'Create produce' >> beam.Create(col)
             # Use very high epsilon and delta to minimize noise and test
             # flakiness.
-            budget_accountant = budget_accounting.NaiveBudgetAccountant(
-                total_epsilon=800, total_delta=0.999, num_aggregations=1)
+            budget_accountant = ba.NaiveBudgetAccountant(total_epsilon=800,
+                                                         total_delta=0.999,
+                                                         num_aggregations=1)
             private_collection = (
                 pcol | 'Create private collection' >> private_beam.MakePrivate(
                     budget_accountant=budget_accountant,
                     privacy_id_extractor=lambda x: x[0]))
 
-            privacy_id_count_params = aggregate_params.PrivacyIdCountParams(
-                noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+            privacy_id_count_params = ap.PrivacyIdCountParams(
+                noise_kind=ap.NoiseKind.GAUSSIAN,
                 max_partitions_contributed=2,
                 budget_weight=1,
                 partition_extractor=lambda x: x[1])
@@ -753,8 +759,8 @@ class PrivateBeamTest(unittest.TestCase):
             # Arrange
             pcol_input = [(1, 2), (2, 3), (3, 4), (4, 5)]
             pcol = pipeline | 'Create produce' >> beam.Create(pcol_input)
-            budget_accountant = budget_accounting.NaiveBudgetAccountant(
-                total_epsilon=1, total_delta=0.01)
+            budget_accountant = ba.NaiveBudgetAccountant(total_epsilon=1,
+                                                         total_delta=0.01)
             private_collection = (
                 pcol | 'Create private collection' >> private_beam.MakePrivate(
                     budget_accountant=budget_accountant,
@@ -785,8 +791,8 @@ class PrivateBeamTest(unittest.TestCase):
             # Arrange
             pcol_input = [(1, 2), (2, 3), (3, 4)]
             pcol = pipeline | 'Create produce' >> beam.Create(pcol_input)
-            budget_accountant = budget_accounting.NaiveBudgetAccountant(
-                total_epsilon=1, total_delta=0.01)
+            budget_accountant = ba.NaiveBudgetAccountant(total_epsilon=1,
+                                                         total_delta=0.01)
             private_collection = (
                 pcol | 'Create private collection' >> private_beam.MakePrivate(
                     budget_accountant=budget_accountant,
@@ -815,15 +821,15 @@ class PrivateBeamTest(unittest.TestCase):
             # Arrange
             pcol = pipeline | 'Create produce' >> beam.Create(
                 [1, 2, 3, 4, 5, 6])
-            budget_accountant = budget_accounting.NaiveBudgetAccountant(
-                total_epsilon=1, total_delta=0.01)
+            budget_accountant = ba.NaiveBudgetAccountant(total_epsilon=1,
+                                                         total_delta=0.01)
             private_collection = (
                 pcol | 'Create private collection' >> private_beam.MakePrivate(
                     budget_accountant=budget_accountant,
                     privacy_id_extractor=PrivateBeamTest.privacy_id_extractor))
 
             select_partitions_params = \
-                aggregate_params.SelectPartitionsParams(
+                ap.SelectPartitionsParams(
                     max_partitions_contributed=2,
                     budget_weight=0.5)
             partition_extractor = lambda x: f"pk:{x // 10}"
@@ -850,15 +856,16 @@ class PrivateBeamTest(unittest.TestCase):
             pcol = pipeline | 'Create produce' >> beam.Create(col)
             # Use very high epsilon and delta to minimize noise and test
             # flakiness.
-            budget_accountant = budget_accounting.NaiveBudgetAccountant(
-                total_epsilon=800, total_delta=0.999, num_aggregations=1)
+            budget_accountant = ba.NaiveBudgetAccountant(total_epsilon=800,
+                                                         total_delta=0.999,
+                                                         num_aggregations=1)
             private_collection = (
                 pcol | 'Create private collection' >> private_beam.MakePrivate(
                     budget_accountant=budget_accountant,
                     privacy_id_extractor=lambda x: x[0]))
 
             select_partitions_params = \
-                aggregate_params.SelectPartitionsParams(
+                ap.SelectPartitionsParams(
                     max_partitions_contributed=2)
             partition_extractor = lambda x: x[1]
 
@@ -882,8 +889,9 @@ class PrivateBeamTest(unittest.TestCase):
             pcol = pipeline | 'Create produce' >> beam.Create(col)
             # Use very high epsilon and delta to minimize noise and test
             # flakiness.
-            budget_accountant = budget_accounting.NaiveBudgetAccountant(
-                total_epsilon=800, total_delta=0.999, num_aggregations=1)
+            budget_accountant = ba.NaiveBudgetAccountant(total_epsilon=800,
+                                                         total_delta=0.999,
+                                                         num_aggregations=1)
             private_collection = (
                 pcol | 'Create private collection' >> private_beam.MakePrivate(
                     budget_accountant=budget_accountant,

@@ -16,7 +16,9 @@
 import unittest
 from unittest.mock import patch
 from pipeline_dp import advanced_query_builder as aqb
-from pipeline_dp import aggregate_params
+from pipeline_dp import aggregate_params as ap
+from pipeline_dp import budget_accounting as ba
+from pipeline_dp import pipeline_backend
 
 
 class AdvancedQueryBuilderTest(unittest.TestCase):
@@ -72,14 +74,13 @@ class AdvancedQueryBuilderTest(unittest.TestCase):
         mock_dp_engine.assert_called_once()
         _, kwargs = mock_dp_engine.call_args
         self.assertIsInstance(kwargs['budget_accountant'],
-                              aqb.NaiveBudgetAccountant)
-        self.assertIsInstance(kwargs['backend'], aqb.LocalBackend)
+                              ba.NaiveBudgetAccountant)
+        self.assertIsInstance(kwargs['backend'], pipeline_backend.LocalBackend)
 
         mock_aggregate = mock_dp_engine.return_value.aggregate
         mock_aggregate.assert_called_once()
         _, kwargs = mock_aggregate.call_args
-        self.assertEqual(kwargs['params'].metrics,
-                         [aggregate_params.Metrics.COUNT])
+        self.assertEqual(kwargs['params'].metrics, [ap.Metrics.COUNT])
 
 
 if __name__ == '__main__':

@@ -20,9 +20,13 @@ from typing import Any, Callable, Optional
 from apache_beam import pvalue
 import apache_beam as beam
 
-from pipeline_dp import aggregate_params, budget_accounting, DPEngine, DataExtractors, BeamBackend
-from pipeline_dp.report_generator import ExplainComputationReport
-from pipeline_dp.combiners import CustomCombiner
+from pipeline_dp import aggregate_params as ap
+from pipeline_dp import budget_accounting as ba
+from pipeline_dp import DPEngine
+from pipeline_dp import data_extractors as de
+from pipeline_dp import beam_backend
+from pipeline_dp import report_generator
+from pipeline_dp import combiners
 
 # Apache Beam requires that all stage_names were different.
 # pipeline_dp.BeamBackend object ensures the uniqueness of the stage_names.
@@ -32,10 +36,10 @@ from pipeline_dp.combiners import CustomCombiner
 _beam_backend = None
 
 
-def _get_beam_backend() -> BeamBackend:
+def _get_beam_backend() -> beam_backend.BeamBackend:
     global _beam_backend
     if _beam_backend == None:
-        _beam_backend = BeamBackend()
+        _beam_backend = beam_backend.BeamBackend()
     return _beam_backend
 
 
@@ -50,8 +54,7 @@ class PrivatePTransform(ptransform.PTransform):
         self._return_anonymized = return_anonymized
         self._budget_accountant = None
 
-    def set_additional_parameters(
-            self, budget_accountant: budget_accounting.BudgetAccountant):
+    def set_additional_parameters(self, budget_accountant: ba.BudgetAccountant):
         """Sets the additional parameters needed for the private transform."""
         self._budget_accountant = budget_accountant
 
@@ -77,7 +80,7 @@ class PrivatePCollection:
     privacy budget, can be extracted from it using PrivatePTransforms."""
 
     def __init__(self, pcol: pvalue.PCollection,
-                 budget_accountant: budget_accounting.BudgetAccountant):
+                 budget_accountant: ba.BudgetAccountant):
         self._pcol = pcol
         self._budget_accountant = budget_accountant
 
@@ -99,7 +102,7 @@ class MakePrivate(PrivatePTransform):
     """Transform class for creating a PrivatePCollection."""
 
     def __init__(self,
-                 budget_accountant: budget_accounting.BudgetAccountant,
+                 budget_accountant: ba.BudgetAccountant,
                  privacy_id_extractor: Callable,
                  label: Optional[str] = None):
         super().__init__(return_anonymized=False, label=label)
@@ -116,13 +119,12 @@ class MakePrivate(PrivatePTransform):
 class Variance(PrivatePTransform):
     """Transform class for performing DP Variance on PrivatePCollection."""
 
-    def __init__(
-        self,
-        variance_params: aggregate_params.VarianceParams,
-        label: Optional[str] = None,
-        public_partitions=None,
-        out_explain_computaton_report: Optional[ExplainComputationReport] = None
-    ):
+    def __init__(self,
+                 variance_params: ap.VarianceParams,
+                 label: Optional[str] = None,
+                 public_partitions=None,
+                 out_explain_computaton_report: Optional[
+                     report_generator.ExplainComputationReport] = None):
         """Initialize.
 
          Args:
@@ -144,7 +146,7 @@ class Variance(PrivatePTransform):
         backend = _get_beam_backend()
         dp_engine = DPEngine(self._budget_accountant, backend)
 
-        data_extractors = DataExtractors(
+        data_extractors = de.DataExtractors(
             partition_extractor=lambda x: self._variance_params.
             partition_extractor(x[1]),
             privacy_id_extractor=lambda x: x[0],
@@ -168,13 +170,12 @@ class Variance(PrivatePTransform):
 class Mean(PrivatePTransform):
     """Transform class for performing DP Mean on PrivatePCollection."""
 
-    def __init__(
-        self,
-        mean_params: aggregate_params.MeanParams,
-        label: Optional[str] = None,
-        public_partitions=None,
-        out_explain_computaton_report: Optional[ExplainComputationReport] = None
-    ):
+    def __init__(self,
+                 mean_params: ap.MeanParams,
+                 label: Optional[str] = None,
+                 public_partitions=None,
+                 out_explain_computaton_report: Optional[
+                     report_generator.ExplainComputationReport] = None):
         """Initialize
 
         Args:
@@ -196,7 +197,7 @@ class Mean(PrivatePTransform):
         backend = _get_beam_backend()
         dp_engine = DPEngine(self._budget_accountant, backend)
 
-        data_extractors = DataExtractors(
+        data_extractors = de.DataExtractors(
             partition_extractor=lambda x: self._mean_params.partition_extractor(
                 x[1]),
             privacy_id_extractor=lambda x: x[0],
@@ -218,13 +219,12 @@ class Mean(PrivatePTransform):
 class Sum(PrivatePTransform):
     """Transform class for performing DP Sum on a PrivatePCollection."""
 
-    def __init__(
-        self,
-        sum_params: aggregate_params.SumParams,
-        label: Optional[str] = None,
-        public_partitions=None,
-        out_explain_computaton_report: Optional[ExplainComputationReport] = None
-    ):
+    def __init__(self,
+                 sum_params: ap.SumParams,
+                 label: Optional[str] = None,
+                 public_partitions=None,
+                 out_explain_computaton_report: Optional[
+                     report_generator.ExplainComputationReport] = None):
         """Initialize.
 
         Args:
@@ -246,7 +246,7 @@ class Sum(PrivatePTransform):
         backend = _get_beam_backend()
         dp_engine = DPEngine(self._budget_accountant, backend)
 
-        data_extractors = DataExtractors(
+        data_extractors = de.DataExtractors(
             partition_extractor=lambda x: self._sum_params.partition_extractor(
                 x[1]),
             privacy_id_extractor=lambda x: x[0],
@@ -268,13 +268,12 @@ class Sum(PrivatePTransform):
 class Count(PrivatePTransform):
     """Transform class for performing DP Count on a PrivatePCollection."""
 
-    def __init__(
-        self,
-        count_params: aggregate_params.CountParams,
-        label: Optional[str] = None,
-        public_partitions=None,
-        out_explain_computaton_report: Optional[ExplainComputationReport] = None
-    ):
+    def __init__(self,
+                 count_params: ap.CountParams,
+                 label: Optional[str] = None,
+                 public_partitions=None,
+                 out_explain_computaton_report: Optional[
+                     report_generator.ExplainComputationReport] = None):
         """Initialize.
 
         Args:
@@ -296,7 +295,7 @@ class Count(PrivatePTransform):
         backend = _get_beam_backend()
         dp_engine = DPEngine(self._budget_accountant, backend)
 
-        data_extractors = DataExtractors(
+        data_extractors = de.DataExtractors(
             partition_extractor=lambda x: self._count_params.
             partition_extractor(x[1]),
             privacy_id_extractor=lambda x: x[0],
@@ -320,13 +319,12 @@ class Count(PrivatePTransform):
 class PrivacyIdCount(PrivatePTransform):
     """Transform class for performing a DP Privacy ID Count on a PrivatePCollection."""
 
-    def __init__(
-        self,
-        privacy_id_count_params: aggregate_params.PrivacyIdCountParams,
-        label: Optional[str] = None,
-        public_partitions=None,
-        out_explain_computaton_report: Optional[ExplainComputationReport] = None
-    ):
+    def __init__(self,
+                 privacy_id_count_params: ap.PrivacyIdCountParams,
+                 label: Optional[str] = None,
+                 public_partitions=None,
+                 out_explain_computaton_report: Optional[
+                     report_generator.ExplainComputationReport] = None):
         """Initialize.
 
         Args:
@@ -348,7 +346,7 @@ class PrivacyIdCount(PrivatePTransform):
         backend = _get_beam_backend()
         dp_engine = DPEngine(self._budget_accountant, backend)
 
-        data_extractors = DataExtractors(
+        data_extractors = de.DataExtractors(
             partition_extractor=lambda x: self._privacy_id_count_params.
             partition_extractor(x[1]),
             privacy_id_extractor=lambda x: x[0],
@@ -372,10 +370,8 @@ class PrivacyIdCount(PrivatePTransform):
 class SelectPartitions(PrivatePTransform):
     """Transform class for computing a collection of partition keys using DP."""
 
-    def __init__(
-            self,
-            select_partitions_params: aggregate_params.SelectPartitionsParams,
-            partition_extractor: Callable, label: Optional[str]):
+    def __init__(self, select_partitions_params: ap.SelectPartitionsParams,
+                 partition_extractor: Callable, label: Optional[str]):
         super().__init__(return_anonymized=True, label=label)
         self._select_partitions_params = select_partitions_params
         self._partition_extractor = partition_extractor
@@ -384,7 +380,7 @@ class SelectPartitions(PrivatePTransform):
         backend = _get_beam_backend()
         dp_engine = DPEngine(self._budget_accountant, backend)
 
-        data_extractors = DataExtractors(
+        data_extractors = de.DataExtractors(
             partition_extractor=lambda x: self._partition_extractor(x[1]),
             privacy_id_extractor=lambda x: x[0])
 
@@ -460,17 +456,15 @@ class PrivateCombineFn(beam.CombineFn):
          """
 
     @abc.abstractmethod
-    def extract_private_output(
-            self, accumulator, budget: Any,
-            aggregate_params: aggregate_params.AggregateParams) -> Any:
+    def extract_private_output(self, accumulator, budget: Any,
+                               aggregate_params: ap.AggregateParams) -> Any:
         """Computes private output.
 
         'budget' is the object which returned from 'request_budget()'.
         """
 
     @abc.abstractmethod
-    def request_budget(
-            self, budget_accountant: budget_accounting.BudgetAccountant) -> Any:
+    def request_budget(self, budget_accountant: ba.BudgetAccountant) -> Any:
         """Requests the budget.
 
         It is called by PipelineDP during the construction of the computations.
@@ -486,7 +480,7 @@ class PrivateCombineFn(beam.CombineFn):
         """
 
 
-class _CombineFnCombiner(CustomCombiner):
+class _CombineFnCombiner(combiners.CustomCombiner):
 
     def __init__(self, private_combine_fn: PrivateCombineFn):
         self._private_combine_fn = private_combine_fn
@@ -513,8 +507,7 @@ class _CombineFnCombiner(CustomCombiner):
         # TODO: implement
         return "Explain computations for PrivateCombineFn not implemented."
 
-    def request_budget(self,
-                       budget_accountant: budget_accounting.BudgetAccountant):
+    def request_budget(self, budget_accountant: ba.BudgetAccountant):
         self._budget = self._private_combine_fn.request_budget(
             budget_accountant)
 
@@ -561,7 +554,7 @@ class CombinePerKey(PrivatePTransform):
 
     def expand(self, pcol: pvalue.PCollection):
         combiner = _CombineFnCombiner(self._combine_fn)
-        agg_params = aggregate_params.AggregateParams(
+        agg_params = ap.AggregateParams(
             metrics=None,
             max_partitions_contributed=self._params.max_partitions_contributed,
             max_contributions_per_partition=self._params.
@@ -570,9 +563,10 @@ class CombinePerKey(PrivatePTransform):
 
         backend, dp_engine = self._create_dp_engine()
         # Assumed elements format: (privacy_id, (partition_key, value))
-        data_extractors = DataExtractors(privacy_id_extractor=lambda x: x[0],
-                                         partition_extractor=lambda x: x[1][0],
-                                         value_extractor=lambda x: x[1][1])
+        data_extractors = de.DataExtractors(
+            privacy_id_extractor=lambda x: x[0],
+            partition_extractor=lambda x: x[1][0],
+            value_extractor=lambda x: x[1][1])
 
         dp_result = dp_engine.aggregate(pcol, agg_params, data_extractors)
         # dp_result : (partition_key, [combiner_result])

@@ -17,9 +17,9 @@ import copy
 from absl.testing import absltest
 from absl.testing import parameterized
 
-import pipeline_dp
-from pipeline_dp.pipeline_backend import LocalBackend
-from pipeline_dp.data_extractors import PreAggregateExtractors
+from pipeline_dp import pipeline_backend
+from pipeline_dp import aggregate_params as ap
+from pipeline_dp import data_extractors as de
 import analysis
 from analysis import metrics
 from analysis import utility_analysis
@@ -29,22 +29,22 @@ from typing import Optional
 
 class UtilityAnalysis(parameterized.TestCase):
 
-    def _get_default_extractors(self) -> pipeline_dp.DataExtractors:
-        return pipeline_dp.DataExtractors(
+    def _get_default_extractors(self) -> de.DataExtractors:
+        return de.DataExtractors(
             privacy_id_extractor=lambda x: x,
             partition_extractor=lambda x: x,
             value_extractor=lambda x: x,
         )
 
     def _get_sum_metrics(self, sum_value: float) -> metrics.SumMetrics:
-        return metrics.SumMetrics(aggregation=pipeline_dp.Metrics.COUNT,
+        return metrics.SumMetrics(aggregation=ap.Metrics.COUNT,
                                   sum=sum_value,
                                   clipping_to_max_error=1,
                                   clipping_to_min_error=0,
                                   expected_l0_bounding_error=0,
                                   std_l0_bounding_error=0,
                                   std_noise=1,
-                                  noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)
+                                  noise_kind=ap.NoiseKind.GAUSSIAN)
 
     def _get_per_partition_metrics(self, n_configurations=3):
         result = []
@@ -60,11 +60,9 @@ class UtilityAnalysis(parameterized.TestCase):
     @parameterized.parameters(False, True)
     def test_wo_public_partitions(self, pre_aggregated: bool):
         # Arrange
-        aggregate_params = pipeline_dp.AggregateParams(
-            noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
-            metrics=[
-                pipeline_dp.Metrics.COUNT, pipeline_dp.Metrics.PRIVACY_ID_COUNT
-            ],
+        aggregate_params = ap.AggregateParams(
+            noise_kind=ap.NoiseKind.GAUSSIAN,
+            metrics=[ap.Metrics.COUNT, ap.Metrics.PRIVACY_ID_COUNT],
             max_partitions_contributed=1,
             max_contributions_per_partition=2)
 
@@ -80,18 +78,18 @@ class UtilityAnalysis(parameterized.TestCase):
             col = [(i, (3, 1, 10)) for i in range(10)] * 10
 
         if not pre_aggregated:
-            data_extractors = pipeline_dp.DataExtractors(
+            data_extractors = de.DataExtractors(
                 privacy_id_extractor=lambda x: x[0],
                 partition_extractor=lambda x: f"pk{x[1]}",
                 value_extractor=lambda x: 1)
         else:
-            data_extractors = PreAggregateExtractors(
+            data_extractors = de.PreAggregateExtractors(
                 partition_extractor=lambda x: f"pk{x[0]}",
                 preaggregate_extractor=lambda x: x[1])
 
         col, per_partition_result = analysis.perform_utility_analysis(
             col=col,
-            backend=LocalBackend(),
+            backend=pipeline_backend.LocalBackend(),
             options=analysis.UtilityAnalysisOptions(
                 epsilon=3,
                 delta=0.9,
@@ -113,15 +111,14 @@ class UtilityAnalysis(parameterized.TestCase):
                 num_dataset_partitions=10,
                 num_non_public_partitions=None,
                 num_empty_partitions=None,
-                strategy=pipeline_dp.PartitionSelectionStrategy.
-                TRUNCATED_GEOMETRIC,
+                strategy=ap.PartitionSelectionStrategy.TRUNCATED_GEOMETRIC,
                 kept_partitions=metrics.MeanVariance(mean=3.51622411,
                                                      var=2.2798409)),
             metric_errors=[
                 metrics.MetricUtility(
-                    metric=pipeline_dp.Metrics.COUNT,
+                    metric=ap.Metrics.COUNT,
                     noise_std=1.380859375,
-                    noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+                    noise_kind=ap.NoiseKind.GAUSSIAN,
                     ratio_data_dropped=metrics.DataDropInfo(
                         l0=0.6,
                         linf=0.333333333,
@@ -149,9 +146,9 @@ class UtilityAnalysis(parameterized.TestCase):
                         rmse_with_dropped_partitions=0.9777090514260699,
                         l1_with_dropped_partitions=0.0)),
                 metrics.MetricUtility(
-                    metric=pipeline_dp.Metrics.PRIVACY_ID_COUNT,
+                    metric=ap.Metrics.PRIVACY_ID_COUNT,
                     noise_std=0.6904296875,
-                    noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+                    noise_kind=ap.NoiseKind.GAUSSIAN,
                     ratio_data_dropped=metrics.DataDropInfo(
                         l0=0.9,
                         linf=-0.0,
@@ -191,19 +188,17 @@ class UtilityAnalysis(parameterized.TestCase):
 
     @parameterized.named_parameters(
         dict(testcase_name="Gaussian noise",
-             noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+             noise_kind=ap.NoiseKind.GAUSSIAN,
              expected_noise_std=5.9765625),
         dict(testcase_name="Laplace noise",
-             noise_kind=pipeline_dp.NoiseKind.LAPLACE,
+             noise_kind=ap.NoiseKind.LAPLACE,
              expected_noise_std=1.4142135623730951),
     )
     def test_w_public_partitions(self, noise_kind, expected_noise_std):
         # Arrange
-        aggregator_params = pipeline_dp.AggregateParams(
+        aggregator_params = ap.AggregateParams(
             noise_kind=noise_kind,
-            metrics=[
-                pipeline_dp.Metrics.COUNT, pipeline_dp.Metrics.PRIVACY_ID_COUNT
-            ],
+            metrics=[ap.Metrics.COUNT, ap.Metrics.PRIVACY_ID_COUNT],
             max_partitions_contributed=1,
             max_contributions_per_partition=1)
 
@@ -212,14 +207,14 @@ class UtilityAnalysis(parameterized.TestCase):
         # Input collection has 100 elements, such that each privacy id
         # contributes 1 time and each partition has 1 element.
         col = list(range(100))
-        data_extractor = pipeline_dp.DataExtractors(
+        data_extractor = de.DataExtractors(
             privacy_id_extractor=lambda x: x,
             partition_extractor=lambda x: f"pk{x}",
             value_extractor=lambda x: 0)
 
         col, _ = analysis.perform_utility_analysis(
             col=col,
-            backend=LocalBackend(),
+            backend=pipeline_backend.LocalBackend(),
             options=analysis.UtilityAnalysisOptions(
                 epsilon=2, delta=1e-10, aggregate_params=aggregator_params),
             data_extractors=data_extractor,
@@ -238,31 +233,29 @@ class UtilityAnalysis(parameterized.TestCase):
 
     def test_multi_parameters(self):
         # Arrange
-        aggregate_params = pipeline_dp.AggregateParams(
-            noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
-            metrics=[pipeline_dp.Metrics.COUNT],
-            max_partitions_contributed=1,
-            max_contributions_per_partition=1)
+        aggregate_params = ap.AggregateParams(noise_kind=ap.NoiseKind.GAUSSIAN,
+                                              metrics=[ap.Metrics.COUNT],
+                                              max_partitions_contributed=1,
+                                              max_contributions_per_partition=1)
 
         multi_param = analysis.MultiParameterConfiguration(
             max_partitions_contributed=[1, 2],
             max_contributions_per_partition=[1, 2],
             partition_selection_strategy=[
-                pipeline_dp.PartitionSelectionStrategy.TRUNCATED_GEOMETRIC,
-                pipeline_dp.PartitionSelectionStrategy.GAUSSIAN_THRESHOLDING
+                ap.PartitionSelectionStrategy.TRUNCATED_GEOMETRIC,
+                ap.PartitionSelectionStrategy.GAUSSIAN_THRESHOLDING
             ])
 
         # Input collection has 1 privacy id, which contributes to 2 partitions
         # 1 and 2 times correspondingly.
         input = [(0, "pk0"), (0, "pk1"), (0, "pk1")]
-        data_extractors = pipeline_dp.DataExtractors(
-            privacy_id_extractor=lambda x: x[0],
-            partition_extractor=lambda x: x[1],
-            value_extractor=lambda x: 0)
+        data_extractors = de.DataExtractors(privacy_id_extractor=lambda x: x[0],
+                                            partition_extractor=lambda x: x[1],
+                                            value_extractor=lambda x: 0)
 
         output, _ = analysis.perform_utility_analysis(
             col=input,
-            backend=LocalBackend(),
+            backend=pipeline_backend.LocalBackend(),
             options=analysis.UtilityAnalysisOptions(
                 epsilon=2,
                 delta=1e-10,
@@ -289,7 +282,7 @@ class UtilityAnalysis(parameterized.TestCase):
                 multi_param.partition_selection_strategy[i_configuration])
             self.assertLen(report.metric_errors, 1)  # metrics for COUNT
             errors = report.metric_errors[0]
-            self.assertEqual(errors.metric, pipeline_dp.Metrics.COUNT)
+            self.assertEqual(errors.metric, ap.Metrics.COUNT)
             self.assertEqual(errors.noise_std,
                              expected_noise_std[i_configuration])
             self.assertEqual(errors.absolute_error.bounding_errors.l0.mean,
@@ -340,25 +333,24 @@ class UtilityAnalysis(parameterized.TestCase):
     def test_select_partition(self, pre_threshold: Optional[int],
                               expected_prob: float):
         # Arrange
-        aggregate_params = pipeline_dp.AggregateParams(
-            noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
-            metrics=[],
-            max_partitions_contributed=1,
-            max_contributions_per_partition=2,
-            pre_threshold=pre_threshold)
+        aggregate_params = ap.AggregateParams(noise_kind=ap.NoiseKind.GAUSSIAN,
+                                              metrics=[],
+                                              max_partitions_contributed=1,
+                                              max_contributions_per_partition=2,
+                                              pre_threshold=pre_threshold)
 
         # Input collection has 10 privacy ids where each privacy id
         # contributes to the same 10 partitions, three times in each partition.
         col = [(i, j) for i in range(10) for j in range(10)] * 3
 
-        data_extractors = pipeline_dp.DataExtractors(
+        data_extractors = de.DataExtractors(
             privacy_id_extractor=lambda x: x[0],
             partition_extractor=lambda x: f"pk{x[1]}",
             value_extractor=lambda x: 1)
 
         _, per_partition_result = analysis.perform_utility_analysis(
             col=col,
-            backend=LocalBackend(),
+            backend=pipeline_backend.LocalBackend(),
             options=analysis.UtilityAnalysisOptions(
                 epsilon=3, delta=0.9, aggregate_params=aggregate_params),
             data_extractors=data_extractors)

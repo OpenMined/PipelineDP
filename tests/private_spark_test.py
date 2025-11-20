@@ -18,9 +18,9 @@ from unittest.mock import patch
 import unittest
 import sys
 import collections
-import pipeline_dp
-from pipeline_dp import aggregate_params as agg
-from pipeline_dp import budget_accounting, private_spark
+from pipeline_dp import aggregate_params as ap
+from pipeline_dp import budget_accounting
+from pipeline_dp import private_spark
 
 
 @unittest.skipIf(sys.version_info.minor <= 7 and sys.version_info.major == 3,
@@ -95,8 +95,8 @@ class PrivateRDDTest(parameterized.TestCase):
 
         prdd = private_spark.make_private(dist_data, budget_accountant,
                                           privacy_id_extractor)
-        variance_params = agg.VarianceParams(
-            noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+        variance_params = ap.VarianceParams(
+            noise_kind=ap.NoiseKind.GAUSSIAN,
             max_partitions_contributed=2,
             max_contributions_per_partition=3,
             min_value=1.5,
@@ -117,9 +117,9 @@ class PrivateRDDTest(parameterized.TestCase):
         rdd = dist_data.map(lambda x: (privacy_id_extractor(x), x))
         self.assertListEqual(args[0].collect(), rdd.collect())
 
-        params = pipeline_dp.AggregateParams(
-            noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
-            metrics=[pipeline_dp.Metrics.VARIANCE],
+        params = ap.AggregateParams(
+            noise_kind=ap.NoiseKind.GAUSSIAN,
+            metrics=[ap.Metrics.VARIANCE],
             max_partitions_contributed=variance_params.
             max_partitions_contributed,
             max_contributions_per_partition=variance_params.
@@ -149,8 +149,8 @@ class PrivateRDDTest(parameterized.TestCase):
 
         prdd = private_spark.make_private(dist_data, budget_accountant,
                                           privacy_id_extractor)
-        variance_params = agg.VarianceParams(
-            noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+        variance_params = ap.VarianceParams(
+            noise_kind=ap.NoiseKind.GAUSSIAN,
             max_partitions_contributed=2,
             max_contributions_per_partition=3,
             min_value=1.55,  # -100 should be clipped to this value
@@ -192,8 +192,8 @@ class PrivateRDDTest(parameterized.TestCase):
 
         prdd = private_spark.make_private(dist_data, budget_accountant,
                                           privacy_id_extractor)
-        variance_params = agg.VarianceParams(
-            noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+        variance_params = ap.VarianceParams(
+            noise_kind=ap.NoiseKind.GAUSSIAN,
             max_partitions_contributed=2,
             max_contributions_per_partition=3,
             min_value=1.55,  # -100 should be clipped to this value
@@ -235,14 +235,14 @@ class PrivateRDDTest(parameterized.TestCase):
 
         prdd = private_spark.make_private(dist_data, budget_accountant,
                                           privacy_id_extractor)
-        mean_params = agg.MeanParams(noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
-                                     max_partitions_contributed=2,
-                                     max_contributions_per_partition=3,
-                                     min_value=1.5,
-                                     max_value=5.78,
-                                     budget_weight=1.1,
-                                     partition_extractor=lambda x: x[0],
-                                     value_extractor=lambda x: x)
+        mean_params = ap.MeanParams(noise_kind=ap.NoiseKind.GAUSSIAN,
+                                    max_partitions_contributed=2,
+                                    max_contributions_per_partition=3,
+                                    min_value=1.5,
+                                    max_value=5.78,
+                                    budget_weight=1.1,
+                                    partition_extractor=lambda x: x[0],
+                                    value_extractor=lambda x: x)
 
         # Act
         actual_result = prdd.mean(mean_params)
@@ -254,9 +254,9 @@ class PrivateRDDTest(parameterized.TestCase):
         rdd = dist_data.map(lambda x: (privacy_id_extractor(x), x))
         self.assertListEqual(args[0].collect(), rdd.collect())
 
-        params = pipeline_dp.AggregateParams(
-            noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
-            metrics=[pipeline_dp.Metrics.MEAN],
+        params = ap.AggregateParams(
+            noise_kind=ap.NoiseKind.GAUSSIAN,
+            metrics=[ap.Metrics.MEAN],
             max_partitions_contributed=mean_params.max_partitions_contributed,
             max_contributions_per_partition=mean_params.
             max_contributions_per_partition,
@@ -283,14 +283,14 @@ class PrivateRDDTest(parameterized.TestCase):
 
         prdd = private_spark.make_private(dist_data, budget_accountant,
                                           privacy_id_extractor)
-        mean_params = agg.MeanParams(noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
-                                     max_partitions_contributed=2,
-                                     max_contributions_per_partition=3,
-                                     min_value=1.55,
-                                     max_value=2.7889,
-                                     budget_weight=1,
-                                     partition_extractor=lambda x: x[1],
-                                     value_extractor=lambda x: x[2])
+        mean_params = ap.MeanParams(noise_kind=ap.NoiseKind.GAUSSIAN,
+                                    max_partitions_contributed=2,
+                                    max_contributions_per_partition=3,
+                                    min_value=1.55,
+                                    max_value=2.7889,
+                                    budget_weight=1,
+                                    partition_extractor=lambda x: x[1],
+                                    value_extractor=lambda x: x[2])
 
         # Act
         actual_result = prdd.mean(mean_params)
@@ -325,14 +325,14 @@ class PrivateRDDTest(parameterized.TestCase):
 
         prdd = private_spark.make_private(dist_data, budget_accountant,
                                           privacy_id_extractor)
-        mean_params = agg.MeanParams(noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
-                                     max_partitions_contributed=2,
-                                     max_contributions_per_partition=3,
-                                     min_value=1.55,
-                                     max_value=2.789,
-                                     budget_weight=1,
-                                     partition_extractor=lambda x: x[1],
-                                     value_extractor=lambda x: x[2])
+        mean_params = ap.MeanParams(noise_kind=ap.NoiseKind.GAUSSIAN,
+                                    max_partitions_contributed=2,
+                                    max_contributions_per_partition=3,
+                                    min_value=1.55,
+                                    max_value=2.789,
+                                    budget_weight=1,
+                                    partition_extractor=lambda x: x[1],
+                                    value_extractor=lambda x: x[2])
 
         # Act
         actual_result = prdd.mean(mean_params,
@@ -369,16 +369,16 @@ class PrivateRDDTest(parameterized.TestCase):
 
         prdd = private_spark.make_private(dist_data, budget_accountant,
                                           privacy_id_extractor)
-        sum_params = agg.SumParams(noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
-                                   max_partitions_contributed=2,
-                                   max_contributions_per_partition=3,
-                                   min_value=1.55,
-                                   max_value=2.7889,
-                                   budget_weight=1.1,
-                                   partition_extractor=lambda x: x[0],
-                                   value_extractor=lambda x: x,
-                                   contribution_bounds_already_enforced=
-                                   contribution_bounds_already_enforced)
+        sum_params = ap.SumParams(noise_kind=ap.NoiseKind.GAUSSIAN,
+                                  max_partitions_contributed=2,
+                                  max_contributions_per_partition=3,
+                                  min_value=1.55,
+                                  max_value=2.7889,
+                                  budget_weight=1.1,
+                                  partition_extractor=lambda x: x[0],
+                                  value_extractor=lambda x: x,
+                                  contribution_bounds_already_enforced=
+                                  contribution_bounds_already_enforced)
 
         # Act
         actual_result = prdd.sum(sum_params)
@@ -390,9 +390,9 @@ class PrivateRDDTest(parameterized.TestCase):
         rdd = dist_data.map(lambda x: (privacy_id_extractor(x), x))
         self.assertListEqual(args[0].collect(), rdd.collect())
 
-        params = pipeline_dp.AggregateParams(
-            noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
-            metrics=[pipeline_dp.Metrics.SUM],
+        params = ap.AggregateParams(
+            noise_kind=ap.NoiseKind.GAUSSIAN,
+            metrics=[ap.Metrics.SUM],
             max_partitions_contributed=sum_params.max_partitions_contributed,
             max_contributions_per_partition=sum_params.
             max_contributions_per_partition,
@@ -421,14 +421,14 @@ class PrivateRDDTest(parameterized.TestCase):
 
         prdd = private_spark.make_private(dist_data, budget_accountant,
                                           privacy_id_extractor)
-        sum_params = agg.SumParams(noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
-                                   max_partitions_contributed=2,
-                                   max_contributions_per_partition=3,
-                                   min_value=1.55,
-                                   max_value=2.7889,
-                                   budget_weight=1,
-                                   partition_extractor=lambda x: x[1],
-                                   value_extractor=lambda x: x[2])
+        sum_params = ap.SumParams(noise_kind=ap.NoiseKind.GAUSSIAN,
+                                  max_partitions_contributed=2,
+                                  max_contributions_per_partition=3,
+                                  min_value=1.55,
+                                  max_value=2.7889,
+                                  budget_weight=1,
+                                  partition_extractor=lambda x: x[1],
+                                  value_extractor=lambda x: x[2])
 
         # Act
         actual_result = prdd.sum(sum_params)
@@ -462,14 +462,14 @@ class PrivateRDDTest(parameterized.TestCase):
 
         prdd = private_spark.make_private(dist_data, budget_accountant,
                                           privacy_id_extractor)
-        sum_params = agg.SumParams(noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
-                                   max_partitions_contributed=2,
-                                   max_contributions_per_partition=3,
-                                   min_value=1.55,
-                                   max_value=2.7889,
-                                   budget_weight=1,
-                                   partition_extractor=lambda x: x[1],
-                                   value_extractor=lambda x: x[2])
+        sum_params = ap.SumParams(noise_kind=ap.NoiseKind.GAUSSIAN,
+                                  max_partitions_contributed=2,
+                                  max_contributions_per_partition=3,
+                                  min_value=1.55,
+                                  max_value=2.7889,
+                                  budget_weight=1,
+                                  partition_extractor=lambda x: x[1],
+                                  value_extractor=lambda x: x[2])
 
         # Act
         actual_result = prdd.sum(sum_params,
@@ -504,12 +504,11 @@ class PrivateRDDTest(parameterized.TestCase):
         prdd = private_spark.make_private(dist_data, budget_accountant,
                                           privacy_id_extractor)
 
-        count_params = agg.CountParams(
-            noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
-            max_partitions_contributed=2,
-            max_contributions_per_partition=3,
-            budget_weight=1,
-            partition_extractor=lambda x: x[1])
+        count_params = ap.CountParams(noise_kind=ap.NoiseKind.GAUSSIAN,
+                                      max_partitions_contributed=2,
+                                      max_contributions_per_partition=3,
+                                      budget_weight=1,
+                                      partition_extractor=lambda x: x[1])
 
         # Act
         actual_result = prdd.count(count_params)
@@ -520,9 +519,9 @@ class PrivateRDDTest(parameterized.TestCase):
         rdd = dist_data.map(lambda x: (privacy_id_extractor(x), x))
         self.assertListEqual(args[0].collect(), rdd.collect())
 
-        params = pipeline_dp.AggregateParams(
-            noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
-            metrics=[pipeline_dp.Metrics.COUNT],
+        params = ap.AggregateParams(
+            noise_kind=ap.NoiseKind.GAUSSIAN,
+            metrics=[ap.Metrics.COUNT],
             max_partitions_contributed=count_params.max_partitions_contributed,
             max_contributions_per_partition=count_params.
             max_contributions_per_partition)
@@ -546,12 +545,11 @@ class PrivateRDDTest(parameterized.TestCase):
         prdd = private_spark.make_private(dist_data, budget_accountant,
                                           privacy_id_extractor)
 
-        count_params = agg.CountParams(
-            noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
-            max_partitions_contributed=2,
-            max_contributions_per_partition=3,
-            budget_weight=1,
-            partition_extractor=lambda x: x[1])
+        count_params = ap.CountParams(noise_kind=ap.NoiseKind.GAUSSIAN,
+                                      max_partitions_contributed=2,
+                                      max_contributions_per_partition=3,
+                                      budget_weight=1,
+                                      partition_extractor=lambda x: x[1])
 
         # Act
         actual_result = prdd.count(count_params)
@@ -586,12 +584,11 @@ class PrivateRDDTest(parameterized.TestCase):
         prdd = private_spark.make_private(dist_data, budget_accountant,
                                           privacy_id_extractor)
 
-        count_params = agg.CountParams(
-            noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
-            max_partitions_contributed=2,
-            max_contributions_per_partition=3,
-            budget_weight=1,
-            partition_extractor=lambda x: x[1])
+        count_params = ap.CountParams(noise_kind=ap.NoiseKind.GAUSSIAN,
+                                      max_partitions_contributed=2,
+                                      max_contributions_per_partition=3,
+                                      budget_weight=1,
+                                      partition_extractor=lambda x: x[1])
 
         # Act
         actual_result = prdd.count(count_params,
@@ -627,8 +624,8 @@ class PrivateRDDTest(parameterized.TestCase):
 
         prdd = private_spark.make_private(dist_data, budget_accountant,
                                           privacy_id_extractor)
-        privacy_id_count_params = agg.PrivacyIdCountParams(
-            noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+        privacy_id_count_params = ap.PrivacyIdCountParams(
+            noise_kind=ap.NoiseKind.GAUSSIAN,
             max_partitions_contributed=2,
             budget_weight=1,
             partition_extractor=lambda x: x[1])
@@ -643,9 +640,9 @@ class PrivateRDDTest(parameterized.TestCase):
         rdd = dist_data.map(lambda x: (privacy_id_extractor(x), x))
         self.assertListEqual(args[0].collect(), rdd.collect())
 
-        params = pipeline_dp.AggregateParams(
-            noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
-            metrics=[pipeline_dp.Metrics.PRIVACY_ID_COUNT],
+        params = ap.AggregateParams(
+            noise_kind=ap.NoiseKind.GAUSSIAN,
+            metrics=[ap.Metrics.PRIVACY_ID_COUNT],
             max_partitions_contributed=privacy_id_count_params.
             max_partitions_contributed,
             max_contributions_per_partition=1)
@@ -665,8 +662,8 @@ class PrivateRDDTest(parameterized.TestCase):
 
         prdd = private_spark.make_private(dist_data, budget_accountant,
                                           privacy_id_extractor)
-        privacy_id_count_params = agg.PrivacyIdCountParams(
-            noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+        privacy_id_count_params = ap.PrivacyIdCountParams(
+            noise_kind=ap.NoiseKind.GAUSSIAN,
             max_partitions_contributed=2,
             budget_weight=1,
             partition_extractor=lambda x: x[1])
@@ -702,8 +699,8 @@ class PrivateRDDTest(parameterized.TestCase):
 
         prdd = private_spark.make_private(dist_data, budget_accountant,
                                           privacy_id_extractor)
-        privacy_id_count_params = agg.PrivacyIdCountParams(
-            noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+        privacy_id_count_params = ap.PrivacyIdCountParams(
+            noise_kind=ap.NoiseKind.GAUSSIAN,
             max_partitions_contributed=2,
             budget_weight=1,
             partition_extractor=lambda x: x[1])
@@ -747,7 +744,7 @@ class PrivateRDDTest(parameterized.TestCase):
         prdd = private_spark.make_private(dist_data, budget_accountant,
                                           privacy_id_extractor)
 
-        select_partitions_params = agg.SelectPartitionsParams(
+        select_partitions_params = ap.SelectPartitionsParams(
             max_partitions_contributed=max_partitions_contributed)
         actual_result = prdd.select_partitions(select_partitions_params,
                                                partition_extractor)
@@ -787,7 +784,7 @@ class PrivateRDDTest(parameterized.TestCase):
         prdd = private_spark.make_private(dist_data, budget_accountant,
                                           privacy_id_extractor)
 
-        select_partitions_params = agg.SelectPartitionsParams(
+        select_partitions_params = ap.SelectPartitionsParams(
             max_partitions_contributed=max_partitions_contributed)
         actual_result = prdd.select_partitions(select_partitions_params,
                                                partition_extractor)

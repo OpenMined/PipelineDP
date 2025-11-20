@@ -14,17 +14,15 @@
 """Utility Analysis per-partition Combiners."""
 
 import abc
-import copy
 from dataclasses import dataclass
 from typing import Any, Iterable, List, Optional, Sequence, Tuple, Union
 import numpy as np
 import math
 
-import pipeline_dp
 from pipeline_dp import budget_accounting
 from pipeline_dp import dp_computations
 from pipeline_dp import combiners
-from pipeline_dp.aggregate_params import PartitionSelectionStrategy, AggregateParams
+from pipeline_dp import aggregate_params
 from analysis import metrics
 from analysis import poisson_binomial
 from pipeline_dp import partition_selection
@@ -123,8 +121,9 @@ class PartitionSelectionCalculator:
             is None), "Only one of probabilities and moments must be set."
 
     def compute_probability_to_keep(
-            self, partition_selection_strategy: PartitionSelectionStrategy,
-            eps: float, delta: float, max_partitions_contributed: int,
+            self, partition_selection_strategy: aggregate_params.
+        PartitionSelectionStrategy, eps: float, delta: float,
+            max_partitions_contributed: int,
             pre_threshold: Optional[int]) -> float:
         """Computes the probability that this partition is kept.
 
@@ -195,7 +194,7 @@ class PartitionSelectionCombiner(UtilityAnalysisCombiner):
     """A combiner for utility analysis counts."""
 
     def __init__(self, spec: budget_accounting.MechanismSpec,
-                 params: AggregateParams):
+                 params: aggregate_params.AggregateParams):
         self._spec = spec
         self._params = params
 
@@ -234,11 +233,12 @@ class SumCombiner(UtilityAnalysisCombiner):
     # expected_l0_bounding_error, var_cross_partition_error)
     AccumulatorType = Tuple[float, float, float, float, float]
 
-    def __init__(self,
-                 spec: budget_accounting.MechanismSpec,
-                 params: AggregateParams,
-                 metric: pipeline_dp.Metrics = pipeline_dp.Metrics.SUM,
-                 i_column: Optional[int] = None):
+    def __init__(
+            self,
+            spec: budget_accounting.MechanismSpec,
+            params: aggregate_params.AggregateParams,
+            metric: aggregate_params.Metrics = aggregate_params.Metrics.SUM,
+            i_column: Optional[int] = None):
         self._spec = spec
         self._params = params
         self._metric = metric
@@ -311,8 +311,8 @@ class CountCombiner(SumCombiner):
     AccumulatorType = Tuple[float, float, float, float, float]
 
     def __init__(self, mechanism_spec: budget_accounting.MechanismSpec,
-                 params: AggregateParams):
-        super().__init__(mechanism_spec, params, pipeline_dp.Metrics.COUNT)
+                 params: aggregate_params.AggregateParams):
+        super().__init__(mechanism_spec, params, aggregate_params.Metrics.COUNT)
 
     def create_accumulator(
         self, sparse_acc: Tuple[np.ndarray, np.ndarray,
@@ -334,9 +334,9 @@ class PrivacyIdCountCombiner(SumCombiner):
     AccumulatorType = Tuple[float, float, float, float, float]
 
     def __init__(self, mechanism_spec: budget_accounting.MechanismSpec,
-                 params: AggregateParams):
+                 params: aggregate_params.AggregateParams):
         super().__init__(mechanism_spec, params,
-                         pipeline_dp.Metrics.PRIVACY_ID_COUNT)
+                         aggregate_params.Metrics.PRIVACY_ID_COUNT)
 
     def create_accumulator(
         self, sparse_acc: Tuple[np.ndarray, np.ndarray,
@@ -369,7 +369,7 @@ class RawStatisticsCombiner(UtilityAnalysisCombiner):
         return metrics.RawStatistics(privacy_id_count, count)
 
 
-class CompoundCombiner(pipeline_dp.combiners.CompoundCombiner):
+class CompoundCombiner(combiners.CompoundCombiner):
     """Compound combiner for Utility analysis per partition metrics."""
 
     # For improving the memory usage, the compound accumulator has 2 modes:

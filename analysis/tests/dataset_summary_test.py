@@ -18,7 +18,7 @@ from absl.testing import parameterized
 
 from analysis import dataset_summary
 from pipeline_dp import DataExtractors
-from pipeline_dp.pipeline_backend import LocalBackend
+from pipeline_dp import pipeline_backend
 
 
 class PublicDatasetSummaryTest(parameterized.TestCase):
@@ -30,7 +30,8 @@ class PublicDatasetSummaryTest(parameterized.TestCase):
                                     privacy_id_extractor=lambda _: 0)
 
         summary = dataset_summary.compute_public_partitions_summary(
-            dataset, LocalBackend(), extractors, public_partitions)
+            dataset, pipeline_backend.LocalBackend(), extractors,
+            public_partitions)
 
         summary = list(summary)[0]
 

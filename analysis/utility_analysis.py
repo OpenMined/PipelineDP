@@ -15,8 +15,8 @@
 from typing import Any, Iterable, List, Tuple, Union
 
 from pipeline_dp import pipeline_backend
-from pipeline_dp.data_extractors import PreAggregateExtractors, DataExtractors
-from pipeline_dp.budget_accounting import NaiveBudgetAccountant
+from pipeline_dp import data_extractors
+from pipeline_dp import budget_accounting
 import analysis
 from analysis import data_structures
 from analysis import metrics
@@ -40,12 +40,13 @@ def _generate_bucket_bounds():
 BUCKET_BOUNDS = _generate_bucket_bounds()
 
 
-def perform_utility_analysis(col,
-                             backend: pipeline_backend.PipelineBackend,
-                             options: analysis.UtilityAnalysisOptions,
-                             data_extractors: Union[DataExtractors,
-                                                    PreAggregateExtractors],
-                             public_partitions=None):
+def perform_utility_analysis(
+        col,
+        backend: pipeline_backend.PipelineBackend,
+        options: analysis.UtilityAnalysisOptions,
+        data_extractors: Union[data_extractors.DataExtractors,
+                               data_extractors.PreAggregateExtractors],
+        public_partitions=None):
     """Performs utility analysis for DP aggregations.
 
     Args:
@@ -65,8 +66,8 @@ def perform_utility_analysis(col,
           The 2nd element of the tuple is a collection with elements
           ((partition_key, configuration_index), metrics.PerPartitionMetrics).
     """
-    budget_accountant = NaiveBudgetAccountant(total_epsilon=options.epsilon,
-                                              total_delta=options.delta)
+    budget_accountant = budget_accounting.NaiveBudgetAccountant(
+        total_epsilon=options.epsilon, total_delta=options.delta)
     engine = utility_analysis_engine.UtilityAnalysisEngine(
         budget_accountant=budget_accountant, backend=backend)
     per_partition_result = engine.analyze(col,

@@ -16,12 +16,11 @@
 from absl.testing import absltest
 from absl.testing import parameterized
 
-import pipeline_dp
 from pipeline_dp.dataset_histograms import histograms as hist
 from pipeline_dp.dataset_histograms import computing_histograms
 from analysis import pre_aggregation
-from pipeline_dp.pipeline_backend import LocalBackend
-from pipeline_dp.data_extractors import PreAggregateExtractors
+from pipeline_dp import pipeline_backend
+from pipeline_dp import data_extractors as de
 
 
 class ComputingHistogramsTest(parameterized.TestCase):
@@ -208,15 +207,14 @@ class ComputingHistogramsTest(parameterized.TestCase):
         expected_cross_partition = expected_cross_partition()
         expected_per_partition = expected_per_partition()
         expected_sum_per_partition = expected_sum_per_partition()
-        data_extractors = pipeline_dp.DataExtractors(
-            privacy_id_extractor=lambda x: x[0],
-            partition_extractor=lambda x: x[1],
-            value_extractor=lambda x: x[2])
-        backend = LocalBackend()
+        data_extractors = de.DataExtractors(privacy_id_extractor=lambda x: x[0],
+                                            partition_extractor=lambda x: x[1],
+                                            value_extractor=lambda x: x[2])
+        backend = pipeline_backend.LocalBackend()
         if pre_aggregated:
             input = list(
                 pre_aggregation.preaggregate(input, backend, data_extractors))
-            data_extractors = PreAggregateExtractors(
+            data_extractors = de.PreAggregateExtractors(
                 partition_extractor=lambda x: x[0],
                 preaggregate_extractor=lambda x: x[1])
             compute_histograms = computing_histograms.compute_dataset_histograms_on_preaggregated_data

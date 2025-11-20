@@ -20,18 +20,19 @@ from unittest.mock import patch
 from typing import List, Optional
 
 import analysis
-from pipeline_dp.aggregate_params import Metric, Metrics, NoiseKind, AggregateParams, PartitionSelectionStrategy
-from pipeline_dp.pipeline_backend import LocalBackend
-from pipeline_dp.data_extractors import DataExtractors
+from pipeline_dp import aggregate_params
+from pipeline_dp import pipeline_backend
+from pipeline_dp import data_extractors as de
+# from pipeline_dp.data_extractors import DataExtractors
 from analysis import metrics
 from analysis import parameter_tuning
 from pipeline_dp.dataset_histograms import histograms
 from pipeline_dp.dataset_histograms import computing_histograms
 
 
-def _get_aggregate_params(metrics: List[Metric]):
-    return AggregateParams(
-        noise_kind=NoiseKind.GAUSSIAN,
+def _get_aggregate_params(metrics: List[aggregate_params.Metric]):
+    return aggregate_params.AggregateParams(
+        noise_kind=aggregate_params.NoiseKind.GAUSSIAN,
         metrics=metrics,
         max_partitions_contributed=1,  # does not matter
         max_contributions_per_partition=1,  # does not matter
@@ -40,7 +41,7 @@ def _get_aggregate_params(metrics: List[Metric]):
 
 
 def _get_tune_options(
-    metrics: List[Metric],
+    metrics: List[aggregate_params.Metric],
     parameters_to_tune: parameter_tuning.ParametersToTune = parameter_tuning.
     ParametersToTune(max_partitions_contributed=True,
                      max_contributions_per_partition=True)
@@ -86,7 +87,7 @@ class ParameterTuning(parameterized.TestCase):
         candidates = parameter_tuning._find_candidate_parameters(
             mock_histograms,
             parameters_to_tune,
-            _get_aggregate_params([Metrics.COUNT]),
+            _get_aggregate_params([aggregate_params.Metrics.COUNT]),
             max_candidates=5)
         self.assertEqual([1, 1, 6, 6], candidates.max_partitions_contributed)
         self.assertEqual([1, 3, 1, 3],
@@ -112,7 +113,7 @@ class ParameterTuning(parameterized.TestCase):
         candidates = parameter_tuning._find_candidate_parameters(
             mock_histograms,
             parameters_to_tune,
-            _get_aggregate_params([Metrics.COUNT]),
+            _get_aggregate_params([aggregate_params.Metrics.COUNT]),
             max_candidates=9)
         # sqrt(9) = 3, but l_inf has only 2 possible values,
         # therefore for l_0 we can take 9 / 2 = 4 values,
@@ -142,7 +143,7 @@ class ParameterTuning(parameterized.TestCase):
         candidates = parameter_tuning._find_candidate_parameters(
             mock_histograms,
             parameters_to_tune,
-            _get_aggregate_params([Metrics.COUNT]),
+            _get_aggregate_params([aggregate_params.Metrics.COUNT]),
             max_candidates=9)
         # sqrt(9) = 3, but l_0 has only 2 possible values,
         # therefore for l_inf we can take 9 / 2 = 4 values,
@@ -200,7 +201,7 @@ class ParameterTuning(parameterized.TestCase):
         candidates = parameter_tuning._find_candidate_parameters(
             mock_histograms,
             parameters_to_tune,
-            _get_aggregate_params([Metrics.COUNT]),
+            _get_aggregate_params([aggregate_params.Metrics.COUNT]),
             max_candidates=max_candidates)
 
         self.assertEqual(expected_candidates,
@@ -272,7 +273,7 @@ class ParameterTuning(parameterized.TestCase):
         candidates = parameter_tuning._find_candidate_parameters(
             mock_histograms,
             parameters_to_tune,
-            _get_aggregate_params([Metrics.SUM]),
+            _get_aggregate_params([aggregate_params.Metrics.SUM]),
             max_candidates=max_candidates)
 
         self.assertEqual(expected_candidates, candidates.max_sum_per_partition)
@@ -320,7 +321,8 @@ class ParameterTuning(parameterized.TestCase):
         candidates = parameter_tuning._find_candidate_parameters(
             hist,
             parameters_to_tune,
-            _get_aggregate_params([Metrics.SUM, Metrics.COUNT]),
+            _get_aggregate_params(
+                [aggregate_params.Metrics.SUM, aggregate_params.Metrics.COUNT]),
             max_candidates=4)
 
         self.assertEqual([1, 1, 5, 5], candidates.max_partitions_contributed)
@@ -352,7 +354,7 @@ class ParameterTuning(parameterized.TestCase):
         candidates = parameter_tuning._find_candidate_parameters(
             mock_histograms,
             parameters_to_tune,
-            _get_aggregate_params([Metrics.SUM]),
+            _get_aggregate_params([aggregate_params.Metrics.SUM]),
             max_candidates=5)
         self.assertEqual([1, 1, 6, 6], candidates.max_partitions_contributed)
         self.assertEqual([1, 3, 1, 3], candidates.max_sum_per_partition)
@@ -361,17 +363,17 @@ class ParameterTuning(parameterized.TestCase):
     @parameterized.named_parameters(
         dict(
             testcase_name='COUNT',
-            metric=Metrics.COUNT,
+            metric=aggregate_params.Metrics.COUNT,
             expected_generate_linf=True,
         ),
         dict(
             testcase_name='PRIVACY_ID_COUNT',
-            metric=Metrics.PRIVACY_ID_COUNT,
+            metric=aggregate_params.Metrics.PRIVACY_ID_COUNT,
             expected_generate_linf=False,
         ),
         dict(
             testcase_name='SUM',
-            metric=Metrics.SUM,
+            metric=aggregate_params.Metrics.SUM,
             expected_generate_linf=False,
         ),
         dict(
@@ -423,22 +425,22 @@ class ParameterTuning(parameterized.TestCase):
         # the same partition.
         input = [(i % 10, f"pk0") for i in range(10)]
         public_partitions = [f"pk{i}" for i in range(10)]
-        data_extractors = DataExtractors(privacy_id_extractor=lambda x: x[0],
-                                         partition_extractor=lambda x: x[1],
-                                         value_extractor=lambda x: 0)
+        data_extractors = de.DataExtractors(privacy_id_extractor=lambda x: x[0],
+                                            partition_extractor=lambda x: x[1],
+                                            value_extractor=lambda x: 0)
 
         contribution_histograms = list(
             computing_histograms.compute_dataset_histograms(
-                input, data_extractors, LocalBackend()))[0]
+                input, data_extractors, pipeline_backend.LocalBackend()))[0]
 
         tune_options = _get_tune_options(
-            [Metrics.COUNT],
+            [aggregate_params.Metrics.COUNT],
             parameter_tuning.ParametersToTune(
                 max_partitions_contributed=True,
                 max_contributions_per_partition=True))
 
         # Act.
-        result = parameter_tuning.tune(input, LocalBackend(),
+        result = parameter_tuning.tune(input, pipeline_backend.LocalBackend(),
                                        contribution_histograms, tune_options,
                                        data_extractors, public_partitions)
 
@@ -457,7 +459,7 @@ class ParameterTuning(parameterized.TestCase):
         self.assertIsInstance(utility_reports[0], metrics.UtilityReport)
         self.assertLen(utility_reports[0].metric_errors, 1)
         self.assertEqual(utility_reports[0].metric_errors[0].metric,
-                         Metrics.COUNT)
+                         aggregate_params.Metrics.COUNT)
 
     def test_tune_sum(self):
         # Arrange.
@@ -465,21 +467,21 @@ class ParameterTuning(parameterized.TestCase):
         # the same partition with value equal to its id.
         input = [(i, f"pk0", i) for i in range(10)]
         public_partitions = [f"pk{i}" for i in range(10)]
-        data_extractors = DataExtractors(privacy_id_extractor=lambda x: x[0],
-                                         partition_extractor=lambda x: x[1],
-                                         value_extractor=lambda x: x[2])
+        data_extractors = de.DataExtractors(privacy_id_extractor=lambda x: x[0],
+                                            partition_extractor=lambda x: x[1],
+                                            value_extractor=lambda x: x[2])
 
         contribution_histograms = list(
             computing_histograms.compute_dataset_histograms(
-                input, data_extractors, LocalBackend()))[0]
+                input, data_extractors, pipeline_backend.LocalBackend()))[0]
 
-        tune_options = _get_tune_options([Metrics.SUM],
+        tune_options = _get_tune_options([aggregate_params.Metrics.SUM],
                                          parameter_tuning.ParametersToTune(
                                              max_partitions_contributed=True,
                                              max_sum_per_partition=True))
 
         # Act.
-        result = parameter_tuning.tune(input, LocalBackend(),
+        result = parameter_tuning.tune(input, pipeline_backend.LocalBackend(),
                                        contribution_histograms, tune_options,
                                        data_extractors, public_partitions)
 
@@ -498,25 +500,25 @@ class ParameterTuning(parameterized.TestCase):
         self.assertIsInstance(utility_reports[0], metrics.UtilityReport)
         self.assertLen(utility_reports[0].metric_errors, 1)
         self.assertEqual(utility_reports[0].metric_errors[0].metric,
-                         Metrics.SUM)
+                         aggregate_params.Metrics.SUM)
 
     def test_select_partitions(self):
         # Arrange.
         # Generate dataset, with 10 privacy units, 5 of them contribute to
         # pk0 and pk1 and 5 to pk0 only.
         input = [(i % 10, f"pk{i//10}") for i in range(15)]
-        data_extractors = DataExtractors(privacy_id_extractor=lambda x: x[0],
-                                         partition_extractor=lambda x: x[1],
-                                         value_extractor=lambda x: 0)
+        data_extractors = de.DataExtractors(privacy_id_extractor=lambda x: x[0],
+                                            partition_extractor=lambda x: x[1],
+                                            value_extractor=lambda x: 0)
 
         contribution_histograms = list(
             computing_histograms.compute_dataset_histograms(
-                input, data_extractors, LocalBackend()))[0]
+                input, data_extractors, pipeline_backend.LocalBackend()))[0]
 
         tune_options = _get_tune_options(metrics=[])
 
         # Act.
-        result = parameter_tuning.tune(input, LocalBackend(),
+        result = parameter_tuning.tune(input, pipeline_backend.LocalBackend(),
                                        contribution_histograms, tune_options,
                                        data_extractors)
 
@@ -543,20 +545,21 @@ class ParameterTuning(parameterized.TestCase):
         # Arrange.
         input = [(i % 10, f"pk{i/10}", i) for i in range(10)]
         public_partitions = [f"pk{i}" for i in range(10)]
-        data_extractors = DataExtractors(privacy_id_extractor=lambda x: x[0],
-                                         partition_extractor=lambda x: x[1],
-                                         value_extractor=lambda x: x[2])
+        data_extractors = de.DataExtractors(privacy_id_extractor=lambda x: x[0],
+                                            partition_extractor=lambda x: x[1],
+                                            value_extractor=lambda x: x[2])
 
         contribution_histograms = list(
             computing_histograms.compute_dataset_histograms(
-                input, data_extractors, LocalBackend()))[0]
+                input, data_extractors, pipeline_backend.LocalBackend()))[0]
 
         tune_options = _get_tune_options(
-            [Metrics.PRIVACY_ID_COUNT],
+            [aggregate_params.Metrics.PRIVACY_ID_COUNT],
             parameter_tuning.ParametersToTune(max_partitions_contributed=True))
 
         # Act.
-        result, _ = parameter_tuning.tune(input, LocalBackend(),
+        result, _ = parameter_tuning.tune(input,
+                                          pipeline_backend.LocalBackend(),
                                           contribution_histograms, tune_options,
                                           data_extractors, public_partitions)
 
@@ -570,7 +573,7 @@ class ParameterTuning(parameterized.TestCase):
         self.assertIsInstance(utility_reports[0], metrics.UtilityReport)
         self.assertLen(utility_reports[0].metric_errors, 1)
         self.assertEqual(utility_reports[0].metric_errors[0].metric,
-                         Metrics.PRIVACY_ID_COUNT)
+                         aggregate_params.Metrics.PRIVACY_ID_COUNT)
 
     @parameterized.named_parameters(
         dict(testcase_name="Select partition and public partition",
@@ -581,36 +584,37 @@ class ParameterTuning(parameterized.TestCase):
         dict(testcase_name="Mean is not supported",
              error_msg=
              "Tuning is supported only for Count, Privacy id count and Sum",
-             metrics=[Metrics.MEAN],
+             metrics=[aggregate_params.Metrics.MEAN],
              is_public_partitions=False),
     )
-    def test_tune_params_validation(self, error_msg, metrics: List[Metric],
+    def test_tune_params_validation(self, error_msg,
+                                    metrics: List[aggregate_params.Metric],
                                     is_public_partitions: bool):
         tune_options = _get_tune_options(metrics)
         contribution_histograms = histograms.DatasetHistograms(
             None, None, None, None, None, None, None, None, None)
-        data_extractors = DataExtractors(privacy_id_extractor=lambda _: 0,
-                                         partition_extractor=lambda _: 0)
+        data_extractors = de.DataExtractors(privacy_id_extractor=lambda _: 0,
+                                            partition_extractor=lambda _: 0)
         public_partitions = [1] if is_public_partitions else None
         with self.assertRaisesRegex(ValueError, error_msg):
-            parameter_tuning.tune(input, LocalBackend(),
+            parameter_tuning.tune(input, pipeline_backend.LocalBackend(),
                                   contribution_histograms, tune_options,
                                   data_extractors, public_partitions)
 
     def test_tune_min_sum_per_partition_is_not_supported(self):
-        tune_options = _get_tune_options([Metrics.SUM],
+        tune_options = _get_tune_options([aggregate_params.Metrics.SUM],
                                          parameter_tuning.ParametersToTune(
                                              max_partitions_contributed=True,
                                              min_sum_per_partition=True,
                                              max_sum_per_partition=True))
         contribution_histograms = histograms.DatasetHistograms(
             None, None, None, None, None, None, None, None, None)
-        data_extractors = DataExtractors(privacy_id_extractor=lambda _: 0,
-                                         partition_extractor=lambda _: 0)
+        data_extractors = de.DataExtractors(privacy_id_extractor=lambda _: 0,
+                                            partition_extractor=lambda _: 0)
         with self.assertRaisesRegex(
                 ValueError,
                 "Tuning of min_sum_per_partition is not supported yet."):
-            parameter_tuning.tune(input, LocalBackend(),
+            parameter_tuning.tune(input, pipeline_backend.LocalBackend(),
                                   contribution_histograms, tune_options,
                                   data_extractors)
 
@@ -619,37 +623,43 @@ class ParameterTuning(parameterized.TestCase):
             testcase_name="Find noise_kind, private partition selection",
             noise_kind=None,
             is_public_partitions=False,
-            expected_noise_kinds=[NoiseKind.LAPLACE] * 2 + [NoiseKind.GAUSSIAN],
+            expected_noise_kinds=[aggregate_params.NoiseKind.LAPLACE] * 2 +
+            [aggregate_params.NoiseKind.GAUSSIAN],
             expected_partition_selection_strategies=[
-                PartitionSelectionStrategy.TRUNCATED_GEOMETRIC
-            ] + [PartitionSelectionStrategy.GAUSSIAN_THRESHOLDING] * 2,
+                aggregate_params.PartitionSelectionStrategy.TRUNCATED_GEOMETRIC
+            ] +
+            [aggregate_params.PartitionSelectionStrategy.GAUSSIAN_THRESHOLDING
+            ] * 2,
         ),
         dict(
             testcase_name="noise_kind is given, private partition selection",
-            noise_kind=NoiseKind.GAUSSIAN,
+            noise_kind=aggregate_params.NoiseKind.GAUSSIAN,
             is_public_partitions=False,
-            expected_noise_kinds=[NoiseKind.GAUSSIAN] * 3,
+            expected_noise_kinds=[aggregate_params.NoiseKind.GAUSSIAN] * 3,
             expected_partition_selection_strategies=[
-                PartitionSelectionStrategy.TRUNCATED_GEOMETRIC
-            ] + [PartitionSelectionStrategy.GAUSSIAN_THRESHOLDING] * 2,
+                aggregate_params.PartitionSelectionStrategy.TRUNCATED_GEOMETRIC
+            ] +
+            [aggregate_params.PartitionSelectionStrategy.GAUSSIAN_THRESHOLDING
+            ] * 2,
         ),
         dict(
             testcase_name="noise_kind is given, public partition selection",
-            noise_kind=NoiseKind.GAUSSIAN,
+            noise_kind=aggregate_params.NoiseKind.GAUSSIAN,
             is_public_partitions=True,
-            expected_noise_kinds=[NoiseKind.GAUSSIAN] * 3,
+            expected_noise_kinds=[aggregate_params.NoiseKind.GAUSSIAN] * 3,
             expected_partition_selection_strategies=None,
         ),
     )
     def test_add_dp_strategy_to_multi_parameter_configuration(
-        self, noise_kind: Optional[NoiseKind], is_public_partitions: bool,
-        expected_noise_kinds: List[NoiseKind],
+        self, noise_kind: Optional[aggregate_params.NoiseKind],
+        is_public_partitions: bool,
+        expected_noise_kinds: List[aggregate_params.NoiseKind],
         expected_partition_selection_strategies: List[
-            PartitionSelectionStrategy]):
+            aggregate_params.PartitionSelectionStrategy]):
         multi_parameter_configuration = analysis.MultiParameterConfiguration(
             max_partitions_contributed=[1, 5, 20],
             max_contributions_per_partition=[1, 1, 3])
-        metric = Metrics.COUNT
+        metric = aggregate_params.Metrics.COUNT
         params = _get_aggregate_params([metric])
         strategy_selector = analysis.dp_strategy_selector.DPStrategySelector(
             epsilon=1,

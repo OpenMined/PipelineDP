@@ -18,8 +18,11 @@ from dataclasses import dataclass
 from typing import Any, List, Optional, Sequence, Union
 from collections import defaultdict, namedtuple
 
-from pipeline_dp import aggregate_params, pipeline_backend, DPEngine, NaiveBudgetAccountant, DataExtractors
-from pipeline_dp.pipeline_backend import LocalBackend
+from pipeline_dp import aggregate_params as ap
+from pipeline_dp import pipeline_backend
+from pipeline_dp import DPEngine
+from pipeline_dp import budget_accounting as ba
+from pipeline_dp import data_extractors as de
 
 
 @dataclass
@@ -102,7 +105,7 @@ class Query:
 
     def run(self):
         """Runs the DP query."""
-        backend = LocalBackend()
+        backend = pipeline_backend.LocalBackend()
 
         # Calculate total budget
         total_epsilon, total_delta = 0, 0
@@ -119,7 +122,7 @@ class Query:
             if hasattr(spec.budget, 'delta'):
                 total_delta += spec.budget.delta
 
-        budget_accountant = NaiveBudgetAccountant(
+        budget_accountant = ba.NaiveBudgetAccountant(
             total_epsilon=total_epsilon,
             total_delta=total_delta if total_delta > 0 else 1e-10)
         dp_engine = DPEngine(budget_accountant=budget_accountant,
@@ -128,10 +131,10 @@ class Query:
         metrics = []
         for agg_type, *agg_args in self._aggregations:
             if agg_type == "count":
-                metrics.append(aggregate_params.Metrics.COUNT)
+                metrics.append(ap.Metrics.COUNT)
 
-        params = aggregate_params.AggregateParams(
-            noise_kind=aggregate_params.NoiseKind.LAPLACE,
+        params = ap.AggregateParams(
+            noise_kind=ap.NoiseKind.LAPLACE,
             metrics=metrics,
             max_partitions_contributed=self._group_by_spec[1].
             contribution_bounding_level.max_partitions_contributed,
@@ -145,7 +148,7 @@ class Query:
             else:
                 return lambda row: tuple(row[col] for col in columns)
 
-        data_extractors = DataExtractors(
+        data_extractors = de.DataExtractors(
             partition_extractor=_get_extractor(self._group_by_spec[0].names),
             privacy_id_extractor=_get_extractor(
                 self._group_by_spec[1].privacy_unit.names),

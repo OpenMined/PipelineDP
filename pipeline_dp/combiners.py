@@ -25,7 +25,7 @@ from pydp.algorithms import quantile_tree
 import pipeline_dp
 from pipeline_dp import budget_accounting
 from pipeline_dp import dp_computations
-from pipeline_dp.aggregate_params import NormKind
+from pipeline_dp import aggregate_params as ap
 
 ArrayLike = Union[np.ndarray, List[float]]
 ExplainComputationReport = Union[Callable, str, List[Union[Callable, str]]]
@@ -873,12 +873,12 @@ class VectorSumCombiner(Combiner):
         return self._clip_vector(array_sum)
 
     def _clip_vector(self, vec: np.ndarray):
-        norm_kind: NormKind = self._params.aggregate_params.vector_norm_kind
+        norm_kind: ap.NormKind = self._params.aggregate_params.vector_norm_kind
         max_norm: float = self._params.aggregate_params.vector_max_norm
-        if norm_kind == NormKind.Linf:
+        if norm_kind == ap.NormKind.Linf:
             return np.clip(vec, -max_norm, max_norm)
-        if norm_kind in {NormKind.L1, NormKind.L2}:
-            norm_ord = 1 if norm_kind == NormKind.L1 else 2
+        if norm_kind in {ap.NormKind.L1, ap.NormKind.L2}:
+            norm_ord = 1 if norm_kind == ap.NormKind.L1 else 2
             vec_norm = np.linalg.norm(vec, ord=norm_ord)
             if vec_norm == 0.0:
                 return vec

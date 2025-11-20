@@ -17,7 +17,7 @@ import collections
 from absl.testing import absltest
 from absl.testing import parameterized
 
-from pipeline_dp.pipeline_backend import LocalBackend
+from pipeline_dp import pipeline_backend
 from pipeline_dp import report_generator
 import analysis.contribution_bounders as contribution_bounders
 
@@ -44,7 +44,8 @@ class L0LinfContributionBounderTest(parameterized.TestCase):
         bounder = contribution_bounders.L0LinfAnalysisContributionBounder(
             partitions_sampling_prob)
         return list(
-            bounder.bound_contributions(input, None, LocalBackend(),
+            bounder.bound_contributions(input, None,
+                                        pipeline_backend.LocalBackend(),
                                         _create_report_generator(),
                                         aggregate_fn))
 
@@ -123,7 +124,8 @@ class LinfContributionBounderTest(parameterized.TestCase):
         bounder = contribution_bounders.LinfAnalysisContributionBounder(
             partitions_sampling_prob)
         return list(
-            bounder.bound_contributions(input, None, LocalBackend(),
+            bounder.bound_contributions(input, None,
+                                        pipeline_backend.LocalBackend(),
                                         _create_report_generator(),
                                         aggregate_fn))
 
@@ -220,7 +222,7 @@ class NoOpContributionBounderTest(parameterized.TestCase):
         bound_result = list(
             bounder.bound_contributions(input,
                                         params=None,
-                                        backend=LocalBackend(),
+                                        backend=pipeline_backend.LocalBackend(),
                                         report_generator=None,
                                         aggregate_fn=count_aggregate_fn))
 

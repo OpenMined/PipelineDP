@@ -15,8 +15,9 @@ from pyspark import RDD
 from typing import Callable, Optional
 
 import pipeline_dp
-from pipeline_dp import aggregate_params, budget_accounting
-from pipeline_dp.report_generator import ExplainComputationReport
+from pipeline_dp import aggregate_params
+from pipeline_dp import budget_accounting
+from pipeline_dp import report_generator
 
 
 class PrivateRDD:
@@ -64,7 +65,8 @@ class PrivateRDD:
         self,
         variance_params: aggregate_params.VarianceParams,
         public_partitions=None,
-        out_explain_computaton_report: Optional[ExplainComputationReport] = None
+        out_explain_computaton_report: Optional[
+            report_generator.ExplainComputationReport] = None
     ) -> RDD:
         """Computes a DP variance.
 
@@ -106,7 +108,8 @@ class PrivateRDD:
         self,
         mean_params: aggregate_params.MeanParams,
         public_partitions=None,
-        out_explain_computaton_report: Optional[ExplainComputationReport] = None
+        out_explain_computaton_report: Optional[
+            report_generator.ExplainComputationReport] = None
     ) -> RDD:
         """Computes a DP mean.
 
@@ -145,7 +148,8 @@ class PrivateRDD:
         self,
         sum_params: aggregate_params.SumParams,
         public_partitions=None,
-        out_explain_computaton_report: Optional[ExplainComputationReport] = None
+        out_explain_computaton_report: Optional[
+            report_generator.ExplainComputationReport] = None
     ) -> RDD:
         """Computes a DP sum.
 
@@ -184,7 +188,8 @@ class PrivateRDD:
         self,
         count_params: aggregate_params.CountParams,
         public_partitions=None,
-        out_explain_computaton_report: Optional[ExplainComputationReport] = None
+        out_explain_computaton_report: Optional[
+            report_generator.ExplainComputationReport] = None
     ) -> RDD:
         """Computes a DP count.
 
@@ -224,7 +229,8 @@ class PrivateRDD:
         self,
         privacy_id_count_params: aggregate_params.PrivacyIdCountParams,
         public_partitions=None,
-        out_explain_computaton_report: Optional[ExplainComputationReport] = None
+        out_explain_computaton_report: Optional[
+            report_generator.ExplainComputationReport] = None
     ) -> RDD:
         """Computes a DP Privacy ID count.
 

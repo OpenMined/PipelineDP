@@ -15,15 +15,14 @@
 
 import unittest
 
-import pipeline_dp
-from pipeline_dp.aggregate_params import AggregateParams, Metrics
-from pipeline_dp.report_generator import ReportGenerator, ExplainComputationReport
+from pipeline_dp import aggregate_params as ap
+from pipeline_dp import report_generator as rgen
 
 
 class ReportGeneratorTest(unittest.TestCase):
 
     def test_report_empty(self):
-        self.assertEqual("", ReportGenerator(None, "test_method").report())
+        self.assertEqual("", rgen.ReportGenerator(None, "test_method").report())
 
     def test_report_params(self):
         expected_report = (
@@ -40,16 +39,17 @@ class ReportGeneratorTest(unittest.TestCase):
             "Computation graph:\n"
             " 1. Stage1 \n"
             " 2. Stage2")
-        params = AggregateParams(noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
-                                 max_partitions_contributed=2,
-                                 max_contributions_per_partition=1,
-                                 min_value=1,
-                                 max_value=5,
-                                 metrics=[
-                                     Metrics.PRIVACY_ID_COUNT, Metrics.COUNT,
-                                     Metrics.MEAN, Metrics.SUM
-                                 ])
-        report_generator = ReportGenerator(params, "test_method")
+        params = ap.AggregateParams(noise_kind=ap.NoiseKind.GAUSSIAN,
+                                    max_partitions_contributed=2,
+                                    max_contributions_per_partition=1,
+                                    min_value=1,
+                                    max_value=5,
+                                    metrics=[
+                                        ap.Metrics.PRIVACY_ID_COUNT,
+                                        ap.Metrics.COUNT, ap.Metrics.MEAN,
+                                        ap.Metrics.SUM
+                                    ])
+        report_generator = rgen.ReportGenerator(params, "test_method")
         report_generator.add_stage("Stage1 ")  # add string
         report_generator.add_stage(lambda: "Stage2")  # add lambda returning str
         self.assertEqual(expected_report, report_generator.report())
@@ -58,14 +58,14 @@ class ReportGeneratorTest(unittest.TestCase):
 class ExplainComputationReportTest(unittest.TestCase):
 
     def test_report_empty(self):
-        report = ExplainComputationReport()
+        report = rgen.ExplainComputationReport()
         with self.assertRaisesRegex(ValueError,
                                     "The report_generator is not set"):
             report.text()
 
     def test_fail_to_generate(self):
-        report = ExplainComputationReport()
-        report_generator = ReportGenerator(None, "test_method")
+        report = rgen.ExplainComputationReport()
+        report_generator = rgen.ReportGenerator(None, "test_method")
 
         # Simulate that one of the stages of report generation failed.
         def stage_fn():
@@ -77,13 +77,12 @@ class ExplainComputationReportTest(unittest.TestCase):
             report.text()
 
     def test_generate(self):
-        report = ExplainComputationReport()
-        params = pipeline_dp.AggregateParams(
-            noise_kind=pipeline_dp.NoiseKind.LAPLACE,
-            metrics=[pipeline_dp.Metrics.COUNT],
-            max_partitions_contributed=2,
-            max_contributions_per_partition=1)
-        report_generator = ReportGenerator(params, "test_method")
+        report = rgen.ExplainComputationReport()
+        params = ap.AggregateParams(noise_kind=ap.NoiseKind.LAPLACE,
+                                    metrics=[ap.Metrics.COUNT],
+                                    max_partitions_contributed=2,
+                                    max_contributions_per_partition=1)
+        report_generator = rgen.ReportGenerator(params, "test_method")
         report_generator.add_stage("stage 1")
         report_generator.add_stage("stage 2")
         report._set_report_generator(report_generator)

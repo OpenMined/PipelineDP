@@ -19,6 +19,7 @@ from pipeline_dp import pipeline_backend
 from pipeline_dp.dataset_histograms import histograms as hist
 from pipeline_dp.dataset_histograms import count_histogram_computation
 from pipeline_dp.dataset_histograms import sum_histogram_computation
+from pipeline_dp import data_extractors as de
 
 
 def _list_to_contribution_histograms(
@@ -135,9 +136,6 @@ def compute_dataset_histograms(col, data_extractors: pipeline_dp.DataExtractors,
         partition_count_histogram, partition_privacy_id_count_histogram,
         partition_sum_histograms
     ], backend)
-
-
-from pipeline_dp import data_extractors as de
 
 
 def compute_dataset_histograms_on_preaggregated_data(

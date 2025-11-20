@@ -14,8 +14,7 @@
 """Utility Analysis cross partition combiners."""
 import copy
 
-import pipeline_dp
-from pipeline_dp.aggregate_params import Metric
+from pipeline_dp import aggregate_params
 from pipeline_dp import combiners
 from analysis import metrics
 import dataclasses
@@ -23,9 +22,9 @@ from typing import List, Tuple, Callable
 import math
 
 
-def _sum_metrics_to_data_dropped(sum_metrics: metrics.SumMetrics,
-                                 partition_keep_probability: float,
-                                 dp_metric: Metric) -> metrics.DataDropInfo:
+def _sum_metrics_to_data_dropped(
+        sum_metrics: metrics.SumMetrics, partition_keep_probability: float,
+        dp_metric: aggregate_params.Metric) -> metrics.DataDropInfo:
     """Finds Data drop information from per-partition metrics."""
 
     # This function attributes the data that is dropped to the various
@@ -93,7 +92,7 @@ def _sum_metrics_to_value_error(sum_metrics: metrics.SumMetrics,
 
 
 def _sum_metrics_to_metric_utility(
-        sum_metrics: metrics.SumMetrics, dp_metric: Metric,
+        sum_metrics: metrics.SumMetrics, dp_metric: aggregate_params.Metric,
         partition_keep_probability: float,
         partition_weight: float) -> metrics.MetricUtility:
     """Creates cross-partition MetricUtility from 1 partition utility.
@@ -195,7 +194,7 @@ def _multiply_float_dataclasses_field(dataclass,
 
 def _per_partition_to_utility_report(
         per_partition_utility: metrics.PerPartitionMetrics,
-        dp_metrics: List[Metric], public_partitions: bool,
+        dp_metrics: List[aggregate_params.Metric], public_partitions: bool,
         partition_weight: float) -> metrics.UtilityReport:
     """Converts per-partition metrics to a cross-partition utility report."""
     # Fill partition selection metrics.
@@ -310,7 +309,7 @@ class CrossPartitionCombiner(combiners.Combiner):
     AccumulatorType = Tuple[Tuple, metrics.UtilityReport, float]
 
     def __init__(self,
-                 dp_metrics: List[Metric],
+                 dp_metrics: List[aggregate_params.Metric],
                  public_partitions: bool,
                  weight_fn: Callable[[metrics.PerPartitionMetrics],
                                      float] = equal_weight_fn):
