@@ -14,7 +14,7 @@
 """Dataclasses with Utility Analysis result metrics."""
 from enum import Enum
 
-import pipeline_dp
+from pipeline_dp.aggregate_params import Metric, NoiseKind, PartitionSelectionStrategy
 from dataclasses import dataclass
 from typing import List, Optional
 import math
@@ -49,14 +49,14 @@ class SumMetrics:
     E(sum_after_contribution_bounding) = sum + E(error)
     where E(error) = clipping_to_min_error + clipping_to_max_error + expected_l0_bounding_error
     """
-    aggregation: pipeline_dp.Metric
+    aggregation: Metric
     sum: float
     clipping_to_min_error: float
     clipping_to_max_error: float
     expected_l0_bounding_error: float
     std_l0_bounding_error: float
     std_noise: float
-    noise_kind: pipeline_dp.NoiseKind
+    noise_kind: NoiseKind
 
 
 @dataclass
@@ -206,11 +206,11 @@ class MetricUtility:
         absolute_error: error in terms of (dp_value - actual_value).
         relative_error: error in terms of (dp_value - actual_value)/actual_value.
     """
-    metric: pipeline_dp.Metric
+    metric: Metric
 
     # Noise information.
     noise_std: float
-    noise_kind: pipeline_dp.NoiseKind
+    noise_kind: NoiseKind
 
     # Dropped data breakdown.
     ratio_data_dropped: Optional[DataDropInfo]
@@ -245,7 +245,7 @@ class PartitionsInfo:
     num_empty_partitions: Optional[int] = None
 
     # Private partition selection
-    strategy: Optional[pipeline_dp.PartitionSelectionStrategy] = None
+    strategy: Optional[PartitionSelectionStrategy] = None
     kept_partitions: Optional[MeanVariance] = None
 
 

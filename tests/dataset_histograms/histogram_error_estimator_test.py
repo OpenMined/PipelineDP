@@ -18,7 +18,9 @@ from absl.testing import parameterized
 
 from typing import Optional
 
-import pipeline_dp
+from pipeline_dp.aggregate_params import Metric, Metrics, NoiseKind
+from pipeline_dp.data_extractors import DataExtractors
+from pipeline_dp.pipeline_backend import LocalBackend
 from pipeline_dp.dataset_histograms import histograms as hist
 from pipeline_dp.dataset_histograms import computing_histograms
 from pipeline_dp.dataset_histograms import histogram_error_estimator
@@ -34,18 +36,18 @@ class HistogramErrorEstimatorTest(parameterized.TestCase):
         # 2nd privacy unit contributes to 1 partition 20 times.
         dataset.extend([(2, 0, 2.0) for i in range(20)])
 
-        data_extractors = pipeline_dp.DataExtractors(
+        data_extractors = DataExtractors(
             privacy_id_extractor=lambda x: x[0],
             partition_extractor=lambda x: x[1],
             value_extractor=lambda x: x[2])
         return list(
             computing_histograms.compute_dataset_histograms(
-                dataset, data_extractors, pipeline_dp.LocalBackend()))[0]
+                dataset, data_extractors, LocalBackend()))[0]
 
     def _get_estimator_for_count_and_privacy_id_count(
         self,
-        metric: pipeline_dp.Metric,
-        noise_kind: pipeline_dp.NoiseKind = pipeline_dp.NoiseKind.LAPLACE,
+        metric: Metric,
+        noise_kind: NoiseKind = NoiseKind.LAPLACE,
         epsilon: float = 2**0.5 / 2,
         delta: Optional[float] = None,
     ):
@@ -54,7 +56,7 @@ class HistogramErrorEstimatorTest(parameterized.TestCase):
 
     def _get_estimator_for_sum(
         self,
-        noise_kind: pipeline_dp.NoiseKind = pipeline_dp.NoiseKind.LAPLACE,
+        noise_kind: NoiseKind = NoiseKind.LAPLACE,
         epsilon: float = 2**0.5 / 2,
         delta: Optional[float] = None,
     ):
@@ -63,41 +65,41 @@ class HistogramErrorEstimatorTest(parameterized.TestCase):
 
     @parameterized.named_parameters(
         dict(testcase_name='count_gaussian',
-             metric=pipeline_dp.Metrics.COUNT,
-             noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+             metric=Metrics.COUNT,
+             noise_kind=NoiseKind.GAUSSIAN,
              epsilon=1.0,
              delta=0.00685,
              l0=9,
              linf=5,
              expected=30),
         dict(testcase_name='count_laplace',
-             metric=pipeline_dp.Metrics.COUNT,
-             noise_kind=pipeline_dp.NoiseKind.LAPLACE,
+             metric=Metrics.COUNT,
+             noise_kind=NoiseKind.LAPLACE,
              epsilon=2**0.5 / 2,
              delta=None,
              l0=9,
              linf=5,
              expected=90),
         dict(testcase_name='privacy_id_count_gaussian',
-             metric=pipeline_dp.Metrics.PRIVACY_ID_COUNT,
-             noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+             metric=Metrics.PRIVACY_ID_COUNT,
+             noise_kind=NoiseKind.GAUSSIAN,
              epsilon=1.0,
              delta=0.031,
              l0=9,
              linf=5,
              expected=4.5),
         dict(testcase_name='privacy_id_count_laplace',
-             metric=pipeline_dp.Metrics.PRIVACY_ID_COUNT,
-             noise_kind=pipeline_dp.NoiseKind.LAPLACE,
+             metric=Metrics.PRIVACY_ID_COUNT,
+             noise_kind=NoiseKind.LAPLACE,
              epsilon=2**0.5 / 1.5,
              delta=None,
              l0=9,
              linf=5,
              expected=13.5),
     )
-    def test_count_get_sigma(self, metric: pipeline_dp.Metric, epsilon: float,
+    def test_count_get_sigma(self, metric: Metric, epsilon: float,
                              delta: Optional[float],
-                             noise_kind: pipeline_dp.NoiseKind, l0: float,
+                             noise_kind: NoiseKind, l0: float,
                              linf: float, expected: float):
         estimator = self._get_estimator_for_count_and_privacy_id_count(
             metric=metric, epsilon=epsilon, delta=delta, noise_kind=noise_kind)
@@ -109,7 +111,7 @@ class HistogramErrorEstimatorTest(parameterized.TestCase):
         with self.assertRaisesRegex(
                 ValueError, "Only COUNT and PRIVACY_ID_COUNT are supported"):
             self._get_estimator_for_count_and_privacy_id_count(
-                pipeline_dp.Metrics.SUM)
+                Metrics.SUM)
 
     @parameterized.parameters((0, 1), (1, 9 / 11), (2, 8 / 11), (3, 7 / 11),
                               (9, 1 / 11), (10, 0), (20, 0))
@@ -117,7 +119,7 @@ class HistogramErrorEstimatorTest(parameterized.TestCase):
     # l0_bound=1, 9 are dropped (from 1 privacy unit).
     def test_get_ratio_dropped_l0(self, l0_bound, expected):
         estimator = self._get_estimator_for_count_and_privacy_id_count(
-            pipeline_dp.Metrics.COUNT)
+            Metrics.COUNT)
         self.assertAlmostEqual(estimator.get_ratio_dropped_l0(l0_bound),
                                expected)
 
@@ -136,7 +138,7 @@ class HistogramErrorEstimatorTest(parameterized.TestCase):
     # dropped (from 1 privacy unit, which contributes 20 to 1 partition).
     def test_get_ratio_dropped_linf(self, linf_bound, expected):
         estimator = self._get_estimator_for_count_and_privacy_id_count(
-            pipeline_dp.Metrics.COUNT)
+            Metrics.COUNT)
         self.assertAlmostEqual(estimator.get_ratio_dropped_linf(linf_bound),
                                expected)
 
@@ -169,7 +171,7 @@ class HistogramErrorEstimatorTest(parameterized.TestCase):
     # rmse = (9*rmse1+rmse2)/10.
     def test_estimate_rmse_count(self, l0_bound, linf_bound, expected):
         estimator = self._get_estimator_for_count_and_privacy_id_count(
-            pipeline_dp.Metrics.COUNT)
+            Metrics.COUNT)
         self.assertAlmostEqual(estimator.estimate_rmse(l0_bound, linf_bound),
                                expected)
 

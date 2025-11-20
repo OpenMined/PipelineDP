@@ -18,6 +18,8 @@ from absl.testing import absltest
 from absl.testing import parameterized
 
 import pipeline_dp
+from pipeline_dp.pipeline_backend import LocalBackend
+from pipeline_dp.data_extractors import PreAggregateExtractors
 import analysis
 from analysis import metrics
 from analysis import utility_analysis
@@ -83,13 +85,13 @@ class UtilityAnalysis(parameterized.TestCase):
                 partition_extractor=lambda x: f"pk{x[1]}",
                 value_extractor=lambda x: 1)
         else:
-            data_extractors = pipeline_dp.PreAggregateExtractors(
+            data_extractors = PreAggregateExtractors(
                 partition_extractor=lambda x: f"pk{x[0]}",
                 preaggregate_extractor=lambda x: x[1])
 
         col, per_partition_result = analysis.perform_utility_analysis(
             col=col,
-            backend=pipeline_dp.LocalBackend(),
+            backend=LocalBackend(),
             options=analysis.UtilityAnalysisOptions(
                 epsilon=3,
                 delta=0.9,
@@ -217,7 +219,7 @@ class UtilityAnalysis(parameterized.TestCase):
 
         col, _ = analysis.perform_utility_analysis(
             col=col,
-            backend=pipeline_dp.LocalBackend(),
+            backend=LocalBackend(),
             options=analysis.UtilityAnalysisOptions(
                 epsilon=2, delta=1e-10, aggregate_params=aggregator_params),
             data_extractors=data_extractor,
@@ -260,7 +262,7 @@ class UtilityAnalysis(parameterized.TestCase):
 
         output, _ = analysis.perform_utility_analysis(
             col=input,
-            backend=pipeline_dp.LocalBackend(),
+            backend=LocalBackend(),
             options=analysis.UtilityAnalysisOptions(
                 epsilon=2,
                 delta=1e-10,
@@ -356,7 +358,7 @@ class UtilityAnalysis(parameterized.TestCase):
 
         _, per_partition_result = analysis.perform_utility_analysis(
             col=col,
-            backend=pipeline_dp.LocalBackend(),
+            backend=LocalBackend(),
             options=analysis.UtilityAnalysisOptions(
                 epsilon=3, delta=0.9, aggregate_params=aggregate_params),
             data_extractors=data_extractors)

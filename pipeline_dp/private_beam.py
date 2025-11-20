@@ -116,13 +116,12 @@ class MakePrivate(PrivatePTransform):
 class Variance(PrivatePTransform):
     """Transform class for performing DP Variance on PrivatePCollection."""
 
-    def __init__(
-        self,
-        variance_params: aggregate_params.VarianceParams,
-        label: Optional[str] = None,
-        public_partitions=None,
-        out_explain_computaton_report: Optional[ExplainComputationReport] = None
-    ):
+    def __init__(self,
+                 variance_params: aggregate_params.VarianceParams,
+                 label: Optional[str] = None,
+                 public_partitions=None,
+                 out_explain_computaton_report: Optional[
+                     ExplainComputationReport] = None):
         """Initialize.
 
          Args:
@@ -168,13 +167,12 @@ class Variance(PrivatePTransform):
 class Mean(PrivatePTransform):
     """Transform class for performing DP Mean on PrivatePCollection."""
 
-    def __init__(
-        self,
-        mean_params: aggregate_params.MeanParams,
-        label: Optional[str] = None,
-        public_partitions=None,
-        out_explain_computaton_report: Optional[ExplainComputationReport] = None
-    ):
+    def __init__(self,
+                 mean_params: aggregate_params.MeanParams,
+                 label: Optional[str] = None,
+                 public_partitions=None,
+                 out_explain_computaton_report: Optional[
+                     ExplainComputationReport] = None):
         """Initialize
 
         Args:
@@ -218,13 +216,12 @@ class Mean(PrivatePTransform):
 class Sum(PrivatePTransform):
     """Transform class for performing DP Sum on a PrivatePCollection."""
 
-    def __init__(
-        self,
-        sum_params: aggregate_params.SumParams,
-        label: Optional[str] = None,
-        public_partitions=None,
-        out_explain_computaton_report: Optional[ExplainComputationReport] = None
-    ):
+    def __init__(self,
+                 sum_params: aggregate_params.SumParams,
+                 label: Optional[str] = None,
+                 public_partitions=None,
+                 out_explain_computaton_report: Optional[
+                     ExplainComputationReport] = None):
         """Initialize.
 
         Args:
@@ -268,13 +265,12 @@ class Sum(PrivatePTransform):
 class Count(PrivatePTransform):
     """Transform class for performing DP Count on a PrivatePCollection."""
 
-    def __init__(
-        self,
-        count_params: aggregate_params.CountParams,
-        label: Optional[str] = None,
-        public_partitions=None,
-        out_explain_computaton_report: Optional[ExplainComputationReport] = None
-    ):
+    def __init__(self,
+                 count_params: aggregate_params.CountParams,
+                 label: Optional[str] = None,
+                 public_partitions=None,
+                 out_explain_computaton_report: Optional[
+                     ExplainComputationReport] = None):
         """Initialize.
 
         Args:
@@ -320,13 +316,12 @@ class Count(PrivatePTransform):
 class PrivacyIdCount(PrivatePTransform):
     """Transform class for performing a DP Privacy ID Count on a PrivatePCollection."""
 
-    def __init__(
-        self,
-        privacy_id_count_params: aggregate_params.PrivacyIdCountParams,
-        label: Optional[str] = None,
-        public_partitions=None,
-        out_explain_computaton_report: Optional[ExplainComputationReport] = None
-    ):
+    def __init__(self,
+                 privacy_id_count_params: aggregate_params.PrivacyIdCountParams,
+                 label: Optional[str] = None,
+                 public_partitions=None,
+                 out_explain_computaton_report: Optional[
+                     ExplainComputationReport] = None):
         """Initialize.
 
         Args:
@@ -570,9 +565,10 @@ class CombinePerKey(PrivatePTransform):
 
         backend, dp_engine = self._create_dp_engine()
         # Assumed elements format: (privacy_id, (partition_key, value))
-        data_extractors = DataExtractors(privacy_id_extractor=lambda x: x[0],
-                                         partition_extractor=lambda x: x[1][0],
-                                         value_extractor=lambda x: x[1][1])
+        data_extractors = DataExtractors(
+            privacy_id_extractor=lambda x: x[0],
+            partition_extractor=lambda x: x[1][0],
+            value_extractor=lambda x: x[1][1])
 
         dp_result = dp_engine.aggregate(pcol, agg_params, data_extractors)
         # dp_result : (partition_key, [combiner_result])

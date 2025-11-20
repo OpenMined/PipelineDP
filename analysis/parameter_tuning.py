@@ -16,6 +16,8 @@ import math
 from numbers import Number
 
 import pipeline_dp
+from pipeline_dp.aggregate_params import NoiseKind, Metrics, AggregateParams
+from pipeline_dp.data_extractors import PreAggregateExtractors, DataExtractors
 from pipeline_dp import dp_computations
 from pipeline_dp import pipeline_backend
 from pipeline_dp import input_validators
@@ -44,7 +46,7 @@ class ParametersToTune:
     max_contributions_per_partition: bool = False
     min_sum_per_partition: bool = False
     max_sum_per_partition: bool = False
-    noise_kind: pipeline_dp.NoiseKind = True
+    noise_kind: NoiseKind = True
 
     # Partition selection strategy is tuned always.
 
@@ -83,7 +85,7 @@ class TuneOptions:
     """
     epsilon: float
     delta: float
-    aggregate_params: pipeline_dp.AggregateParams
+    aggregate_params: AggregateParams
     function_to_minimize: Union[MinimizingFunction, Callable]
     parameters_to_tune: ParametersToTune
     partitions_sampling_prob: float = 1
@@ -121,7 +123,7 @@ class TuneResult:
 def _find_candidate_parameters(
         hist: histograms.DatasetHistograms,
         parameters_to_tune: ParametersToTune,
-        aggregate_params: pipeline_dp.AggregateParams,
+        aggregate_params: AggregateParams,
         max_candidates: int) -> analysis.MultiParameterConfiguration:
     """Finds candidates for l0, l_inf and max_sum_per_partition_bounds
     parameters.
@@ -139,9 +141,9 @@ def _find_candidate_parameters(
     tune_l0 = parameters_to_tune.max_partitions_contributed
     metrics = aggregate_params.metrics
     tune_count_linf = (parameters_to_tune.max_contributions_per_partition and
-                       pipeline_dp.Metrics.COUNT in metrics)
+                       Metrics.COUNT in metrics)
     tune_sum_linf = (parameters_to_tune.max_sum_per_partition and
-                     pipeline_dp.Metrics.SUM in metrics)
+                     Metrics.SUM in metrics)
 
     # Find L0 candidates (i.e. max_partitions_contributed)
     if tune_l0:
@@ -162,7 +164,7 @@ def _find_candidate_parameters(
     if tune_count_linf:
         linf_count_bounds = _find_candidates_constant_relative_step(
             hist.linf_contributions_histogram, max_linf_candidates)
-    elif pipeline_dp.Metrics.COUNT in metrics:
+    elif Metrics.COUNT in metrics:
         linf_count_bounds = [aggregate_params.max_contributions_per_partition]
 
     linf_sum_bounds = None
@@ -245,8 +247,8 @@ def _duplicate_list(a: Optional[List], n: int) -> Optional[List]:
 
 def _add_dp_strategy_to_multi_parameter_configuration(
         configuration: analysis.MultiParameterConfiguration,
-        blueprint_params: pipeline_dp.AggregateParams,
-        noise_kind: Optional[pipeline_dp.NoiseKind],
+        blueprint_params: AggregateParams,
+        noise_kind: Optional[NoiseKind],
         strategy_selector: dp_strategy_selector.DPStrategySelector) -> None:
     params = [
         # get_aggregate_params returns a tuple (AggregateParams,
@@ -329,8 +331,8 @@ def tune(col,
          backend: pipeline_backend.PipelineBackend,
          contribution_histograms: histograms.DatasetHistograms,
          options: TuneOptions,
-         data_extractors: Union[pipeline_dp.DataExtractors,
-                                pipeline_dp.PreAggregateExtractors],
+         data_extractors: Union[DataExtractors,
+                                PreAggregateExtractors],
          public_partitions=None,
          strategy_selector_factory: Optional[
              dp_strategy_selector.DPStrategySelectorFactory] = None,
@@ -467,8 +469,8 @@ def _check_tune_args(options: TuneOptions, is_public_partitions: bool):
                              " but public partitions were provided.")
     else:  # len(metrics) == 1
         if metrics[0] not in [
-                pipeline_dp.Metrics.COUNT, pipeline_dp.Metrics.PRIVACY_ID_COUNT,
-                pipeline_dp.Metrics.SUM
+                Metrics.COUNT, Metrics.PRIVACY_ID_COUNT,
+                Metrics.SUM
         ]:
             raise ValueError(
                 f"Tuning is supported only for Count, Privacy id count and Sum, but {metrics[0]} given."

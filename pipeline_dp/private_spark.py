@@ -16,13 +16,14 @@ from typing import Callable, Optional
 
 import pipeline_dp
 from pipeline_dp import aggregate_params, budget_accounting
+from pipeline_dp.report_generator import ExplainComputationReport
 
 
 class PrivateRDD:
     """A Spark RDD counterpart.
 
-    PrivateRDD guarantees that only data that has been aggregated 
-    in a DP manner, using no more than the specified privacy 
+    PrivateRDD guarantees that only data that has been aggregated
+    in a DP manner, using no more than the specified privacy
     budget, can be extracted from it through its API.
 
     PrivateRDD keeps a `privacy_id` for each element
@@ -64,7 +65,7 @@ class PrivateRDD:
         variance_params: aggregate_params.VarianceParams,
         public_partitions=None,
         out_explain_computaton_report: Optional[
-            pipeline_dp.ExplainComputationReport] = None
+            ExplainComputationReport] = None
     ) -> RDD:
         """Computes a DP variance.
 
@@ -107,7 +108,7 @@ class PrivateRDD:
         mean_params: aggregate_params.MeanParams,
         public_partitions=None,
         out_explain_computaton_report: Optional[
-            pipeline_dp.ExplainComputationReport] = None
+            ExplainComputationReport] = None
     ) -> RDD:
         """Computes a DP mean.
 
@@ -147,7 +148,7 @@ class PrivateRDD:
         sum_params: aggregate_params.SumParams,
         public_partitions=None,
         out_explain_computaton_report: Optional[
-            pipeline_dp.ExplainComputationReport] = None
+            ExplainComputationReport] = None
     ) -> RDD:
         """Computes a DP sum.
 
@@ -187,7 +188,7 @@ class PrivateRDD:
         count_params: aggregate_params.CountParams,
         public_partitions=None,
         out_explain_computaton_report: Optional[
-            pipeline_dp.ExplainComputationReport] = None
+            ExplainComputationReport] = None
     ) -> RDD:
         """Computes a DP count.
 
@@ -228,7 +229,7 @@ class PrivateRDD:
         privacy_id_count_params: aggregate_params.PrivacyIdCountParams,
         public_partitions=None,
         out_explain_computaton_report: Optional[
-            pipeline_dp.ExplainComputationReport] = None
+            ExplainComputationReport] = None
     ) -> RDD:
         """Computes a DP Privacy ID count.
 

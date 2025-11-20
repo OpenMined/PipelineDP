@@ -16,7 +16,7 @@ from absl.testing import absltest
 from absl.testing import parameterized
 
 import analysis
-import pipeline_dp
+from pipeline_dp import aggregate_params
 
 
 class MultiParameterConfiguration(parameterized.TestCase):
@@ -56,9 +56,9 @@ class MultiParameterConfiguration(parameterized.TestCase):
              max_contributions_per_partition=None,
              min_sum_per_partition=None,
              max_sum_per_partition=None,
-             noise_kind=[pipeline_dp.NoiseKind.GAUSSIAN] * 2,
+             noise_kind=[aggregate_params.NoiseKind.GAUSSIAN] * 2,
              partition_selection_strategy=[
-                 pipeline_dp.PartitionSelectionStrategy.TRUNCATED_GEOMETRIC
+                 aggregate_params.PartitionSelectionStrategy.TRUNCATED_GEOMETRIC
              ] * 3),
         dict(testcase_name="One of min_sum_per_partition, "
              "max_sum_per_partition is None",
@@ -93,18 +93,18 @@ class MultiParameterConfiguration(parameterized.TestCase):
                 partition_selection_strategy)
 
     def test_get_aggregate_params(self):
-        params = pipeline_dp.AggregateParams(
-            noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
-            metrics=[pipeline_dp.Metrics.COUNT],
+        params = aggregate_params.AggregateParams(
+            noise_kind=aggregate_params.NoiseKind.GAUSSIAN,
+            metrics=[aggregate_params.Metrics.COUNT],
             max_partitions_contributed=1,
             max_contributions_per_partition=1)
 
         max_partitions_contributed = [10, 12, 15]
-        noise_kind = [pipeline_dp.NoiseKind.LAPLACE] * 2 + [
-            pipeline_dp.NoiseKind.GAUSSIAN
+        noise_kind = [aggregate_params.NoiseKind.LAPLACE] * 2 + [
+            aggregate_params.NoiseKind.GAUSSIAN
         ]
         selection_strategy = [
-            pipeline_dp.PartitionSelectionStrategy.GAUSSIAN_THRESHOLDING
+            aggregate_params.PartitionSelectionStrategy.GAUSSIAN_THRESHOLDING
         ] * 3
         max_sum_per_partition = [(1, 2), (3, 4), (5, 6)]
         min_sum_per_partition = [(0, 0), (0, 0), (0, 1)]

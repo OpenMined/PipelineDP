@@ -14,8 +14,9 @@
 """Public API for performing utility analysis."""
 from typing import Any, Iterable, List, Tuple, Union
 
-import pipeline_dp
 from pipeline_dp import pipeline_backend
+from pipeline_dp.data_extractors import PreAggregateExtractors, DataExtractors
+from pipeline_dp.budget_accounting import NaiveBudgetAccountant
 import analysis
 from analysis import data_structures
 from analysis import metrics
@@ -43,8 +44,8 @@ def perform_utility_analysis(
         col,
         backend: pipeline_backend.PipelineBackend,
         options: analysis.UtilityAnalysisOptions,
-        data_extractors: Union[pipeline_dp.DataExtractors,
-                               pipeline_dp.PreAggregateExtractors],
+        data_extractors: Union[DataExtractors,
+                               PreAggregateExtractors],
         public_partitions=None):
     """Performs utility analysis for DP aggregations.
 
@@ -65,7 +66,7 @@ def perform_utility_analysis(
           The 2nd element of the tuple is a collection with elements
           ((partition_key, configuration_index), metrics.PerPartitionMetrics).
     """
-    budget_accountant = pipeline_dp.NaiveBudgetAccountant(
+    budget_accountant = NaiveBudgetAccountant(
         total_epsilon=options.epsilon, total_delta=options.delta)
     engine = utility_analysis_engine.UtilityAnalysisEngine(
         budget_accountant=budget_accountant, backend=backend)
@@ -81,10 +82,6 @@ def perform_utility_analysis(
         per_partition_result,
         lambda value: _pack_per_partition_metrics(value, n_configurations),
         "Pack per-partition metrics.")
-    # (partition_key, (metrics.PerPartitionMetrics))
-
-    per_partition_result = backend.to_multi_transformable_collection(
-        per_partition_result)
     # (partition_key, (metrics.PerPartitionMetrics))
 
     col = backend.values(per_partition_result, "Drop partition key")

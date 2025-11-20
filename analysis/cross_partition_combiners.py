@@ -15,6 +15,8 @@
 import copy
 
 import pipeline_dp
+from pipeline_dp.aggregate_params import Metric
+from pipeline_dp import combiners
 from analysis import metrics
 import dataclasses
 from typing import List, Tuple, Callable
@@ -23,7 +25,7 @@ import math
 
 def _sum_metrics_to_data_dropped(
         sum_metrics: metrics.SumMetrics, partition_keep_probability: float,
-        dp_metric: pipeline_dp.Metric) -> metrics.DataDropInfo:
+        dp_metric: Metric) -> metrics.DataDropInfo:
     """Finds Data drop information from per-partition metrics."""
 
     # This function attributes the data that is dropped to the various
@@ -91,7 +93,7 @@ def _sum_metrics_to_value_error(sum_metrics: metrics.SumMetrics,
 
 
 def _sum_metrics_to_metric_utility(
-        sum_metrics: metrics.SumMetrics, dp_metric: pipeline_dp.Metric,
+        sum_metrics: metrics.SumMetrics, dp_metric: Metric,
         partition_keep_probability: float,
         partition_weight: float) -> metrics.MetricUtility:
     """Creates cross-partition MetricUtility from 1 partition utility.
@@ -193,7 +195,7 @@ def _multiply_float_dataclasses_field(dataclass,
 
 def _per_partition_to_utility_report(
         per_partition_utility: metrics.PerPartitionMetrics,
-        dp_metrics: List[pipeline_dp.Metric], public_partitions: bool,
+        dp_metrics: List[Metric], public_partitions: bool,
         partition_weight: float) -> metrics.UtilityReport:
     """Converts per-partition metrics to a cross-partition utility report."""
     # Fill partition selection metrics.
@@ -296,7 +298,7 @@ def equal_weight_fn(
     return per_partition_metrics.partition_selection_probability_to_keep
 
 
-class CrossPartitionCombiner(pipeline_dp.combiners.Combiner):
+class CrossPartitionCombiner(combiners.Combiner):
     """A combiner for aggregating error metrics across partitions"""
     # Accumulator is a tuple of
     # 1. The sum of non dp metrics, which are used for averaging of error
@@ -308,7 +310,7 @@ class CrossPartitionCombiner(pipeline_dp.combiners.Combiner):
     AccumulatorType = Tuple[Tuple, metrics.UtilityReport, float]
 
     def __init__(self,
-                 dp_metrics: List[pipeline_dp.Metric],
+                 dp_metrics: List[Metric],
                  public_partitions: bool,
                  weight_fn: Callable[[metrics.PerPartitionMetrics],
                                      float] = equal_weight_fn):

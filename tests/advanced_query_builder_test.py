@@ -25,24 +25,9 @@ class AdvancedQueryBuilderTest(unittest.TestCase):
     def test_local_backend_composite_key(self, mock_dp_engine):
         # Arrange
         data = [
-            {
-                'privacy_key': 'pk1',
-                'partition_key1': 'pk2',
-                'partition_key2': 'pk4',
-                'value1': 1
-            },
-            {
-                'privacy_key': 'pk1',
-                'partition_key1': 'pk2',
-                'partition_key2': 'pk4',
-                'value1': 2
-            },
-            {
-                'privacy_key': 'pk1',
-                'partition_key1': 'pk3',
-                'partition_key2': 'pk5',
-                'value1': 3
-            },
+            {'privacy_key': 'pk1', 'partition_key1': 'pk2', 'partition_key2': 'pk4', 'value1': 1},
+            {'privacy_key': 'pk1', 'partition_key1': 'pk2', 'partition_key2': 'pk4', 'value1': 2},
+            {'privacy_key': 'pk1', 'partition_key1': 'pk3', 'partition_key2': 'pk5', 'value1': 3},
         ]
 
         # Act
@@ -73,13 +58,13 @@ class AdvancedQueryBuilderTest(unittest.TestCase):
         _, kwargs = mock_dp_engine.call_args
         self.assertIsInstance(kwargs['budget_accountant'],
                               aqb.NaiveBudgetAccountant)
-        self.assertIsInstance(kwargs['backend'], aqb.LocalBackend)
+        self.assertIsInstance(kwargs['backend'],
+                              aqb.LocalBackend)
 
         mock_aggregate = mock_dp_engine.return_value.aggregate
         mock_aggregate.assert_called_once()
         _, kwargs = mock_aggregate.call_args
-        self.assertEqual(kwargs['params'].metrics,
-                         [aggregate_params.Metrics.COUNT])
+        self.assertEqual(kwargs['params'].metrics, [aggregate_params.Metrics.COUNT])
 
 
 if __name__ == '__main__':

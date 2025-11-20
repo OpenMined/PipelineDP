@@ -22,24 +22,25 @@ from unittest.mock import patch
 from typing import Tuple
 
 import pipeline_dp
+from pipeline_dp.aggregate_params import MechanismType, Metrics, NoiseKind, AggregateParams, PartitionSelectionStrategy
 from analysis import per_partition_combiners as combiners
 from analysis import metrics
 from analysis.tests import common
 
 
 def _create_combiner_params_for_count() -> Tuple[
-    pipeline_dp.budget_accounting.MechanismSpec, pipeline_dp.AggregateParams]:
+    pipeline_dp.budget_accounting.MechanismSpec, AggregateParams]:
     mechanism_spec = pipeline_dp.budget_accounting.MechanismSpec(
-        mechanism_type=pipeline_dp.MechanismType.GAUSSIAN,
+        mechanism_type=MechanismType.GAUSSIAN,
         _eps=1,
         _delta=0.00001)
-    params = pipeline_dp.AggregateParams(
+    params = AggregateParams(
         min_value=0,
         max_value=1,
         max_partitions_contributed=1,
         max_contributions_per_partition=2,
-        noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
-        metrics=[pipeline_dp.Metrics.COUNT],
+        noise_kind=NoiseKind.GAUSSIAN,
+        metrics=[Metrics.COUNT],
     )
     return mechanism_spec, params
 
@@ -66,38 +67,38 @@ class CountCombinerTest(parameterized.TestCase):
              num_partitions=0,
              contribution_values=(),
              expected_metrics=metrics.SumMetrics(
-                 aggregation=pipeline_dp.Metrics.COUNT,
+                 aggregation=Metrics.COUNT,
                  sum=0.0,
                  clipping_to_min_error=0.0,
                  clipping_to_max_error=0.0,
                  expected_l0_bounding_error=0.0,
                  std_l0_bounding_error=0.0,
                  std_noise=7.46484375,
-                 noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)),
+                 noise_kind=NoiseKind.GAUSSIAN)),
         dict(testcase_name='one_partition_zero_error',
              num_partitions=1,
              contribution_values=(1, 2),
              expected_metrics=metrics.SumMetrics(
-                 aggregation=pipeline_dp.Metrics.COUNT,
+                 aggregation=Metrics.COUNT,
                  sum=2.0,
                  clipping_to_min_error=0.0,
                  clipping_to_max_error=0.0,
                  expected_l0_bounding_error=0.0,
                  std_l0_bounding_error=0.0,
                  std_noise=7.46484375,
-                 noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)),
+                 noise_kind=NoiseKind.GAUSSIAN)),
         dict(testcase_name='4_partitions_4_contributions_keep_half',
              num_partitions=4,
              contribution_values=(1, 2, 3, 4),
              expected_metrics=metrics.SumMetrics(
-                 aggregation=pipeline_dp.Metrics.COUNT,
+                 aggregation=Metrics.COUNT,
                  sum=4.0,
                  clipping_to_min_error=0.0,
                  clipping_to_max_error=-2.0,
                  expected_l0_bounding_error=-1.5,
                  std_l0_bounding_error=0.8660254037844386,
                  std_noise=7.46484375,
-                 noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)))
+                 noise_kind=NoiseKind.GAUSSIAN)))
     def test_compute_metrics(self, num_partitions, contribution_values,
                              expected_metrics):
         utility_analysis_combiner = combiners.CountCombiner(
@@ -228,7 +229,7 @@ class PartitionSelectionTest(parameterized.TestCase):
             pre_threshold):
         acc = combiners.PartitionSelectionCalculator(probabilities)
         prob_to_keep = acc.compute_probability_to_keep(
-            pipeline_dp.PartitionSelectionStrategy.TRUNCATED_GEOMETRIC,
+            PartitionSelectionStrategy.TRUNCATED_GEOMETRIC,
             eps,
             delta,
             max_partitions_contributed=1,
@@ -252,25 +253,25 @@ class PartitionSelectionTest(parameterized.TestCase):
         mock_compute_probability_to_keep.assert_not_called()
         combiner.compute_metrics(acc)
         mock_compute_probability_to_keep.assert_called_with(
-            pipeline_dp.PartitionSelectionStrategy.TRUNCATED_GEOMETRIC,
+            PartitionSelectionStrategy.TRUNCATED_GEOMETRIC,
             mechanism_spec.eps, mechanism_spec.delta, 1, None)
 
 
 def _create_combiner_params_for_sum(
     min: float, max: float
 ) -> Tuple[pipeline_dp.budget_accounting.MechanismSpec,
-           pipeline_dp.AggregateParams]:
+           AggregateParams]:
     return (pipeline_dp.budget_accounting.MechanismSpec(
-        mechanism_type=pipeline_dp.MechanismType.GAUSSIAN,
+        mechanism_type=MechanismType.GAUSSIAN,
         _eps=1,
         _delta=0.00001),
-            pipeline_dp.AggregateParams(
+            AggregateParams(
                 max_partitions_contributed=1,
                 max_contributions_per_partition=2,
                 min_sum_per_partition=min,
                 max_sum_per_partition=max,
-                noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
-                metrics=[pipeline_dp.Metrics.SUM],
+                noise_kind=NoiseKind.GAUSSIAN,
+                metrics=[Metrics.SUM],
             ))
 
 
@@ -282,66 +283,66 @@ class SumCombinerTest(parameterized.TestCase):
              contribution_values=[()],
              params=_create_combiner_params_for_sum(0, 1),
              expected_metrics=metrics.SumMetrics(
-                 aggregation=pipeline_dp.Metrics.SUM,
+                 aggregation=Metrics.SUM,
                  sum=0,
                  clipping_to_min_error=0,
                  clipping_to_max_error=0,
                  expected_l0_bounding_error=0,
                  std_l0_bounding_error=0,
                  std_noise=3.732421875,
-                 noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)),
+                 noise_kind=NoiseKind.GAUSSIAN)),
         dict(testcase_name='one_privacy_id_zero_partition_error',
              num_partitions=[1],
              contribution_values=[(1.1, 2.2)],
              params=_create_combiner_params_for_sum(0, 3.4),
              expected_metrics=metrics.SumMetrics(
-                 aggregation=pipeline_dp.Metrics.SUM,
+                 aggregation=Metrics.SUM,
                  sum=3.3,
                  clipping_to_min_error=0,
                  clipping_to_max_error=0,
                  expected_l0_bounding_error=0,
                  std_l0_bounding_error=0,
                  std_noise=12.690234375,
-                 noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)),
+                 noise_kind=NoiseKind.GAUSSIAN)),
         dict(testcase_name='1_privacy_id_4_contributions_clip_max_error_half',
              num_partitions=[4],
              contribution_values=[(1.1, 2.2, 3.3, 4.4)],
              params=_create_combiner_params_for_sum(0, 5.5),
              expected_metrics=metrics.SumMetrics(
-                 aggregation=pipeline_dp.Metrics.SUM,
+                 aggregation=Metrics.SUM,
                  sum=11.0,
                  clipping_to_min_error=0,
                  clipping_to_max_error=-5.5,
                  expected_l0_bounding_error=-4.125,
                  std_l0_bounding_error=2.381569860407206,
                  std_noise=20.5283203125,
-                 noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)),
+                 noise_kind=NoiseKind.GAUSSIAN)),
         dict(testcase_name='1_privacy_id_4_partitions_4_contributions_clip_min',
              num_partitions=[4],
              contribution_values=[(0.1, 0.2, 0.3, 0.4)],
              params=_create_combiner_params_for_sum(2, 20),
              expected_metrics=metrics.SumMetrics(
-                 aggregation=pipeline_dp.Metrics.SUM,
+                 aggregation=Metrics.SUM,
                  sum=1.0,
                  clipping_to_min_error=1,
                  clipping_to_max_error=0,
                  expected_l0_bounding_error=-1.5,
                  std_l0_bounding_error=0.8660254037844386,
                  std_noise=74.6484375,
-                 noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)),
+                 noise_kind=NoiseKind.GAUSSIAN)),
         dict(testcase_name='2_privacy_ids',
              num_partitions=[2, 4],
              contribution_values=[(1,), (0.1, 0.2, 0.3, 0.4)],
              params=_create_combiner_params_for_sum(0, 0.5),
              expected_metrics=metrics.SumMetrics(
-                 aggregation=pipeline_dp.Metrics.SUM,
+                 aggregation=Metrics.SUM,
                  sum=2.0,
                  clipping_to_min_error=0,
                  clipping_to_max_error=-1.0,
                  expected_l0_bounding_error=-0.625,
                  std_l0_bounding_error=0.33071891388307384,
                  std_noise=1.8662109375,
-                 noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)))
+                 noise_kind=NoiseKind.GAUSSIAN)))
     def test_compute_metrics(self, num_partitions, contribution_values, params,
                              expected_metrics):
         utility_analysis_combiner = combiners.SumCombiner(*params)
@@ -386,16 +387,16 @@ class SumCombinerTest(parameterized.TestCase):
 
 
 def _create_combiner_params_for_privacy_id_count() -> Tuple[
-    pipeline_dp.budget_accounting.MechanismSpec, pipeline_dp.AggregateParams]:
+    pipeline_dp.budget_accounting.MechanismSpec, AggregateParams]:
     return (pipeline_dp.budget_accounting.MechanismSpec(
-        mechanism_type=pipeline_dp.MechanismType.GAUSSIAN,
+        mechanism_type=MechanismType.GAUSSIAN,
         _eps=1,
         _delta=0.00001),
-            pipeline_dp.AggregateParams(
+            AggregateParams(
                 max_partitions_contributed=2,
                 max_contributions_per_partition=2,
-                noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
-                metrics=[pipeline_dp.Metrics.PRIVACY_ID_COUNT],
+                noise_kind=NoiseKind.GAUSSIAN,
+                metrics=[Metrics.PRIVACY_ID_COUNT],
             ))
 
 
@@ -407,53 +408,53 @@ class PrivacyIdCountCombinerTest(parameterized.TestCase):
              contribution_values=(),
              params=_create_combiner_params_for_privacy_id_count(),
              expected_metrics=metrics.SumMetrics(
-                 aggregation=pipeline_dp.Metrics.PRIVACY_ID_COUNT,
+                 aggregation=Metrics.PRIVACY_ID_COUNT,
                  sum=0.0,
                  clipping_to_min_error=0.0,
                  clipping_to_max_error=0.0,
                  std_noise=5.278441636123016,
                  expected_l0_bounding_error=0.0,
                  std_l0_bounding_error=0.0,
-                 noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)),
+                 noise_kind=NoiseKind.GAUSSIAN)),
         dict(testcase_name='single_contribution_keep_half',
              num_partitions=4,
              contribution_values=(2,),
              params=_create_combiner_params_for_privacy_id_count(),
              expected_metrics=metrics.SumMetrics(
-                 aggregation=pipeline_dp.Metrics.PRIVACY_ID_COUNT,
+                 aggregation=Metrics.PRIVACY_ID_COUNT,
                  sum=1.0,
                  clipping_to_min_error=0.0,
                  clipping_to_max_error=0.0,
                  expected_l0_bounding_error=-0.5,
                  std_l0_bounding_error=0.5,
                  std_noise=5.278441636123016,
-                 noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)),
+                 noise_kind=NoiseKind.GAUSSIAN)),
         dict(testcase_name='multiple_contributions_keep_half',
              num_partitions=4,
              contribution_values=(2, 2, 2, 2),
              params=_create_combiner_params_for_privacy_id_count(),
              expected_metrics=metrics.SumMetrics(
-                 aggregation=pipeline_dp.Metrics.PRIVACY_ID_COUNT,
+                 aggregation=Metrics.PRIVACY_ID_COUNT,
                  sum=1.0,
                  clipping_to_min_error=0.0,
                  clipping_to_max_error=0.0,
                  expected_l0_bounding_error=-0.5,
                  std_l0_bounding_error=0.5,
                  std_noise=5.278441636123016,
-                 noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)),
+                 noise_kind=NoiseKind.GAUSSIAN)),
         dict(testcase_name='multiple_contributions_keep_all_no_error',
              num_partitions=1,
              contribution_values=(2, 2),
              params=_create_combiner_params_for_privacy_id_count(),
              expected_metrics=metrics.SumMetrics(
-                 aggregation=pipeline_dp.Metrics.PRIVACY_ID_COUNT,
+                 aggregation=Metrics.PRIVACY_ID_COUNT,
                  sum=1.0,
                  clipping_to_min_error=0.0,
                  clipping_to_max_error=0.0,
                  expected_l0_bounding_error=0.0,
                  std_l0_bounding_error=0.0,
                  std_noise=5.278441636123016,
-                 noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)))
+                 noise_kind=NoiseKind.GAUSSIAN)))
     def test_compute_metrics(self, num_partitions, contribution_values, params,
                              expected_metrics):
         utility_analysis_combiner = combiners.PrivacyIdCountCombiner(*params)
@@ -598,38 +599,38 @@ class CompoundCombinerTest(parameterized.TestCase):
              num_partitions=0,
              contribution_values=(),
              expected_metrics=metrics.SumMetrics(
-                 aggregation=pipeline_dp.Metrics.COUNT,
+                 aggregation=Metrics.COUNT,
                  sum=0,
                  clipping_to_min_error=0.0,
                  clipping_to_max_error=0.0,
                  expected_l0_bounding_error=0.0,
                  std_l0_bounding_error=0.0,
                  std_noise=7.46484375,
-                 noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)),
+                 noise_kind=NoiseKind.GAUSSIAN)),
         dict(testcase_name='one_partition_zero_error',
              num_partitions=1,
              contribution_values=(1, 2),
              expected_metrics=metrics.SumMetrics(
-                 aggregation=pipeline_dp.Metrics.COUNT,
+                 aggregation=Metrics.COUNT,
                  sum=2.0,
                  clipping_to_min_error=0.0,
                  clipping_to_max_error=0.0,
                  expected_l0_bounding_error=0.0,
                  std_l0_bounding_error=0.0,
                  std_noise=7.46484375,
-                 noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)),
+                 noise_kind=NoiseKind.GAUSSIAN)),
         dict(testcase_name='4_partitions_4_contributions_keep_half',
              num_partitions=4,
              contribution_values=(1, 2, 3, 4),
              expected_metrics=metrics.SumMetrics(
-                 aggregation=pipeline_dp.Metrics.COUNT,
+                 aggregation=Metrics.COUNT,
                  sum=4.0,
                  clipping_to_min_error=0.0,
                  clipping_to_max_error=-2.0,
                  expected_l0_bounding_error=-1.5,
                  std_l0_bounding_error=0.8660254037844386,
                  std_noise=7.46484375,
-                 noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)))
+                 noise_kind=NoiseKind.GAUSSIAN)))
     def test_compute_metrics(self, num_partitions, contribution_values,
                              expected_metrics):
         combiner = self._create_combiner()
@@ -648,14 +649,14 @@ class CompoundCombinerTest(parameterized.TestCase):
         self.assertLen(output, 1)  # only 1 combiner.
         common.assert_dataclasses_are_equal(
             self,
-            metrics.SumMetrics(aggregation=pipeline_dp.Metrics.COUNT,
+            metrics.SumMetrics(aggregation=Metrics.COUNT,
                                sum=14,
                                clipping_to_min_error=1.5,
                                clipping_to_max_error=-7.0,
                                expected_l0_bounding_error=-3.9833333333333334,
                                std_l0_bounding_error=1.738731977300955,
                                std_noise=7.46484375,
-                               noise_kind=pipeline_dp.NoiseKind.GAUSSIAN),
+                               noise_kind=NoiseKind.GAUSSIAN),
             output[0])
 
     def test_two_internal_combiners(self):

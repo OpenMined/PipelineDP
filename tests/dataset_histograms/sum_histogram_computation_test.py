@@ -20,6 +20,7 @@ import pipeline_dp
 from pipeline_dp.dataset_histograms import histograms as hist
 from pipeline_dp.dataset_histograms import sum_histogram_computation
 from analysis import pre_aggregation
+from pipeline_dp.pipeline_backend import LocalBackend
 
 
 class LowerUpperGeneratorTest(parameterized.TestCase):
@@ -324,7 +325,7 @@ class SumHistogramComputationTest(parameterized.TestCase):
         input = input()
         expected = expected()
         expected_log = expected_log()
-        backend = pipeline_dp.LocalBackend()
+        backend = LocalBackend()
         if pre_aggregated:
             input = list(
                 pre_aggregation.preaggregate(
@@ -355,7 +356,7 @@ class SumHistogramComputationTest(parameterized.TestCase):
         # format: ((privacy_id, partition), value: tuple)
         data = [((0, 0), (1, 10)), ((0, 1), (2, 20)), ((0, 1), (3, 30)),
                 ((1, 0), (5, 50))]
-        backend = pipeline_dp.LocalBackend()
+        backend = LocalBackend()
         expected = [
             hist.Histogram(hist.HistogramType.LINF_SUM_CONTRIBUTIONS, [
                 hist.FrequencyBin(
@@ -635,7 +636,7 @@ class SumHistogramComputationTest(parameterized.TestCase):
         input = input()
         expected = expected()
         expected_log = expected_log()
-        backend = pipeline_dp.LocalBackend()
+        backend = LocalBackend()
         if pre_aggregated:
             input = list(
                 pre_aggregation.preaggregate(
@@ -665,7 +666,7 @@ class SumHistogramComputationTest(parameterized.TestCase):
         # format: ((privacy_id, partition), value: tuple)
         data = [((0, 0), (1, 10)), ((0, 1), (2, 20)), ((0, 1), (3, 30)),
                 ((1, 0), (5, 50))]
-        backend = pipeline_dp.LocalBackend()
+        backend = LocalBackend()
         expected = [
             hist.Histogram(hist.HistogramType.SUM_PER_PARTITION, [
                 hist.FrequencyBin(
