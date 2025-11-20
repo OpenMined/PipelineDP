@@ -794,9 +794,8 @@ def compute_sensitivities_for_sum(
     return Sensitivities(l0=l0_sensitivity, linf=linf_sensitivity)
 
 
-def compute_sensitivities(
-        metric: aggregate_params.Metric,
-        params: aggregate_params.AggregateParams) -> Sensitivities:
+def compute_sensitivities(metric: aggregate_params.Metric,
+                          params: aggregate_params.AggregateParams) -> Sensitivities:
     if metric == aggregate_params.Metrics.COUNT:
         return compute_sensitivities_for_count(params)
     if metric == aggregate_params.Metrics.PRIVACY_ID_COUNT:

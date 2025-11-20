@@ -119,11 +119,9 @@ class Query:
             if hasattr(spec.budget, 'delta'):
                 total_delta += spec.budget.delta
 
-        budget_accountant = NaiveBudgetAccountant(
-            total_epsilon=total_epsilon,
-            total_delta=total_delta if total_delta > 0 else 1e-10)
-        dp_engine = DPEngine(budget_accountant=budget_accountant,
-                             backend=backend)
+        budget_accountant = NaiveBudgetAccountant(total_epsilon=total_epsilon,
+                                                  total_delta=total_delta if total_delta > 0 else 1e-10)
+        dp_engine = DPEngine(budget_accountant=budget_accountant, backend=backend)
 
         metrics = []
         for agg_type, *agg_args in self._aggregations:
@@ -133,11 +131,11 @@ class Query:
         params = aggregate_params.AggregateParams(
             noise_kind=aggregate_params.NoiseKind.LAPLACE,
             metrics=metrics,
-            max_partitions_contributed=self._group_by_spec[1].
-            contribution_bounding_level.max_partitions_contributed,
-            max_contributions_per_partition=self._group_by_spec[1].
-            contribution_bounding_level.max_contributions_per_partition,
-            pre_threshold=self._group_by_spec[1].pre_threshold)
+            max_partitions_contributed=self._group_by_spec[1].contribution_bounding_level.max_partitions_contributed,
+            max_contributions_per_partition=self._group_by_spec[
+                1].contribution_bounding_level.max_contributions_per_partition,
+            pre_threshold=self._group_by_spec[1].pre_threshold
+        )
 
         def _get_extractor(columns: Union[str, Sequence[str]]) -> callable:
             if isinstance(columns, str):
@@ -147,15 +145,16 @@ class Query:
 
         data_extractors = DataExtractors(
             partition_extractor=_get_extractor(self._group_by_spec[0].names),
-            privacy_id_extractor=_get_extractor(
-                self._group_by_spec[1].privacy_unit.names),
-            value_extractor=lambda row: 0)
+            privacy_id_extractor=_get_extractor(self._group_by_spec[1].privacy_unit.names),
+            value_extractor=lambda row: 0
+        )
 
         dp_result = dp_engine.aggregate(
             col=self._data,
             params=params,
             data_extractors=data_extractors,
-            public_partitions=self._group_by_spec[1].public_groups)
+            public_partitions=self._group_by_spec[1].public_groups
+        )
 
         budget_accountant.compute_budgets()
 
@@ -174,8 +173,7 @@ class QueryBuilder:
         self._data = data
         return self
 
-    def group_by(self, group_keys: ColumnNames,
-                 spec: GroupBySpec) -> 'QueryBuilder':
+    def group_by(self, group_keys: ColumnNames, spec: GroupBySpec) -> 'QueryBuilder':
         self._group_by_spec = (group_keys, spec)
         return self
 

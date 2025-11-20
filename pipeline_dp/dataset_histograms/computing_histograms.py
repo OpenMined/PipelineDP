@@ -140,7 +140,6 @@ def compute_dataset_histograms(col, data_extractors: pipeline_dp.DataExtractors,
 
 from pipeline_dp import data_extractors as de
 
-
 def compute_dataset_histograms_on_preaggregated_data(
         col, data_extractors: de.PreAggregateExtractors,
         backend: pipeline_backend.PipelineBackend):
