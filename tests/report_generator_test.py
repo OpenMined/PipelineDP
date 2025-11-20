@@ -17,7 +17,7 @@ import unittest
 
 import pipeline_dp
 from pipeline_dp.aggregate_params import AggregateParams, Metrics
-from pipeline_dp.report_generator import ReportGenerator
+from pipeline_dp.report_generator import ReportGenerator, ExplainComputationReport
 
 
 class ReportGeneratorTest(unittest.TestCase):
@@ -58,13 +58,13 @@ class ReportGeneratorTest(unittest.TestCase):
 class ExplainComputationReportTest(unittest.TestCase):
 
     def test_report_empty(self):
-        report = pipeline_dp.ExplainComputationReport()
+        report = ExplainComputationReport()
         with self.assertRaisesRegex(ValueError,
                                     "The report_generator is not set"):
             report.text()
 
     def test_fail_to_generate(self):
-        report = pipeline_dp.ExplainComputationReport()
+        report = ExplainComputationReport()
         report_generator = ReportGenerator(None, "test_method")
 
         # Simulate that one of the stages of report generation failed.
@@ -77,7 +77,7 @@ class ExplainComputationReportTest(unittest.TestCase):
             report.text()
 
     def test_generate(self):
-        report = pipeline_dp.ExplainComputationReport()
+        report = ExplainComputationReport()
         params = pipeline_dp.AggregateParams(
             noise_kind=pipeline_dp.NoiseKind.LAPLACE,
             metrics=[pipeline_dp.Metrics.COUNT],

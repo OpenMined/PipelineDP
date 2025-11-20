@@ -37,9 +37,8 @@ def _get_default_sum_metrics(metric=Metrics.COUNT, sum=10.0):
 
 class PerPartitionToCrossPartitionMetrics(parameterized.TestCase):
 
-    @parameterized.product(
-        metric=[Metrics.COUNT, Metrics.SUM],
-        keep_prob=[1, 0.25])
+    @parameterized.product(metric=[Metrics.COUNT, Metrics.SUM],
+                           keep_prob=[1, 0.25])
     def test_metric_utility(self, metric: Metric, keep_prob: float):
         input = metrics.SumMetrics(aggregation=metric,
                                    sum=10.0,
@@ -122,15 +121,11 @@ class PerPartitionToCrossPartitionMetrics(parameterized.TestCase):
             partition_selection_probability_to_keep=0.2,
             raw_statistics=metrics.RawStatistics(privacy_id_count=10, count=15),
             metric_errors=[
-                _get_default_sum_metrics(
-                    metric=Metrics.PRIVACY_ID_COUNT),
+                _get_default_sum_metrics(metric=Metrics.PRIVACY_ID_COUNT),
                 _get_default_sum_metrics(metric=Metrics.COUNT),
                 _get_default_sum_metrics(metric=Metrics.SUM)
             ])
-        dp_metrics = [
-            Metrics.PRIVACY_ID_COUNT, Metrics.COUNT,
-            Metrics.SUM
-        ]
+        dp_metrics = [Metrics.PRIVACY_ID_COUNT, Metrics.COUNT, Metrics.SUM]
         cross_partition_combiners._per_partition_to_utility_report(
             per_partition_utility,
             dp_metrics,
@@ -180,9 +175,7 @@ class PerPartitionToCrossPartitionMetrics(parameterized.TestCase):
                                    std_noise=4.0,
                                    noise_kind=NoiseKind.LAPLACE)
         output = cross_partition_combiners._sum_metrics_to_data_dropped(
-            input,
-            partition_keep_probability=0.5,
-            dp_metric=Metrics.COUNT)
+            input, partition_keep_probability=0.5, dp_metric=Metrics.COUNT)
         self.assertEqual(
             output,
             metrics.DataDropInfo(l0=2.0, linf=5.0, partition_selection=1.5))
@@ -198,9 +191,7 @@ class PerPartitionToCrossPartitionMetrics(parameterized.TestCase):
                                    noise_kind=NoiseKind.LAPLACE)
 
         output = cross_partition_combiners._sum_metrics_to_data_dropped(
-            input,
-            partition_keep_probability=0.5,
-            dp_metric=Metrics.SUM)
+            input, partition_keep_probability=0.5, dp_metric=Metrics.SUM)
 
         self.assertEqual(
             output,
@@ -209,9 +200,7 @@ class PerPartitionToCrossPartitionMetrics(parameterized.TestCase):
     def test_sum_metrics_to_data_dropped_public_partition(self):
         input = _get_default_sum_metrics(metric=Metrics.COUNT)
         output = cross_partition_combiners._sum_metrics_to_data_dropped(
-            input,
-            partition_keep_probability=1.0,
-            dp_metric=Metrics.COUNT)
+            input, partition_keep_probability=1.0, dp_metric=Metrics.COUNT)
         self.assertEqual(
             output,
             metrics.DataDropInfo(l0=2.0, linf=5.0, partition_selection=0.0))
@@ -226,9 +215,7 @@ class PerPartitionToCrossPartitionMetrics(parameterized.TestCase):
                                    std_noise=1.0,
                                    noise_kind=NoiseKind.LAPLACE)
         output = cross_partition_combiners._sum_metrics_to_data_dropped(
-            input,
-            partition_keep_probability=1.0,
-            dp_metric=Metrics.COUNT)
+            input, partition_keep_probability=1.0, dp_metric=Metrics.COUNT)
         self.assertEqual(
             output,
             metrics.DataDropInfo(l0=0.0, linf=0.0, partition_selection=0.0))
@@ -392,9 +379,7 @@ class CrossPartitionCombiner(parameterized.TestCase):
         per_partition_metrics = metrics.PerPartitionMetrics(
             partition_selection_probability_to_keep=prob_keep,
             raw_statistics=metrics.RawStatistics(privacy_id_count=3, count=9),
-            metric_errors=[
-                _get_default_sum_metrics(metric=Metrics.COUNT)
-            ])
+            metric_errors=[_get_default_sum_metrics(metric=Metrics.COUNT)])
         combiner.create_accumulator(per_partition_metrics)
         mock_per_partition_to_utility_report.assert_called_once_with(
             per_partition_metrics, dp_metrics, public_partitions, prob_keep)

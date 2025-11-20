@@ -26,8 +26,7 @@ from pipeline_dp import input_validators
 class DPStrategy:
     """Represents the chosen DP strategy."""
     noise_kind: Optional[NoiseKind]
-    partition_selection_strategy: Optional[
-        PartitionSelectionStrategy]
+    partition_selection_strategy: Optional[PartitionSelectionStrategy]
     post_aggregation_thresholding: bool
 
 
@@ -40,8 +39,8 @@ class DPStrategySelector:
     select_partition_selection_strategy().
     """
 
-    def __init__(self, epsilon: float, delta: float,
-                 metrics: List[Metric], is_public_partitions: bool):
+    def __init__(self, epsilon: float, delta: float, metrics: List[Metric],
+                 is_public_partitions: bool):
         input_validators.validate_epsilon_delta(epsilon, delta,
                                                 "DPStrategySelector")
         if delta == 0 and not is_public_partitions:
@@ -140,8 +139,7 @@ class DPStrategySelector:
 
     def select_noise_kind(
             self, epsilon: float, delta: float,
-            sensitivities: dp_computations.Sensitivities
-    ) -> NoiseKind:
+            sensitivities: dp_computations.Sensitivities) -> NoiseKind:
         """Returns the noise with the minimum standard deviation."""
         if delta == 0:
             return NoiseKind.LAPLACE
@@ -151,8 +149,7 @@ class DPStrategySelector:
             return NoiseKind.GAUSSIAN
         return NoiseKind.LAPLACE
 
-    def use_post_aggregation_thresholding(
-            self, metrics: List[Metric]) -> bool:
+    def use_post_aggregation_thresholding(self, metrics: List[Metric]) -> bool:
         return Metrics.PRIVACY_ID_COUNT in metrics
 
     def select_partition_selection_strategy(
@@ -197,6 +194,6 @@ class DPStrategySelector:
 
 class DPStrategySelectorFactory:
 
-    def create(self, epsilon: float, delta: float,
-               metrics: List[Metric], is_public_partitions: bool):
+    def create(self, epsilon: float, delta: float, metrics: List[Metric],
+               is_public_partitions: bool):
         return DPStrategySelector(epsilon, delta, metrics, is_public_partitions)

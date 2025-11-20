@@ -320,8 +320,7 @@ class ParameterTuning(parameterized.TestCase):
         candidates = parameter_tuning._find_candidate_parameters(
             hist,
             parameters_to_tune,
-            _get_aggregate_params(
-                [Metrics.SUM, Metrics.COUNT]),
+            _get_aggregate_params([Metrics.SUM, Metrics.COUNT]),
             max_candidates=4)
 
         self.assertEqual([1, 1, 5, 5], candidates.max_partitions_contributed)
@@ -424,10 +423,9 @@ class ParameterTuning(parameterized.TestCase):
         # the same partition.
         input = [(i % 10, f"pk0") for i in range(10)]
         public_partitions = [f"pk{i}" for i in range(10)]
-        data_extractors = DataExtractors(
-            privacy_id_extractor=lambda x: x[0],
-            partition_extractor=lambda x: x[1],
-            value_extractor=lambda x: 0)
+        data_extractors = DataExtractors(privacy_id_extractor=lambda x: x[0],
+                                         partition_extractor=lambda x: x[1],
+                                         value_extractor=lambda x: 0)
 
         contribution_histograms = list(
             computing_histograms.compute_dataset_histograms(
@@ -467,10 +465,9 @@ class ParameterTuning(parameterized.TestCase):
         # the same partition with value equal to its id.
         input = [(i, f"pk0", i) for i in range(10)]
         public_partitions = [f"pk{i}" for i in range(10)]
-        data_extractors = DataExtractors(
-            privacy_id_extractor=lambda x: x[0],
-            partition_extractor=lambda x: x[1],
-            value_extractor=lambda x: x[2])
+        data_extractors = DataExtractors(privacy_id_extractor=lambda x: x[0],
+                                         partition_extractor=lambda x: x[1],
+                                         value_extractor=lambda x: x[2])
 
         contribution_histograms = list(
             computing_histograms.compute_dataset_histograms(
@@ -508,10 +505,9 @@ class ParameterTuning(parameterized.TestCase):
         # Generate dataset, with 10 privacy units, 5 of them contribute to
         # pk0 and pk1 and 5 to pk0 only.
         input = [(i % 10, f"pk{i//10}") for i in range(15)]
-        data_extractors = DataExtractors(
-            privacy_id_extractor=lambda x: x[0],
-            partition_extractor=lambda x: x[1],
-            value_extractor=lambda x: 0)
+        data_extractors = DataExtractors(privacy_id_extractor=lambda x: x[0],
+                                         partition_extractor=lambda x: x[1],
+                                         value_extractor=lambda x: 0)
 
         contribution_histograms = list(
             computing_histograms.compute_dataset_histograms(
@@ -547,10 +543,9 @@ class ParameterTuning(parameterized.TestCase):
         # Arrange.
         input = [(i % 10, f"pk{i/10}", i) for i in range(10)]
         public_partitions = [f"pk{i}" for i in range(10)]
-        data_extractors = DataExtractors(
-            privacy_id_extractor=lambda x: x[0],
-            partition_extractor=lambda x: x[1],
-            value_extractor=lambda x: x[2])
+        data_extractors = DataExtractors(privacy_id_extractor=lambda x: x[0],
+                                         partition_extractor=lambda x: x[1],
+                                         value_extractor=lambda x: x[2])
 
         contribution_histograms = list(
             computing_histograms.compute_dataset_histograms(
@@ -589,14 +584,13 @@ class ParameterTuning(parameterized.TestCase):
              metrics=[Metrics.MEAN],
              is_public_partitions=False),
     )
-    def test_tune_params_validation(self, error_msg,
-                                    metrics: List[Metric],
+    def test_tune_params_validation(self, error_msg, metrics: List[Metric],
                                     is_public_partitions: bool):
         tune_options = _get_tune_options(metrics)
         contribution_histograms = histograms.DatasetHistograms(
             None, None, None, None, None, None, None, None, None)
-        data_extractors = DataExtractors(
-            privacy_id_extractor=lambda _: 0, partition_extractor=lambda _: 0)
+        data_extractors = DataExtractors(privacy_id_extractor=lambda _: 0,
+                                         partition_extractor=lambda _: 0)
         public_partitions = [1] if is_public_partitions else None
         with self.assertRaisesRegex(ValueError, error_msg):
             parameter_tuning.tune(input, LocalBackend(),
@@ -611,8 +605,8 @@ class ParameterTuning(parameterized.TestCase):
                                              max_sum_per_partition=True))
         contribution_histograms = histograms.DatasetHistograms(
             None, None, None, None, None, None, None, None, None)
-        data_extractors = DataExtractors(
-            privacy_id_extractor=lambda _: 0, partition_extractor=lambda _: 0)
+        data_extractors = DataExtractors(privacy_id_extractor=lambda _: 0,
+                                         partition_extractor=lambda _: 0)
         with self.assertRaisesRegex(
                 ValueError,
                 "Tuning of min_sum_per_partition is not supported yet."):
@@ -625,12 +619,10 @@ class ParameterTuning(parameterized.TestCase):
             testcase_name="Find noise_kind, private partition selection",
             noise_kind=None,
             is_public_partitions=False,
-            expected_noise_kinds=[NoiseKind.LAPLACE] * 2 +
-            [NoiseKind.GAUSSIAN],
+            expected_noise_kinds=[NoiseKind.LAPLACE] * 2 + [NoiseKind.GAUSSIAN],
             expected_partition_selection_strategies=[
                 PartitionSelectionStrategy.TRUNCATED_GEOMETRIC
-            ] +
-            [PartitionSelectionStrategy.GAUSSIAN_THRESHOLDING] * 2,
+            ] + [PartitionSelectionStrategy.GAUSSIAN_THRESHOLDING] * 2,
         ),
         dict(
             testcase_name="noise_kind is given, private partition selection",
@@ -639,8 +631,7 @@ class ParameterTuning(parameterized.TestCase):
             expected_noise_kinds=[NoiseKind.GAUSSIAN] * 3,
             expected_partition_selection_strategies=[
                 PartitionSelectionStrategy.TRUNCATED_GEOMETRIC
-            ] +
-            [PartitionSelectionStrategy.GAUSSIAN_THRESHOLDING] * 2,
+            ] + [PartitionSelectionStrategy.GAUSSIAN_THRESHOLDING] * 2,
         ),
         dict(
             testcase_name="noise_kind is given, public partition selection",
@@ -651,8 +642,7 @@ class ParameterTuning(parameterized.TestCase):
         ),
     )
     def test_add_dp_strategy_to_multi_parameter_configuration(
-        self, noise_kind: Optional[NoiseKind],
-        is_public_partitions: bool,
+        self, noise_kind: Optional[NoiseKind], is_public_partitions: bool,
         expected_noise_kinds: List[NoiseKind],
         expected_partition_selection_strategies: List[
             PartitionSelectionStrategy]):

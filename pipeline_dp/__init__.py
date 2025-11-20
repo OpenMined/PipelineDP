@@ -28,8 +28,10 @@ from .budget_accounting import NaiveBudgetAccountant
 from .budget_accounting import PLDBudgetAccountant
 from .budget_accounting import BudgetAccountant
 from .data_extractors import DataExtractors
+from .data_extractors import PreAggregateExtractors
 from .dp_engine import DPEngine
 from .pipeline_backend import PipelineBackend
+from .pipeline_backend import LocalBackend
 from .spark_rdd_backend import SparkRDDBackend
 from .beam_backend import BeamBackend
 from .private_beam import MakePrivate
@@ -57,11 +59,14 @@ __all__ = [
     'PLDBudgetAccountant',
     'BudgetAccountant',
     'DataExtractors',
+    'PreAggregateExtractors',
     'DPEngine',
     'PipelineBackend',
+    'LocalBackend',
     'SparkRDDBackend',
     'BeamBackend',
     'MakePrivate',
     'PrivatePCollection',
     'AdvancedQueryBuilder',
+    'ExplainComputationReport',
 ]

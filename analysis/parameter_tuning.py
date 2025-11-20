@@ -122,8 +122,7 @@ class TuneResult:
 
 def _find_candidate_parameters(
         hist: histograms.DatasetHistograms,
-        parameters_to_tune: ParametersToTune,
-        aggregate_params: AggregateParams,
+        parameters_to_tune: ParametersToTune, aggregate_params: AggregateParams,
         max_candidates: int) -> analysis.MultiParameterConfiguration:
     """Finds candidates for l0, l_inf and max_sum_per_partition_bounds
     parameters.
@@ -247,8 +246,7 @@ def _duplicate_list(a: Optional[List], n: int) -> Optional[List]:
 
 def _add_dp_strategy_to_multi_parameter_configuration(
         configuration: analysis.MultiParameterConfiguration,
-        blueprint_params: AggregateParams,
-        noise_kind: Optional[NoiseKind],
+        blueprint_params: AggregateParams, noise_kind: Optional[NoiseKind],
         strategy_selector: dp_strategy_selector.DPStrategySelector) -> None:
     params = [
         # get_aggregate_params returns a tuple (AggregateParams,
@@ -331,8 +329,7 @@ def tune(col,
          backend: pipeline_backend.PipelineBackend,
          contribution_histograms: histograms.DatasetHistograms,
          options: TuneOptions,
-         data_extractors: Union[DataExtractors,
-                                PreAggregateExtractors],
+         data_extractors: Union[DataExtractors, PreAggregateExtractors],
          public_partitions=None,
          strategy_selector_factory: Optional[
              dp_strategy_selector.DPStrategySelectorFactory] = None,
@@ -469,8 +466,7 @@ def _check_tune_args(options: TuneOptions, is_public_partitions: bool):
                              " but public partitions were provided.")
     else:  # len(metrics) == 1
         if metrics[0] not in [
-                Metrics.COUNT, Metrics.PRIVACY_ID_COUNT,
-                Metrics.SUM
+                Metrics.COUNT, Metrics.PRIVACY_ID_COUNT, Metrics.SUM
         ]:
             raise ValueError(
                 f"Tuning is supported only for Count, Privacy id count and Sum, but {metrics[0]} given."

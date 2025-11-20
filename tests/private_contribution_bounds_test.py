@@ -3,6 +3,7 @@ import unittest
 import pipeline_dp
 from pipeline_dp.dataset_histograms import histograms as hist
 from pipeline_dp import private_contribution_bounds
+from pipeline_dp.pipeline_backend import LocalBackend
 
 
 def construct_params(
@@ -200,7 +201,7 @@ class PrivateL0CalculatorTest(unittest.TestCase):
                                    sum_per_partition_histogram=None,
                                    sum_log_per_partition_histogram=None)
         ]
-        backend = pipeline_dp.LocalBackend()
+        backend = LocalBackend()
         calculator = private_contribution_bounds.PrivateL0Calculator(
             params, partitions, histograms, backend)
 
@@ -245,7 +246,7 @@ class PrivateL0CalculatorTest(unittest.TestCase):
                                    sum_per_partition_histogram=None,
                                    sum_log_per_partition_histogram=None)
         ]
-        backend = pipeline_dp.LocalBackend()
+        backend = LocalBackend()
         calculator = private_contribution_bounds.PrivateL0Calculator(
             params, partitions, histograms, backend)
 

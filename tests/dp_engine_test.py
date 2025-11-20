@@ -32,7 +32,8 @@ from pipeline_dp import dp_computations
 from pipeline_dp.budget_accounting import NaiveBudgetAccountant
 from pipeline_dp.pipeline_backend import PipelineBackend
 from pipeline_dp.pipeline_functions import collect_to_container
-from pipeline_dp.report_generator import ReportGenerator
+from pipeline_dp.report_generator import ReportGenerator, ExplainComputationReport
+from pipeline_dp.pipeline_backend import LocalBackend
 
 
 class MockPartitionStrategy(partition_selection.PartitionSelectionStrategy):
@@ -63,7 +64,7 @@ class DpEngineTest(parameterized.TestCase):
             accountant = NaiveBudgetAccountant(total_epsilon=epsilon,
                                                total_delta=delta)
         if not backend:
-            backend = pipeline_dp.LocalBackend()
+            backend = LocalBackend()
         dp_engine = pipeline_dp.DPEngine(accountant, backend)
         aggregator_params = pipeline_dp.AggregateParams(
             noise_kind=pipeline_dp.NoiseKind.LAPLACE,
@@ -137,8 +138,8 @@ class DpEngineTest(parameterized.TestCase):
 
         for test_case in test_cases:
             with self.assertRaises(Exception, msg=test_case["desc"]):
-                engine = pipeline_dp.DPEngine(
-                    budget_accountant=None, backend=pipeline_dp.LocalBackend())
+                engine = pipeline_dp.DPEngine(budget_accountant=None,
+                                              backend=LocalBackend())
                 engine.calculate_private_contribution_bounds(
                     test_case["col"],
                     test_case["params"],
@@ -149,7 +150,7 @@ class DpEngineTest(parameterized.TestCase):
             self):
         # Arrange
         engine = pipeline_dp.DPEngine(budget_accountant=None,
-                                      backend=pipeline_dp.LocalBackend())
+                                      backend=LocalBackend())
         params = pipeline_dp.CalculatePrivateContributionBoundsParams(
             aggregation_eps=0.9,
             aggregation_delta=1e-10,
@@ -182,7 +183,7 @@ class DpEngineTest(parameterized.TestCase):
             self):
         # Arrange
         engine = pipeline_dp.DPEngine(budget_accountant=None,
-                                      backend=pipeline_dp.LocalBackend())
+                                      backend=LocalBackend())
         params = pipeline_dp.CalculatePrivateContributionBoundsParams(
             aggregation_eps=0.9,
             aggregation_delta=0.001,
@@ -220,7 +221,7 @@ class DpEngineTest(parameterized.TestCase):
     def test_calculate_private_contribution_filters_partitions(self):
         # Arrange
         engine = pipeline_dp.DPEngine(budget_accountant=None,
-                                      backend=pipeline_dp.LocalBackend())
+                                      backend=LocalBackend())
         params = pipeline_dp.CalculatePrivateContributionBoundsParams(
             aggregation_eps=0.9,
             aggregation_delta=0.001,
@@ -362,8 +363,7 @@ class DpEngineTest(parameterized.TestCase):
                 budget_accountant = NaiveBudgetAccountant(total_epsilon=1,
                                                           total_delta=1e-10)
                 engine = pipeline_dp.DPEngine(
-                    budget_accountant=budget_accountant,
-                    backend=pipeline_dp.LocalBackend())
+                    budget_accountant=budget_accountant, backend=LocalBackend())
                 engine.aggregate(test_case["col"], test_case["params"],
                                  test_case["data_extractor"])
 
@@ -418,7 +418,7 @@ class DpEngineTest(parameterized.TestCase):
         budget_accountant = NaiveBudgetAccountant(total_epsilon=1,
                                                   total_delta=1e-10)
         engine = pipeline_dp.DPEngine(budget_accountant=budget_accountant,
-                                      backend=pipeline_dp.LocalBackend())
+                                      backend=LocalBackend())
         engine.aggregate(col, params1, data_extractor)
         engine.aggregate(col, params2, data_extractor, list(range(1, 40)))
         engine.select_partitions(col, select_partitions_params, data_extractor)
@@ -711,7 +711,7 @@ class DpEngineTest(parameterized.TestCase):
             value_extractor=lambda x: None)
 
         engine = pipeline_dp.DPEngine(budget_accountant=budget_accountant,
-                                      backend=pipeline_dp.LocalBackend())
+                                      backend=LocalBackend())
 
         col = engine.aggregate(col=col,
                                params=aggregator_params,
@@ -750,7 +750,7 @@ class DpEngineTest(parameterized.TestCase):
             value_extractor=lambda x: None)
 
         engine = pipeline_dp.DPEngine(budget_accountant=budget_accountant,
-                                      backend=pipeline_dp.LocalBackend())
+                                      backend=LocalBackend())
 
         col = engine.aggregate(col=col,
                                params=aggregator_params,
@@ -856,7 +856,7 @@ class DpEngineTest(parameterized.TestCase):
             partition_extractor=lambda x: x[1])
 
         engine = pipeline_dp.DPEngine(budget_accountant=budget_accountant,
-                                      backend=pipeline_dp.LocalBackend())
+                                      backend=LocalBackend())
 
         col = engine.select_partitions(col=col,
                                        params=params,
@@ -904,7 +904,7 @@ class DpEngineTest(parameterized.TestCase):
             partition_extractor=lambda x: x)
 
         engine = pipeline_dp.DPEngine(budget_accountant=budget_accountant,
-                                      backend=pipeline_dp.LocalBackend())
+                                      backend=LocalBackend())
 
         col = engine.select_partitions(col=col,
                                        params=params,
@@ -999,8 +999,7 @@ class DpEngineTest(parameterized.TestCase):
                 budget_accountant = NaiveBudgetAccountant(total_epsilon=1,
                                                           total_delta=1e-10)
                 engine = pipeline_dp.DPEngine(
-                    budget_accountant=budget_accountant,
-                    backend=pipeline_dp.LocalBackend())
+                    budget_accountant=budget_accountant, backend=LocalBackend())
                 engine.select_partitions(test_case["col"], test_case["params"],
                                          test_case["data_extractor"])
 
@@ -1030,7 +1029,7 @@ class DpEngineTest(parameterized.TestCase):
             value_extractor=lambda x: x)
 
         engine = pipeline_dp.DPEngine(budget_accountant=budget_accountant,
-                                      backend=pipeline_dp.LocalBackend())
+                                      backend=LocalBackend())
 
         col = engine.aggregate(col=col,
                                params=aggregator_params,
@@ -1071,7 +1070,7 @@ class DpEngineTest(parameterized.TestCase):
             value_extractor=lambda x: 1)
 
         engine = pipeline_dp.DPEngine(budget_accountant=budget_accountant,
-                                      backend=pipeline_dp.LocalBackend())
+                                      backend=LocalBackend())
 
         col = engine.aggregate(col=col,
                                params=aggregator_params,
@@ -1100,7 +1099,7 @@ class DpEngineTest(parameterized.TestCase):
             accountant = NaiveBudgetAccountant(total_epsilon=1,
                                                total_delta=1e-10)
         if not backend:
-            backend = pipeline_dp.LocalBackend()
+            backend = LocalBackend()
         dp_engine = pipeline_dp.DPEngine(accountant, backend)
         aggregator_params = pipeline_dp.AggregateParams(
             noise_kind=pipeline_dp.NoiseKind.LAPLACE,
@@ -1167,7 +1166,7 @@ class DpEngineTest(parameterized.TestCase):
 
         input = [1, 2, 3]
         public_partitions = [2]
-        explain_computation_report = pipeline_dp.ExplainComputationReport()
+        explain_computation_report = ExplainComputationReport()
         output = dp_engine.aggregate(input, aggregate_params,
                                      self._get_default_extractors(),
                                      public_partitions,
@@ -1180,7 +1179,7 @@ class DpEngineTest(parameterized.TestCase):
         input = list(range(10))
 
         output = self.run_e2e_private_partition_selection_large_budget(
-            input, pipeline_dp.LocalBackend())
+            input, LocalBackend())
 
         self.assertLen(list(output), 5)
 
@@ -1317,7 +1316,7 @@ class DpEngineTest(parameterized.TestCase):
             budget_accountant = pipeline_dp.PLDBudgetAccountant(
                 total_epsilon=1, total_delta=1e-10)
             engine = pipeline_dp.DPEngine(budget_accountant=budget_accountant,
-                                          backend=pipeline_dp.LocalBackend())
+                                          backend=LocalBackend())
             aggregate_params, public_partitions = self._create_params_default()
             aggregate_params.metrics = [pipeline_dp.Metrics.VARIANCE]
             engine.aggregate([1], aggregate_params,
@@ -1345,7 +1344,7 @@ class DpEngineTest(parameterized.TestCase):
         data = [(0, 0)]
         accountant = pipeline_dp.NaiveBudgetAccountant(total_epsilon=0.5,
                                                        total_delta=1e-8)
-        engine = pipeline_dp.DPEngine(accountant, pipeline_dp.LocalBackend())
+        engine = pipeline_dp.DPEngine(accountant, LocalBackend())
         params = pipeline_dp.aggregate_params.AddDPNoiseParams(
             noise_kind=noise_kind,
             l0_sensitivity=l0_sensitivity,
@@ -1377,8 +1376,8 @@ class DpEngineTest(parameterized.TestCase):
         data = [(i, i) for i in range(100)]
         accountant = pipeline_dp.NaiveBudgetAccountant(total_epsilon=2,
                                                        total_delta=0)
-        engine = pipeline_dp.DPEngine(accountant, pipeline_dp.LocalBackend())
-        explain_computation_report = pipeline_dp.ExplainComputationReport()
+        engine = pipeline_dp.DPEngine(accountant, LocalBackend())
+        explain_computation_report = ExplainComputationReport()
         params = pipeline_dp.aggregate_params.AddDPNoiseParams(
             noise_kind=pipeline_dp.NoiseKind.LAPLACE,
             l0_sensitivity=5,

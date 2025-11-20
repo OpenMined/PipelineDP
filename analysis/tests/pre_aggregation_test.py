@@ -47,8 +47,7 @@ class PreaggregationTests(parameterized.TestCase):
             value_extractor=lambda row: row[2])
 
         output = list(
-            analysis.preaggregate(input, LocalBackend(),
-                                  data_extractors))
+            analysis.preaggregate(input, LocalBackend(), data_extractors))
 
         self.assertSequenceEqual(output, expected_output)
 

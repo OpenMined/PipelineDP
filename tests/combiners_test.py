@@ -47,8 +47,8 @@ class EmptyCombiner(dp_combiners.Combiner):
 
 
 def _create_mechanism_spec(
-    no_noise: bool,
-    mechanism_type: MechanismType = MechanismType.GAUSSIAN
+        no_noise: bool,
+        mechanism_type: MechanismType = MechanismType.GAUSSIAN
 ) -> ba.MechanismSpec:
     if no_noise:
         eps, delta = 1e5, 1.0 - 1e-5
@@ -58,14 +58,13 @@ def _create_mechanism_spec(
     return ba.MechanismSpec(mechanism_type, None, eps, delta)
 
 
-def _create_aggregate_params(
-        max_value: float = 1,
-        max_partition_contributed: int = 2,
-        vector_size: int = 1,
-        vector_norm_kind: NormKind = NormKind.Linf,
-        vector_max_norm: int = 5,
-        output_noise_stddev: bool = False,
-        noise_kind: NoiseKind = NoiseKind.GAUSSIAN):
+def _create_aggregate_params(max_value: float = 1,
+                             max_partition_contributed: int = 2,
+                             vector_size: int = 1,
+                             vector_norm_kind: NormKind = NormKind.Linf,
+                             vector_max_norm: int = 5,
+                             output_noise_stddev: bool = False,
+                             noise_kind: NoiseKind = NoiseKind.GAUSSIAN):
     return pipeline_dp.AggregateParams(
         min_value=0,
         max_value=max_value,
@@ -82,14 +81,13 @@ def _create_aggregate_params(
 class CreateCompoundCombinersTest(parameterized.TestCase):
 
     def _create_aggregate_params(self, metrics: typing.Optional[typing.List]):
-        return pipeline_dp.AggregateParams(
-            noise_kind=NoiseKind.GAUSSIAN,
-            metrics=metrics,
-            min_value=0,
-            max_value=1,
-            max_partitions_contributed=1,
-            max_contributions_per_partition=1,
-            budget_weight=10.0)
+        return pipeline_dp.AggregateParams(noise_kind=NoiseKind.GAUSSIAN,
+                                           metrics=metrics,
+                                           min_value=0,
+                                           max_value=1,
+                                           max_partitions_contributed=1,
+                                           max_contributions_per_partition=1,
+                                           budget_weight=10.0)
 
     @parameterized.named_parameters(
         dict(testcase_name='count',
@@ -162,8 +160,7 @@ class CreateCompoundCombinersTest(parameterized.TestCase):
 
         # Assert
         budget_accountant.request_budget.assert_called_with(
-            MechanismType.GAUSSIAN,
-            weight=aggregate_params.budget_weight)
+            MechanismType.GAUSSIAN, weight=aggregate_params.budget_weight)
         # Check correctness of internal combiners
         combiners = compound_combiner._combiners
         self.assertLen(combiners, len(expected_combiner_types))
@@ -303,10 +300,9 @@ class CountCombinerTest(parameterized.TestCase):
         self.assertRegex(combiner.explain_computation()(), expected)
 
     def test_noise_stddev(self):
-        combiner = self._create_combiner(
-            no_noise=False,
-            mechanism_type=MechanismType.LAPLACE,
-            output_noise_stddev=True)
+        combiner = self._create_combiner(no_noise=False,
+                                         mechanism_type=MechanismType.LAPLACE,
+                                         output_noise_stddev=True)
         output = combiner.compute_metrics(5)
         self.assertLen(output, 2)
         # For COUNT and Laplace noise
@@ -394,10 +390,9 @@ class PrivacyIdCountCombinerTest(parameterized.TestCase):
         self.assertRegex(combiner.explain_computation()(), expected)
 
     def test_noise_stddev(self):
-        combiner = self._create_combiner(
-            no_noise=False,
-            mechanism_type=MechanismType.LAPLACE,
-            output_noise_stddev=True)
+        combiner = self._create_combiner(no_noise=False,
+                                         mechanism_type=MechanismType.LAPLACE,
+                                         output_noise_stddev=True)
         output = combiner.compute_metrics(5)
         self.assertLen(output, 2)
         # For PRIVACY_ID_COUNT and Laplace stddev = 1/eps*max_partitions_contributed*sqrt(2)
@@ -510,8 +505,7 @@ class PostAggregationThresholdingCombinerTest(parameterized.TestCase):
     @patch(
         'pipeline_dp.partition_selection.create_partition_selection_strategy')
     def test_mechanism(self, mock_create_partition_selection_strategy,
-                       noise_kind: NoiseKind,
-                       pre_threshold: Optional[int]):
+                       noise_kind: NoiseKind, pre_threshold: Optional[int]):
         combiner = self._create_combiner(False, noise_kind, pre_threshold)
         combiner.get_mechanism()
 
@@ -649,12 +643,11 @@ class SumCombinerTest(parameterized.TestCase):
         self.assertRegex(combiner.explain_computation()(), expected)
 
     def test_noise_stddev(self):
-        combiner = self._create_combiner(
-            no_noise=False,
-            per_partition_bound=False,
-            max_value=5,
-            mechanism_type=MechanismType.LAPLACE,
-            output_noise_stddev=True)
+        combiner = self._create_combiner(no_noise=False,
+                                         per_partition_bound=False,
+                                         max_value=5,
+                                         mechanism_type=MechanismType.LAPLACE,
+                                         output_noise_stddev=True)
         output = combiner.compute_metrics(5)
         self.assertLen(output, 2)
         # For SUM and Laplace stddev = 1/eps*max_partitions_contributed*max_contributions_per_partition*max_value*sqrt(2)

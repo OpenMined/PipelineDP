@@ -20,6 +20,7 @@ from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Union
 
 import pyspark
 from pipeline_dp import aggregate_params, pipeline_backend, DPEngine, NaiveBudgetAccountant, DataExtractors
+from pipeline_dp.spark_rdd_backend import SparkRDDBackend
 
 SparkDataFrame = pyspark.sql.dataframe.DataFrame
 
@@ -122,7 +123,7 @@ def _create_backend_for_dataframe(
         df: SparkDataFrame) -> pipeline_backend.PipelineBackend:
     """Creates a pipeline backend based on type of DataFrame."""
     if isinstance(df, SparkDataFrame):
-        return pipeline_backend.SparkRDDBackend(df.sparkSession.sparkContext)
+        return SparkRDDBackend(df.sparkSession.sparkContext)
     raise NotImplementedError(
         f"Dataframes of type {type(df)} not yet supported")
 
@@ -164,10 +165,10 @@ class Query:
         self._contribution_bounds = contribution_bounds
         self._public_partitions = public_partitions
 
-    def run_query(
-            self,
-            budget: Budget,
-            noise_kind: aggregate_params.NoiseKind = aggregate_params.NoiseKind.LAPLACE):
+    def run_query(self,
+                  budget: Budget,
+                  noise_kind: aggregate_params.NoiseKind = aggregate_params.
+                  NoiseKind.LAPLACE):
         """Runs the DP query and returns a DataFrame.
 
         Args:
@@ -179,8 +180,8 @@ class Query:
         converter = _create_dataframe_converter(self._df)
         backend = _create_backend_for_dataframe(self._df)
         col = converter.dataframe_to_collection(self._df, self._columns)
-        budget_accountant = NaiveBudgetAccountant(
-            total_epsilon=budget.epsilon, total_delta=budget.delta)
+        budget_accountant = NaiveBudgetAccountant(total_epsilon=budget.epsilon,
+                                                  total_delta=budget.delta)
 
         dp_engine = DPEngine(budget_accountant, backend)
         metrics = list(self._metrics_output_columns.keys())
@@ -468,8 +469,10 @@ class QueryBuilder:
     def _get_value_caps(self) -> Tuple[Optional[float], Optional[float]]:
         metrics = set([spec.metric for spec in self._aggregations_specs])
         # COUNT, PPRIVACY_ID_COUNT do not require caps.
-        metrics_which_need_caps = metrics.difference(
-            [aggregate_params.Metrics.COUNT, aggregate_params.Metrics.PRIVACY_ID_COUNT])
+        metrics_which_need_caps = metrics.difference([
+            aggregate_params.Metrics.COUNT,
+            aggregate_params.Metrics.PRIVACY_ID_COUNT
+        ])
         if not metrics_which_need_caps:
             return None, None
         min_values = [

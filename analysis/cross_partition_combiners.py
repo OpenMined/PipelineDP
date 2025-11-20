@@ -23,9 +23,9 @@ from typing import List, Tuple, Callable
 import math
 
 
-def _sum_metrics_to_data_dropped(
-        sum_metrics: metrics.SumMetrics, partition_keep_probability: float,
-        dp_metric: Metric) -> metrics.DataDropInfo:
+def _sum_metrics_to_data_dropped(sum_metrics: metrics.SumMetrics,
+                                 partition_keep_probability: float,
+                                 dp_metric: Metric) -> metrics.DataDropInfo:
     """Finds Data drop information from per-partition metrics."""
 
     # This function attributes the data that is dropped to the various

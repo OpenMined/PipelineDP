@@ -47,8 +47,7 @@ class SamplingCrossAndPerPartitionContributionBounderTest(
         bounder = contribution_bounders.SamplingCrossAndPerPartitionContributionBounder(
         )
         return list(
-            bounder.bound_contributions(input, params,
-                                        LocalBackend(),
+            bounder.bound_contributions(input, params, LocalBackend(),
                                         _create_report_generator(),
                                         aggregate_fn))
 
@@ -123,8 +122,7 @@ class SamplingPerPrivacyIdContributionBounderTest(parameterized.TestCase):
         bounder = contribution_bounders.SamplingPerPrivacyIdContributionBounder(
         )
         return list(
-            bounder.bound_contributions(input, params,
-                                        LocalBackend(),
+            bounder.bound_contributions(input, params, LocalBackend(),
                                         _create_report_generator(),
                                         aggregate_fn))
 
@@ -162,8 +160,7 @@ class LinfSamplerTest(parameterized.TestCase):
 
         bounder = contribution_bounders.LinfSampler()
         return list(
-            bounder.bound_contributions(input, params,
-                                        LocalBackend(),
+            bounder.bound_contributions(input, params, LocalBackend(),
                                         _create_report_generator(),
                                         lambda x: x))
 

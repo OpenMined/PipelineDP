@@ -28,12 +28,10 @@ from analysis import metrics
 from analysis.tests import common
 
 
-def _create_combiner_params_for_count() -> Tuple[
-    pipeline_dp.budget_accounting.MechanismSpec, AggregateParams]:
+def _create_combiner_params_for_count(
+) -> Tuple[pipeline_dp.budget_accounting.MechanismSpec, AggregateParams]:
     mechanism_spec = pipeline_dp.budget_accounting.MechanismSpec(
-        mechanism_type=MechanismType.GAUSSIAN,
-        _eps=1,
-        _delta=0.00001)
+        mechanism_type=MechanismType.GAUSSIAN, _eps=1, _delta=0.00001)
     params = AggregateParams(
         min_value=0,
         max_value=1,
@@ -253,18 +251,15 @@ class PartitionSelectionTest(parameterized.TestCase):
         mock_compute_probability_to_keep.assert_not_called()
         combiner.compute_metrics(acc)
         mock_compute_probability_to_keep.assert_called_with(
-            PartitionSelectionStrategy.TRUNCATED_GEOMETRIC,
-            mechanism_spec.eps, mechanism_spec.delta, 1, None)
+            PartitionSelectionStrategy.TRUNCATED_GEOMETRIC, mechanism_spec.eps,
+            mechanism_spec.delta, 1, None)
 
 
 def _create_combiner_params_for_sum(
     min: float, max: float
-) -> Tuple[pipeline_dp.budget_accounting.MechanismSpec,
-           AggregateParams]:
+) -> Tuple[pipeline_dp.budget_accounting.MechanismSpec, AggregateParams]:
     return (pipeline_dp.budget_accounting.MechanismSpec(
-        mechanism_type=MechanismType.GAUSSIAN,
-        _eps=1,
-        _delta=0.00001),
+        mechanism_type=MechanismType.GAUSSIAN, _eps=1, _delta=0.00001),
             AggregateParams(
                 max_partitions_contributed=1,
                 max_contributions_per_partition=2,
@@ -386,12 +381,10 @@ class SumCombinerTest(parameterized.TestCase):
                                delta=1e-8)
 
 
-def _create_combiner_params_for_privacy_id_count() -> Tuple[
-    pipeline_dp.budget_accounting.MechanismSpec, AggregateParams]:
+def _create_combiner_params_for_privacy_id_count(
+) -> Tuple[pipeline_dp.budget_accounting.MechanismSpec, AggregateParams]:
     return (pipeline_dp.budget_accounting.MechanismSpec(
-        mechanism_type=MechanismType.GAUSSIAN,
-        _eps=1,
-        _delta=0.00001),
+        mechanism_type=MechanismType.GAUSSIAN, _eps=1, _delta=0.00001),
             AggregateParams(
                 max_partitions_contributed=2,
                 max_contributions_per_partition=2,
@@ -656,8 +649,7 @@ class CompoundCombinerTest(parameterized.TestCase):
                                expected_l0_bounding_error=-3.9833333333333334,
                                std_l0_bounding_error=1.738731977300955,
                                std_noise=7.46484375,
-                               noise_kind=NoiseKind.GAUSSIAN),
-            output[0])
+                               noise_kind=NoiseKind.GAUSSIAN), output[0])
 
     def test_two_internal_combiners(self):
         count_mechanism_spec, count_params = _create_combiner_params_for_count()

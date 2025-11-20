@@ -55,8 +55,7 @@ class UtilityAnalysisEngine(DPEngine):
     def analyze(self,
                 col,
                 options: analysis.UtilityAnalysisOptions,
-                data_extractors: Union[DataExtractors,
-                                       PreAggregateExtractors],
+                data_extractors: Union[DataExtractors, PreAggregateExtractors],
                 public_partitions=None):
         """Performs utility analysis for DP aggregations per partition.
 
@@ -89,8 +88,7 @@ class UtilityAnalysisEngine(DPEngine):
         return result
 
     def _create_contribution_bounder(
-        self, params: AggregateParams,
-        expects_per_partition_sampling: bool
+        self, params: AggregateParams, expects_per_partition_sampling: bool
     ) -> contribution_bounders.ContributionBounder:
         """Creates ContributionBounder for utility analysis."""
         if self._options.pre_aggregated_data:
@@ -102,8 +100,8 @@ class UtilityAnalysisEngine(DPEngine):
             self._options.partitions_sampling_prob)
 
     def _create_compound_combiner(
-        self, aggregate_params: AggregateParams
-    ) -> combiners.CompoundCombiner:
+            self,
+            aggregate_params: AggregateParams) -> combiners.CompoundCombiner:
         # Create Utility analysis combiners.
         internal_combiners = [per_partition_combiners.RawStatisticsCombiner()]
         n_sum_aggregations = 0
@@ -127,8 +125,8 @@ class UtilityAnalysisEngine(DPEngine):
             if not self._is_public_partitions:
                 internal_combiners.append(
                     per_partition_combiners.PartitionSelectionCombiner(
-                        budget_accountant.request_budget(
-                            MechanismType.GENERIC), params))
+                        budget_accountant.request_budget(MechanismType.GENERIC),
+                        params))
             if Metrics.SUM in aggregate_params.metrics:
                 n_sum_aggregations = len(min_max_sum_per_partition)
                 for i_column, (min_sum,
@@ -160,17 +158,16 @@ class UtilityAnalysisEngine(DPEngine):
 
     def _select_private_partitions_internal(
             self, col, max_partitions_contributed: int,
-            max_rows_per_privacy_id: int,
-            strategy: PartitionSelectionStrategy,
+            max_rows_per_privacy_id: int, strategy: PartitionSelectionStrategy,
             pre_threshold: Optional[int]):
         # Utility analysis of private partition selection is performed in a
         # corresponding combiners (unlike actual DP computations). So this
         # function is no-op.
         return col
 
-    def _extract_columns(
-        self, col, data_extractors: Union[DataExtractors,
-                                          PreAggregateExtractors]):
+    def _extract_columns(self, col,
+                         data_extractors: Union[DataExtractors,
+                                                PreAggregateExtractors]):
         """Extract columns using data_extractors."""
         if self._options.pre_aggregated_data:
             # The output elements format (privacy_id, partition_key, value).
@@ -182,10 +179,9 @@ class UtilityAnalysisEngine(DPEngine):
                 "Extract (partition_key, preaggregate_data))")
         return super()._extract_columns(col, data_extractors)
 
-    def _check_aggregate_params(
-        self, col, params: AggregateParams,
-        data_extractors: Union[DataExtractors,
-                               PreAggregateExtractors]):
+    def _check_aggregate_params(self, col, params: AggregateParams,
+                                data_extractors: Union[DataExtractors,
+                                                       PreAggregateExtractors]):
         # Do not check data_extractors. The parent implementation does not
         # support PreAggregateExtractors.
         super()._check_aggregate_params(col,
@@ -202,9 +198,8 @@ class UtilityAnalysisEngine(DPEngine):
 
 
 def _check_utility_analysis_params(
-    options: analysis.UtilityAnalysisOptions,
-    data_extractors: Union[DataExtractors,
-                           PreAggregateExtractors]):
+        options: analysis.UtilityAnalysisOptions,
+        data_extractors: Union[DataExtractors, PreAggregateExtractors]):
     # Check correctness of data extractors.
     if options.pre_aggregated_data:
         if not isinstance(data_extractors, PreAggregateExtractors):
@@ -213,22 +208,17 @@ def _check_utility_analysis_params(
                 "PreAggregateExtractors aren't provided. PreAggregateExtractors"
                 " should be specified for pre-aggregated data.")
     elif not isinstance(data_extractors, DataExtractors):
-        raise ValueError(
-            "DataExtractors should be specified for raw data.")
+        raise ValueError("DataExtractors should be specified for raw data.")
 
     # Check aggregate_params.
     params = options.aggregate_params
     if params.custom_combiners is not None:
         raise NotImplementedError("custom combiners are not supported")
-    if not (set(params.metrics).issubset({
-            Metrics.COUNT, Metrics.SUM,
-            Metrics.PRIVACY_ID_COUNT
-    })):
+    if not (set(params.metrics).issubset(
+        {Metrics.COUNT, Metrics.SUM, Metrics.PRIVACY_ID_COUNT})):
         not_supported_metrics = list(
-            set(params.metrics).difference({
-                Metrics.COUNT, Metrics.SUM,
-                Metrics.PRIVACY_ID_COUNT
-            }))
+            set(params.metrics).difference(
+                {Metrics.COUNT, Metrics.SUM, Metrics.PRIVACY_ID_COUNT}))
         raise NotImplementedError(
             f"unsupported metric in metrics={not_supported_metrics}")
     if params.contribution_bounds_already_enforced:

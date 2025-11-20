@@ -23,7 +23,7 @@ from absl.testing import parameterized
 
 import pipeline_dp
 from pipeline_dp import pipeline_functions as composite_funcs
-from pipeline_dp import pipeline_backend
+from pipeline_dp.pipeline_backend import LocalBackend
 
 
 @dataclass
@@ -125,7 +125,7 @@ class LocalBackendTest(parameterized.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.backend = pipeline_dp.LocalBackend()
+        cls.backend = LocalBackend()
 
     def test_key_by_extracts_keys_and_keeps_values_untouched(self):
         col = ["key1_value1", "key1_value2", "key2_value1"]

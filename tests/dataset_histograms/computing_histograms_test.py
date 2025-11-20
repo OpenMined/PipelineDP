@@ -20,6 +20,8 @@ import pipeline_dp
 from pipeline_dp.dataset_histograms import histograms as hist
 from pipeline_dp.dataset_histograms import computing_histograms
 from analysis import pre_aggregation
+from pipeline_dp.pipeline_backend import LocalBackend
+from pipeline_dp.data_extractors import PreAggregateExtractors
 
 
 class ComputingHistogramsTest(parameterized.TestCase):
@@ -210,11 +212,11 @@ class ComputingHistogramsTest(parameterized.TestCase):
             privacy_id_extractor=lambda x: x[0],
             partition_extractor=lambda x: x[1],
             value_extractor=lambda x: x[2])
-        backend = pipeline_dp.LocalBackend()
+        backend = LocalBackend()
         if pre_aggregated:
             input = list(
                 pre_aggregation.preaggregate(input, backend, data_extractors))
-            data_extractors = pipeline_dp.PreAggregateExtractors(
+            data_extractors = PreAggregateExtractors(
                 partition_extractor=lambda x: x[0],
                 preaggregate_extractor=lambda x: x[1])
             compute_histograms = computing_histograms.compute_dataset_histograms_on_preaggregated_data

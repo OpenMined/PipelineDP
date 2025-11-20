@@ -26,8 +26,8 @@ class PublicDatasetSummaryTest(parameterized.TestCase):
     def test_compute_public_partitions_summary(self):
         dataset = list(range(100))
         public_partitions = list(range(60, 121))
-        extractors = DataExtractors(
-            partition_extractor=lambda x: x, privacy_id_extractor=lambda _: 0)
+        extractors = DataExtractors(partition_extractor=lambda x: x,
+                                    privacy_id_extractor=lambda _: 0)
 
         summary = dataset_summary.compute_public_partitions_summary(
             dataset, LocalBackend(), extractors, public_partitions)

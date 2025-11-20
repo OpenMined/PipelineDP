@@ -36,28 +36,23 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
             value_extractor=lambda x: x,
         )
 
-    def _get_default_pre_aggregated_extractors(
-            self) -> PreAggregateExtractors:
-        return PreAggregateExtractors(
-            partition_extractor=lambda x: x[0],
-            preaggregate_extractor=lambda x: x[1])
+    def _get_default_pre_aggregated_extractors(self) -> PreAggregateExtractors:
+        return PreAggregateExtractors(partition_extractor=lambda x: x[0],
+                                      preaggregate_extractor=lambda x: x[1])
 
     def _get_default_aggregate_params(self) -> AggregateParams:
-        return AggregateParams(
-            noise_kind=NoiseKind.GAUSSIAN,
-            metrics=[Metrics.COUNT],
-            max_partitions_contributed=1,
-            max_contributions_per_partition=1)
+        return AggregateParams(noise_kind=NoiseKind.GAUSSIAN,
+                               metrics=[Metrics.COUNT],
+                               max_partitions_contributed=1,
+                               max_contributions_per_partition=1)
 
     def _get_default_utility_engine(self):
         return utility_analysis_engine.UtilityAnalysisEngine(
             budget_accountant=self._get_default_budget_accountant(),
             backend=LocalBackend())
 
-    def _get_default_budget_accountant(
-            self) -> NaiveBudgetAccountant:
-        return NaiveBudgetAccountant(total_epsilon=1,
-                                                 total_delta=1e-10)
+    def _get_default_budget_accountant(self) -> NaiveBudgetAccountant:
+        return NaiveBudgetAccountant(total_epsilon=1, total_delta=1e-10)
 
     def test_invalid_utility_analysis_params_throws_exception(self):
         # Arrange.
@@ -109,8 +104,7 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
                 aggregate_params=test_case["params"],
                 pre_aggregated_data=test_case["pre_aggregated"])
             engine = utility_analysis_engine.UtilityAnalysisEngine(
-                budget_accountant=budget_accountant,
-                backend=LocalBackend())
+                budget_accountant=budget_accountant, backend=LocalBackend())
             # Act and assert.
             with self.assertRaisesRegex(
                     Exception, expected_regex=test_case["error_message"]):
@@ -143,8 +137,7 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
                 preaggregate_extractor=lambda x: (1, 0, 1))
 
         engine = utility_analysis_engine.UtilityAnalysisEngine(
-            budget_accountant=budget_accountant,
-            backend=LocalBackend())
+            budget_accountant=budget_accountant, backend=LocalBackend())
 
         options = analysis.UtilityAnalysisOptions(
             epsilon=1,
@@ -167,14 +160,13 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
     @parameterized.parameters(False, True)
     def test_per_partition_error_metrics(self, pre_aggregated: bool):
         # Arrange
-        aggregator_params = AggregateParams(
-            noise_kind=NoiseKind.GAUSSIAN,
-            metrics=[Metrics.COUNT],
-            max_partitions_contributed=1,
-            max_contributions_per_partition=2)
+        aggregator_params = AggregateParams(noise_kind=NoiseKind.GAUSSIAN,
+                                            metrics=[Metrics.COUNT],
+                                            max_partitions_contributed=1,
+                                            max_contributions_per_partition=2)
 
         budget_accountant = NaiveBudgetAccountant(total_epsilon=2,
-                                                              total_delta=1e-10)
+                                                  total_delta=1e-10)
 
         data_extractors = DataExtractors(
             privacy_id_extractor=lambda x: x[0],
@@ -190,8 +182,7 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
             data_extractors = self._get_default_pre_aggregated_extractors()
 
         engine = utility_analysis_engine.UtilityAnalysisEngine(
-            budget_accountant=budget_accountant,
-            backend=LocalBackend())
+            budget_accountant=budget_accountant, backend=LocalBackend())
 
         options = analysis.UtilityAnalysisOptions(
             epsilon=1,
@@ -226,11 +217,10 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
 
     def test_multi_parameters(self):
         # Arrange
-        aggregate_params = AggregateParams(
-            noise_kind=NoiseKind.GAUSSIAN,
-            metrics=[Metrics.COUNT],
-            max_partitions_contributed=1,
-            max_contributions_per_partition=1)
+        aggregate_params = AggregateParams(noise_kind=NoiseKind.GAUSSIAN,
+                                           metrics=[Metrics.COUNT],
+                                           max_partitions_contributed=1,
+                                           max_contributions_per_partition=1)
 
         multi_param = analysis.MultiParameterConfiguration(
             max_partitions_contributed=[1, 2],
@@ -239,16 +229,14 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
         budget_accountant = self._get_default_budget_accountant()
 
         engine = utility_analysis_engine.UtilityAnalysisEngine(
-            budget_accountant=budget_accountant,
-            backend=LocalBackend())
+            budget_accountant=budget_accountant, backend=LocalBackend())
 
         # Input collection has 1 privacy id, which contributes to 2 partitions
         # 1 and 2 times correspondingly.
         input = [(0, "pk0"), (0, "pk1"), (0, "pk1")]
-        data_extractors = DataExtractors(
-            privacy_id_extractor=lambda x: x[0],
-            partition_extractor=lambda x: x[1],
-            value_extractor=lambda x: 0)
+        data_extractors = DataExtractors(privacy_id_extractor=lambda x: x[0],
+                                         partition_extractor=lambda x: x[1],
+                                         value_extractor=lambda x: 0)
 
         public_partitions = ["pk0", "pk1"]
 
@@ -313,32 +301,27 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
 
     def test_multi_parameters_different_noise_kind(self):
         # Arrange
-        aggregate_params = AggregateParams(
-            noise_kind=NoiseKind.GAUSSIAN,
-            metrics=[Metrics.COUNT],
-            max_partitions_contributed=1,
-            max_contributions_per_partition=1)
+        aggregate_params = AggregateParams(noise_kind=NoiseKind.GAUSSIAN,
+                                           metrics=[Metrics.COUNT],
+                                           max_partitions_contributed=1,
+                                           max_contributions_per_partition=1)
 
         multi_param = analysis.MultiParameterConfiguration(
             max_partitions_contributed=[1, 2],
             max_contributions_per_partition=[1, 2],
-            noise_kind=[
-                NoiseKind.LAPLACE, NoiseKind.GAUSSIAN
-            ])
+            noise_kind=[NoiseKind.LAPLACE, NoiseKind.GAUSSIAN])
 
         budget_accountant = self._get_default_budget_accountant()
 
         engine = utility_analysis_engine.UtilityAnalysisEngine(
-            budget_accountant=budget_accountant,
-            backend=LocalBackend())
+            budget_accountant=budget_accountant, backend=LocalBackend())
 
         # Input collection has 1 privacy id, which contributes to 2 partitions
         # 1 and 2 times correspondingly.
         input = [(0, "pk0"), (0, "pk1"), (0, "pk1")]
-        data_extractors = DataExtractors(
-            privacy_id_extractor=lambda x: x[0],
-            partition_extractor=lambda x: x[1],
-            value_extractor=lambda x: 0)
+        data_extractors = DataExtractors(privacy_id_extractor=lambda x: x[0],
+                                         partition_extractor=lambda x: x[1],
+                                         value_extractor=lambda x: 0)
 
         options = analysis.UtilityAnalysisOptions(
             epsilon=1,
@@ -385,14 +368,12 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
 
         budget_accountant = self._get_default_budget_accountant()
 
-        data_extractors = DataExtractors(
-            privacy_id_extractor=lambda x: x,
-            partition_extractor=lambda x: f"pk{x}",
-            value_extractor=lambda x: None)
+        data_extractors = DataExtractors(privacy_id_extractor=lambda x: x,
+                                         partition_extractor=lambda x: f"pk{x}",
+                                         value_extractor=lambda x: None)
 
         engine = utility_analysis_engine.UtilityAnalysisEngine(
-            budget_accountant=budget_accountant,
-            backend=LocalBackend())
+            budget_accountant=budget_accountant, backend=LocalBackend())
 
         options = analysis.UtilityAnalysisOptions(
             epsilon=1,
@@ -406,13 +387,12 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
 
     def test_utility_analysis_for_2_columns(self):
         # Arrange
-        aggregate_params = AggregateParams(
-            noise_kind=NoiseKind.GAUSSIAN,
-            metrics=[Metrics.COUNT, Metrics.SUM],
-            max_partitions_contributed=1,
-            max_contributions_per_partition=1,
-            max_sum_per_partition=0.5,
-            min_sum_per_partition=0)
+        aggregate_params = AggregateParams(noise_kind=NoiseKind.GAUSSIAN,
+                                           metrics=[Metrics.COUNT, Metrics.SUM],
+                                           max_partitions_contributed=1,
+                                           max_contributions_per_partition=1,
+                                           max_sum_per_partition=0.5,
+                                           min_sum_per_partition=0)
 
         multi_param = analysis.MultiParameterConfiguration(
             max_partitions_contributed=[1, 2],
@@ -423,8 +403,7 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
         budget_accountant = self._get_default_budget_accountant()
 
         engine = utility_analysis_engine.UtilityAnalysisEngine(
-            budget_accountant=budget_accountant,
-            backend=LocalBackend())
+            budget_accountant=budget_accountant, backend=LocalBackend())
 
         # Input collection has 2 privacy id, which contributes to 1 partition
         # 2 and 1 times correspondingly.

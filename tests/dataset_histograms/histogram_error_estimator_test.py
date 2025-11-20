@@ -36,10 +36,9 @@ class HistogramErrorEstimatorTest(parameterized.TestCase):
         # 2nd privacy unit contributes to 1 partition 20 times.
         dataset.extend([(2, 0, 2.0) for i in range(20)])
 
-        data_extractors = DataExtractors(
-            privacy_id_extractor=lambda x: x[0],
-            partition_extractor=lambda x: x[1],
-            value_extractor=lambda x: x[2])
+        data_extractors = DataExtractors(privacy_id_extractor=lambda x: x[0],
+                                         partition_extractor=lambda x: x[1],
+                                         value_extractor=lambda x: x[2])
         return list(
             computing_histograms.compute_dataset_histograms(
                 dataset, data_extractors, LocalBackend()))[0]
@@ -98,9 +97,8 @@ class HistogramErrorEstimatorTest(parameterized.TestCase):
              expected=13.5),
     )
     def test_count_get_sigma(self, metric: Metric, epsilon: float,
-                             delta: Optional[float],
-                             noise_kind: NoiseKind, l0: float,
-                             linf: float, expected: float):
+                             delta: Optional[float], noise_kind: NoiseKind,
+                             l0: float, linf: float, expected: float):
         estimator = self._get_estimator_for_count_and_privacy_id_count(
             metric=metric, epsilon=epsilon, delta=delta, noise_kind=noise_kind)
         self.assertAlmostEqual(estimator._get_stddev(l0, linf),
@@ -110,8 +108,7 @@ class HistogramErrorEstimatorTest(parameterized.TestCase):
     def test_sum_not_supported(self):
         with self.assertRaisesRegex(
                 ValueError, "Only COUNT and PRIVACY_ID_COUNT are supported"):
-            self._get_estimator_for_count_and_privacy_id_count(
-                Metrics.SUM)
+            self._get_estimator_for_count_and_privacy_id_count(Metrics.SUM)
 
     @parameterized.parameters((0, 1), (1, 9 / 11), (2, 8 / 11), (3, 7 / 11),
                               (9, 1 / 11), (10, 0), (20, 0))

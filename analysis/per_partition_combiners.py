@@ -122,11 +122,10 @@ class PartitionSelectionCalculator:
             self.moments
             is None), "Only one of probabilities and moments must be set."
 
-    def compute_probability_to_keep(self,
-                                    partition_selection_strategy: PartitionSelectionStrategy,
-                                    eps: float, delta: float,
-                                    max_partitions_contributed: int,
-                                    pre_threshold: Optional[int]) -> float:
+    def compute_probability_to_keep(
+            self, partition_selection_strategy: PartitionSelectionStrategy,
+            eps: float, delta: float, max_partitions_contributed: int,
+            pre_threshold: Optional[int]) -> float:
         """Computes the probability that this partition is kept.
 
         If self.probabilities is set, then the computed probability is exact,

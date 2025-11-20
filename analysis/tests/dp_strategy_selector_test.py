@@ -44,18 +44,15 @@ class DPStrategySelectorTest(parameterized.TestCase):
         dict(testcase_name="count_privacy_id_count",
              epsilon=0.1,
              delta=1e-5,
-             metrics=[
-                 Metrics.PRIVACY_ID_COUNT, Metrics.SUM
-             ],
+             metrics=[Metrics.PRIVACY_ID_COUNT, Metrics.SUM],
              l0s=[1, 2, 3, 6],
              linfs=[1, 1, 1, 1],
              expected_noise_kinds=[NoiseKind.LAPLACE] * 2 +
              [NoiseKind.GAUSSIAN] * 2),
     )
     def test_selection_for_public_partitions(
-            self, epsilon: float, delta: float, metrics: Metric,
-            l0s: List[int], linfs: List[int],
-            expected_noise_kinds: List[NoiseKind]):
+            self, epsilon: float, delta: float, metrics: Metric, l0s: List[int],
+            linfs: List[int], expected_noise_kinds: List[NoiseKind]):
         selector = dp_strategy_selector.DPStrategySelector(
             epsilon, delta, metrics, is_public_partitions=True)
         for i in range(len(l0s)):
@@ -66,19 +63,17 @@ class DPStrategySelectorTest(parameterized.TestCase):
             self.assertFalse(output.post_aggregation_thresholding)
 
     @parameterized.named_parameters(
-        dict(
-            testcase_name="count",
-            epsilon=1,
-            delta=1e-8,
-            metrics=[Metrics.COUNT],
-            l0s=[1, 2, 3, 20, 100],
-            linfs=[1, 1, 10, 1, 5],
-            expected_noise_kinds=[NoiseKind.LAPLACE] * 3 +
-            [NoiseKind.GAUSSIAN] * 2,
-            expected_partition_selection_strategies=[
-                PartitionSelectionStrategy.TRUNCATED_GEOMETRIC
-            ] * 2 +
-            [PartitionSelectionStrategy.GAUSSIAN_THRESHOLDING] * 3),
+        dict(testcase_name="count",
+             epsilon=1,
+             delta=1e-8,
+             metrics=[Metrics.COUNT],
+             l0s=[1, 2, 3, 20, 100],
+             linfs=[1, 1, 10, 1, 5],
+             expected_noise_kinds=[NoiseKind.LAPLACE] * 3 +
+             [NoiseKind.GAUSSIAN] * 2,
+             expected_partition_selection_strategies=[
+                 PartitionSelectionStrategy.TRUNCATED_GEOMETRIC
+             ] * 2 + [PartitionSelectionStrategy.GAUSSIAN_THRESHOLDING] * 3),
         dict(testcase_name="sum",
              epsilon=0.1,
              delta=1e-3,
@@ -92,9 +87,8 @@ class DPStrategySelectorTest(parameterized.TestCase):
              ] * 3),
     )
     def test_selection_for_private_partitions_wo_post_aggregation_thresholding(
-        self, epsilon: float, delta: float, metrics: Metric,
-        l0s: List[int], linfs: List[int],
-        expected_noise_kinds: List[NoiseKind],
+        self, epsilon: float, delta: float, metrics: Metric, l0s: List[int],
+        linfs: List[int], expected_noise_kinds: List[NoiseKind],
         expected_partition_selection_strategies: List[
             PartitionSelectionStrategy]):
         selector = dp_strategy_selector.DPStrategySelector(
@@ -111,15 +105,18 @@ class DPStrategySelectorTest(parameterized.TestCase):
         dict(testcase_name="l0_bound=1",
              l0=1,
              expected_noise_kind=NoiseKind.LAPLACE,
-             expected_partition_selection_strategy=PartitionSelectionStrategy.LAPLACE_THRESHOLDING),
+             expected_partition_selection_strategy=PartitionSelectionStrategy.
+             LAPLACE_THRESHOLDING),
         dict(testcase_name="l0_bound=10",
              l0=10,
              expected_noise_kind=NoiseKind.LAPLACE,
-             expected_partition_selection_strategy=PartitionSelectionStrategy.LAPLACE_THRESHOLDING),
+             expected_partition_selection_strategy=PartitionSelectionStrategy.
+             LAPLACE_THRESHOLDING),
         dict(testcase_name="l0_bound=25",
              l0=25,
              expected_noise_kind=NoiseKind.GAUSSIAN,
-             expected_partition_selection_strategy=PartitionSelectionStrategy.GAUSSIAN_THRESHOLDING),
+             expected_partition_selection_strategy=PartitionSelectionStrategy.
+             GAUSSIAN_THRESHOLDING),
     )
     def test_selection_with_post_aggregation_thresholding(
             self, l0, expected_noise_kind,
