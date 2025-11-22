@@ -20,7 +20,7 @@ import math
 from typing import Optional
 
 from dataclasses import dataclass
-import pipeline_dp.aggregate_params as agg_params
+from pipeline_dp import aggregate_params as ap
 from pipeline_dp import input_validators
 
 try:
@@ -37,7 +37,7 @@ def _check_pldlib_imported() -> bool:
     return "dp_accounting.pld.privacy_loss_distribution" in sys.modules
 
 
-MechanismType = agg_params.MechanismType
+MechanismType = ap.MechanismType
 
 
 @dataclass

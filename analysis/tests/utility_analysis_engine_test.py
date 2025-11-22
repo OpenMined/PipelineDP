@@ -17,7 +17,10 @@ from absl.testing import parameterized
 from unittest.mock import patch
 import copy
 
-import pipeline_dp
+from pipeline_dp import aggregate_params as ap
+from pipeline_dp import data_extractors as de
+from pipeline_dp import budget_accounting
+from pipeline_dp import pipeline_backend
 from analysis import utility_analysis_engine
 from analysis import metrics
 import analysis
@@ -26,35 +29,33 @@ import analysis.contribution_bounders as utility_contribution_bounders
 
 class UtilityAnalysisEngineTest(parameterized.TestCase):
 
-    def _get_default_extractors(self) -> pipeline_dp.DataExtractors:
-        return pipeline_dp.DataExtractors(
+    def _get_default_extractors(self) -> de.DataExtractors:
+        return de.DataExtractors(
             privacy_id_extractor=lambda x: x,
             partition_extractor=lambda x: x,
             value_extractor=lambda x: x,
         )
 
     def _get_default_pre_aggregated_extractors(
-            self) -> pipeline_dp.PreAggregateExtractors:
-        return pipeline_dp.PreAggregateExtractors(
-            partition_extractor=lambda x: x[0],
-            preaggregate_extractor=lambda x: x[1])
+            self) -> de.PreAggregateExtractors:
+        return de.PreAggregateExtractors(partition_extractor=lambda x: x[0],
+                                         preaggregate_extractor=lambda x: x[1])
 
-    def _get_default_aggregate_params(self) -> pipeline_dp.AggregateParams:
-        return pipeline_dp.AggregateParams(
-            noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
-            metrics=[pipeline_dp.Metrics.COUNT],
-            max_partitions_contributed=1,
-            max_contributions_per_partition=1)
+    def _get_default_aggregate_params(self) -> ap.AggregateParams:
+        return ap.AggregateParams(noise_kind=ap.NoiseKind.GAUSSIAN,
+                                  metrics=[ap.Metrics.COUNT],
+                                  max_partitions_contributed=1,
+                                  max_contributions_per_partition=1)
 
     def _get_default_utility_engine(self):
         return utility_analysis_engine.UtilityAnalysisEngine(
             budget_accountant=self._get_default_budget_accountant(),
-            backend=pipeline_dp.LocalBackend())
+            backend=pipeline_backend.LocalBackend())
 
     def _get_default_budget_accountant(
-            self) -> pipeline_dp.NaiveBudgetAccountant:
-        return pipeline_dp.NaiveBudgetAccountant(total_epsilon=1,
-                                                 total_delta=1e-10)
+            self) -> budget_accounting.NaiveBudgetAccountant:
+        return budget_accounting.NaiveBudgetAccountant(total_epsilon=1,
+                                                       total_delta=1e-10)
 
     def test_invalid_utility_analysis_params_throws_exception(self):
         # Arrange.
@@ -63,7 +64,7 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
         params_with_custom_combiners = copy.copy(default_params)
         params_with_custom_combiners.custom_combiners = sum
         params_with_unsupported_metric = copy.copy(default_params)
-        params_with_unsupported_metric.metrics = [pipeline_dp.Metrics.MEAN]
+        params_with_unsupported_metric.metrics = [ap.Metrics.MEAN]
         params_with_contribution_bounds_already_enforced = copy.copy(
             default_params)
         params_with_contribution_bounds_already_enforced.contribution_bounds_already_enforced = True
@@ -107,7 +108,7 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
                 pre_aggregated_data=test_case["pre_aggregated"])
             engine = utility_analysis_engine.UtilityAnalysisEngine(
                 budget_accountant=budget_accountant,
-                backend=pipeline_dp.LocalBackend())
+                backend=pipeline_backend.LocalBackend())
             # Act and assert.
             with self.assertRaisesRegex(
                     Exception, expected_regex=test_case["error_message"]):
@@ -130,18 +131,18 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
         input = list(range(100))
 
         if not pre_aggregated:
-            data_extractors = pipeline_dp.DataExtractors(
+            data_extractors = de.DataExtractors(
                 privacy_id_extractor=lambda x: x,
                 partition_extractor=lambda x: f"pk{x}",
                 value_extractor=lambda x: 0)
         else:
-            data_extractors = pipeline_dp.PreAggregateExtractors(
+            data_extractors = de.PreAggregateExtractors(
                 partition_extractor=lambda x: f"pk{x}",
                 preaggregate_extractor=lambda x: (1, 0, 1))
 
         engine = utility_analysis_engine.UtilityAnalysisEngine(
             budget_accountant=budget_accountant,
-            backend=pipeline_dp.LocalBackend())
+            backend=pipeline_backend.LocalBackend())
 
         options = analysis.UtilityAnalysisOptions(
             epsilon=1,
@@ -164,16 +165,16 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
     @parameterized.parameters(False, True)
     def test_per_partition_error_metrics(self, pre_aggregated: bool):
         # Arrange
-        aggregator_params = pipeline_dp.AggregateParams(
-            noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
-            metrics=[pipeline_dp.Metrics.COUNT],
+        aggregator_params = ap.AggregateParams(
+            noise_kind=ap.NoiseKind.GAUSSIAN,
+            metrics=[ap.Metrics.COUNT],
             max_partitions_contributed=1,
             max_contributions_per_partition=2)
 
-        budget_accountant = pipeline_dp.NaiveBudgetAccountant(total_epsilon=2,
-                                                              total_delta=1e-10)
+        budget_accountant = budget_accounting.NaiveBudgetAccountant(
+            total_epsilon=2, total_delta=1e-10)
 
-        data_extractors = pipeline_dp.DataExtractors(
+        data_extractors = de.DataExtractors(
             privacy_id_extractor=lambda x: x[0],
             partition_extractor=lambda x: f"pk{x[1]}",
             value_extractor=lambda x: 0)
@@ -183,12 +184,12 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
         input = [(i, j) for i in range(10) for j in range(10)] * 3
         if pre_aggregated:
             input = analysis.pre_aggregation.preaggregate(
-                input, pipeline_dp.LocalBackend(), data_extractors)
+                input, pipeline_backend.LocalBackend(), data_extractors)
             data_extractors = self._get_default_pre_aggregated_extractors()
 
         engine = utility_analysis_engine.UtilityAnalysisEngine(
             budget_accountant=budget_accountant,
-            backend=pipeline_dp.LocalBackend())
+            backend=pipeline_backend.LocalBackend())
 
         options = analysis.UtilityAnalysisOptions(
             epsilon=1,
@@ -223,11 +224,10 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
 
     def test_multi_parameters(self):
         # Arrange
-        aggregate_params = pipeline_dp.AggregateParams(
-            noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
-            metrics=[pipeline_dp.Metrics.COUNT],
-            max_partitions_contributed=1,
-            max_contributions_per_partition=1)
+        aggregate_params = ap.AggregateParams(noise_kind=ap.NoiseKind.GAUSSIAN,
+                                              metrics=[ap.Metrics.COUNT],
+                                              max_partitions_contributed=1,
+                                              max_contributions_per_partition=1)
 
         multi_param = analysis.MultiParameterConfiguration(
             max_partitions_contributed=[1, 2],
@@ -237,15 +237,14 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
 
         engine = utility_analysis_engine.UtilityAnalysisEngine(
             budget_accountant=budget_accountant,
-            backend=pipeline_dp.LocalBackend())
+            backend=pipeline_backend.LocalBackend())
 
         # Input collection has 1 privacy id, which contributes to 2 partitions
         # 1 and 2 times correspondingly.
         input = [(0, "pk0"), (0, "pk1"), (0, "pk1")]
-        data_extractors = pipeline_dp.DataExtractors(
-            privacy_id_extractor=lambda x: x[0],
-            partition_extractor=lambda x: x[1],
-            value_extractor=lambda x: 0)
+        data_extractors = de.DataExtractors(privacy_id_extractor=lambda x: x[0],
+                                            partition_extractor=lambda x: x[1],
+                                            value_extractor=lambda x: 0)
 
         public_partitions = ["pk0", "pk1"]
 
@@ -268,41 +267,41 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
 
         expected_pk0 = [
             metrics.RawStatistics(privacy_id_count=1, count=1),
-            metrics.SumMetrics(aggregation=pipeline_dp.Metrics.COUNT,
+            metrics.SumMetrics(aggregation=ap.Metrics.COUNT,
                                sum=1.0,
                                clipping_to_min_error=0.0,
                                clipping_to_max_error=0.0,
                                expected_l0_bounding_error=-0.5,
                                std_l0_bounding_error=0.5,
                                std_noise=5.87109375,
-                               noise_kind=pipeline_dp.NoiseKind.GAUSSIAN),
-            metrics.SumMetrics(aggregation=pipeline_dp.Metrics.COUNT,
+                               noise_kind=ap.NoiseKind.GAUSSIAN),
+            metrics.SumMetrics(aggregation=ap.Metrics.COUNT,
                                sum=1.0,
                                clipping_to_min_error=0.0,
                                clipping_to_max_error=0.0,
                                expected_l0_bounding_error=0,
                                std_l0_bounding_error=0.0,
                                std_noise=16.60596081442783,
-                               noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)
+                               noise_kind=ap.NoiseKind.GAUSSIAN)
         ]
         expected_pk1 = [
             metrics.RawStatistics(privacy_id_count=1, count=2),
-            metrics.SumMetrics(aggregation=pipeline_dp.Metrics.COUNT,
+            metrics.SumMetrics(aggregation=ap.Metrics.COUNT,
                                sum=2.0,
                                clipping_to_min_error=0.0,
                                clipping_to_max_error=-1.0,
                                expected_l0_bounding_error=-0.5,
                                std_l0_bounding_error=0.5,
                                std_noise=5.87109375,
-                               noise_kind=pipeline_dp.NoiseKind.GAUSSIAN),
-            metrics.SumMetrics(aggregation=pipeline_dp.Metrics.COUNT,
+                               noise_kind=ap.NoiseKind.GAUSSIAN),
+            metrics.SumMetrics(aggregation=ap.Metrics.COUNT,
                                sum=2.0,
                                clipping_to_min_error=0.0,
                                clipping_to_max_error=0.0,
                                expected_l0_bounding_error=0,
                                std_l0_bounding_error=0.0,
                                std_noise=16.60596081442783,
-                               noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)
+                               noise_kind=ap.NoiseKind.GAUSSIAN)
         ]
 
         self.assertSequenceEqual(expected_pk0, output[0][1])
@@ -310,32 +309,28 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
 
     def test_multi_parameters_different_noise_kind(self):
         # Arrange
-        aggregate_params = pipeline_dp.AggregateParams(
-            noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
-            metrics=[pipeline_dp.Metrics.COUNT],
-            max_partitions_contributed=1,
-            max_contributions_per_partition=1)
+        aggregate_params = ap.AggregateParams(noise_kind=ap.NoiseKind.GAUSSIAN,
+                                              metrics=[ap.Metrics.COUNT],
+                                              max_partitions_contributed=1,
+                                              max_contributions_per_partition=1)
 
         multi_param = analysis.MultiParameterConfiguration(
             max_partitions_contributed=[1, 2],
             max_contributions_per_partition=[1, 2],
-            noise_kind=[
-                pipeline_dp.NoiseKind.LAPLACE, pipeline_dp.NoiseKind.GAUSSIAN
-            ])
+            noise_kind=[ap.NoiseKind.LAPLACE, ap.NoiseKind.GAUSSIAN])
 
         budget_accountant = self._get_default_budget_accountant()
 
         engine = utility_analysis_engine.UtilityAnalysisEngine(
             budget_accountant=budget_accountant,
-            backend=pipeline_dp.LocalBackend())
+            backend=pipeline_backend.LocalBackend())
 
         # Input collection has 1 privacy id, which contributes to 2 partitions
         # 1 and 2 times correspondingly.
         input = [(0, "pk0"), (0, "pk1"), (0, "pk1")]
-        data_extractors = pipeline_dp.DataExtractors(
-            privacy_id_extractor=lambda x: x[0],
-            partition_extractor=lambda x: x[1],
-            value_extractor=lambda x: 0)
+        data_extractors = de.DataExtractors(privacy_id_extractor=lambda x: x[0],
+                                            partition_extractor=lambda x: x[1],
+                                            value_extractor=lambda x: 0)
 
         options = analysis.UtilityAnalysisOptions(
             epsilon=1,
@@ -353,23 +348,23 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
         expected_pk0 = [
             metrics.RawStatistics(privacy_id_count=1, count=1),
             5e-11,  # Probability that the partition is kept
-            metrics.SumMetrics(aggregation=pipeline_dp.Metrics.COUNT,
+            metrics.SumMetrics(aggregation=ap.Metrics.COUNT,
                                sum=1.0,
                                clipping_to_min_error=0.0,
                                clipping_to_max_error=0.0,
                                expected_l0_bounding_error=-0.5,
                                std_l0_bounding_error=0.5,
                                std_noise=2.8284271247461903,
-                               noise_kind=pipeline_dp.NoiseKind.LAPLACE),
+                               noise_kind=ap.NoiseKind.LAPLACE),
             2.50000000003125e-11,  # Probability that the partition is kept
-            metrics.SumMetrics(aggregation=pipeline_dp.Metrics.COUNT,
+            metrics.SumMetrics(aggregation=ap.Metrics.COUNT,
                                sum=1.0,
                                clipping_to_min_error=0.0,
                                clipping_to_max_error=0.0,
                                expected_l0_bounding_error=0,
                                std_l0_bounding_error=0.0,
                                std_noise=32.99095075973487,
-                               noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)
+                               noise_kind=ap.NoiseKind.GAUSSIAN)
         ]
 
         self.assertSequenceEqual(expected_pk0, output[0][1])
@@ -382,14 +377,14 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
 
         budget_accountant = self._get_default_budget_accountant()
 
-        data_extractors = pipeline_dp.DataExtractors(
+        data_extractors = de.DataExtractors(
             privacy_id_extractor=lambda x: x,
             partition_extractor=lambda x: f"pk{x}",
             value_extractor=lambda x: None)
 
         engine = utility_analysis_engine.UtilityAnalysisEngine(
             budget_accountant=budget_accountant,
-            backend=pipeline_dp.LocalBackend())
+            backend=pipeline_backend.LocalBackend())
 
         options = analysis.UtilityAnalysisOptions(
             epsilon=1,
@@ -403,9 +398,9 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
 
     def test_utility_analysis_for_2_columns(self):
         # Arrange
-        aggregate_params = pipeline_dp.AggregateParams(
-            noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
-            metrics=[pipeline_dp.Metrics.COUNT, pipeline_dp.Metrics.SUM],
+        aggregate_params = ap.AggregateParams(
+            noise_kind=ap.NoiseKind.GAUSSIAN,
+            metrics=[ap.Metrics.COUNT, ap.Metrics.SUM],
             max_partitions_contributed=1,
             max_contributions_per_partition=1,
             max_sum_per_partition=0.5,
@@ -421,12 +416,12 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
 
         engine = utility_analysis_engine.UtilityAnalysisEngine(
             budget_accountant=budget_accountant,
-            backend=pipeline_dp.LocalBackend())
+            backend=pipeline_backend.LocalBackend())
 
         # Input collection has 2 privacy id, which contributes to 1 partition
         # 2 and 1 times correspondingly.
         input = [(0, "pk", 2, 3), (0, "pk", 0, 0), (1, "pk", 15, 20)]
-        data_extractors = pipeline_dp.data_extractors.MultiValueDataExtractors(
+        data_extractors = de.MultiValueDataExtractors(
             privacy_id_extractor=lambda x: x[0],
             partition_extractor=lambda x: x[1],
             value_extractors=[lambda x: x[2], lambda x: x[3]])
@@ -450,54 +445,54 @@ class UtilityAnalysisEngineTest(parameterized.TestCase):
 
         expected = [
             metrics.RawStatistics(privacy_id_count=2, count=3),
-            metrics.SumMetrics(aggregation=pipeline_dp.Metrics.SUM,
+            metrics.SumMetrics(aggregation=ap.Metrics.SUM,
                                sum=17,
                                clipping_to_min_error=0,
                                clipping_to_max_error=-12,
                                expected_l0_bounding_error=0.0,
                                std_l0_bounding_error=0.0,
                                std_noise=52.359375,
-                               noise_kind=pipeline_dp.NoiseKind.GAUSSIAN),
-            metrics.SumMetrics(aggregation=pipeline_dp.Metrics.SUM,
+                               noise_kind=ap.NoiseKind.GAUSSIAN),
+            metrics.SumMetrics(aggregation=ap.Metrics.SUM,
                                sum=23,
                                clipping_to_min_error=0,
                                clipping_to_max_error=-10,
                                expected_l0_bounding_error=0.0,
                                std_l0_bounding_error=0.0,
                                std_noise=174.53125,
-                               noise_kind=pipeline_dp.NoiseKind.GAUSSIAN),
-            metrics.SumMetrics(aggregation=pipeline_dp.Metrics.COUNT,
+                               noise_kind=ap.NoiseKind.GAUSSIAN),
+            metrics.SumMetrics(aggregation=ap.Metrics.COUNT,
                                sum=3,
                                clipping_to_min_error=0.0,
                                clipping_to_max_error=-1.0,
                                expected_l0_bounding_error=0.0,
                                std_l0_bounding_error=0.0,
                                std_noise=17.453125,
-                               noise_kind=pipeline_dp.NoiseKind.GAUSSIAN),
-            metrics.SumMetrics(aggregation=pipeline_dp.Metrics.SUM,
+                               noise_kind=ap.NoiseKind.GAUSSIAN),
+            metrics.SumMetrics(aggregation=ap.Metrics.SUM,
                                sum=17,
                                clipping_to_min_error=0,
                                clipping_to_max_error=-10,
                                expected_l0_bounding_error=0.0,
                                std_l0_bounding_error=0.0,
                                std_noise=123.41223040396463,
-                               noise_kind=pipeline_dp.NoiseKind.GAUSSIAN),
-            metrics.SumMetrics(aggregation=pipeline_dp.Metrics.SUM,
+                               noise_kind=ap.NoiseKind.GAUSSIAN),
+            metrics.SumMetrics(aggregation=ap.Metrics.SUM,
                                sum=23,
                                clipping_to_min_error=0,
                                clipping_to_max_error=0,
                                expected_l0_bounding_error=0,
                                std_l0_bounding_error=0.0,
                                std_noise=493.6489216158585,
-                               noise_kind=pipeline_dp.NoiseKind.GAUSSIAN),
-            metrics.SumMetrics(aggregation=pipeline_dp.Metrics.COUNT,
+                               noise_kind=ap.NoiseKind.GAUSSIAN),
+            metrics.SumMetrics(aggregation=ap.Metrics.COUNT,
                                sum=3,
                                clipping_to_min_error=0.0,
                                clipping_to_max_error=-1.0,
                                expected_l0_bounding_error=0.0,
                                std_l0_bounding_error=0.0,
                                std_noise=24.682446080792925,
-                               noise_kind=pipeline_dp.NoiseKind.GAUSSIAN),
+                               noise_kind=ap.NoiseKind.GAUSSIAN),
         ]
 
         self.assertSequenceEqual(output[0][1], expected)

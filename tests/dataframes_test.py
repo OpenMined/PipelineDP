@@ -21,7 +21,7 @@ from unittest import mock
 from unittest.mock import patch
 
 from pipeline_dp import dataframes
-import pipeline_dp
+from pipeline_dp import aggregate_params as ap
 
 
 def get_pandas_df() -> pd.DataFrame:
@@ -146,7 +146,7 @@ class QueryBuilderTest(parameterized.TestCase):
         self.assertEqual(query._columns,
                          dataframes.Columns("privacy_key", "group_key", None))
         self.assertEqual(query._metrics_output_columns,
-                         {pipeline_dp.Metrics.COUNT: None})
+                         {ap.Metrics.COUNT: None})
         self.assertEqual(
             query._contribution_bounds,
             dataframes.ContributionBounds(max_partitions_contributed=5,
@@ -167,8 +167,7 @@ class QueryBuilderTest(parameterized.TestCase):
         self.assertEqual(
             query._columns,
             dataframes.Columns("privacy_key", "group_key", "value"))
-        self.assertEqual(query._metrics_output_columns,
-                         {pipeline_dp.Metrics.SUM: None})
+        self.assertEqual(query._metrics_output_columns, {ap.Metrics.SUM: None})
         self.assertEqual(
             query._contribution_bounds,
             dataframes.ContributionBounds(max_partitions_contributed=8,
@@ -187,8 +186,8 @@ class QueryBuilderTest(parameterized.TestCase):
             query._columns,
             dataframes.Columns("privacy_key", "group_key", "value"))
         self.assertEqual(query._metrics_output_columns, {
-            pipeline_dp.Metrics.COUNT: None,
-            pipeline_dp.Metrics.SUM: "SUM1"
+            ap.Metrics.COUNT: None,
+            ap.Metrics.SUM: "SUM1"
         })
         self.assertEqual(
             query._contribution_bounds,
@@ -208,12 +207,11 @@ class QueryBuilderTest(parameterized.TestCase):
         self.assertEqual(
             query._columns,
             dataframes.Columns("privacy_key", "group_key", "value"))
-        self.assertEqual(
-            query._metrics_output_columns, {
-                pipeline_dp.Metrics.COUNT: None,
-                pipeline_dp.Metrics.SUM: "SUM1",
-                pipeline_dp.Metrics.MEAN: None
-            })
+        self.assertEqual(query._metrics_output_columns, {
+            ap.Metrics.COUNT: None,
+            ap.Metrics.SUM: "SUM1",
+            ap.Metrics.MEAN: None
+        })
         self.assertEqual(
             query._contribution_bounds,
             dataframes.ContributionBounds(max_partitions_contributed=8,
@@ -246,8 +244,7 @@ class QueryBuilderTest(parameterized.TestCase):
             query._columns,
             dataframes.Columns("privacy_key",
                                ["group_key", "second_group_by_key"], "value"))
-        self.assertEqual(query._metrics_output_columns,
-                         {pipeline_dp.Metrics.SUM: None})
+        self.assertEqual(query._metrics_output_columns, {ap.Metrics.SUM: None})
 
 
 CountNamedTuple = namedtuple("Count", ["count"])
@@ -262,23 +259,23 @@ class QueryTest(parameterized.TestCase):
 
     @parameterized.named_parameters(
         dict(testcase_name='count, public_partitions',
-             metrics=[pipeline_dp.Metrics.COUNT],
+             metrics=[ap.Metrics.COUNT],
              public_keys=["key1"]),
         dict(testcase_name='sum, count, private partitions',
-             metrics=[pipeline_dp.Metrics.COUNT, pipeline_dp.Metrics.SUM],
+             metrics=[ap.Metrics.COUNT, ap.Metrics.SUM],
              public_keys=None),
         dict(testcase_name='mean, count, private partitions',
-             metrics=[pipeline_dp.Metrics.COUNT, pipeline_dp.Metrics.MEAN],
+             metrics=[ap.Metrics.COUNT, ap.Metrics.MEAN],
              public_keys=None))
     @patch('pipeline_dp.dp_engine.DPEngine.aggregate')
     def test_run_query(self, mock_aggregate, metrics, public_keys):
         # Arrange
         spark = self._get_spark_session()
-        if pipeline_dp.Metrics.SUM in metrics:
+        if ap.Metrics.SUM in metrics:
             mock_aggregate.return_value = spark.sparkContext.parallelize([
                 ("key1", CountSumNamedTuple(1.2345, 2.34567))
             ])
-        elif pipeline_dp.Metrics.MEAN in metrics:
+        elif ap.Metrics.MEAN in metrics:
             mock_aggregate.return_value = spark.sparkContext.parallelize([
                 ("key1", CountMeanNamedTuple(1.2345, 2.34567))
             ])
@@ -287,11 +284,11 @@ class QueryTest(parameterized.TestCase):
                 ("key1", CountNamedTuple(1.2345))
             ])
         df = spark.createDataFrame(get_pandas_df())
-        value_column = "value" if pipeline_dp.Metrics.SUM in metrics else None
+        value_column = "value" if ap.Metrics.SUM in metrics else None
         columns = dataframes.Columns("privacy_key", "group_key", value_column)
         metrics_dict = dict([(m, m.name) for m in metrics])
         min_value = max_value = None
-        if pipeline_dp.Metrics.SUM in metrics or pipeline_dp.Metrics.MEAN in metrics:
+        if ap.Metrics.SUM in metrics or ap.Metrics.MEAN in metrics:
             min_value, max_value = -5, 5
         bounds = dataframes.ContributionBounds(
             max_partitions_contributed=5,
@@ -304,7 +301,7 @@ class QueryTest(parameterized.TestCase):
         result = query.run_query(dataframes.Budget(1, 1e-10))
 
         # Assert
-        expected_aggregate_params = pipeline_dp.AggregateParams(
+        expected_aggregate_params = ap.AggregateParams(
             max_partitions_contributed=5,
             max_contributions_per_partition=2,
             min_value=min_value,
@@ -326,9 +323,9 @@ class QueryTest(parameterized.TestCase):
         df = spark.createDataFrame(get_pandas_df())
         columns = dataframes.Columns("privacy_key", "group_key", "value")
         metrics = {
-            pipeline_dp.Metrics.COUNT: "count_column",
-            pipeline_dp.Metrics.SUM: None,  # it returns default name "sum"
-            pipeline_dp.Metrics.MEAN: None  # it returns default name "mean"
+            ap.Metrics.COUNT: "count_column",
+            ap.Metrics.SUM: None,  # it returns default name "sum"
+            ap.Metrics.MEAN: None  # it returns default name "mean"
         }
         bounds = dataframes.ContributionBounds(
             max_partitions_contributed=2,
@@ -369,8 +366,8 @@ class QueryTest(parameterized.TestCase):
                                      ["group_key", "second_group_by_key"],
                                      "value")
         metrics = {
-            pipeline_dp.Metrics.COUNT: None,  # it returns default name "count"
-            pipeline_dp.Metrics.SUM: "sum_column"
+            ap.Metrics.COUNT: None,  # it returns default name "count"
+            ap.Metrics.SUM: "sum_column"
         }
         bounds = dataframes.ContributionBounds(
             max_partitions_contributed=2,
@@ -407,7 +404,7 @@ class QueryTest(parameterized.TestCase):
         spark = self._get_spark_session()
         df = spark.createDataFrame(get_pandas_df())
         columns = dataframes.Columns("privacy_key", "group_key", "value")
-        metrics = {pipeline_dp.Metrics.COUNT: "count_column"}
+        metrics = {ap.Metrics.COUNT: "count_column"}
         bounds = dataframes.ContributionBounds(
             max_partitions_contributed=2,
             max_contributions_per_partition=2,

@@ -21,7 +21,7 @@ import apache_beam.testing.test_pipeline as test_pipeline
 import apache_beam.testing.util as beam_util
 from absl.testing import parameterized
 
-import pipeline_dp
+from pipeline_dp import beam_backend
 from pipeline_dp import pipeline_functions as composite_funcs
 from pipeline_dp import pipeline_backend
 
@@ -37,7 +37,7 @@ class BeamBackendTest(parameterized.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.backend = pipeline_dp.BeamBackend()
+        cls.backend = beam_backend.BeamBackend()
 
     def test_key_by_extracts_keys_and_keeps_values_untouched(self):
         with test_pipeline.TestPipeline() as p:
@@ -125,7 +125,7 @@ class LocalBackendTest(parameterized.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.backend = pipeline_dp.LocalBackend()
+        cls.backend = pipeline_backend.LocalBackend()
 
     def test_key_by_extracts_keys_and_keeps_values_untouched(self):
         col = ["key1_value1", "key1_value2", "key2_value1"]

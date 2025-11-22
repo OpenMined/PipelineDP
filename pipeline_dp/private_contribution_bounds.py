@@ -55,10 +55,9 @@ class PrivateL0Calculator:
 
         Returns a one element pCollection containing the value for the l0
         bound."""
-        l0_histogram = self._backend.to_multi_transformable_collection(
-            self._backend.map(
-                self._histograms, lambda h: h.l0_contributions_histogram,
-                "Extract l0_contributions_histogram from DatasetHistograms"))
+        l0_histogram = self._backend.map(
+            self._histograms, lambda h: h.l0_contributions_histogram,
+            "Extract l0_contributions_histogram from DatasetHistograms")
         number_of_partitions = self._calculate_number_of_partitions()
 
         l0_calculation_input_col = pipeline_functions.collect_to_container(

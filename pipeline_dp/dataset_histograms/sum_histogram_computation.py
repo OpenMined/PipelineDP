@@ -123,7 +123,6 @@ def _compute_frequency_histogram_per_key(
       1 element collection which contains a list [hist.Histogram], sorted by
       key.
     """
-    col = backend.to_multi_transformable_collection(col)
 
     def _map_to_frequency_bin(
         key_value: Tuple[int, float],
@@ -148,7 +147,6 @@ def _compute_frequency_histogram_per_key(
     if log_histograms:
         col = backend.map(col, _map_to_frequency_bin, "To FrequencyBin")
     else:
-        col = backend.to_multi_transformable_collection(col)
         bucket_generators = _create_bucket_generators_per_key(
             col, num_buckets, backend)
         col = backend.map_with_side_inputs(col, _map_to_frequency_bin,
@@ -271,8 +269,6 @@ def _compute_linf_sum_contributions_histogram(
                             "Drop privacy_id, partition_key")
     # col: (index, float)
 
-    col = backend.to_multi_transformable_collection(col)
-
     linear_hist = _compute_frequency_histogram_per_key(
         col,
         backend,
@@ -311,8 +307,6 @@ def _compute_partition_sum_histogram(col,
     col = backend.map_tuple(col, lambda index_pk, value: (index_pk[0], value),
                             "Drop partition")
     # col: (index, float)
-
-    col = backend.to_multi_transformable_collection(col)
 
     linear_hist = _compute_frequency_histogram_per_key(
         col,
@@ -357,8 +351,6 @@ def _compute_linf_sum_contributions_histogram_on_preaggregated_data(
     col = backend.map_tuple(col, lambda k, v: (k[0], v), "Drop dummy key")
     # col: (index, float)
 
-    col = backend.to_multi_transformable_collection(col)
-
     linear_hist = _compute_frequency_histogram_per_key(
         col,
         backend,
@@ -401,8 +393,6 @@ def _compute_partition_sum_histogram_on_preaggregated_data(
     col = backend.map_tuple(col, lambda k, v: (k[0], v),
                             "Drop privacy_id, partition_key")
     # col: (index, float)
-
-    col = backend.to_multi_transformable_collection(col)
 
     linear_hist = _compute_frequency_histogram_per_key(
         col,

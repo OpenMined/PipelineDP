@@ -18,9 +18,9 @@ from typing import List
 
 from absl.testing import parameterized
 
-import pipeline_dp.combiners as dp_combiners
-from pipeline_dp import DataExtractors
-from pipeline_dp.spark_rdd_backend import SparkRDDBackend
+from pipeline_dp import combiners as dp_combiners
+from pipeline_dp import data_extractors
+from pipeline_dp import spark_rdd_backend
 
 
 @unittest.skipIf(sys.version_info.minor <= 7 and sys.version_info.major == 3,
@@ -33,11 +33,11 @@ class SparkRDDBackendTest(parameterized.TestCase):
         import pyspark
         conf = pyspark.SparkConf().set("spark.log.level", "ERROR")
         cls.sc = pyspark.SparkContext.getOrCreate(conf=conf)
-        cls.data_extractors = DataExtractors(
+        cls.data_extractors = data_extractors.DataExtractors(
             partition_extractor=lambda x: x[1],
             privacy_id_extractor=lambda x: x[0],
             value_extractor=lambda x: x[2])
-        cls.backend = SparkRDDBackend(cls.sc)
+        cls.backend = spark_rdd_backend.SparkRDDBackend(cls.sc)
 
     def test_filter_by_key_none_keys_to_keep(self):
         data = [(1, 11), (2, 22)]

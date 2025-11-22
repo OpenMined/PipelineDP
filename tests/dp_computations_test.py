@@ -21,9 +21,7 @@ import math
 from unittest.mock import patch
 from unittest.mock import MagicMock
 
-import pipeline_dp
-import pipeline_dp.dp_computations as dp_computations
-from pipeline_dp.aggregate_params import NoiseKind
+from pipeline_dp import dp_computations as dp_computations
 from pipeline_dp import aggregate_params
 from pipeline_dp import budget_accounting
 
@@ -44,7 +42,7 @@ class DPComputationsTest(parameterized.TestCase):
             max_sum_per_partition=None,
             max_partitions_contributed=4,
             max_contributions_per_partition=5,
-            noise_kind=NoiseKind.LAPLACE)
+            noise_kind=aggregate_params.NoiseKind.LAPLACE)
         self.assertEqual(params.l0_sensitivity(), 4)
 
     def test_l1_sensitivity(self):
@@ -252,7 +250,7 @@ class DPComputationsTest(parameterized.TestCase):
             max_sum_per_partition=None,
             max_partitions_contributed=1,
             max_contributions_per_partition=1,
-            noise_kind=NoiseKind.LAPLACE)
+            noise_kind=aggregate_params.NoiseKind.LAPLACE)
 
         count, sum, mean, var = dp_computations.compute_dp_var(
             count=10,
@@ -272,7 +270,7 @@ class DPComputationsTest(parameterized.TestCase):
             max_sum_per_partition=None,
             max_partitions_contributed=1,
             max_contributions_per_partition=1,
-            noise_kind=NoiseKind.LAPLACE)
+            noise_kind=aggregate_params.NoiseKind.LAPLACE)
 
         (count_eps,
          count_delta), (_, _), (_, _) = dp_computations.equally_split_budget(
@@ -310,7 +308,7 @@ class DPComputationsTest(parameterized.TestCase):
         self.assertAlmostEqual(np.mean(var_values), expected_var, delta=0.1)
 
         # Gaussian Mechanism
-        params.noise_kind = NoiseKind.GAUSSIAN
+        params.noise_kind = aggregate_params.NoiseKind.GAUSSIAN
         results = [
             dp_computations.compute_dp_var(
                 count=expected_count,
@@ -362,7 +360,7 @@ class DPComputationsTest(parameterized.TestCase):
             min_sum_per_partition=min_sum_per_partition,
             max_sum_per_partition=max_sum_per_partition,
             max_partitions_contributed=max_partitions_contributed,
-            noise_kind=pipeline_dp.NoiseKind.LAPLACE)
+            noise_kind=aggregate_params.NoiseKind.LAPLACE)
 
         std = dp_computations.compute_dp_sum_noise_std(params)
 
@@ -398,7 +396,7 @@ class DPComputationsTest(parameterized.TestCase):
             min_sum_per_partition=min_sum_per_partition,
             max_sum_per_partition=max_sum_per_partition,
             max_partitions_contributed=max_partitions_contributed,
-            noise_kind=pipeline_dp.NoiseKind.GAUSSIAN)
+            noise_kind=aggregate_params.NoiseKind.GAUSSIAN)
 
         scale = dp_computations.compute_dp_sum_noise_std(params)
 
@@ -430,8 +428,8 @@ def create_aggregate_params(
         min_sum_per_partition: Optional[float] = None,
         max_sum_per_partition: Optional[float] = None,
         max_contributions: Optional[int] = None):
-    return pipeline_dp.AggregateParams(
-        metrics=[pipeline_dp.Metrics.COUNT],
+    return aggregate_params.AggregateParams(
+        metrics=[aggregate_params.Metrics.COUNT],
         max_partitions_contributed=max_partitions_contributed,
         max_contributions_per_partition=max_contributions_per_partition,
         max_contributions=max_contributions,
@@ -452,7 +450,8 @@ class AdditiveMechanismTests(parameterized.TestCase):
         mechanism = dp_computations.LaplaceMechanism.create_from_epsilon(
             epsilon=epsilon, l1_sensitivity=l1_sensitivity)
 
-        self.assertEqual(mechanism.noise_kind, pipeline_dp.NoiseKind.LAPLACE)
+        self.assertEqual(mechanism.noise_kind,
+                         aggregate_params.NoiseKind.LAPLACE)
         self.assertAlmostEqual(mechanism.noise_parameter,
                                expected_noise,
                                delta=1e-12)
@@ -467,7 +466,8 @@ class AdditiveMechanismTests(parameterized.TestCase):
         mechanism = dp_computations.LaplaceMechanism.create_from_std_deviation(
             normalized_stddev=10, l1_sensitivity=3.5)
 
-        self.assertEqual(mechanism.noise_kind, pipeline_dp.NoiseKind.LAPLACE)
+        self.assertEqual(mechanism.noise_kind,
+                         aggregate_params.NoiseKind.LAPLACE)
         expected_noise_parameter = 10 / np.sqrt(2) * 3.5
         self.assertAlmostEqual(mechanism.noise_parameter,
                                expected_noise_parameter,
@@ -536,7 +536,8 @@ class AdditiveMechanismTests(parameterized.TestCase):
         mechanism = dp_computations.GaussianMechanism.create_from_epsilon_delta(
             epsilon=epsilon, delta=delta, l2_sensitivity=l2_sensitivity)
 
-        self.assertEqual(mechanism.noise_kind, pipeline_dp.NoiseKind.GAUSSIAN)
+        self.assertEqual(mechanism.noise_kind,
+                         aggregate_params.NoiseKind.GAUSSIAN)
         self.assertAlmostEqual(mechanism.noise_parameter,
                                expected_noise_scale,
                                delta=1e-6)
@@ -599,7 +600,8 @@ class AdditiveMechanismTests(parameterized.TestCase):
         mechanism = dp_computations.GaussianMechanism.create_from_std_deviation(
             normalized_stddev=5, l2_sensitivity=15)
 
-        self.assertEqual(mechanism.noise_kind, pipeline_dp.NoiseKind.GAUSSIAN)
+        self.assertEqual(mechanism.noise_kind,
+                         aggregate_params.NoiseKind.GAUSSIAN)
         self.assertEqual(mechanism.noise_parameter, 75)
         self.assertEqual(mechanism.std, 75)
         self.assertEqual(mechanism.sensitivity, 15)
@@ -852,10 +854,10 @@ class MeanMechanismTests(parameterized.TestCase):
         mechanism = self.create_mean_mechanism()
         self.assertEqual(mechanism._range_middle, 5)
         self.assertEqual(mechanism._count_mechanism.noise_kind,
-                         pipeline_dp.NoiseKind.GAUSSIAN)
+                         aggregate_params.NoiseKind.GAUSSIAN)
         self.assertEqual(mechanism._count_mechanism.sensitivity, 20)
         self.assertEqual(mechanism._sum_mechanism.noise_kind,
-                         pipeline_dp.NoiseKind.LAPLACE)
+                         aggregate_params.NoiseKind.LAPLACE)
         self.assertEqual(mechanism._sum_mechanism.sensitivity, 15)
 
     @patch("pipeline_dp.dp_computations.GaussianMechanism.add_noise")

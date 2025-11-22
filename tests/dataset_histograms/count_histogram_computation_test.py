@@ -16,7 +16,8 @@
 from absl.testing import absltest
 from absl.testing import parameterized
 
-import pipeline_dp
+from pipeline_dp import pipeline_backend
+from pipeline_dp import data_extractors as de
 from pipeline_dp.dataset_histograms import histograms as hist
 from pipeline_dp.dataset_histograms import count_histogram_computation
 from analysis import pre_aggregation
@@ -90,7 +91,7 @@ class CountHistogramsTest(parameterized.TestCase):
              ]),
     )
     def test_compute_frequency_histogram(self, input, expected):
-        backend = pipeline_dp.LocalBackend()
+        backend = pipeline_backend.LocalBackend()
         histogram = count_histogram_computation._compute_frequency_histogram(
             input, backend, "histogram_name")
         histogram = list(histogram)
@@ -150,12 +151,12 @@ class CountHistogramsTest(parameterized.TestCase):
         pre_aggregated=(False, True))
     def test_compute_l0_contributions_histogram(self, testcase_name, input,
                                                 expected, pre_aggregated):
-        backend = pipeline_dp.LocalBackend()
+        backend = pipeline_backend.LocalBackend()
         if pre_aggregated:
             input = pre_aggregation.preaggregate(
                 input,
                 backend,
-                data_extractors=pipeline_dp.DataExtractors(
+                data_extractors=de.DataExtractors(
                     privacy_id_extractor=lambda x: x[0],
                     partition_extractor=lambda x: x[1],
                     value_extractor=lambda x: 0))
@@ -228,12 +229,12 @@ class CountHistogramsTest(parameterized.TestCase):
         pre_aggregated=(False, True))
     def test_compute_l1_contributions_histogram(self, testcase_name, input,
                                                 expected, pre_aggregated):
-        backend = pipeline_dp.LocalBackend()
+        backend = pipeline_backend.LocalBackend()
         if pre_aggregated:
             input = pre_aggregation.preaggregate(
                 input,
                 backend,
-                data_extractors=pipeline_dp.DataExtractors(
+                data_extractors=de.DataExtractors(
                     privacy_id_extractor=lambda x: x[0],
                     partition_extractor=lambda x: x[1],
                     value_extractor=lambda x: 0))
@@ -303,12 +304,12 @@ class CountHistogramsTest(parameterized.TestCase):
         pre_aggregated=(False, True))
     def test_compute_linf_contributions_histogram(self, testcase_name, input,
                                                   expected, pre_aggregated):
-        backend = pipeline_dp.LocalBackend()
+        backend = pipeline_backend.LocalBackend()
         if pre_aggregated:
             input = pre_aggregation.preaggregate(
                 input,
                 backend,
-                data_extractors=pipeline_dp.DataExtractors(
+                data_extractors=de.DataExtractors(
                     privacy_id_extractor=lambda x: x[0],
                     partition_extractor=lambda x: x[1],
                     value_extractor=lambda x: 0))
@@ -370,12 +371,12 @@ class CountHistogramsTest(parameterized.TestCase):
         pre_aggregated=(False, True))
     def test_compute_partitions_count_histogram(self, testcase_name, input,
                                                 expected, pre_aggregated):
-        backend = pipeline_dp.LocalBackend()
+        backend = pipeline_backend.LocalBackend()
         if pre_aggregated:
             input = pre_aggregation.preaggregate(
                 input,
                 backend,
-                data_extractors=pipeline_dp.DataExtractors(
+                data_extractors=de.DataExtractors(
                     privacy_id_extractor=lambda x: x[0],
                     partition_extractor=lambda x: x[1],
                     value_extractor=lambda x: 0))
@@ -434,12 +435,12 @@ class CountHistogramsTest(parameterized.TestCase):
         pre_aggregated=(False, True))
     def test_compute_partitions_privacy_id_count_histogram(
             self, testcase_name, input, expected, pre_aggregated):
-        backend = pipeline_dp.LocalBackend()
+        backend = pipeline_backend.LocalBackend()
         if pre_aggregated:
             input = pre_aggregation.preaggregate(
                 input,
                 backend,
-                data_extractors=pipeline_dp.DataExtractors(
+                data_extractors=de.DataExtractors(
                     privacy_id_extractor=lambda x: x[0],
                     partition_extractor=lambda x: x[1],
                     value_extractor=lambda x: 0))

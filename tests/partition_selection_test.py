@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import pipeline_dp
+from pipeline_dp import aggregate_params as ap
 from pipeline_dp import partition_selection
 
 from absl.testing import absltest
@@ -26,7 +26,7 @@ class PartitionSelectionTest(parameterized.TestCase):
     def test_truncated_geometric(self, mock_method):
         eps, delta, max_partitions = 2, 1e-3, 10
         partition_selection.create_partition_selection_strategy(
-            pipeline_dp.PartitionSelectionStrategy.TRUNCATED_GEOMETRIC,
+            ap.PartitionSelectionStrategy.TRUNCATED_GEOMETRIC,
             eps,
             delta,
             max_partitions,
@@ -38,7 +38,7 @@ class PartitionSelectionTest(parameterized.TestCase):
     def test_truncated_laplace_thresholding(self, mock_method):
         eps, delta, max_partitions = 5, 1e-2, 12
         partition_selection.create_partition_selection_strategy(
-            pipeline_dp.PartitionSelectionStrategy.LAPLACE_THRESHOLDING,
+            ap.PartitionSelectionStrategy.LAPLACE_THRESHOLDING,
             eps,
             delta,
             max_partitions,
@@ -50,7 +50,7 @@ class PartitionSelectionTest(parameterized.TestCase):
     def test_truncated_gaussian_thresholding(self, mock_method):
         eps, delta, max_partitions = 1, 1e-5, 20
         partition_selection.create_partition_selection_strategy(
-            pipeline_dp.PartitionSelectionStrategy.GAUSSIAN_THRESHOLDING,
+            ap.PartitionSelectionStrategy.GAUSSIAN_THRESHOLDING,
             eps,
             delta,
             max_partitions,
@@ -62,8 +62,8 @@ class PartitionSelectionTest(parameterized.TestCase):
     def test_truncated_pre_thresholding(self, mock_method):
         eps, delta, max_partitions, pre_threshold = 1, 1e-5, 20, 42
         partition_selection.create_partition_selection_strategy(
-            pipeline_dp.PartitionSelectionStrategy.GAUSSIAN_THRESHOLDING, eps,
-            delta, max_partitions, pre_threshold)
+            ap.PartitionSelectionStrategy.GAUSSIAN_THRESHOLDING, eps, delta,
+            max_partitions, pre_threshold)
         mock_method.assert_called_once_with("gaussian", eps, delta,
                                             max_partitions, pre_threshold)
 
