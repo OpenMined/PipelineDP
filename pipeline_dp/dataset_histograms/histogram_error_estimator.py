@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Estimation of errors from DatasetHistograms."""
-from pipeline_dp.aggregate_params import Metric, Metrics, NoiseKind
+from pipeline_dp import aggregate_params
 from pipeline_dp.dataset_histograms import histograms as hist
 from pydp.algorithms import numerical_mechanisms as dp_mechanisms
 from typing import Optional, Sequence, Tuple
@@ -33,8 +33,8 @@ class ErrorEstimator:
         self,
         epsilon: float,
         delta: Optional[float],
-        metric: Metric,
-        noise: NoiseKind,
+        metric: aggregate_params.Metric,
+        noise: aggregate_params.NoiseKind,
         l0_ratios_dropped: Sequence[Tuple[int, float]],
         linf_ratios_dropped: Sequence[Tuple[int, float]],
         partition_histogram: hist.Histogram,
@@ -51,13 +51,13 @@ class ErrorEstimator:
         self,
         epsilon: float,
         delta: Optional[float],
-        noise: NoiseKind,
+        noise: aggregate_params.NoiseKind,
     ) -> float:
-        if noise == NoiseKind.LAPLACE:
+        if noise == aggregate_params.NoiseKind.LAPLACE:
             if delta is not None:
                 raise ValueError("Delta must be None for Laplace noise")
             return 2**0.5 / epsilon
-        elif noise == NoiseKind.GAUSSIAN:
+        elif noise == aggregate_params.NoiseKind.GAUSSIAN:
             return dp_mechanisms.GaussianMechanism(epsilon=epsilon,
                                                    delta=delta,
                                                    sensitivity=1.0).std
@@ -92,12 +92,12 @@ class ErrorEstimator:
         Returns:
             the estimated error.
         """
-        if self._metric != Metrics.PRIVACY_ID_COUNT:
+        if self._metric != aggregate_params.Metrics.PRIVACY_ID_COUNT:
             if linf_bound is None:
                 raise ValueError("linf must be given for COUNT")
         ratio_dropped_l0 = self.get_ratio_dropped_l0(l0_bound)
         ratio_dropped_linf = 0
-        if self._metric != Metrics.PRIVACY_ID_COUNT:
+        if self._metric != aggregate_params.Metrics.PRIVACY_ID_COUNT:
             ratio_dropped_linf = self.get_ratio_dropped_linf(linf_bound)
         ratio_dropped = 1 - (1 - ratio_dropped_l0) * (1 - ratio_dropped_linf)
         stddev = self._get_stddev(l0_bound, linf_bound)
@@ -130,9 +130,9 @@ class ErrorEstimator:
     def _get_stddev(self,
                     l0_bound: int,
                     linf_bound: Optional[int] = None) -> float:
-        if self._metric == Metrics.PRIVACY_ID_COUNT:
+        if self._metric == aggregate_params.Metrics.PRIVACY_ID_COUNT:
             linf_bound = 1
-        if self._noise == NoiseKind.LAPLACE:
+        if self._noise == aggregate_params.NoiseKind.LAPLACE:
             return self._base_std * l0_bound * linf_bound
         # Gaussian noise case.
         return self._base_std * math.sqrt(l0_bound) * linf_bound
@@ -142,8 +142,8 @@ def create_estimator_for_count_and_privacy_id_count(
     histograms: hist.DatasetHistograms,
     epsilon: float,
     delta: Optional[float],
-    metric: Metric,
-    noise: NoiseKind,
+    metric: aggregate_params.Metric,
+    noise: aggregate_params.NoiseKind,
 ) -> ErrorEstimator:
     """Creates histogram-based error estimator for COUNT or PRIVACY_ID_COUNT.
 
@@ -159,8 +159,8 @@ def create_estimator_for_count_and_privacy_id_count(
         Error estimator.
     """
     if metric not in [
-            Metrics.COUNT,
-            Metrics.PRIVACY_ID_COUNT,
+            aggregate_params.Metrics.COUNT,
+            aggregate_params.Metrics.PRIVACY_ID_COUNT,
     ]:
         raise ValueError(
             f"Only COUNT and PRIVACY_ID_COUNT are supported, but metric={metric}"
@@ -169,7 +169,7 @@ def create_estimator_for_count_and_privacy_id_count(
         histograms.l0_contributions_histogram)
     linf_ratios_dropped = hist.compute_ratio_dropped(
         histograms.linf_contributions_histogram)
-    if metric == Metrics.COUNT:
+    if metric == aggregate_params.Metrics.COUNT:
         partition_histogram = histograms.count_per_partition_histogram
     else:
         partition_histogram = histograms.count_privacy_id_per_partition
@@ -199,7 +199,7 @@ def _estimate_rmse_impl(ratio_dropped: float, std: float,
 def create_estimator_for_sum(histograms: hist.DatasetHistograms,
                              epsilon: float,
                              delta: Optional[float],
-                             noise: NoiseKind,
+                             noise: aggregate_params.NoiseKind,
                              sum_index: int = 0) -> ErrorEstimator:
     """Creates histogram-based error estimator for SUM.
 
@@ -230,7 +230,7 @@ def create_estimator_for_sum(histograms: hist.DatasetHistograms,
     return ErrorEstimator(
         epsilon,
         delta,
-        Metrics.SUM,
+        aggregate_params.Metrics.SUM,
         noise,
         l0_ratios_dropped,
         linf_ratios_dropped,

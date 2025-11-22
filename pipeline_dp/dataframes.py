@@ -21,7 +21,7 @@ from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Union
 import pyspark
 from pipeline_dp import aggregate_params as ap
 from pipeline_dp import pipeline_backend
-from pipeline_dp import DPEngine
+from pipeline_dp import dp_engine as dpeng
 from pipeline_dp import budget_accounting as ba
 from pipeline_dp import data_extractors as de
 from pipeline_dp import spark_rdd_backend
@@ -186,7 +186,7 @@ class Query:
         budget_accountant = ba.NaiveBudgetAccountant(
             total_epsilon=budget.epsilon, total_delta=budget.delta)
 
-        dp_engine = DPEngine(budget_accountant, backend)
+        dp_engine = dpeng.DPEngine(budget_accountant, backend)
         metrics = list(self._metrics_output_columns.keys())
         params = ap.AggregateParams(
             noise_kind=noise_kind,

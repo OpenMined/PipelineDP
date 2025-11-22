@@ -23,7 +23,6 @@ from absl.testing import parameterized
 from pipeline_dp import budget_accounting as ba
 from pipeline_dp import combiners as dp_combiners
 from pipeline_dp import aggregate_params as ap
-from pipeline_dp.aggregate_params import NormKind, NoiseKind, MechanismType
 
 
 class EmptyCombiner(dp_combiners.Combiner):
@@ -420,7 +419,7 @@ class PostAggregationThresholdingCombinerTest(parameterized.TestCase):
         budget_accountant.compute_budgets()
         return combiner
 
-    def _get_mechanism_type(self, noise_kind: NoiseKind):
+    def _get_mechanism_type(self, noise_kind: ap.NoiseKind):
         if noise_kind == ap.NoiseKind.GAUSSIAN:
             return ap.MechanismType.GAUSSIAN_THRESHOLDING
         if noise_kind == ap.NoiseKind.LAPLACE:

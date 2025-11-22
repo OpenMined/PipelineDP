@@ -13,13 +13,13 @@
 # limitations under the License.
 
 from pipeline_dp import pipeline_backend
-from pipeline_dp import data_extractors
+from pipeline_dp import data_extractors as extractors
 import analysis.contribution_bounders as utility_contribution_bounders
 
 
 def preaggregate(col,
                  backend: pipeline_backend.PipelineBackend,
-                 data_extractors: data_extractors.DataExtractors,
+                 data_extractors: extractors.DataExtractors,
                  partitions_sampling_prob: float = 1):
     """Preaggregates data from a collection.
 
