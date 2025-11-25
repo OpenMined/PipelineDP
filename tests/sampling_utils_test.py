@@ -15,7 +15,7 @@
 from absl.testing import absltest
 from absl.testing import parameterized
 
-import pipeline_dp.sampling_utils as sampling_utils
+from pipeline_dp import sampling_utils as sampling_utils
 
 
 class SamplingUtilsTest(parameterized.TestCase):

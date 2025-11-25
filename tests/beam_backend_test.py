@@ -21,7 +21,7 @@ from absl.testing import parameterized
 
 from pipeline_dp import DataExtractors
 from pipeline_dp.beam_backend import BeamBackend
-import pipeline_dp.combiners as dp_combiners
+from pipeline_dp import combiners as dp_combiners
 from typing import List
 
 

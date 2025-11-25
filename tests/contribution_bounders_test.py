@@ -16,8 +16,9 @@ import collections
 import numpy as np
 from absl.testing import parameterized
 
-import pipeline_dp
-import pipeline_dp.contribution_bounders as contribution_bounders
+from pipeline_dp import report_generator
+from pipeline_dp import contribution_bounders as contribution_bounders
+from pipeline_dp import pipeline_backend
 
 MaxContributionsParams = collections.namedtuple("MaxContributionParams",
                                                 ["max_contributions"])
@@ -32,7 +33,7 @@ aggregate_fn = lambda input_value: (len(input_value), np.sum(input_value),
 
 
 def _create_report_generator():
-    return pipeline_dp.report_generator.ReportGenerator(None, "test")
+    return report_generator.ReportGenerator(None, "test")
 
 
 class SamplingCrossAndPerPartitionContributionBounderTest(
@@ -47,7 +48,7 @@ class SamplingCrossAndPerPartitionContributionBounderTest(
         )
         return list(
             bounder.bound_contributions(input, params,
-                                        pipeline_dp.LocalBackend(),
+                                        pipeline_backend.LocalBackend(),
                                         _create_report_generator(),
                                         aggregate_fn))
 
@@ -123,7 +124,7 @@ class SamplingPerPrivacyIdContributionBounderTest(parameterized.TestCase):
         )
         return list(
             bounder.bound_contributions(input, params,
-                                        pipeline_dp.LocalBackend(),
+                                        pipeline_backend.LocalBackend(),
                                         _create_report_generator(),
                                         aggregate_fn))
 
@@ -162,7 +163,7 @@ class LinfSamplerTest(parameterized.TestCase):
         bounder = contribution_bounders.LinfSampler()
         return list(
             bounder.bound_contributions(input, params,
-                                        pipeline_dp.LocalBackend(),
+                                        pipeline_backend.LocalBackend(),
                                         _create_report_generator(),
                                         lambda x: x))
 
@@ -203,7 +204,7 @@ class NoOpContributionBounderTest(parameterized.TestCase):
         bound_result = bounder.bound_contributions(
             input,
             params=(),
-            backend=pipeline_dp.LocalBackend(),
+            backend=pipeline_backend.LocalBackend(),
             report_generator=_create_report_generator(),
             aggregate_fn=lambda x: x)
         self.assertEqual(list(bound_result), [(('pid1', 'pk1'), [1, 2]),

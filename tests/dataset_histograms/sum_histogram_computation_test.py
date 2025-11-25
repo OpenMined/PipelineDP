@@ -16,10 +16,11 @@
 from absl.testing import absltest
 from absl.testing import parameterized
 
-import pipeline_dp
+from pipeline_dp import data_extractors as de
 from pipeline_dp.dataset_histograms import histograms as hist
 from pipeline_dp.dataset_histograms import sum_histogram_computation
 from analysis import pre_aggregation
+from pipeline_dp import pipeline_backend
 
 
 class LowerUpperGeneratorTest(parameterized.TestCase):
@@ -324,13 +325,13 @@ class SumHistogramComputationTest(parameterized.TestCase):
         input = input()
         expected = expected()
         expected_log = expected_log()
-        backend = pipeline_dp.LocalBackend()
+        backend = pipeline_backend.LocalBackend()
         if pre_aggregated:
             input = list(
                 pre_aggregation.preaggregate(
                     input,
                     backend,
-                    data_extractors=pipeline_dp.DataExtractors(
+                    data_extractors=de.DataExtractors(
                         privacy_id_extractor=lambda x: x[0][0],
                         partition_extractor=lambda x: x[0][1],
                         value_extractor=lambda x: x[1])))
@@ -355,7 +356,7 @@ class SumHistogramComputationTest(parameterized.TestCase):
         # format: ((privacy_id, partition), value: tuple)
         data = [((0, 0), (1, 10)), ((0, 1), (2, 20)), ((0, 1), (3, 30)),
                 ((1, 0), (5, 50))]
-        backend = pipeline_dp.LocalBackend()
+        backend = pipeline_backend.LocalBackend()
         expected = [
             hist.Histogram(hist.HistogramType.LINF_SUM_CONTRIBUTIONS, [
                 hist.FrequencyBin(
@@ -389,7 +390,7 @@ class SumHistogramComputationTest(parameterized.TestCase):
                 pre_aggregation.preaggregate(
                     data,
                     backend,
-                    data_extractors=pipeline_dp.DataExtractors(
+                    data_extractors=de.DataExtractors(
                         privacy_id_extractor=lambda x: x[0][0],
                         partition_extractor=lambda x: x[0][1],
                         value_extractor=lambda x: x[1])))
@@ -635,13 +636,13 @@ class SumHistogramComputationTest(parameterized.TestCase):
         input = input()
         expected = expected()
         expected_log = expected_log()
-        backend = pipeline_dp.LocalBackend()
+        backend = pipeline_backend.LocalBackend()
         if pre_aggregated:
             input = list(
                 pre_aggregation.preaggregate(
                     input,
                     backend,
-                    data_extractors=pipeline_dp.DataExtractors(
+                    data_extractors=de.DataExtractors(
                         privacy_id_extractor=lambda x: x[0][0],
                         partition_extractor=lambda x: x[0][1],
                         value_extractor=lambda x: x[1])))
@@ -665,7 +666,7 @@ class SumHistogramComputationTest(parameterized.TestCase):
         # format: ((privacy_id, partition), value: tuple)
         data = [((0, 0), (1, 10)), ((0, 1), (2, 20)), ((0, 1), (3, 30)),
                 ((1, 0), (5, 50))]
-        backend = pipeline_dp.LocalBackend()
+        backend = pipeline_backend.LocalBackend()
         expected = [
             hist.Histogram(hist.HistogramType.SUM_PER_PARTITION, [
                 hist.FrequencyBin(
@@ -699,7 +700,7 @@ class SumHistogramComputationTest(parameterized.TestCase):
                 pre_aggregation.preaggregate(
                     data,
                     backend,
-                    data_extractors=pipeline_dp.DataExtractors(
+                    data_extractors=de.DataExtractors(
                         privacy_id_extractor=lambda x: x[0][0],
                         partition_extractor=lambda x: x[0][1],
                         value_extractor=lambda x: x[1])))

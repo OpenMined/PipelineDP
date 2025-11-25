@@ -20,10 +20,9 @@ import numpy as np
 from absl.testing import absltest
 from absl.testing import parameterized
 
-import pipeline_dp
-import pipeline_dp.budget_accounting as ba
-import pipeline_dp.combiners as dp_combiners
-from pipeline_dp import aggregate_params, NormKind, NoiseKind
+from pipeline_dp import budget_accounting as ba
+from pipeline_dp import combiners as dp_combiners
+from pipeline_dp import aggregate_params as ap
 
 
 class EmptyCombiner(dp_combiners.Combiner):
@@ -47,8 +46,7 @@ class EmptyCombiner(dp_combiners.Combiner):
 
 def _create_mechanism_spec(
     no_noise: bool,
-    mechanism_type: pipeline_dp.MechanismType = pipeline_dp.MechanismType.
-    GAUSSIAN
+    mechanism_type: ap.MechanismType = ap.MechanismType.GAUSSIAN
 ) -> ba.MechanismSpec:
     if no_noise:
         eps, delta = 1e5, 1.0 - 1e-5
@@ -58,21 +56,20 @@ def _create_mechanism_spec(
     return ba.MechanismSpec(mechanism_type, None, eps, delta)
 
 
-def _create_aggregate_params(
-        max_value: float = 1,
-        max_partition_contributed: int = 2,
-        vector_size: int = 1,
-        vector_norm_kind: NormKind = pipeline_dp.NormKind.Linf,
-        vector_max_norm: int = 5,
-        output_noise_stddev: bool = False,
-        noise_kind: pipeline_dp.NoiseKind = pipeline_dp.NoiseKind.GAUSSIAN):
-    return pipeline_dp.AggregateParams(
+def _create_aggregate_params(max_value: float = 1,
+                             max_partition_contributed: int = 2,
+                             vector_size: int = 1,
+                             vector_norm_kind: ap.NormKind = ap.NormKind.Linf,
+                             vector_max_norm: int = 5,
+                             output_noise_stddev: bool = False,
+                             noise_kind: ap.NoiseKind = ap.NoiseKind.GAUSSIAN):
+    return ap.AggregateParams(
         min_value=0,
         max_value=max_value,
         max_partitions_contributed=max_partition_contributed,
         max_contributions_per_partition=3,
         noise_kind=noise_kind,
-        metrics=[pipeline_dp.Metrics.COUNT],
+        metrics=[ap.Metrics.COUNT],
         vector_norm_kind=vector_norm_kind,
         vector_max_norm=vector_max_norm,
         vector_size=vector_size,
@@ -82,54 +79,47 @@ def _create_aggregate_params(
 class CreateCompoundCombinersTest(parameterized.TestCase):
 
     def _create_aggregate_params(self, metrics: typing.Optional[typing.List]):
-        return pipeline_dp.AggregateParams(
-            noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
-            metrics=metrics,
-            min_value=0,
-            max_value=1,
-            max_partitions_contributed=1,
-            max_contributions_per_partition=1,
-            budget_weight=10.0)
+        return ap.AggregateParams(noise_kind=ap.NoiseKind.GAUSSIAN,
+                                  metrics=metrics,
+                                  min_value=0,
+                                  max_value=1,
+                                  max_partitions_contributed=1,
+                                  max_contributions_per_partition=1,
+                                  budget_weight=10.0)
 
     @parameterized.named_parameters(
         dict(testcase_name='count',
-             metrics=[pipeline_dp.Metrics.COUNT],
+             metrics=[ap.Metrics.COUNT],
              expected_combiner_types=[dp_combiners.CountCombiner]),
         dict(testcase_name='sum',
-             metrics=[pipeline_dp.Metrics.SUM],
+             metrics=[ap.Metrics.SUM],
              expected_combiner_types=[dp_combiners.SumCombiner]),
         dict(testcase_name='privacy_id_count',
-             metrics=[pipeline_dp.Metrics.PRIVACY_ID_COUNT],
+             metrics=[ap.Metrics.PRIVACY_ID_COUNT],
              expected_combiner_types=[dp_combiners.PrivacyIdCountCombiner]),
         dict(testcase_name='count, sum, privacy_id_count',
              metrics=[
-                 pipeline_dp.Metrics.SUM, pipeline_dp.Metrics.COUNT,
-                 pipeline_dp.Metrics.PRIVACY_ID_COUNT
+                 ap.Metrics.SUM, ap.Metrics.COUNT, ap.Metrics.PRIVACY_ID_COUNT
              ],
              expected_combiner_types=[
                  dp_combiners.CountCombiner, dp_combiners.SumCombiner,
                  dp_combiners.PrivacyIdCountCombiner
              ]),
         dict(testcase_name='mean',
-             metrics=[
-                 pipeline_dp.Metrics.COUNT, pipeline_dp.Metrics.SUM,
-                 pipeline_dp.Metrics.MEAN
-             ],
+             metrics=[ap.Metrics.COUNT, ap.Metrics.SUM, ap.Metrics.MEAN],
              expected_combiner_types=[dp_combiners.MeanCombiner]),
         dict(testcase_name='variance',
              metrics=[
-                 pipeline_dp.Metrics.COUNT, pipeline_dp.Metrics.SUM,
-                 pipeline_dp.Metrics.MEAN, pipeline_dp.Metrics.VARIANCE
+                 ap.Metrics.COUNT, ap.Metrics.SUM, ap.Metrics.MEAN,
+                 ap.Metrics.VARIANCE
              ],
              expected_combiner_types=[dp_combiners.VarianceCombiner]),
         dict(testcase_name='vector_sum',
-             metrics=[pipeline_dp.Metrics.VECTOR_SUM],
+             metrics=[ap.Metrics.VECTOR_SUM],
              expected_combiner_types=[dp_combiners.VectorSumCombiner]),
         dict(testcase_name='percentiles',
-             metrics=[
-                 pipeline_dp.Metrics.PERCENTILE(10),
-                 pipeline_dp.Metrics.PERCENTILE(90)
-             ],
+             metrics=[ap.Metrics.PERCENTILE(10),
+                      ap.Metrics.PERCENTILE(90)],
              expected_combiner_types=[dp_combiners.QuantileCombiner]),
     )
     def test_create_compound_combiner(self, metrics, expected_combiner_types):
@@ -162,8 +152,7 @@ class CreateCompoundCombinersTest(parameterized.TestCase):
 
         # Assert
         budget_accountant.request_budget.assert_called_with(
-            pipeline_dp.aggregate_params.MechanismType.GAUSSIAN,
-            weight=aggregate_params.budget_weight)
+            ap.MechanismType.GAUSSIAN, weight=aggregate_params.budget_weight)
         # Check correctness of internal combiners
         combiners = compound_combiner._combiners
         self.assertLen(combiners, len(expected_combiner_types))
@@ -188,7 +177,7 @@ class CreateCompoundCombinersTest(parameterized.TestCase):
 
         aggregate_params = self._create_aggregate_params(None)
 
-        budget_accountant = pipeline_dp.NaiveBudgetAccountant(1, 1e-10)
+        budget_accountant = ba.NaiveBudgetAccountant(1, 1e-10)
 
         # Act
         compound_combiner = dp_combiners.create_compound_combiner_with_custom_combiners(
@@ -201,14 +190,14 @@ class CreateCompoundCombinersTest(parameterized.TestCase):
 
     def test_create_compound_combiner_with_post_aggregation(self):
         # Arrange.
-        params = self._create_aggregate_params(
-            [pipeline_dp.Metrics.PRIVACY_ID_COUNT])
+        params = self._create_aggregate_params([ap.Metrics.PRIVACY_ID_COUNT])
         params.post_aggregation_thresholding = True
         params.budget_weight = 1
 
         # Mock budget accountant.
-        budget_accountant = pipeline_dp.NaiveBudgetAccountant(
-            1.5, 1e-10, num_aggregations=1)
+        budget_accountant = ba.NaiveBudgetAccountant(1.5,
+                                                     1e-10,
+                                                     num_aggregations=1)
 
         # Act.
         compound_combiner = dp_combiners.create_compound_combiner(
@@ -226,7 +215,7 @@ class CreateCompoundCombinersTest(parameterized.TestCase):
                               dp_combiners.PostAggregationThresholdingCombiner)
         mechanism_spec = combiners[0].mechanism_spec()
         self.assertEqual(mechanism_spec.mechanism_type,
-                         pipeline_dp.MechanismType.GAUSSIAN_THRESHOLDING)
+                         ap.MechanismType.GAUSSIAN_THRESHOLDING)
         self.assertEqual(mechanism_spec.eps, 1.5)
         self.assertEqual(mechanism_spec.delta, 1e-10)
 
@@ -236,8 +225,7 @@ class CountCombinerTest(parameterized.TestCase):
     def _create_combiner(
         self,
         no_noise: bool,
-        mechanism_type: pipeline_dp.MechanismType = pipeline_dp.MechanismType.
-        GAUSSIAN,
+        mechanism_type: ap.MechanismType = ap.MechanismType.GAUSSIAN,
         output_noise_stddev: bool = False,
     ) -> dp_combiners.CountCombiner:
         mechanism_spec = _create_mechanism_spec(no_noise, mechanism_type)
@@ -281,13 +269,13 @@ class CountCombinerTest(parameterized.TestCase):
 
     @parameterized.named_parameters(
         dict(testcase_name='gaussian',
-             mechanism_type=pipeline_dp.MechanismType.GAUSSIAN,
+             mechanism_type=ap.MechanismType.GAUSSIAN,
              expected_noise_param=15.835),
         dict(testcase_name='laplace',
-             mechanism_type=pipeline_dp.MechanismType.LAPLACE,
+             mechanism_type=ap.MechanismType.LAPLACE,
              expected_noise_param=6.0),
     )
-    def test_mechanism(self, mechanism_type: pipeline_dp.MechanismType,
+    def test_mechanism(self, mechanism_type: ap.MechanismType,
                        expected_noise_param: float):
         combiner = self._create_combiner(no_noise=False,
                                          mechanism_type=mechanism_type)
@@ -306,7 +294,7 @@ class CountCombinerTest(parameterized.TestCase):
     def test_noise_stddev(self):
         combiner = self._create_combiner(
             no_noise=False,
-            mechanism_type=pipeline_dp.MechanismType.LAPLACE,
+            mechanism_type=ap.MechanismType.LAPLACE,
             output_noise_stddev=True)
         output = combiner.compute_metrics(5)
         self.assertLen(output, 2)
@@ -327,8 +315,7 @@ class PrivacyIdCountCombinerTest(parameterized.TestCase):
     def _create_combiner(
         self,
         no_noise: bool,
-        mechanism_type: pipeline_dp.MechanismType = pipeline_dp.MechanismType.
-        GAUSSIAN,
+        mechanism_type: ap.MechanismType = ap.MechanismType.GAUSSIAN,
         output_noise_stddev: bool = False,
     ) -> dp_combiners.PrivacyIdCountCombiner:
         mechanism_spec = _create_mechanism_spec(no_noise, mechanism_type)
@@ -373,13 +360,13 @@ class PrivacyIdCountCombinerTest(parameterized.TestCase):
 
     @parameterized.named_parameters(
         dict(testcase_name='gaussian',
-             mechanism_type=pipeline_dp.MechanismType.GAUSSIAN,
+             mechanism_type=ap.MechanismType.GAUSSIAN,
              expected_noise_param=5.278),
         dict(testcase_name='laplace',
-             mechanism_type=pipeline_dp.MechanismType.LAPLACE,
+             mechanism_type=ap.MechanismType.LAPLACE,
              expected_noise_param=2.0),
     )
-    def test_mechanism(self, mechanism_type: pipeline_dp.MechanismType,
+    def test_mechanism(self, mechanism_type: ap.MechanismType,
                        expected_noise_param: float):
         combiner = self._create_combiner(no_noise=False,
                                          mechanism_type=mechanism_type)
@@ -398,7 +385,7 @@ class PrivacyIdCountCombinerTest(parameterized.TestCase):
     def test_noise_stddev(self):
         combiner = self._create_combiner(
             no_noise=False,
-            mechanism_type=pipeline_dp.MechanismType.LAPLACE,
+            mechanism_type=ap.MechanismType.LAPLACE,
             output_noise_stddev=True)
         output = combiner.compute_metrics(5)
         self.assertLen(output, 2)
@@ -419,11 +406,11 @@ class PostAggregationThresholdingCombinerTest(parameterized.TestCase):
     def _create_combiner(
         self,
         small_noise: bool = False,
-        noise_kind: pipeline_dp.NoiseKind = pipeline_dp.NoiseKind.GAUSSIAN,
+        noise_kind: ap.NoiseKind = ap.NoiseKind.GAUSSIAN,
         pre_threshold: Optional[int] = None
     ) -> dp_combiners.PostAggregationThresholdingCombiner:
         eps, delta = (10**3, 0.1) if small_noise else (1, 1e-10)
-        budget_accountant = pipeline_dp.NaiveBudgetAccountant(eps, delta)
+        budget_accountant = ba.NaiveBudgetAccountant(eps, delta)
         aggregate_params = _create_aggregate_params()
         aggregate_params.noise_kind = noise_kind
         aggregate_params.pre_threshold = pre_threshold
@@ -432,31 +419,31 @@ class PostAggregationThresholdingCombinerTest(parameterized.TestCase):
         budget_accountant.compute_budgets()
         return combiner
 
-    def _get_mechanism_type(self, noise_kind: pipeline_dp.NoiseKind):
-        if noise_kind == pipeline_dp.NoiseKind.GAUSSIAN:
-            return aggregate_params.MechanismType.GAUSSIAN_THRESHOLDING
-        if noise_kind == pipeline_dp.NoiseKind.LAPLACE:
-            return aggregate_params.MechanismType.LAPLACE_THRESHOLDING
+    def _get_mechanism_type(self, noise_kind: ap.NoiseKind):
+        if noise_kind == ap.NoiseKind.GAUSSIAN:
+            return ap.MechanismType.GAUSSIAN_THRESHOLDING
+        if noise_kind == ap.NoiseKind.LAPLACE:
+            return ap.MechanismType.LAPLACE_THRESHOLDING
 
-    def _get_strategy(self, noise_kind: pipeline_dp.NoiseKind):
-        if noise_kind == pipeline_dp.NoiseKind.GAUSSIAN:
-            return pipeline_dp.PartitionSelectionStrategy.GAUSSIAN_THRESHOLDING
-        if noise_kind == pipeline_dp.NoiseKind.LAPLACE:
-            return pipeline_dp.PartitionSelectionStrategy.LAPLACE_THRESHOLDING
+    def _get_strategy(self, noise_kind: ap.NoiseKind):
+        if noise_kind == ap.NoiseKind.GAUSSIAN:
+            return ap.PartitionSelectionStrategy.GAUSSIAN_THRESHOLDING
+        if noise_kind == ap.NoiseKind.LAPLACE:
+            return ap.PartitionSelectionStrategy.LAPLACE_THRESHOLDING
 
     @parameterized.named_parameters(
         dict(testcase_name='gaussian',
-             noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+             noise_kind=ap.NoiseKind.GAUSSIAN,
              expected_strategy_class="GaussianPartitionSelectionStrategy"),
         dict(testcase_name='laplace',
-             noise_kind=pipeline_dp.NoiseKind.LAPLACE,
+             noise_kind=ap.NoiseKind.LAPLACE,
              expected_strategy_class="LaplacePartitionSelectionStrategy"),
     )
-    def test_create_combiner(self, noise_kind: pipeline_dp.NoiseKind,
+    def test_create_combiner(self, noise_kind: ap.NoiseKind,
                              expected_strategy_class: str):
         # Arrange/act
-        budget_accountant = pipeline_dp.NaiveBudgetAccountant(total_epsilon=1,
-                                                              total_delta=1e-10)
+        budget_accountant = ba.NaiveBudgetAccountant(total_epsilon=1,
+                                                     total_delta=1e-10)
         aggregate_params = _create_aggregate_params()
         aggregate_params.noise_kind = noise_kind
         combiner = dp_combiners.PostAggregationThresholdingCombiner(
@@ -503,17 +490,16 @@ class PostAggregationThresholdingCombinerTest(parameterized.TestCase):
 
     @parameterized.named_parameters(
         dict(testcase_name='gaussian',
-             noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+             noise_kind=ap.NoiseKind.GAUSSIAN,
              pre_threshold=None),
         dict(testcase_name='laplace',
-             noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
+             noise_kind=ap.NoiseKind.GAUSSIAN,
              pre_threshold=20),
     )
     @patch(
         'pipeline_dp.partition_selection.create_partition_selection_strategy')
     def test_mechanism(self, mock_create_partition_selection_strategy,
-                       noise_kind: pipeline_dp.NoiseKind,
-                       pre_threshold: Optional[int]):
+                       noise_kind: ap.NoiseKind, pre_threshold: Optional[int]):
         combiner = self._create_combiner(False, noise_kind, pre_threshold)
         combiner.get_mechanism()
 
@@ -532,22 +518,20 @@ class SumCombinerTest(parameterized.TestCase):
 
     def _create_aggregate_params_per_partition_bound(
             self, output_noise_stddev: bool = False):
-        return pipeline_dp.AggregateParams(
-            min_sum_per_partition=0,
-            max_sum_per_partition=3,
-            max_contributions_per_partition=1,
-            max_partitions_contributed=1,
-            noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
-            metrics=[pipeline_dp.Metrics.SUM],
-            output_noise_stddev=output_noise_stddev)
+        return ap.AggregateParams(min_sum_per_partition=0,
+                                  max_sum_per_partition=3,
+                                  max_contributions_per_partition=1,
+                                  max_partitions_contributed=1,
+                                  noise_kind=ap.NoiseKind.GAUSSIAN,
+                                  metrics=[ap.Metrics.SUM],
+                                  output_noise_stddev=output_noise_stddev)
 
     def _create_combiner(
         self,
         no_noise: bool,
         per_partition_bound: bool,
         max_value=1.0,
-        mechanism_type: pipeline_dp.MechanismType = pipeline_dp.MechanismType.
-        GAUSSIAN,
+        mechanism_type: ap.MechanismType = ap.MechanismType.GAUSSIAN,
         output_noise_stddev: bool = False,
     ) -> dp_combiners.SumCombiner:
         mechanism_spec = _create_mechanism_spec(no_noise, mechanism_type)
@@ -556,7 +540,7 @@ class SumCombinerTest(parameterized.TestCase):
         else:
             aggr_params = _create_aggregate_params(
                 max_value=max_value, output_noise_stddev=output_noise_stddev)
-            aggr_params.metrics = [pipeline_dp.Metrics.SUM]
+            aggr_params.metrics = [ap.Metrics.SUM]
         return dp_combiners.SumCombiner(mechanism_spec, aggr_params)
 
     @parameterized.named_parameters(
@@ -615,23 +599,23 @@ class SumCombinerTest(parameterized.TestCase):
 
     @parameterized.named_parameters(
         dict(testcase_name='gaussian_per_partition_bounding',
-             mechanism_type=pipeline_dp.MechanismType.GAUSSIAN,
+             mechanism_type=ap.MechanismType.GAUSSIAN,
              per_partition_bound=True,
              expected_noise_param=11.197),
         dict(testcase_name='gaussian',
-             mechanism_type=pipeline_dp.MechanismType.GAUSSIAN,
+             mechanism_type=ap.MechanismType.GAUSSIAN,
              per_partition_bound=False,
              expected_noise_param=110.847),
         dict(testcase_name='laplace_per_partition_bounding',
-             mechanism_type=pipeline_dp.MechanismType.LAPLACE,
+             mechanism_type=ap.MechanismType.LAPLACE,
              per_partition_bound=True,
              expected_noise_param=3.0),
         dict(testcase_name='laplace',
-             mechanism_type=pipeline_dp.MechanismType.LAPLACE,
+             mechanism_type=ap.MechanismType.LAPLACE,
              per_partition_bound=False,
              expected_noise_param=42.0),
     )
-    def test_mechanism(self, mechanism_type: pipeline_dp.MechanismType,
+    def test_mechanism(self, mechanism_type: ap.MechanismType,
                        per_partition_bound: bool, expected_noise_param: float):
         combiner = self._create_combiner(
             no_noise=False,
@@ -656,7 +640,7 @@ class SumCombinerTest(parameterized.TestCase):
             no_noise=False,
             per_partition_bound=False,
             max_value=5,
-            mechanism_type=pipeline_dp.MechanismType.LAPLACE,
+            mechanism_type=ap.MechanismType.LAPLACE,
             output_noise_stddev=True)
         output = combiner.compute_metrics(5)
         self.assertLen(output, 2)
@@ -933,14 +917,14 @@ class VectorSumCombinerTest(parameterized.TestCase):
         self,
         no_noise: bool,
         vector_size: int,
-        vector_norm_kind: NormKind = NormKind.Linf,
+        vector_norm_kind: ap.NormKind = ap.NormKind.Linf,
         vector_max_norm: int = 5,
-        noise_kind: pipeline_dp.NoiseKind = pipeline_dp.NoiseKind.GAUSSIAN,
+        noise_kind: ap.NoiseKind = ap.NoiseKind.GAUSSIAN,
         max_partition_contributed: int = 2,
     ) -> dp_combiners.VectorSumCombiner:
-        mechanism_type = pipeline_dp.MechanismType.GAUSSIAN
-        if noise_kind == NoiseKind.LAPLACE:
-            mechanism_type = pipeline_dp.MechanismType.LAPLACE
+        mechanism_type = ap.MechanismType.GAUSSIAN
+        if noise_kind == ap.NoiseKind.LAPLACE:
+            mechanism_type = ap.MechanismType.LAPLACE
         mechanism_spec = _create_mechanism_spec(no_noise, mechanism_type)
         aggregate_params = _create_aggregate_params(
             vector_size=vector_size,
@@ -951,15 +935,16 @@ class VectorSumCombinerTest(parameterized.TestCase):
         params = dp_combiners.CombinerParams(mechanism_spec, aggregate_params)
         return dp_combiners.VectorSumCombiner(params)
 
-    @parameterized.product(testcase=[
-        dict(input_vector=[[]], output_vector=[]),
-        dict(input_vector=[[0]], output_vector=[0]),
-        dict(input_vector=[[0, 0]], output_vector=[0, 0]),
-        dict(input_vector=[[1], [2]], output_vector=[3]),
-        dict(input_vector=[[1, 2], [3, 4]], output_vector=[4, 6]),
-        dict(input_vector=[[1, 2, 3], [4, 5, 6]], output_vector=[5, 7, 9])
-    ],
-                           norm_kind=[NormKind.Linf, NormKind.L1, NormKind.L2])
+    @parameterized.product(
+        testcase=[
+            dict(input_vector=[[]], output_vector=[]),
+            dict(input_vector=[[0]], output_vector=[0]),
+            dict(input_vector=[[0, 0]], output_vector=[0, 0]),
+            dict(input_vector=[[1], [2]], output_vector=[3]),
+            dict(input_vector=[[1, 2], [3, 4]], output_vector=[4, 6]),
+            dict(input_vector=[[1, 2, 3], [4, 5, 6]], output_vector=[5, 7, 9])
+        ],
+        norm_kind=[ap.NormKind.Linf, ap.NormKind.L1, ap.NormKind.L2])
     def test_create_accumulator_sums_correctly(self, testcase, norm_kind):
         combiner = self._create_combiner(no_noise=True,
                                          vector_size=len(
@@ -972,39 +957,39 @@ class VectorSumCombinerTest(parameterized.TestCase):
         np.testing.assert_array_equal(result, testcase['output_vector'])
 
     @parameterized.parameters(
-        dict(norm_kind=NormKind.Linf,
+        dict(norm_kind=ap.NormKind.Linf,
              norm=5,
              input_vector=[[6]],
              output_vector=[5]),
-        dict(norm_kind=NormKind.Linf,
+        dict(norm_kind=ap.NormKind.Linf,
              norm=5,
              input_vector=[[6], [7]],
              output_vector=[5]),
-        dict(norm_kind=NormKind.Linf,
+        dict(norm_kind=ap.NormKind.Linf,
              norm=5,
              input_vector=[[5, 6]],
              output_vector=[5, 5]),
-        dict(norm_kind=NormKind.L1,
+        dict(norm_kind=ap.NormKind.L1,
              norm=10,
              input_vector=[[11]],
              output_vector=[10]),
-        dict(norm_kind=NormKind.L1,
+        dict(norm_kind=ap.NormKind.L1,
              norm=10,
              input_vector=[[5], [6]],
              output_vector=[10]),
-        dict(norm_kind=NormKind.L1,
+        dict(norm_kind=ap.NormKind.L1,
              norm=5,
              input_vector=[[6, 6]],
              output_vector=[2.5, 2.5]),
-        dict(norm_kind=NormKind.L2,
+        dict(norm_kind=ap.NormKind.L2,
              norm=5,
              input_vector=[[6]],
              output_vector=[5]),
-        dict(norm_kind=NormKind.L2,
+        dict(norm_kind=ap.NormKind.L2,
              norm=5,
              input_vector=[[4], [4]],
              output_vector=[5]),
-        dict(norm_kind=NormKind.L2,
+        dict(norm_kind=ap.NormKind.L2,
              norm=4,
              input_vector=[[3, 4]],
              output_vector=[2.4, 3.2]),
@@ -1038,8 +1023,8 @@ class VectorSumCombinerTest(parameterized.TestCase):
                                delta=1e-5)
 
     @parameterized.parameters(
-        dict(noise_kind=NoiseKind.GAUSSIAN, norm_kind=NormKind.L2),
-        dict(noise_kind=NoiseKind.LAPLACE, norm_kind=NormKind.L1))
+        dict(noise_kind=ap.NoiseKind.GAUSSIAN, norm_kind=ap.NormKind.L2),
+        dict(noise_kind=ap.NoiseKind.LAPLACE, norm_kind=ap.NormKind.L1))
     def test_vector_sensitivity_not_per_component(self, noise_kind, norm_kind):
         # This tests checks that the noise added is close to zero.
         # If the noise is computed per component of the vector, the noise added would be much larger.

@@ -21,7 +21,7 @@ import numpy as np
 from scipy import stats
 from typing import Any, List, Optional, Tuple, Union
 
-import pipeline_dp
+from pipeline_dp import aggregate_params
 from pipeline_dp import budget_accounting
 from pipeline_dp import partition_selection
 from pydp.algorithms import numerical_mechanisms as dp_mechanisms
@@ -39,7 +39,7 @@ class ScalarNoiseParams:
     max_sum_per_partition: Optional[float]
     max_partitions_contributed: int
     max_contributions_per_partition: Optional[int]
-    noise_kind: pipeline_dp.NoiseKind  # Laplace or Gaussian
+    noise_kind: aggregate_params.NoiseKind  # Laplace or Gaussian
 
     def __post_init__(self):
         assert (self.min_value is None) == (
@@ -201,7 +201,7 @@ def _add_random_noise(
     delta: float,
     l0_sensitivity: float,
     linf_sensitivity: float,
-    noise_kind: pipeline_dp.NoiseKind,
+    noise_kind: aggregate_params.NoiseKind,
 ) -> float:
     """Adds random noise according to the parameters.
 
@@ -216,11 +216,11 @@ def _add_random_noise(
     Returns:
         The value resulted after adding the random noise.
     """
-    if noise_kind == pipeline_dp.NoiseKind.LAPLACE:
+    if noise_kind == aggregate_params.NoiseKind.LAPLACE:
         l1_sensitivity = compute_l1_sensitivity(l0_sensitivity,
                                                 linf_sensitivity)
         return apply_laplace_mechanism(value, eps, l1_sensitivity)
-    if noise_kind == pipeline_dp.NoiseKind.GAUSSIAN:
+    if noise_kind == aggregate_params.NoiseKind.GAUSSIAN:
         l2_sensitivity = compute_l2_sensitivity(l0_sensitivity,
                                                 linf_sensitivity)
         return apply_gaussian_mechanism(value, eps, delta, l2_sensitivity)
@@ -234,8 +234,8 @@ class AdditiveVectorNoiseParams:
     max_norm: float
     l0_sensitivity: float
     linf_sensitivity: float
-    norm_kind: pipeline_dp.NormKind
-    noise_kind: pipeline_dp.NoiseKind
+    norm_kind: aggregate_params.NormKind
+    noise_kind: aggregate_params.NoiseKind
 
 
 def add_noise_vector(vec: np.ndarray, noise_params: AdditiveVectorNoiseParams):
@@ -247,20 +247,20 @@ def add_noise_vector(vec: np.ndarray, noise_params: AdditiveVectorNoiseParams):
     """
     max_partition_contributed = noise_params.l0_sensitivity
     sensitivity: Optional[float] = None
-    if noise_params.noise_kind == pipeline_dp.NoiseKind.LAPLACE:
-        if noise_params.norm_kind == pipeline_dp.NormKind.L1:
+    if noise_params.noise_kind == aggregate_params.NoiseKind.LAPLACE:
+        if noise_params.norm_kind == aggregate_params.NormKind.L1:
             sensitivity = noise_params.max_norm * max_partition_contributed
-        elif noise_params.norm_kind == pipeline_dp.NormKind.Linf:
+        elif noise_params.norm_kind == aggregate_params.NormKind.Linf:
             sensitivity = noise_params.max_norm * vec.size * max_partition_contributed
         if sensitivity is None:
             raise ValueError(
                 f"Unknown or invalid norm kind {noise_params.norm_kind} for Laplace mechanism."
             )
-    elif noise_params.noise_kind == pipeline_dp.NoiseKind.GAUSSIAN:
-        if noise_params.norm_kind == pipeline_dp.NormKind.L2:
+    elif noise_params.noise_kind == aggregate_params.NoiseKind.GAUSSIAN:
+        if noise_params.norm_kind == aggregate_params.NormKind.L2:
             sensitivity = noise_params.max_norm * np.sqrt(
                 max_partition_contributed)
-        elif noise_params.norm_kind == pipeline_dp.NormKind.Linf:
+        elif noise_params.norm_kind == aggregate_params.NormKind.Linf:
             sensitivity = noise_params.max_norm * np.sqrt(
                 vec.size) * np.sqrt(max_partition_contributed)
         if sensitivity is None:
@@ -271,9 +271,9 @@ def add_noise_vector(vec: np.ndarray, noise_params: AdditiveVectorNoiseParams):
         raise ValueError("Unknown noise kind.")
 
     def _add_noise(value: float) -> float:
-        if noise_params.noise_kind == pipeline_dp.NoiseKind.LAPLACE:
+        if noise_params.noise_kind == aggregate_params.NoiseKind.LAPLACE:
             return apply_laplace_mechanism(value, noise_params.eps, sensitivity)
-        if noise_params.noise_kind == pipeline_dp.NoiseKind.GAUSSIAN:
+        if noise_params.noise_kind == aggregate_params.NoiseKind.GAUSSIAN:
             return apply_gaussian_mechanism(value, noise_params.eps,
                                             noise_params.delta, sensitivity)
         raise ValueError("Unknown noise kind.")
@@ -317,7 +317,7 @@ def _compute_mean_for_normalized_sum(dp_count: float, sum: float,
                                      eps: float, delta: float,
                                      l0_sensitivity: float,
                                      max_contributions_per_partition: float,
-                                     noise_kind: pipeline_dp.NoiseKind):
+                                     noise_kind: aggregate_params.NoiseKind):
     """Helper function to compute the DP mean of a raw sum using the DP count.
 
     Args:
@@ -415,13 +415,13 @@ def compute_dp_var(count: int, normalized_sum: float,
 def _compute_noise_std(linf_sensitivity: float,
                        dp_params: ScalarNoiseParams) -> float:
     """Computes noise standard deviation using the specified linf sensitivity."""
-    if dp_params.noise_kind == pipeline_dp.NoiseKind.LAPLACE:
+    if dp_params.noise_kind == aggregate_params.NoiseKind.LAPLACE:
         l1_sensitivity = compute_l1_sensitivity(dp_params.l0_sensitivity(),
                                                 linf_sensitivity)
         mechanism = dp_mechanisms.LaplaceMechanism(epsilon=dp_params.eps,
                                                    sensitivity=l1_sensitivity)
         return mechanism.diversity * np.sqrt(2)
-    if dp_params.noise_kind == pipeline_dp.NoiseKind.GAUSSIAN:
+    if dp_params.noise_kind == aggregate_params.NoiseKind.GAUSSIAN:
         l2_sensitivity = compute_l2_sensitivity(dp_params.l0_sensitivity(),
                                                 linf_sensitivity)
         return compute_sigma(dp_params.eps, dp_params.delta, l2_sensitivity)
@@ -456,7 +456,7 @@ class AdditiveMechanism(abc.ABC):
 
     @property
     @abc.abstractmethod
-    def noise_kind(self) -> pipeline_dp.NoiseKind:
+    def noise_kind(self) -> aggregate_params.NoiseKind:
         pass
 
     @property
@@ -514,8 +514,8 @@ class LaplaceMechanism(AdditiveMechanism):
         return self.noise_parameter * math.sqrt(2)
 
     @property
-    def noise_kind(self) -> pipeline_dp.NoiseKind:
-        return pipeline_dp.NoiseKind.LAPLACE
+    def noise_kind(self) -> aggregate_params.NoiseKind:
+        return aggregate_params.NoiseKind.LAPLACE
 
     @property
     def sensitivity(self) -> float:
@@ -555,8 +555,8 @@ class GaussianMechanism(AdditiveMechanism):
             l2_sensitivity=l2_sensitivity)
 
     @property
-    def noise_kind(self) -> pipeline_dp.NoiseKind:
-        return pipeline_dp.NoiseKind.GAUSSIAN
+    def noise_kind(self) -> aggregate_params.NoiseKind:
+        return aggregate_params.NoiseKind.GAUSSIAN
 
     @property
     def noise_parameter(self) -> float:
@@ -669,7 +669,7 @@ def create_additive_mechanism(
         sensitivities: Sensitivities) -> AdditiveMechanism:
     """Creates AdditiveMechanism from a mechanism spec and sensitivities."""
     noise_kind = mechanism_spec.mechanism_type.to_noise_kind()
-    if noise_kind == pipeline_dp.NoiseKind.LAPLACE:
+    if noise_kind == aggregate_params.NoiseKind.LAPLACE:
         if sensitivities.l1 is None:
             raise ValueError("L1 or (L0 and Linf) sensitivities must be set for"
                              " Laplace mechanism.")
@@ -679,7 +679,7 @@ def create_additive_mechanism(
         return LaplaceMechanism.create_from_epsilon(mechanism_spec.eps,
                                                     sensitivities.l1)
 
-    if noise_kind == pipeline_dp.NoiseKind.GAUSSIAN:
+    if noise_kind == aggregate_params.NoiseKind.GAUSSIAN:
         if sensitivities.l2 is None:
             raise ValueError("L2 or (L0 and Linf) sensitivities must be set for"
                              " Gaussian mechanism.")
@@ -762,7 +762,7 @@ class ExponentialMechanism:
 
 
 def compute_sensitivities_for_count(
-        params: pipeline_dp.AggregateParams) -> Sensitivities:
+        params: aggregate_params.AggregateParams) -> Sensitivities:
     if params.max_contributions is not None:
         return Sensitivities(l1=params.max_contributions,
                              l2=params.max_contributions)
@@ -771,7 +771,7 @@ def compute_sensitivities_for_count(
 
 
 def compute_sensitivities_for_privacy_id_count(
-        params: pipeline_dp.AggregateParams) -> Sensitivities:
+        params: aggregate_params.AggregateParams) -> Sensitivities:
     if params.max_contributions is not None:
         return Sensitivities(l1=params.max_contributions,
                              l2=math.sqrt(params.max_contributions))
@@ -779,7 +779,7 @@ def compute_sensitivities_for_privacy_id_count(
 
 
 def compute_sensitivities_for_sum(
-        params: pipeline_dp.AggregateParams) -> Sensitivities:
+        params: aggregate_params.AggregateParams) -> Sensitivities:
     l0_sensitivity = params.max_partitions_contributed
     max_abs_values = lambda x, y: max(abs(x), abs(y))
     if params.bounds_per_contribution_are_set:
@@ -794,19 +794,20 @@ def compute_sensitivities_for_sum(
     return Sensitivities(l0=l0_sensitivity, linf=linf_sensitivity)
 
 
-def compute_sensitivities(metric: pipeline_dp.Metric,
-                          params: pipeline_dp.AggregateParams) -> Sensitivities:
-    if metric == pipeline_dp.Metrics.COUNT:
+def compute_sensitivities(
+        metric: aggregate_params.Metric,
+        params: aggregate_params.AggregateParams) -> Sensitivities:
+    if metric == aggregate_params.Metrics.COUNT:
         return compute_sensitivities_for_count(params)
-    if metric == pipeline_dp.Metrics.PRIVACY_ID_COUNT:
+    if metric == aggregate_params.Metrics.PRIVACY_ID_COUNT:
         return compute_sensitivities_for_privacy_id_count(params)
-    if metric == pipeline_dp.Metrics.SUM:
+    if metric == aggregate_params.Metrics.SUM:
         return compute_sensitivities_for_sum(params)
     raise ValueError(f"Sensitivity computations for {metric} not supported")
 
 
 def compute_sensitivities_for_normalized_sum(
-        params: pipeline_dp.AggregateParams) -> Sensitivities:
+        params: aggregate_params.AggregateParams) -> Sensitivities:
     max_abs_value = (params.max_value - params.min_value) / 2
     if params.max_contributions:
         l1_l2_sensitivity = max_abs_value * params.max_contributions
@@ -843,7 +844,7 @@ class ThresholdingMechanism:
     """
 
     def __init__(self, epsilon: float, delta: float,
-                 strategy: pipeline_dp.PartitionSelectionStrategy,
+                 strategy: aggregate_params.PartitionSelectionStrategy,
                  l0_sensitivity: int, pre_threshold: Optional[int]):
         self._strategy_type = strategy
         self._pre_threshold = pre_threshold

@@ -17,11 +17,11 @@ import random
 from typing import Callable
 import operator
 
-import pipeline_dp.combiners as dp_combiners
-from .pipeline_backend import PipelineBackend
+from pipeline_dp import combiners as dp_combiners
+from pipeline_dp import pipeline_backend
 
 
-class SparkRDDBackend(PipelineBackend):
+class SparkRDDBackend(pipeline_backend.PipelineBackend):
     """Apache Spark RDD adapter."""
 
     def __init__(self, sc: 'SparkContext'):

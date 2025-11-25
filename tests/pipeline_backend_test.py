@@ -13,22 +13,22 @@
 # limitations under the License.
 import unittest
 from typing import Iterable, List
-import pipeline_dp
 import pipeline_dp.combiners as dp_combiners
 from pipeline_dp import DataExtractors
-from pipeline_dp.pipeline_backend import LocalBackend, LazySingleton
+from pipeline_dp import pipeline_backend
+# from pipeline_dp.pipeline_backend import LocalBackend, LazySingleton
 
 
 class TestLazySingleton(unittest.TestCase):
 
     def test_with_list(self):
-        ls = LazySingleton([10])
+        ls = pipeline_backend.LazySingleton([10])
         # Also check immediate retrieval
         self.assertEqual(ls.singleton(), 10)
 
     def test_init_with_valid_iterable_generator(self):
         data = (x for x in [10])  # lazy generator
-        ls = LazySingleton(data)
+        ls = pipeline_backend.LazySingleton(data)
         self.assertIsNone(ls._singleton)  # Should be lazy
         self.assertIsInstance(ls._iterable, Iterable)
         self.assertEqual(ls.singleton(), 10)
@@ -36,23 +36,23 @@ class TestLazySingleton(unittest.TestCase):
 
     def test_init_with_empty_list_raises_value_error(self):
         with self.assertRaisesRegex(ValueError, "exactly one element.*found 0"):
-            LazySingleton([])
+            pipeline_backend.LazySingleton([])
 
     def test_init_with_multi_element_list_raises_value_error(self):
         with self.assertRaisesRegex(ValueError, "exactly one element.*found 3"):
-            LazySingleton([1, 2, 3])
+            pipeline_backend.LazySingleton([1, 2, 3])
 
     def test_init_with_non_iterable_raises_type_error(self):
         with self.assertRaisesRegex(TypeError,
                                     "must be a list or an Iterable.*got int"):
-            LazySingleton(123)
+            pipeline_backend.LazySingleton(123)
 
 
 class LocalBackendTest(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.backend = LocalBackend()
+        cls.backend = pipeline_backend.LocalBackend()
         cls.data_extractors = DataExtractors(
             partition_extractor=lambda x: x[1],
             privacy_id_extractor=lambda x: x[0],
@@ -326,7 +326,7 @@ class LocalBackendTest(unittest.TestCase):
         self.assertSetEqual({1, 2, 3, 4, 5}, output)
 
     def test_output_reiterable(self):
-        backend = pipeline_dp.LocalBackend()
+        backend = pipeline_backend.LocalBackend()
         output = backend.map([1, 2, 3], lambda x: x, "Map")
         self.assertEqual(list(output), [1, 2, 3])
         self.assertEqual(list(output), [1, 2, 3])

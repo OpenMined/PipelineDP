@@ -16,7 +16,6 @@ based on contribution bounding params."""
 from dataclasses import dataclass
 from typing import List, Optional
 
-import pipeline_dp
 from pipeline_dp import aggregate_params
 from pipeline_dp import dp_computations
 from pipeline_dp import input_validators
@@ -25,9 +24,9 @@ from pipeline_dp import input_validators
 @dataclass
 class DPStrategy:
     """Represents the chosen DP strategy."""
-    noise_kind: Optional[pipeline_dp.NoiseKind]
+    noise_kind: Optional[aggregate_params.NoiseKind]
     partition_selection_strategy: Optional[
-        pipeline_dp.PartitionSelectionStrategy]
+        aggregate_params.PartitionSelectionStrategy]
     post_aggregation_thresholding: bool
 
 
@@ -41,7 +40,8 @@ class DPStrategySelector:
     """
 
     def __init__(self, epsilon: float, delta: float,
-                 metrics: List[pipeline_dp.Metric], is_public_partitions: bool):
+                 metrics: List[aggregate_params.Metric],
+                 is_public_partitions: bool):
         input_validators.validate_epsilon_delta(epsilon, delta,
                                                 "DPStrategySelector")
         if delta == 0 and not is_public_partitions:
@@ -57,7 +57,7 @@ class DPStrategySelector:
         return self._is_public_partitions
 
     @property
-    def metrics(self) -> List[pipeline_dp.Metric]:
+    def metrics(self) -> List[aggregate_params.Metric]:
         return self._metrics
 
     def get_dp_strategy(
@@ -99,7 +99,7 @@ class DPStrategySelector:
 
     def _get_dp_strategy_with_post_aggregation_threshold(
             self, l0_sensitivity: int) -> DPStrategy:
-        assert pipeline_dp.Metrics.PRIVACY_ID_COUNT in self._metrics
+        assert aggregate_params.Metrics.PRIVACY_ID_COUNT in self._metrics
         # Half delta goes to the noise, the other half for partition selection.
         # For more details see
         # https://github.com/google/differential-privacy/blob/main/common_docs/Delta_For_Thresholding.pdf
@@ -139,25 +139,25 @@ class DPStrategySelector:
             epsilon, sensitivities.l1).std
 
     def select_noise_kind(
-            self, epsilon: float, delta: float,
-            sensitivities: dp_computations.Sensitivities
-    ) -> pipeline_dp.NoiseKind:
+        self, epsilon: float, delta: float,
+        sensitivities: dp_computations.Sensitivities
+    ) -> aggregate_params.NoiseKind:
         """Returns the noise with the minimum standard deviation."""
         if delta == 0:
-            return pipeline_dp.NoiseKind.LAPLACE
+            return aggregate_params.NoiseKind.LAPLACE
         gaussian_std = self._get_gaussian_std(epsilon, delta, sensitivities)
         laplace_std = self._get_laplace_std(epsilon, sensitivities)
         if gaussian_std < laplace_std:
-            return pipeline_dp.NoiseKind.GAUSSIAN
-        return pipeline_dp.NoiseKind.LAPLACE
+            return aggregate_params.NoiseKind.GAUSSIAN
+        return aggregate_params.NoiseKind.LAPLACE
 
     def use_post_aggregation_thresholding(
-            self, metrics: List[pipeline_dp.Metric]) -> bool:
-        return pipeline_dp.Metrics.PRIVACY_ID_COUNT in metrics
+            self, metrics: List[aggregate_params.Metric]) -> bool:
+        return aggregate_params.Metrics.PRIVACY_ID_COUNT in metrics
 
     def select_partition_selection_strategy(
             self, epsilon: float, delta: float,
-            l0_sensitivity: int) -> pipeline_dp.PartitionSelectionStrategy:
+            l0_sensitivity: int) -> aggregate_params.PartitionSelectionStrategy:
         """Selects partition selection strategy based on Threshold.
 
         There are many ways how strategies can be compared. For simplicity
@@ -175,7 +175,8 @@ class DPStrategySelector:
             the selected strategy.
         """
 
-        def create_mechanism(strategy: pipeline_dp.PartitionSelectionStrategy):
+        def create_mechanism(
+                strategy: aggregate_params.PartitionSelectionStrategy):
             return dp_computations.ThresholdingMechanism(epsilon,
                                                          delta,
                                                          strategy,
@@ -183,20 +184,21 @@ class DPStrategySelector:
                                                          pre_threshold=None)
 
         laplace_thresholding_mechanism = create_mechanism(
-            pipeline_dp.PartitionSelectionStrategy.LAPLACE_THRESHOLDING)
+            aggregate_params.PartitionSelectionStrategy.LAPLACE_THRESHOLDING)
         gaussian_thresholding_mechanism = create_mechanism(
-            pipeline_dp.PartitionSelectionStrategy.GAUSSIAN_THRESHOLDING)
+            aggregate_params.PartitionSelectionStrategy.GAUSSIAN_THRESHOLDING)
         if laplace_thresholding_mechanism.threshold(
         ) < gaussian_thresholding_mechanism.threshold():
             # Truncated geometric strategy is slightly better than Laplace
             # thresholding, so returns it instead.
             # Truncated geometric does not have a threshold, that is why
-            return pipeline_dp.PartitionSelectionStrategy.TRUNCATED_GEOMETRIC
-        return pipeline_dp.PartitionSelectionStrategy.GAUSSIAN_THRESHOLDING
+            return aggregate_params.PartitionSelectionStrategy.TRUNCATED_GEOMETRIC
+        return aggregate_params.PartitionSelectionStrategy.GAUSSIAN_THRESHOLDING
 
 
 class DPStrategySelectorFactory:
 
     def create(self, epsilon: float, delta: float,
-               metrics: List[pipeline_dp.Metric], is_public_partitions: bool):
+               metrics: List[aggregate_params.Metric],
+               is_public_partitions: bool):
         return DPStrategySelector(epsilon, delta, metrics, is_public_partitions)

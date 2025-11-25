@@ -1,18 +1,19 @@
 import unittest
 
-import pipeline_dp
 from pipeline_dp.dataset_histograms import histograms as hist
 from pipeline_dp import private_contribution_bounds
+from pipeline_dp import aggregate_params as ap
+from pipeline_dp import pipeline_backend
 
 
 def construct_params(
-    aggregation_noise_kind=pipeline_dp.NoiseKind.LAPLACE,
+    aggregation_noise_kind=ap.NoiseKind.LAPLACE,
     aggregation_eps=0.9,
     aggregation_delta=0.0,
     calculation_eps=0.1,
     max_partitions_contributed_upper_bound=3
-) -> pipeline_dp.CalculatePrivateContributionBoundsParams:
-    return pipeline_dp.CalculatePrivateContributionBoundsParams(
+) -> ap.CalculatePrivateContributionBoundsParams:
+    return ap.CalculatePrivateContributionBoundsParams(
         aggregation_noise_kind, aggregation_eps, aggregation_delta,
         calculation_eps, max_partitions_contributed_upper_bound)
 
@@ -43,10 +44,9 @@ class L0ScoringFunctionTest(unittest.TestCase):
         self.assertEqual(10, l0_scoring_function.global_sensitivity)
 
     def test_score_laplace_noise_valid_values_calculates_score_correctly(self):
-        params = construct_params(
-            aggregation_noise_kind=pipeline_dp.NoiseKind.LAPLACE,
-            aggregation_eps=0.9,
-            max_partitions_contributed_upper_bound=100)
+        params = construct_params(aggregation_noise_kind=ap.NoiseKind.LAPLACE,
+                                  aggregation_eps=0.9,
+                                  max_partitions_contributed_upper_bound=100)
         number_of_partitions = 200
         l0_histogram = hist.Histogram(name=hist.HistogramType.L0_CONTRIBUTIONS,
                                       bins=[
@@ -99,11 +99,10 @@ class L0ScoringFunctionTest(unittest.TestCase):
         self.assertAlmostEqual(-31427.0, score_200, places=1)
 
     def test_score_gaussian_noise_valid_values_calculates_score_correctly(self):
-        params = construct_params(
-            aggregation_noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
-            aggregation_eps=0.9,
-            aggregation_delta=0.001,
-            max_partitions_contributed_upper_bound=100)
+        params = construct_params(aggregation_noise_kind=ap.NoiseKind.GAUSSIAN,
+                                  aggregation_eps=0.9,
+                                  aggregation_delta=0.001,
+                                  max_partitions_contributed_upper_bound=100)
         number_of_partitions = 200
         l0_histogram = hist.Histogram(name=hist.HistogramType.L0_CONTRIBUTIONS,
                                       bins=[
@@ -161,12 +160,11 @@ class PrivateL0CalculatorTest(unittest.TestCase):
 
     def test_calculate_returns_one_of_the_lower_bounds(self):
         # Arrange
-        params = construct_params(
-            aggregation_eps=0.9,
-            aggregation_delta=1e-10,
-            calculation_eps=0.1,
-            aggregation_noise_kind=pipeline_dp.NoiseKind.GAUSSIAN,
-            max_partitions_contributed_upper_bound=100)
+        params = construct_params(aggregation_eps=0.9,
+                                  aggregation_delta=1e-10,
+                                  calculation_eps=0.1,
+                                  aggregation_noise_kind=ap.NoiseKind.GAUSSIAN,
+                                  max_partitions_contributed_upper_bound=100)
         partitions = [i + 1 for i in range(200)]
         l0_histogram = hist.Histogram(name=hist.HistogramType.L0_CONTRIBUTIONS,
                                       bins=[
@@ -200,7 +198,7 @@ class PrivateL0CalculatorTest(unittest.TestCase):
                                    sum_per_partition_histogram=None,
                                    sum_log_per_partition_histogram=None)
         ]
-        backend = pipeline_dp.LocalBackend()
+        backend = pipeline_backend.LocalBackend()
         calculator = private_contribution_bounds.PrivateL0Calculator(
             params, partitions, histograms, backend)
 
@@ -212,12 +210,11 @@ class PrivateL0CalculatorTest(unittest.TestCase):
 
     def test_calculate_one_bound_has_much_higher_score_returns_it(self):
         # Arrange
-        params = construct_params(
-            aggregation_eps=0.9,
-            aggregation_delta=0,
-            calculation_eps=0.1,
-            aggregation_noise_kind=pipeline_dp.NoiseKind.LAPLACE,
-            max_partitions_contributed_upper_bound=2)
+        params = construct_params(aggregation_eps=0.9,
+                                  aggregation_delta=0,
+                                  calculation_eps=0.1,
+                                  aggregation_noise_kind=ap.NoiseKind.LAPLACE,
+                                  max_partitions_contributed_upper_bound=2)
         partitions = list(range(1, 201))
         l0_histogram = hist.Histogram(name=hist.HistogramType.L0_CONTRIBUTIONS,
                                       bins=[
@@ -245,7 +242,7 @@ class PrivateL0CalculatorTest(unittest.TestCase):
                                    sum_per_partition_histogram=None,
                                    sum_log_per_partition_histogram=None)
         ]
-        backend = pipeline_dp.LocalBackend()
+        backend = pipeline_backend.LocalBackend()
         calculator = private_contribution_bounds.PrivateL0Calculator(
             params, partitions, histograms, backend)
 
