@@ -18,8 +18,10 @@ import dataclasses
 import enum
 from typing import Any, Dict, List, Optional, Sequence, Union, Tuple
 
-import pipeline_dp
+from pipeline_dp import dp_engine as dpeng
 from pipeline_dp import aggregate_params
+from pipeline_dp import budget_accounting as ba
+from pipeline_dp import data_extractors as extractors
 from pipeline_dp import pipeline_backend
 
 
@@ -725,12 +727,12 @@ class Query:
                     total_epsilon += spec.budget.epsilon
                     total_delta += spec.budget.delta
 
-        budget_accountant = pipeline_dp.NaiveBudgetAccountant(
+        budget_accountant = ba.NaiveBudgetAccountant(
             total_epsilon=total_epsilon,
             total_delta=total_delta if total_delta > 0 else 1e-10)
 
-        dp_engine = pipeline_dp.DPEngine(budget_accountant=budget_accountant,
-                                         backend=backend)
+        dp_engine = dpeng.DPEngine(budget_accountant=budget_accountant,
+                                   backend=backend)
 
         # 1. Handle Grouping / Partition Selection
         public_partitions = None
@@ -776,7 +778,7 @@ class Query:
                 elif isinstance(self._group_by_spec.budget, EpsDeltaBudget):
                     select_params.budget_weight = self._group_by_spec.budget.epsilon
 
-                data_extractors = pipeline_dp.DataExtractors(
+                data_extractors = extractors.DataExtractors(
                     partition_extractor=partition_extractor,
                     privacy_id_extractor=privacy_id_extractor,
                     value_extractor=lambda x: 0)
@@ -907,7 +909,7 @@ class Query:
                     return row[value_col]
                 return 0
 
-            data_extractors = pipeline_dp.DataExtractors(
+            data_extractors = extractors.DataExtractors(
                 partition_extractor=partition_extractor,
                 privacy_id_extractor=privacy_id_extractor,
                 value_extractor=value_extractor)
