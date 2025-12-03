@@ -390,9 +390,15 @@ class LocalBackend(PipelineBackend):
         keys_to_keep,
         stage_name: typing.Optional[str] = None,
     ):
-        if not isinstance(keys_to_keep, set):
-            keys_to_keep = set(keys_to_keep)
-        return (kv for kv in col if kv[0] in keys_to_keep)
+
+        def generator():
+            keys_set = keys_to_keep if isinstance(keys_to_keep,
+                                                  set) else set(keys_to_keep)
+            for kv in col:
+                if kv[0] in keys_set:
+                    yield kv
+
+        return ReiterableLazyIterable(generator())
 
     def keys(self, col, stage_name: typing.Optional[str] = None):
         return ReiterableLazyIterable((k for k, v in col))
