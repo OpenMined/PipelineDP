@@ -247,8 +247,6 @@ class GaussianCountSpec(CountSpec):
                 budget=self._budget)
 
 
-
-
 class Query:
     """Represents a DP query."""
 
@@ -481,13 +479,15 @@ class Query:
 
 
 class AggregationBuilder:
+
     def __init__(self, data, group_by_key, group_by_spec):
         self._data = data
         self._group_by_key = group_by_key
         self._group_by_spec = group_by_spec
         self._aggregations = []
 
-    def count(self, output_column_name: str, spec: CountSpec) -> 'AggregationBuilder':
+    def count(self, output_column_name: str,
+              spec: CountSpec) -> 'AggregationBuilder':
         """Schedules the count aggregation."""
         self._aggregations.append(("count", output_column_name, spec, {}))
         return self
@@ -499,6 +499,7 @@ class AggregationBuilder:
 
 
 class GroupByBuilder:
+
     def __init__(self, data):
         self._data = data
 

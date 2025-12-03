@@ -41,19 +41,16 @@ class AdvancedQueryBuilderTest(unittest.TestCase):
             aqb.ColumnNames("movie_id"),
             aqb.OptimalGroupSelectionGroupBySpec.Builder().setPrivacyUnit(
                 aqb.ColumnNames("user_id")).setContributionBoundingLevel(
+                    aqb.PartitionLevel(max_partitions_contributed=3,
+                                       max_contributions_per_partition=1)).
+            setBudget(eps=1.0).setPublicGroups(["m1", "m2"]).build()).count(
+                "rating_count",
+                aqb.LaplaceCountSpec.Builder().setPrivacyUnit(
+                    aqb.ColumnNames("user_id")).setBudget(eps=1.0).
+                setContributionBoundingLevel(
                     aqb.PartitionLevel(
                         max_partitions_contributed=3,
-                        max_contributions_per_partition=1)).setBudget(
-                            eps=1.0).setPublicGroups(["m1", "m2"]).build()
-        ).count(
-            "rating_count",
-            aqb.LaplaceCountSpec.Builder().setPrivacyUnit(
-                aqb.ColumnNames("user_id")).setBudget(
-                    eps=1.0).setContributionBoundingLevel(
-                        aqb.PartitionLevel(
-                            max_partitions_contributed=3,
-                            max_contributions_per_partition=1)).build()
-        ).build()
+                        max_contributions_per_partition=1)).build()).build()
 
         # Run Query
         results = query.run()
