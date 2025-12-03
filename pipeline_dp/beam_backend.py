@@ -20,7 +20,7 @@ from typing import Callable
 try:
     import apache_beam as beam
     import apache_beam.transforms.combiners as combiners
-except ImportError:
+except (AttributeError, ImportError):
     # It is fine if Apache Beam is not installed, other backends can be used.
     pass
 
