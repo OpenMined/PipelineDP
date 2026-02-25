@@ -394,7 +394,10 @@ class SelectPartitions(PrivatePTransform):
 class Map(PrivatePTransform):
     """Transform class for performing a Map on a PrivatePCollection."""
 
-    def __init__(self, fn: Callable, label: Optional[str] = None, resource_hints: typing.Optional[dict] = None):
+    def __init__(self,
+                 fn: Callable,
+                 label: Optional[str] = None,
+                 resource_hints: typing.Optional[dict] = None):
         super().__init__(return_anonymized=False, label=label)
         self._fn = fn
         self._resource_hints = resource_hints
@@ -407,7 +410,10 @@ class Map(PrivatePTransform):
 class FlatMap(PrivatePTransform):
     """Transform class for performing a FlatMap on a PrivatePCollection."""
 
-    def __init__(self, fn: Callable, label: Optional[str] = None, resource_hints: typing.Optional[dict] = None):
+    def __init__(self,
+                 fn: Callable,
+                 label: Optional[str] = None,
+                 resource_hints: typing.Optional[dict] = None):
         super().__init__(return_anonymized=False, label=label)
         self._fn = fn
         self._resource_hints = resource_hints

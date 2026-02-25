@@ -39,22 +39,43 @@ class SparkRDDBackend(pipeline_backend.PipelineBackend):
             return self._sc.parallelize(rdd).map(fn)
         return rdd.map(fn)
 
-    def map_with_side_inputs(self, rdd, fn, side_input_cols, stage_name: str, resource_hints: dict = None):
+    def map_with_side_inputs(self,
+                             rdd,
+                             fn,
+                             side_input_cols,
+                             stage_name: str,
+                             resource_hints: dict = None):
         raise NotImplementedError("map_with_side_inputs "
                                   "is not implement in SparkBackend.")
 
-    def flat_map(self, rdd, fn, stage_name: str = None, resource_hints: dict = None):
+    def flat_map(self,
+                 rdd,
+                 fn,
+                 stage_name: str = None,
+                 resource_hints: dict = None):
         return rdd.flatMap(fn)
 
-    def flat_map_with_side_inputs(self, col, fn, side_input_cols,
-                                  stage_name: str, resource_hints: dict = None):
+    def flat_map_with_side_inputs(self,
+                                  col,
+                                  fn,
+                                  side_input_cols,
+                                  stage_name: str,
+                                  resource_hints: dict = None):
         raise NotImplementedError("flat_map_with_side_inputs "
                                   "is not implement in SparkBackend.")
 
-    def map_tuple(self, rdd, fn, stage_name: str = None, resource_hints: dict = None):
+    def map_tuple(self,
+                  rdd,
+                  fn,
+                  stage_name: str = None,
+                  resource_hints: dict = None):
         return rdd.map(lambda x: fn(*x))
 
-    def map_values(self, rdd, fn, stage_name: str = None, resource_hints: dict = None):
+    def map_values(self,
+                   rdd,
+                   fn,
+                   stage_name: str = None,
+                   resource_hints: dict = None):
         return rdd.mapValues(fn)
 
     def group_by_key(self, rdd, stage_name: str = None):
