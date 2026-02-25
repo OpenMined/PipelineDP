@@ -42,8 +42,10 @@ class NaiveBudgetAccountantTest(parameterized.TestCase):
         budget_accountant = budget_accounting.NaiveBudgetAccountant(
             total_epsilon=1, total_delta=0)
         budget = budget_accountant.request_budget(
-            mechanism_type=budget_accounting.MechanismType.LAPLACE)
+            mechanism_type=budget_accounting.MechanismType.LAPLACE,
+            name="test_name")
         self.assertTrue(budget)  # An object must be returned.
+        self.assertEqual(budget.name, "test_name")
 
         with self.assertRaises(AssertionError):
             print(budget.eps)  # The privacy budget is not calculated yet.

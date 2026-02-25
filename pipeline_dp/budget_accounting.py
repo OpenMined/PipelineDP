@@ -49,6 +49,7 @@ class MechanismSpec:
     (_eps, _delta) are parameters of (eps, delta)-differential privacy
     """
     mechanism_type: MechanismType
+    name: str = ""
     _noise_standard_deviation: Optional[float] = None
     _eps: Optional[float] = None
     _delta: Optional[float] = None
@@ -170,6 +171,7 @@ class BudgetAccountant(abc.ABC):
     def request_budget(
             self,
             mechanism_type: MechanismType,
+            name: str = "",
             sensitivity: float = 1,
             weight: float = 1,
             count: int = 1,
@@ -313,6 +315,22 @@ class BudgetAccountant(abc.ABC):
             raise Exception("compute_budgets can not be called twice.")
         self._finalized = True
 
+    @property
+    def total_epsilon(self) -> float:
+        return self._total_epsilon
+
+    @property
+    def total_delta(self) -> float:
+        return self._total_delta
+
+    @property
+    def finalized(self) -> bool:
+        return self._finalized
+
+    @property
+    def mechanism_specs(self) -> list[MechanismSpec]:
+        return [m.mechanism_spec for m in self._mechanisms]
+
 
 @dataclass
 class BudgetAccountantScope:
@@ -378,6 +396,7 @@ class NaiveBudgetAccountant(BudgetAccountant):
     def request_budget(
             self,
             mechanism_type: MechanismType,
+            name: str = "",
             sensitivity: float = 1,
             weight: float = 1,
             count: int = 1,
@@ -389,6 +408,7 @@ class NaiveBudgetAccountant(BudgetAccountant):
 
         Args:
             mechanism_type: The type of noise distribution for the mechanism.
+            name: The name of the mechanism.
             sensitivity: The sensitivity for the mechanism.
             weight: The weight for the mechanism.
             count: The number of times the mechanism will be applied.
@@ -417,6 +437,7 @@ class NaiveBudgetAccountant(BudgetAccountant):
                 "The private partition selections requires that the pipeline delta is greater than 0"
             )
         mechanism_spec = MechanismSpec(mechanism_type=mechanism_type,
+                                       name=name,
                                        _count=count)
         mechanism_spec_internal = MechanismSpecInternal(
             mechanism_spec=mechanism_spec,
@@ -513,6 +534,7 @@ class PLDBudgetAccountant(BudgetAccountant):
     def request_budget(
             self,
             mechanism_type: MechanismType,
+            name: str = "",
             sensitivity: float = 1,
             weight: float = 1,
             count: int = 1,
@@ -524,6 +546,7 @@ class PLDBudgetAccountant(BudgetAccountant):
 
         Args:
             mechanism_type: The type of noise distribution for the mechanism.
+            name: The name of the mechanism.
             sensitivity: The sensitivity for the mechanism.
             weight: The weight for the mechanism.
             count: The number of times the mechanism will be applied.
@@ -548,6 +571,7 @@ class PLDBudgetAccountant(BudgetAccountant):
                 "The Gaussian mechanism requires that the pipeline delta is greater than 0"
             )
         mechanism_spec = MechanismSpec(mechanism_type=mechanism_type,
+                                       name=name,
                                        _count=count)
         mechanism_spec_internal = MechanismSpecInternal(
             mechanism_spec=mechanism_spec,
