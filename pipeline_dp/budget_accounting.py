@@ -168,14 +168,13 @@ class BudgetAccountant(abc.ABC):
         self._actual_aggregation_weights = []
 
     @abc.abstractmethod
-    def request_budget(
-            self,
-            mechanism_type: MechanismType,
-            name: str = "",
-            sensitivity: float = 1,
-            weight: float = 1,
-            count: int = 1,
-            noise_standard_deviation: Optional[float] = None) -> MechanismSpec:
+    def request_budget(self,
+                       mechanism_type: MechanismType,
+                       sensitivity: float = 1,
+                       weight: float = 1,
+                       count: int = 1,
+                       noise_standard_deviation: Optional[float] = None,
+                       name: str = "") -> MechanismSpec:
         pass
 
     @abc.abstractmethod
@@ -530,14 +529,13 @@ class PLDBudgetAccountant(BudgetAccountant):
         self.base_noise_std = None
         self._pld_discretization = pld_discretization
 
-    def request_budget(
-            self,
-            mechanism_type: MechanismType,
-            name: str = "",
-            sensitivity: float = 1,
-            weight: float = 1,
-            count: int = 1,
-            noise_standard_deviation: Optional[float] = None) -> MechanismSpec:
+    def request_budget(self,
+                       mechanism_type: MechanismType,
+                       sensitivity: float = 1,
+                       weight: float = 1,
+                       count: int = 1,
+                       noise_standard_deviation: Optional[float] = None,
+                       name: str = "") -> MechanismSpec:
         """Request a budget.
 
         Constructs a mechanism spec based on the parameters.
