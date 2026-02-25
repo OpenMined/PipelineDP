@@ -70,38 +70,59 @@ class BeamBackend(PipelineBackend):
         return col.pipeline | self._ulg.unique(stage_name) >> beam.Create(
             collection_or_iterable)
 
-    def map(self, col, fn, stage_name: str):
-        return col | self._ulg.unique(stage_name) >> beam.Map(fn)
+    def map(self, col, fn, stage_name: str, resource_hints: dict = None):
+        transform = beam.Map(fn)
+        if resource_hints:
+            transform = transform.with_resource_hints(**resource_hints)
+        return col | self._ulg.unique(stage_name) >> transform
 
     def map_with_side_inputs(self,
                              col,
                              fn,
                              side_input_cols,
-                             stage_name: str = None):
+                             stage_name: str = None,
+                             resource_hints: dict = None):
         side_inputs = [
             beam.pvalue.AsSingleton(side_input_col)
             for side_input_col in side_input_cols
         ]
-        return col | self._ulg.unique(stage_name) >> beam.Map(fn, *side_inputs)
+        transform = beam.Map(fn, *side_inputs)
+        if resource_hints:
+            transform = transform.with_resource_hints(**resource_hints)
+        return col | self._ulg.unique(stage_name) >> transform
 
-    def flat_map(self, col, fn, stage_name: str):
-        return col | self._ulg.unique(stage_name) >> beam.FlatMap(fn)
+    def flat_map(self, col, fn, stage_name: str, resource_hints: dict = None):
+        transform = beam.FlatMap(fn)
+        if resource_hints:
+            transform = transform.with_resource_hints(**resource_hints)
+        return col | self._ulg.unique(stage_name) >> transform
 
-    def flat_map_with_side_inputs(self, col, fn, side_input_cols,
-                                  stage_name: str):
+    def flat_map_with_side_inputs(self,
+                                  col,
+                                  fn,
+                                  side_input_cols,
+                                  stage_name: str,
+                                  resource_hints: dict = None):
         side_inputs = [
             beam.pvalue.AsSingleton(side_input_col)
             for side_input_col in side_input_cols
         ]
-        return col | self._ulg.unique(stage_name) >> beam.FlatMap(
-            fn, *side_inputs)
+        transform = beam.FlatMap(fn, *side_inputs)
+        if resource_hints:
+            transform = transform.with_resource_hints(**resource_hints)
+        return col | self._ulg.unique(stage_name) >> transform
 
-    def map_tuple(self, col, fn, stage_name: str):
-        return col | self._ulg.unique(stage_name) >> beam.Map(lambda x: fn(*x))
+    def map_tuple(self, col, fn, stage_name: str, resource_hints: dict = None):
+        transform = beam.Map(lambda x: fn(*x))
+        if resource_hints:
+            transform = transform.with_resource_hints(**resource_hints)
+        return col | self._ulg.unique(stage_name) >> transform
 
-    def map_values(self, col, fn, stage_name: str):
-        return col | self._ulg.unique(stage_name) >> beam.MapTuple(lambda k, v:
-                                                                   (k, fn(v)))
+    def map_values(self, col, fn, stage_name: str, resource_hints: dict = None):
+        transform = beam.MapTuple(lambda k, v: (k, fn(v)))
+        if resource_hints:
+            transform = transform.with_resource_hints(**resource_hints)
+        return col | self._ulg.unique(stage_name) >> transform
 
     def group_by_key(self, col, stage_name: str):
         """Groups the values for each key in the PCollection into a single sequence.

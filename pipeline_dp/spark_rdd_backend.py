@@ -31,7 +31,7 @@ class SparkRDDBackend(pipeline_backend.PipelineBackend):
         # TODO: implement it and remove workaround in map() below.
         return collection_or_iterable
 
-    def map(self, rdd, fn, stage_name: str = None):
+    def map(self, rdd, fn, stage_name: str = None, resource_hints: dict = None):
         # TODO(make more elegant solution): workaround for public_partitions
         # It is beneficial to accept them as in-memory collection for improving
         # performance of filtering. But for applying map, RDD is required.
@@ -39,22 +39,22 @@ class SparkRDDBackend(pipeline_backend.PipelineBackend):
             return self._sc.parallelize(rdd).map(fn)
         return rdd.map(fn)
 
-    def map_with_side_inputs(self, rdd, fn, side_input_cols, stage_name: str):
+    def map_with_side_inputs(self, rdd, fn, side_input_cols, stage_name: str, resource_hints: dict = None):
         raise NotImplementedError("map_with_side_inputs "
                                   "is not implement in SparkBackend.")
 
-    def flat_map(self, rdd, fn, stage_name: str = None):
+    def flat_map(self, rdd, fn, stage_name: str = None, resource_hints: dict = None):
         return rdd.flatMap(fn)
 
     def flat_map_with_side_inputs(self, col, fn, side_input_cols,
-                                  stage_name: str):
+                                  stage_name: str, resource_hints: dict = None):
         raise NotImplementedError("flat_map_with_side_inputs "
                                   "is not implement in SparkBackend.")
 
-    def map_tuple(self, rdd, fn, stage_name: str = None):
+    def map_tuple(self, rdd, fn, stage_name: str = None, resource_hints: dict = None):
         return rdd.map(lambda x: fn(*x))
 
-    def map_values(self, rdd, fn, stage_name: str = None):
+    def map_values(self, rdd, fn, stage_name: str = None, resource_hints: dict = None):
         return rdd.mapValues(fn)
 
     def group_by_key(self, rdd, stage_name: str = None):

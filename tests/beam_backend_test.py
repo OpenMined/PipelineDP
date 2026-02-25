@@ -303,6 +303,24 @@ class BeamBackendStageNameTest(unittest.TestCase):
                       backend._ulg._labels)
 
 
+class BeamBackendResourceHintsTest(unittest.TestCase):
+
+    @patch("apache_beam.Map")
+    def test_map_resource_hints(self, mock_map):
+        mock_pcollection = Mock()
+        mock_pcollection.__or__ = MagicMock(return_value=mock_pcollection)
+        backend = BeamBackend()
+        backend._ulg = Mock()
+        backend._ulg.unique = MagicMock(return_value="unique_label")
+
+        resource_hints = {"min_ram": "4G"}
+        backend.map(mock_pcollection, lambda x: x, "stage_name", resource_hints)
+
+        mock_map.assert_called_once()
+        mock_map.return_value.with_resource_hints.assert_called_once_with(
+            min_ram="4G")
+
+
 class SumCombiner(dp_combiners.Combiner):
 
     def create_accumulator(self, values) -> float:

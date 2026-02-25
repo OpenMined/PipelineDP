@@ -58,12 +58,12 @@ class PipelineBackend(abc.ABC):
         return col
 
     @abc.abstractmethod
-    def map(self, col, fn, stage_name: str):
+    def map(self, col, fn, stage_name: str, resource_hints: typing.Optional[dict] = None):
         pass
 
     @abc.abstractmethod
     def map_with_side_inputs(self, col, fn, side_input_cols: typing.List,
-                             stage_name: str):
+                             stage_name: str, resource_hints: typing.Optional[dict] = None):
         """Map with additional (side) inputs for mapper functions.
         Side inputs are passed to fn as arguments. For each `record` fn is
         called with fn(record, side_input1, ..., side_inputn).
@@ -83,12 +83,12 @@ class PipelineBackend(abc.ABC):
         """
 
     @abc.abstractmethod
-    def flat_map(self, col, fn, stage_name: str):
+    def flat_map(self, col, fn, stage_name: str, resource_hints: typing.Optional[dict] = None):
         """1-to-many map."""
 
     @abc.abstractmethod
     def flat_map_with_side_inputs(self, col, fn, side_input_cols,
-                                  stage_name: str):
+                                  stage_name: str, resource_hints: typing.Optional[dict] = None):
         """1-to-many map with side input.
         Side inputs are passed to fn as arguments. For each `record` fn is
         called with fn(record, side_input1, ..., side_inputn).
@@ -108,11 +108,11 @@ class PipelineBackend(abc.ABC):
         """
 
     @abc.abstractmethod
-    def map_tuple(self, col, fn, stage_name: str):
+    def map_tuple(self, col, fn, stage_name: str, resource_hints: typing.Optional[dict] = None):
         pass
 
     @abc.abstractmethod
-    def map_values(self, col, fn, stage_name: str):
+    def map_values(self, col, fn, stage_name: str, resource_hints: typing.Optional[dict] = None):
         pass
 
     @abc.abstractmethod
@@ -322,14 +322,14 @@ class LazySingleton:
 class LocalBackend(PipelineBackend):
     """Local Pipeline adapter."""
 
-    def map(self, col, fn, stage_name: typing.Optional[str] = None):
+    def map(self, col, fn, stage_name: typing.Optional[str] = None, resource_hints: typing.Optional[dict] = None):
         return ReiterableLazyIterable(map(fn, col))
 
     def map_with_side_inputs(self,
                              col,
                              fn,
                              side_input_cols,
-                             stage_name: str = None):
+                             stage_name: str = None, resource_hints: typing.Optional[dict] = None):
         side_inputs_singletons = [LazySingleton(s) for s in side_input_cols]
 
         def map_fn(x):
@@ -338,23 +338,23 @@ class LocalBackend(PipelineBackend):
 
         return ReiterableLazyIterable(map(map_fn, col))
 
-    def flat_map(self, col, fn, stage_name: str = None):
+    def flat_map(self, col, fn, stage_name: str = None, resource_hints: typing.Optional[dict] = None):
         return ReiterableLazyIterable((x for el in col for x in fn(el)))
 
     def flat_map_with_side_inputs(self, col, fn, side_input_cols,
                                   stage_name: str):
         side_inputs_singletons = [LazySingleton(i) for i in side_input_cols]
 
-        def map_fn(x):
+        def compute_fn(x):
             side_input_values = [s.singleton() for s in side_inputs_singletons]
             return fn(x, *side_input_values)
 
-        return ReiterableLazyIterable(self.flat_map(col, map_fn))
+        return ReiterableLazyIterable(self.flat_map(col, compute_fn, stage_name, resource_hints))
 
-    def map_tuple(self, col, fn, stage_name: str = None):
+    def map_tuple(self, col, fn, stage_name: str = None, resource_hints: typing.Optional[dict] = None):
         return ReiterableLazyIterable(map(lambda x: fn(*x), col))
 
-    def map_values(self, col, fn, stage_name: typing.Optional[str] = None):
+    def map_values(self, col, fn, stage_name: typing.Optional[str] = None, resource_hints: typing.Optional[dict] = None):
         return ReiterableLazyIterable(((k, fn(v)) for k, v in col))
 
     def group_by_key(self, col, stage_name: typing.Optional[str] = None):
