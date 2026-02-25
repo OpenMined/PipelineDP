@@ -370,7 +370,9 @@ class PostAggregationThresholdingCombiner(Combiner, MechanismContainerMixin):
         mechanism_type = pipeline_dp.aggregate_params.noise_to_thresholding(
             aggregate_params.noise_kind)
         self._mechanism_spec = budget_accountant.request_budget(
-            mechanism_type, weight=aggregate_params.budget_weight)
+            mechanism_type,
+            name="PostAggregationThresholding",
+            weight=aggregate_params.budget_weight)
         self._sensitivities = dp_computations.compute_sensitivities_for_privacy_id_count(
             aggregate_params)
         self._pre_threshold = aggregate_params.pre_threshold
@@ -918,7 +920,9 @@ def create_compound_combiner(
 
     if pipeline_dp.Metrics.VARIANCE in aggregate_params.metrics:
         budget_variance = budget_accountant.request_budget(
-            mechanism_type, weight=aggregate_params.budget_weight)
+            mechanism_type,
+            name="Variance",
+            weight=aggregate_params.budget_weight)
         metrics_to_compute = ['variance']
         if pipeline_dp.Metrics.MEAN in aggregate_params.metrics:
             metrics_to_compute.append('mean')
@@ -931,9 +935,13 @@ def create_compound_combiner(
                              metrics_to_compute))
     elif pipeline_dp.Metrics.MEAN in aggregate_params.metrics:
         budget_count = budget_accountant.request_budget(
-            mechanism_type, weight=aggregate_params.budget_weight)
+            mechanism_type,
+            name="MeanCount",
+            weight=aggregate_params.budget_weight)
         budget_sum = budget_accountant.request_budget(
-            mechanism_type, weight=aggregate_params.budget_weight)
+            mechanism_type,
+            name="MeanSum",
+            weight=aggregate_params.budget_weight)
         metrics_to_compute = ['mean']
         if pipeline_dp.Metrics.COUNT in aggregate_params.metrics:
             metrics_to_compute.append('count')
@@ -945,11 +953,15 @@ def create_compound_combiner(
     else:
         if pipeline_dp.Metrics.COUNT in aggregate_params.metrics:
             budget_count = budget_accountant.request_budget(
-                mechanism_type, weight=aggregate_params.budget_weight)
+                mechanism_type,
+                name="Count",
+                weight=aggregate_params.budget_weight)
             combiners.append(CountCombiner(budget_count, aggregate_params))
         if pipeline_dp.Metrics.SUM in aggregate_params.metrics:
             budget_sum = budget_accountant.request_budget(
-                mechanism_type, weight=aggregate_params.budget_weight)
+                mechanism_type,
+                name="Sum",
+                weight=aggregate_params.budget_weight)
             combiners.append(SumCombiner(budget_sum, aggregate_params))
     if pipeline_dp.Metrics.PRIVACY_ID_COUNT in aggregate_params.metrics:
         if aggregate_params.post_aggregation_thresholding:
@@ -958,13 +970,17 @@ def create_compound_combiner(
                                                     aggregate_params))
         else:
             budget_privacy_id_count = budget_accountant.request_budget(
-                mechanism_type, weight=aggregate_params.budget_weight)
+                mechanism_type,
+                name="PrivacyIdCount",
+                weight=aggregate_params.budget_weight)
             combiners.append(
                 PrivacyIdCountCombiner(budget_privacy_id_count,
                                        aggregate_params))
     if pipeline_dp.Metrics.VECTOR_SUM in aggregate_params.metrics:
         budget_vector_sum = budget_accountant.request_budget(
-            mechanism_type, weight=aggregate_params.budget_weight)
+            mechanism_type,
+            name="VectorSum",
+            weight=aggregate_params.budget_weight)
         combiners.append(
             VectorSumCombiner(
                 CombinerParams(budget_vector_sum, aggregate_params)))
@@ -976,7 +992,9 @@ def create_compound_combiner(
     ]
     if percentiles_to_compute:
         budget_percentile = budget_accountant.request_budget(
-            mechanism_type, weight=aggregate_params.budget_weight)
+            mechanism_type,
+            name="Quantile",
+            weight=aggregate_params.budget_weight)
         combiners.append(
             QuantileCombiner(
                 CombinerParams(budget_percentile, aggregate_params),

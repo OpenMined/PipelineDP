@@ -346,7 +346,8 @@ class DPEngine:
         Returns:
             collection of elements (partition_key, accumulator).
         """
-        budget = self._budget_accountant.request_budget(strategy.mechanism_type)
+        budget = self._budget_accountant.request_budget(
+            strategy.mechanism_type, name="PartitionSelection")
 
         def filter_fn(
             budget: 'MechanismSpec', max_partitions: int,
@@ -620,7 +621,8 @@ class DPEngine:
     def _add_dp_noise(self, col, params: aggregate_params.AddDPNoiseParams):
         # Request budget and create Sensitivities object
         mechanism_type = params.noise_kind.convert_to_mechanism_type()
-        mechanism_spec = self._budget_accountant.request_budget(mechanism_type)
+        mechanism_spec = self._budget_accountant.request_budget(
+            mechanism_type, name="AddDPNoise")
         sensitivities = dp_computations.Sensitivities(
             l0=params.l0_sensitivity,
             linf=params.linf_sensitivity,
@@ -697,7 +699,8 @@ class DPEngine:
         col = self._weighted_gaussian_calculate_weights(
             col, data_extractors, params.max_partitions_contributed)
         budget = self._budget_accountant.request_budget(
-            params.partition_selection_strategy.mechanism_type)
+            params.partition_selection_strategy.mechanism_type,
+            name="WeightedGaussianPartitionSelection")
 
         def filter_fn(row: Tuple[Any, float]) -> bool:
             partition_selector = (

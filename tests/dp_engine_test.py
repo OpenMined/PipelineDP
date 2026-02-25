@@ -1366,6 +1366,7 @@ class DpEngineTest(parameterized.TestCase):
         mock_create_additive_mechanism.assert_called_once_with(
             budget_accounting.MechanismSpec(
                 noise_kind.convert_to_mechanism_type(),
+                name="AddDPNoise",
                 _eps=0.5,
                 _delta=expected_delta),
             dp_computations.Sensitivities(l0=l0_sensitivity,
