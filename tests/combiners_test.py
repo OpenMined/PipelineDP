@@ -53,7 +53,10 @@ def _create_mechanism_spec(
     else:
         eps, delta = 1, 1e-5
 
-    return ba.MechanismSpec(mechanism_type, None, eps, delta)
+    return ba.MechanismSpec(mechanism_type,
+                            _noise_standard_deviation=None,
+                            _eps=eps,
+                            _delta=delta)
 
 
 def _create_aggregate_params(max_value: float = 1,
@@ -152,7 +155,9 @@ class CreateCompoundCombinersTest(parameterized.TestCase):
 
         # Assert
         budget_accountant.request_budget.assert_called_with(
-            ap.MechanismType.GAUSSIAN, weight=aggregate_params.budget_weight)
+            ap.MechanismType.GAUSSIAN,
+            weight=aggregate_params.budget_weight,
+            name=mock.ANY)
         # Check correctness of internal combiners
         combiners = compound_combiner._combiners
         self.assertLen(combiners, len(expected_combiner_types))
@@ -454,7 +459,11 @@ class PostAggregationThresholdingCombinerTest(parameterized.TestCase):
         expected_mechanism_type = self._get_mechanism_type(noise_kind)
         self.assertEqual(
             combiner.mechanism_spec(),
-            ba.MechanismSpec(expected_mechanism_type, None, 1, 1e-10))
+            ba.MechanismSpec(expected_mechanism_type,
+                             name="PostAggregationThresholding",
+                             _noise_standard_deviation=None,
+                             _eps=1,
+                             _delta=1e-10))
         self.assertEqual(combiner.sensitivities().l0, 2)
         self.assertEqual(combiner.sensitivities().linf, 1)
         thresholding_strategy = combiner.create_mechanism(
