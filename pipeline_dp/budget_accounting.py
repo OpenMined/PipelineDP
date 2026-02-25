@@ -393,14 +393,13 @@ class NaiveBudgetAccountant(BudgetAccountant):
         super().__init__(total_epsilon, total_delta, num_aggregations,
                          aggregation_weights)
 
-    def request_budget(
-            self,
-            mechanism_type: MechanismType,
-            name: str = "",
-            sensitivity: float = 1,
-            weight: float = 1,
-            count: int = 1,
-            noise_standard_deviation: Optional[float] = None) -> MechanismSpec:
+    def request_budget(self,
+                       mechanism_type: MechanismType,
+                       sensitivity: float = 1,
+                       weight: float = 1,
+                       count: int = 1,
+                       noise_standard_deviation: Optional[float] = None,
+                       name: str = "") -> MechanismSpec:
         """Requests a budget.
 
         Constructs a mechanism spec based on the parameters.
