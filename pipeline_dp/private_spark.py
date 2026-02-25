@@ -39,7 +39,9 @@ class PrivateRDD:
             self._rdd = rdd
         self._budget_accountant = budget_accountant
 
-    def map(self, fn: Callable) -> 'PrivateRDD':
+    def map(self,
+            fn: Callable,
+            resource_hints: Optional[dict] = None) -> 'PrivateRDD':
         """A Spark map equivalent.
 
         Keeps track of privacy_id for each element.
@@ -50,7 +52,9 @@ class PrivateRDD:
         rdd = self._rdd.mapValues(fn)
         return make_private(rdd, self._budget_accountant, None)
 
-    def flat_map(self, fn: Callable) -> 'PrivateRDD':
+    def flat_map(self,
+                 fn: Callable,
+                 resource_hints: Optional[dict] = None) -> 'PrivateRDD':
         """A Spark flatMap equivalent.
 
         Keeps track of privacy_id for each element.
