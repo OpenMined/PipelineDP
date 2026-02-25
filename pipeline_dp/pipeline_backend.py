@@ -382,8 +382,8 @@ class LocalBackend(PipelineBackend):
             side_input_values = [s.singleton() for s in side_inputs_singletons]
             return fn(x, *side_input_values)
 
-        return ReiterableLazyIterable(
-            self.flat_map(col, compute_fn, stage_name, resource_hints))
+        return ReiterableLazyIterable(self.flat_map(col, compute_fn,
+                                                    stage_name))
 
     def map_tuple(self,
                   col,
