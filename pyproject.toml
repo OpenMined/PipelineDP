@@ -25,7 +25,7 @@ pytest-timeout = "^2.3.1"
 
 # Building & Packaging
 twine = "^6.0.0"           # Modern metadata & PyPI publishing
-wheel = "^0.45.0"
+wheel = "^0.46.2"
 setuptools = "^75.0.0"     # Modern PEP 517/621 improvements
 poetry-core = "^2.0.0"     # Keeping up with poetry spec
 
