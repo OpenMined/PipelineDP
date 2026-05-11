@@ -35,7 +35,7 @@ from pipeline_dp.pipeline_backend import LocalBackend
 from pipeline_dp.spark_rdd_backend import SparkRDDBackend
 from pipeline_dp.beam_backend import BeamBackend
 
-__version__ = '0.3.0rc1'
+__version__ = '0.3.0'
 
 __all__ = [
     'AggregateParams',
