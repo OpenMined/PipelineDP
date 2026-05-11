@@ -20,7 +20,7 @@ yapf = "^0.43.0"
 pylint = "^3.2.0"          # Python 3.12+ AST changes require Pylint 3.x
 
 # Testing
-pytest = "^8.2.0"          # Better Python 3.12+ support
+pytest = "^9.0.3"          # Better Python 3.12+ support
 pytest-timeout = "^2.3.1"
 
 # Building & Packaging
