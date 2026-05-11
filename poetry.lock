@@ -2809,20 +2809,20 @@ reference = "pypi-public"
 
 [[package]]
 name = "python-dp"
-version = "1.1.5rc11"
+version = "1.1.5"
 description = "Python API for Google's Differential Privacy library"
 optional = false
-python-versions = ">=3.8"
+python-versions = ">=3.11"
 groups = ["main"]
 files = [
-    {file = "python_dp-1.1.5rc11-cp311-cp311-macosx_15_0_universal2.whl", hash = "sha256:4f7e04084ee3cf59fd3cab9cdf75c467bbd2888780339a279fd985268430a7cc"},
-    {file = "python_dp-1.1.5rc11-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:a654aea2b049daefb2da2e63d0be6303afc140b524ac7823de25092634d9af5b"},
-    {file = "python_dp-1.1.5rc11-cp312-cp312-macosx_15_0_universal2.whl", hash = "sha256:05002344685b6552cffca88a5290ea367ef53842661eb561ba393d597ab7cbcc"},
-    {file = "python_dp-1.1.5rc11-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:1c756a35694222f257ea877c4484dfaf71c3cb3a806b6da8082a071f79349626"},
-    {file = "python_dp-1.1.5rc11-cp313-cp313-macosx_15_0_universal2.whl", hash = "sha256:3b7a103c1aa141fbdfd1911eb265968812369f19735ff144d43935d2a60337d4"},
-    {file = "python_dp-1.1.5rc11-cp313-cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:a11eac18bfb1e12632bc45a67ce70893abddf42ce91b17d0778ba1aead7b6afd"},
-    {file = "python_dp-1.1.5rc11-cp314-cp314-macosx_15_0_universal2.whl", hash = "sha256:a6b28bdaaa57a2991cb6dcf9585f4841f987a4904d9c6f1c6b3d9289821a436e"},
-    {file = "python_dp-1.1.5rc11-cp314-cp314-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:a08aabe26617d406b8a2073fca050a0169e7d24a3e2d338f9db73a0d1828bb05"},
+    {file = "python_dp-1.1.5-cp311-cp311-macosx_15_0_universal2.whl", hash = "sha256:f5566ba4a6529fb1aa2bb0c0c7eb9cb97c6e0f91fcd327ec5a70f18f6b81414a"},
+    {file = "python_dp-1.1.5-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:0400782a833476537e0caed7c9755cae826145410dea6e8676c8a23cb6968500"},
+    {file = "python_dp-1.1.5-cp312-cp312-macosx_15_0_universal2.whl", hash = "sha256:cc0fe9e1557eaa761663ccd379818838d88d139983c47ce75ef029ae479d40cb"},
+    {file = "python_dp-1.1.5-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:9dd5c8fbac6398c96a90f0644601bd36ccc7f35dbc4d09376f9f4489e7984621"},
+    {file = "python_dp-1.1.5-cp313-cp313-macosx_15_0_universal2.whl", hash = "sha256:e57571098bd6f1b18f4c601ea43ae7771f43519509e573fe6e4dc76467cdffde"},
+    {file = "python_dp-1.1.5-cp313-cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:40cfd8f9a06b1288e6563590c81bfcdfbf3f35437c96fa83595d4e1be04a8a60"},
+    {file = "python_dp-1.1.5-cp314-cp314-macosx_15_0_universal2.whl", hash = "sha256:1a577b535a5ade79aa2273ae37a436ae71437a6ca6c66d81b9cb4059d046c25c"},
+    {file = "python_dp-1.1.5-cp314-cp314-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:32dde006cffb1e9c3d9469ddc1986d968bc7b87ae404313fd6eb8116751790e7"},
 ]
 
 [package.source]
@@ -3723,4 +3723,4 @@ reference = "pypi-public"
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11,<3.14"
-content-hash = "dcb30afc6045c147aeb3f19e59b5a12d94d3b3068dd4ea3e0b430abda03d28f7"
+content-hash = "8be35fa3273c64d9afd28927454b2cc40490cf1dc6b1110d283ac8473b696a80"
