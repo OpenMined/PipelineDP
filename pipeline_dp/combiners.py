@@ -673,11 +673,13 @@ class QuantileCombiner(Combiner):
             tree = self._create_empty_quantile_tree()
             tree.merge(pydp._pydp.bytes_to_summary(accumulator))
 
-        quantiles = tree.compute_quantiles(
-            self._params.eps, self._params.delta,
+        quantiles = dp_computations.compute_dp_quantiles(
+            tree,
+            self._params.mechanism_spec,
+            self._quantiles_to_compute,
             self._params.aggregate_params.max_partitions_contributed,
             self._params.aggregate_params.max_contributions_per_partition,
-            self._quantiles_to_compute, self._noise_type())
+        )
 
         return dict([(name, value)
                      for name, value in zip(self.metrics_names(), quantiles)])
@@ -706,14 +708,6 @@ class QuantileCombiner(Combiner):
             self._params.aggregate_params.min_value,
             self._params.aggregate_params.max_value, DEFAULT_TREE_HEIGHT,
             DEFAULT_BRANCHING_FACTOR)
-
-    def _noise_type(self) -> str:
-        noise_kind = self._params.aggregate_params.noise_kind
-        if noise_kind == pipeline_dp.NoiseKind.LAPLACE:
-            return "laplace"
-        if noise_kind == pipeline_dp.NoiseKind.GAUSSIAN:
-            return "gaussian"
-        assert False, f"{noise_kind} is not support by PyDP quantile tree."
 
     def mechanism_spec(self) -> budget_accounting.MechanismSpec:
         return self._params.mechanism_spec

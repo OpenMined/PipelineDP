@@ -25,6 +25,7 @@ from pipeline_dp import aggregate_params
 from pipeline_dp import budget_accounting
 from pipeline_dp import partition_selection
 from pydp.algorithms import numerical_mechanisms as dp_mechanisms
+from pydp.algorithms import quantile_tree
 
 
 @dataclass
@@ -883,3 +884,56 @@ def create_thresholding_mechanism(
                                  strategy=strategy,
                                  l0_sensitivity=sensitivities.l0,
                                  pre_threshold=pre_threshold)
+
+
+def compute_dp_quantiles(
+    quantile_tree: quantile_tree.QuantileTree,
+    mechanism_spec: budget_accounting.MechanismSpec,
+    quantiles_to_compute: list[float],
+    max_partitions_contributed: int,
+    max_contributions_per_partition: int,
+) -> list[float]:
+    """Computes DP quantiles for the given quantile tree and quantiles to compute.
+
+    Args:
+      quantile_tree: The quantile tree to compute quantiles for.
+      mechanism_spec: The mechanism spec to use for the computation.
+      quantiles_to_compute: The quantiles to compute.
+      max_partitions_contributed: The maximum number of partitions contributed
+        per privacy unit.
+      max_contributions_per_partition: The maximum number of contributions per
+        partition.
+
+     Returns:
+        The computed DP quantiles, which are the same length as
+        quantiles_to_compute.
+    """
+
+    noise_kind = mechanism_spec.mechanism_type.to_noise_kind()
+
+    if mechanism_spec.standard_deviation_is_set:
+        # QuantileTree supports setting DP guarantees only via (epsilon, delta).
+        # But in PLD accounting we find standard deviation of the equivalent
+        # Laplace or Gaussian mechanism. Let us convert standard deviation to
+        # (epsilon, delta) here such that the corresponding Laplace or Gaussian
+        # mechanism which is used internally by QuantileTree has the same standard
+        # deviation.
+        sigma = mechanism_spec.noise_standard_deviation
+        if noise_kind == aggregate_params.NoiseKind.LAPLACE:
+            epsilon = np.sqrt(2) / sigma
+            delta = 0.0
+        else:
+            epsilon = 1.0
+            delta = gaussian_delta(sigma, epsilon)
+    else:
+        epsilon = mechanism_spec.eps
+        delta = mechanism_spec.delta
+
+    return quantile_tree.compute_quantiles(
+        epsilon=epsilon,
+        delta=delta,
+        max_partitions_contributed=max_partitions_contributed,
+        max_contributions_per_partition=max_contributions_per_partition,
+        quantiles=quantiles_to_compute,
+        noise_type=noise_kind.value,
+    )

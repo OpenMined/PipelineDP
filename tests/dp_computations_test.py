@@ -1044,6 +1044,111 @@ class ExponentialMechanismTests(unittest.TestCase):
 
         self.assertSetEqual(chosen_values, {0, 1})
 
+class ComputeDpQuantilesTest(parameterized.TestCase):
+
+    def test_compute_dp_quantiles_std_dev_set_laplace(self):
+        # Arrange
+        mock_tree = MagicMock()
+        mock_tree.compute_quantiles.return_value = [10.0, 20.0]
+
+        spec = budget_accounting.MechanismSpec(
+            aggregate_params.MechanismType.LAPLACE)
+        spec.set_noise_standard_deviation(2.0)
+
+        quantiles = [0.5, 0.9]
+        max_partitions = 5
+        max_contributions = 2
+
+        # Act
+        result = dp_computations.compute_dp_quantiles(
+            quantile_tree=mock_tree,
+            mechanism_spec=spec,
+            quantiles_to_compute=quantiles,
+            max_partitions_contributed=max_partitions,
+            max_contributions_per_partition=max_contributions,
+        )
+
+        # Assert
+        expected_eps = np.sqrt(2) / 2.0
+        mock_tree.compute_quantiles.assert_called_once_with(
+            epsilon=expected_eps,
+            delta=0.0,
+            max_partitions_contributed=max_partitions,
+            max_contributions_per_partition=max_contributions,
+            quantiles=quantiles,
+            noise_type="laplace",
+        )
+        self.assertEqual(result, [10.0, 20.0])
+
+    def test_compute_dp_quantiles_std_dev_set_gaussian(self):
+        # Arrange
+        mock_tree = MagicMock()
+        mock_tree.compute_quantiles.return_value = [10.0, 20.0]
+
+        spec = budget_accounting.MechanismSpec(
+            aggregate_params.MechanismType.GAUSSIAN)
+        spec.set_noise_standard_deviation(2.0)
+
+        quantiles = [0.5, 0.9]
+        max_partitions = 5
+        max_contributions = 2
+
+        # Act
+        result = dp_computations.compute_dp_quantiles(
+            quantile_tree=mock_tree,
+            mechanism_spec=spec,
+            quantiles_to_compute=quantiles,
+            max_partitions_contributed=max_partitions,
+            max_contributions_per_partition=max_contributions,
+        )
+
+        # Assert
+        expected_eps = 1.0
+        expected_delta = dp_computations.gaussian_delta(2.0, 1.0)
+        mock_tree.compute_quantiles.assert_called_once_with(
+            epsilon=expected_eps,
+            delta=expected_delta,
+            max_partitions_contributed=max_partitions,
+            max_contributions_per_partition=max_contributions,
+            quantiles=quantiles,
+            noise_type="gaussian",
+        )
+        self.assertEqual(result, [10.0, 20.0])
+
+    def test_compute_dp_quantiles_std_dev_not_set_gaussian(self):
+        # Arrange
+        mock_tree = MagicMock()
+        mock_tree.compute_quantiles.return_value = [10.0, 20.0]
+
+        spec = budget_accounting.MechanismSpec(
+            aggregate_params.MechanismType.GAUSSIAN)
+        spec.set_eps_delta(1.0, 1e-5)
+
+        quantiles = [0.5, 0.9]
+        max_partitions = 5
+        max_contributions = 2
+
+        # Act
+        result = dp_computations.compute_dp_quantiles(
+            quantile_tree=mock_tree,
+            mechanism_spec=spec,
+            quantiles_to_compute=quantiles,
+            max_partitions_contributed=max_partitions,
+            max_contributions_per_partition=max_contributions,
+        )
+
+        # Assert
+        mock_tree.compute_quantiles.assert_called_once_with(
+            epsilon=1.0,
+            delta=1e-5,
+            max_partitions_contributed=max_partitions,
+            max_contributions_per_partition=max_contributions,
+            quantiles=quantiles,
+            noise_type="gaussian",
+        )
+        self.assertEqual(result, [10.0, 20.0])
+
+
 
 if __name__ == '__main__':
     absltest.main()
