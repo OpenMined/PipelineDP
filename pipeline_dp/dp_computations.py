@@ -913,11 +913,11 @@ def compute_dp_quantiles(
 
     if mechanism_spec.standard_deviation_is_set:
         # QuantileTree supports setting DP guarantees only via (epsilon, delta).
-        # But in PLD accounting we find standard deviation of the equivalent
-        # Laplace or Gaussian mechanism. Let us convert standard deviation to
-        # (epsilon, delta) here such that the corresponding Laplace or Gaussian
-        # mechanism which is used internally by QuantileTree has the same standard
-        # deviation.
+        # But in PLD accounting we find the standard deviation of the equivalent
+        # Laplace or Gaussian mechanism. Let us convert the standard deviation
+        # to (epsilon, delta) here such that the corresponding Laplace or Gaussian
+        # mechanism (which is used internally by QuantileTree) has the same
+        # standard deviation.
         sigma = mechanism_spec.noise_standard_deviation
         if noise_kind == aggregate_params.NoiseKind.LAPLACE:
             epsilon = np.sqrt(2) / sigma
