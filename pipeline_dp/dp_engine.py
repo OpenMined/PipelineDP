@@ -556,15 +556,12 @@ class DPEngine:
                       budget_accounting.NaiveBudgetAccountant):
             # All aggregations support NaiveBudgetAccountant.
             return
-        supported_metrics = [
-            aggregate_params.Metrics.COUNT,
-            aggregate_params.Metrics.PRIVACY_ID_COUNT,
-            aggregate_params.Metrics.SUM, aggregate_params.Metrics.MEAN
-        ]
-        non_supported_metrics = set(metrics) - set(supported_metrics)
-        if non_supported_metrics:
-            raise NotImplementedError(f"Metrics {non_supported_metrics} do not "
-                                      f"support PLD budget accounting")
+        if aggregate_params.Metrics.VECTOR_SUM in metrics:
+            raise NotImplementedError(
+                "Vector Sum is not supported by PLD budget accounting")
+        if aggregate_params.Metrics.VARIANCE in metrics:
+            raise NotImplementedError(
+                "Variance is not supported by PLD budget accounting")
         if custom_combiner:
             raise ValueError(f"PLD budget accounting does not support custom "
                              f"combiners")

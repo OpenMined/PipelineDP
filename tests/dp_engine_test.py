@@ -1307,13 +1307,10 @@ class DpEngineTest(parameterized.TestCase):
         self.assertLen(output, 1)
         self.assertAlmostEqual(output[0][1].sum, -3, delta=0.1)
 
-    @unittest.skipIf(
-        sys.version_info.major == 3 and sys.version_info.minor <= 8,
-        "dp_accounting library only support python >=3.9")
     def test_pld_not_supported_metrics(self):
         with self.assertRaisesRegex(
                 NotImplementedError,
-                "Metrics {VARIANCE} do not support PLD budget accounting"):
+                "Variance is not supported by PLD budget accounting"):
             budget_accountant = pipeline_dp.PLDBudgetAccountant(
                 total_epsilon=1, total_delta=1e-10)
             engine = pipeline_dp.DPEngine(
