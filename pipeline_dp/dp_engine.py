@@ -557,8 +557,11 @@ class DPEngine:
             # All aggregations support NaiveBudgetAccountant.
             return
         if aggregate_params.Metrics.VECTOR_SUM in metrics:
-            raise NotImplementedError(f"Vector Sum do not "
-                                      f"support PLD budget accounting")
+            raise NotImplementedError(
+                "Vector Sum is not supported by PLD budget accounting")
+        if aggregate_params.Metrics.VARIANCE in metrics:
+            raise NotImplementedError(
+                "Variance is not supported by PLD budget accounting")
         if custom_combiner:
             raise ValueError(f"PLD budget accounting does not support custom "
                              f"combiners")
