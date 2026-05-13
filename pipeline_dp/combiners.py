@@ -30,17 +30,6 @@ from pipeline_dp import aggregate_params as ap
 ArrayLike = Union[np.ndarray, List[float]]
 ExplainComputationReport = Union[Callable, str, List[Union[Callable, str]]]
 
-# This is a workaround which is useful when Quantiles form PyDP are failed to
-# be serialized. It was observed only from Google colab. Disabling of the
-# proto serialization can work only with LocalBackend.
-# Ideally we should find a better solution.
-_proto_serialization_disabled = False
-
-
-def disable_proto_serialization():
-    global _proto_serialization_disabled
-    _proto_serialization_disabled = True
-
 
 class Combiner(abc.ABC):
     """Base class for all combiners.
@@ -626,6 +615,90 @@ class VarianceCombiner(Combiner):
         return self._params.mechanism_spec
 
 
+class QuantileAccumulator:
+    """Accumulator for QuantileCombiner.
+
+    It keeps elements in a list up to 1000 elements. Beyond that, it creates a
+    QuantileTree and adds elements to it. This avoids expensive serialization
+    of QuantileTree when there are few elements.
+    """
+
+    TREE_HEIGHT = 4
+    BRANCHING_FACTOR = 16
+    MAX_ELEMENTS_IN_LIST = 1000
+
+    def __init__(self, min_value: float, max_value: float):
+        self.min_value = min_value
+        self.max_value = max_value
+        self.elements = []
+        self.tree = None
+
+    def add_entry(self, value: float):
+        if self.tree is not None:
+            self.tree.add_entry(value)
+        else:
+            self.elements.append(value)
+            if len(self.elements) >= self.MAX_ELEMENTS_IN_LIST:
+                self.create_tree()
+
+    def create_tree(self):
+        self.tree = quantile_tree.QuantileTree(
+            self.min_value,
+            self.max_value,
+            self.TREE_HEIGHT,
+            self.BRANCHING_FACTOR,
+        )
+        for v in self.elements:
+            self.tree.add_entry(v)
+        self.elements = None
+
+    def merge(self, other: 'QuantileAccumulator'):
+        if self.tree is not None and other.tree is not None:
+            self.tree.merge(
+                pydp._pydp.bytes_to_summary(other.tree.serialize().to_bytes()))
+        elif self.tree is not None and other.elements is not None:
+            for v in other.elements:
+                self.tree.add_entry(v)
+        elif self.elements is not None and other.tree is not None:
+            self.create_tree()
+            self.tree.merge(
+                pydp._pydp.bytes_to_summary(other.tree.serialize().to_bytes()))
+        else:
+            self.elements.extend(other.elements)
+            if len(self.elements) >= self.MAX_ELEMENTS_IN_LIST:
+                self.create_tree()
+
+    def __getstate__(self):
+        if self.tree is not None:
+            return {
+                'tree': self.tree.serialize().to_bytes(),
+                'min_value': self.min_value,
+                'max_value': self.max_value,
+            }
+        else:
+            return {
+                'elements': self.elements,
+                'min_value': self.min_value,
+                'max_value': self.max_value,
+            }
+
+    def __setstate__(self, state):
+        self.min_value = state['min_value']
+        self.max_value = state['max_value']
+        if 'tree' in state:
+            self.tree = quantile_tree.QuantileTree(
+                self.min_value,
+                self.max_value,
+                self.TREE_HEIGHT,
+                self.BRANCHING_FACTOR,
+            )
+            self.tree.merge(pydp._pydp.bytes_to_summary(state['tree']))
+            self.elements = None
+        else:
+            self.elements = state['elements']
+            self.tree = None
+
+
 class QuantileCombiner(Combiner):
     """Combiner for computing DP quantiles.
 
@@ -637,41 +710,30 @@ class QuantileCombiner(Combiner):
     The accumulator is QuantileTree object serialized to string.
     """
 
-    AccumulatorType = Union[bytes, List[float]]
-
     def __init__(self, params, percentiles_to_compute: List[float]):
         self._params = params
         self._percentiles = percentiles_to_compute
         self._quantiles_to_compute = [p / 100 for p in percentiles_to_compute]
 
-    def create_accumulator(self, values) -> AccumulatorType:
-        if _proto_serialization_disabled:
-            return values
-        tree = self._create_empty_quantile_tree()
+    def create_accumulator(self, values) -> QuantileAccumulator:
+        acc = QuantileAccumulator(
+            self._params.aggregate_params.min_value,
+            self._params.aggregate_params.max_value,
+        )
         for value in values:
-            tree.add_entry(value)
-        return tree.serialize().to_bytes()
+            acc.add_entry(value)
+        return acc
 
-    def merge_accumulators(self, accumulator1: AccumulatorType,
-                           accumulator2: AccumulatorType) -> AccumulatorType:
-        if _proto_serialization_disabled:
-            return accumulator1 + accumulator2  # union of lists
+    def merge_accumulators(
+            self, accumulator1: QuantileAccumulator,
+            accumulator2: QuantileAccumulator) -> QuantileAccumulator:
+        accumulator1.merge(accumulator2)
+        return accumulator1
 
-        tree = self._create_empty_quantile_tree()
-        if accumulator1:
-            tree.merge(pydp._pydp.bytes_to_summary(accumulator1))
-        if accumulator2:
-            tree.merge(pydp._pydp.bytes_to_summary(accumulator2))
-        return tree.serialize().to_bytes()
-
-    def compute_metrics(self, accumulator: AccumulatorType) -> AccumulatorType:
-        if _proto_serialization_disabled:
-            tree = self._create_empty_quantile_tree()
-            for value in accumulator:
-                tree.add_entry(value)
-        else:
-            tree = self._create_empty_quantile_tree()
-            tree.merge(pydp._pydp.bytes_to_summary(accumulator))
+    def compute_metrics(self, accumulator: QuantileAccumulator) -> dict:
+        if accumulator.tree is None:
+            accumulator.create_tree()
+        tree = accumulator.tree
 
         quantiles = dp_computations.compute_dp_quantiles(
             tree,
@@ -698,16 +760,6 @@ class QuantileCombiner(Combiner):
 
     def explain_computation(self) -> ExplainComputationReport:
         return lambda: f"Computed percentiles {self._percentiles} with (eps={self._params.eps} delta={self._params.delta})"
-
-    def _create_empty_quantile_tree(self):
-        # The default tree parameters taken from
-        # https://github.com/google/differential-privacy/blob/605ec87bcbd4a536995b611132dbf4d341d2e91d/cc/algorithms/quantile-tree.h#L47
-        DEFAULT_TREE_HEIGHT = 4
-        DEFAULT_BRANCHING_FACTOR = 16
-        return quantile_tree.QuantileTree(
-            self._params.aggregate_params.min_value,
-            self._params.aggregate_params.max_value, DEFAULT_TREE_HEIGHT,
-            DEFAULT_BRANCHING_FACTOR)
 
     def mechanism_spec(self) -> budget_accounting.MechanismSpec:
         return self._params.mechanism_spec
