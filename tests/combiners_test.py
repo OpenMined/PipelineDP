@@ -779,6 +779,90 @@ class VarianceCombinerTest(parameterized.TestCase):
                            0.01)  # check that noise is added
 
 
+class QuantileAccumulatorTest(parameterized.TestCase):
+
+    def test_add_entry_keeps_elements(self):
+        acc = dp_combiners.QuantileAccumulator(min_value=0, max_value=100)
+        for i in range(10):
+            acc.add_entry(i)
+        self.assertIsNone(acc.tree)
+        self.assertEqual(acc.elements, list(range(10)))
+
+    def test_add_entry_creates_tree(self):
+        acc = dp_combiners.QuantileAccumulator(min_value=0, max_value=1000)
+        limit = 1000
+        for i in range(limit + 1):
+            acc.add_entry(i)
+        self.assertIsNotNone(acc.tree)
+        self.assertIsNone(acc.elements)
+
+    def test_merge_elements(self):
+        acc1 = dp_combiners.QuantileAccumulator(min_value=0, max_value=100)
+        acc1.add_entry(1)
+        acc2 = dp_combiners.QuantileAccumulator(min_value=0, max_value=100)
+        acc2.add_entry(2)
+
+        acc1.merge(acc2)
+        self.assertIsNone(acc1.tree)
+        self.assertEqual(acc1.elements, [1, 2])
+
+    def test_merge_tree_and_elements(self):
+        acc1 = dp_combiners.QuantileAccumulator(min_value=0, max_value=1000)
+        limit = 1000  # MAX_ELEMENTS_IN_QUANTILE_ACCUMULATOR
+        for i in range(limit):
+            acc1.add_entry(i)
+        self.assertIsNotNone(acc1.tree)
+
+        acc2 = dp_combiners.QuantileAccumulator(min_value=0, max_value=1000)
+        acc2.add_entry(1000)
+
+        acc1.merge(acc2)
+        self.assertIsNotNone(acc1.tree)
+
+    def test_merge_elements_and_tree(self):
+        acc1 = dp_combiners.QuantileAccumulator(min_value=0, max_value=1000)
+        acc1.add_entry(1)
+
+        acc2 = dp_combiners.QuantileAccumulator(min_value=0, max_value=1000)
+        limit = 1000  # MAX_ELEMENTS_IN_QUANTILE_ACCUMULATOR
+        for i in range(limit):
+            acc2.add_entry(i)
+        self.assertIsNotNone(acc2.tree)
+
+        acc1.merge(acc2)
+        self.assertIsNotNone(acc1.tree)
+
+    def test_serialization_elements(self):
+        acc = dp_combiners.QuantileAccumulator(min_value=0, max_value=100)
+        acc.add_entry(1)
+        acc.add_entry(2)
+
+        state = acc.__getstate__()
+        self.assertIn('elements', state)
+        self.assertNotIn('tree', state)
+
+        acc2 = dp_combiners.QuantileAccumulator(min_value=0, max_value=100)
+        acc2.__setstate__(state)
+        self.assertEqual(acc2.elements, [1, 2])
+        self.assertIsNone(acc2.tree)
+
+    def test_serialization_tree(self):
+        acc = dp_combiners.QuantileAccumulator(min_value=0, max_value=1000)
+        limit = dp_combiners.MAX_ELEMENTS_IN_QUANTILE_ACCUMULATOR
+        for i in range(limit):
+            acc.add_entry(i)
+        self.assertIsNotNone(acc.tree)
+
+        state = acc.__getstate__()
+        self.assertIn('tree', state)
+        self.assertNotIn('elements', state)
+
+        acc2 = dp_combiners.QuantileAccumulator(min_value=0, max_value=1000)
+        acc2.__setstate__(state)
+        self.assertIsNotNone(acc2.tree)
+        self.assertIsNone(acc2.elements)
+
+
 class QuantileCombinerTest(parameterized.TestCase):
 
     def _create_combiner(self,
