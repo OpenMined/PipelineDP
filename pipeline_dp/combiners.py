@@ -625,6 +625,7 @@ class QuantileAccumulator:
 
     TREE_HEIGHT = 4
     BRANCHING_FACTOR = 16
+    MAX_ELEMENTS_IN_LIST = 1000
 
     def __init__(self, min_value: float, max_value: float):
         self.min_value = min_value
@@ -637,8 +638,7 @@ class QuantileAccumulator:
             self.tree.add_entry(value)
         else:
             self.elements.append(value)
-            if not _proto_serialization_disabled and len(
-                    self.elements) >= _MAX_ELEMENTS_IN_LIST:
+            if len(self.elements) >= self.MAX_ELEMENTS_IN_LIST:
                 self.create_tree()
 
     def create_tree(self):
@@ -665,8 +665,7 @@ class QuantileAccumulator:
                 pydp._pydp.bytes_to_summary(other.tree.serialize().to_bytes()))
         else:
             self.elements.extend(other.elements)
-            if not _proto_serialization_disabled and len(
-                    self.elements) >= _MAX_ELEMENTS_IN_LIST:
+            if len(self.elements) >= self.MAX_ELEMENTS_IN_LIST:
                 self.create_tree()
 
     def __getstate__(self):
@@ -725,12 +724,11 @@ class QuantileCombiner(Combiner):
             acc.add_entry(value)
         return acc
 
-
-def merge_accumulators(
-        self, accumulator1: QuantileAccumulator,
-        accumulator2: QuantileAccumulator) -> QuantileAccumulator:
-    accumulator1.merge(accumulator2)
-    return accumulator1
+    def merge_accumulators(
+            self, accumulator1: QuantileAccumulator,
+            accumulator2: QuantileAccumulator) -> QuantileAccumulator:
+        accumulator1.merge(accumulator2)
+        return accumulator1
 
     def compute_metrics(self, accumulator: QuantileAccumulator) -> dict:
         if accumulator.tree is None:
