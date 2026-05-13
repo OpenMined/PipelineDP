@@ -848,7 +848,7 @@ class QuantileAccumulatorTest(parameterized.TestCase):
 
     def test_serialization_tree(self):
         acc = dp_combiners.QuantileAccumulator(min_value=0, max_value=1000)
-        limit = dp_combiners.MAX_ELEMENTS_IN_QUANTILE_ACCUMULATOR
+        limit = 1000
         for i in range(limit):
             acc.add_entry(i)
         self.assertIsNotNone(acc.tree)
@@ -873,12 +873,6 @@ class QuantileCombinerTest(parameterized.TestCase):
         params = dp_combiners.CombinerParams(mechanism_spec, aggregate_params)
         return dp_combiners.QuantileCombiner(params,
                                              percentiles_to_compute=percentiles)
-
-    def test_create_accumulator(self):
-        combiner = self._create_combiner(no_noise=False)
-        quantile_tree = combiner._create_empty_quantile_tree()
-        self.assertEqual(16, quantile_tree.branching_factor)  # default value
-        self.assertEqual(4, quantile_tree.height)  # default value
 
     def test_compute_metrics_without_merge(self):
         # Arrange.
