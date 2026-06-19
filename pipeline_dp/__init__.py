@@ -48,7 +48,6 @@ __all__ = [
     'SelectPartitionsParams',
     'SumParams',
     'VarianceParams',
-    'QuantileParams',
     'CalculatePrivateContributionBoundsParams',
     'PrivateContributionBounds',
     'AddDPNoiseParams',
