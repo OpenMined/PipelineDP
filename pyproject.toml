@@ -9,9 +9,9 @@ keywords = ["differential privacy", "data analysis", "apache beam", "pyspark", "
 
 dependencies = [
     "python-dp (>=1.1.5,<2.0.0)",
-    "numpy (>=1.20.1,<2.0.0)",
+    "numpy",
     "dill (>=0.3.7)",
-    "scipy (>=1.17.0)",
+    "scipy",
 ]
 
 [tool.poetry.group.dev.dependencies]
