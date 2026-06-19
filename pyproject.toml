@@ -1,6 +1,6 @@
 [project]
 name = "pipeline-dp"
-version = "0.3.0"
+version = "0.3.1"
 description = "A library for differentially private data analysis pipelines."
 authors = [{ name = "Chinmay Shah", email = "chinmayshah3899@gmail.com" }, { name = "Vadym Doroshenko", email = "dvadym@google.com" }]
 license = { text = "Apache-2.0" }
