@@ -102,6 +102,45 @@ as the Google Differential Privacy Library.
 
 To setup a local environment and contribute with the development of PipelineDP, please see our guidelines in [CONTRIBUTING](https://github.com/OpenMined/PipelineDP/blob/main/contributing/CONTRIBUTING.md).
 
+## Dockerfile to tryout 
+To build and test a Dockerfile, please:
+```
+cd ./Dockerfile
+
+docker image build -t $test_case:$version
+```
+
+where the `$test_case` could be examples you would like to try out, such as "restaraunt_visits_without_frameworks".
+
+The `$version` is a tag for image, it could be version number you would like to assign to this image, the default tag is `latest`
+
+
+```
+cd ./Dockerfile
+
+docker build -t restaraunt_visits_without_frameworks/
+```
+
+Then use `docker container run` to run the image.
+For example:
+```
+docker container run -p 8000:7000 -it restaraunt_visits_without_frameworks:latest
+```
+If you would like to run with bash, then
+```
+docker container run -p 8000:7000 -it restaraunt_visits_without_frameworks:latest /bin/bash
+```
+
+To check ID of your image, use
+```
+docker container ls
+```
+
+To stop execution of the container instance, use
+```
+docker container kill [containerID]
+```
+
 ## Support and Community on Slack
 
 If you have questions about the PipelineDP, join
