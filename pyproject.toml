@@ -26,7 +26,7 @@ pytest-timeout = "^2.3.1"
 # Building & Packaging
 twine = "^6.0.0"           # Modern metadata & PyPI publishing
 wheel = "^0.45.0"
-setuptools = "^75.0.0"     # Modern PEP 517/621 improvements
+setuptools = "^83.0.0"     # Modern PEP 517/621 improvements
 poetry-core = "^2.0.0"     # Keeping up with poetry spec
 
 # Data Science & Heavy Compute (Supporting Py3.11 - 3.14 & NumPy 2.x)
