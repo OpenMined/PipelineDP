@@ -414,6 +414,7 @@ class AggregateParams:
                                    "max_contributions_per_partition")
         if self.pre_threshold is not None:
             _check_is_positive_int(self.pre_threshold, "pre_threshold")
+        _check_is_positive_float(self.budget_weight, "budget_weight")
 
     def _check_both_property_set_or_not(self, property1_name: str,
                                         property2_name: str):
@@ -480,6 +481,7 @@ class SelectPartitionsParams:
     def __post_init__(self):
         if self.pre_threshold is not None:
             _check_is_positive_int(self.pre_threshold, "pre_threshold")
+        _check_is_positive_float(self.budget_weight, "budget_weight")
 
     def __str__(self):
         return "Private Partitions"
@@ -821,15 +823,15 @@ class AddDPNoiseParams:
 
     def __post_init__(self):
 
-        def check_is_positive(num: Any, name: str) -> bool:
-            if num is not None and num <= 0:
-                raise ValueError(f"{name} must be positive, but {num} given.")
+        def check_is_positive(num: Any, name: str) -> None:
+            if num is not None:
+                _check_is_positive_float(num, name)
 
         check_is_positive(self.l0_sensitivity, "l0_sensitivity")
         check_is_positive(self.linf_sensitivity, "linf_sensitivity")
         check_is_positive(self.l1_sensitivity, "l1_sensitivity")
         check_is_positive(self.l2_sensitivity, "l2_sensitivity")
-        check_is_positive(self.budget_weight, "budget_weight")
+        _check_is_positive_float(self.budget_weight, "budget_weight")
 
 
 def _not_a_proper_number(num: Any) -> bool:
@@ -841,6 +843,11 @@ def _check_is_positive_int(num: Any, field_name: str) -> None:
     if not (_is_int(num) and num > 0):
         raise ValueError(
             f"{field_name} has to be positive integer, but {num} given.")
+
+
+def _check_is_positive_float(num: Any, field_name: str) -> None:
+    if _not_a_proper_number(num) or num <= 0:
+        raise ValueError(f"{field_name} must be positive, but {num} given.")
 
 
 def _count_not_none(*args):
