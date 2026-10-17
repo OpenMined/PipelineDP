@@ -318,10 +318,10 @@ class AggregateParamsTest(parameterized.TestCase):
                            metrics=[ap.Metrics.COUNT],
                            pre_threshold=pre_threshold)
 
-    @parameterized.parameters(-1, -0.99, 0, float("nan"), float("inf"))
+    @parameterized.parameters(-1, -0.99, 0, float('nan'), float('inf'))
     def test_invalid_budget_weight(self, budget_weight):
         with self.assertRaisesRegex(ValueError,
-                                    "budget_weight must be positive"):
+                                    'budget_weight must be positive'):
             ap.AggregateParams(noise_kind=ap.NoiseKind.GAUSSIAN,
                                max_partitions_contributed=1,
                                max_contributions_per_partition=1,
@@ -351,10 +351,10 @@ class SelectPartitionsParamsTest(parameterized.TestCase):
         ap.SelectPartitionsParams(max_partitions_contributed=1,
                                   pre_threshold=pre_threshold)
 
-    @parameterized.parameters(-1, -0.99, 0, float("nan"), float("inf"))
+    @parameterized.parameters(-1, -0.99, 0, float('nan'), float('inf'))
     def test_invalid_budget_weight(self, budget_weight):
         with self.assertRaisesRegex(ValueError,
-                                    "budget_weight must be positive"):
+                                    'budget_weight must be positive'):
             ap.SelectPartitionsParams(max_partitions_contributed=1,
                                       budget_weight=budget_weight)
 
@@ -366,10 +366,10 @@ class SelectPartitionsParamsTest(parameterized.TestCase):
 
 class AddDPNoiseParamsTest(parameterized.TestCase):
 
-    @parameterized.parameters(-1, -0.99, 0, float("nan"), float("inf"))
+    @parameterized.parameters(-1, -0.99, 0, float('nan'), float('inf'))
     def test_invalid_budget_weight(self, budget_weight):
         with self.assertRaisesRegex(ValueError,
-                                    "budget_weight must be positive"):
+                                    'budget_weight must be positive'):
             ap.AddDPNoiseParams(noise_kind=ap.NoiseKind.GAUSSIAN,
                                 l0_sensitivity=1,
                                 linf_sensitivity=1,
