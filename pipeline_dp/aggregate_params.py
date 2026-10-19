@@ -855,7 +855,8 @@ def _check_pre_threshold(
         if partition_selection_strategy.is_weighted_gaussian:
             raise ValueError("pre_threshold cannot be used with Weighted "
                              "Gaussian partition selection.")
-          
+
+
 def _check_is_positive_float(num: Any, field_name: str) -> None:
     if _not_a_proper_number(num) or num <= 0:
         raise ValueError(f"{field_name} must be positive, but {num} given.")
