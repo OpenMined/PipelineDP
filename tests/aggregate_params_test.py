@@ -300,23 +300,54 @@ class AggregateParamsTest(parameterized.TestCase):
                                    contribution_bounds_already_enforced),
                 self._get_default_extractors())
 
-    @parameterized.parameters(0.1, -1, 0)
-    def test_invalid_pre_threshold(self, pre_threshold):
+    @parameterized.parameters(
+        (0.1, ap.PartitionSelectionStrategy.TRUNCATED_GEOMETRIC),
+        (-1, ap.PartitionSelectionStrategy.TRUNCATED_GEOMETRIC),
+        (0, ap.PartitionSelectionStrategy.TRUNCATED_GEOMETRIC),
+        (0.1, ap.PartitionSelectionStrategy.WEIGHTED_GAUSSIAN_THRESHOLDING),
+        (-1, ap.PartitionSelectionStrategy.WEIGHTED_GAUSSIAN_THRESHOLDING),
+        (0, ap.PartitionSelectionStrategy.WEIGHTED_GAUSSIAN_THRESHOLDING),
+    )
+    def test_invalid_pre_threshold(self, pre_threshold, strategy):
         with self.assertRaisesRegex(ValueError,
                                     "pre_threshold has to be positive integer"):
             ap.AggregateParams(noise_kind=ap.NoiseKind.GAUSSIAN,
                                max_partitions_contributed=1,
                                max_contributions_per_partition=1,
                                metrics=[ap.Metrics.COUNT],
+                               partition_selection_strategy=strategy,
                                pre_threshold=pre_threshold)
 
-    @parameterized.parameters(1, 42)
-    def test_valid_pre_threshold(self, pre_threshold):
+    @parameterized.parameters(
+        (1, ap.PartitionSelectionStrategy.TRUNCATED_GEOMETRIC),
+        (42, ap.PartitionSelectionStrategy.TRUNCATED_GEOMETRIC),
+        (1, ap.PartitionSelectionStrategy.LAPLACE_THRESHOLDING),
+        (42, ap.PartitionSelectionStrategy.GAUSSIAN_THRESHOLDING),
+        (None, ap.PartitionSelectionStrategy.WEIGHTED_GAUSSIAN_THRESHOLDING),
+    )
+    def test_valid_pre_threshold(self, pre_threshold, strategy):
         ap.AggregateParams(noise_kind=ap.NoiseKind.GAUSSIAN,
                            max_partitions_contributed=1,
                            max_contributions_per_partition=1,
                            metrics=[ap.Metrics.COUNT],
+                           partition_selection_strategy=strategy,
                            pre_threshold=pre_threshold)
+
+    @parameterized.parameters(1, 10, 100)
+    def test_pre_threshold_with_weighted_gaussian_not_allowed(
+            self, pre_threshold):
+        with self.assertRaisesRegex(
+                ValueError,
+                'pre_threshold cannot be used with Weighted Gaussian '
+                'partition selection'):
+            ap.AggregateParams(
+                noise_kind=ap.NoiseKind.GAUSSIAN,
+                max_partitions_contributed=1,
+                max_contributions_per_partition=1,
+                metrics=[ap.Metrics.COUNT],
+                partition_selection_strategy=ap.PartitionSelectionStrategy.
+                WEIGHTED_GAUSSIAN_THRESHOLDING,
+                pre_threshold=pre_threshold)
 
     @parameterized.parameters(-1, -0.99, 0, float('nan'), float('inf'))
     def test_invalid_budget_weight(self, budget_weight):
@@ -339,17 +370,45 @@ class AggregateParamsTest(parameterized.TestCase):
 
 class SelectPartitionsParamsTest(parameterized.TestCase):
 
-    @parameterized.parameters(0.1, -1, 0)
-    def test_invalid_pre_threshold(self, pre_threshold):
+    @parameterized.parameters(
+        (0.1, ap.PartitionSelectionStrategy.TRUNCATED_GEOMETRIC),
+        (-1, ap.PartitionSelectionStrategy.TRUNCATED_GEOMETRIC),
+        (0, ap.PartitionSelectionStrategy.TRUNCATED_GEOMETRIC),
+        (0.1, ap.PartitionSelectionStrategy.WEIGHTED_GAUSSIAN_THRESHOLDING),
+        (-1, ap.PartitionSelectionStrategy.WEIGHTED_GAUSSIAN_THRESHOLDING),
+        (0, ap.PartitionSelectionStrategy.WEIGHTED_GAUSSIAN_THRESHOLDING),
+    )
+    def test_invalid_pre_threshold(self, pre_threshold, strategy):
         with self.assertRaisesRegex(ValueError,
                                     "pre_threshold has to be positive integer"):
             ap.SelectPartitionsParams(max_partitions_contributed=1,
+                                      partition_selection_strategy=strategy,
                                       pre_threshold=pre_threshold)
 
-    @parameterized.parameters(1, 42)
-    def test_valid_pre_threshold(self, pre_threshold):
+    @parameterized.parameters(
+        (1, ap.PartitionSelectionStrategy.TRUNCATED_GEOMETRIC),
+        (42, ap.PartitionSelectionStrategy.TRUNCATED_GEOMETRIC),
+        (1, ap.PartitionSelectionStrategy.LAPLACE_THRESHOLDING),
+        (42, ap.PartitionSelectionStrategy.GAUSSIAN_THRESHOLDING),
+        (None, ap.PartitionSelectionStrategy.WEIGHTED_GAUSSIAN_THRESHOLDING),
+    )
+    def test_valid_pre_threshold(self, pre_threshold, strategy):
         ap.SelectPartitionsParams(max_partitions_contributed=1,
+                                  partition_selection_strategy=strategy,
                                   pre_threshold=pre_threshold)
+
+    @parameterized.parameters(1, 10, 100)
+    def test_pre_threshold_with_weighted_gaussian_not_allowed(
+            self, pre_threshold):
+        with self.assertRaisesRegex(
+                ValueError,
+                'pre_threshold cannot be used with Weighted Gaussian '
+                'partition selection'):
+            ap.SelectPartitionsParams(
+                max_partitions_contributed=1,
+                partition_selection_strategy=ap.PartitionSelectionStrategy.
+                WEIGHTED_GAUSSIAN_THRESHOLDING,
+                pre_threshold=pre_threshold)
 
     @parameterized.parameters(-1, -0.99, 0, float('nan'), float('inf'))
     def test_invalid_budget_weight(self, budget_weight):

@@ -273,7 +273,8 @@ class AggregateParams:
          for keeping a partition in private partition selection. Note that this
          is in addition to a differentially private partition selection, so a
          partition with at least pre_threshold privacy units isn't necessarily
-         kept. It is ignored when public partitions are used.
+         kept. It is ignored when public partitions are used. It cannot be used
+         with Weighted Gaussian partition selection.
          More details on pre-thresholding are in
          https://github.com/google/differential-privacy/blob/main/common_docs/pre_thresholding.md
         perform_cross_partition_contribution_bounding: whether to perform cross
@@ -412,8 +413,8 @@ class AggregateParams:
                                    "max_partitions_contributed")
             _check_is_positive_int(self.max_contributions_per_partition,
                                    "max_contributions_per_partition")
-        if self.pre_threshold is not None:
-            _check_is_positive_int(self.pre_threshold, "pre_threshold")
+        _check_pre_threshold(self.pre_threshold,
+                             self.partition_selection_strategy)
         _check_is_positive_float(self.budget_weight, "budget_weight")
 
     def _check_both_property_set_or_not(self, property1_name: str,
@@ -461,7 +462,8 @@ class SelectPartitionsParams:
          for keeping a partition in private partition selection. Note that this
          is in addition to a differentially private partition selection, so a
          partition with at least pre_threshold privacy units isn't necessarily
-         kept. It is ignored when public partitions are used.
+         kept. It is ignored when public partitions are used. It cannot be used
+         with Weighted Gaussian partition selection.
          More details on pre-thresholding are in
          https://github.com/google/differential-privacy/blob/main/common_docs/pre_thresholding.md
         contribution_bounds_already_enforced: assume that the input dataset
@@ -479,8 +481,8 @@ class SelectPartitionsParams:
     # TODO: Add support for contribution_bounds_already_enforced
 
     def __post_init__(self):
-        if self.pre_threshold is not None:
-            _check_is_positive_int(self.pre_threshold, "pre_threshold")
+        _check_pre_threshold(self.pre_threshold,
+                             self.partition_selection_strategy)
         _check_is_positive_float(self.budget_weight, "budget_weight")
 
     def __str__(self):
@@ -843,6 +845,16 @@ def _check_is_positive_int(num: Any, field_name: str) -> None:
     if not (_is_int(num) and num > 0):
         raise ValueError(
             f"{field_name} has to be positive integer, but {num} given.")
+
+
+def _check_pre_threshold(
+        pre_threshold: Optional[int],
+        partition_selection_strategy: PartitionSelectionStrategy) -> None:
+    if pre_threshold is not None:
+        _check_is_positive_int(pre_threshold, "pre_threshold")
+        if partition_selection_strategy.is_weighted_gaussian:
+            raise ValueError("pre_threshold cannot be used with Weighted "
+                             "Gaussian partition selection.")
 
 
 def _check_is_positive_float(num: Any, field_name: str) -> None:
