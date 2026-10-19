@@ -348,6 +348,7 @@ class AggregateParamsTest(parameterized.TestCase):
                 partition_selection_strategy=ap.PartitionSelectionStrategy.
                 WEIGHTED_GAUSSIAN_THRESHOLDING,
                 pre_threshold=pre_threshold)
+
     @parameterized.parameters(-1, -0.99, 0, float('nan'), float('inf'))
     def test_invalid_budget_weight(self, budget_weight):
         with self.assertRaisesRegex(ValueError,
@@ -408,6 +409,7 @@ class SelectPartitionsParamsTest(parameterized.TestCase):
                 partition_selection_strategy=ap.PartitionSelectionStrategy.
                 WEIGHTED_GAUSSIAN_THRESHOLDING,
                 pre_threshold=pre_threshold)
+
     @parameterized.parameters(-1, -0.99, 0, float('nan'), float('inf'))
     def test_invalid_budget_weight(self, budget_weight):
         with self.assertRaisesRegex(ValueError,
