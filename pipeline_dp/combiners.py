@@ -926,6 +926,10 @@ class VectorSumCombiner(Combiner):
         if norm_kind == ap.NormKind.Linf:
             return np.clip(vec, -max_norm, max_norm)
         if norm_kind in {ap.NormKind.L1, ap.NormKind.L2}:
+            vec = np.nan_to_num(vec,
+                                nan=np.nan,
+                                posinf=max_norm,
+                                neginf=-max_norm)
             norm_ord = 1 if norm_kind == ap.NormKind.L1 else 2
             vec_norm = np.linalg.norm(vec, ord=norm_ord)
             if vec_norm == 0.0:
