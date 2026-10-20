@@ -748,6 +748,9 @@ class PrivacyIdCountParams:
          is ignored when public partitions are used.
          More details on pre-thresholding are in
          https://github.com/google/differential-privacy/blob/main/common_docs/pre_thresholding.md
+        post_aggregation_thresholding: if True, partitions are selected by
+         thresholding the noised privacy ID count after aggregation instead of
+         running a separate partition selection mechanism.
     """
 
     noise_kind: NoiseKind
@@ -756,6 +759,7 @@ class PrivacyIdCountParams:
     budget_weight: float = 1
     contribution_bounds_already_enforced: bool = False
     pre_threshold: Optional[int] = None
+    post_aggregation_thresholding: bool = False
 
     def to_aggregate_params(self) -> AggregateParams:
         return AggregateParams(
@@ -766,7 +770,8 @@ class PrivacyIdCountParams:
             budget_weight=self.budget_weight,
             contribution_bounds_already_enforced=self.
             contribution_bounds_already_enforced,
-            pre_threshold=self.pre_threshold)
+            pre_threshold=self.pre_threshold,
+            post_aggregation_thresholding=self.post_aggregation_thresholding)
 
     # TODO: add validation in __post_init__
 
