@@ -13,6 +13,7 @@
 # limitations under the License.
 """Budget Accounting Test"""
 
+import math
 import sys
 import unittest
 from dataclasses import dataclass
@@ -597,6 +598,20 @@ class PLDBudgetAccountantTest(unittest.TestCase):
                                expected_stddev,
                                delta=1e-5)
         self.assertEqual(thresholding_budget.thresholding_delta, 1e-8 / 4)
+
+    def test_compute_budgets_with_count_pure_dp(self):
+        for count in (1, 2, 100):
+            with self.subTest(count=count):
+                accountant = budget_accounting.PLDBudgetAccountant(
+                    total_epsilon=1.0, total_delta=0.0)
+                budget = accountant.request_budget(
+                    budget_accounting.MechanismType.LAPLACE,
+                    sensitivity=1.0,
+                    weight=1.0,
+                    count=count)
+                accountant.compute_budgets()
+                self.assertAlmostEqual(budget.noise_standard_deviation,
+                                       count * math.sqrt(2))
 
     def test_compute_budets_with_count_greater_1(self):
         accountant = budget_accounting.PLDBudgetAccountant(1.0, 1e-12, 1e-2)

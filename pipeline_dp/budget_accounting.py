@@ -598,7 +598,7 @@ class PLDBudgetAccountant(BudgetAccountant):
         if self._total_delta == 0:
             sum_weights = 0
             for mechanism in self._mechanisms:
-                sum_weights += mechanism.weight
+                sum_weights += mechanism.weight * mechanism.mechanism_spec.count
             base_noise_std = sum_weights / self._total_epsilon * math.sqrt(2)
         else:
             base_noise_std = self._find_minimum_base_noise_std()
