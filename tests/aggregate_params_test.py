@@ -587,7 +587,7 @@ class ToAggregateParamsTest(parameterized.TestCase):
             partition_extractor=None,
             contribution_bounds_already_enforced=False,
             pre_threshold=4,
-            post_aggregation_thresholding=True))
+            post_aggregation_thresholding=True)
         agg_params = privacy_id_count_params.to_aggregate_params()
         self.assertEqual(agg_params.noise_kind, ap.NoiseKind.GAUSSIAN)
         self.assertEqual(agg_params.metrics, [ap.Metrics.PRIVACY_ID_COUNT])
