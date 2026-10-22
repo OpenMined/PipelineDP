@@ -367,6 +367,49 @@ class AggregateParamsTest(parameterized.TestCase):
                            metrics=[ap.Metrics.COUNT],
                            budget_weight=budget_weight)
 
+    @parameterized.named_parameters(
+        ("epsilon_zero", 0, None, 1, "epsilon must be positive"),
+        ("epsilon_negative", -1, None, 1, "epsilon must be positive"),
+        ("epsilon_nan", float('nan'), None, 1, "epsilon must be positive"),
+        ("epsilon_inf", float('inf'), None, 1, "epsilon must be positive"),
+        ("delta_negative", 1, -1e-7, 1, "delta must be in"),
+        ("delta_one", 1, 1, 1, "delta must be in"),
+        ("delta_nan", 1, float('nan'), 1, "delta must be in"),
+        ("delta_without_epsilon", None, 1e-6, 1,
+         "delta can only be set together with epsilon"),
+        ("epsilon_with_budget_weight", 0.5, None, 2,
+         "budget_weight can not be set together with epsilon"),
+    )
+    def test_invalid_absolute_budget(self, epsilon, delta, budget_weight,
+                                     error_msg):
+        with self.assertRaisesRegex(ValueError, error_msg):
+            ap.AggregateParams(noise_kind=ap.NoiseKind.GAUSSIAN,
+                               max_partitions_contributed=1,
+                               max_contributions_per_partition=1,
+                               metrics=[ap.Metrics.COUNT],
+                               budget_weight=budget_weight,
+                               epsilon=epsilon,
+                               delta=delta)
+
+    @parameterized.parameters((0.5, None), (0.5, 1e-6), (1, 0))
+    def test_valid_absolute_budget(self, epsilon, delta):
+        params = ap.AggregateParams(noise_kind=ap.NoiseKind.GAUSSIAN,
+                                    max_partitions_contributed=1,
+                                    max_contributions_per_partition=1,
+                                    metrics=[ap.Metrics.COUNT],
+                                    epsilon=epsilon,
+                                    delta=delta)
+        self.assertEqual(params.epsilon, epsilon)
+        self.assertEqual(params.delta, delta)
+
+    def test_absolute_budget_not_set_by_default(self):
+        params = ap.AggregateParams(noise_kind=ap.NoiseKind.GAUSSIAN,
+                                    max_partitions_contributed=1,
+                                    max_contributions_per_partition=1,
+                                    metrics=[ap.Metrics.COUNT])
+        self.assertIsNone(params.epsilon)
+        self.assertIsNone(params.delta)
+
 
 class SelectPartitionsParamsTest(parameterized.TestCase):
 

@@ -97,10 +97,14 @@ class DPEngine:
         """
         self._check_aggregate_params(col, params, data_extractors)
         self._check_budget_accountant_compatibility(
-            public_partitions is not None, params.metrics,
-            params.custom_combiners is not None)
+            public_partitions is not None,
+            params.metrics,
+            params.custom_combiners is not None,
+            absolute_budget=params.epsilon is not None)
 
-        with self._budget_accountant.scope(weight=params.budget_weight):
+        with self._budget_accountant.scope(weight=params.budget_weight,
+                                           epsilon=params.epsilon,
+                                           delta=params.delta):
             self._add_report_generator(params, "aggregate", public_partitions
                                        is not None)
             if out_explain_computation_report is not None:
@@ -548,14 +552,20 @@ class DPEngine:
         if check_data_extractors:
             _check_data_extractors(data_extractors)
 
-    def _check_budget_accountant_compatibility(self, is_public_partition: bool,
-                                               metrics: Sequence[
-                                                   aggregate_params.Metrics],
-                                               custom_combiner: bool) -> None:
+    def _check_budget_accountant_compatibility(
+            self,
+            is_public_partition: bool,
+            metrics: Sequence[aggregate_params.Metrics],
+            custom_combiner: bool,
+            absolute_budget: bool = False) -> None:
         if isinstance(self._budget_accountant,
                       budget_accounting.NaiveBudgetAccountant):
             # All aggregations support NaiveBudgetAccountant.
             return
+        if absolute_budget:
+            raise NotImplementedError(
+                "Absolute budget (epsilon, delta) is not supported by PLD "
+                "budget accounting")
         if aggregate_params.Metrics.VECTOR_SUM in metrics:
             raise NotImplementedError(
                 "Vector Sum is not supported by PLD budget accounting")

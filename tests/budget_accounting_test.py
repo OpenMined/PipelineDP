@@ -210,6 +210,203 @@ class NaiveBudgetAccountantTest(parameterized.TestCase):
             # num_aggregations = 2, but only 1 aggregation_scope was created
             budget_accountant.compute_budgets()
 
+    def test_scope_without_absolute_budget(self):
+        budget_accountant = budget_accounting.NaiveBudgetAccountant(
+            total_epsilon=1, total_delta=1e-6)
+        with budget_accountant.scope(weight=1) as scope:
+            budget_accountant.request_budget(
+                mechanism_type=budget_accounting.MechanismType.LAPLACE)
+
+        self.assertFalse(scope.has_absolute_budget)
+        self.assertIsNone(
+            budget_accountant._mechanisms[0].absolute_budget_scope)
+
+    def test_scope_with_absolute_budget_tags_mechanisms(self):
+        budget_accountant = budget_accounting.NaiveBudgetAccountant(
+            total_epsilon=1, total_delta=1e-6)
+        with budget_accountant.scope(weight=1, epsilon=0.3,
+                                     delta=1e-7) as absolute_scope:
+            budget_accountant.request_budget(
+                mechanism_type=budget_accounting.MechanismType.LAPLACE)
+            # A weighted scope inside of an absolute scope splits the budget of
+            # the absolute scope.
+            with budget_accountant.scope(weight=2):
+                budget_accountant.request_budget(
+                    mechanism_type=budget_accounting.MechanismType.GAUSSIAN)
+        with budget_accountant.scope(weight=1):
+            budget_accountant.request_budget(
+                mechanism_type=budget_accounting.MechanismType.GAUSSIAN)
+
+        self.assertTrue(absolute_scope.has_absolute_budget)
+        self.assertEqual(absolute_scope.epsilon, 0.3)
+        self.assertEqual(absolute_scope.delta, 1e-7)
+        mechanisms = budget_accountant._mechanisms
+        self.assertIs(mechanisms[0].absolute_budget_scope, absolute_scope)
+        self.assertIs(mechanisms[1].absolute_budget_scope, absolute_scope)
+        self.assertIsNone(mechanisms[2].absolute_budget_scope)
+
+    def test_scope_with_absolute_epsilon_only_has_zero_delta(self):
+        budget_accountant = budget_accounting.NaiveBudgetAccountant(
+            total_epsilon=1, total_delta=1e-6)
+        scope = budget_accountant.scope(weight=1, epsilon=0.3)
+
+        self.assertEqual(scope.delta, 0)
+
+    @parameterized.named_parameters(
+        ("inside_weighted_scope", None),
+        ("inside_absolute_scope", 0.5),
+    )
+    def test_absolute_scope_can_not_be_nested(self, outer_epsilon):
+        budget_accountant = budget_accounting.NaiveBudgetAccountant(
+            total_epsilon=1, total_delta=1e-6)
+        with budget_accountant.scope(weight=1, epsilon=outer_epsilon):
+            with self.assertRaisesRegex(ValueError, "can not be nested"):
+                with budget_accountant.scope(weight=1, epsilon=0.1):
+                    pass
+
+    @parameterized.named_parameters(
+        ("epsilon_zero", 0, None),
+        ("epsilon_negative", -1, None),
+        ("delta_negative", 0.5, -1e-7),
+        ("delta_one", 0.5, 1),
+        ("delta_without_epsilon", None, 1e-7),
+    )
+    def test_scope_invalid_absolute_budget(self, epsilon, delta):
+        budget_accountant = budget_accounting.NaiveBudgetAccountant(
+            total_epsilon=1, total_delta=1e-6)
+        with self.assertRaises(ValueError):
+            budget_accountant.scope(weight=1, epsilon=epsilon, delta=delta)
+
+    def test_compute_budgets_absolute_budget(self):
+        budget_accountant = budget_accounting.NaiveBudgetAccountant(
+            total_epsilon=1, total_delta=1e-6)
+        with budget_accountant.scope(weight=1, epsilon=0.3, delta=1e-7):
+            budget1 = budget_accountant.request_budget(
+                mechanism_type=budget_accounting.MechanismType.LAPLACE)
+            budget2 = budget_accountant.request_budget(
+                mechanism_type=budget_accounting.MechanismType.GAUSSIAN)
+        budget_accountant.compute_budgets()
+
+        self.assertAlmostEqual(budget1.eps, 0.15, places=12)
+        self.assertEqual(budget1.delta, 0)
+        self.assertAlmostEqual(budget2.eps, 0.15, places=12)
+        self.assertAlmostEqual(budget2.delta, 1e-7, places=18)
+
+    def test_compute_budgets_absolute_and_weighted_budgets(self):
+        budget_accountant = budget_accounting.NaiveBudgetAccountant(
+            total_epsilon=1, total_delta=1e-6)
+        with budget_accountant.scope(weight=1, epsilon=0.3, delta=1e-7):
+            budget_absolute = budget_accountant.request_budget(
+                mechanism_type=budget_accounting.MechanismType.GAUSSIAN)
+        with budget_accountant.scope(weight=1):
+            budget_weight1 = budget_accountant.request_budget(
+                mechanism_type=budget_accounting.MechanismType.GAUSSIAN)
+        with budget_accountant.scope(weight=3):
+            budget_weight3 = budget_accountant.request_budget(
+                mechanism_type=budget_accounting.MechanismType.GAUSSIAN)
+        budget_accountant.compute_budgets()
+
+        self.assertAlmostEqual(budget_absolute.eps, 0.3, places=12)
+        self.assertAlmostEqual(budget_absolute.delta, 1e-7, places=18)
+        # The remaining (0.7, 9e-7) is split according to weights 1 and 3.
+        self.assertAlmostEqual(budget_weight1.eps, 0.7 / 4, places=12)
+        self.assertAlmostEqual(budget_weight1.delta, 9e-7 / 4, places=18)
+        self.assertAlmostEqual(budget_weight3.eps, 0.7 * 3 / 4, places=12)
+        self.assertAlmostEqual(budget_weight3.delta, 9e-7 * 3 / 4, places=18)
+
+    def test_compute_budgets_absolute_budget_with_count(self):
+        budget_accountant = budget_accounting.NaiveBudgetAccountant(
+            total_epsilon=1, total_delta=1e-6)
+        with budget_accountant.scope(weight=1, epsilon=0.4):
+            budget = budget_accountant.request_budget(
+                mechanism_type=budget_accounting.MechanismType.LAPLACE, count=2)
+        budget_accountant.compute_budgets()
+
+        # The mechanism is applied 2 times, each time with epsilon=0.2.
+        self.assertAlmostEqual(budget.eps, 0.2, places=12)
+
+    def test_compute_budgets_absolute_budgets_use_whole_budget(self):
+        budget_accountant = budget_accounting.NaiveBudgetAccountant(
+            total_epsilon=1, total_delta=1e-6)
+        budgets = []
+        # 0.1 + 0.2 + 0.7 is slightly more than 1 in floating point.
+        for epsilon in [0.1, 0.2, 0.7]:
+            with budget_accountant.scope(weight=1, epsilon=epsilon):
+                budgets.append(
+                    budget_accountant.request_budget(
+                        mechanism_type=budget_accounting.MechanismType.LAPLACE))
+        budget_accountant.compute_budgets()  # No exception.
+
+        self.assertEqual([b.eps for b in budgets], [0.1, 0.2, 0.7])
+
+    def test_compute_budgets_weighted_laplace_without_delta_left(self):
+        budget_accountant = budget_accounting.NaiveBudgetAccountant(
+            total_epsilon=1, total_delta=1e-6)
+        with budget_accountant.scope(weight=1, epsilon=0.5, delta=1e-6):
+            budget_accountant.request_budget(
+                mechanism_type=budget_accounting.MechanismType.GAUSSIAN)
+        with budget_accountant.scope(weight=1):
+            budget = budget_accountant.request_budget(
+                mechanism_type=budget_accounting.MechanismType.LAPLACE)
+        budget_accountant.compute_budgets()  # No exception.
+
+        self.assertAlmostEqual(budget.eps, 0.5, places=12)
+        self.assertEqual(budget.delta, 0)
+
+    @parameterized.named_parameters(
+        ("epsilon_slightly_exceeds_total", [(0.5, 0), (0.5000000001, 0)
+                                           ], None, "exceed total_epsilon"),
+        ("epsilon_exceeds_total", [(0.6, 0),
+                                   (0.6, 0)], None, "exceed total_epsilon"),
+        ("delta_exceeds_total", [(0.1, 6e-7),
+                                 (0.1, 6e-7)], None, "exceed total_delta"),
+        ("no_epsilon_left", [
+            (1, 0)
+        ], budget_accounting.MechanismType.LAPLACE, "no epsilon left"),
+        ("no_delta_left", [
+            (0.5, 1e-6)
+        ], budget_accounting.MechanismType.GAUSSIAN, "no delta left"),
+    )
+    def test_compute_budgets_absolute_budget_errors(self, absolute_budgets,
+                                                    weighted_mechanism_type,
+                                                    error_msg):
+        budget_accountant = budget_accounting.NaiveBudgetAccountant(
+            total_epsilon=1, total_delta=1e-6)
+        for epsilon, delta in absolute_budgets:
+            with budget_accountant.scope(weight=1, epsilon=epsilon,
+                                         delta=delta):
+                budget_accountant.request_budget(
+                    mechanism_type=budget_accounting.MechanismType.LAPLACE)
+        if weighted_mechanism_type is not None:
+            with budget_accountant.scope(weight=1):
+                budget_accountant.request_budget(
+                    mechanism_type=weighted_mechanism_type)
+
+        with self.assertRaisesRegex(ValueError, error_msg):
+            budget_accountant.compute_budgets()
+
+    @parameterized.parameters(
+        budget_accounting.MechanismType.GAUSSIAN,
+        budget_accounting.MechanismType.TRUNCATED_GEOMETRIC,
+        budget_accounting.MechanismType.LAPLACE_THRESHOLDING,
+        budget_accounting.MechanismType.GAUSSIAN_THRESHOLDING,
+    )
+    def test_absolute_budget_without_delta_mechanism_requires_delta(
+            self, mechanism_type):
+        budget_accountant = budget_accounting.NaiveBudgetAccountant(
+            total_epsilon=1, total_delta=1e-6)
+        with budget_accountant.scope(weight=1, epsilon=0.5):
+            with self.assertRaisesRegex(ValueError, "delta"):
+                budget_accountant.request_budget(mechanism_type=mechanism_type)
+
+    def test_absolute_budget_without_delta_laplace(self):
+        budget_accountant = budget_accounting.NaiveBudgetAccountant(
+            total_epsilon=1, total_delta=1e-6)
+        with budget_accountant.scope(weight=1, epsilon=0.5):
+            budget_accountant.request_budget(
+                mechanism_type=budget_accounting.MechanismType.LAPLACE
+            )  # No exception.
+
 
 @unittest.skipIf(sys.version_info.major == 3 and sys.version_info.minor <= 8,
                  "dp_accounting library only support python >=3.9")
@@ -625,6 +822,14 @@ class PLDBudgetAccountantTest(unittest.TestCase):
         self.assertAlmostEqual(budget.noise_standard_deviation,
                                94.656,
                                delta=1e-3)
+
+    def test_absolute_budget_not_supported(self):
+        accountant = budget_accounting.PLDBudgetAccountant(total_epsilon=1,
+                                                           total_delta=1e-6)
+        with accountant.scope(weight=1, epsilon=0.5, delta=1e-7):
+            with self.assertRaises(NotImplementedError):
+                accountant.request_budget(
+                    budget_accounting.MechanismType.LAPLACE)
 
 
 if __name__ == '__main__':

@@ -286,6 +286,14 @@ class AggregateParams:
          standard deviation, in form <lower_case_metric_name>_noise_stddev, e.g.
          count_noise_stddev. Currently COUNT, PRIVACY_ID_COUNT, SUM are
          supported.
+        epsilon: if set, the absolute epsilon allocated to this aggregation,
+         instead of a share of the total budget defined by budget_weight. The
+         rest of the total budget is split between the other aggregations
+         according to their budget_weight. It can not be used together with
+         budget_weight != 1.
+        delta: the absolute delta allocated to this aggregation. It can only be
+         set together with epsilon. If epsilon is set and delta is not, delta
+         is 0.
     """
     metrics: List[Metric]
     noise_kind: NoiseKind = NoiseKind.LAPLACE
@@ -308,6 +316,8 @@ class AggregateParams:
     post_aggregation_thresholding: bool = False
     perform_cross_partition_contribution_bounding: bool = True
     output_noise_stddev: bool = False
+    epsilon: Optional[float] = None
+    delta: Optional[float] = None
 
     @property
     def metrics_str(self) -> str:
@@ -416,6 +426,7 @@ class AggregateParams:
         _check_pre_threshold(self.pre_threshold,
                              self.partition_selection_strategy)
         _check_is_positive_float(self.budget_weight, "budget_weight")
+        _check_absolute_budget(self.epsilon, self.delta, self.budget_weight)
 
     def _check_both_property_set_or_not(self, property1_name: str,
                                         property2_name: str):
@@ -865,6 +876,22 @@ def _check_pre_threshold(
 def _check_is_positive_float(num: Any, field_name: str) -> None:
     if _not_a_proper_number(num) or num <= 0:
         raise ValueError(f"{field_name} must be positive, but {num} given.")
+
+
+def _check_absolute_budget(epsilon: Optional[float], delta: Optional[float],
+                           budget_weight: float) -> None:
+    if epsilon is None:
+        if delta is not None:
+            raise ValueError("delta can only be set together with epsilon.")
+        return
+    _check_is_positive_float(epsilon, "epsilon")
+    if delta is not None and (_not_a_proper_number(delta) or
+                              not 0 <= delta < 1):
+        raise ValueError(f"delta must be in [0, 1), but {delta} given.")
+    if budget_weight != 1:
+        raise ValueError(
+            f"budget_weight can not be set together with epsilon, but "
+            f"budget_weight={budget_weight} given.")
 
 
 def _count_not_none(*args):
