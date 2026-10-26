@@ -397,18 +397,24 @@ def compute_dp_var(count: int, normalized_sum: float,
         dp_params.noise_kind,
     )
 
-    squares_min_value, squares_max_value = compute_squares_interval(
-        dp_params.min_value, dp_params.max_value)
+    if dp_params.min_value == dp_params.max_value:
+        return dp_count, dp_mean * dp_count, dp_mean, 0.0
+
+    # The normalized values lie in [-r, r] with r = (max_value - min_value) / 2,
+    # so their squares lie in [0, r**2]. Like the values, the squares are
+    # centered on the middle of that interval before noise is added.
+    squares_max_value = ((dp_params.max_value - dp_params.min_value) / 2)**2
+    squares_middle = compute_middle(0, squares_max_value)
 
     # Computes and adds noise to the mean of squares.
     dp_mean_squares = _compute_mean_for_normalized_sum(
-        dp_count, normalized_sum_squares, squares_min_value, squares_max_value,
-        sum_squares_eps, sum_squares_delta, l0_sensitivity,
-        dp_params.max_contributions_per_partition, dp_params.noise_kind)
+        dp_count, normalized_sum_squares - count * squares_middle, 0,
+        squares_max_value, sum_squares_eps, sum_squares_delta, l0_sensitivity,
+        dp_params.max_contributions_per_partition,
+        dp_params.noise_kind) + squares_middle
 
     dp_var = dp_mean_squares - dp_mean**2
-    if dp_params.min_value != dp_params.max_value:
-        dp_mean += compute_middle(dp_params.min_value, dp_params.max_value)
+    dp_mean += compute_middle(dp_params.min_value, dp_params.max_value)
 
     return dp_count, dp_mean * dp_count, dp_mean, dp_var
 
