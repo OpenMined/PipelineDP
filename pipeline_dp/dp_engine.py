@@ -96,6 +96,10 @@ class DPEngine:
           'count' for COUNT metrics etc.
         """
         self._check_aggregate_params(col, params, data_extractors)
+        if (params.public_partitions_already_filtered and
+                public_partitions is None):
+            raise ValueError("public_partitions_already_filtered=True can only "
+                             "be used together with public_partitions.")
         self._check_budget_accountant_compatibility(
             public_partitions is not None, params.metrics,
             params.custom_combiners is not None)
