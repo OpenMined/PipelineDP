@@ -260,6 +260,42 @@ class DPComputationsTest(parameterized.TestCase):
         self.assertEqual(mean, 42.0)
         self.assertEqual(var, 0.0)
 
+    @parameterized.parameters((-1.0, 1.0), (-1.0, 2.0), (1.0, 3.0))
+    def test_compute_dp_var_sum_of_squares_sensitivity(self, min_value,
+                                                       max_value):
+        params = dp_computations.ScalarNoiseParams(
+            eps=1,
+            delta=0,
+            min_value=min_value,
+            max_value=max_value,
+            min_sum_per_partition=None,
+            max_sum_per_partition=None,
+            max_partitions_contributed=1,
+            max_contributions_per_partition=2,
+            noise_kind=aggregate_params.NoiseKind.LAPLACE)
+        middle = (min_value + max_value) / 2
+        values = np.array([min_value, max_value, max_value, middle])
+        normalized = values - middle
+
+        with patch('pipeline_dp.dp_computations._add_random_noise',
+                   side_effect=lambda value, *args: value) as mock_noise:
+            _, _, mean, var = dp_computations.compute_dp_var(
+                count=len(values),
+                normalized_sum=normalized.sum(),
+                normalized_sum_squares=(normalized**2).sum(),
+                dp_params=params)
+
+        # Normalized values lie in [-r, r], so their squares lie in [0, r^2].
+        # Centered on r^2 / 2, each contribution changes the sum by at most
+        # r^2 / 2, times max_contributions_per_partition.
+        half_r_squared = ((max_value - min_value) / 2)**2 / 2
+        sum_squares_call = mock_noise.call_args_list[2]
+        self.assertAlmostEqual(sum_squares_call.args[0], (normalized**2).sum() -
+                               len(values) * half_r_squared)
+        self.assertAlmostEqual(sum_squares_call.args[4], 2 * half_r_squared)
+        self.assertAlmostEqual(mean, values.mean())
+        self.assertAlmostEqual(var, values.var())
+
     def test_compute_dp_var(self):
         params = dp_computations.ScalarNoiseParams(
             eps=10,
