@@ -1093,6 +1093,34 @@ class DpEngineTest(parameterized.TestCase):
         self.assertAlmostEqual(0, col[1][1][1])  # "pk10" SUM ≈ 0
         self.assertAlmostEqual(0, col[1][1][2])  # "pk10" PRIVACY_ID_COUNT ≈ 0
 
+    @parameterized.product(partitions_factory=(list, tuple, set, iter,
+                                               lambda keys:
+                                               (key for key in keys)),
+                           rows=([(1, "b"), (2, "other")], [(2, "other")]))
+    def test_aggregate_public_partition_iterables(self, partitions_factory,
+                                                  rows):
+        accountant = budget_accounting.NaiveBudgetAccountant(total_epsilon=1,
+                                                             total_delta=0)
+        engine = pipeline_dp.DPEngine(accountant,
+                                      pipeline_backend.LocalBackend())
+        params = pipeline_dp.AggregateParams(metrics=[agg.Metrics.COUNT],
+                                             max_partitions_contributed=1,
+                                             max_contributions_per_partition=1)
+        extractors = pipeline_dp.DataExtractors(
+            privacy_id_extractor=lambda row: row[0],
+            partition_extractor=lambda row: row[1],
+            value_extractor=lambda row: 0)
+
+        result = engine.aggregate(rows,
+                                  params,
+                                  extractors,
+                                  public_partitions=partitions_factory(
+                                      ["a", "b", "c"]))
+        accountant.compute_budgets()
+
+        # Public output keys must also include partitions without input rows.
+        self.assertCountEqual(["a", "b", "c"], (key for key, _ in result))
+
     def create_dp_engine_default(
             self,
             accountant: budget_accounting.NaiveBudgetAccountant = None,
