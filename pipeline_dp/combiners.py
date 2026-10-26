@@ -918,6 +918,8 @@ class VectorSumCombiner(Combiner):
                 array_sum = val
             else:
                 array_sum += val
+        if array_sum is None:
+            array_sum = np.zeros(self._params.aggregate_params.vector_size)
         return self._clip_vector(array_sum)
 
     def _clip_vector(self, vec: np.ndarray):
