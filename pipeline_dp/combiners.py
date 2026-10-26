@@ -951,7 +951,8 @@ class VectorSumCombiner(Combiner):
 
     def explain_computation(self) -> ExplainComputationReport:
         # TODO: add information about vector size, norm, amount of noise.
-        lambda: f"Computed vector sum with (eps={self._params.eps} delta={self._params.delta})"
+        return lambda: (f"Computed vector sum with (eps={self._params.eps} "
+                        f"delta={self._params.delta})")
 
     def mechanism_spec(self) -> budget_accounting.MechanismSpec:
         return self._params.mechanism_spec
