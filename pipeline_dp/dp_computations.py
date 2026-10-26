@@ -258,7 +258,9 @@ def add_noise_vector(vec: np.ndarray, noise_params: AdditiveVectorNoiseParams):
                 f"Unknown or invalid norm kind {noise_params.norm_kind} for Laplace mechanism."
             )
     elif noise_params.noise_kind == aggregate_params.NoiseKind.GAUSSIAN:
-        if noise_params.norm_kind == aggregate_params.NormKind.L2:
+        if noise_params.norm_kind in (aggregate_params.NormKind.L1,
+                                      aggregate_params.NormKind.L2):
+            # An L1 bound also bounds the L2 norm of each partition's vector.
             sensitivity = noise_params.max_norm * np.sqrt(
                 max_partition_contributed)
         elif noise_params.norm_kind == aggregate_params.NormKind.Linf:
