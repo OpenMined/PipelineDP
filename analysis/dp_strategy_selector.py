@@ -17,6 +17,7 @@ from dataclasses import dataclass
 from typing import List, Optional
 
 from pipeline_dp import aggregate_params
+from pipeline_dp import budget_accounting
 from pipeline_dp import dp_computations
 from pipeline_dp import input_validators
 
@@ -177,7 +178,7 @@ class DPStrategySelector:
 
         def create_mechanism(
                 strategy: aggregate_params.PartitionSelectionStrategy):
-            mechanism_spec = pipeline_dp.budget_accounting.MechanismSpec(
+            mechanism_spec = budget_accounting.MechanismSpec(
                 strategy.mechanism_type)
             mechanism_spec.set_eps_delta(epsilon, delta)
             return dp_computations.create_thresholding_mechanism(
