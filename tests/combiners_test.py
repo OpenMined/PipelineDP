@@ -514,7 +514,11 @@ class PostAggregationThresholdingCombinerTest(parameterized.TestCase):
 
         expected_strategy = self._get_strategy(noise_kind)
         mock_create_partition_selection_strategy.assert_called_once_with(
-            expected_strategy, 1.0, 1e-10, 2, pre_threshold)
+            strategy=expected_strategy,
+            epsilon=1.0,
+            delta=1e-10,
+            max_partitions_contributed=2,
+            pre_threshold=pre_threshold)
 
     def test_explain_computation(self):
         combiner = self._create_combiner()

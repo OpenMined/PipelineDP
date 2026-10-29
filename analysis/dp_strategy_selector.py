@@ -16,6 +16,7 @@ based on contribution bounding params."""
 from dataclasses import dataclass
 from typing import List, Optional
 
+import pipeline_dp.budget_accounting
 from pipeline_dp import aggregate_params
 from pipeline_dp import dp_computations
 from pipeline_dp import input_validators
@@ -177,11 +178,11 @@ class DPStrategySelector:
 
         def create_mechanism(
                 strategy: aggregate_params.PartitionSelectionStrategy):
-            return dp_computations.ThresholdingMechanism(epsilon,
-                                                         delta,
-                                                         strategy,
-                                                         l0_sensitivity,
-                                                         pre_threshold=None)
+            mechanism_spec = pipeline_dp.budget_accounting.MechanismSpec(
+                strategy.mechanism_type)
+            mechanism_spec.set_eps_delta(epsilon, delta)
+            return dp_computations.create_thresholding_mechanism(
+                mechanism_spec, l0_sensitivity, pre_threshold=None)
 
         laplace_thresholding_mechanism = create_mechanism(
             aggregate_params.PartitionSelectionStrategy.LAPLACE_THRESHOLDING)

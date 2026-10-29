@@ -875,25 +875,23 @@ class ThresholdingMechanism:
 
 
 def create_thresholding_mechanism(
-        mechanism_spec: budget_accounting.MechanismSpec,
-        sensitivities: Sensitivities,
+        mechanism_spec: budget_accounting.MechanismSpec, l0_sensitivity: int,
         pre_threshold: Optional[int]) -> ThresholdingMechanism:
     """Creates ThresholdingMechanism from a mechanism spec and sensitivities."""
     strategy_type = mechanism_spec.mechanism_type.to_partition_selection_strategy(
     )
-    l0_sensitivity = sensitivities.l0
-
     if not mechanism_spec.standard_deviation_is_set:
+        # Naive budget accounting: defined  by (epsilon, delta).
         thresholding_strategy = partition_selection.create_partition_selection_strategy(
             strategy=strategy_type,
             epsilon=mechanism_spec.eps,
             delta=mechanism_spec.delta,
-            max_partitions_contributed=sensitivities.l0,
+            max_partitions_contributed=l0_sensitivity,
             pre_threshold=pre_threshold)
     else:
+        # PLD accounting: defined by noise_standard_deviation.
         noise_standard_deviation = mechanism_spec.noise_standard_deviation
         thresholding_delta = mechanism_spec.thresholding_delta
-        l0_sensitivity = sensitivities.l0
 
         match strategy_type:
             case aggregate_params.PartitionSelectionStrategy.LAPLACE_THRESHOLDING:

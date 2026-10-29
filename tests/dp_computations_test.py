@@ -901,10 +901,9 @@ class ThresholdingMechanismTests(parameterized.TestCase):
         mechanism_spec = budget_accounting.MechanismSpec(mechanism_type)
 
         mechanism_spec.set_eps_delta(eps=1.5, delta=1e-5)
-        sensitivities = dp_computations.Sensitivities(l0=4, linf=1)
 
         return dp_computations.create_thresholding_mechanism(
-            mechanism_spec, sensitivities, pre_threshold)
+            mechanism_spec, l0_sensitivity=4, pre_threshold=pre_threshold)
 
     def test_create_thresholding_mechanism(self):
         # Arrange/Act
@@ -943,10 +942,9 @@ class ThresholdingMechanismTests(parameterized.TestCase):
             aggregate_params.MechanismType.GAUSSIAN_THRESHOLDING)
         mechanism_spec.set_noise_standard_deviation(5.0)
         mechanism_spec.set_thresholding_delta(1e-5)
-        sensitivities = dp_computations.Sensitivities(l0=4, linf=1)
 
         mechanism = dp_computations.create_thresholding_mechanism(
-            mechanism_spec, sensitivities, pre_threshold=10)
+            mechanism_spec, l0_sensitivity=4, pre_threshold=10)
 
         self.assertEqual(
             type(mechanism._thresholding_strategy).__name__,
@@ -961,10 +959,9 @@ class ThresholdingMechanismTests(parameterized.TestCase):
             aggregate_params.MechanismType.LAPLACE_THRESHOLDING)
         mechanism_spec.set_noise_standard_deviation(5.0)
         mechanism_spec.set_thresholding_delta(1e-5)
-        sensitivities = dp_computations.Sensitivities(l0=4, linf=1)
 
         mechanism = dp_computations.create_thresholding_mechanism(
-            mechanism_spec, sensitivities, pre_threshold=10)
+            mechanism_spec, l0_sensitivity=4, pre_threshold=10)
 
         self.assertEqual(
             type(mechanism._thresholding_strategy).__name__,
