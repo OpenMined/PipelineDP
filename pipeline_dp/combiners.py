@@ -402,7 +402,8 @@ class PostAggregationThresholdingCombiner(Combiner, MechanismContainerMixin):
 
     def create_mechanism(self) -> dp_computations.ThresholdingMechanism:
         return dp_computations.create_thresholding_mechanism(
-            self.mechanism_spec(), self.sensitivities(), self._pre_threshold)
+            self.mechanism_spec(),
+            self.sensitivities().l0, self._pre_threshold)
 
 
 class SumCombiner(Combiner, AdditiveMechanismMixin):

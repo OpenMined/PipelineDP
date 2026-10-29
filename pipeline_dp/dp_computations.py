@@ -24,6 +24,7 @@ from typing import Any, List, Optional, Tuple, Union
 from pipeline_dp import aggregate_params
 from pipeline_dp import budget_accounting
 from pipeline_dp import partition_selection
+import pydp
 from pydp.algorithms import numerical_mechanisms as dp_mechanisms
 from pydp.algorithms import quantile_tree
 
@@ -844,13 +845,13 @@ class ThresholdingMechanism:
     and compares the noisy value to the threshold.
     """
 
-    def __init__(self, epsilon: float, delta: float,
-                 strategy: aggregate_params.PartitionSelectionStrategy,
-                 l0_sensitivity: int, pre_threshold: Optional[int]):
-        self._strategy_type = strategy
+    def __init__(self,
+                 strategy_type: aggregate_params.PartitionSelectionStrategy,
+                 thresholding_strategy: pydp.algorithms.partition_selection.
+                 PartitionSelectionStrategy, pre_threshold: Optional[int]):
+        self._strategy_type = strategy_type
         self._pre_threshold = pre_threshold
-        self._thresholding_strategy = partition_selection.create_partition_selection_strategy(
-            strategy, epsilon, delta, l0_sensitivity, pre_threshold)
+        self._thresholding_strategy = thresholding_strategy
 
     def noised_value_if_should_keep(self,
                                     num_privacy_units: int) -> Optional[float]:
@@ -874,15 +875,45 @@ class ThresholdingMechanism:
 
 
 def create_thresholding_mechanism(
-        mechanism_spec: budget_accounting.MechanismSpec,
-        sensitivities: Sensitivities,
+        mechanism_spec: budget_accounting.MechanismSpec, l0_sensitivity: int,
         pre_threshold: Optional[int]) -> ThresholdingMechanism:
     """Creates ThresholdingMechanism from a mechanism spec and sensitivities."""
-    strategy = mechanism_spec.mechanism_type.to_partition_selection_strategy()
-    return ThresholdingMechanism(epsilon=mechanism_spec.eps,
-                                 delta=mechanism_spec.delta,
-                                 strategy=strategy,
-                                 l0_sensitivity=sensitivities.l0,
+    strategy_type = mechanism_spec.mechanism_type.to_partition_selection_strategy(
+    )
+    if not mechanism_spec.standard_deviation_is_set:
+        # Naive budget accounting: defined  by (epsilon, delta).
+        thresholding_strategy = partition_selection.create_partition_selection_strategy(
+            strategy=strategy_type,
+            epsilon=mechanism_spec.eps,
+            delta=mechanism_spec.delta,
+            max_partitions_contributed=l0_sensitivity,
+            pre_threshold=pre_threshold)
+    else:
+        # PLD accounting: defined by noise_standard_deviation.
+        noise_standard_deviation = mechanism_spec.noise_standard_deviation
+        thresholding_delta = mechanism_spec.thresholding_delta
+
+        match strategy_type:
+            case aggregate_params.PartitionSelectionStrategy.LAPLACE_THRESHOLDING:
+                thresholding_strategy = partition_selection.create_laplace_thresholding(
+                    noise_standard_deviation,
+                    thresholding_delta,
+                    l0_sensitivity,
+                    pre_threshold,
+                )
+            case aggregate_params.PartitionSelectionStrategy.GAUSSIAN_THRESHOLDING:
+                thresholding_strategy = partition_selection.create_gaussian_thresholding(
+                    noise_standard_deviation,
+                    thresholding_delta,
+                    l0_sensitivity,
+                    pre_threshold,
+                )
+            case _:
+                raise ValueError(
+                    f"Strategy {strategy_type} can not be calibrated by noise "
+                    f"standard deviation.")
+    return ThresholdingMechanism(strategy_type=strategy_type,
+                                 thresholding_strategy=thresholding_strategy,
                                  pre_threshold=pre_threshold)
 
 
