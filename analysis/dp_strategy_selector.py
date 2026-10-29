@@ -16,7 +16,6 @@ based on contribution bounding params."""
 from dataclasses import dataclass
 from typing import List, Optional
 
-import pipeline_dp.budget_accounting
 from pipeline_dp import aggregate_params
 from pipeline_dp import dp_computations
 from pipeline_dp import input_validators
