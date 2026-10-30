@@ -1283,6 +1283,108 @@ class DpEngineTest(parameterized.TestCase):
             self.assertEqual(total_epsilon / 3, budgets[0].epsilon)
             self.assertEqual(total_delta / 3, budgets[0].delta)
 
+    def _create_count_params(self, **kwargs) -> pipeline_dp.AggregateParams:
+        return pipeline_dp.AggregateParams(noise_kind=kwargs.pop(
+            "noise_kind", pipeline_dp.NoiseKind.LAPLACE),
+                                           metrics=[pipeline_dp.Metrics.COUNT],
+                                           max_partitions_contributed=1,
+                                           max_contributions_per_partition=1,
+                                           **kwargs)
+
+    def test_aggregate_absolute_budget(self):
+        budget_accountant = pipeline_dp.NaiveBudgetAccountant(total_epsilon=1,
+                                                              total_delta=1e-6)
+        engine = pipeline_dp.DPEngine(budget_accountant,
+                                      pipeline_backend.LocalBackend())
+        extractors = self._get_default_extractors()
+        public_partitions = [1, 2]
+
+        output_absolute = engine.aggregate(
+            [1, 2], self._create_count_params(epsilon=0.4), extractors,
+            public_partitions)
+        output_weighted = engine.aggregate([1, 2], self._create_count_params(),
+                                           extractors, public_partitions)
+        budget_accountant.compute_budgets()
+
+        specs = budget_accountant.mechanism_specs
+        self.assertEqual([spec.name for spec in specs], ["Count", "Count"])
+        self.assertAlmostEqual(specs[0].eps, 0.4, places=12)
+        self.assertAlmostEqual(specs[1].eps, 0.6, places=12)
+        self.assertLen(list(output_absolute), 2)
+        self.assertLen(list(output_weighted), 2)
+
+    def test_aggregate_absolute_budget_private_partitions(self):
+        budget_accountant = pipeline_dp.NaiveBudgetAccountant(total_epsilon=1,
+                                                              total_delta=1e-6)
+        engine = pipeline_dp.DPEngine(budget_accountant,
+                                      pipeline_backend.LocalBackend())
+        params = self._create_count_params(
+            noise_kind=pipeline_dp.NoiseKind.GAUSSIAN, epsilon=0.5, delta=1e-7)
+
+        engine.aggregate([1, 2], params, self._get_default_extractors())
+        budget_accountant.compute_budgets()
+
+        # The absolute budget is split between the count and the partition
+        # selection.
+        count, partition_selection = budget_accountant.mechanism_specs
+        self.assertEqual(count.name, "Count")
+        self.assertEqual(partition_selection.name, "PartitionSelection")
+        for spec in [count, partition_selection]:
+            self.assertAlmostEqual(spec.eps, 0.25, places=12)
+            self.assertAlmostEqual(spec.delta, 5e-8, places=18)
+
+    def test_aggregate_absolute_budget_private_partitions_require_delta(self):
+        engine = pipeline_dp.DPEngine(
+            pipeline_dp.NaiveBudgetAccountant(total_epsilon=1,
+                                              total_delta=1e-6),
+            pipeline_backend.LocalBackend())
+
+        with self.assertRaisesRegex(ValueError, "delta"):
+            engine.aggregate([1, 2], self._create_count_params(epsilon=0.5),
+                             self._get_default_extractors())
+
+    def test_aggregate_absolute_budget_pld_not_supported(self):
+        engine = pipeline_dp.DPEngine(
+            pipeline_dp.PLDBudgetAccountant(total_epsilon=1, total_delta=1e-6),
+            pipeline_backend.LocalBackend())
+
+        with self.assertRaisesRegex(NotImplementedError,
+                                    "not supported by PLD budget accounting"):
+            engine.aggregate([1, 2],
+                             self._create_count_params(epsilon=0.5),
+                             self._get_default_extractors(),
+                             public_partitions=[1, 2])
+
+    def test_aggregate_absolute_budget_with_num_aggregations(self):
+        engine = pipeline_dp.DPEngine(
+            pipeline_dp.NaiveBudgetAccountant(total_epsilon=1,
+                                              total_delta=1e-6,
+                                              num_aggregations=1),
+            pipeline_backend.LocalBackend())
+
+        with self.assertRaisesRegex(ValueError, "num_aggregations"):
+            engine.aggregate([1, 2],
+                             self._create_count_params(epsilon=0.5),
+                             self._get_default_extractors(),
+                             public_partitions=[1, 2])
+
+    @patch('pipeline_dp.pipeline_backend.PipelineBackend.annotate')
+    def test_annotate_call_absolute_budget(self, mock_annotate_fn):
+        engine = pipeline_dp.DPEngine(
+            pipeline_dp.NaiveBudgetAccountant(total_epsilon=1,
+                                              total_delta=1e-6),
+            pipeline_backend.LocalBackend())
+
+        engine.aggregate([1, 2],
+                         self._create_count_params(epsilon=0.4),
+                         self._get_default_extractors(),
+                         public_partitions=[1, 2])
+
+        budgets = mock_annotate_fn.call_args[1]['budget']
+        self.assertLen(budgets, 1)
+        self.assertAlmostEqual(budgets[0].epsilon, 0.4, places=12)
+        self.assertEqual(budgets[0].delta, 0)
+
     def test_min_max_sum_per_partition(self):
         dp_engine, budget_accountant = self._create_dp_engine_default(
             epsilon=1000, return_accountant=True)

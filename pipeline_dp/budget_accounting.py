@@ -125,10 +125,16 @@ class MechanismSpec:
 
 @dataclass
 class MechanismSpecInternal:
-    """Stores sensitivity and weight not exposed in MechanismSpec."""
+    """Stores sensitivity and weight not exposed in MechanismSpec.
+
+    absolute_budget_scope is the scope with the absolute budget (i.e. epsilon
+    and delta) which this mechanism was requested in, or None if the mechanism
+    gets its budget according to its weight.
+    """
     sensitivity: float
     weight: float
     mechanism_spec: MechanismSpec
+    absolute_budget_scope: Optional['BudgetAccountantScope'] = None
 
 
 Budget = collections.namedtuple("Budget",
@@ -181,7 +187,10 @@ class BudgetAccountant(abc.ABC):
     def compute_budgets(self):
         pass
 
-    def scope(self, weight: float):
+    def scope(self,
+              weight: float,
+              epsilon: Optional[float] = None,
+              delta: Optional[float] = None):
         """Defines a scope for DP operations that should consume no more than "weight" proportion of the budget
         of the parent scope.
 
@@ -193,16 +202,32 @@ class BudgetAccountant(abc.ABC):
 
         Args:
             weight: budget weight of all operations made within this scope as compared to.
+            epsilon: if set, all operations made within this scope consume
+              exactly this epsilon in total, instead of a "weight" proportion
+              of the budget. A scope with epsilon can not be nested in another
+              scope.
+            delta: delta of all operations made within this scope. It can be
+              set only together with epsilon. If epsilon is set and delta is
+              not, delta is 0.
 
         Returns:
             the scope that should be used in a "with" block enclosing the operations consuming the budget.
         """
-        return BudgetAccountantScope(self, weight)
+        if epsilon is None:
+            if delta is not None:
+                raise ValueError("delta can only be set together with epsilon.")
+        else:
+            if delta is None:
+                delta = 0
+            input_validators.validate_epsilon_delta(epsilon, delta,
+                                                    "BudgetAccountantScope")
+        return BudgetAccountantScope(self, weight, epsilon, delta)
 
     def _compute_budgets_for_aggregation(self, weight: float) -> list[Budget]:
         """Computes budget per aggregation.
 
-        It splits the budget using the naive composition. If neither
+        It splits the budget using the naive composition. If the aggregation
+        has an absolute budget, it splits this budget. Otherwise if neither
         'num_aggregations' nor 'aggregation_weights' is set in the constructor,
         it returns an empty list.
 
@@ -218,7 +243,17 @@ class BudgetAccountant(abc.ABC):
         """
         budgets = []
         self._actual_aggregation_weights.append(weight)
-        if self._expected_num_aggregations:
+        absolute_budget_scope = self._absolute_budget_scope()
+        if absolute_budget_scope is not None:
+            if (self._expected_num_aggregations or
+                    self._expected_aggregation_weights):
+                raise ValueError(
+                    "Absolute budget (epsilon, delta) can not be used when "
+                    "'num_aggregations' or 'aggregation_weights' is set in the "
+                    "constructor of BudgetAccountant.")
+            epsilon = absolute_budget_scope.epsilon
+            delta = absolute_budget_scope.delta
+        elif self._expected_num_aggregations:
             epsilon = self._total_epsilon / self._expected_num_aggregations
             delta = self._total_delta / self._expected_num_aggregations
         elif self._expected_aggregation_weights:
@@ -300,10 +335,22 @@ class BudgetAccountant(abc.ABC):
         # Register in all of the current scopes
         for scope in self._scopes_stack:
             scope.mechanisms.append(mechanism)
+        mechanism.absolute_budget_scope = self._absolute_budget_scope()
 
         return mechanism
 
+    def _absolute_budget_scope(self) -> Optional['BudgetAccountantScope']:
+        """Returns the current scope with an absolute budget, if any."""
+        for scope in self._scopes_stack:
+            if scope.has_absolute_budget:
+                return scope
+        return None
+
     def _enter_scope(self, scope):
+        if scope.has_absolute_budget and self._scopes_stack:
+            raise ValueError(
+                "A scope with epsilon and delta can not be nested in another "
+                "scope.")
         self._scopes_stack.append(scope)
 
     def _exit_scope(self):
@@ -334,10 +381,20 @@ class BudgetAccountant(abc.ABC):
 @dataclass
 class BudgetAccountantScope:
 
-    def __init__(self, accountant, weight):
+    def __init__(self,
+                 accountant,
+                 weight,
+                 epsilon: Optional[float] = None,
+                 delta: Optional[float] = None):
         self.weight = weight
         self.accountant = accountant
         self.mechanisms = []
+        self.epsilon = epsilon
+        self.delta = delta
+
+    @property
+    def has_absolute_budget(self) -> bool:
+        return self.epsilon is not None
 
     def __enter__(self):
         self.accountant._enter_scope(self)
@@ -434,6 +491,14 @@ class NaiveBudgetAccountant(BudgetAccountant):
             raise ValueError(
                 "The private partition selections requires that the pipeline delta is greater than 0"
             )
+        absolute_budget_scope = self._absolute_budget_scope()
+        if (absolute_budget_scope is not None and
+                absolute_budget_scope.delta == 0 and
+            (mechanism_type == MechanismType.GAUSSIAN or
+             mechanism_type.is_partition_selection)):
+            raise ValueError(
+                f"{mechanism_type.value} mechanism requires delta greater than "
+                f"0, but the absolute budget has delta=0.")
         mechanism_spec = MechanismSpec(mechanism_type=mechanism_type,
                                        name=name,
                                        _count=count)
@@ -458,22 +523,81 @@ class NaiveBudgetAccountant(BudgetAccountant):
             raise Exception(
                 "Cannot call compute_budgets from within a budget scope.")
 
-        total_weight_eps = total_weight_delta = 0
+        # Mechanisms from scopes with an absolute budget get exactly the budget
+        # of their scope, the rest is split between the other mechanisms
+        # according to their weights. Scopes are compared by id, because
+        # BudgetAccountantScope instances are equal to each other.
+        weighted_mechanisms = []
+        absolute_scopes = {}  # id(scope) -> (scope, mechanisms)
         for mechanism in self._mechanisms:
+            scope = mechanism.absolute_budget_scope
+            if scope is None:
+                weighted_mechanisms.append(mechanism)
+            else:
+                absolute_scopes.setdefault(id(scope),
+                                           (scope, []))[1].append(mechanism)
+
+        for scope, mechanisms in absolute_scopes.values():
+            self._split_budget(mechanisms, scope.epsilon, scope.delta)
+
+        remaining_epsilon = _remaining_budget(
+            self._total_epsilon,
+            sum(scope.epsilon for scope, _ in absolute_scopes.values()),
+            "epsilon")
+        remaining_delta = _remaining_budget(
+            self._total_delta,
+            sum(scope.delta for scope, _ in absolute_scopes.values()), "delta")
+        if absolute_scopes and weighted_mechanisms:
+            if remaining_epsilon == 0:
+                raise ValueError(
+                    "Absolute budgets use the whole total_epsilon, there is "
+                    "no epsilon left for aggregations with budget_weight.")
+            if remaining_delta == 0 and any(
+                    m.mechanism_spec.use_delta() for m in weighted_mechanisms):
+                raise ValueError(
+                    "Absolute budgets use the whole total_delta, there is no "
+                    "delta left for aggregations with budget_weight which "
+                    "require delta.")
+        self._split_budget(weighted_mechanisms, remaining_epsilon,
+                           remaining_delta)
+
+    @staticmethod
+    def _split_budget(mechanisms: list[MechanismSpecInternal], epsilon: float,
+                      delta: float) -> None:
+        """Splits (epsilon, delta) between mechanisms according to weights."""
+        total_weight_eps = total_weight_delta = 0
+        for mechanism in mechanisms:
             total_weight_eps += mechanism.weight * mechanism.mechanism_spec.count
             if mechanism.mechanism_spec.use_delta():
                 total_weight_delta += mechanism.weight * mechanism.mechanism_spec.count
 
-        for mechanism in self._mechanisms:
-            eps = delta = 0
+        for mechanism in mechanisms:
+            eps = delta_mechanism = 0
             if total_weight_eps:
-                numerator = self._total_epsilon * mechanism.weight
+                numerator = epsilon * mechanism.weight
                 eps = numerator / total_weight_eps
             if mechanism.mechanism_spec.use_delta():
                 if total_weight_delta:
-                    numerator = self._total_delta * mechanism.weight
-                    delta = numerator / total_weight_delta
-            mechanism.mechanism_spec.set_eps_delta(eps, delta)
+                    numerator = delta * mechanism.weight
+                    delta_mechanism = numerator / total_weight_delta
+            mechanism.mechanism_spec.set_eps_delta(eps, delta_mechanism)
+
+
+def _remaining_budget(total: float, used: float, name: str) -> float:
+    """Returns total - used, which is 0 when they are equal up to rounding.
+
+    The tolerance is small enough to only cover floating point rounding errors
+    (e.g. 0.1 + 0.2 + 0.7 > 1), but not an actual excess of the budget.
+
+    Raises:
+        ValueError: used exceeds total.
+    """
+    if math.isclose(used, total, rel_tol=1e-12):
+        return 0
+    if used > total:
+        raise ValueError(f"Sum of absolute budgets {name}={used} exceed "
+                         f"total_{name}={total}.")
+    return total - used
 
 
 class PLDBudgetAccountant(BudgetAccountant):
@@ -563,6 +687,11 @@ class PLDBudgetAccountant(BudgetAccountant):
         if noise_standard_deviation is not None:
             raise NotImplementedError(
                 "Noise standard deviation have not been implemented yet.")
+        if self._absolute_budget_scope() is not None:
+            raise NotImplementedError(
+                "Absolute budget (epsilon, delta) is not supported by "
+                "PLDBudgetAccountant. Please use budget_weight or "
+                "NaiveBudgetAccountant.")
         if mechanism_type == MechanismType.GAUSSIAN and self._total_delta == 0:
             raise AssertionError(
                 "The Gaussian mechanism requires that the pipeline delta is greater than 0"
