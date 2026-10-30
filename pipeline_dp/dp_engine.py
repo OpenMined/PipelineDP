@@ -390,10 +390,9 @@ class DPEngine:
             else:
                 epsilon = budget.eps
                 delta = budget.delta
-                parameters = f"{epsilon=}, delta={delta=}"
-            text = f"""Private Partition selection: using {strategy.value}
-            f"method with ({parameters}, {pre_threshold_str})"""
-            return text
+                parameters = f"{epsilon=}, {delta=}"
+            return (f"Private Partition selection: using {strategy.value} "
+                    f"method with ({parameters}{pre_threshold_str})")
 
         self._add_report_stage(generate_partition_selection_text)
 

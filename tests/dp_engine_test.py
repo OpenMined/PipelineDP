@@ -462,6 +462,33 @@ class DpEngineTest(parameterized.TestCase):
             ],
         )
 
+    @parameterized.parameters((None, r"\)"), (3, r", pre_threshold=3\)"))
+    def test_aggregate_report_partition_selection_line(self, pre_threshold,
+                                                       expected_end):
+        col = [[1], [2], [3], [3]]
+        data_extractor = pipeline_dp.DataExtractors(
+            privacy_id_extractor=lambda x: f"pid{x}",
+            partition_extractor=lambda x: f"pk{x}",
+            value_extractor=lambda x: x)
+        params = pipeline_dp.AggregateParams(
+            noise_kind=pipeline_dp.NoiseKind.LAPLACE,
+            max_partitions_contributed=1,
+            max_contributions_per_partition=1,
+            metrics=[pipeline_dp.Metrics.COUNT],
+            pre_threshold=pre_threshold)
+        budget_accountant = budget_accounting.NaiveBudgetAccountant(
+            total_epsilon=1, total_delta=1e-10)
+        engine = pipeline_dp.DPEngine(budget_accountant=budget_accountant,
+                                      backend=pipeline_backend.LocalBackend())
+        engine.aggregate(col, params, data_extractor)
+        budget_accountant.compute_budgets()
+
+        self.assertRegex(
+            engine._report_generators[0].report(),  # pylint: disable=protected-access
+            r"(?m)^ \d+\. Private Partition selection: using Truncated "
+            r"Geometric method with \(epsilon=[^,\s]+, delta=[^,\s)]+" +
+            expected_end + "$")
+
     @patch(
         'pipeline_dp.contribution_bounders'
         '.SamplingCrossAndPerPartitionContributionBounder.bound_contributions')
