@@ -590,6 +590,18 @@ class DpEngineTest(parameterized.TestCase):
         partition_keys = [kv[0] for kv in result]  # extract partition keys
         self.assertEqual(set(partition_keys), set(["pk0", "pk1", "pk2"]))
 
+    def test_aggregate_already_filtered_without_public_partitions_raises(self):
+        engine = self._create_dp_engine_default()
+        params, _ = self._create_params_default()
+        params.public_partitions_already_filtered = True
+        params.metrics = [pipeline_dp.Metrics.COUNT]
+
+        with self.assertRaisesRegex(ValueError,
+                                    "public_partitions_already_filtered"):
+            engine.aggregate(col=["pk0", "pk1"],
+                             params=params,
+                             data_extractors=self._get_default_extractors())
+
     @parameterized.named_parameters(
         dict(
             testcase_name='all_data_kept',
