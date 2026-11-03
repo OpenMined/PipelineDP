@@ -293,10 +293,14 @@ class DPEngine:
             col, compound_combiner, "Combine accumulators per partition key")
         # col : (partition_key, accumulator)
 
+        max_rows_per_privacy_id = 1
+        if params.contribution_bounds_already_enforced:
+            max_rows_per_privacy_id = params.max_contributions_per_partition
+
         col = self._select_private_partitions_internal(
             col,
             max_partitions_contributed,
-            max_rows_per_privacy_id=1,
+            max_rows_per_privacy_id=max_rows_per_privacy_id,
             strategy=params.partition_selection_strategy,
             pre_threshold=params.pre_threshold)
         col = self._backend.keys(col,
