@@ -13,6 +13,7 @@
 # limitations under the License.
 """DP aggregations."""
 import collections
+from collections.abc import Iterator
 import functools
 import numpy as np
 from typing import Any, Callable, Optional, Sequence, Tuple, Union
@@ -84,7 +85,8 @@ class DPEngine:
             from elements of 'col'.
           public_partitions: A collection of partition keys that will be present
             in the result. If not provided, partitions will be selected in a DP
-            manner.
+            manner. Finite local iterables, including one-shot iterators, are
+            supported. Iterators are materialized when this method is called.
           out_explain_computation_report: an output argument, if specified,
             it will contain the Explain Computation report for this aggregation.
             For more details see the docstring to report_generator.py.
@@ -99,6 +101,10 @@ class DPEngine:
         self._check_budget_accountant_compatibility(
             public_partitions is not None, params.metrics,
             params.custom_combiners is not None)
+
+        # Filtering and adding empty partitions both need the public keys.
+        if isinstance(public_partitions, Iterator):
+            public_partitions = tuple(public_partitions)
 
         with self._budget_accountant.scope(weight=params.budget_weight):
             self._add_report_generator(params, "aggregate", public_partitions
