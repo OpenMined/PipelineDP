@@ -870,15 +870,21 @@ class DpEngineTest(parameterized.TestCase):
         # applying the "max_partitions_contributed" bound is retained.
         self.assertEqual(["pk-many-contribs"], col)
 
-    @parameterized.parameters(1, 100)
+    @parameterized.parameters(
+        (1, 1, ["pk-many-contribs", "pk-medium-contribs"]),
+        (100, 1, ["pk-many-contribs"]),
+        (1, 30, ["pk-many-contribs"]),
+    )
     def test_select_partitions_contribution_bounds_already_enforced(
-            self, max_partitions_contributed):
+            self, max_partitions_contributed, max_contributions_per_partition,
+            expected_partitions):
         # This test is probabilistic, but the parameters were chosen to ensure
         # flakiness less than 1e-4.
 
         # Arrange
         params = pipeline_dp.SelectPartitionsParams(
             max_partitions_contributed=max_partitions_contributed,
+            max_contributions_per_partition=max_contributions_per_partition,
             contribution_bounds_already_enforced=True)
 
         budget_accountant = budget_accounting.NaiveBudgetAccountant(
@@ -891,8 +897,9 @@ class DpEngineTest(parameterized.TestCase):
         col = ["pk-many-contribs"] * 2000
 
         # A partition with less contributions, it is released when
-        # max_partitions_contributed=1, but dropped when
-        # max_partitions_contributed=100.
+        # max_partitions_contributed=1 and max_contributions_per_partition=1,
+        # but dropped when max_partitions_contributed=100 or
+        # max_contributions_per_partition=30.
         col += ["pk-medium-contribs"] * 50
 
         # A partition with few contributions (will be dropped almost always).
@@ -914,11 +921,7 @@ class DpEngineTest(parameterized.TestCase):
         col = list(col)
 
         # Assert
-        if max_partitions_contributed == 1:
-            self.assertEqual(["pk-many-contribs", "pk-medium-contribs"],
-                             sorted(col))
-        else:  # max_partitions_contributed == 100:
-            self.assertEqual(["pk-many-contribs"], col)
+        self.assertEqual(expected_partitions, sorted(col))
 
     def test_check_select_partitions(self):
         """ Tests validation of parameters for select_partitions()"""

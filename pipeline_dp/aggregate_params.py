@@ -471,19 +471,28 @@ class SelectPartitionsParams:
          max_contributions_per_partition. This option can be used if the dataset
          does not contain any identifiers that can be used to enforce
          contribution bounds automatically.
+        max_contributions_per_partition: A bound on the number of times one
+         unit of privacy (e.g. a user) can contribute to a partition. Only used
+         when contribution_bounds_already_enforced is True.
     """
     max_partitions_contributed: int
     budget_weight: float = 1
     partition_selection_strategy: PartitionSelectionStrategy = PartitionSelectionStrategy.TRUNCATED_GEOMETRIC
     pre_threshold: Optional[int] = None
     contribution_bounds_already_enforced: bool = False
-
-    # TODO: Add support for contribution_bounds_already_enforced
+    max_contributions_per_partition: Optional[int] = None
 
     def __post_init__(self):
         _check_pre_threshold(self.pre_threshold,
                              self.partition_selection_strategy)
         _check_is_positive_float(self.budget_weight, "budget_weight")
+        if (self.contribution_bounds_already_enforced and
+                self.max_contributions_per_partition is None):
+            raise ValueError("max_contributions_per_partition must be set when "
+                             "contribution_bounds_already_enforced is True.")
+        if self.max_contributions_per_partition is not None:
+            _check_is_positive_int(self.max_contributions_per_partition,
+                                   "max_contributions_per_partition")
 
     def __str__(self):
         return "Private Partitions"

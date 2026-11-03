@@ -144,6 +144,7 @@ def get_private_movies(movie_views, backend):
         movie_views,
         pipeline_dp.SelectPartitionsParams(
             max_partitions_contributed=2,
+            max_contributions_per_partition=1,
             contribution_bounds_already_enforced=FLAGS.
             contribution_bounds_already_enforced),
         data_extractors=data_extractors)

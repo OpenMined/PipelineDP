@@ -422,6 +422,41 @@ class SelectPartitionsParamsTest(parameterized.TestCase):
         ap.SelectPartitionsParams(max_partitions_contributed=1,
                                   budget_weight=budget_weight)
 
+    @parameterized.parameters(0.1, -1, 0, float('nan'), float('inf'))
+    def test_invalid_max_contributions_per_partition(
+            self, max_contributions_per_partition):
+        with self.assertRaisesRegex(
+                ValueError,
+                'max_contributions_per_partition has to be positive integer'):
+            ap.SelectPartitionsParams(max_partitions_contributed=1,
+                                      max_contributions_per_partition=
+                                      max_contributions_per_partition)
+
+    def test_contribution_bounds_already_enforced_without_max_contributions(
+            self):
+        with self.assertRaisesRegex(
+                ValueError,
+                'max_contributions_per_partition must be set when '
+                'contribution_bounds_already_enforced is True'):
+            ap.SelectPartitionsParams(max_partitions_contributed=1,
+                                      contribution_bounds_already_enforced=True)
+
+    @parameterized.parameters(
+        (False, None),
+        (False, 1),
+        (False, 42),
+        (True, 1),
+        (True, 42),
+    )
+    def test_valid_max_contributions_per_partition(
+            self, contribution_bounds_already_enforced,
+            max_contributions_per_partition):
+        ap.SelectPartitionsParams(
+            max_partitions_contributed=1,
+            contribution_bounds_already_enforced=
+            contribution_bounds_already_enforced,
+            max_contributions_per_partition=max_contributions_per_partition)
+
 
 class AddDPNoiseParamsTest(parameterized.TestCase):
 
