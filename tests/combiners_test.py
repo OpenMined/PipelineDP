@@ -1026,6 +1026,12 @@ class VectorSumCombinerTest(parameterized.TestCase):
         params = dp_combiners.CombinerParams(mechanism_spec, aggregate_params)
         return dp_combiners.VectorSumCombiner(params)
 
+    def test_explain_computation(self):
+        combiner = self._create_combiner(no_noise=False, vector_size=2)
+        explanation = combiner.explain_computation()
+        self.assertTrue(callable(explanation))
+        self.assertIn('Computed vector sum with', explanation())
+
     @parameterized.product(
         testcase=[
             dict(input_vector=[[]], output_vector=[]),
