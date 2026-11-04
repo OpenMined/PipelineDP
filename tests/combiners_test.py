@@ -1102,6 +1102,40 @@ class VectorSumCombinerTest(parameterized.TestCase):
 
         np.testing.assert_almost_equal(result, output_vector, decimal=3)
 
+    def test_create_accumulator_does_not_modify_input(self):
+        combiner = self._create_combiner(no_noise=True,
+                                         vector_size=2,
+                                         vector_max_norm=999)
+        v1 = np.array([1.0, 2.0])
+        v2 = np.array([10.0, 20.0])
+
+        result = combiner.create_accumulator([v1, v2])
+
+        np.testing.assert_array_equal(result, [11.0, 22.0])
+        np.testing.assert_array_equal(v1, [1.0, 2.0])
+        np.testing.assert_array_equal(v2, [10.0, 20.0])
+
+    def test_create_accumulator_same_array_repeated(self):
+        combiner = self._create_combiner(no_noise=True,
+                                         vector_size=2,
+                                         vector_max_norm=999)
+        v = np.array([1.0, 1.0])
+
+        result = combiner.create_accumulator([v, v, v])
+
+        np.testing.assert_array_equal(result, [3.0, 3.0])
+        np.testing.assert_array_equal(v, [1.0, 1.0])
+
+    def test_create_accumulator_int_then_float_vectors(self):
+        combiner = self._create_combiner(no_noise=True,
+                                         vector_size=2,
+                                         vector_max_norm=999)
+
+        result = combiner.create_accumulator(
+            [np.array([1, 2]), np.array([0.5, 0.5])])
+
+        np.testing.assert_array_equal(result, [1.5, 2.5])
+
     def test_merge_accumulators(self):
         combiner = self._create_combiner(no_noise=True, vector_size=1)
         self.assertEqual(

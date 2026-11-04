@@ -916,7 +916,8 @@ class VectorSumCombiner(Combiner):
                     f"Shape mismatch: {val.shape} != {(self._params.aggregate_params.vector_size,)}"
                 )
             if array_sum is None:
-                array_sum = val
+                # Copy, so that the caller's array is not modified below.
+                array_sum = val.astype(float)
             else:
                 array_sum += val
         return self._clip_vector(array_sum)
