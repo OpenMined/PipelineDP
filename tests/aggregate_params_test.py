@@ -39,6 +39,16 @@ class MetricsTest(parameterized.TestCase):
         self.assertEqual(hash(Metric("name")), hash("name"))
         self.assertEqual(hash(Metric("name", 10)), hash("name(10)"))
 
+    @parameterized.parameters(0, 50, 99.9, 100)
+    def test_percentile(self, percentile):
+        self.assertEqual(aggregate_params.Metrics.PERCENTILE(percentile),
+                         Metric("PERCENTILE", percentile))
+
+    @parameterized.parameters(-5, 100.5, 150, float("nan"), float("inf"))
+    def test_percentile_out_of_range_raises(self, percentile):
+        with self.assertRaisesRegex(ValueError, "between 0 and 100"):
+            aggregate_params.Metrics.PERCENTILE(percentile)
+
 
 class AggregateParamsTest(parameterized.TestCase):
 
