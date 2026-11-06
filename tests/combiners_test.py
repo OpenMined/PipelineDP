@@ -1033,6 +1033,22 @@ class VectorSumCombinerTest(parameterized.TestCase):
         self.assertIn('Computed vector sum with', explanation())
 
     @parameterized.product(
+        vector_size=[1, 3],
+        norm_kind=[ap.NormKind.L1, ap.NormKind.L2, ap.NormKind.Linf])
+    def test_empty_accumulator_is_merge_identity(self, vector_size, norm_kind):
+        combiner = self._create_combiner(no_noise=True,
+                                         vector_size=vector_size,
+                                         vector_norm_kind=norm_kind)
+        empty = combiner.create_accumulator(iter(()))
+        values = combiner.create_accumulator([np.ones(vector_size)])
+
+        np.testing.assert_array_equal(empty, np.zeros(vector_size))
+        np.testing.assert_array_equal(
+            combiner.merge_accumulators(empty, values), values)
+        np.testing.assert_array_equal(
+            combiner.merge_accumulators(values, empty), values)
+
+    @parameterized.product(
         testcase=[
             dict(input_vector=[[]], output_vector=[]),
             dict(input_vector=[[0]], output_vector=[0]),

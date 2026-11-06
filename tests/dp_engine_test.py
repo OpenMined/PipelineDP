@@ -44,6 +44,57 @@ class MockPartitionStrategy(partition_selection.PartitionSelectionStrategy):
 
 class DpEngineTest(parameterized.TestCase):
 
+    @parameterized.product(norm_and_noise=[
+        (agg.NormKind.L1, agg.NoiseKind.LAPLACE),
+        (agg.NormKind.L1, agg.NoiseKind.GAUSSIAN),
+        (agg.NormKind.L2, agg.NoiseKind.GAUSSIAN),
+        (agg.NormKind.Linf, agg.NoiseKind.GAUSSIAN)
+    ],
+                           has_public_values=[False, True])
+    @patch("pipeline_dp.dp_computations.apply_gaussian_mechanism",
+           side_effect=lambda value, *args: value + 0.5)
+    @patch("pipeline_dp.dp_computations.apply_laplace_mechanism",
+           side_effect=lambda value, *args: value + 0.5)
+    def test_vector_sum_public_partitions(self, laplace_noise, gaussian_noise,
+                                          norm_and_noise, has_public_values):
+        norm_kind, noise_kind = norm_and_noise
+        accountant = budget_accounting.NaiveBudgetAccountant(total_epsilon=1,
+                                                             total_delta=1e-6)
+        engine = pipeline_dp.DPEngine(accountant,
+                                      pipeline_backend.LocalBackend())
+        params = pipeline_dp.AggregateParams(metrics=[agg.Metrics.VECTOR_SUM],
+                                             noise_kind=noise_kind,
+                                             max_partitions_contributed=1,
+                                             max_contributions_per_partition=1,
+                                             vector_size=3,
+                                             vector_norm_kind=norm_kind,
+                                             vector_max_norm=5)
+        extractors = pipeline_dp.DataExtractors(
+            privacy_id_extractor=lambda row: row[0],
+            partition_extractor=lambda row: row[1],
+            value_extractor=lambda row: row[2])
+        partition = "p" if has_public_values else "not-public"
+        data = [("alice", partition, [3.0, 4.0, 0.0])]
+
+        result = engine.aggregate(data,
+                                  params,
+                                  extractors,
+                                  public_partitions=["p", "empty"])
+        accountant.compute_budgets()
+        actual = dict(result)
+
+        self.assertEqual(set(actual), {"p", "empty"})
+        expected = np.zeros(3)
+        if has_public_values:
+            expected = np.array([15 / 7, 20 / 7, 0] if norm_kind ==
+                                agg.NormKind.L1 else [3, 4, 0])
+        np.testing.assert_allclose(actual["p"].vector_sum, expected + 0.5)
+        np.testing.assert_array_equal(actual["empty"].vector_sum,
+                                      np.full(3, 0.5))
+        noise = (laplace_noise
+                 if noise_kind == agg.NoiseKind.LAPLACE else gaussian_noise)
+        self.assertEqual(noise.call_count, 6)
+
     def _get_default_extractors(self) -> pipeline_dp.DataExtractors:
         return pipeline_dp.DataExtractors(
             privacy_id_extractor=lambda x: x,

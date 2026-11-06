@@ -224,6 +224,46 @@ class DPComputationsTest(parameterized.TestCase):
         mock_gaussian_mechanism.add_noise.assert_called_with(20)
         self.assertEqual("value_with_noise", anonymized_value)
 
+    @parameterized.parameters((1, 1.0), (4, 2.5), (9, 3.0))
+    @patch("pydp.algorithms.numerical_mechanisms.GaussianMechanism")
+    def test_vector_gaussian_l1_sensitivity(self, max_partitions, max_norm,
+                                            gaussian_mechanism):
+        add_noise = gaussian_mechanism.return_value.add_noise
+        add_noise.side_effect = lambda x: x + 0.5
+        params = dp_computations.AdditiveVectorNoiseParams(
+            eps=0.7,
+            delta=1e-6,
+            max_norm=max_norm,
+            l0_sensitivity=max_partitions,
+            linf_sensitivity=1,
+            norm_kind=aggregate_params.NormKind.L1,
+            noise_kind=aggregate_params.NoiseKind.GAUSSIAN)
+        values = np.array([1.0, -2.0, 3.0])
+
+        actual = dp_computations.add_noise_vector(values, params)
+
+        self.assertEqual(gaussian_mechanism.call_count, len(values))
+        for call in gaussian_mechanism.call_args_list:
+            self.assertEqual(call.args,
+                             (0.7, 1e-6, max_norm * np.sqrt(max_partitions)))
+        self.assertEqual(add_noise.call_count, len(values))
+        np.testing.assert_array_equal(actual, values + 0.5)
+
+    def test_vector_gaussian_l1_with_real_noise(self):
+        params = dp_computations.AdditiveVectorNoiseParams(
+            eps=1,
+            delta=1e-6,
+            max_norm=2,
+            l0_sensitivity=4,
+            linf_sensitivity=1,
+            norm_kind=aggregate_params.NormKind.L1,
+            noise_kind=aggregate_params.NoiseKind.GAUSSIAN)
+
+        actual = dp_computations.add_noise_vector(np.zeros(3), params)
+
+        self.assertEqual(actual.shape, (3,))
+        self.assertTrue(np.isfinite(actual).all())
+
     def test_equally_split_budget(self):
         # The number of mechanisms must be bigger than 0.
         with self.assertRaises(ValueError):
