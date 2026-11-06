@@ -69,6 +69,9 @@ class Metrics:
 
     @classmethod
     def PERCENTILE(cls, percentile_to_compute: float):
+        if not 0 <= percentile_to_compute <= 100:
+            raise ValueError("percentile_to_compute must be between 0 and 100, "
+                             f"but {percentile_to_compute} given.")
         return Metric('PERCENTILE', percentile_to_compute)
 
 
