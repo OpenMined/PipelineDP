@@ -175,7 +175,9 @@ def apply_laplace_mechanism(value: float, eps: float, l1_sensitivity: float):
     """
     mechanism = dp_mechanisms.LaplaceMechanism(epsilon=eps,
                                                sensitivity=l1_sensitivity)
-    return mechanism.add_noise(1.0 * value)
+    # float(), not 1.0 * value: 1.0 * np.float32 stays np.float32, and PyDP
+    # truncates np.float32 to an integer (OpenMined/PyDP#499).
+    return mechanism.add_noise(float(value))
 
 
 def apply_gaussian_mechanism(value: float, eps: float, delta: float,
@@ -194,7 +196,8 @@ def apply_gaussian_mechanism(value: float, eps: float, delta: float,
     # TODO: use named arguments, when argument names are added in PyDP on PR
     # https://github.com/OpenMined/PyDP/pull/398.
     mechanism = dp_mechanisms.GaussianMechanism(eps, delta, l2_sensitivity)
-    return mechanism.add_noise(1.0 * value)
+    # float(): see apply_laplace_mechanism.
+    return mechanism.add_noise(float(value))
 
 
 def _add_random_noise(
@@ -450,11 +453,13 @@ class AdditiveMechanism(abc.ABC):
             self, value: Union[int, float,
                                np.ndarray]) -> Union[float, np.ndarray]:
         """Anonymizes value by adding noise."""
+        # float(), not 1.0 * value: 1.0 * np.float32 stays np.float32, and
+        # PyDP truncates np.float32 to an integer (OpenMined/PyDP#499).
         if isinstance(value, np.ndarray):
             add_noise_vectorized = np.vectorize(
-                lambda x: self._mechanism.add_noise(1.0 * x))
+                lambda x: self._mechanism.add_noise(float(x)))
             return add_noise_vectorized(value)
-        return self._mechanism.add_noise(1.0 * value)
+        return self._mechanism.add_noise(float(value))
 
     @property
     @abc.abstractmethod

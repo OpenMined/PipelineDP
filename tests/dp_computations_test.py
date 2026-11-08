@@ -224,6 +224,18 @@ class DPComputationsTest(parameterized.TestCase):
         mock_gaussian_mechanism.add_noise.assert_called_with(20)
         self.assertEqual("value_with_noise", anonymized_value)
 
+    @parameterized.parameters(
+        lambda value: dp_computations.apply_laplace_mechanism(
+            value=value, eps=1e8, l1_sensitivity=0.1),
+        lambda value: dp_computations.apply_gaussian_mechanism(
+            value=value, eps=1e8, delta=1e-10, l2_sensitivity=0.1))
+    def test_apply_mechanism_does_not_truncate_float32(self, apply_mechanism):
+        # A large epsilon makes the noise negligible. np.float32 is not a
+        # Python float, and PyDP used to truncate it to an integer.
+        self.assertAlmostEqual(0.95,
+                               apply_mechanism(np.float32(0.95)),
+                               delta=0.01)
+
     def test_equally_split_budget(self):
         # The number of mechanisms must be bigger than 0.
         with self.assertRaises(ValueError):
@@ -461,6 +473,23 @@ class AdditiveMechanismTests(parameterized.TestCase):
         self.assertEqual(mechanism.sensitivity, l1_sensitivity)
         self.assertIsInstance(mechanism.add_noise(1000), float)
         self.assertIsInstance(mechanism.add_noise(np.array([1, 2])), np.ndarray)
+
+    @parameterized.parameters(
+        lambda: dp_computations.LaplaceMechanism.create_from_epsilon(
+            epsilon=1e8, l1_sensitivity=0.1),
+        lambda: dp_computations.GaussianMechanism.create_from_epsilon_delta(
+            epsilon=1e8, delta=1e-10, l2_sensitivity=0.1))
+    def test_add_noise_does_not_truncate_float32(self, create_mechanism):
+        # A large epsilon makes the noise negligible. np.float32 is not a
+        # Python float, and PyDP used to truncate it to an integer.
+        mechanism = create_mechanism()
+
+        self.assertAlmostEqual(0.95,
+                               mechanism.add_noise(np.float32(0.95)),
+                               delta=0.01)
+        np.testing.assert_allclose(mechanism.add_noise(
+            np.array([0.95, 1.05], dtype=np.float32)), [0.95, 1.05],
+                                   atol=0.01)
 
     def test_laplace_create_from_stddev(self):
         mechanism = dp_computations.LaplaceMechanism.create_from_std_deviation(
