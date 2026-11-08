@@ -782,7 +782,8 @@ def compute_sensitivities_for_privacy_id_count(
 
 def compute_sensitivities_for_sum(
         params: aggregate_params.AggregateParams) -> Sensitivities:
-    l0_sensitivity = params.max_partitions_contributed
+    l0_sensitivity = (params.max_partitions_contributed or
+                      params.max_contributions)
     max_abs_values = lambda x, y: max(abs(x), abs(y))
     if params.bounds_per_contribution_are_set:
         max_abs_val = max_abs_values(params.min_value, params.max_value)

@@ -471,6 +471,26 @@ class PostAggregationThresholdingCombinerTest(parameterized.TestCase):
         self.assertEqual(
             type(thresholding_strategy).__name__, expected_strategy_class)
 
+    @patch('pipeline_dp.dp_computations.create_thresholding_mechanism')
+    def test_create_mechanism_with_max_contributions(
+            self, mock_create_thresholding_mechanism):
+        budget_accountant = ba.NaiveBudgetAccountant(total_epsilon=1,
+                                                     total_delta=1e-10)
+        aggregate_params = ap.AggregateParams(
+            noise_kind=ap.NoiseKind.GAUSSIAN,
+            metrics=[ap.Metrics.PRIVACY_ID_COUNT],
+            max_contributions=3)
+        combiner = dp_combiners.PostAggregationThresholdingCombiner(
+            budget_accountant, aggregate_params)
+        budget_accountant.compute_budgets()
+
+        combiner.create_mechanism()
+
+        # A privacy unit with at most 3 contributions is in at most 3
+        # partitions.
+        mock_create_thresholding_mechanism.assert_called_once_with(
+            combiner.mechanism_spec(), 3, None)
+
     def test_create_accumulator(self):
         combiner = self._create_combiner()
         self.assertEqual(0, combiner.create_accumulator([]))

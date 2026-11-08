@@ -814,6 +814,17 @@ class AdditiveMechanismTests(parameterized.TestCase):
         self.assertEqual(sensitivities.l1, 3 * 5)
         self.assertEqual(sensitivities.l2, 3 * 5)
 
+    def test_compute_sensitivities_for_sum_max_contributions_per_partition_bounds(
+            self):
+        params = create_aggregate_params(max_contributions=5,
+                                         min_sum_per_partition=-2,
+                                         max_sum_per_partition=3)
+        sensitivities = dp_computations.compute_sensitivities_for_sum(params)
+        # A privacy unit with at most 5 contributions is in at most 5
+        # partitions.
+        self.assertEqual(sensitivities.l0, 5)
+        self.assertEqual(sensitivities.linf, 3)
+
 
 class MeanMechanismTests(parameterized.TestCase):
 

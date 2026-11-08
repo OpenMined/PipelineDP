@@ -819,6 +819,28 @@ class DpEngineTest(parameterized.TestCase):
         self.assertEqual(aggregate_params.max_contributions_per_partition,
                          actual_max_rows_per_privacy_id)
 
+    @patch('pipeline_dp.DPEngine._select_private_partitions_internal')
+    def test_max_contributions_private_partition_selection(
+            self, mock_select_private_partitions_internal):
+        # Arrange.
+        engine = self._create_dp_engine_default()
+        aggregate_params = pipeline_dp.AggregateParams(
+            noise_kind=pipeline_dp.NoiseKind.LAPLACE,
+            metrics=[pipeline_dp.Metrics.COUNT],
+            max_contributions=3)
+        mock_select_private_partitions_internal.return_value = []
+
+        # Act.
+        engine.aggregate([1], aggregate_params, self._get_default_extractors())
+
+        # Assert.
+        # A privacy unit with at most 3 contributions is in at most 3
+        # partitions.
+        mock_select_private_partitions_internal.assert_called_once()
+        actual_max_partitions_contributed = mock_select_private_partitions_internal.call_args[
+            0][1]
+        self.assertEqual(3, actual_max_partitions_contributed)
+
     def test_contribution_bounds_already_enforced_sensible_result(self):
         # Arrange.
         # Set large budget, so the noise is very small.
