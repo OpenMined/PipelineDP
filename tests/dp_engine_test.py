@@ -1466,6 +1466,29 @@ class DpEngineTest(parameterized.TestCase):
             explain_computation_report.text(),
             "Adding NoiseKind.LAPLACE noise with parameter 37.5")
 
+    def test_add_dp_noise_does_not_truncate_float32(self):
+        # Arrange
+        # A large budget makes the noise negligible.
+        accountant = budget_accounting.NaiveBudgetAccountant(total_epsilon=1e6,
+                                                             total_delta=0)
+        engine = pipeline_dp.DPEngine(accountant,
+                                      pipeline_backend.LocalBackend())
+        params = pipeline_dp.aggregate_params.AddDPNoiseParams(
+            noise_kind=pipeline_dp.NoiseKind.LAPLACE,
+            l0_sensitivity=1,
+            linf_sensitivity=0.1)
+
+        # Act
+        output = engine.add_dp_noise([("pk", np.float32(0.95))], params)
+        accountant.compute_budgets()
+        output = list(output)
+
+        # Assert
+        # np.float32 is not a Python float, and PyDP used to truncate it to 0.
+        self.assertLen(output, 1)
+        self.assertEqual("pk", output[0][0])
+        self.assertAlmostEqual(0.95, output[0][1], delta=0.01)
+
     def test_weighted_gaussian_calculate_weights(self):
         engine = self.create_dp_engine_default()
         data_extractors = pipeline_dp.DataExtractors(lambda x: x[0],
