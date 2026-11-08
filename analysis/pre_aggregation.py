@@ -44,7 +44,8 @@ def preaggregate(col,
         a collection with elements (partition_key, (count, sum, n_partitions)).
     """
     col = backend.map(
-        col, lambda row: (data_extractors.privacy_id_extractor(row),
+        col, lambda row: (extractors.normalize_privacy_id(
+            data_extractors.privacy_id_extractor(row)),
                           data_extractors.partition_extractor(row),
                           data_extractors.value_extractor(row)),
         "Extract (privacy_id, partition_key, value))")

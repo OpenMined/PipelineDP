@@ -100,9 +100,10 @@ def compute_dataset_histograms(col, data_extractors: pipeline_dp.DataExtractors,
 
     # Extract the columns.
     col_with_values = backend.map(
-        col, lambda row: ((data_extractors.privacy_id_extractor(row),
-                           data_extractors.partition_extractor(row)),
-                          data_extractors.value_extractor(row)),
+        col, lambda row: (
+            (de.normalize_privacy_id(data_extractors.privacy_id_extractor(row)),
+             data_extractors.partition_extractor(row)),
+            data_extractors.value_extractor(row)),
         "Extract ((privacy_id, partition_key), value)")
     # col: ((pid, pk), value)
 

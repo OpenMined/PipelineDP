@@ -245,6 +245,38 @@ class ComputingHistogramsTest(parameterized.TestCase):
         else:
             self.assertIsNone(histograms.linf_sum_contributions_histogram)
 
+    @parameterized.parameters(False, True)
+    def test_compute_contribution_histograms_nan_privacy_ids_are_one_privacy_id(
+            self, pre_aggregated):
+        # Each NaN is a distinct object, as it is when it comes from a
+        # DataFrame. All of them must count as one privacy id, here the same as
+        # privacy id 0.
+        nan_input = [(float("nan"), i % 3, 1.0) for i in range(30)]
+        one_id_input = [(0, i % 3, 1.0) for i in range(30)]
+        data_extractors = de.DataExtractors(privacy_id_extractor=lambda x: x[0],
+                                            partition_extractor=lambda x: x[1],
+                                            value_extractor=lambda x: x[2])
+        backend = pipeline_backend.LocalBackend()
+
+        def compute_histograms(input):
+            if pre_aggregated:
+                input = list(
+                    pre_aggregation.preaggregate(input, backend,
+                                                 data_extractors))
+                return list(
+                    computing_histograms.
+                    compute_dataset_histograms_on_preaggregated_data(
+                        input,
+                        de.PreAggregateExtractors(
+                            partition_extractor=lambda x: x[0],
+                            preaggregate_extractor=lambda x: x[1]), backend))
+            return list(
+                computing_histograms.compute_dataset_histograms(
+                    input, data_extractors, backend))
+
+        self.assertEqual(compute_histograms(one_id_input),
+                         compute_histograms(nan_input))
+
 
 if __name__ == '__main__':
     absltest.main()
