@@ -14,7 +14,21 @@
 """Classes for keeping data (privacy unit, partition etc) extractors."""
 
 import dataclasses
-from typing import Callable, List, Optional
+from typing import Any, Callable, List, Optional
+
+import numpy as np
+
+
+def normalize_privacy_id(privacy_id: Any) -> Any:
+    """Returns None for a NaN privacy id, and the privacy id otherwise.
+
+    NaN != NaN, so grouping rows by a NaN privacy id makes each row its own
+    privacy unit, and those rows escape contribution bounding. Rows with a None
+    privacy id already form one privacy unit, and NaN privacy ids join it.
+    """
+    if isinstance(privacy_id, (float, np.floating)) and np.isnan(privacy_id):
+        return None
+    return privacy_id
 
 
 @dataclasses.dataclass

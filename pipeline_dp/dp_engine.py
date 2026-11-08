@@ -263,7 +263,8 @@ class DPEngine:
             # Perform contribution bounding
             # Extract the columns.
             col = self._backend.map(
-                col, lambda row: (data_extractors.privacy_id_extractor(row),
+                col, lambda row: (extractors.normalize_privacy_id(
+                    data_extractors.privacy_id_extractor(row)),
                                   data_extractors.partition_extractor(row)),
                 "Extract (privacy_id, partition_key))")
             # col : (privacy_id, partition_key)
@@ -444,7 +445,8 @@ class DPEngine:
             # no need to extract privacy_id.
             privacy_id_extractor = lambda row: None
         else:
-            privacy_id_extractor = data_extractors.privacy_id_extractor
+            privacy_id_extractor = lambda row: extractors.normalize_privacy_id(
+                data_extractors.privacy_id_extractor(row))
         return self._backend.map(
             col, lambda row:
             (privacy_id_extractor(row), data_extractors.partition_extractor(
@@ -682,7 +684,8 @@ class DPEngine:
             A collection of (partition_key, weight) pairs.
         """
         col = self._backend.map(
-            col, lambda row: (data_extractors.privacy_id_extractor(row),
+            col, lambda row: (extractors.normalize_privacy_id(
+                data_extractors.privacy_id_extractor(row)),
                               data_extractors.partition_extractor(row)),
             "Extract (privacy_id, partition_key))")
         col = self._backend.distinct(col, "Dedup (privacy_id, partition_key)")

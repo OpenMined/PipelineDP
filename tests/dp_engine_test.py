@@ -897,6 +897,94 @@ class DpEngineTest(parameterized.TestCase):
         # applying the "max_partitions_contributed" bound is retained.
         self.assertEqual(["pk-many-contribs"], col)
 
+    @parameterized.product(partition_selection_strategy=[
+        pipeline_dp.PartitionSelectionStrategy.TRUNCATED_GEOMETRIC,
+        pipeline_dp.PartitionSelectionStrategy.WEIGHTED_GAUSSIAN_THRESHOLDING
+    ],
+                           nan=[
+                               lambda: float("nan"), lambda: np.float32("nan")
+                           ])
+    def test_select_partitions_nan_privacy_ids_are_one_privacy_unit(
+            self, partition_selection_strategy, nan):
+        # This test is probabilistic, but with delta=1e-10 a partition with one
+        # privacy unit is released with negligible probability.
+
+        # Arrange
+        params = pipeline_dp.SelectPartitionsParams(
+            max_partitions_contributed=1,
+            partition_selection_strategy=partition_selection_strategy)
+
+        budget_accountant = budget_accounting.NaiveBudgetAccountant(
+            total_epsilon=1, total_delta=1e-10)
+
+        # A partition with many privacy units.
+        col = [(u, "pk-many-privacy-ids") for u in range(300)]
+
+        # A partition with many rows whose privacy ids are all NaN. Each NaN is
+        # a distinct object, as it is when it comes from a DataFrame.
+        col += [(nan(), "pk-nan-privacy-ids") for _ in range(300)]
+
+        data_extractor = pipeline_dp.DataExtractors(
+            privacy_id_extractor=lambda x: x[0],
+            partition_extractor=lambda x: x[1])
+
+        engine = pipeline_dp.DPEngine(budget_accountant=budget_accountant,
+                                      backend=pipeline_backend.LocalBackend())
+
+        col = engine.select_partitions(col=col,
+                                       params=params,
+                                       data_extractors=data_extractor)
+        budget_accountant.compute_budgets()
+
+        col = list(col)
+
+        # Assert
+        # All NaN privacy ids are one privacy unit, so "pk-nan-privacy-ids" has
+        # only one privacy unit and is dropped.
+        self.assertEqual(["pk-many-privacy-ids"], col)
+
+    @parameterized.parameters(lambda: float("nan"), lambda: np.float64("nan"),
+                              lambda: np.float32("nan"))
+    def test_aggregate_nan_privacy_ids_are_one_privacy_unit(self, nan):
+        # Arrange
+        params = pipeline_dp.AggregateParams(
+            noise_kind=pipeline_dp.NoiseKind.LAPLACE,
+            metrics=[agg.Metrics.COUNT, agg.Metrics.PRIVACY_ID_COUNT],
+            max_partitions_contributed=1,
+            max_contributions_per_partition=1)
+
+        # A large budget makes the noise negligible.
+        budget_accountant = budget_accounting.NaiveBudgetAccountant(
+            total_epsilon=1e5, total_delta=1e-10)
+
+        # 300 rows whose privacy ids are all NaN, each a distinct object.
+        col = [(nan(), "pk") for _ in range(300)]
+
+        data_extractor = pipeline_dp.DataExtractors(
+            privacy_id_extractor=lambda x: x[0],
+            partition_extractor=lambda x: x[1],
+            value_extractor=lambda x: 0)
+
+        engine = pipeline_dp.DPEngine(budget_accountant=budget_accountant,
+                                      backend=pipeline_backend.LocalBackend())
+
+        col = engine.aggregate(col=col,
+                               params=params,
+                               data_extractors=data_extractor,
+                               public_partitions=["pk"])
+        budget_accountant.compute_budgets()
+
+        col = list(col)
+
+        # Assert
+        # All NaN privacy ids are one privacy unit, which contributes at most
+        # max_contributions_per_partition=1 row.
+        self.assertLen(col, 1)
+        partition_key, metrics = col[0]
+        self.assertEqual("pk", partition_key)
+        self.assertAlmostEqual(1, metrics.count, delta=0.5)
+        self.assertAlmostEqual(1, metrics.privacy_id_count, delta=0.5)
+
     @parameterized.parameters(
         (1, 1, ["pk-many-contribs", "pk-medium-contribs"]),
         (100, 1, ["pk-many-contribs"]),
