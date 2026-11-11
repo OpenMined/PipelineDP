@@ -364,6 +364,11 @@ class PostAggregationThresholdingCombiner(Combiner, MechanismContainerMixin):
             weight=aggregate_params.budget_weight)
         self._sensitivities = dp_computations.compute_sensitivities_for_privacy_id_count(
             aggregate_params)
+        # With max_contributions, a privacy unit is in at most
+        # max_contributions partitions.
+        self._max_partitions_contributed = (
+            aggregate_params.max_partitions_contributed or
+            aggregate_params.max_contributions)
         self._pre_threshold = aggregate_params.pre_threshold
 
     def create_accumulator(self, values: Sized) -> AccumulatorType:
@@ -402,8 +407,8 @@ class PostAggregationThresholdingCombiner(Combiner, MechanismContainerMixin):
 
     def create_mechanism(self) -> dp_computations.ThresholdingMechanism:
         return dp_computations.create_thresholding_mechanism(
-            self.mechanism_spec(),
-            self.sensitivities().l0, self._pre_threshold)
+            self.mechanism_spec(), self._max_partitions_contributed,
+            self._pre_threshold)
 
 
 class SumCombiner(Combiner, AdditiveMechanismMixin):

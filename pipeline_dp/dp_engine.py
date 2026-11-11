@@ -185,8 +185,12 @@ class DPEngine:
                     params.max_contributions or
                     params.max_contributions_per_partition)
 
+            # With max_contributions, a privacy unit has at most
+            # max_contributions rows, so it is in at most that many partitions.
+            max_partitions_contributed = (params.max_partitions_contributed or
+                                          params.max_contributions)
             col = self._select_private_partitions_internal(
-                col, params.max_partitions_contributed, max_rows_per_privacy_id,
+                col, max_partitions_contributed, max_rows_per_privacy_id,
                 params.partition_selection_strategy, params.pre_threshold)
         # col : (partition_key, accumulator)
 
