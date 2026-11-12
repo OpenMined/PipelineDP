@@ -210,7 +210,10 @@ class PrivateRDDTest(parameterized.TestCase):
         # Assert
         # This is a health check to validate that the result is sensible.
         # Hence, we use a very large tolerance to reduce test flakiness.
-        expected_result_dict = {"pubK1": 0.288, "pubK2": 0.0}
+        # pubK2 has no data points, so its mean of squares is the middle of
+        # [0, ((max_value - min_value) / 2)**2], the same way its mean is the
+        # middle of [min_value, max_value].
+        expected_result_dict = {"pubK1": 0.288, "pubK2": 0.192}
         actual_result_dict = self.to_dict(actual_result.collect())
 
         for pk, variance in actual_result_dict.items():

@@ -266,8 +266,10 @@ class PrivateBeamTest(unittest.TestCase):
             # Hence, we use a very large tolerance to reduce test flakiness.
             beam_util.assert_that(
                 result,
-                # pubK2 has no data points therefore the dataset is assumed to be {min_value, max_value}
-                beam_util.equal_to([("pubK1", 0.288), ("pubK2", 0.0)],
+                # pubK2 has no data points, so its mean of squares is the middle
+                # of [0, ((max_value - min_value) / 2)**2], the same way its
+                # mean is the middle of [min_value, max_value].
+                beam_util.equal_to([("pubK1", 0.288), ("pubK2", 0.192)],
                                    equals_fn=lambda e, a: PrivateBeamTest.
                                    value_per_key_within_tolerance(e, a, 0.1)))
 
