@@ -688,7 +688,9 @@ class PLDBudgetAccountant(BudgetAccountant):
                 # with an additional threshold delta (which is substracted from
                 # total delta)
                 pld = self._create_pld_for_gaussian(noise_stddev, mechanism)
-            elif mechanism_type == MechanismType.GENERIC:
+            elif mechanism_type in (MechanismType.GENERIC,
+                                    MechanismType.TRUNCATED_GEOMETRIC):
+                # compute_budgets gives both an (epsilon, delta) the same way.
                 pld = self._create_pld_for_generic(noise_stddev, mechanism)
 
             count = mechanism.mechanism_spec.count
@@ -738,8 +740,10 @@ class PLDBudgetAccountant(BudgetAccountant):
         # parameter. There are multiple ways to do this; here it is
         # assumed that (epsilon, delta) specifies the Laplace mechanism
         # and epsilon is computed based on this. The delta is computed
-        # to be proportional to epsilon.
-        epsilon_0_interim = math.sqrt(2) / noise_stddev
+        # to be proportional to epsilon. As in compute_budgets, the
+        # mechanism's noise is scaled by its sensitivity and weight.
+        mechanism_noise_std = mechanism.sensitivity * noise_stddev / mechanism.weight
+        epsilon_0_interim = math.sqrt(2) / mechanism_noise_std
         delta_0_interim = epsilon_0_interim / self._total_epsilon * self._total_delta
         return pldlib.from_privacy_parameters(
             common.DifferentialPrivacyParameters(epsilon_0_interim,
