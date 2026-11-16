@@ -19,6 +19,8 @@ import unittest
 from dataclasses import dataclass
 from pipeline_dp import budget_accounting
 from absl.testing import parameterized
+from dp_accounting.pld import common
+from dp_accounting.pld import privacy_loss_distribution as pldlib
 
 
 # pylint: disable=protected-access
@@ -263,6 +265,55 @@ class PLDBudgetAccountantTest(unittest.TestCase):
             # Budget can not be requested after it has been already computed.
             budget_accountant.request_budget(
                 mechanism_type=budget_accounting.MechanismType.LAPLACE)
+
+    def test_truncated_geometric_alone(self):
+        accountant = budget_accounting.PLDBudgetAccountant(total_epsilon=1,
+                                                           total_delta=1e-6)
+        selection = accountant.request_budget(
+            budget_accounting.MechanismType.TRUNCATED_GEOMETRIC)
+
+        accountant.compute_budgets()
+
+        self.assertAlmostEqual(selection.eps, 1, delta=1e-2)
+
+    def test_truncated_geometric_is_counted_in_the_budget(self):
+        for weight in (1, 2, 0.25):
+            for selection_first in (True, False):
+                with self.subTest(weight=weight,
+                                  selection_first=selection_first):
+                    self._check_selection_and_laplace(weight, selection_first)
+
+    def _check_selection_and_laplace(self, weight, selection_first):
+        # Partition selection next to a Laplace mechanism, as in
+        # select_partitions followed by an aggregation.
+        accountant = budget_accounting.PLDBudgetAccountant(total_epsilon=1,
+                                                           total_delta=1e-6)
+        if selection_first:
+            selection = accountant.request_budget(
+                budget_accounting.MechanismType.TRUNCATED_GEOMETRIC,
+                weight=weight)
+            laplace = accountant.request_budget(
+                budget_accounting.MechanismType.LAPLACE)
+        else:
+            laplace = accountant.request_budget(
+                budget_accounting.MechanismType.LAPLACE)
+            selection = accountant.request_budget(
+                budget_accounting.MechanismType.TRUNCATED_GEOMETRIC,
+                weight=weight)
+
+        accountant.compute_budgets()
+
+        # The privacy loss of what is released, from the final specs.
+        released = pldlib.from_laplace_mechanism(
+            laplace.noise_standard_deviation / math.sqrt(2),
+            value_discretization_interval=1e-4).compose(
+                pldlib.from_privacy_parameters(
+                    common.DifferentialPrivacyParameters(
+                        selection.eps, selection.delta),
+                    value_discretization_interval=1e-4))
+        self.assertAlmostEqual(released.get_epsilon_for_delta(1e-6),
+                               1,
+                               delta=1e-2)
 
     def test_compute_budgets(self):
 
