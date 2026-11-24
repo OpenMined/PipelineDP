@@ -262,6 +262,42 @@ class PipelineBackend(abc.ABC):
         """
         return col  # no-op if not implemented for a Backend
 
+    def cache(self, col):
+        """Caches collection so repeated evaluations do not recompute it.
+
+        Args:
+          col: input collection of elements of any type.
+
+        Returns:
+          Cached collection, or `col` unchanged if the backend does not need
+          explicit caching.
+        """
+        return col
+
+    def defer_cache(
+        self,
+        col,
+        register_callback: Optional[Callable[[Callable[[], None]],
+                                             None]] = None,
+    ):
+        """Registers `col` to be cached when `register_callback` fires.
+
+        Args:
+          col: input collection of elements of any type.
+          register_callback: optional callable accepting a zero-argument
+            callback invoked once `col` is safe to cache. If None, caches
+            immediately when supported.
+
+        Returns:
+          `col`, prepared for deferred caching when applicable.
+        """
+        if type(self).cache is PipelineBackend.cache:
+            return col
+        if register_callback is None:
+            return self.cache(col)
+        register_callback(lambda: self.cache(col))
+        return col
+
 
 class ReiterableLazyIterable(Iterable):
     """A lazy iterable that can be iterated multiple times.

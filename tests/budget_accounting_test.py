@@ -210,6 +210,83 @@ class NaiveBudgetAccountantTest(parameterized.TestCase):
             # num_aggregations = 2, but only 1 aggregation_scope was created
             budget_accountant.compute_budgets()
 
+    def test_post_compute_budgets_callbacks(self):
+        accountant = budget_accounting.NaiveBudgetAccountant(total_epsilon=1.0,
+                                                             total_delta=1e-5)
+        spec = accountant.request_budget(
+            budget_accounting.MechanismType.LAPLACE)
+        events = []
+        accountant.run_after_compute_budgets(lambda: events.append(
+            ("first", spec.eps)))
+        accountant.run_after_compute_budgets(lambda: events.append(
+            ("second", spec.eps)))
+        self.assertEqual(events, [])
+        accountant.compute_budgets()
+        self.assertEqual(events, [("first", 1.0), ("second", 1.0)])
+        accountant.run_after_compute_budgets(lambda: events.append(
+            ("third", spec.eps)))
+        self.assertEqual(len(events), 3)
+
+    def test_post_compute_budgets_callbacks_empty_mechanisms(self):
+        accountant = budget_accounting.NaiveBudgetAccountant(total_epsilon=1.0,
+                                                             total_delta=0.0)
+        called = []
+        accountant.run_after_compute_budgets(lambda: called.append(True))
+        accountant.compute_budgets()
+        self.assertEqual(called, [True])
+
+    def test_post_compute_budgets_callbacks_not_run_on_failure(self):
+        accountant = budget_accounting.NaiveBudgetAccountant(total_epsilon=1.0,
+                                                             total_delta=0.0)
+        called = []
+        with accountant.scope(weight=1.0):
+            accountant.request_budget(budget_accounting.MechanismType.LAPLACE)
+            accountant.run_after_compute_budgets(lambda: called.append(True))
+            with self.assertRaises(Exception):
+                accountant.compute_budgets()
+        self.assertEqual(called, [])
+        # Late registration after failed compute_budgets must not invoke.
+        accountant.run_after_compute_budgets(lambda: called.append("late"))
+        self.assertEqual(called, [])
+
+    def test_post_compute_budgets_callbacks_runs_all_if_one_raises(self):
+        accountant = budget_accounting.NaiveBudgetAccountant(total_epsilon=1.0,
+                                                             total_delta=0.0)
+        accountant.request_budget(budget_accounting.MechanismType.LAPLACE)
+        ran = []
+
+        def failing_cb():
+            ran.append("first")
+            raise RuntimeError("boom")
+
+        accountant.run_after_compute_budgets(failing_cb)
+        accountant.run_after_compute_budgets(lambda: ran.append("second"))
+        with self.assertRaisesRegex(RuntimeError, "boom"):
+            accountant.compute_budgets()
+        self.assertEqual(ran, ["first", "second"])
+
+    def test_custom_budget_accountant_subclass_runs_callbacks(self):
+
+        class DummyBudgetAccountant(budget_accounting.BudgetAccountant):
+
+            def request_budget(self,
+                               mechanism_type,
+                               sensitivity=1,
+                               weight=1,
+                               count=1,
+                               noise_standard_deviation=None,
+                               name=""):
+                return budget_accounting.MechanismSpec(mechanism_type, name)
+
+            def compute_budgets(self):
+                self._finalize()
+
+        accountant = DummyBudgetAccountant(1.0, 0.0, None, None)
+        called = []
+        accountant.run_after_compute_budgets(lambda: called.append(True))
+        accountant.compute_budgets()
+        self.assertEqual(called, [True])
+
 
 @unittest.skipIf(sys.version_info.major == 3 and sys.version_info.minor <= 8,
                  "dp_accounting library only support python >=3.9")
@@ -625,6 +702,27 @@ class PLDBudgetAccountantTest(unittest.TestCase):
         self.assertAlmostEqual(budget.noise_standard_deviation,
                                94.656,
                                delta=1e-3)
+
+    def test_post_compute_budgets_callbacks(self):
+        for has_mechanism in (True, False):
+            with self.subTest(has_mechanism=has_mechanism):
+                accountant = budget_accounting.PLDBudgetAccountant(
+                    total_epsilon=1.0, total_delta=1e-5)
+                observed = []
+                if has_mechanism:
+                    spec = accountant.request_budget(
+                        budget_accounting.MechanismType.LAPLACE)
+                    accountant.run_after_compute_budgets(
+                        lambda s=spec, o=observed: o.append(
+                            s.noise_standard_deviation))
+                else:
+                    accountant.run_after_compute_budgets(
+                        lambda o=observed: o.append("empty"))
+                self.assertEqual(observed, [])
+                accountant.compute_budgets()
+                self.assertEqual(len(observed), 1)
+                if has_mechanism:
+                    self.assertGreater(observed[0], 0.0)
 
 
 if __name__ == '__main__':

@@ -14,11 +14,74 @@
 """Apache Spark RDD adapter."""
 from collections.abc import Iterable
 import random
-from typing import Callable
+from typing import Callable, Optional
 import operator
+
+try:
+    from pyspark import rdd as pyspark_rdd
+except ImportError:
+    pyspark_rdd = None
 
 from pipeline_dp import combiners as dp_combiners
 from pipeline_dp import pipeline_backend
+
+if pyspark_rdd is not None:
+
+    # pylint: disable=too-many-instance-attributes
+    class _DeferredParentPipelinedRDD(pyspark_rdd.PipelinedRDD):
+        """PipelinedRDD deferring parent _jrdd resolution until evaluated."""
+
+        # pylint: disable=super-init-not-called,invalid-name
+        def __init__(self,
+                     prev,
+                     func,
+                     preservesPartitioning: bool = False,
+                     isFromBarrier: bool = False):
+            # PipelinedRDD.__init__ eagerly touches prev._jrdd or inlines
+            # prev.func; initialize state directly and resolve prev._jrdd
+            # lazily after compute_budgets() caches the parent RDD.
+            if (isinstance(prev, _DeferredParentPipelinedRDD) and
+                    prev._is_pipelinable()):
+                prev_func = prev.func
+
+                def pipeline_func(split, iterator):
+                    return func(split, prev_func(split, iterator))
+
+                self.func = pipeline_func
+                self.preservesPartitioning = (prev.preservesPartitioning and
+                                              preservesPartitioning)
+                self._deferred_prev = prev._deferred_prev
+            else:
+                self.func = func
+                self.preservesPartitioning = preservesPartitioning
+                self._deferred_prev = prev
+
+            self._prev_jrdd_deserializer = (
+                self._deferred_prev._jrdd_deserializer)
+            self.is_cached = False
+            self.has_resource_profile = False
+            self.is_checkpointed = False
+            self.ctx = prev.ctx
+            self.prev = prev
+            self._jrdd_val = None
+            self._id = None
+            self._jrdd_deserializer = self.ctx.serializer
+            self._bypass_serializer = False
+            self.partitioner = (prev.partitioner
+                                if self.preservesPartitioning else None)
+            self.is_barrier = isFromBarrier or prev._is_barrier()
+
+        @property
+        def _prev_jrdd(self):
+            return self._deferred_prev._jrdd  # pylint: disable=protected-access
+
+        def getNumPartitions(self) -> int:
+            return self._deferred_prev.getNumPartitions()
+
+        def mapPartitionsWithIndex(self,
+                                   f,
+                                   preservesPartitioning: bool = False):
+            return _DeferredParentPipelinedRDD(self, f, preservesPartitioning)
 
 
 class SparkRDDBackend(pipeline_backend.PipelineBackend):
@@ -150,3 +213,53 @@ class SparkRDDBackend(pipeline_backend.PipelineBackend):
 
     def to_list(self, col, stage_name: str):
         raise NotImplementedError("to_list is not implement in SparkBackend.")
+
+    def cache(self, col):
+        """Caches a Spark RDD in memory if not already cached.
+
+        Uses default MEMORY_ONLY caching (`col.cache()`) rather than
+        MEMORY_AND_DISK so caller `.cache()` calls remain idempotent instead of
+        raising SparkUnsupportedOperationException. Callers needing another
+        StorageLevel may call `rdd.unpersist().persist(...)`.
+        """
+        if not col.is_cached:
+            col.cache()
+        return col
+
+    def defer_cache(
+        self,
+        col,
+        register_callback: Optional[Callable[[Callable[[], None]],
+                                             None]] = None,
+    ):
+        """Defers caching `col` until `register_callback` runs the cache hook.
+
+        While caching is pending on an uncached PipelinedRDD, narrow
+        transforms chained onto `col` use `_DeferredParentPipelinedRDD` so
+        PySpark does not inline `col.func` before `col` is cached.
+        """
+        if col.is_cached:
+            return col
+        if register_callback is None:
+            return self.cache(col)
+        if pyspark_rdd is None or not isinstance(col, pyspark_rdd.PipelinedRDD):
+            register_callback(lambda: self.cache(col))
+            return col
+
+        def deferred_map_partitions(
+                f,
+                preservesPartitioning: bool = False,  # pylint: disable=invalid-name
+        ):
+            if col.is_cached:
+                return pyspark_rdd.RDD.mapPartitionsWithIndex(
+                    col, f, preservesPartitioning)
+            return _DeferredParentPipelinedRDD(col, f, preservesPartitioning)
+
+        col.mapPartitionsWithIndex = deferred_map_partitions
+
+        def cache_and_restore():
+            col.__dict__.pop("mapPartitionsWithIndex", None)
+            self.cache(col)
+
+        register_callback(cache_and_restore)
+        return col

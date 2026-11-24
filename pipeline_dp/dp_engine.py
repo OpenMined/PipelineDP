@@ -116,7 +116,8 @@ class DPEngine:
                                   public_partitions)
             budgets = self._budget_accountant._compute_budgets_for_aggregation(
                 params.budget_weight)
-            return self._annotate(col, params=params, budget=budgets)
+            return self._defer_cache(
+                self._annotate(col, params=params, budget=budgets))
 
     def _aggregate(self, col, params: aggregate_params.AggregateParams,
                    data_extractors: extractors.DataExtractors,
@@ -242,12 +243,14 @@ class DPEngine:
         with self._budget_accountant.scope(weight=params.budget_weight):
             self._add_report_generator(params, "select_partitions")
             if params.partition_selection_strategy.is_weighted_gaussian:
-                return self._select_partitions_weighted_gaussian(
-                    col, params, data_extractors)
+                return self._defer_cache(
+                    self._select_partitions_weighted_gaussian(
+                        col, params, data_extractors))
             col = self._select_partitions(col, params, data_extractors)
             budgets = self._budget_accountant._compute_budgets_for_aggregation(
                 params.budget_weight)
-            return self._annotate(col, params=params, budget=budgets)
+            return self._defer_cache(
+                self._annotate(col, params=params, budget=budgets))
 
     def _select_partitions(self, col,
                            params: aggregate_params.SelectPartitionsParams,
@@ -622,7 +625,8 @@ class DPEngine:
             anonymized_col = self._add_dp_noise(col, params)
             budgets = self._budget_accountant._compute_budgets_for_aggregation(
                 params.budget_weight)
-            return self._annotate(anonymized_col, params=params, budget=budgets)
+            return self._defer_cache(
+                self._annotate(anonymized_col, params=params, budget=budgets))
 
     def _add_dp_noise(self, col, params: aggregate_params.AddDPNoiseParams):
         # Request budget and create Sensitivities object
@@ -666,6 +670,10 @@ class DPEngine:
                                       "annotation",
                                       params=params,
                                       budget=budget)
+
+    def _defer_cache(self, col):
+        return self._backend.defer_cache(
+            col, self._budget_accountant.run_after_compute_budgets)
 
     def _weighted_gaussian_calculate_weights(
             self, col, data_extractors: extractors.DataExtractors,

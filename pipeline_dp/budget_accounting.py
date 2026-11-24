@@ -15,9 +15,10 @@
 
 import abc
 import collections
+import functools
 import logging
 import math
-from typing import Optional
+from typing import Callable, Optional
 
 from dataclasses import dataclass
 from pipeline_dp import aggregate_params as ap
@@ -150,6 +151,9 @@ class BudgetAccountant(abc.ABC):
         self._scopes_stack = []
         self._mechanisms = []
         self._finalized = False
+        self._budgets_computed = False
+        self._compute_budgets_depth = 0
+        self._post_compute_budgets_callbacks = []
         if num_aggregations is not None and aggregation_weights is not None:
             raise ValueError(
                 "'num_aggregations' and 'aggregation_weights' can not be set "
@@ -313,6 +317,56 @@ class BudgetAccountant(abc.ABC):
         if self._finalized:
             raise Exception("compute_budgets can not be called twice.")
         self._finalized = True
+
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        if ("compute_budgets" in cls.__dict__ and
+                not getattr(cls.__dict__["compute_budgets"],
+                            "__isabstractmethod__", False)):
+            orig_compute_budgets = cls.__dict__["compute_budgets"]
+
+            @functools.wraps(orig_compute_budgets)
+            def wrapped_compute_budgets(self, *args, **kw):  # pylint: disable=protected-access
+                self._compute_budgets_depth += 1
+                try:
+                    result = orig_compute_budgets(self, *args, **kw)
+                except BaseException:
+                    if self._compute_budgets_depth == 1 and self._finalized:
+                        self._post_compute_budgets_callbacks.clear()
+                    raise
+                finally:
+                    self._compute_budgets_depth -= 1
+                if self._compute_budgets_depth == 0:
+                    self._run_post_compute_budgets_callbacks()
+                return result
+
+            cls.compute_budgets = wrapped_compute_budgets
+
+    def run_after_compute_budgets(self, callback: Callable[[], None]) -> None:
+        """Runs callback after budgets are computed (or now if computed).
+
+        Callbacks run once in registration order after compute_budgets()
+        completes successfully. If a callback raises, remaining callbacks
+        still execute before re-raising the first exception.
+        """
+        if self._budgets_computed:
+            callback()
+        else:
+            self._post_compute_budgets_callbacks.append(callback)
+
+    def _run_post_compute_budgets_callbacks(self) -> None:
+        self._budgets_computed = True
+        callbacks = self._post_compute_budgets_callbacks
+        self._post_compute_budgets_callbacks = []
+        first_error = None
+        for callback in callbacks:
+            try:
+                callback()
+            except Exception as exc:  # pylint: disable=broad-except
+                if first_error is None:
+                    first_error = exc
+        if first_error is not None:
+            raise first_error
 
     @property
     def total_epsilon(self) -> float:

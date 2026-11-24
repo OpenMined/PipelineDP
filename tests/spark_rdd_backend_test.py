@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import random
 import sys
 import unittest
 import warnings
@@ -18,6 +19,7 @@ from typing import List
 
 from absl.testing import parameterized
 
+from pipeline_dp import budget_accounting
 from pipeline_dp import combiners as dp_combiners
 from pipeline_dp import data_extractors
 from pipeline_dp import spark_rdd_backend
@@ -149,6 +151,54 @@ class SparkRDDBackendTest(parameterized.TestCase):
         input = self.sc.parallelize([3, 2, 1, 3, 5, 4, 1, 1, 2])
         output = self.backend.distinct(input, "distinct").collect()
         self.assertSetEqual({1, 2, 3, 4, 5}, set(output))
+
+    def test_cache_caches_rdd_and_is_idempotent(self):
+        import pyspark
+        rdd = self.backend.map(self.sc.parallelize(range(5)), lambda x:
+                               (x, random.random()))
+        cached_rdd = self.backend.cache(rdd)
+        self.assertIs(cached_rdd, rdd)
+        self.assertTrue(cached_rdd.is_cached)
+        first = cached_rdd.collect()
+        self.assertEqual(cached_rdd.collect(), first)
+        # Calling cache() again must remain idempotent.
+        self.assertIs(self.backend.cache(cached_rdd), cached_rdd)
+        # Existing StorageLevel must not raise SparkUnsupportedOperationException.
+        disk_rdd = self.sc.parallelize(range(5)).persist(
+            pyspark.StorageLevel.MEMORY_AND_DISK)
+        self.assertIs(self.backend.cache(disk_rdd), disk_rdd)
+        self.assertEqual(disk_rdd.getStorageLevel(),
+                         pyspark.StorageLevel.MEMORY_AND_DISK)
+
+    def test_defer_cache_immediate_and_pre_budget_narrow_transforms(self):
+        immediate = self.backend.map(self.sc.parallelize(range(5)), lambda x:
+                                     (x, random.random()))
+        self.assertIs(self.backend.defer_cache(immediate), immediate)
+        self.assertTrue(immediate.is_cached)
+        self.assertEqual(immediate.collect(), immediate.collect())
+
+        accountant = budget_accounting.NaiveBudgetAccountant(1.0, 0.0)
+        deferred = self.backend.map(self.sc.parallelize(range(5)), lambda x:
+                                    (x, random.random()))
+        self.assertIs(
+            self.backend.defer_cache(deferred,
+                                     accountant.run_after_compute_budgets),
+            deferred)
+        # Chain narrow transforms BEFORE compute_budgets().
+        mapped = deferred.mapValues(lambda v: v * 2.0)
+        chained = mapped.filter(lambda kv: kv[0] % 2 == 0).map(lambda kv:
+                                                               (kv[0], kv[1]))
+        self.assertFalse(deferred.is_cached)
+
+        accountant.compute_budgets()
+        self.assertTrue(deferred.is_cached)
+        first_deferred = deferred.collect()
+        first_mapped = mapped.collect()
+        first_chained = chained.collect()
+        for _ in range(5):
+            self.assertEqual(deferred.collect(), first_deferred)
+            self.assertEqual(mapped.collect(), first_mapped)
+            self.assertEqual(chained.collect(), first_chained)
 
     @classmethod
     def tearDownClass(cls):
