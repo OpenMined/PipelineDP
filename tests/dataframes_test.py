@@ -425,6 +425,55 @@ class QueryTest(parameterized.TestCase):
         # sure leads to the empty result.
         self.assertTrue(result_df.toPandas().empty)
 
+    def test_run_query_does_not_recompute_noise_on_repeated_actions(self):
+        spark = self._get_spark_session()
+        df = spark.createDataFrame(get_pandas_df())
+        columns = dataframes.Columns("privacy_key", "group_key", "value")
+        metrics = {ap.Metrics.COUNT: "count_column"}
+        bounds = dataframes.ContributionBounds(
+            max_partitions_contributed=2, max_contributions_per_partition=2)
+        query = dataframes.Query(df,
+                                 columns,
+                                 metrics,
+                                 bounds,
+                                 public_partitions=["key1"])
+
+        result_df = query.run_query(dataframes.Budget(1.0, 0.0))
+        first = result_df.collect()
+        first_pd = result_df.toPandas()
+        for _ in range(5):
+            self.assertEqual(result_df.collect(), first)
+            self.assertEqual(result_df.count(), len(first))
+            self.assertEqual(
+                result_df.filter("group_key == 'key1'").collect(), first)
+            pd.testing.assert_frame_equal(result_df.toPandas(), first_pd)
+
+    def test_run_query_private_partitions_does_not_recompute_noise(self):
+        spark = self._get_spark_session()
+        rows = [(u, "safe", 1.0) for u in range(50)
+               ] + [(50 + b * 4 + j, f"border_{b}", 1.0)
+                    for b in range(15)
+                    for j in range(4)]
+        df = spark.createDataFrame(
+            pd.DataFrame(rows, columns=["privacy_key", "group_key", "value"]))
+        columns = dataframes.Columns("privacy_key", "group_key", "value")
+        metrics = {ap.Metrics.COUNT: "count_column"}
+        bounds = dataframes.ContributionBounds(
+            max_partitions_contributed=1, max_contributions_per_partition=1)
+        query = dataframes.Query(df,
+                                 columns,
+                                 metrics,
+                                 bounds,
+                                 public_partitions=None)
+        result_df = query.run_query(dataframes.Budget(2.0, 0.2))
+        first = sorted(result_df.collect(), key=lambda r: r["group_key"])
+        self.assertIn("safe", [r["group_key"] for r in first])
+        for _ in range(5):
+            self.assertEqual(
+                sorted(result_df.collect(), key=lambda r: r["group_key"]),
+                first)
+            self.assertEqual(result_df.count(), len(first))
+
 
 if __name__ == '__main__':
     absltest.main()

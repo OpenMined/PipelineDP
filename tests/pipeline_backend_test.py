@@ -331,6 +331,38 @@ class LocalBackendTest(unittest.TestCase):
         self.assertEqual(list(output), [1, 2, 3])
         self.assertEqual(list(output), [1, 2, 3])
 
+    def test_defer_cache_skips_callback_when_cache_not_overridden(self):
+        backend = pipeline_backend.LocalBackend()
+        scheduled = []
+        data = [1, 2, 3]
+        self.assertIs(backend.defer_cache(data, scheduled.append), data)
+        self.assertEqual(scheduled, [])
+
+    def test_defer_cache_schedules_custom_cache_override(self):
+
+        class CustomCacheBackend(pipeline_backend.LocalBackend):
+
+            def __init__(self):
+                super().__init__()
+                self.cached = []
+
+            def cache(self, col):
+                self.cached.append(col)
+                return col
+
+        backend = CustomCacheBackend()
+        scheduled = []
+        data = [1, 2, 3]
+        self.assertIs(backend.defer_cache(data, scheduled.append), data)
+        self.assertEqual(backend.cached, [])
+        self.assertEqual(len(scheduled), 1)
+        scheduled[0]()
+        self.assertEqual(backend.cached, [data])
+        # Registering without scheduler caches immediately.
+        data2 = [4, 5]
+        self.assertIs(backend.defer_cache(data2), data2)
+        self.assertEqual(backend.cached, [data, data2])
+
 
 class SumCombiner(dp_combiners.Combiner):
 

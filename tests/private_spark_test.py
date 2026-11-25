@@ -18,6 +18,7 @@ from unittest.mock import patch
 import unittest
 import sys
 import collections
+import pipeline_dp
 from pipeline_dp import aggregate_params as ap
 from pipeline_dp import budget_accounting
 from pipeline_dp import private_spark
@@ -794,6 +795,163 @@ class PrivateRDDTest(parameterized.TestCase):
         # This is a health check to validate that the result is sensible.
         # Hence, we use a very large tolerance to reduce test flakiness.
         self.assertEqual(sorted(actual_result.collect()), ["pk1", "pk2"])
+
+    def test_private_rdd_methods_cache_dp_output_across_actions(self):
+        col = [(u, "p", float(u)) for u in range(100)]
+        dist_data = PrivateRDDTest.sc.parallelize(col)
+
+        accountant = budget_accounting.NaiveBudgetAccountant(total_epsilon=6.0,
+                                                             total_delta=0.1)
+        prdd = private_spark.make_private(dist_data, accountant, lambda r: r[0])
+        common_args = dict(noise_kind=ap.NoiseKind.LAPLACE,
+                           max_partitions_contributed=1,
+                           partition_extractor=lambda r: r[1])
+        value_args = dict(**common_args,
+                          max_contributions_per_partition=1,
+                          min_value=0.0,
+                          max_value=10.0,
+                          value_extractor=lambda r: r[2])
+        results = [
+            prdd.count(ap.CountParams(**common_args,
+                                      max_contributions_per_partition=1),
+                       public_partitions=["p"]),
+            prdd.sum(ap.SumParams(**value_args), public_partitions=["p"]),
+            prdd.mean(ap.MeanParams(**value_args), public_partitions=["p"]),
+            prdd.variance(ap.VarianceParams(**value_args),
+                          public_partitions=["p"]),
+            prdd.privacy_id_count(ap.PrivacyIdCountParams(**common_args),
+                                  public_partitions=["p"]),
+        ]
+        # Narrow transform chained BEFORE compute_budgets() must not bypass cache.
+        pre_filtered_count = results[0].filter(lambda kv: kv[0] == "p")
+        accountant.compute_budgets()
+
+        for res in results + [pre_filtered_count]:
+            first = res.collect()
+            for _ in range(5):
+                self.assertEqual(res.collect(), first)
+                self.assertEqual(res.count(), len(first))
+        self.assertEqual(pre_filtered_count.collect(), results[0].collect())
+        self.assertEqual(results[0].filter(lambda kv: kv[0] == "p").collect(),
+                         results[0].collect())
+
+        sp_col = [(u, "safe") for u in range(60)] + [
+            (60 + b * 4 + j, f"border_{b}") for b in range(15) for j in range(4)
+        ]
+        sp_accountant = budget_accounting.NaiveBudgetAccountant(
+            total_epsilon=2.0, total_delta=0.2)
+        sp_prdd = private_spark.make_private(
+            PrivateRDDTest.sc.parallelize(sp_col), sp_accountant,
+            lambda r: r[0])
+        sp_result = sp_prdd.select_partitions(
+            ap.SelectPartitionsParams(max_partitions_contributed=1),
+            lambda r: r[1])
+        self.assertFalse(sp_result.is_cached)
+        sp_accountant.compute_budgets()
+        self.assertTrue(sp_result.is_cached)
+        first_sp = sorted(sp_result.collect())
+        self.assertIn("safe", first_sp)
+        for _ in range(5):
+            self.assertEqual(sorted(sp_result.collect()), first_sp)
+
+    def test_dp_engine_spark_caches_aggregate_select_partitions_and_noise(self):
+        backend = pipeline_dp.SparkRDDBackend(PrivateRDDTest.sc)
+        accountant = budget_accounting.NaiveBudgetAccountant(total_epsilon=4.0,
+                                                             total_delta=0.4)
+        dp_engine = pipeline_dp.DPEngine(accountant, backend)
+
+        agg_rdd = PrivateRDDTest.sc.parallelize([
+            (u, "p", float(u % 5 + 1)) for u in range(50)
+        ])
+        extractors = pipeline_dp.DataExtractors(
+            privacy_id_extractor=lambda r: r[0],
+            partition_extractor=lambda r: r[1],
+            value_extractor=lambda r: r[2])
+        agg_params = ap.AggregateParams(
+            noise_kind=ap.NoiseKind.LAPLACE,
+            metrics=[ap.Metrics.COUNT, ap.Metrics.SUM],
+            max_partitions_contributed=1,
+            max_contributions_per_partition=1,
+            min_value=0.0,
+            max_value=5.0)
+        agg_result = dp_engine.aggregate(agg_rdd,
+                                         agg_params,
+                                         extractors,
+                                         public_partitions=["p"])
+        pre_counts = agg_result.mapValues(lambda v: v.count)
+        pre_sums = agg_result.mapValues(lambda v: v.sum)
+
+        sp_rows = [(u, "safe") for u in range(80)] + [
+            (80 + b * 4 + j, f"border_{b}") for b in range(20) for j in range(4)
+        ]
+        sp_rdd = PrivateRDDTest.sc.parallelize(sp_rows)
+        sp_extractors = pipeline_dp.DataExtractors(
+            privacy_id_extractor=lambda r: r[0],
+            partition_extractor=lambda r: r[1])
+        sp_result = dp_engine.select_partitions(
+            sp_rdd, ap.SelectPartitionsParams(max_partitions_contributed=1),
+            sp_extractors)
+
+        wg_result = dp_engine.select_partitions(
+            sp_rdd,
+            ap.SelectPartitionsParams(
+                max_partitions_contributed=1,
+                partition_selection_strategy=ap.PartitionSelectionStrategy.
+                WEIGHTED_GAUSSIAN_THRESHOLDING), sp_extractors)
+
+        noise_rdd = PrivateRDDTest.sc.parallelize([("p", 10.0)])
+        noise_result = dp_engine.add_dp_noise(
+            noise_rdd,
+            ap.AddDPNoiseParams(noise_kind=ap.NoiseKind.LAPLACE,
+                                l1_sensitivity=1.0))
+
+        for res in (agg_result, sp_result, wg_result, noise_result):
+            self.assertFalse(res.is_cached)
+
+        accountant.compute_budgets()
+
+        for res in (agg_result, sp_result, wg_result, noise_result):
+            self.assertTrue(res.is_cached)
+            first = sorted(res.collect())
+            if res in (sp_result, wg_result):
+                self.assertIn("safe", first)
+            for _ in range(5):
+                self.assertEqual(sorted(res.collect()), first)
+
+        first_counts = pre_counts.collect()
+        first_sums = pre_sums.collect()
+        self.assertEqual(first_counts[0][1], agg_result.collect()[0][1].count)
+        self.assertEqual(first_sums[0][1], agg_result.collect()[0][1].sum)
+        for _ in range(5):
+            self.assertEqual(pre_counts.collect(), first_counts)
+            self.assertEqual(pre_sums.collect(), first_sums)
+
+    def test_dp_engine_spark_with_pld_accountant_caches_across_actions(self):
+        backend = pipeline_dp.SparkRDDBackend(PrivateRDDTest.sc)
+        accountant = budget_accounting.PLDBudgetAccountant(total_epsilon=2.0,
+                                                           total_delta=1e-3)
+        dp_engine = pipeline_dp.DPEngine(accountant, backend)
+        agg_rdd = PrivateRDDTest.sc.parallelize([
+            (u, "p", 1.0) for u in range(50)
+        ])
+        extractors = pipeline_dp.DataExtractors(
+            privacy_id_extractor=lambda r: r[0],
+            partition_extractor=lambda r: r[1],
+            value_extractor=lambda r: r[2])
+        agg_result = dp_engine.aggregate(agg_rdd,
+                                         ap.AggregateParams(
+                                             noise_kind=ap.NoiseKind.LAPLACE,
+                                             metrics=[ap.Metrics.COUNT],
+                                             max_partitions_contributed=1,
+                                             max_contributions_per_partition=1),
+                                         extractors,
+                                         public_partitions=["p"])
+        self.assertFalse(agg_result.is_cached)
+        accountant.compute_budgets()
+        self.assertTrue(agg_result.is_cached)
+        first = agg_result.collect()
+        for _ in range(5):
+            self.assertEqual(agg_result.collect(), first)
 
     @classmethod
     def tearDownClass(cls):
